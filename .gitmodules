@@ -1,0 +1,4 @@
+[submodule "lib/synapse"]
+	path = lib/synapse
+	url = https://github.com/geby/synapse
+	branch = master
