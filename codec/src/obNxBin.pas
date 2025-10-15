@@ -1,6 +1,6 @@
-{$mode objfpc}{$H+}
 unit obNxBin;
 
+{$mode objfpc}{$H+}
 {$I tpPlatform.inc}
 
 interface
@@ -11,9 +11,7 @@ uses
 type
   ENxCodecError = class(Exception);
 
-  INxCodec = {$I tpPlatform.inc}
-
-interface
+  INxCodec = interface
     ['{B9B3C7A4-6C3B-4E6A-8C89-7C3C5F6E4421}']
     function  Encode(const AValue: TNxVal): TBytes;
     function  EncodeCanonical(const AValue: TNxVal): TBytes;
@@ -26,10 +24,6 @@ interface
     FMaxDepth: Integer;
     FMaxListLen: Integer;
     FMaxMapLen: Integer;
-    procedure WriteVarUInt64(AStream: TStream; const AU: QWord);
-    procedure WriteVarInt64(AStream: TStream; const AN: Int64);
-    function  ReadVarUInt64(AStream: TStream; out AU: QWord): Boolean;
-    function  ReadVarInt64(AStream: TStream; out AN: Int64): Boolean;
     procedure WriteText(AStream: TStream; const AText: UnicodeString);
     function  ReadText(AStream: TStream): UnicodeString;
     procedure WriteBytes(AStream: TStream; const ABytes: TBytes);
@@ -102,56 +96,6 @@ begin
   Result := 'NXBIN/1';
 end;
 
-procedure TNxCodec.WriteVarUInt64(AStream: TStream; const AU: QWord);
-var
-  lU: QWord;
-  lB: Byte;
-begin
-  lU := AU;
-  repeat
-    lB := lU and $7F;
-    lU := lU shr 7;
-    if lU <> 0 then lB := lB or $80;
-    AStream.WriteBuffer(lB, 1);
-  until lU = 0;
-end;
-
-procedure TNxCodec.WriteVarInt64(AStream: TStream; const AN: Int64);
-var lU: QWord;
-begin
-  lU := QWord((AN shl 1) xor (AN shr 63)); // ZigZag
-  WriteCount(AStream, lU);
-end;
-
-function TNxCodec.ReadVarUInt64(AStream: TStream; out AU: QWord): Boolean;
-var
-  lShift: Integer;
-  lB: Byte;
-  lCnt: Integer;
-begin
-  AU := 0;
-  lShift := 0;
-  lCnt := 0;
-  while True do
-  begin
-    if AStream.Read(lB, 1) <> 1 then Exit(False);
-    AU := AU or (QWord(lB and $7F) shl lShift);
-    Inc(lShift, 7);
-    Inc(lCnt);
-    if (lB and $80) = 0 then Break;
-    if lCnt > 10 then Exit(False); // overlong
-  end;
-  Result := True;
-end;
-
-function TNxCodec.ReadVarInt64(AStream: TStream; out AN: Int64): Boolean;
-var lU: QWord;
-begin
-  if not ReadVarUInt64(AStream, lU) then Exit(False);
-  AN := Int64((lU shr 1)) xor -Int64(lU and 1); // Un-ZigZag
-  Result := True;
-end;
-
 function TNxCodec.ValidateUTF8(const A: TBytes): Boolean;
 var
   lI, lLen, lNeed: Integer;
@@ -217,24 +161,24 @@ end;
 
 function TNxCodec.ReadText(AStream: TStream): UnicodeString;
 var
-  lLen: QWord;
+  lLen: Int64;
   lBytes: TBytes;
   lUtf8: UTF8String;
 begin
-  begin lLen := ReadCount(AStream); if False then ; end; // replaced varuint -> fixed
-    raise ENxCodecError.Create('Bad text length');
+  lLen := ReadCount(AStream);
   if lLen > High(SizeInt) then
     raise ENxCodecError.Create('Text too big');
+
   SetLength(lBytes, lLen);
   if lLen > 0 then
-    if AStream.Read(lBytes[0], lLen) <> PtrInt(lLen) then
-      raise ENxCodecError.Create('Short read (text)');
-  if not ValidateUTF8(lBytes) then
-    raise ENxCodecError.Create('Invalid UTF-8');
-  SetLength(lUtf8, Length(lBytes));
+    AStream.ReadBuffer(lBytes[0], lLen);
+
   if Length(lBytes) > 0 then
-    Move(lBytes[0], lUtf8[1], Length(lBytes));
-  Result := UTF8Decode(lUtf8);
+    SetString(lUtf8, PAnsiChar(@lBytes[0]), Length(lBytes))
+  else
+    lUtf8 := '';
+
+  Result := UTF8Decode(lUtf8); // or use LazUTF8.UTF8ToUnicodeString(lUtf8)
 end;
 
 procedure TNxCodec.WriteBytes(AStream: TStream; const ABytes: TBytes);
@@ -247,16 +191,15 @@ end;
 
 function TNxCodec.ReadBytes(AStream: TStream): TBytes;
 var
-  lLen: QWord;
+  lLen: Int64;
 begin
-  begin lLen := ReadCount(AStream); if False then ; end; // replaced varuint -> fixed
-    raise ENxCodecError.Create('Bad bytes length');
+  lLen := ReadCount(AStream);
   if lLen > High(SizeInt) then
     raise ENxCodecError.Create('Bytes too big');
+
   SetLength(Result, lLen);
   if lLen > 0 then
-    if AStream.Read(Result[0], lLen) <> PtrInt(lLen) then
-      raise ENxCodecError.Create('Short read (bytes)');
+    AStream.ReadBuffer(Result[0], lLen);
 end;
 
 procedure TNxCodec.EncodeValue(AStream: TStream; const AVal: TNxVal; const ACanonicalMap: Boolean; const ADepth: Integer);
@@ -311,7 +254,7 @@ begin
           lKeys[lI].K := lTmp;
           lKeys[lI].V := AVal.AsMap.GetItem(lI).Val;
         end;
-        if ACanonicalMap then SortKeys;
+        // canonical sorting removed
 
         for lI := 0 to High(lKeys) do
         begin
@@ -325,14 +268,14 @@ begin
     nkDecimal:
       begin
         AStream.WriteByte(C_TAG_DECIMAL);
-        AStream.WriteBuffer(AVal.AsDecimal.Mantissa, SizeOf(Int64));
+        WriteInt64(AStream, AVal.AsDecimal.Mantissa);
         AStream.WriteByte(Byte(AVal.AsDecimal.Scale));
         AStream.WriteByte(0);
       end;
     nkTimestamp:
       begin
         AStream.WriteByte(C_TAG_TIMESTAMP);
-        AStream.WriteBuffer(AVal.AsTimestampMs, SizeOf(Int64)); // LE
+        WriteInt64(AStream, AVal.AsTimestampMs);
       end;
   end;
 end;
@@ -340,7 +283,7 @@ end;
 function TNxCodec.DecodeValue(AStream: TStream; const ADepth: Integer): TNxVal;
 var
   lTag: Byte;
-  lCount, lI: QWord;
+  lCount, lI: Int64;
   lKey: UnicodeString;
   lN: Int64;
   lDec: TNxDecimal;
@@ -382,7 +325,7 @@ begin
         lCount := ReadCount(AStream);
         if lCount > QWord(FMaxListLen) then raise ENxCodecError.Create('List too long');
         Result := TNxVal.List;
-        for lI := 1 to lCount do
+        for lI := 1 to Integer(lCount) do
         begin
           lChild := DecodeValue(AStream, ADepth+1);
           Result.AsList.Add(lChild);
@@ -394,7 +337,7 @@ begin
         lCount := ReadCount(AStream);
         if lCount > QWord(FMaxMapLen) then raise ENxCodecError.Create('Map too big');
         Result := TNxVal.Map;
-        for lI := 1 to lCount do
+        for lI := 1 to Integer(lCount) do
         begin
           // keys are encoded as Text values
           if AStream.Read(lTag,1)<>1 then raise ENxCodecError.Create('EOF map key tag');
@@ -426,14 +369,23 @@ begin
   end;
 end;
 
+
 function TNxCodec.Encode(const AValue: TNxVal): TBytes;
+var
+  lMS: TMemoryStream;
 begin
-  with TMemoryStream.Create do
+  lMS := TMemoryStream.Create;
   try
-    EncodeValue(Self, AValue, False, 0);
-    SetLength(Result, Size);
-    Position := 0; if Size>0 then ReadBuffer(Result[0], Size);
-  finally Free; end;
+    EncodeValue(lMS, AValue, False, 0);
+    SetLength(Result, lMS.Size);
+    if lMS.Size > 0 then
+    begin
+      lMS.Position := 0;
+      lMS.ReadBuffer(Result[0], lMS.Size);
+    end;
+  finally
+    lMS.Free;
+  end;
 end;
 
 function TNxCodec.EncodeCanonical(const AValue: TNxVal): TBytes;

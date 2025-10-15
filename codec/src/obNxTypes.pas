@@ -7,6 +7,8 @@ uses
   Classes, SysUtils, fgl;
 
 type
+  ENxTypeError = class(Exception);
+
   TStringArray = array of UnicodeString;
   TNxKind = (nkNull, nkBool, nkInt, nkInt64, nkBytes, nkText, nkList, nkMap, nkDecimal, nkTimestamp);
 
@@ -213,7 +215,14 @@ begin
 end;
 
 function TNxVal.AsBool: Boolean; begin if FKind<>nkBool then raise Exception.Create('Kind!=Bool'); Result := FBool; end;
-function TNxVal.AsInt: Int64; begin if FKind<>nkInt then raise Exception.Create('Kind!=Int'); Result := FInt; end;
+
+function TNxVal.AsInt: Int64;
+begin
+  if not (FKind in [nkInt, nkInt64]) then
+    raise ENxTypeError.Create('Kind!=Int/Int64');
+  Result := FInt;
+end;
+
 function TNxVal.AsBytes: TBytes; begin if FKind<>nkBytes then raise Exception.Create('Kind!=Bytes'); Result := FBytes; end;
 function TNxVal.AsText: UnicodeString; begin if FKind<>nkText then raise Exception.Create('Kind!=Text'); Result := FText; end;
 function TNxVal.AsList: TNxList; begin if FKind<>nkList then raise Exception.Create('Kind!=List'); Result := FList; end;
@@ -222,7 +231,14 @@ function TNxVal.AsDecimal: TNxDecimal; begin if FKind<>nkDecimal then raise Exce
 function TNxVal.AsTimestampMs: Int64; begin if FKind<>nkTimestamp then raise Exception.Create('Kind!=Timestamp'); Result := FInt; end;
 
 function TNxVal.TryAsBool(out AOut: Boolean): Boolean; begin Result := FKind=nkBool; if Result then AOut:=FBool; end;
-function TNxVal.TryAsInt(out AOut: Int64): Boolean; begin Result := (FKind=nkInt) or (FKind=nkInt64); if Result then AOut:=FInt; end;
+
+function TNxVal.TryAsInt(out AOut: Int64): Boolean;
+begin
+  Result := FKind in [nkInt, nkInt64];
+  if Result then
+    AOut:=FInt;
+end;
+
 function TNxVal.TryAsBytes(out AOut: TBytes): Boolean; begin Result := FKind=nkBytes; if Result then AOut:=FBytes; end;
 function TNxVal.TryAsText(out AOut: UnicodeString): Boolean; begin Result := FKind=nkText; if Result then AOut:=FText; end;
 function TNxVal.TryAsList(out AOut: TNxList): Boolean; begin Result := FKind=nkList; if Result then AOut:=FList; end;

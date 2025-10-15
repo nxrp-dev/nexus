@@ -37,9 +37,9 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="tcnxrpcodectests.pas"/>
+        <Filename Value="obnxrpcodectests.pas"/>
         <IsPartOfProject Value="True"/>
-        <UnitName Value="tcNxrpCodecTests"/>
+        <UnitName Value="obNxrpCodecTests"/>
       </Unit>
     </Units>
   </ProjectOptions>
@@ -75,6 +75,15 @@
       </Item>
       <Item>
         <Name Value="EFOpenError"/>
+      </Item>
+      <Item>
+        <Name Value="Exception"/>
+      </Item>
+      <Item>
+        <Name Value="ENxCodecError"/>
+      </Item>
+      <Item>
+        <Name Value="ENxTypeError"/>
       </Item>
     </Exceptions>
   </Debugging>
