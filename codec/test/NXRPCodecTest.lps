@@ -18,22 +18,37 @@
         <Filename Value="tcnxrpcodectests.pas"/>
         <IsPartOfProject Value="True"/>
         <UnitName Value="tcNxrpCodecTests"/>
-        <IsVisibleTab Value="True"/>
-        <TopLine Value="380"/>
-        <CursorPos X="49" Y="387"/>
+        <CursorPos X="54" Y="14"/>
         <UsageCount Value="20"/>
         <Loaded Value="True"/>
       </Unit>
       <Unit>
         <Filename Value="obnxrpcodectests.pas"/>
         <UnitName Value="obNxrpCodecTests"/>
+        <EditorIndex Value="3"/>
+        <CursorPos X="21" Y="8"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\src\utCodecIO.pas"/>
         <EditorIndex Value="1"/>
-        <CursorPos X="40" Y="8"/>
+        <TopLine Value="67"/>
+        <CursorPos X="39" Y="85"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\src\obNxBin.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="422"/>
+        <CursorPos Y="443"/>
         <UsageCount Value="10"/>
         <Loaded Value="True"/>
       </Unit>
     </Units>
-    <JumpHistory HistoryIndex="2">
+    <JumpHistory HistoryIndex="9">
       <Position>
         <Filename Value="obnxrpcodectests.pas"/>
         <Caret Line="11"/>
@@ -45,6 +60,34 @@
       <Position>
         <Filename Value="obnxrpcodectests.pas"/>
         <Caret Line="8" Column="40"/>
+      </Position>
+      <Position>
+        <Filename Value="tcnxrpcodectests.pas"/>
+        <Caret Line="116" Column="49" TopLine="77"/>
+      </Position>
+      <Position>
+        <Filename Value="tcnxrpcodectests.pas"/>
+        <Caret Line="14" Column="54"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\utCodecIO.pas"/>
+        <Caret Line="87" Column="11" TopLine="67"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\utCodecIO.pas"/>
+        <Caret Line="85" Column="39" TopLine="67"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\obNxBin.pas"/>
+        <Caret Line="432" Column="44" TopLine="414"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\obNxBin.pas"/>
+        <Caret Line="438" TopLine="419"/>
+      </Position>
+      <Position>
+        <Filename Value="..\src\obNxBin.pas"/>
+        <Caret Line="433" Column="21" TopLine="414"/>
       </Position>
     </JumpHistory>
     <RunParams>

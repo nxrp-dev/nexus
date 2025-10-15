@@ -8,7 +8,7 @@ uses
 
 type
   TStringArray = array of UnicodeString;
-  TNxKind = (nkNull, nkBool, nkInt, nkBytes, nkText, nkList, nkMap, nkDecimal, nkTimestamp);
+  TNxKind = (nkNull, nkBool, nkInt, nkInt64, nkBytes, nkText, nkList, nkMap, nkDecimal, nkTimestamp);
 
   TNxDecimal = record
     Mantissa: Int64;   // e.g. 123456
@@ -56,6 +56,7 @@ type
     constructor CreateNull;
     constructor CreateBool(const AValue: Boolean);
     constructor CreateInt(const AValue: Int64);
+    constructor CreateInt64(const AValue: Int64);
     constructor CreateBytes(const ABytes: TBytes);
     constructor CreateText(const AText: UnicodeString);
     constructor CreateList;
@@ -90,6 +91,7 @@ type
     class function Null: TNxVal; static;
     class function Bool(const AValue: Boolean): TNxVal; static;
     class function Int(const AValue: Int64): TNxVal; static;
+    class function Int64(const AValue: Int64): TNxVal; static;
     class function Bytes(const ABytes: TBytes): TNxVal; static;
     class function Text(const AText: UnicodeString): TNxVal; static;
     class function List: TNxVal; static;
@@ -220,7 +222,7 @@ function TNxVal.AsDecimal: TNxDecimal; begin if FKind<>nkDecimal then raise Exce
 function TNxVal.AsTimestampMs: Int64; begin if FKind<>nkTimestamp then raise Exception.Create('Kind!=Timestamp'); Result := FInt; end;
 
 function TNxVal.TryAsBool(out AOut: Boolean): Boolean; begin Result := FKind=nkBool; if Result then AOut:=FBool; end;
-function TNxVal.TryAsInt(out AOut: Int64): Boolean; begin Result := FKind=nkInt; if Result then AOut:=FInt; end;
+function TNxVal.TryAsInt(out AOut: Int64): Boolean; begin Result := (FKind=nkInt) or (FKind=nkInt64); if Result then AOut:=FInt; end;
 function TNxVal.TryAsBytes(out AOut: TBytes): Boolean; begin Result := FKind=nkBytes; if Result then AOut:=FBytes; end;
 function TNxVal.TryAsText(out AOut: UnicodeString): Boolean; begin Result := FKind=nkText; if Result then AOut:=FText; end;
 function TNxVal.TryAsList(out AOut: TNxList): Boolean; begin Result := FKind=nkList; if Result then AOut:=FList; end;
@@ -237,5 +239,18 @@ class function TNxVal.List: TNxVal; begin Result := TNxVal.CreateList; end;
 class function TNxVal.Map: TNxVal; begin Result := TNxVal.CreateMap; end;
 class function TNxVal.Decimal(const AMantissa: Int64; const AScale: ShortInt): TNxVal; var lD: TNxDecimal; begin lD.Mantissa:=AMantissa; lD.Scale:=AScale; Result := TNxVal.CreateDecimal(lD); end;
 class function TNxVal.TimestampMs(const AUnixMs: Int64): TNxVal; begin Result := TNxVal.CreateTimestampMs(AUnixMs); end;
+
+// New Int64 constructor/factory
+constructor TNxVal.CreateInt64(const AValue: Int64);
+begin
+  inherited Create;
+  FKind := nkInt64;
+  FInt := AValue;
+end;
+
+class function TNxVal.Int64(const AValue: Int64): TNxVal;
+begin
+  Result := TNxVal.CreateInt64(AValue);
+end;
 
 end.
