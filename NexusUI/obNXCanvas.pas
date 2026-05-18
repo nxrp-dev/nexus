@@ -5,6 +5,7 @@ unit obNXCanvas;
 interface
 
 uses
+  Math,
   obNXFont,
   obNXPlatform,
   tpNXPlatform;
@@ -13,6 +14,9 @@ type
   TNXCanvas = class
   private
     FPlatform: TNXPlatform;
+
+    procedure DrawNineSlicePart(AImage: TNXImageHandle; const ASourceRect,
+      ADestRect: TNXRect);
   public
     constructor Create(APlatform: TNXPlatform);
 
@@ -30,6 +34,8 @@ type
     procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect); overload;
     procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
       ADestRect: TNXRect); overload;
+    procedure DrawNineSlice(AImage: TNXImageHandle; const ASourceRect: TNXRect;
+      ALeft, ATop, ARight, ABottom: Integer; const ADestRect: TNXRect);
     function TextWidth(const AText: string; AFont: TNXFont): Integer;
 
     property Platform: TNXPlatform read FPlatform;
@@ -107,6 +113,103 @@ procedure TNXCanvas.DrawImage(AImage: TNXImageHandle; const ASourceRect,
   ADestRect: TNXRect);
 begin
   FPlatform.DrawImage(AImage, ASourceRect, ADestRect);
+end;
+
+procedure TNXCanvas.DrawNineSlicePart(AImage: TNXImageHandle;
+  const ASourceRect, ADestRect: TNXRect);
+begin
+  if (ASourceRect.w <= 0) or (ASourceRect.h <= 0) or
+    (ADestRect.w <= 0) or (ADestRect.h <= 0) then
+    Exit;
+
+  DrawImage(AImage, ASourceRect, ADestRect);
+end;
+
+procedure TNXCanvas.DrawNineSlice(AImage: TNXImageHandle;
+  const ASourceRect: TNXRect; ALeft, ATop, ARight, ABottom: Integer;
+  const ADestRect: TNXRect);
+var
+  lDestBottom: Integer;
+  lDestCenterHeight: Integer;
+  lDestCenterWidth: Integer;
+  lDestLeft: Integer;
+  lDestRight: Integer;
+  lDestTop: Integer;
+  lSourceBottom: Integer;
+  lSourceCenterHeight: Integer;
+  lSourceCenterWidth: Integer;
+  lSourceLeft: Integer;
+  lSourceRight: Integer;
+  lSourceTop: Integer;
+begin
+  if (AImage = nil) or (ASourceRect.w <= 0) or (ASourceRect.h <= 0) or
+    (ADestRect.w <= 0) or (ADestRect.h <= 0) then
+    Exit;
+
+  lSourceLeft := EnsureRange(ALeft, 0, ASourceRect.w);
+  lSourceRight := EnsureRange(ARight, 0, ASourceRect.w - lSourceLeft);
+  lSourceTop := EnsureRange(ATop, 0, ASourceRect.h);
+  lSourceBottom := EnsureRange(ABottom, 0, ASourceRect.h - lSourceTop);
+
+  lDestLeft := Min(lSourceLeft, ADestRect.w);
+  lDestRight := Min(lSourceRight, Max(0, ADestRect.w - lDestLeft));
+  lDestTop := Min(lSourceTop, ADestRect.h);
+  lDestBottom := Min(lSourceBottom, Max(0, ADestRect.h - lDestTop));
+
+  lSourceCenterWidth := ASourceRect.w - lSourceLeft - lSourceRight;
+  lSourceCenterHeight := ASourceRect.h - lSourceTop - lSourceBottom;
+  lDestCenterWidth := ADestRect.w - lDestLeft - lDestRight;
+  lDestCenterHeight := ADestRect.h - lDestTop - lDestBottom;
+
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x, ASourceRect.y, lSourceLeft, lSourceTop),
+    MakeNXRect(ADestRect.x, ADestRect.y, lDestLeft, lDestTop));
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x + lSourceLeft, ASourceRect.y,
+      lSourceCenterWidth, lSourceTop),
+    MakeNXRect(ADestRect.x + lDestLeft, ADestRect.y,
+      lDestCenterWidth, lDestTop));
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x + ASourceRect.w - lSourceRight, ASourceRect.y,
+      lSourceRight, lSourceTop),
+    MakeNXRect(ADestRect.x + ADestRect.w - lDestRight, ADestRect.y,
+      lDestRight, lDestTop));
+
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x, ASourceRect.y + lSourceTop,
+      lSourceLeft, lSourceCenterHeight),
+    MakeNXRect(ADestRect.x, ADestRect.y + lDestTop,
+      lDestLeft, lDestCenterHeight));
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x + lSourceLeft, ASourceRect.y + lSourceTop,
+      lSourceCenterWidth, lSourceCenterHeight),
+    MakeNXRect(ADestRect.x + lDestLeft, ADestRect.y + lDestTop,
+      lDestCenterWidth, lDestCenterHeight));
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x + ASourceRect.w - lSourceRight,
+      ASourceRect.y + lSourceTop, lSourceRight, lSourceCenterHeight),
+    MakeNXRect(ADestRect.x + ADestRect.w - lDestRight,
+      ADestRect.y + lDestTop, lDestRight, lDestCenterHeight));
+
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x, ASourceRect.y + ASourceRect.h - lSourceBottom,
+      lSourceLeft, lSourceBottom),
+    MakeNXRect(ADestRect.x, ADestRect.y + ADestRect.h - lDestBottom,
+      lDestLeft, lDestBottom));
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x + lSourceLeft,
+      ASourceRect.y + ASourceRect.h - lSourceBottom,
+      lSourceCenterWidth, lSourceBottom),
+    MakeNXRect(ADestRect.x + lDestLeft,
+      ADestRect.y + ADestRect.h - lDestBottom,
+      lDestCenterWidth, lDestBottom));
+  DrawNineSlicePart(AImage,
+    MakeNXRect(ASourceRect.x + ASourceRect.w - lSourceRight,
+      ASourceRect.y + ASourceRect.h - lSourceBottom,
+      lSourceRight, lSourceBottom),
+    MakeNXRect(ADestRect.x + ADestRect.w - lDestRight,
+      ADestRect.y + ADestRect.h - lDestBottom,
+      lDestRight, lDestBottom));
 end;
 
 function TNXCanvas.TextWidth(const AText: string; AFont: TNXFont): Integer;

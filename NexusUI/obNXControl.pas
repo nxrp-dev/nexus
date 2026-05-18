@@ -10,6 +10,7 @@ type
   private
     FFont: TNXFont;
     FMetricFont: TNXFont;
+    FSkinClass: string;
   protected
     FBackColor: TNXColor;
     FForeColor: TNXColor;
@@ -56,6 +57,7 @@ type
     property AbsContentRect: TNXRect read GetAbsContentRect;
     property ContentRect: TNXRect read GetContentRect;
     property FillStyle: TFillStyle read FFillStyle write FFillStyle;
+    property SkinClass: string read FSkinClass write FSkinClass;
     property Caption: string read FCaption write FCaption;
   end;
 
@@ -246,6 +248,7 @@ begin
   BorderColor := Skin.BorderColor;
   ActiveColor := Skin.ActiveColor;
   FillStyle := FS_Filled;
+  SkinClass := '';
 end;
 
 constructor TNXControl.Create(AParent: TNXElement; const ARect: TNXRect);

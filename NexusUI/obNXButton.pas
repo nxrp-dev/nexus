@@ -5,12 +5,17 @@ unit obNXButton;
 interface
 
 uses
+  obNXSkin,
   tpNXPlatform,
+  tpNXSkin,
   obNXElement,
   obNXControl;
 
 type
   TNXButton = class(TNXControl)
+  protected
+    function GetSkinState: TNXSkinState; virtual;
+    function TryRenderSkinnedBackground: Boolean; virtual;
   public
     constructor Create(AParent: TNXElement); overload; override;
     procedure Render; override;
@@ -20,19 +25,64 @@ type
 
 implementation
 
+const
+  cButtonBackgroundPart = 'Background';
+
 constructor TNXButton.Create(AParent: TNXElement);
 begin
   inherited Create(AParent);
   BorderStyle := BS_Single;
+  SkinClass := 'Button';
+end;
+
+function TNXButton.GetSkinState: TNXSkinState;
+begin
+  if not Enabled then
+    Result := ssDisabled
+  else if mbLeft in ButtonStates then
+    Result := ssPressed
+  else if MouseEntered then
+    Result := ssHot
+  else if IsSelected then
+    Result := ssFocused
+  else
+    Result := ssNormal;
+end;
+
+function TNXButton.TryRenderSkinnedBackground: Boolean;
+var
+  lRect: TNXRect;
+  lSlice: TNXNineSlice;
+begin
+  Result := False;
+
+  if (SkinClass = '') or (Skin = nil) or (Canvas = nil) then
+    Exit;
+
+  Result := Skin.GetNineSlice(SkinClass, cButtonBackgroundPart,
+    GetSkinState, lSlice);
+  if (not Result) or (lSlice.Image = nil) then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  lRect := MakeNXRect(AbsLeft, AbsTop, Width, Height);
+  Canvas.DrawNineSlice(lSlice.Image, lSlice.SourceRect, lSlice.Left,
+    lSlice.Top, lSlice.Right, lSlice.Bottom, lRect);
 end;
 
 procedure TNXButton.Render;
 begin
-  if mbLeft in ButtonStates then
-    CurFillColor := ActiveColor
-  else
-    CurFillColor := BackColor;
-  inherited;
+  if not TryRenderSkinnedBackground then
+  begin
+    if mbLeft in ButtonStates then
+      CurFillColor := ActiveColor
+    else
+      CurFillColor := BackColor;
+    inherited Render;
+  end;
+
   RenderText(Caption, Width div 2, (Height - FontHeight) div 2,
     Align_Center);
 end;

@@ -44,6 +44,15 @@ Examples:
 
 Do not invent new naming conventions unless explicitly asked.
 
+## Shared Definition Ownership Rules
+
+- Do not use type aliases as convenience wrappers or compatibility shims.
+- Shared definitions must have one real source of truth.
+- If shared definitions are type declarations, constants, enums, records, or other pure type-level data, move the real definitions into an appropriate `tp...` unit and have each consumer use that unit directly.
+- If shared definitions are object/class implementations, move the real definitions into an appropriate `ob...` unit and have each consumer use that unit directly.
+- Do not re-export enum values, constants, type names, or classes from another unit to avoid updating `uses` clauses.
+- Alias-like constructs are allowed only for a clearly justified compiler/platform interop case, and the reason must be documented at the declaration.
+
 ## Identifier Naming Rules
 
 - Function and procedure arguments must use the `A` prefix.
@@ -183,5 +192,6 @@ When in doubt:
 3. Keep it narrowly scoped.
 4. Preserve the public API.
 5. Centralize lifecycle and ownership.
-6. Ask only when the missing detail blocks the work.
-7. Do not guess.
+6. When a shared concept crosses unit boundaries, place the real definition in the unit whose prefix matches what it is (`tp...` for shared type definitions, `ob...` for shared objects/classes, etc.) rather than aliasing or re-exporting it.
+7. Ask only when the missing detail blocks the work.
+8. Do not guess.

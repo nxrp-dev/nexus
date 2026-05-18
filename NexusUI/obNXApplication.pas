@@ -63,9 +63,9 @@ end;
 destructor TNXApplication.Destroy;
 begin
   FreeAndNil(FMaster);
+  FreeAndNil(FSkin);
   FreeAndNil(FCanvas);
   FreeAndNil(FFonts);
-  FreeAndNil(FSkin);
   DestroyPlatform;
   FreeAndNil(FPlatform);
   inherited Destroy;

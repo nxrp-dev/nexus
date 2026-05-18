@@ -104,6 +104,7 @@ end;
 
 begin
   Application.Initialize('Window', 1024, 768);
+  Application.Skin.LoadFromFile('..\skins\button\skin.json', Application.Canvas);
 
   Master := Application.Master;
   DemoEvents := TDemoEvents.Create;

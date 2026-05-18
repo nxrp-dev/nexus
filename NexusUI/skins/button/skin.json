@@ -1,0 +1,55 @@
+{
+  "Version": 1,
+  "Images": [
+    {
+      "ID": "button-normal",
+      "FileName": "Button Normal.png"
+    },
+    {
+      "ID": "button-hot",
+      "FileName": "Button Hover.png"
+    },
+    {
+      "ID": "button-pressed",
+      "FileName": "Button Active.png"
+    },
+    {
+      "ID": "button-disabled",
+      "FileName": "Button Disable.png"
+    }
+  ],
+  "Slices": [
+    {
+      "SkinClass": "Button",
+      "Part": "Background",
+      "State": "ssNormal",
+      "Image": "button-normal",
+      "SourceRect": { "X": 0, "Y": 0, "W": 114, "H": 38 },
+      "Border": { "Left": 10, "Top": 10, "Right": 10, "Bottom": 10 }
+    },
+    {
+      "SkinClass": "Button",
+      "Part": "Background",
+      "State": "ssHot",
+      "Image": "button-hot",
+      "SourceRect": { "X": 0, "Y": 0, "W": 114, "H": 38 },
+      "Border": { "Left": 10, "Top": 10, "Right": 10, "Bottom": 10 }
+    },
+    {
+      "SkinClass": "Button",
+      "Part": "Background",
+      "State": "ssPressed",
+      "Image": "button-pressed",
+      "SourceRect": { "X": 0, "Y": 0, "W": 114, "H": 38 },
+      "Border": { "Left": 10, "Top": 10, "Right": 10, "Bottom": 10 }
+    },
+    {
+      "SkinClass": "Button",
+      "Part": "Background",
+      "State": "ssDisabled",
+      "Image": "button-disabled",
+      "SourceRect": { "X": 0, "Y": 0, "W": 114, "H": 38 },
+      "Border": { "Left": 10, "Top": 10, "Right": 10, "Bottom": 10 }
+    }
+  ]
+}
