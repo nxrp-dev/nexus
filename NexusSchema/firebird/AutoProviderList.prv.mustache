@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Provider_Server_Header ClassName="TProviderServer">
+  <Provider_Server>
+    <Categories>
+      <Items>
+{{#NexusSchema.MetaData.Modules}}
+        <TProviderCategory Name="AUTO_{{Name}}">
+          <Providers>
+            <Items>
+{{#Tables}}
+              <TProviderDefinition Name="{{Name}}Edit" ResolveToDataset="False" CustomResolution="False" UpdateMode="upWhereAll" ProviderOptions="poFetchDetailsOnDemand" KeyFields="{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}}">
+                <SQLStatement KeyFields="{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}}">
+                  <Items>
+                    <TSQLElement Name="SQL92" SelectSQL="select * from {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} where {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} = :{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}}"/>
+                  </Items>
+                </SQLStatement>
+                <Header IsSingtleton="False" IsLookupTable="False"/>
+              </TProviderDefinition>
+{{/Tables}}
+            </Items>
+          </Providers>
+        </TProviderCategory>
+{{/NexusSchema.MetaData.Modules}}
+      </Items>
+    </Categories>
+    <Databases>
+      <Items>
+        <TPluginModule Name="SQL92" PluginClassName="TDatabaseDefinition"/>
+        <TPluginModule Name="SQL92" FileName="X:\projects\inForceServer\libFirebirdPlugin.bpl.1" PluginClassName="TFirebirdDefinition"/>
+      </Items>
+    </Databases>
+    </Provider_Server>
+</Provider_Server_Header>

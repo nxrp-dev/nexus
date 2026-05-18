@@ -1,0 +1,12 @@
+{{#Rows}}
+insert into {{TABLE_NAME}}_TBL (
+{{#Headers}}
+  {{Name}}{{Comma}}
+{{/Headers}}
+) values (
+{{#Values}}
+  '{{{Value}}}'{{Comma}}   --- {{Name}}
+{{/Values}}
+);
+{{/Rows}}
+commit;

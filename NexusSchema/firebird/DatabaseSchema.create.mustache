@@ -1,0 +1,129 @@
+---------------------------------------------------------------------------------------------------------
+--[ Types ----------------------------------------------------------------------------------------------]--
+{{#NexusSchema.MetaData.Modules}}
+--[ {{Name}} ----------------------------------------------------------------------------------------------]--
+{{#Types}}
+create domain {{Name}} as {{Value}};
+{{/Types}}
+{{/NexusSchema.MetaData.Modules}}
+commit;
+
+{{#NexusSchema.MetaData.Modules}}
+--[ {{Name}} ----------------------------------------------------------------------------------------------]--
+{{#Tables}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+create table {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} (
+  {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} {{NexusSchema.MetaData.Attributes.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL{{#Fields}},
+  {{Name}} {{FieldType}}{{/Fields}}
+);
+commit;
+
+create generator {{NexusSchema.MetaData.Attributes.GENERATOR_PREFIX}}{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}};
+commit;
+
+alter table {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} add primary key ({{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}});
+commit;
+
+set term ^ ;
+create trigger BI_{{Name}}_GT for {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}
+active before insert position 0 as
+begin
+  if (new.{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} is null) then
+    new.{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} = GEN_ID({{NexusSchema.MetaData.Attributes.GENERATOR_PREFIX}}{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}}, 1);
+end^
+set term ; ^
+commit;
+
+{{#Attributes.IS_HISTORY}}
+create table {{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} (
+  {{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} {{NexusSchema.MetaData.Attributes.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL,
+  {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} {{NexusSchema.MetaData.Attributes.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL{{#Fields}},
+  {{Name}} {{FieldType}}{{/Fields}}
+);
+commit;
+
+create generator {{NexusSchema.MetaData.Attributes.GENERATOR_PREFIX}}{{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}};
+commit;
+
+alter table {{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} add primary key ({{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}});
+commit;
+
+set term ^ ;
+create trigger BI_{{Name}}_H_GT for {{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}
+active before insert position 0 as
+begin
+  if (new.{{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} is null) then
+    new.{{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}} = GEN_ID({{NexusSchema.MetaData.Attributes.GENERATOR_PREFIX}}{{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}}, 1);
+end^
+set term ; ^
+commit;
+
+set term ^ ;
+create trigger AI_{{Name}}_HT FOR {{Name}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}
+active after insert or update position 0
+as
+begin
+  insert into {{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} (
+{{#Fields}}
+    {{Name}}{{Comma}}
+{{/Fields}}
+  ) values (
+{{#Fields}}
+    New.{{Name}}{{Comma}}
+{{/Fields}}
+  );
+end^
+set term ; ^
+commit;
+
+CREATE INDEX IDX_{{Name}}_H_{{Name}} ON {{Name}}_H{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}({{Name}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}});
+commit;
+{{/Attributes.IS_HISTORY}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/NexusSchema.MetaData.Modules}}
+
+{{#NexusSchema.MetaData.Modules}}
+--[ {{Name}}  --------------------------------------------------------------------------------------]--
+{{#Tables}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+{{#ForeignKeys}}
+alter table {{TableName}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} add constraint {{ConstraintName}} foreign key ({{Field}}) references {{ReferenceEntity}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}} ({{ReferenceEntity}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}});
+{{/ForeignKeys}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/NexusSchema.MetaData.Modules}}
+commit;
+
+{{#NexusSchema.MetaData.Modules}}
+--[ {{Name}} ----------------------------------------------------------------------------------------------]--
+{{#Tables}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+INSERT INTO REPORT_TABLE_TBL(TABLE_NAME, ALIAS)
+  VALUES('{{Name}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}', '{{Name}}');
+
+{{#Fields}}
+INSERT INTO REPORT_FIELD_TBL
+       (REPORT_TABLE_ID, TABLE_NAME, FIELD_NAME, DATA_TYPE, SELECTABLE, SEARCHABLE, SORTABLE, AUTOSEARCH, MANDATORY, FIELD_ALIAS)
+VALUES((SELECT REPORT_TABLE_ID FROM REPORT_TABLE_TBL WHERE TABLE_NAME = '{{TableName}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}'), '{{TableName}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}', '{{Name}}', '{{FieldType}}', 'T', 'T', 'T', 'F', 'F', 'F');
+
+commit;
+--
+--
+{{/Fields}}
+
+{{#ForeignKeys}}
+INSERT INTO REPORT_JOIN_TBL
+       (TABLE_MASTER, TABLE_DETAIL, JOIN_TYPE, FIELD_MASTER, FIELD_DETAIL, OPERATORS)
+VALUES('{{TableName}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}', '{{ReferenceEntity}}{{NexusSchema.MetaData.Attributes.MODULE_POSTFIX}}', 'INNER', '{{Field}}', '{{ReferenceEntity}}{{NexusSchema.MetaData.Attributes.MODULE_ID_POSTFIX}}', '=');
+
+commit;
+--
+--
+{{/ForeignKeys}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/NexusSchema.MetaData.Modules}}

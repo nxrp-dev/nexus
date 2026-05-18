@@ -1,0 +1,5 @@
+NAME,SORT_ORDER
+"None",1
+"Pending",2
+"Assigned",3
+"Defaulted",4

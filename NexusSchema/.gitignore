@@ -1,0 +1,13 @@
+*.exe
+*.o
+*.ppu
+*.compiled
+*.or
+*.res
+*.lps
+
+bin/
+lib/
+output/
+output.txt
+output_compare/
