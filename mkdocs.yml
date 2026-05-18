@@ -1,0 +1,9 @@
+site_name: Nexus
+site_description: Nexus project documentation
+repo_url: https://github.com/nxrp-dev/nexus
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
