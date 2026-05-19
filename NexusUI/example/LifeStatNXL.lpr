@@ -10,12 +10,12 @@ uses
   obNXComboBox,
   obNXEditBox,
   obNXElement,
+  obNXGroupBox,
   obNXImage,
   obNXLabel,
   obNXListBox,
   obNXMemo,
   obNXMessageDialog,
-  obNXPanel,
   obNXPopupMenu,
   obNXProgressBar,
   obNXSplitPanel,
@@ -38,7 +38,7 @@ type
   end;
 
 var
-  Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8: TNXPanel;
+  Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8: TNXGroupBox;
   Button1, Button2: TNXButton;
   Chkbox1: TNXCheckBox;
   Chkbox2, Chkbox3: TNXCheckBox;
@@ -110,14 +110,14 @@ begin
   Master := Application.Master;
   DemoEvents := TDemoEvents.Create;
 
-  Form1 := TNXPanel.Create(Master, 'Form1', MakeNXRect(0, 0, 250, 256));
-  Form2 := TNXPanel.Create(Master, 'Form2', MakeNXRect(500, 400, 400, 200));
-  Form3 := TNXPanel.Create(Master, 'Form3', MakeNXRect(0, 400, 400, 325));
-  Form4 := TNXPanel.Create(Master, 'Form4', MakeNXRect(600, 0, 300, 300));
-  Form5 := TNXPanel.Create(Master, 'Form5', MakeNXRect(550, 50, 300, 300));
-  Form6 := TNXPanel.Create(Master, 'Tree List', MakeNXRect(900, 0, 300, 300));
-  Form7 := TNXPanel.Create(Master, 'Memo', MakeNXRect(260, 0, 300, 256));
-  Form8 := TNXPanel.Create(Master, 'Split Panel', MakeNXRect(260, 270, 300, 120));
+  Form1 := TNXGroupBox.Create(Master, 'Form1', MakeNXRect(0, 0, 250, 256));
+  Form2 := TNXGroupBox.Create(Master, 'Form2', MakeNXRect(500, 400, 400, 200));
+  Form3 := TNXGroupBox.Create(Master, 'Form3', MakeNXRect(0, 400, 400, 325));
+  Form4 := TNXGroupBox.Create(Master, 'Form4', MakeNXRect(600, 0, 300, 300));
+  Form5 := TNXGroupBox.Create(Master, 'Form5', MakeNXRect(550, 50, 300, 300));
+  Form6 := TNXGroupBox.Create(Master, 'Tree List', MakeNXRect(900, 0, 300, 300));
+  Form7 := TNXGroupBox.Create(Master, 'Memo', MakeNXRect(260, 0, 300, 256));
+  Form8 := TNXGroupBox.Create(Master, 'Split Panel', MakeNXRect(260, 270, 300, 120));
 
   ListBox := TNXListBox.Create(Form4, MakeNXRect(10, 30, 200, 200));
   for lIndex := 1 to 12 do

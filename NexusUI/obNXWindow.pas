@@ -5,9 +5,11 @@ interface
 
 uses
   Classes,
+  Math,
   SysUtils,
   obNXElement,
   obNXPanel,
+  obNXTitleBar,
   tpNXEvents,
   tpNXPlatform,
   tpNXWindow;
@@ -23,34 +25,46 @@ type
     FManager: TNXWindowManager;
     FModal: Boolean;
     FModalResult: TNXModalResult;
+    FMovable: Boolean;
     FOnClose: TNotifyEvent;
     FOnHide: TNotifyEvent;
     FOnShow: TNotifyEvent;
+    FTitleBar: TNXTitleBar;
   protected
     procedure DoClose; virtual;
     procedure DoHide; virtual;
     procedure DoShow; virtual;
+    function GetAbsContentRect: TNXRect; override;
+    function GetChildOriginX(AChild: TNXElement): Integer; override;
+    function GetChildOriginY(AChild: TNXElement): Integer; override;
+    function GetContentRect: TNXRect; override;
+    function GetTitleBarHeight: Integer; virtual;
     procedure InternalClose; virtual;
     procedure InternalHide; virtual;
     procedure InternalShow(AActivate: Boolean); virtual;
     procedure SetManager(AManager: TNXWindowManager); virtual;
+    procedure SetMovable(AValue: Boolean); virtual;
+    procedure SetWindowBorderStyle(AValue: TNXWindowBorderStyle); virtual;
   public
     constructor Create(AParent: TNXElement); overload; override;
     constructor Create(AParent: TNXElement; const ACaption: string;
       const ARect: TNXRect); overload; override;
 
     procedure Activate; virtual;
+    procedure AddChild(AChild: TNXElement); override;
     procedure BringWindowToFront; virtual;
     procedure Close; virtual;
     procedure Hide; virtual;
+    procedure Paint; override;
     procedure Show; virtual;
 
-    property BorderStyleKind: TNXWindowBorderStyle read FWindowBorderStyle write FWindowBorderStyle;
+    property BorderStyleKind: TNXWindowBorderStyle read FWindowBorderStyle write SetWindowBorderStyle;
     property CanClose: Boolean read FCanClose write FCanClose;
     property CloseAction: TNXWindowCloseAction read FCloseAction write FCloseAction;
     property Manager: TNXWindowManager read FManager;
     property Modal: Boolean read FModal;
     property ModalResult: TNXModalResult read FModalResult write FModalResult;
+    property Movable: Boolean read FMovable write SetMovable;
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
     property OnHide: TNotifyEvent read FOnHide write FOnHide;
     property OnShow: TNotifyEvent read FOnShow write FOnShow;
@@ -100,24 +114,33 @@ implementation
 constructor TNXWindow.Create(AParent: TNXElement);
 begin
   inherited Create(AParent);
-  FWindowBorderStyle := wbsSingle;
+  FTitleBar := TNXTitleBar.Create(Self);
+  FTitleBar.BackColor := Skin.TitleBarBackColor;
+  FTitleBar.ParentSizeCallback(Width, Height);
+  SetWindowBorderStyle(wbsSingle);
   FCanClose := True;
   FCloseAction := wcaHide;
   FManager := nil;
   FModal := False;
   FModalResult := mrNone;
+  Movable := True;
 end;
 
 constructor TNXWindow.Create(AParent: TNXElement; const ACaption: string;
   const ARect: TNXRect);
 begin
   inherited Create(AParent, ACaption, ARect);
-  FWindowBorderStyle := wbsSingle;
+  FTitleBar := TNXTitleBar.Create(Self);
+  FTitleBar.BackColor := Skin.TitleBarBackColor;
+  FTitleBar.Caption := ACaption;
+  FTitleBar.ParentSizeCallback(Width, Height);
+  SetWindowBorderStyle(wbsSingle);
   FCanClose := True;
   FCloseAction := wcaHide;
   FManager := nil;
   FModal := False;
   FModalResult := mrNone;
+  Movable := True;
 end;
 
 procedure TNXWindow.Activate;
@@ -126,6 +149,20 @@ begin
     FManager.ShowWindow(Self)
   else
     InternalShow(True);
+end;
+
+procedure TNXWindow.AddChild(AChild: TNXElement);
+var
+  lTitleBarIndex: Integer;
+begin
+  inherited AddChild(AChild);
+
+  if Assigned(FTitleBar) and (AChild <> FTitleBar) then
+  begin
+    lTitleBarIndex := Children.IndexOf(FTitleBar);
+    if (lTitleBarIndex >= 0) and (lTitleBarIndex < Children.Count - 1) then
+      Children.Move(lTitleBarIndex, Children.Count - 1);
+  end;
 end;
 
 procedure TNXWindow.BringWindowToFront;
@@ -159,6 +196,62 @@ begin
     FOnShow(Self);
 end;
 
+function TNXWindow.GetAbsContentRect: TNXRect;
+var
+  lBorderThickness: Integer;
+  lTitleBarHeight: Integer;
+begin
+  lBorderThickness := GetBorderThickness;
+  lTitleBarHeight := GetTitleBarHeight;
+
+  Result := MakeNXRect(
+    AbsLeft + lBorderThickness,
+    AbsTop + lBorderThickness + lTitleBarHeight,
+    Max(0, Width - (lBorderThickness * 2)),
+    Max(0, Height - (lBorderThickness * 2) - lTitleBarHeight)
+  );
+end;
+
+function TNXWindow.GetChildOriginX(AChild: TNXElement): Integer;
+begin
+  if AChild = FTitleBar then
+    Result := 0
+  else
+    Result := ContentRect.x;
+end;
+
+function TNXWindow.GetChildOriginY(AChild: TNXElement): Integer;
+begin
+  if AChild = FTitleBar then
+    Result := 0
+  else
+    Result := ContentRect.y;
+end;
+
+function TNXWindow.GetContentRect: TNXRect;
+var
+  lBorderThickness: Integer;
+  lTitleBarHeight: Integer;
+begin
+  lBorderThickness := GetBorderThickness;
+  lTitleBarHeight := GetTitleBarHeight;
+
+  Result := MakeNXRect(
+    lBorderThickness,
+    lBorderThickness + lTitleBarHeight,
+    Max(0, Width - (lBorderThickness * 2)),
+    Max(0, Height - (lBorderThickness * 2) - lTitleBarHeight)
+  );
+end;
+
+function TNXWindow.GetTitleBarHeight: Integer;
+begin
+  if Assigned(FTitleBar) and FTitleBar.Visible then
+    Result := FTitleBar.Height
+  else
+    Result := 0;
+end;
+
 procedure TNXWindow.Hide;
 begin
   if Assigned(FManager) then
@@ -188,6 +281,42 @@ begin
   DoHide;
 end;
 
+procedure TNXWindow.Paint;
+var
+  lChild: TNXElement;
+  lChildClipRect: TNXRect;
+  lClipRect: TNXRect;
+  lIndex: Integer;
+begin
+  if Assigned(Canvas) and Visible then
+  begin
+    lClipRect := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
+
+    Canvas.PushClip(lClipRect);
+    try
+      Render;
+
+      lChildClipRect := AbsContentRect;
+      Canvas.PushClip(lChildClipRect);
+      try
+        for lIndex := 0 to Children.Count - 1 do
+        begin
+          lChild := Children[lIndex];
+          if lChild <> FTitleBar then
+            lChild.Paint;
+        end;
+      finally
+        Canvas.PopClip;
+      end;
+
+      if Assigned(FTitleBar) and FTitleBar.Visible then
+        FTitleBar.Paint;
+    finally
+      Canvas.PopClip;
+    end;
+  end;
+end;
+
 procedure TNXWindow.InternalShow(AActivate: Boolean);
 begin
   if not Visible then
@@ -206,6 +335,33 @@ end;
 procedure TNXWindow.SetManager(AManager: TNXWindowManager);
 begin
   FManager := AManager;
+end;
+
+procedure TNXWindow.SetMovable(AValue: Boolean);
+begin
+  FMovable := AValue;
+
+  if Assigned(FTitleBar) then
+    FTitleBar.Movable := AValue;
+end;
+
+procedure TNXWindow.SetWindowBorderStyle(AValue: TNXWindowBorderStyle);
+begin
+  FWindowBorderStyle := AValue;
+
+  if AValue = wbsNone then
+  begin
+    BorderStyle := BS_None;
+    FillStyle := FS_None;
+  end
+  else
+  begin
+    BorderStyle := BS_Single;
+    FillStyle := FS_Filled;
+  end;
+
+  if Assigned(FTitleBar) then
+    FTitleBar.Visible := AValue <> wbsNone;
 end;
 
 procedure TNXWindow.Show;

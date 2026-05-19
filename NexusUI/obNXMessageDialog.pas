@@ -148,7 +148,6 @@ begin
   FIcon := mdiNone;
 
   FDialogPanel := TNXPanel.Create(Self);
-  FDialogPanel.Movable := False;
   FDialogPanel.Width := cMinDialogWidth;
   FDialogPanel.Height := 170;
   FDialogPanel.Caption := '';
