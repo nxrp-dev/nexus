@@ -7,8 +7,8 @@ interface
 uses
   Math,
   tpNXPlatform,
-  obNXElement,
   obNXControl,
+
   obNXScrollBar;
 
 type
@@ -34,7 +34,7 @@ type
     procedure RenderViewport; virtual;
     procedure UpdateScrollBars; virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
 
     property AbsViewportRect: TNXRect read GetAbsViewportRect;
     property ContentHeight: Integer read FContentHeight write SetContentHeight;
@@ -50,7 +50,7 @@ type
 
 implementation
 
-constructor TNXScrollableControl.Create(AParent: TNXElement);
+constructor TNXScrollableControl.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 

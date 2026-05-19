@@ -11,8 +11,8 @@ uses
   fgl,
   tpNXEvents,
   tpNXPlatform,
-  obNXElement,
   obNXControl,
+
   obNXScrollBar;
 
 type
@@ -97,7 +97,7 @@ type
     procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
     procedure RenderClient; override;
   public
-    constructor Create(AParent: TNXElement); override;
+    constructor Create(const AParent: INXControlParent); override;
     destructor Destroy; override;
 
     function AddChildNode(AParentNode: TNXTreeListNode; const ACaption: string; AData: Pointer = nil): TNXTreeListNode; virtual;
@@ -214,7 +214,7 @@ begin
   Add(Result);
 end;
 
-constructor TNXTreeList.Create(AParent: TNXElement);
+constructor TNXTreeList.Create(const AParent: INXControlParent);
 begin
   inherited Create(nil);
   BorderStyle := BS_Single;

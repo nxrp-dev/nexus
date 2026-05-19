@@ -11,8 +11,8 @@ uses
   fgl,
   tpNXEvents,
   tpNXPlatform,
-  obNXElement,
   obNXControl,
+
   obNXPopup;
 
 type
@@ -78,7 +78,7 @@ type
     procedure ItemChanged(AItem: TNXMenuItem); virtual;
     procedure AutoSizeMenu; virtual;
   public
-    constructor Create(AParent, AOwner: TNXElement); override;
+    constructor Create(const AParent: INXControlParent; AOwner: TNXControl); override;
     destructor Destroy; override;
 
     function AddItem(
@@ -172,7 +172,7 @@ begin
   Changed;
 end;
 
-constructor TNXPopupMenu.Create(AParent, AOwner: TNXElement);
+constructor TNXPopupMenu.Create(const AParent: INXControlParent; AOwner: TNXControl);
 begin
   inherited Create(AParent, AOwner);
 
@@ -576,8 +576,8 @@ begin
     Top := Max(0, Min(Top, lMaxTop));
   end;
 
-  if Assigned(Application) and Assigned(Application.Master) then
-    Application.Master.Popups.ShowPopup(Self)
+  if Assigned(Application) and Assigned(Application.RootWindow) then
+    Application.Popups.ShowPopup(Self)
   else
     Open;
 end;

@@ -11,7 +11,7 @@ uses
   tpNXEvents,
   tpNXPlatform,
   obNXFont,
-  obNXElement,
+  obNXControl,
   obNXScrollableControl,
   obNXScrollBar;
 
@@ -91,7 +91,7 @@ type
     procedure RenderSelection; virtual;
     procedure RenderViewport; override;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
 
     procedure AddLine(const AText: string); virtual;
     procedure Clear; virtual;
@@ -124,7 +124,7 @@ const
   cTextMargin = 5;
   cCaretBlinkMS = 500;
 
-constructor TNXMemo.Create(AParent: TNXElement);
+constructor TNXMemo.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   BackColor := Skin.TextBackColor;

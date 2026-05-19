@@ -7,7 +7,6 @@ interface
 uses
   Math,
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -22,7 +21,7 @@ type
     procedure SetAutoAlign(NewValue: Boolean);
     procedure SetAutoAlignBoth(NewValue: Boolean);
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     procedure Render; override;
     procedure ParentSizeCallback(NewW, NewH: Integer); override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
@@ -41,7 +40,7 @@ type
 
 implementation
 
-constructor TNXScrollBar.Create(AParent: TNXElement);
+constructor TNXScrollBar.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   FillStyle := FS_None;

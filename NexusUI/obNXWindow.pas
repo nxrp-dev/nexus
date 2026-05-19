@@ -1,5 +1,6 @@
 unit obNXWindow;
 {$mode objfpc}{$H+}
+{$interfaces corba}
 
 interface
 
@@ -7,8 +8,10 @@ uses
   Classes,
   Math,
   SysUtils,
-  obNXElement,
-  obNXPanel,
+  obNXCanvas,
+  obNXControl,
+  obNXFont,
+  obNXSkin,
   obNXTitleBar,
   tpNXEvents,
   tpNXPlatform,
@@ -17,11 +20,21 @@ uses
 type
   TNXWindowManager = class;
 
-  TNXWindow = class(TNXPanel)
+  TNXWindow = class(INXControlParent)
   private
-    FWindowBorderStyle: TNXWindowBorderStyle;
+    FActive: Boolean;
+    FBackColor: TNXColor;
+    FBorderColor: TNXColor;
+    FCanvas: TNXCanvas;
     FCanClose: Boolean;
+    FCaption: string;
+    FChildren: TNXControlList;
     FCloseAction: TNXWindowCloseAction;
+    FFillStyle: TFillStyle;
+    FFont: TNXFont;
+    FForeColor: TNXColor;
+    FHeight: Integer;
+    FLeft: Integer;
     FManager: TNXWindowManager;
     FModal: Boolean;
     FModalResult: TNXModalResult;
@@ -30,37 +43,87 @@ type
     FOnHide: TNotifyEvent;
     FOnShow: TNotifyEvent;
     FTitleBar: TNXTitleBar;
+    FTop: Integer;
+    FVisible: Boolean;
+    FWidth: Integer;
+    FWindowBorderStyle: TNXWindowBorderStyle;
+    procedure SetActive(AValue: Boolean);
+    procedure SetCanvas(ACanvas: TNXCanvas);
+    procedure SetHeight(AValue: Integer);
+    procedure SetLeft(AValue: Integer);
+    procedure SetMovable(AValue: Boolean);
+    procedure SetTop(AValue: Integer);
+    procedure SetWindowBorderStyle(AValue: TNXWindowBorderStyle);
+    procedure SetWidth(AValue: Integer);
   protected
     procedure DoClose; virtual;
     procedure DoHide; virtual;
     procedure DoShow; virtual;
-    function GetAbsContentRect: TNXRect; override;
-    function GetChildOriginX(AChild: TNXElement): Integer; override;
-    function GetChildOriginY(AChild: TNXElement): Integer; override;
-    function GetContentRect: TNXRect; override;
+    function GetAbsContentRect: TNXRect; virtual;
+    function GetBorderThickness: Integer; virtual;
+    function GetChildOriginX(AChild: TNXControl): Integer; virtual;
+    function GetChildOriginY(AChild: TNXControl): Integer; virtual;
+    function GetContentRect: TNXRect; virtual;
     function GetTitleBarHeight: Integer; virtual;
     procedure InternalClose; virtual;
     procedure InternalHide; virtual;
     procedure InternalShow(AActivate: Boolean); virtual;
+    procedure Render; virtual;
+    procedure RenderClient; virtual;
+    procedure SendSizeCallback(AWidth, AHeight: Integer); virtual;
     procedure SetManager(AManager: TNXWindowManager); virtual;
-    procedure SetMovable(AValue: Boolean); virtual;
-    procedure SetWindowBorderStyle(AValue: TNXWindowBorderStyle); virtual;
+    procedure TitleBarDragged(Sender: TObject; ADeltaX, ADeltaY: Integer);
   public
-    constructor Create(AParent: TNXElement); overload; override;
-    constructor Create(AParent: TNXElement; const ACaption: string;
-      const ARect: TNXRect); overload; override;
+    constructor Create; overload; virtual;
+    constructor Create(const ACaption: string; const ARect: TNXRect); overload; virtual;
+    destructor Destroy; override;
 
     procedure Activate; virtual;
-    procedure AddChild(AChild: TNXElement); override;
+    procedure AddChild(AChild: TNXControl); virtual;
     procedure BringWindowToFront; virtual;
     procedure Close; virtual;
+    procedure FreeChild(AChild: TNXControl); virtual;
+    function GetAbsLeft: Integer; virtual;
+    function GetAbsTop: Integer; virtual;
+    function GetCanvas: TNXCanvas; virtual;
+    function GetChildren: TNXControlList; virtual;
+    function GetFontForChildren: TNXFont; virtual;
+    function GetHeight: Integer; virtual;
+    function GetLeft: Integer; virtual;
+    function GetSkin: TNXSkin; virtual;
+    function GetTop: Integer; virtual;
+    function GetWidth: Integer; virtual;
     procedure Hide; virtual;
-    procedure Paint; override;
+    function InWindow(AX, AY: Integer): Boolean; virtual;
+    procedure Paint; virtual;
+    procedure ProcessKeyDown(const AEvent: TNXKeyEventData); virtual;
+    procedure ProcessKeyUp(const AEvent: TNXKeyEventData); virtual;
+    procedure ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton); virtual;
+    procedure ProcessMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); virtual;
+    procedure ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton); virtual;
+    procedure ProcessTextInput(const AText: string); virtual;
     procedure Show; virtual;
+    procedure UnselectChildren; virtual;
 
+    property AbsContentRect: TNXRect read GetAbsContentRect;
+    property AbsLeft: Integer read GetAbsLeft;
+    property AbsTop: Integer read GetAbsTop;
+    property BackColor: TNXColor read FBackColor write FBackColor;
+    property BorderColor: TNXColor read FBorderColor write FBorderColor;
     property BorderStyleKind: TNXWindowBorderStyle read FWindowBorderStyle write SetWindowBorderStyle;
     property CanClose: Boolean read FCanClose write FCanClose;
+    property Canvas: TNXCanvas read GetCanvas write SetCanvas;
+    property Caption: string read FCaption write FCaption;
+    property Children: TNXControlList read GetChildren;
     property CloseAction: TNXWindowCloseAction read FCloseAction write FCloseAction;
+    property ContentRect: TNXRect read GetContentRect;
+    property FillStyle: TFillStyle read FFillStyle write FFillStyle;
+    property Font: TNXFont read FFont write FFont;
+    property FontForChildren: TNXFont read GetFontForChildren;
+    property ForeColor: TNXColor read FForeColor write FForeColor;
+    property Height: Integer read GetHeight write SetHeight;
+    property IsSelected: Boolean read FActive;
+    property Left: Integer read GetLeft write SetLeft;
     property Manager: TNXWindowManager read FManager;
     property Modal: Boolean read FModal;
     property ModalResult: TNXModalResult read FModalResult write FModalResult;
@@ -68,42 +131,44 @@ type
     property OnClose: TNotifyEvent read FOnClose write FOnClose;
     property OnHide: TNotifyEvent read FOnHide write FOnHide;
     property OnShow: TNotifyEvent read FOnShow write FOnShow;
+    property Skin: TNXSkin read GetSkin;
+    property Top: Integer read GetTop write SetTop;
+    property Visible: Boolean read FVisible write FVisible;
+    property Width: Integer read GetWidth write SetWidth;
   end;
 
   TNXWindowManager = class
   private
     FActiveWindow: TNXWindow;
-    FHost: TNXElement;
+    FCanvas: TNXCanvas;
     FModalWindow: TNXWindow;
     FWindows: TList;
 
     function GetWindow(AIndex: Integer): TNXWindow;
     function GetWindowCount: Integer;
-    function PointInWindow(AWindow: TNXWindow; AX, AY: Integer): Boolean;
     procedure SetActiveWindow(AWindow: TNXWindow);
   public
-    constructor Create(AHost: TNXElement);
+    constructor Create(ACanvas: TNXCanvas);
     destructor Destroy; override;
 
     procedure AddWindow(AWindow: TNXWindow);
-    function CreateWindow(const ACaption: string; const ARect: TNXRect): TNXWindow;
     procedure BringToFront(AWindow: TNXWindow);
     procedure CloseWindow(AWindow: TNXWindow);
+    function CreateWindow(const ACaption: string; const ARect: TNXRect): TNXWindow;
     procedure HideWindow(AWindow: TNXWindow);
     function IndexOf(AWindow: TNXWindow): Integer;
-    procedure RemoveWindow(AWindow: TNXWindow);
-    procedure ShowModal(AWindow: TNXWindow);
-    procedure ShowWindow(AWindow: TNXWindow);
-
+    procedure Paint;
     function ProcessKeyDown(const AEvent: TNXKeyEventData): Boolean;
     function ProcessKeyUp(const AEvent: TNXKeyEventData): Boolean;
     function ProcessMouseDown(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
     function ProcessMouseMotion(AX, AY: Integer; AButtonState: TNXMouseButtons): Boolean;
     function ProcessMouseUp(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
     function ProcessTextInput(const AText: string): Boolean;
+    procedure RemoveWindow(AWindow: TNXWindow);
+    procedure ShowModal(AWindow: TNXWindow);
+    procedure ShowWindow(AWindow: TNXWindow);
 
     property ActiveWindow: TNXWindow read FActiveWindow;
-    property Host: TNXElement read FHost;
     property ModalWindow: TNXWindow read FModalWindow;
     property WindowCount: Integer read GetWindowCount;
     property Windows[AIndex: Integer]: TNXWindow read GetWindow;
@@ -111,36 +176,56 @@ type
 
 implementation
 
-constructor TNXWindow.Create(AParent: TNXElement);
+uses
+  obNXApplication;
+
+constructor TNXWindow.Create;
 begin
-  inherited Create(AParent);
-  FTitleBar := TNXTitleBar.Create(Self);
-  FTitleBar.BackColor := Skin.TitleBarBackColor;
-  FTitleBar.ParentSizeCallback(Width, Height);
-  SetWindowBorderStyle(wbsSingle);
+  inherited Create;
+  FChildren := TNXControlList.Create(True);
+  FActive := False;
+  FHeight := 256;
+  FWidth := 256;
+  FVisible := True;
   FCanClose := True;
   FCloseAction := wcaHide;
+  FFillStyle := FS_Filled;
   FManager := nil;
   FModal := False;
   FModalResult := mrNone;
+
+  if Assigned(Skin) then
+  begin
+    FBackColor := Skin.BackColor;
+    FBorderColor := Skin.BorderColor;
+    FForeColor := Skin.ForeColor;
+  end;
+
+  FTitleBar := TNXTitleBar.Create(INXControlParent(Self));
+  if Assigned(Skin) then
+    FTitleBar.BackColor := Skin.TitleBarBackColor;
+  FTitleBar.Active := FActive;
+  FTitleBar.OnDrag := @TitleBarDragged;
+  FTitleBar.ParentSizeCallback(Width, Height);
+  SetWindowBorderStyle(wbsSingle);
   Movable := True;
 end;
 
-constructor TNXWindow.Create(AParent: TNXElement; const ACaption: string;
-  const ARect: TNXRect);
+constructor TNXWindow.Create(const ACaption: string; const ARect: TNXRect);
 begin
-  inherited Create(AParent, ACaption, ARect);
-  FTitleBar := TNXTitleBar.Create(Self);
-  FTitleBar.BackColor := Skin.TitleBarBackColor;
+  Create;
+  Caption := ACaption;
   FTitleBar.Caption := ACaption;
-  FTitleBar.ParentSizeCallback(Width, Height);
-  SetWindowBorderStyle(wbsSingle);
-  FCanClose := True;
-  FCloseAction := wcaHide;
-  FManager := nil;
-  FModal := False;
-  FModalResult := mrNone;
-  Movable := True;
+  Left := ARect.x;
+  Top := ARect.y;
+  Width := ARect.w;
+  Height := ARect.h;
+end;
+
+destructor TNXWindow.Destroy;
+begin
+  FreeAndNil(FChildren);
+  inherited Destroy;
 end;
 
 procedure TNXWindow.Activate;
@@ -151,11 +236,22 @@ begin
     InternalShow(True);
 end;
 
-procedure TNXWindow.AddChild(AChild: TNXElement);
+procedure TNXWindow.AddChild(AChild: TNXControl);
 var
   lTitleBarIndex: Integer;
 begin
-  inherited AddChild(AChild);
+  if not Assigned(AChild) then
+    Exit;
+
+  if Children.IndexOf(AChild) >= 0 then
+    Exit;
+
+  if Assigned(AChild.Parent) then
+    raise Exception.Create('Cannot add child that is already attached to another parent');
+
+  Children.Add(AChild);
+  AChild.SetParent(INXControlParent(Self));
+  AChild.ChildAddedCallback;
 
   if Assigned(FTitleBar) and (AChild <> FTitleBar) then
   begin
@@ -167,7 +263,8 @@ end;
 
 procedure TNXWindow.BringWindowToFront;
 begin
-  inherited BringToFront;
+  if Assigned(FManager) then
+    FManager.BringToFront(Self);
 end;
 
 procedure TNXWindow.Close;
@@ -196,6 +293,18 @@ begin
     FOnShow(Self);
 end;
 
+procedure TNXWindow.FreeChild(AChild: TNXControl);
+var
+  lIndex: Integer;
+begin
+  if (not Assigned(FChildren)) or (not Assigned(AChild)) then
+    Exit;
+
+  lIndex := Children.IndexOf(AChild);
+  if lIndex >= 0 then
+    Children.Delete(lIndex);
+end;
+
 function TNXWindow.GetAbsContentRect: TNXRect;
 var
   lBorderThickness: Integer;
@@ -212,7 +321,30 @@ begin
   );
 end;
 
-function TNXWindow.GetChildOriginX(AChild: TNXElement): Integer;
+function TNXWindow.GetAbsLeft: Integer;
+begin
+  Result := Left;
+end;
+
+function TNXWindow.GetAbsTop: Integer;
+begin
+  Result := Top;
+end;
+
+function TNXWindow.GetBorderThickness: Integer;
+begin
+  if BorderStyleKind = wbsSingle then
+    Result := 1
+  else
+    Result := 0;
+end;
+
+function TNXWindow.GetCanvas: TNXCanvas;
+begin
+  Result := FCanvas;
+end;
+
+function TNXWindow.GetChildOriginX(AChild: TNXControl): Integer;
 begin
   if AChild = FTitleBar then
     Result := 0
@@ -220,12 +352,17 @@ begin
     Result := ContentRect.x;
 end;
 
-function TNXWindow.GetChildOriginY(AChild: TNXElement): Integer;
+function TNXWindow.GetChildOriginY(AChild: TNXControl): Integer;
 begin
   if AChild = FTitleBar then
     Result := 0
   else
     Result := ContentRect.y;
+end;
+
+function TNXWindow.GetChildren: TNXControlList;
+begin
+  Result := FChildren;
 end;
 
 function TNXWindow.GetContentRect: TNXRect;
@@ -244,6 +381,37 @@ begin
   );
 end;
 
+function TNXWindow.GetFontForChildren: TNXFont;
+begin
+  Result := Font;
+
+  if (Result = nil) and Assigned(Application) and Assigned(Application.Fonts) then
+    Result := Application.Fonts.DefaultFont;
+end;
+
+function TNXWindow.GetHeight: Integer;
+begin
+  Result := FHeight;
+end;
+
+function TNXWindow.GetLeft: Integer;
+begin
+  Result := FLeft;
+end;
+
+function TNXWindow.GetSkin: TNXSkin;
+begin
+  if Assigned(Application) then
+    Result := Application.Skin
+  else
+    Result := nil;
+end;
+
+function TNXWindow.GetTop: Integer;
+begin
+  Result := FTop;
+end;
+
 function TNXWindow.GetTitleBarHeight: Integer;
 begin
   if Assigned(FTitleBar) and FTitleBar.Visible then
@@ -252,12 +420,23 @@ begin
     Result := 0;
 end;
 
+function TNXWindow.GetWidth: Integer;
+begin
+  Result := FWidth;
+end;
+
 procedure TNXWindow.Hide;
 begin
   if Assigned(FManager) then
     FManager.HideWindow(Self)
   else
     InternalHide;
+end;
+
+function TNXWindow.InWindow(AX, AY: Integer): Boolean;
+begin
+  Result := Visible and (AX >= AbsLeft) and (AX < AbsLeft + Width) and
+    (AY >= AbsTop) and (AY < AbsTop + Height);
 end;
 
 procedure TNXWindow.InternalClose;
@@ -281,9 +460,21 @@ begin
   DoHide;
 end;
 
+procedure TNXWindow.InternalShow(AActivate: Boolean);
+begin
+  if not Visible then
+  begin
+    Visible := True;
+    DoShow;
+  end;
+
+  if AActivate then
+    BringWindowToFront;
+end;
+
 procedure TNXWindow.Paint;
 var
-  lChild: TNXElement;
+  lChild: TNXControl;
   lChildClipRect: TNXRect;
   lClipRect: TNXRect;
   lIndex: Integer;
@@ -317,19 +508,199 @@ begin
   end;
 end;
 
-procedure TNXWindow.InternalShow(AActivate: Boolean);
+procedure TNXWindow.ProcessKeyDown(const AEvent: TNXKeyEventData);
+var
+  lIndex: Integer;
 begin
-  if not Visible then
+  for lIndex := 0 to Children.Count - 1 do
+    if Children[lIndex].IsSelected then
+      Children[lIndex].ProcessKeyDown(AEvent);
+end;
+
+procedure TNXWindow.ProcessKeyUp(const AEvent: TNXKeyEventData);
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    if Children[lIndex].IsSelected then
+      Children[lIndex].ProcessKeyUp(AEvent);
+end;
+
+procedure TNXWindow.ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton);
+var
+  lChild: TNXControl;
+  lIndex: Integer;
+begin
+  if Button = mbNone then
+    Exit;
+
+  for lIndex := Children.Count - 1 downto 0 do
   begin
-    Visible := True;
-    DoShow;
+    lChild := Children[lIndex];
+    if lChild.Visible and lChild.InControl(
+      X - GetChildOriginX(lChild),
+      Y - GetChildOriginY(lChild)
+    ) then
+    begin
+      lChild.ProcessMouseDown(
+        X - GetChildOriginX(lChild) - lChild.Left,
+        Y - GetChildOriginY(lChild) - lChild.Top,
+        Button
+      );
+      lChild.IsSelected := True;
+      Exit;
+    end;
   end;
 
-  if AActivate then
+  UnselectChildren;
+end;
+
+procedure TNXWindow.ProcessMouseMotion(X, Y: Integer;
+  ButtonState: TNXMouseButtons);
+var
+  lCapturedControl: TNXControl;
+  lChild: TNXControl;
+  lIndex: Integer;
+  lPassed: Boolean;
+begin
+  lCapturedControl := NXCapturedMouseControl;
+  if Assigned(lCapturedControl) then
   begin
-    IsSelected := True;
-    BringWindowToFront;
+    lCapturedControl.ProcessMouseMotion(
+      X + AbsLeft - lCapturedControl.AbsLeft,
+      Y + AbsTop - lCapturedControl.AbsTop,
+      ButtonState
+    );
+    Exit;
   end;
+
+  lPassed := False;
+  for lIndex := Children.Count - 1 downto 0 do
+  begin
+    lChild := Children[lIndex];
+    if lChild.Visible and lChild.InControl(
+      X - GetChildOriginX(lChild),
+      Y - GetChildOriginY(lChild)
+    ) then
+    begin
+      lPassed := True;
+      if not lChild.MouseEntered then
+        lChild.ProcessMouseEnter;
+      lChild.ProcessMouseMotion(
+        X - GetChildOriginX(lChild) - lChild.Left,
+        Y - GetChildOriginY(lChild) - lChild.Top,
+        ButtonState
+      );
+    end
+    else if lChild.MouseEntered then
+      lChild.ProcessMouseExit;
+
+    if lPassed then
+      Break;
+  end;
+end;
+
+procedure TNXWindow.ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton);
+var
+  lCapturedControl: TNXControl;
+  lChild: TNXControl;
+  lIndex: Integer;
+begin
+  if Button = mbNone then
+    Exit;
+
+  lCapturedControl := NXCapturedMouseControl;
+  if Assigned(lCapturedControl) then
+  begin
+    lCapturedControl.ProcessMouseUp(
+      X + AbsLeft - lCapturedControl.AbsLeft,
+      Y + AbsTop - lCapturedControl.AbsTop,
+      Button
+    );
+    Exit;
+  end;
+
+  for lIndex := Children.Count - 1 downto 0 do
+  begin
+    lChild := Children[lIndex];
+    if lChild.Visible and lChild.InControl(
+      X - GetChildOriginX(lChild),
+      Y - GetChildOriginY(lChild)
+    ) then
+    begin
+      lChild.ProcessMouseUp(
+        X - GetChildOriginX(lChild) - lChild.Left,
+        Y - GetChildOriginY(lChild) - lChild.Top,
+        Button
+      );
+      Exit;
+    end;
+  end;
+end;
+
+procedure TNXWindow.ProcessTextInput(const AText: string);
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    if Children[lIndex].IsSelected then
+      Children[lIndex].ProcessTextInput(AText);
+end;
+
+procedure TNXWindow.Render;
+var
+  lRect: TNXRect;
+begin
+  lRect := MakeNXRect(AbsLeft, AbsTop, Width, Height);
+
+  if FillStyle = FS_Filled then
+    Canvas.FillRect(lRect, BackColor);
+
+  RenderClient;
+
+  if BorderStyleKind = wbsSingle then
+    Canvas.DrawRect(lRect, BorderColor);
+end;
+
+procedure TNXWindow.RenderClient;
+begin
+end;
+
+procedure TNXWindow.SendSizeCallback(AWidth, AHeight: Integer);
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    Children[lIndex].ParentSizeCallback(AWidth, AHeight);
+end;
+
+procedure TNXWindow.SetCanvas(ACanvas: TNXCanvas);
+var
+  lIndex: Integer;
+begin
+  FCanvas := ACanvas;
+
+  for lIndex := 0 to Children.Count - 1 do
+    Children[lIndex].Canvas := ACanvas;
+end;
+
+procedure TNXWindow.SetActive(AValue: Boolean);
+begin
+  FActive := AValue;
+
+  if Assigned(FTitleBar) then
+    FTitleBar.Active := AValue;
+end;
+
+procedure TNXWindow.SetHeight(AValue: Integer);
+begin
+  FHeight := AValue;
+  SendSizeCallback(Width, Height);
+end;
+
+procedure TNXWindow.SetLeft(AValue: Integer);
+begin
+  FLeft := AValue;
 end;
 
 procedure TNXWindow.SetManager(AManager: TNXWindowManager);
@@ -340,9 +711,17 @@ end;
 procedure TNXWindow.SetMovable(AValue: Boolean);
 begin
   FMovable := AValue;
+end;
 
-  if Assigned(FTitleBar) then
-    FTitleBar.Movable := AValue;
+procedure TNXWindow.SetTop(AValue: Integer);
+begin
+  FTop := AValue;
+end;
+
+procedure TNXWindow.SetWidth(AValue: Integer);
+begin
+  FWidth := AValue;
+  SendSizeCallback(Width, Height);
 end;
 
 procedure TNXWindow.SetWindowBorderStyle(AValue: TNXWindowBorderStyle);
@@ -350,15 +729,9 @@ begin
   FWindowBorderStyle := AValue;
 
   if AValue = wbsNone then
-  begin
-    BorderStyle := BS_None;
-    FillStyle := FS_None;
-  end
+    FFillStyle := FS_None
   else
-  begin
-    BorderStyle := BS_Single;
-    FillStyle := FS_Filled;
-  end;
+    FFillStyle := FS_Filled;
 
   if Assigned(FTitleBar) then
     FTitleBar.Visible := AValue <> wbsNone;
@@ -372,11 +745,29 @@ begin
     InternalShow(True);
 end;
 
-constructor TNXWindowManager.Create(AHost: TNXElement);
+procedure TNXWindow.UnselectChildren;
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    Children[lIndex].IsSelected := False;
+end;
+
+procedure TNXWindow.TitleBarDragged(Sender: TObject; ADeltaX,
+  ADeltaY: Integer);
+begin
+  if not Movable then
+    Exit;
+
+  Left := Max(Left + ADeltaX, 0);
+  Top := Max(Top + ADeltaY, 0);
+end;
+
+constructor TNXWindowManager.Create(ACanvas: TNXCanvas);
 begin
   inherited Create;
   FActiveWindow := nil;
-  FHost := AHost;
+  FCanvas := ACanvas;
   FModalWindow := nil;
   FWindows := TList.Create;
 end;
@@ -392,30 +783,25 @@ begin
   if not Assigned(AWindow) then
     Exit;
 
-  if AWindow.Parent <> FHost then
-    raise Exception.Create('TNXWindowManager can only manage windows parented by its host');
-
   if IndexOf(AWindow) >= 0 then
     Exit;
 
+  AWindow.Canvas := FCanvas;
   FWindows.Add(AWindow);
   AWindow.SetManager(Self);
 end;
 
-function TNXWindowManager.CreateWindow(const ACaption: string;
-  const ARect: TNXRect): TNXWindow;
-begin
-  Result := TNXWindow.Create(FHost, ACaption, ARect);
-  AddWindow(Result);
-end;
-
 procedure TNXWindowManager.BringToFront(AWindow: TNXWindow);
+var
+  lIndex: Integer;
 begin
   if not Assigned(AWindow) then
     Exit;
 
   AddWindow(AWindow);
-  AWindow.BringWindowToFront;
+  lIndex := IndexOf(AWindow);
+  if (lIndex >= 0) and (lIndex < FWindows.Count - 1) then
+    FWindows.Move(lIndex, FWindows.Count - 1);
 end;
 
 procedure TNXWindowManager.CloseWindow(AWindow: TNXWindow);
@@ -427,21 +813,26 @@ begin
   begin
     AWindow.DoClose;
     RemoveWindow(AWindow);
-
-    if Assigned(FHost) and (AWindow.Parent = FHost) then
-      FHost.FreeChild(AWindow)
-    else
-      AWindow.Free;
-
+    AWindow.Free;
     Exit;
   end;
 
   AWindow.InternalClose;
 
   if FActiveWindow = AWindow then
+  begin
+    AWindow.SetActive(False);
     FActiveWindow := nil;
+  end;
   if FModalWindow = AWindow then
     FModalWindow := nil;
+end;
+
+function TNXWindowManager.CreateWindow(const ACaption: string;
+  const ARect: TNXRect): TNXWindow;
+begin
+  Result := TNXWindow.Create(ACaption, ARect);
+  AddWindow(Result);
 end;
 
 function TNXWindowManager.GetWindow(AIndex: Integer): TNXWindow;
@@ -462,7 +853,10 @@ begin
   AWindow.InternalHide;
 
   if FActiveWindow = AWindow then
+  begin
+    AWindow.SetActive(False);
     FActiveWindow := nil;
+  end;
   if FModalWindow = AWindow then
     FModalWindow := nil;
 end;
@@ -472,12 +866,12 @@ begin
   Result := FWindows.IndexOf(AWindow);
 end;
 
-function TNXWindowManager.PointInWindow(AWindow: TNXWindow; AX,
-  AY: Integer): Boolean;
+procedure TNXWindowManager.Paint;
+var
+  lIndex: Integer;
 begin
-  Result := Assigned(AWindow) and AWindow.Visible and
-    (AX >= AWindow.AbsLeft) and (AX < AWindow.AbsLeft + AWindow.Width) and
-    (AY >= AWindow.AbsTop) and (AY < AWindow.AbsTop + AWindow.Height);
+  for lIndex := 0 to FWindows.Count - 1 do
+    Windows[lIndex].Paint;
 end;
 
 function TNXWindowManager.ProcessKeyDown(
@@ -485,7 +879,12 @@ function TNXWindowManager.ProcessKeyDown(
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
-    FModalWindow.ProcessKeyDown(AEvent);
+    FModalWindow.ProcessKeyDown(AEvent)
+  else if Assigned(FActiveWindow) and FActiveWindow.Visible then
+  begin
+    Result := True;
+    FActiveWindow.ProcessKeyDown(AEvent);
+  end;
 end;
 
 function TNXWindowManager.ProcessKeyUp(
@@ -493,33 +892,73 @@ function TNXWindowManager.ProcessKeyUp(
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
-    FModalWindow.ProcessKeyUp(AEvent);
+    FModalWindow.ProcessKeyUp(AEvent)
+  else if Assigned(FActiveWindow) and FActiveWindow.Visible then
+  begin
+    Result := True;
+    FActiveWindow.ProcessKeyUp(AEvent);
+  end;
 end;
 
 function TNXWindowManager.ProcessMouseDown(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
+var
+  lIndex: Integer;
+  lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
-  if not Result then
-    Exit;
-
-  if PointInWindow(FModalWindow, AX, AY) then
+  if Result then
   begin
-    SetActiveWindow(FModalWindow);
-    FModalWindow.ProcessMouseDown(AX - FModalWindow.AbsLeft,
-      AY - FModalWindow.AbsTop, AButton);
-  end
-  else
-    BringToFront(FModalWindow);
+    if FModalWindow.InWindow(AX, AY) then
+    begin
+      SetActiveWindow(FModalWindow);
+      FModalWindow.ProcessMouseDown(AX - FModalWindow.AbsLeft,
+        AY - FModalWindow.AbsTop, AButton);
+    end
+    else
+      BringToFront(FModalWindow);
+    Exit;
+  end;
+
+  for lIndex := FWindows.Count - 1 downto 0 do
+  begin
+    lWindow := Windows[lIndex];
+    if lWindow.InWindow(AX, AY) then
+    begin
+      SetActiveWindow(lWindow);
+      lWindow.ProcessMouseDown(AX - lWindow.AbsLeft, AY - lWindow.AbsTop,
+        AButton);
+      Result := True;
+      Exit;
+    end;
+  end;
 end;
 
 function TNXWindowManager.ProcessMouseMotion(AX, AY: Integer;
   AButtonState: TNXMouseButtons): Boolean;
+var
+  lIndex: Integer;
+  lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
+  begin
     FModalWindow.ProcessMouseMotion(AX - FModalWindow.AbsLeft,
       AY - FModalWindow.AbsTop, AButtonState);
+    Exit;
+  end;
+
+  for lIndex := FWindows.Count - 1 downto 0 do
+  begin
+    lWindow := Windows[lIndex];
+    if lWindow.InWindow(AX, AY) then
+    begin
+      lWindow.ProcessMouseMotion(AX - lWindow.AbsLeft, AY - lWindow.AbsTop,
+        AButtonState);
+      Result := True;
+      Exit;
+    end;
+  end;
 end;
 
 function TNXWindowManager.ProcessMouseUp(AX, AY: Integer;
@@ -527,15 +966,30 @@ function TNXWindowManager.ProcessMouseUp(AX, AY: Integer;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
+  begin
     FModalWindow.ProcessMouseUp(AX - FModalWindow.AbsLeft,
       AY - FModalWindow.AbsTop, AButton);
+    Exit;
+  end;
+
+  if Assigned(FActiveWindow) and FActiveWindow.Visible then
+  begin
+    FActiveWindow.ProcessMouseUp(AX - FActiveWindow.AbsLeft,
+      AY - FActiveWindow.AbsTop, AButton);
+    Result := True;
+  end;
 end;
 
 function TNXWindowManager.ProcessTextInput(const AText: string): Boolean;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
-    FModalWindow.ProcessTextInput(AText);
+    FModalWindow.ProcessTextInput(AText)
+  else if Assigned(FActiveWindow) and FActiveWindow.Visible then
+  begin
+    Result := True;
+    FActiveWindow.ProcessTextInput(AText);
+  end;
 end;
 
 procedure TNXWindowManager.RemoveWindow(AWindow: TNXWindow);
@@ -550,7 +1004,10 @@ begin
     FWindows.Delete(lIndex);
 
   if FActiveWindow = AWindow then
+  begin
+    AWindow.SetActive(False);
     FActiveWindow := nil;
+  end;
   if FModalWindow = AWindow then
     FModalWindow := nil;
 
@@ -563,7 +1020,10 @@ begin
     Exit;
 
   AddWindow(AWindow);
+  if Assigned(FActiveWindow) and (FActiveWindow <> AWindow) then
+    FActiveWindow.SetActive(False);
   FActiveWindow := AWindow;
+  FActiveWindow.SetActive(True);
   AWindow.InternalShow(True);
 end;
 

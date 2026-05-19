@@ -11,7 +11,6 @@ uses
   tpNXEvents,
   tpNXPlatform,
   obNXFont,
-  obNXElement,
   obNXControl;
 
 type
@@ -75,7 +74,7 @@ type
     procedure RenderTextValue; virtual;
     procedure RenderClient; override;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
 
     procedure DoSelected; override;
     procedure DoLostSelected; override;
@@ -104,7 +103,7 @@ const
   cTextMargin = 5;
   cCaretBlinkMS = 500;
 
-constructor TNXEditBox.Create(AParent: TNXElement);
+constructor TNXEditBox.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   BackColor := Skin.TextBackColor;

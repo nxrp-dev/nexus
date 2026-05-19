@@ -9,8 +9,8 @@ uses
   fgl,
   tpNXEvents,
   tpNXPlatform,
-  obNXElement,
   obNXControl,
+
   obNXScrollBar;
 
 type
@@ -50,7 +50,7 @@ type
     procedure SelectItem(AItem: TNXListBoxItem);
     procedure UpdateItemsToShow;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
     procedure Render; override;
     procedure ctrl_FontChanged; override;
@@ -113,7 +113,7 @@ begin
   end;
 end;
 
-constructor TNXListBox.Create(AParent: TNXElement);
+constructor TNXListBox.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   BorderStyle := BS_Single;

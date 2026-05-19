@@ -4,20 +4,23 @@ unit obNXTitleBar;
 interface
 
 uses
-  Math,
   obNXControl,
-  obNXElement,
+
   tpNXPlatform;
 
 type
+  TNXTitleBarDragEvent = procedure(Sender: TObject; ADeltaX,
+    ADeltaY: Integer) of object;
+
   TNXTitleBar = class(TNXControl)
   private
+    FActive: Boolean;
     FMoving: Boolean;
     FInitMoveX: Integer;
     FInitMoveY: Integer;
-    FMovable: Boolean;
+    FOnDrag: TNXTitleBarDragEvent;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
 
     procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
     procedure DoMouseMotion(AX, AY: Integer; AButtonState: TNXMouseButtons); override;
@@ -25,27 +28,28 @@ type
     procedure ParentSizeCallback(AWidth, AHeight: Integer); override;
     procedure Render; override;
 
-    property Movable: Boolean read FMovable write FMovable;
+    property Active: Boolean read FActive write FActive;
+    property OnDrag: TNXTitleBarDragEvent read FOnDrag write FOnDrag;
   end;
 
 implementation
 
-constructor TNXTitleBar.Create(AParent: TNXElement);
+constructor TNXTitleBar.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   Left := 0;
   Top := 0;
   BackColor := Skin.TitleBarBackColor;
   BorderStyle := BS_Single;
+  FActive := False;
   FMoving := False;
-  FMovable := False;
 end;
 
 procedure TNXTitleBar.DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton);
 begin
   inherited;
 
-  if FMovable and (AButton = mbLeft) then
+  if AButton = mbLeft then
   begin
     FMoving := True;
     CaptureMouse;
@@ -70,13 +74,13 @@ begin
     Exit;
   end;
 
-  if FMoving and Assigned(Parent) then
+  if FMoving then
   begin
     lAmtX := AX - FInitMoveX;
     lAmtY := AY - FInitMoveY;
 
-    Parent.Left := Max(Parent.Left + lAmtX, 0);
-    Parent.Top := Max(Parent.Top + lAmtY, 0);
+    if Assigned(FOnDrag) then
+      FOnDrag(Self, lAmtX, lAmtY);
   end;
 end;
 
@@ -103,7 +107,7 @@ end;
 
 procedure TNXTitleBar.Render;
 begin
-  if Assigned(Parent) and Parent.IsSelected then
+  if Active then
     CurFillColor := BackColor
   else
     CurFillColor := Skin.UnselectedTitleBarBackColor;

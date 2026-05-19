@@ -8,7 +8,6 @@ uses
   SysUtils,
   Math,
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -52,7 +51,7 @@ type
     procedure DoChange; virtual;
     procedure RenderClient; override;
   public
-    constructor Create(AParent: TNXElement); override;
+    constructor Create(const AParent: INXControlParent); override;
 
     procedure StepBy(ADelta: Integer); virtual;
     procedure Reset; virtual;
@@ -73,7 +72,7 @@ type
 
 implementation
 
-constructor TNXProgressBar.Create(AParent: TNXElement);
+constructor TNXProgressBar.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   FMin := 0;

@@ -8,7 +8,6 @@ uses
   Classes,
   SysUtils,
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -89,7 +88,7 @@ type
     procedure NotifySelected;
 
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
 
     procedure Render; override;
     procedure DoResize; override;
@@ -470,7 +469,7 @@ begin
     SortLayoutItemsByAmountDescending(ACategories[lCategoryIndex].Transactions);
 end;
 
-constructor TNXTreeMap.Create(AParent: TNXElement);
+constructor TNXTreeMap.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 

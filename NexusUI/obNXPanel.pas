@@ -6,14 +6,13 @@ interface
 uses
   Math,
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
   TNXPanel = class(TNXControl)
   public
-    constructor Create(AParent: TNXElement); overload; override;
-    constructor Create(AParent: TNXElement; const ACaption: string;
+    constructor Create(const AParent: INXControlParent); overload; override;
+    constructor Create(const AParent: INXControlParent; const ACaption: string;
       const ARect: TNXRect); overload; virtual;
 
     procedure Paint; override;
@@ -21,7 +20,7 @@ type
 
 implementation
 
-constructor TNXPanel.Create(AParent: TNXElement);
+constructor TNXPanel.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 
@@ -31,7 +30,7 @@ begin
   BorderStyle := BS_Single;
 end;
 
-constructor TNXPanel.Create(AParent: TNXElement; const ACaption: string;
+constructor TNXPanel.Create(const AParent: INXControlParent; const ACaption: string;
   const ARect: TNXRect);
 begin
   Create(AParent);

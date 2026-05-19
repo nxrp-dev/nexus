@@ -12,8 +12,8 @@ uses
   tpNXEvents,
   tpNXPlatform,
   tpNXWindow,
-  obNXElement,
   obNXControl,
+
   obNXPopup,
   obNXPanel,
   obNXLabel,
@@ -82,7 +82,7 @@ type
     procedure DoOpened; override;
     procedure LayoutDialog; virtual;
   public
-    constructor Create(AParent, AOwner: TNXElement); override;
+    constructor Create(const AParent: INXControlParent; AOwner: TNXControl); override;
     destructor Destroy; override;
 
     procedure ShowDialog(
@@ -128,7 +128,7 @@ const
   cMinDialogWidth = 360;
   cMaxDialogWidth = 560;
 
-constructor TNXMessageDialog.Create(AParent, AOwner: TNXElement);
+constructor TNXMessageDialog.Create(const AParent: INXControlParent; AOwner: TNXControl);
 begin
   inherited Create(AParent, AOwner);
 
@@ -358,18 +358,16 @@ end;
 procedure TNXMessageDialog.Complete(AResult: TNXModalResult);
 var
   lOneShot: Boolean;
-  lParent: TNXElement;
 begin
   lOneShot := FOneShot;
-  lParent := Parent;
 
   Close;
 
   if Assigned(FOnResult) then
     FOnResult(Self, AResult);
 
-  if lOneShot and Assigned(lParent) then
-    lParent.FreeChild(Self);
+  if lOneShot and Assigned(Application) then
+    Application.QueueFreeControl(Self);
 end;
 
 procedure TNXMessageDialog.DoKeyDown(const AEvent: TNXKeyEventData);
@@ -473,8 +471,8 @@ begin
   CancelResult := ACancelResult;
   OnResult := AOnResult;
 
-  if Assigned(Application) and Assigned(Application.Master) then
-    Application.Master.Popups.ShowPopup(Self)
+  if Assigned(Application) and Assigned(Application.RootWindow) then
+    Application.Popups.ShowPopup(Self)
   else
     Open;
 end;
@@ -492,7 +490,7 @@ var
 begin
   Result := nil;
 
-  if (not Assigned(Application)) or (not Assigned(Application.Master)) then
+  if (not Assigned(Application)) or (not Assigned(Application.RootWindow)) then
     Exit;
 
   if mdbOK in AButtons then
@@ -511,7 +509,7 @@ begin
   else
     lCancelResult := mrNone;
 
-  Result := TNXMessageDialog.Create(Application.Master, Application.Master);
+  Result := TNXMessageDialog.Create(Application.RootWindow, nil);
   Result.FOneShot := True;
   Result.ShowDialog(ATitle, AMessage, AButtons, AIcon,
     lDefaultResult, lCancelResult, AOnResult);

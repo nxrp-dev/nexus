@@ -6,7 +6,6 @@ interface
 
 uses
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -27,7 +26,7 @@ type
     procedure SetSource(ASourceImage: TNXImageHandle);
     procedure SetSrcRect(ARect: TNXRect); virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
     procedure ChildAddedCallback; override;
     procedure LoadFromFile(const AFileName: string);
@@ -36,7 +35,7 @@ type
 
 implementation
 
-constructor TNXImage.Create(AParent: TNXElement);
+constructor TNXImage.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   FillStyle := FS_None;

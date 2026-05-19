@@ -10,8 +10,8 @@ uses
   SysUtils,
   tpNXEvents,
   tpNXPlatform,
-  obNXElement,
   obNXControl,
+
   obNXPopup;
 
 type
@@ -44,7 +44,7 @@ type
     procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
     procedure SelectionChanged; virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
 
     procedure Render; override;
@@ -70,7 +70,7 @@ type
     procedure DoClosed; override;
     procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
   public
-    constructor Create(AParent: TNXElement; AComboBox: TNXComboBox); reintroduce;
+    constructor Create(const AParent: INXControlParent; AComboBox: TNXComboBox); reintroduce;
     procedure Render; override;
   end;
 
@@ -79,7 +79,7 @@ const
   cDefaultDropDownItemCount = 8;
   cTextPadding = 4;
 
-constructor TNXComboBox.Create(AParent: TNXElement);
+constructor TNXComboBox.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   BorderStyle := BS_Single;
@@ -137,13 +137,13 @@ begin
   if Assigned(FDropDown) then
     Exit;
 
-  FDropDown := TNXComboBoxDropDown.Create(Application.Master, Self);
+  FDropDown := TNXComboBoxDropDown.Create(Application.RootWindow, Self);
 end;
 
 procedure TNXComboBox.PositionDropDown;
 var
   lDropDownHeight: Integer;
-  lMasterHeight: Integer;
+  lRootWindowHeight: Integer;
   lTop: Integer;
 begin
   EnsureDropDown;
@@ -151,10 +151,10 @@ begin
   lDropDownHeight := GetDropDownHeight;
   lTop := AbsTop + Height;
 
-  if Assigned(Application.Master) then
+  if Assigned(Application.RootWindow) then
   begin
-    lMasterHeight := Application.Master.Height;
-    if (lTop + lDropDownHeight > lMasterHeight) and
+    lRootWindowHeight := Application.RootWindow.Height;
+    if (lTop + lDropDownHeight > lRootWindowHeight) and
       (AbsTop - lDropDownHeight >= 0) then
       lTop := AbsTop - lDropDownHeight;
   end;
@@ -181,10 +181,10 @@ begin
   begin
     EnsureSelectedVisible;
     PositionDropDown;
-    Application.Master.Popups.ShowPopup(FDropDown);
+    Application.Popups.ShowPopup(FDropDown);
   end
   else if Assigned(FDropDown) then
-    Application.Master.Popups.HidePopup(FDropDown);
+    Application.Popups.HidePopup(FDropDown);
 end;
 
 procedure TNXComboBox.SetSelectedIndex(AValue: Integer);
@@ -312,7 +312,7 @@ begin
   end;
 end;
 
-constructor TNXComboBoxDropDown.Create(AParent: TNXElement;
+constructor TNXComboBoxDropDown.Create(const AParent: INXControlParent;
   AComboBox: TNXComboBox);
 begin
   inherited Create(AParent, AComboBox);

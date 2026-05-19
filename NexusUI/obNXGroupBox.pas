@@ -5,7 +5,7 @@ interface
 
 uses
   Math,
-  obNXElement,
+  obNXControl,
   obNXPanel,
   obNXTitleBar,
   tpNXPlatform;
@@ -16,21 +16,21 @@ type
     FTitleBar: TNXTitleBar;
   protected
     function GetAbsContentRect: TNXRect; override;
-    function GetChildOriginX(AChild: TNXElement): Integer; override;
-    function GetChildOriginY(AChild: TNXElement): Integer; override;
+    function GetChildOriginX(AChild: TNXControl): Integer; override;
+    function GetChildOriginY(AChild: TNXControl): Integer; override;
     function GetContentRect: TNXRect; override;
   public
-    constructor Create(AParent: TNXElement); overload; override;
-    constructor Create(AParent: TNXElement; const ACaption: string;
+    constructor Create(const AParent: INXControlParent); overload; override;
+    constructor Create(const AParent: INXControlParent; const ACaption: string;
       const ARect: TNXRect); overload; override;
 
-    procedure AddChild(AChild: TNXElement); override;
+    procedure AddChild(AChild: TNXControl); override;
     procedure Paint; override;
   end;
 
 implementation
 
-constructor TNXGroupBox.Create(AParent: TNXElement);
+constructor TNXGroupBox.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 
@@ -39,7 +39,7 @@ begin
   FTitleBar.ParentSizeCallback(Width, Height);
 end;
 
-constructor TNXGroupBox.Create(AParent: TNXElement; const ACaption: string;
+constructor TNXGroupBox.Create(const AParent: INXControlParent; const ACaption: string;
   const ARect: TNXRect);
 begin
   Create(AParent);
@@ -70,7 +70,7 @@ begin
   );
 end;
 
-function TNXGroupBox.GetChildOriginX(AChild: TNXElement): Integer;
+function TNXGroupBox.GetChildOriginX(AChild: TNXControl): Integer;
 begin
   if AChild = FTitleBar then
     Result := 0
@@ -78,7 +78,7 @@ begin
     Result := ContentRect.x;
 end;
 
-function TNXGroupBox.GetChildOriginY(AChild: TNXElement): Integer;
+function TNXGroupBox.GetChildOriginY(AChild: TNXControl): Integer;
 begin
   if AChild = FTitleBar then
     Result := 0
@@ -105,7 +105,7 @@ begin
   );
 end;
 
-procedure TNXGroupBox.AddChild(AChild: TNXElement);
+procedure TNXGroupBox.AddChild(AChild: TNXControl);
 var
   lTitleBarIndex: Integer;
 begin
@@ -121,7 +121,7 @@ end;
 
 procedure TNXGroupBox.Paint;
 var
-  lChild: TNXElement;
+  lChild: TNXControl;
   lChildClipRect: TNXRect;
   lClipRect: TNXRect;
   lIndex: Integer;

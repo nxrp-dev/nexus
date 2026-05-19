@@ -8,7 +8,6 @@ uses
   obNXSkin,
   tpNXPlatform,
   tpNXSkin,
-  obNXElement,
   obNXControl;
 
 type
@@ -17,7 +16,7 @@ type
     function GetSkinState: TNXSkinState; virtual;
     function TryRenderSkinnedBackground: Boolean; virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     procedure Render; override;
     procedure DoMouseEnter; override;
     procedure DoMouseExit; override;
@@ -28,7 +27,7 @@ implementation
 const
   cButtonBackgroundPart = 'Background';
 
-constructor TNXButton.Create(AParent: TNXElement);
+constructor TNXButton.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   BorderStyle := BS_Single;

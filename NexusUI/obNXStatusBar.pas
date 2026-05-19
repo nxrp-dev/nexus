@@ -10,7 +10,6 @@ uses
   Math,
   fgl,
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -61,7 +60,7 @@ type
     procedure PanelChanged(APanel: TNXStatusBarPanel); virtual;
     procedure RenderPanel(const ARect: TNXRect; const AText: string; ATextAlign: TTextAlign); virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
 
     function AddPanel(const AText: string = ''; AWidth: Integer = 100): TNXStatusBarPanel;
@@ -135,7 +134,7 @@ begin
     FOwner.PanelChanged(Self);
 end;
 
-constructor TNXStatusBar.Create(AParent: TNXElement);
+constructor TNXStatusBar.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 

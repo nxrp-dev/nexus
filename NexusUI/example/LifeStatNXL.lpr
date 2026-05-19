@@ -9,7 +9,7 @@ uses
   obNXCheckBox,
   obNXComboBox,
   obNXEditBox,
-  obNXElement,
+  obNXControl,
   obNXGroupBox,
   obNXImage,
   obNXLabel,
@@ -23,7 +23,7 @@ uses
   obNXTreeList,
   obNXTreeMap,
   obNXTreeMapTestData,
-  obNXMaster,
+  obNXWindow,
   obNXApplication,
   tpNXPlatform,
   tpNXWindow;
@@ -61,7 +61,7 @@ var
   TreeNode3: TNXTreeListNode;
 
   DemoEvents: TDemoEvents;
-  Master: TNXMaster;
+  RootWindow: TNXWindow;
 
   TestData: TTransactionArray;
   MoneyTreemap1: TNXTreeMap;
@@ -107,17 +107,17 @@ begin
   Application.Initialize('Window', 1024, 768);
   Application.Skin.LoadFromFile('..\skins\button\skin.json', Application.Canvas);
 
-  Master := Application.Master;
+  RootWindow := Application.RootWindow;
   DemoEvents := TDemoEvents.Create;
 
-  Form1 := TNXGroupBox.Create(Master, 'Form1', MakeNXRect(0, 0, 250, 256));
-  Form2 := TNXGroupBox.Create(Master, 'Form2', MakeNXRect(500, 400, 400, 200));
-  Form3 := TNXGroupBox.Create(Master, 'Form3', MakeNXRect(0, 400, 400, 325));
-  Form4 := TNXGroupBox.Create(Master, 'Form4', MakeNXRect(600, 0, 300, 300));
-  Form5 := TNXGroupBox.Create(Master, 'Form5', MakeNXRect(550, 50, 300, 300));
-  Form6 := TNXGroupBox.Create(Master, 'Tree List', MakeNXRect(900, 0, 300, 300));
-  Form7 := TNXGroupBox.Create(Master, 'Memo', MakeNXRect(260, 0, 300, 256));
-  Form8 := TNXGroupBox.Create(Master, 'Split Panel', MakeNXRect(260, 270, 300, 120));
+  Form1 := TNXGroupBox.Create(RootWindow, 'Form1', MakeNXRect(0, 0, 250, 256));
+  Form2 := TNXGroupBox.Create(RootWindow, 'Form2', MakeNXRect(500, 400, 400, 200));
+  Form3 := TNXGroupBox.Create(RootWindow, 'Form3', MakeNXRect(0, 400, 400, 325));
+  Form4 := TNXGroupBox.Create(RootWindow, 'Form4', MakeNXRect(600, 0, 300, 300));
+  Form5 := TNXGroupBox.Create(RootWindow, 'Form5', MakeNXRect(550, 50, 300, 300));
+  Form6 := TNXGroupBox.Create(RootWindow, 'Tree List', MakeNXRect(900, 0, 300, 300));
+  Form7 := TNXGroupBox.Create(RootWindow, 'Memo', MakeNXRect(260, 0, 300, 256));
+  Form8 := TNXGroupBox.Create(RootWindow, 'Split Panel', MakeNXRect(260, 270, 300, 120));
 
   ListBox := TNXListBox.Create(Form4, MakeNXRect(10, 30, 200, 200));
   for lIndex := 1 to 12 do
@@ -185,7 +185,7 @@ begin
   Label3 := TNXLabel.Create(SplitPanel1.PaneB, MakeNXRect(6, 8, 100, 20));
   Label3.Caption := 'Pane B';
 
-  PopupMenu1 := TNXPopupMenu.Create(Master, Button2);
+  PopupMenu1 := TNXPopupMenu.Create(RootWindow, Button2);
   PopupMenu1.AddItem('Refresh', nil, 'F5');
   PopupMenu1.AddItem('Checked option').Checked := True;
   PopupMenu1.AddSeparator;
@@ -222,7 +222,7 @@ begin
   TreeList1.ExpandAll;
   TreeList1.SelectedNode := TreeNode1;
 
-  StatusBar1 := TNXStatusBar.Create(Master);
+  StatusBar1 := TNXStatusBar.Create(RootWindow);
   StatusBar1.SimplePanel := False;
   StatusBar1.AddPanel('Ready', 160);
   StatusBar1.AddPanel('New controls compiled', 180);

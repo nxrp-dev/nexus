@@ -6,7 +6,6 @@ interface
 
 uses
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -15,7 +14,7 @@ type
     FTextA: TTextAlign;
     FVertA: TVertAlign;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     procedure Render; override;
 
     property TextA: TTextAlign read FTextA write FTextA;
@@ -24,7 +23,7 @@ type
 
 implementation
 
-constructor TNXLabel.Create(AParent: TNXElement);
+constructor TNXLabel.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   FillStyle := FS_None;

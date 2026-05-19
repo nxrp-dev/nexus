@@ -7,7 +7,7 @@ interface
 uses
   Classes,
   obNXControl,
-  obNXElement,
+
   tpNXPlatform;
 
 type
@@ -16,29 +16,29 @@ type
   TNXPopup = class(TNXControl)
   private
     FManager: TNXPopupManager;
-    FOwner: TNXElement;
+    FOwner: TNXControl;
     procedure CloseInternal;
   protected
     procedure DoClosed; virtual;
     procedure DoOpened; virtual;
   public
-    constructor Create(AParent, AOwner: TNXElement); reintroduce; virtual;
+    constructor Create(const AParent: INXControlParent; AOwner: TNXControl); reintroduce; virtual;
     destructor Destroy; override;
     procedure Close; virtual;
     procedure Open; virtual;
 
-    property Owner: TNXElement read FOwner;
+    property Owner: TNXControl read FOwner;
   end;
 
   TNXPopupManager = class
   private
     FActivePopup: TNXPopup;
-    FHost: TNXElement;
+    FHost: INXControlParent;
 
     procedure ForgetPopup(APopup: TNXPopup);
-    function PointInElement(AElement: TNXElement; AX, AY: Integer): Boolean;
+    function PointInElement(AElement: TNXControl; AX, AY: Integer): Boolean;
   public
-    constructor Create(AHost: TNXElement);
+    constructor Create(const AHost: INXControlParent);
     procedure BringActiveToFront;
     procedure HidePopup(APopup: TNXPopup);
     procedure HidePopups;
@@ -50,7 +50,7 @@ type
 
 implementation
 
-constructor TNXPopup.Create(AParent, AOwner: TNXElement);
+constructor TNXPopup.Create(const AParent: INXControlParent; AOwner: TNXControl);
 begin
   inherited Create(AParent);
   FManager := nil;
@@ -102,7 +102,7 @@ procedure TNXPopup.DoOpened;
 begin
 end;
 
-constructor TNXPopupManager.Create(AHost: TNXElement);
+constructor TNXPopupManager.Create(const AHost: INXControlParent);
 begin
   inherited Create;
   FHost := AHost;
@@ -121,7 +121,7 @@ begin
     FHost.Children.Move(lIndex, FHost.Children.Count - 1);
 end;
 
-function TNXPopupManager.PointInElement(AElement: TNXElement; AX,
+function TNXPopupManager.PointInElement(AElement: TNXControl; AX,
   AY: Integer): Boolean;
 begin
   Result := Assigned(AElement) and AElement.Visible and

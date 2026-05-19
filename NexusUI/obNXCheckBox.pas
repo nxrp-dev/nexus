@@ -6,7 +6,6 @@ interface
 
 uses
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -17,7 +16,7 @@ type
   protected
     procedure SetValue(NewValue: Boolean); virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     procedure Render; override;
     procedure DoMouseClick(AX, AY: Integer; AButton: TNXMouseButton); override;
     procedure BoxChecked; virtual;
@@ -29,7 +28,7 @@ type
 
 implementation
 
-constructor TNXCheckBox.Create(AParent: TNXElement);
+constructor TNXCheckBox.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   FillStyle := FS_None;

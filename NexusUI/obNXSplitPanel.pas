@@ -9,7 +9,6 @@ uses
   Math,
   SysUtils,
   tpNXPlatform,
-  obNXElement,
   obNXControl;
 
 type
@@ -27,14 +26,14 @@ type
 
   TNXSplitPanelPane = class(TNXControl)
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
   end;
 
   TNXSplitPanelSplitter = class(TNXControl)
   private
     FOwner: TNXSplitPanel;
   public
-    constructor Create(AParent: TNXElement; AOwner: TNXSplitPanel); reintroduce; virtual;
+    constructor Create(const AParent: INXControlParent; AOwner: TNXSplitPanel); reintroduce; virtual;
     procedure Render; override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
@@ -74,7 +73,7 @@ type
     procedure LayoutPanes; virtual;
     procedure Change; virtual;
   public
-    constructor Create(AParent: TNXElement); overload; override;
+    constructor Create(const AParent: INXControlParent); overload; override;
     procedure ParentSizeCallback(NewW, NewH: Integer); override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
@@ -95,7 +94,7 @@ type
 
 implementation
 
-constructor TNXSplitPanelPane.Create(AParent: TNXElement);
+constructor TNXSplitPanelPane.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   Left := 0;
@@ -107,7 +106,7 @@ begin
   Selectable := False;
 end;
 
-constructor TNXSplitPanelSplitter.Create(AParent: TNXElement; AOwner: TNXSplitPanel);
+constructor TNXSplitPanelSplitter.Create(const AParent: INXControlParent; AOwner: TNXSplitPanel);
 begin
   inherited Create(AParent);
   FOwner := AOwner;
@@ -168,7 +167,7 @@ begin
   end;
 end;
 
-constructor TNXSplitPanel.Create(AParent: TNXElement);
+constructor TNXSplitPanel.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 
