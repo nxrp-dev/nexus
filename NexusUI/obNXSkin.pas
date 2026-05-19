@@ -24,8 +24,10 @@ type
     FFormBackColor: TNXColor;
     FFullTransColor: TNXColor;
     FImages: array of TNXSkinImageEntry;
+    FName: string;
     FSelectedColor: TNXColor;
     FSlices: array of TNXSkinSliceEntry;
+    FSkinFolder: string;
     FTextBackColor: TNXColor;
     FTitleBarBackColor: TNXColor;
     FUnselectedTitleBarBackColor: TNXColor;
@@ -34,8 +36,11 @@ type
     function FindNineSliceIndex(const ASkinClass, APart: string;
       AState: TNXSkinState): Integer;
     function GetImage(const AID: string): TNXImageHandle;
+    procedure LoadFromManifestFile(const AFileName: string; ACanvas: TNXCanvas);
     function ResolveSkinFileName(const ASkinFileName,
       AImageFileName: string): string;
+    procedure SetNineSlice(const ASkinClass, APart: string;
+      AState: TNXSkinState; const ASlice: TNXNineSlice);
   public
     constructor Create;
     destructor Destroy; override;
@@ -43,9 +48,7 @@ type
     procedure Clear;
     function GetNineSlice(const ASkinClass, APart: string;
       AState: TNXSkinState; out ASlice: TNXNineSlice): Boolean;
-    procedure LoadFromFile(const AFileName: string; ACanvas: TNXCanvas);
-    procedure SetNineSlice(const ASkinClass, APart: string;
-      AState: TNXSkinState; const ASlice: TNXNineSlice);
+    procedure LoadNamedSkin(const ASkinName: string; ACanvas: TNXCanvas);
 
     property ActiveColor: TNXColor read FActiveColor write FActiveColor;
     property BackColor: TNXColor read FBackColor write FBackColor;
@@ -53,7 +56,9 @@ type
     property ForeColor: TNXColor read FForeColor write FForeColor;
     property FormBackColor: TNXColor read FFormBackColor write FFormBackColor;
     property FullTransColor: TNXColor read FFullTransColor write FFullTransColor;
+    property Name: string read FName;
     property SelectedColor: TNXColor read FSelectedColor write FSelectedColor;
+    property SkinFolder: string read FSkinFolder;
     property TextBackColor: TNXColor read FTextBackColor write FTextBackColor;
     property TitleBarBackColor: TNXColor read FTitleBarBackColor write FTitleBarBackColor;
     property UnselectedTitleBarBackColor: TNXColor read FUnselectedTitleBarBackColor write FUnselectedTitleBarBackColor;
@@ -61,6 +66,10 @@ type
 
 
 implementation
+
+const
+  cSkinManifestFileName = 'skin.json';
+  cSkinsFolderName = 'skins';
 
 function TNXSkin.FindImageIndex(const AID: string): Integer;
 var
@@ -145,6 +154,8 @@ begin
 
   SetLength(FImages, 0);
   SetLength(FSlices, 0);
+  FName := '';
+  FSkinFolder := '';
   FCanvas := nil;
 end;
 
@@ -163,7 +174,8 @@ begin
     ASlice := FSlices[lIndex].Slice;
 end;
 
-procedure TNXSkin.LoadFromFile(const AFileName: string; ACanvas: TNXCanvas);
+procedure TNXSkin.LoadFromManifestFile(const AFileName: string;
+  ACanvas: TNXCanvas);
 var
   lDeStreamer: TJSONDeStreamer;
   lFileText: string;
@@ -201,6 +213,8 @@ begin
 
     Clear;
     FCanvas := ACanvas;
+    FSkinFolder := ExcludeTrailingPathDelimiter(ExtractFilePath(AFileName));
+    FName := ExtractFileName(FSkinFolder);
 
     SetLength(FImages, lManifest.Images.Count);
     for lImageIndex := 0 to lManifest.Images.Count - 1 do
@@ -237,6 +251,21 @@ begin
   finally
     lManifest.Free;
   end;
+end;
+
+procedure TNXSkin.LoadNamedSkin(const ASkinName: string; ACanvas: TNXCanvas);
+var
+  lSkinsFolder: string;
+  lSkinFolder: string;
+begin
+  if Trim(ASkinName) = '' then
+    raise Exception.Create('Skin name cannot be empty');
+
+  lSkinsFolder := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
+    cSkinsFolderName;
+  lSkinFolder := IncludeTrailingPathDelimiter(lSkinsFolder) + ASkinName;
+  LoadFromManifestFile(IncludeTrailingPathDelimiter(lSkinFolder) +
+    cSkinManifestFileName, ACanvas);
 end;
 
 procedure TNXSkin.SetNineSlice(const ASkinClass, APart: string;
