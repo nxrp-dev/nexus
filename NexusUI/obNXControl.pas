@@ -4,8 +4,8 @@ unit obNXControl;
 
 interface
 
-uses Classes, SysUtils, Math, fgl, obNXCanvas, obNXFont, obNXSkin,
-  tpNXEvents, tpNXLayout, tpNXPlatform, obNXPlatform;
+uses Classes, SysUtils, Math, fgl, obNXCanvas, obNXFont, obNXPersist,
+  obNXSkin, tpNXEvents, tpNXLayout, tpNXPlatform, obNXPlatform;
 
 type
   TNXControl = class;
@@ -41,7 +41,7 @@ type
   TNXTextInputEvent = procedure(Sender: TObject; const AText: string) of object;
   TNXKeyEvent = procedure(Sender: TObject; const AEvent: TNXKeyEventData) of object;
 
-  TNXControlHost = class(INXControlParent)
+  TNXControlHost = class(TNXPersistObject, INXControlParent)
   private
     FChildren: TNXControlList;
     FCanvas: TNXCanvas;
@@ -70,7 +70,7 @@ type
     function GetSkin: TNXSkin; virtual; abstract;
     function GetWidth: Integer; virtual; abstract;
   public
-    constructor Create; virtual;
+    constructor Create; override;
     destructor Destroy; override;
 
     procedure AddChild(AChild: TNXControl); virtual;

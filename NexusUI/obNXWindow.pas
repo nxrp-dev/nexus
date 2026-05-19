@@ -82,6 +82,7 @@ type
     procedure Activate; virtual;
     procedure AddChild(AChild: TNXControl); override;
     procedure BringWindowToFront; virtual;
+    procedure ClearMouseHover; virtual;
     procedure Close; virtual;
     function GetAbsLeft: Integer; override;
     function GetAbsTop: Integer; override;
@@ -138,6 +139,7 @@ type
   private
     FActiveWindow: TNXWindow;
     FCanvas: TNXCanvas;
+    FHoverWindow: TNXWindow;
     FModalWindow: TNXWindow;
     FWindows: TList;
 
@@ -241,6 +243,15 @@ procedure TNXWindow.BringWindowToFront;
 begin
   if Assigned(FManager) then
     FManager.BringToFront(Self);
+end;
+
+procedure TNXWindow.ClearMouseHover;
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    if Children[lIndex].MouseEntered then
+      Children[lIndex].ProcessMouseExit;
 end;
 
 procedure TNXWindow.Close;
@@ -716,12 +727,26 @@ begin
   inherited Create;
   FActiveWindow := nil;
   FCanvas := ACanvas;
+  FHoverWindow := nil;
   FModalWindow := nil;
   FWindows := TList.Create;
 end;
 
 destructor TNXWindowManager.Destroy;
+var
+  lIndex: Integer;
 begin
+  FActiveWindow := nil;
+  FHoverWindow := nil;
+  FModalWindow := nil;
+
+  if Assigned(FWindows) then
+    for lIndex := FWindows.Count - 1 downto 0 do
+    begin
+      Windows[lIndex].SetManager(nil);
+      Windows[lIndex].Free;
+    end;
+
   FreeAndNil(FWindows);
   inherited Destroy;
 end;
@@ -733,6 +758,9 @@ begin
 
   if IndexOf(AWindow) >= 0 then
     Exit;
+
+  if Assigned(AWindow.Manager) and (AWindow.Manager <> Self) then
+    AWindow.Manager.RemoveWindow(AWindow);
 
   AWindow.Canvas := FCanvas;
   FWindows.Add(AWindow);
@@ -757,6 +785,9 @@ begin
   if not Assigned(AWindow) then
     Exit;
 
+  if not AWindow.CanClose then
+    Exit;
+
   if AWindow.CloseAction = wcaDestroy then
   begin
     AWindow.DoClose;
@@ -774,6 +805,11 @@ begin
   end;
   if FModalWindow = AWindow then
     FModalWindow := nil;
+  if FHoverWindow = AWindow then
+  begin
+    AWindow.ClearMouseHover;
+    FHoverWindow := nil;
+  end;
 end;
 
 function TNXWindowManager.CreateWindow(const ACaption: string;
@@ -807,6 +843,11 @@ begin
   end;
   if FModalWindow = AWindow then
     FModalWindow := nil;
+  if FHoverWindow = AWindow then
+  begin
+    AWindow.ClearMouseHover;
+    FHoverWindow := nil;
+  end;
 end;
 
 function TNXWindowManager.IndexOf(AWindow: TNXWindow): Integer;
@@ -891,6 +932,10 @@ begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
   begin
+    if (FHoverWindow <> FModalWindow) and Assigned(FHoverWindow) then
+      FHoverWindow.ClearMouseHover;
+    FHoverWindow := FModalWindow;
+
     FModalWindow.ProcessMouseMotion(AX - FModalWindow.AbsLeft,
       AY - FModalWindow.AbsTop, AButtonState);
     Exit;
@@ -901,11 +946,21 @@ begin
     lWindow := Windows[lIndex];
     if lWindow.InWindow(AX, AY) then
     begin
+      if (FHoverWindow <> lWindow) and Assigned(FHoverWindow) then
+        FHoverWindow.ClearMouseHover;
+      FHoverWindow := lWindow;
+
       lWindow.ProcessMouseMotion(AX - lWindow.AbsLeft, AY - lWindow.AbsTop,
         AButtonState);
       Result := True;
       Exit;
     end;
+  end;
+
+  if Assigned(FHoverWindow) then
+  begin
+    FHoverWindow.ClearMouseHover;
+    FHoverWindow := nil;
   end;
 end;
 
@@ -958,6 +1013,11 @@ begin
   end;
   if FModalWindow = AWindow then
     FModalWindow := nil;
+  if FHoverWindow = AWindow then
+  begin
+    AWindow.ClearMouseHover;
+    FHoverWindow := nil;
+  end;
 
   AWindow.SetManager(nil);
 end;

@@ -1,0 +1,43 @@
+{
+  "Class" : "Root",
+  "Animals" : {
+    "Class" : "TNXPersistList",
+    "Items" : [
+      {
+        "Class" : "Cat",
+        "Name" : "Milo",
+        "Legs" : 4,
+        "Species" : "Cat",
+        "Lives" : 9
+      },
+      {
+        "Class" : "Dog",
+        "Name" : "Ada",
+        "Legs" : 4,
+        "Species" : "Dog",
+        "Good" : true
+      }
+    ]
+  },
+  "Child" : {
+    "Class" : "Child",
+    "Caption" : "Nested child",
+    "Score" : 42
+  },
+  "Favorite" : {
+    "Class" : "Cat",
+    "Name" : "Favorite",
+    "Legs" : 4,
+    "Species" : "Cat",
+    "Lives" : 7
+  },
+  "Flags" : "pfVisible,pfEnabled",
+  "Mood" : "pmFocused",
+  "Notes" : "first line\r\nsecond line\r\n",
+  "Payload" : {
+    "Class" : "TNXPersistBinary",
+    "Data" : "AAECAwQFTlg=",
+    "Encoding" : "base64"
+  },
+  "Title" : "Persist Test"
+}

@@ -161,11 +161,12 @@ begin
     nxeMouseDown:
       if FRootWindow <> nil then
       begin
+        FPopups.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.Button);
+
         if not FWindows.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.Button) then
         begin
-          FPopups.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
-            AEvent.Mouse.Button);
           FRootWindow.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
             AEvent.Mouse.Button);
           FPopups.BringActiveToFront;

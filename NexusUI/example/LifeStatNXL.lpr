@@ -20,8 +20,10 @@ uses
   obNXPanel,
   obNXPopupMenu,
   obNXProgressBar,
+  obNXPropertyEditor,
   obNXSplitPanel,
   obNXStatusBar,
+  obNXTabControl,
   obNXTreeList,
   obNXTreeMap,
   obNXTreeMapTestData,
@@ -43,6 +45,7 @@ type
 var
   Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8, Form9: TNXGroupBox;
   Form10: TNXGroupBox;
+  Form11: TNXGroupBox;
   Button1, Button2: TNXButton;
   LayoutAnchorButton: TNXButton;
   LayoutBottomPanel: TNXPanel;
@@ -58,6 +61,12 @@ var
   Label3: TNXLabel;
   LayoutClientLabel: TNXLabel;
   LayoutTopLabel: TNXLabel;
+  PageBasics: TNXTabPage;
+  PageData: TNXTabPage;
+  PageLayout: TNXTabPage;
+  PageVisuals: TNXTabPage;
+  PropertyEditor1: TNXPropertyEditor;
+  TabControl1: TNXTabControl;
   TextBox1: TNXEditBox;
   Image1: TNXImage;
   Grid1: TNXGrid;
@@ -123,17 +132,29 @@ begin
   RootWindow := Application.RootWindow;
   DemoEvents := TDemoEvents.Create;
 
-  Form1 := TNXGroupBox.Create(RootWindow, 'Form1', MakeNXRect(0, 0, 250, 256));
-  Form2 := TNXGroupBox.Create(RootWindow, 'Form2', MakeNXRect(500, 400, 400, 200));
-  Form3 := TNXGroupBox.Create(RootWindow, 'Form3', MakeNXRect(0, 400, 400, 325));
-  Form4 := TNXGroupBox.Create(RootWindow, 'Form4', MakeNXRect(600, 0, 300, 300));
-  Form5 := TNXGroupBox.Create(RootWindow, 'Form5', MakeNXRect(550, 50, 300, 300));
-  Form6 := TNXGroupBox.Create(RootWindow, 'Tree List', MakeNXRect(900, 0, 300, 300));
-  Form7 := TNXGroupBox.Create(RootWindow, 'Memo', MakeNXRect(260, 0, 300, 256));
-  Form8 := TNXGroupBox.Create(RootWindow, 'Split Panel', MakeNXRect(260, 270, 300, 120));
-  Form9 := TNXGroupBox.Create(RootWindow, 'Grid', MakeNXRect(500, 610, 490, 120));
-  Form10 := TNXGroupBox.Create(RootWindow, 'Layout', MakeNXRect(10, 610, 470, 120));
+  TabControl1 := TNXTabControl.Create(RootWindow, MakeNXRect(10, 10, 1000, 700));
+  TabControl1.Anchors := [ancLeft, ancTop, ancRight, ancBottom];
+
+  PageBasics := TabControl1.AddPage('Basics');
+  PageData := TabControl1.AddPage('Data');
+  PageLayout := TabControl1.AddPage('Layout');
+  PageVisuals := TabControl1.AddPage('Visuals');
+
+  Form1 := TNXGroupBox.Create(PageBasics, 'Form1', MakeNXRect(10, 10, 250, 256));
+  Form2 := TNXGroupBox.Create(PageBasics, 'Form2', MakeNXRect(280, 10, 400, 200));
+  Form4 := TNXGroupBox.Create(PageBasics, 'Form4', MakeNXRect(700, 10, 260, 300));
+
+  Form6 := TNXGroupBox.Create(PageData, 'Tree List', MakeNXRect(10, 10, 300, 300));
+  Form9 := TNXGroupBox.Create(PageData, 'Grid', MakeNXRect(330, 10, 630, 180));
+  Form11 := TNXGroupBox.Create(PageData, 'Property Editor', MakeNXRect(330, 210, 360, 260));
+
+  Form7 := TNXGroupBox.Create(PageLayout, 'Memo', MakeNXRect(10, 10, 300, 256));
+  Form8 := TNXGroupBox.Create(PageLayout, 'Split Panel', MakeNXRect(330, 10, 300, 140));
+  Form10 := TNXGroupBox.Create(PageLayout, 'Layout', MakeNXRect(10, 290, 620, 160));
   Form10.Anchors := [ancLeft, ancRight, ancBottom];
+
+  Form3 := TNXGroupBox.Create(PageVisuals, 'Image', MakeNXRect(10, 10, 400, 325));
+  Form5 := TNXGroupBox.Create(PageVisuals, 'Tree Map', MakeNXRect(430, 10, 400, 325));
 
   LayoutTopPanel := TNXPanel.Create(Form10);
   LayoutTopPanel.Height := 18;
@@ -275,8 +296,8 @@ begin
   Grid1 := TNXGrid.Create(Form9);
   Grid1.Left := 10;
   Grid1.Top := 30;
-  Grid1.Width := 460;
-  Grid1.Height := 70;
+  Grid1.Width := 600;
+  Grid1.Height := 130;
   Grid1.ResizeGrid(5, 12);
   Grid1.Headers[0] := 'Code';
   Grid1.Headers[1] := 'Commodity';
@@ -296,6 +317,17 @@ begin
     Grid1.Cells[3, lIndex] := IntToStr(90 + (lIndex * 11));
     Grid1.Cells[4, lIndex] := 'System ' + Chr(Ord('A') + lIndex);
   end;
+
+  PropertyEditor1 := TNXPropertyEditor.Create(Form11);
+  PropertyEditor1.Left := 10;
+  PropertyEditor1.Top := 30;
+  PropertyEditor1.Width := 330;
+  PropertyEditor1.Height := 210;
+  PropertyEditor1.AddProperty('Name', 'TNXPropertyEditor', pkString);
+  PropertyEditor1.AddProperty('Rows', '5', pkInteger);
+  PropertyEditor1.AddProperty('Editable', 'True', pkBoolean);
+  PropertyEditor1.AddProperty('SelectedColor', '$336699', pkColor);
+  PropertyEditor1.AddProperty('Owner', 'Form11', pkReadOnly, True);
 
   StatusBar1 := TNXStatusBar.Create(RootWindow);
   StatusBar1.SimplePanel := False;
