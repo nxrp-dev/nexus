@@ -11,14 +11,19 @@ uses
   tpNXPlatform;
 
 type
+  TNXPopupManager = class;
+
   TNXPopup = class(TNXControl)
   private
+    FManager: TNXPopupManager;
     FOwner: TNXElement;
+    procedure CloseInternal;
   protected
     procedure DoClosed; virtual;
     procedure DoOpened; virtual;
   public
     constructor Create(AParent, AOwner: TNXElement); reintroduce; virtual;
+    destructor Destroy; override;
     procedure Close; virtual;
     procedure Open; virtual;
 
@@ -30,6 +35,7 @@ type
     FActivePopup: TNXPopup;
     FHost: TNXElement;
 
+    procedure ForgetPopup(APopup: TNXPopup);
     function PointInElement(AElement: TNXElement; AX, AY: Integer): Boolean;
   public
     constructor Create(AHost: TNXElement);
@@ -47,19 +53,36 @@ implementation
 constructor TNXPopup.Create(AParent, AOwner: TNXElement);
 begin
   inherited Create(AParent);
+  FManager := nil;
   FOwner := AOwner;
   BorderStyle := BS_Single;
   Selectable := False;
   Visible := False;
 end;
 
-procedure TNXPopup.Close;
+destructor TNXPopup.Destroy;
+begin
+  if Assigned(FManager) then
+    FManager.ForgetPopup(Self);
+
+  inherited Destroy;
+end;
+
+procedure TNXPopup.CloseInternal;
 begin
   if not Visible then
     Exit;
 
   Visible := False;
   DoClosed;
+end;
+
+procedure TNXPopup.Close;
+begin
+  if Assigned(FManager) then
+    FManager.HidePopup(Self)
+  else
+    CloseInternal;
 end;
 
 procedure TNXPopup.Open;
@@ -106,14 +129,27 @@ begin
     (AY >= AElement.AbsTop) and (AY < AElement.AbsTop + AElement.Height);
 end;
 
+procedure TNXPopupManager.ForgetPopup(APopup: TNXPopup);
+begin
+  if not Assigned(APopup) then
+    Exit;
+
+  if FActivePopup = APopup then
+    FActivePopup := nil;
+
+  if APopup.FManager = Self then
+    APopup.FManager := nil;
+end;
+
 procedure TNXPopupManager.HidePopup(APopup: TNXPopup);
 begin
   if not Assigned(APopup) then
     Exit;
 
-  APopup.Close;
   if FActivePopup = APopup then
     FActivePopup := nil;
+
+  APopup.CloseInternal;
 end;
 
 procedure TNXPopupManager.HidePopups;
@@ -143,9 +179,10 @@ begin
     Exit;
 
   if Assigned(FActivePopup) and (FActivePopup <> APopup) then
-    FActivePopup.Close;
+    HidePopup(FActivePopup);
 
   FActivePopup := APopup;
+  APopup.FManager := Self;
   BringActiveToFront;
   APopup.Open;
 end;
