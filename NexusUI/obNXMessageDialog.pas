@@ -61,6 +61,7 @@ type
     FIcon: TNXMessageDialogIcon;
     FMessageText: string;
     FOnResult: TNXMessageDialogResultEvent;
+    FOneShot: Boolean;
 
     procedure ButtonClicked(Sender: TObject; X, Y: Integer; Button: TNXMouseButton);
     procedure ClearButtons;
@@ -146,6 +147,7 @@ begin
   FDefaultResult := mrOK;
   FCancelResult := mrCancel;
   FIcon := mdiNone;
+  FOneShot := False;
 
   FDialogPanel := TNXPanel.Create(Self);
   FDialogPanel.Width := cMinDialogWidth;
@@ -354,11 +356,20 @@ begin
 end;
 
 procedure TNXMessageDialog.Complete(AResult: TNXModalResult);
+var
+  lOneShot: Boolean;
+  lParent: TNXElement;
 begin
+  lOneShot := FOneShot;
+  lParent := Parent;
+
   Close;
 
   if Assigned(FOnResult) then
     FOnResult(Self, AResult);
+
+  if lOneShot and Assigned(lParent) then
+    lParent.FreeChild(Self);
 end;
 
 procedure TNXMessageDialog.DoKeyDown(const AEvent: TNXKeyEventData);
@@ -501,6 +512,7 @@ begin
     lCancelResult := mrNone;
 
   Result := TNXMessageDialog.Create(Application.Master, Application.Master);
+  Result.FOneShot := True;
   Result.ShowDialog(ATitle, AMessage, AButtons, AIcon,
     lDefaultResult, lCancelResult, AOnResult);
 end;
