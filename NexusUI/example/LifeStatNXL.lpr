@@ -10,6 +10,7 @@ uses
   obNXComboBox,
   obNXEditBox,
   obNXControl,
+  obNXGrid,
   obNXGroupBox,
   obNXImage,
   obNXLabel,
@@ -38,7 +39,7 @@ type
   end;
 
 var
-  Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8: TNXGroupBox;
+  Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8, Form9: TNXGroupBox;
   Button1, Button2: TNXButton;
   Chkbox1: TNXCheckBox;
   Chkbox2, Chkbox3: TNXCheckBox;
@@ -48,6 +49,7 @@ var
   Label3: TNXLabel;
   TextBox1: TNXEditBox;
   Image1: TNXImage;
+  Grid1: TNXGrid;
   ListBox: TNXListBox;
   Memo1: TNXMemo;
   PopupMenu1: TNXPopupMenu;
@@ -118,6 +120,7 @@ begin
   Form6 := TNXGroupBox.Create(RootWindow, 'Tree List', MakeNXRect(900, 0, 300, 300));
   Form7 := TNXGroupBox.Create(RootWindow, 'Memo', MakeNXRect(260, 0, 300, 256));
   Form8 := TNXGroupBox.Create(RootWindow, 'Split Panel', MakeNXRect(260, 270, 300, 120));
+  Form9 := TNXGroupBox.Create(RootWindow, 'Grid', MakeNXRect(500, 610, 490, 120));
 
   ListBox := TNXListBox.Create(Form4, MakeNXRect(10, 30, 200, 200));
   for lIndex := 1 to 12 do
@@ -221,6 +224,31 @@ begin
   TreeList1.AddChildNode(TreeNode3, 'Net Worth');
   TreeList1.ExpandAll;
   TreeList1.SelectedNode := TreeNode1;
+
+  Grid1 := TNXGrid.Create(Form9);
+  Grid1.Left := 10;
+  Grid1.Top := 30;
+  Grid1.Width := 460;
+  Grid1.Height := 70;
+  Grid1.ResizeGrid(5, 12);
+  Grid1.Headers[0] := 'Code';
+  Grid1.Headers[1] := 'Commodity';
+  Grid1.Headers[2] := 'Qty';
+  Grid1.Headers[3] := 'Price';
+  Grid1.Headers[4] := 'Market';
+  Grid1.ColWidths[0] := 55;
+  Grid1.ColWidths[1] := 130;
+  Grid1.ColWidths[2] := 60;
+  Grid1.ColWidths[3] := 70;
+  Grid1.ColWidths[4] := 120;
+  for lIndex := 0 to 11 do
+  begin
+    Grid1.Cells[0, lIndex] := 'C' + Format('%.3d', [lIndex + 1]);
+    Grid1.Cells[1, lIndex] := 'Cargo Item ' + IntToStr(lIndex + 1);
+    Grid1.Cells[2, lIndex] := IntToStr((lIndex + 1) * 3);
+    Grid1.Cells[3, lIndex] := IntToStr(90 + (lIndex * 11));
+    Grid1.Cells[4, lIndex] := 'System ' + Chr(Ord('A') + lIndex);
+  end;
 
   StatusBar1 := TNXStatusBar.Create(RootWindow);
   StatusBar1.SimplePanel := False;
