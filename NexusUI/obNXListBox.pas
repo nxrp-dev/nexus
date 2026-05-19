@@ -14,7 +14,7 @@ uses
   obNXScrollBar;
 
 type
-  TGUI_Listbox_Item = class
+  TNXListBoxItem = class
   private
     FIndexNo: Integer;
     FCaption: string;
@@ -27,27 +27,27 @@ type
     property Selected: Boolean read FSelected write FSelected;
   end;
 
-  TGUIListboxItemListBase = specialize TFPGObjectList<TGUI_Listbox_Item>;
+  TNXListBoxItemListBase = specialize TFPGObjectList<TNXListBoxItem>;
 
-  TGUIListboxItemList = class(TGUIListboxItemListBase)
+  TNXListBoxItemList = class(TNXListBoxItemListBase)
   protected
-    function GetSelectedItem: TGUI_Listbox_Item;
+    function GetSelectedItem: TNXListBoxItem;
   public
     procedure AddItem(const AStr: string; AIndex: Integer);
-    function ReturnItem(AItemIndex: Integer): TGUI_Listbox_Item;
+    function ReturnItem(AItemIndex: Integer): TNXListBoxItem;
 
-    property SelectedItem: TGUI_Listbox_Item read GetSelectedItem;
+    property SelectedItem: TNXListBoxItem read GetSelectedItem;
   end;
 
   TNXListBox = class(TNXControl)
   private
-    FItems: TGUIListboxItemList;
+    FItems: TNXListBoxItemList;
     FListCount: Integer;
     FItemsToShow: Integer;
     FScrollbar: TNXScrollBar;
   protected
-    function GetSelectedItem: TGUI_Listbox_Item;
-    procedure SelectItem(AItem: TGUI_Listbox_Item);
+    function GetSelectedItem: TNXListBoxItem;
+    procedure SelectItem(AItem: TNXListBoxItem);
     procedure UpdateItemsToShow;
   public
     constructor Create(AParent: TNXElement); overload; override;
@@ -57,21 +57,21 @@ type
     procedure DoResize; override;
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
     procedure DoMouseDown(X, Y: integer; Button: TNXMouseButton); override;
-    procedure ctrl_NewSelection(Selection: TGUI_Listbox_Item); virtual;
-    procedure NewSelection(Selection: TGUI_Listbox_Item); virtual;
+    procedure ctrl_NewSelection(Selection: TNXListBoxItem); virtual;
+    procedure NewSelection(Selection: TNXListBoxItem); virtual;
 
-    property Items: TGUIListboxItemList read FItems;
-    property SelectedItem: TGUI_Listbox_Item read GetSelectedItem;
+    property Items: TNXListBoxItemList read FItems;
+    property SelectedItem: TNXListBoxItem read GetSelectedItem;
   end;
 
 implementation
 
-constructor TGUI_Listbox_Item.Create;
+constructor TNXListBoxItem.Create;
 begin
   Index := 0;
 end;
 
-function TGUIListboxItemList.GetSelectedItem: TGUI_Listbox_Item;
+function TNXListBoxItemList.GetSelectedItem: TNXListBoxItem;
 var
   lIndex: Integer;
 begin
@@ -87,17 +87,17 @@ begin
   end;
 end;
 
-procedure TGUIListboxItemList.AddItem(const AStr: string; AIndex: Integer);
+procedure TNXListBoxItemList.AddItem(const AStr: string; AIndex: Integer);
 var
-  lItem: TGUI_Listbox_Item;
+  lItem: TNXListBoxItem;
 begin
-  lItem := TGUI_Listbox_Item.Create;
+  lItem := TNXListBoxItem.Create;
   lItem.Str := AStr;
   lItem.Index := AIndex;
   Add(lItem);
 end;
 
-function TGUIListboxItemList.ReturnItem(AItemIndex: Integer): TGUI_Listbox_Item;
+function TNXListBoxItemList.ReturnItem(AItemIndex: Integer): TNXListBoxItem;
 var
   lIndex: Integer;
 begin
@@ -118,7 +118,7 @@ begin
   inherited Create(AParent);
   BorderStyle := BS_Single;
   Selectable := True;
-  FItems := TGUIListboxItemList.Create(True);
+  FItems := TNXListBoxItemList.Create(True);
   FScrollbar := TNXScrollBar.Create(Self);
   FScrollbar.Min := 0;
   FScrollbar.Dir := DIR_VERTICAL;
@@ -159,7 +159,7 @@ var
   lIndex: Integer;
   lItemIndex: Integer;
   lMaxScroll: Integer;
-  lItem: TGUI_Listbox_Item;
+  lItem: TNXListBoxItem;
   lRect: TNXRect;
 begin
   UpdateItemsToShow;
@@ -213,7 +213,7 @@ end;
 
 procedure TNXListBox.DoKeyDown(const AEvent: TNXKeyEventData);
 var
-  lItem: TGUI_Listbox_Item;
+  lItem: TNXListBoxItem;
   lIndex: Integer;
 begin
   inherited DoKeyDown(AEvent);
@@ -245,7 +245,7 @@ end;
 procedure TNXListBox.DoMouseDown(X, Y: integer; Button: TNXMouseButton);
 var
   lItemIndex: Integer;
-  lItem: TGUI_Listbox_Item;
+  lItem: TNXListBoxItem;
 begin
   inherited;
   if Button <> mbLeft then
@@ -265,22 +265,22 @@ begin
   end;
 end;
 
-procedure TNXListBox.ctrl_NewSelection(Selection: TGUI_Listbox_Item);
+procedure TNXListBox.ctrl_NewSelection(Selection: TNXListBoxItem);
 begin
   NewSelection(Selection);
 end;
 
-procedure TNXListBox.NewSelection(Selection: TGUI_Listbox_Item);
+procedure TNXListBox.NewSelection(Selection: TNXListBoxItem);
 begin
 
 end;
 
-function TNXListBox.GetSelectedItem: TGUI_Listbox_Item;
+function TNXListBox.GetSelectedItem: TNXListBoxItem;
 begin
   Result := Items.SelectedItem;
 end;
 
-procedure TNXListBox.SelectItem(AItem: TGUI_Listbox_Item);
+procedure TNXListBox.SelectItem(AItem: TNXListBoxItem);
 var
   lIndex: Integer;
 begin
