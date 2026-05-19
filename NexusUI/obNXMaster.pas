@@ -4,13 +4,19 @@ unit obNXMaster;
 interface
 
 uses
-  SysUtils, tpNXEvents, obNXElement, obNXFont, obNXPopup;
+  SysUtils,
+  tpNXEvents,
+  obNXElement,
+  obNXFont,
+  obNXPopup,
+  obNXWindow;
 
 type
-  TGUI_Master = class(TNXElement)
+  TNXMaster = class(TNXElement)
   private
     FFont: TNXFont;
     FPopups: TNXPopupManager;
+    FWindows: TNXWindowManager;
     procedure SetMasterSize(AWidth, AHeight: Integer);
   protected
     function GetFontForChildren: TNXFont; override;
@@ -29,6 +35,7 @@ type
 
     property Font: TNXFont read FFont write FFont;
     property Popups: TNXPopupManager read FPopups;
+    property Windows: TNXWindowManager read FWindows;
   end;
 
 implementation
@@ -36,53 +43,55 @@ implementation
 uses
   obNXApplication;
 
-constructor TGUI_Master.Create(AParent: TNXElement);
+constructor TNXMaster.Create(AParent: TNXElement);
 begin
   inherited Create(AParent);
   FPopups := TNXPopupManager.Create(Self);
+  FWindows := TNXWindowManager.Create(Self);
   Visible := True;
 
   Application.Platform.StopTextInput;
 end;
 
-destructor TGUI_Master.Destroy;
+destructor TNXMaster.Destroy;
 begin
+  FreeAndNil(FWindows);
   FreeAndNil(FPopups);
   inherited Destroy;
 end;
 
-procedure TGUI_Master.Render;
+procedure TNXMaster.Render;
 begin
   Canvas.Clear(Skin.FormBackColor);
 end;
 
-procedure TGUI_Master.SetMasterSize(AWidth, AHeight: Integer);
+procedure TNXMaster.SetMasterSize(AWidth, AHeight: Integer);
 begin
   inherited SetWidth(AWidth);
   inherited SetHeight(AHeight);
 end;
 
-procedure TGUI_Master.SetParent(NewParent: TNXElement);
+procedure TNXMaster.SetParent(NewParent: TNXElement);
 begin
-  raise Exception.Create('SetParent called in TGUI_Master');
+  raise Exception.Create('SetParent called in TNXMaster');
 end;
 
-function TGUI_Master.GetFontForChildren: TNXFont;
+function TNXMaster.GetFontForChildren: TNXFont;
 begin
   Result := FFont;
 end;
 
-procedure TGUI_Master.SetWidth(AWidth: Integer);
+procedure TNXMaster.SetWidth(AWidth: Integer);
 begin
-  raise Exception.Create('SetWidth called in TGUI_Master');
+  raise Exception.Create('SetWidth called in TNXMaster');
 end;
 
-procedure TGUI_Master.SetHeight(AHeight: Integer);
+procedure TNXMaster.SetHeight(AHeight: Integer);
 begin
-  raise Exception.Create('SetHeight called in TGUI_Master');
+  raise Exception.Create('SetHeight called in TNXMaster');
 end;
 
-procedure TGUI_Master.ResizeToWindow;
+procedure TNXMaster.ResizeToWindow;
 var
   lHeight: Integer;
   lWidth: Integer;
@@ -97,34 +106,45 @@ begin
   SetMasterSize(lWidth, lHeight);
 end;
 
-procedure TGUI_Master.InjectNXEvent(const AEvent: TNXEvent);
+procedure TNXMaster.InjectNXEvent(const AEvent: TNXEvent);
 begin
   case AEvent.EventType of
     nxeKeyDown:
-      ProcessKeyDown(AEvent.Key);
+      if not Windows.ProcessKeyDown(AEvent.Key) then
+        ProcessKeyDown(AEvent.Key);
 
     nxeKeyUp:
-      ProcessKeyUp(AEvent.Key);
+      if not Windows.ProcessKeyUp(AEvent.Key) then
+        ProcessKeyUp(AEvent.Key);
 
     nxeMouseMotion:
-      ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
-        AEvent.Mouse.ButtonState);
+      if not Windows.ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
+        AEvent.Mouse.ButtonState) then
+        ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.ButtonState);
 
     nxeMouseDown:
     begin
-      Popups.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
-        AEvent.Mouse.Button);
-      ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
-        AEvent.Mouse.Button);
-      Popups.BringActiveToFront;
+      if not Windows.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
+        AEvent.Mouse.Button) then
+      begin
+        Popups.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.Button);
+        ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.Button);
+        Popups.BringActiveToFront;
+      end;
     end;
 
     nxeMouseUp:
-      ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
-        AEvent.Mouse.Button);
+      if not Windows.ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
+        AEvent.Mouse.Button) then
+        ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.Button);
 
     nxeTextInput:
-      ProcessTextInput(AEvent.Text);
+      if not Windows.ProcessTextInput(AEvent.Text) then
+        ProcessTextInput(AEvent.Text);
   end;
 end;
 

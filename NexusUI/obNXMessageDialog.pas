@@ -11,6 +11,7 @@ uses
   fgl,
   tpNXEvents,
   tpNXPlatform,
+  tpNXWindow,
   obNXElement,
   obNXControl,
   obNXPopup,
@@ -19,17 +20,6 @@ uses
   obNXButton;
 
 type
-  TNXModalResult = (
-    mrNone,
-    mrOK,
-    mrCancel,
-    mrYes,
-    mrNo,
-    mrRetry,
-    mrIgnore,
-    mrAbort
-  );
-
   TNXMessageDialogIcon = (
     mdiNone,
     mdiInformation,

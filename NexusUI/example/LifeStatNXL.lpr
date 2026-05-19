@@ -25,7 +25,8 @@ uses
   obNXTreeMapTestData,
   obNXMaster,
   obNXApplication,
-  tpNXPlatform;
+  tpNXPlatform,
+  tpNXWindow;
 
 type
   TDemoEvents = class
@@ -60,7 +61,7 @@ var
   TreeNode3: TNXTreeListNode;
 
   DemoEvents: TDemoEvents;
-  Master: TGUI_Master;
+  Master: TNXMaster;
 
   TestData: TTransactionArray;
   MoneyTreemap1: TNXTreeMap;

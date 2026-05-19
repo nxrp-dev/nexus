@@ -19,7 +19,7 @@ type
     FInitialized: Boolean;
     FRunning: Boolean;
     FCanvas: TNXCanvas;
-    FMaster: TGUI_Master;
+    FMaster: TNXMaster;
     FFonts: TNXFontManager;
     FPlatform: TNXPlatform;
     FSkin: TNXSkin;
@@ -36,7 +36,7 @@ type
     procedure Run;
     procedure Terminate;
 
-    property Master: TGUI_Master read FMaster;
+    property Master: TNXMaster read FMaster;
     property Running: Boolean read FRunning;
     property Fonts: TNXFontManager read FFonts;
     property Platform: TNXPlatform read FPlatform;
@@ -74,7 +74,7 @@ end;
 procedure TNXApplication.CreateMaster;
 begin
   FreeAndNil(FMaster);
-  FMaster := TGUI_Master.Create(nil);
+  FMaster := TNXMaster.Create(nil);
   FMaster.Canvas := FCanvas;
   FMaster.ResizeToWindow;
 end;
