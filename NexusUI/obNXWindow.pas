@@ -14,21 +14,20 @@ uses
   obNXSkin,
   obNXTitleBar,
   tpNXEvents,
+  tpNXLayout,
   tpNXPlatform,
   tpNXWindow;
 
 type
   TNXWindowManager = class;
 
-  TNXWindow = class(INXControlParent)
+  TNXWindow = class(TNXControlHost)
   private
     FActive: Boolean;
     FBackColor: TNXColor;
     FBorderColor: TNXColor;
-    FCanvas: TNXCanvas;
     FCanClose: Boolean;
     FCaption: string;
-    FChildren: TNXControlList;
     FCloseAction: TNXWindowCloseAction;
     FFillStyle: TFillStyle;
     FFont: TNXFont;
@@ -48,7 +47,6 @@ type
     FWidth: Integer;
     FWindowBorderStyle: TNXWindowBorderStyle;
     procedure SetActive(AValue: Boolean);
-    procedure SetCanvas(ACanvas: TNXCanvas);
     procedure SetHeight(AValue: Integer);
     procedure SetLeft(AValue: Integer);
     procedure SetMovable(AValue: Boolean);
@@ -61,8 +59,12 @@ type
     procedure DoShow; virtual;
     function GetAbsContentRect: TNXRect; virtual;
     function GetBorderThickness: Integer; virtual;
-    function GetChildOriginX(AChild: TNXControl): Integer; virtual;
-    function GetChildOriginY(AChild: TNXControl): Integer; virtual;
+    function GetChildAreaHeight: Integer; override;
+    function GetChildAreaLeft: Integer; override;
+    function GetChildAreaTop: Integer; override;
+    function GetChildAreaWidth: Integer; override;
+    function GetChildOriginX(AChild: TNXControl): Integer; override;
+    function GetChildOriginY(AChild: TNXControl): Integer; override;
     function GetContentRect: TNXRect; virtual;
     function GetTitleBarHeight: Integer; virtual;
     procedure InternalClose; virtual;
@@ -70,29 +72,25 @@ type
     procedure InternalShow(AActivate: Boolean); virtual;
     procedure Render; virtual;
     procedure RenderClient; virtual;
-    procedure SendSizeCallback(AWidth, AHeight: Integer); virtual;
     procedure SetManager(AManager: TNXWindowManager); virtual;
     procedure TitleBarDragged(Sender: TObject; ADeltaX, ADeltaY: Integer);
   public
-    constructor Create; overload; virtual;
+    constructor Create; overload; override;
     constructor Create(const ACaption: string; const ARect: TNXRect); overload; virtual;
     destructor Destroy; override;
 
     procedure Activate; virtual;
-    procedure AddChild(AChild: TNXControl); virtual;
+    procedure AddChild(AChild: TNXControl); override;
     procedure BringWindowToFront; virtual;
     procedure Close; virtual;
-    procedure FreeChild(AChild: TNXControl); virtual;
-    function GetAbsLeft: Integer; virtual;
-    function GetAbsTop: Integer; virtual;
-    function GetCanvas: TNXCanvas; virtual;
-    function GetChildren: TNXControlList; virtual;
-    function GetFontForChildren: TNXFont; virtual;
-    function GetHeight: Integer; virtual;
+    function GetAbsLeft: Integer; override;
+    function GetAbsTop: Integer; override;
+    function GetFontForChildren: TNXFont; override;
+    function GetHeight: Integer; override;
     function GetLeft: Integer; virtual;
-    function GetSkin: TNXSkin; virtual;
+    function GetSkin: TNXSkin; override;
     function GetTop: Integer; virtual;
-    function GetWidth: Integer; virtual;
+    function GetWidth: Integer; override;
     procedure Hide; virtual;
     function InWindow(AX, AY: Integer): Boolean; virtual;
     procedure Paint; virtual;
@@ -103,7 +101,6 @@ type
     procedure ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure ProcessTextInput(const AText: string); virtual;
     procedure Show; virtual;
-    procedure UnselectChildren; virtual;
 
     property AbsContentRect: TNXRect read GetAbsContentRect;
     property AbsLeft: Integer read GetAbsLeft;
@@ -112,9 +109,9 @@ type
     property BorderColor: TNXColor read FBorderColor write FBorderColor;
     property BorderStyleKind: TNXWindowBorderStyle read FWindowBorderStyle write SetWindowBorderStyle;
     property CanClose: Boolean read FCanClose write FCanClose;
-    property Canvas: TNXCanvas read GetCanvas write SetCanvas;
+    property Canvas;
     property Caption: string read FCaption write FCaption;
-    property Children: TNXControlList read GetChildren;
+    property Children;
     property CloseAction: TNXWindowCloseAction read FCloseAction write FCloseAction;
     property ContentRect: TNXRect read GetContentRect;
     property FillStyle: TFillStyle read FFillStyle write FFillStyle;
@@ -182,7 +179,6 @@ uses
 constructor TNXWindow.Create;
 begin
   inherited Create;
-  FChildren := TNXControlList.Create(True);
   FActive := False;
   FHeight := 256;
   FWidth := 256;
@@ -202,6 +198,7 @@ begin
   end;
 
   FTitleBar := TNXTitleBar.Create(INXControlParent(Self));
+  FTitleBar.Align := caTop;
   if Assigned(Skin) then
     FTitleBar.BackColor := Skin.TitleBarBackColor;
   FTitleBar.Active := FActive;
@@ -224,7 +221,6 @@ end;
 
 destructor TNXWindow.Destroy;
 begin
-  FreeAndNil(FChildren);
   inherited Destroy;
 end;
 
@@ -237,28 +233,8 @@ begin
 end;
 
 procedure TNXWindow.AddChild(AChild: TNXControl);
-var
-  lTitleBarIndex: Integer;
 begin
-  if not Assigned(AChild) then
-    Exit;
-
-  if Children.IndexOf(AChild) >= 0 then
-    Exit;
-
-  if Assigned(AChild.Parent) then
-    raise Exception.Create('Cannot add child that is already attached to another parent');
-
-  Children.Add(AChild);
-  AChild.SetParent(INXControlParent(Self));
-  AChild.ChildAddedCallback;
-
-  if Assigned(FTitleBar) and (AChild <> FTitleBar) then
-  begin
-    lTitleBarIndex := Children.IndexOf(FTitleBar);
-    if (lTitleBarIndex >= 0) and (lTitleBarIndex < Children.Count - 1) then
-      Children.Move(lTitleBarIndex, Children.Count - 1);
-  end;
+  inherited AddChild(AChild);
 end;
 
 procedure TNXWindow.BringWindowToFront;
@@ -291,18 +267,6 @@ procedure TNXWindow.DoShow;
 begin
   if Assigned(FOnShow) then
     FOnShow(Self);
-end;
-
-procedure TNXWindow.FreeChild(AChild: TNXControl);
-var
-  lIndex: Integer;
-begin
-  if (not Assigned(FChildren)) or (not Assigned(AChild)) then
-    Exit;
-
-  lIndex := Children.IndexOf(AChild);
-  if lIndex >= 0 then
-    Children.Delete(lIndex);
 end;
 
 function TNXWindow.GetAbsContentRect: TNXRect;
@@ -339,30 +303,40 @@ begin
     Result := 0;
 end;
 
-function TNXWindow.GetCanvas: TNXCanvas;
+function TNXWindow.GetChildAreaHeight: Integer;
+var
+  lBorderThickness: Integer;
 begin
-  Result := FCanvas;
+  lBorderThickness := GetBorderThickness;
+  Result := Max(0, Height - (lBorderThickness * 2));
+end;
+
+function TNXWindow.GetChildAreaLeft: Integer;
+begin
+  Result := GetBorderThickness;
+end;
+
+function TNXWindow.GetChildAreaTop: Integer;
+begin
+  Result := GetBorderThickness;
+end;
+
+function TNXWindow.GetChildAreaWidth: Integer;
+var
+  lBorderThickness: Integer;
+begin
+  lBorderThickness := GetBorderThickness;
+  Result := Max(0, Width - (lBorderThickness * 2));
 end;
 
 function TNXWindow.GetChildOriginX(AChild: TNXControl): Integer;
 begin
-  if AChild = FTitleBar then
-    Result := 0
-  else
-    Result := ContentRect.x;
+  Result := inherited GetChildOriginX(AChild);
 end;
 
 function TNXWindow.GetChildOriginY(AChild: TNXControl): Integer;
 begin
-  if AChild = FTitleBar then
-    Result := 0
-  else
-    Result := ContentRect.y;
-end;
-
-function TNXWindow.GetChildren: TNXControlList;
-begin
-  Result := FChildren;
+  Result := inherited GetChildOriginY(AChild);
 end;
 
 function TNXWindow.GetContentRect: TNXRect;
@@ -666,24 +640,6 @@ procedure TNXWindow.RenderClient;
 begin
 end;
 
-procedure TNXWindow.SendSizeCallback(AWidth, AHeight: Integer);
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to Children.Count - 1 do
-    Children[lIndex].ParentSizeCallback(AWidth, AHeight);
-end;
-
-procedure TNXWindow.SetCanvas(ACanvas: TNXCanvas);
-var
-  lIndex: Integer;
-begin
-  FCanvas := ACanvas;
-
-  for lIndex := 0 to Children.Count - 1 do
-    Children[lIndex].Canvas := ACanvas;
-end;
-
 procedure TNXWindow.SetActive(AValue: Boolean);
 begin
   FActive := AValue;
@@ -695,7 +651,7 @@ end;
 procedure TNXWindow.SetHeight(AValue: Integer);
 begin
   FHeight := AValue;
-  SendSizeCallback(Width, Height);
+  SendSizeCallback;
 end;
 
 procedure TNXWindow.SetLeft(AValue: Integer);
@@ -721,7 +677,7 @@ end;
 procedure TNXWindow.SetWidth(AValue: Integer);
 begin
   FWidth := AValue;
-  SendSizeCallback(Width, Height);
+  SendSizeCallback;
 end;
 
 procedure TNXWindow.SetWindowBorderStyle(AValue: TNXWindowBorderStyle);
@@ -743,14 +699,6 @@ begin
     FManager.ShowWindow(Self)
   else
     InternalShow(True);
-end;
-
-procedure TNXWindow.UnselectChildren;
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to Children.Count - 1 do
-    Children[lIndex].IsSelected := False;
 end;
 
 procedure TNXWindow.TitleBarDragged(Sender: TObject; ADeltaX,

@@ -17,6 +17,7 @@ uses
   obNXListBox,
   obNXMemo,
   obNXMessageDialog,
+  obNXPanel,
   obNXPopupMenu,
   obNXProgressBar,
   obNXSplitPanel,
@@ -26,6 +27,7 @@ uses
   obNXTreeMapTestData,
   obNXWindow,
   obNXApplication,
+  tpNXLayout,
   tpNXPlatform,
   tpNXWindow;
 
@@ -40,13 +42,22 @@ type
 
 var
   Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8, Form9: TNXGroupBox;
+  Form10: TNXGroupBox;
   Button1, Button2: TNXButton;
+  LayoutAnchorButton: TNXButton;
+  LayoutBottomPanel: TNXPanel;
+  LayoutClientPanel: TNXPanel;
+  LayoutLeftPanel: TNXPanel;
+  LayoutRightPanel: TNXPanel;
+  LayoutTopPanel: TNXPanel;
   Chkbox1: TNXCheckBox;
   Chkbox2, Chkbox3: TNXCheckBox;
   ComboBox1: TNXComboBox;
   Label1: TNXLabel;
   Label2: TNXLabel;
   Label3: TNXLabel;
+  LayoutClientLabel: TNXLabel;
+  LayoutTopLabel: TNXLabel;
   TextBox1: TNXEditBox;
   Image1: TNXImage;
   Grid1: TNXGrid;
@@ -121,6 +132,42 @@ begin
   Form7 := TNXGroupBox.Create(RootWindow, 'Memo', MakeNXRect(260, 0, 300, 256));
   Form8 := TNXGroupBox.Create(RootWindow, 'Split Panel', MakeNXRect(260, 270, 300, 120));
   Form9 := TNXGroupBox.Create(RootWindow, 'Grid', MakeNXRect(500, 610, 490, 120));
+  Form10 := TNXGroupBox.Create(RootWindow, 'Layout', MakeNXRect(10, 610, 470, 120));
+  Form10.Anchors := [ancLeft, ancRight, ancBottom];
+
+  LayoutTopPanel := TNXPanel.Create(Form10);
+  LayoutTopPanel.Height := 18;
+  LayoutTopPanel.BackColor := MakeNXColor(55, 78, 115, 255);
+  LayoutTopPanel.Align := caTop;
+
+  LayoutTopLabel := TNXLabel.Create(LayoutTopPanel, MakeNXRect(6, 1, 120, 16));
+  LayoutTopLabel.Caption := 'Align Top';
+
+  LayoutBottomPanel := TNXPanel.Create(Form10);
+  LayoutBottomPanel.Height := 18;
+  LayoutBottomPanel.BackColor := MakeNXColor(88, 55, 74, 255);
+  LayoutBottomPanel.Align := caBottom;
+
+  LayoutLeftPanel := TNXPanel.Create(Form10);
+  LayoutLeftPanel.Width := 55;
+  LayoutLeftPanel.BackColor := MakeNXColor(55, 95, 72, 255);
+  LayoutLeftPanel.Align := caLeft;
+
+  LayoutRightPanel := TNXPanel.Create(Form10);
+  LayoutRightPanel.Width := 55;
+  LayoutRightPanel.BackColor := MakeNXColor(96, 82, 48, 255);
+  LayoutRightPanel.Align := caRight;
+
+  LayoutClientPanel := TNXPanel.Create(Form10);
+  LayoutClientPanel.BackColor := MakeNXColor(43, 43, 48, 255);
+  LayoutClientPanel.Align := caClient;
+
+  LayoutClientLabel := TNXLabel.Create(LayoutClientPanel, MakeNXRect(8, 8, 200, 18));
+  LayoutClientLabel.Caption := 'Align Client';
+
+  LayoutAnchorButton := TNXButton.Create(Form10, MakeNXRect(285, 38, 110, 22));
+  LayoutAnchorButton.Caption := 'Anchor RB';
+  LayoutAnchorButton.Anchors := [ancRight, ancBottom];
 
   ListBox := TNXListBox.Create(Form4, MakeNXRect(10, 30, 200, 200));
   for lIndex := 1 to 12 do

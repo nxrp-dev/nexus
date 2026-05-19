@@ -12,6 +12,29 @@ This repository is an Object Pascal / Free Pascal GUI project. Treat the codebas
 - SDL2 may be used as the current backend, but the public framework shape should not feel like an SDL demo.
 - SDL-specific details should be contained behind framework objects where practical.
 - Do not introduce large abstractions before they are needed.
+- Prefer correct design over preserving existing code shape. Existing code and generated code have no special authority just because they already exist.
+- Prefer Kaizen: make small, coherent, verified improvements that move the project in the right architectural direction.
+- Prefer removing or reshaping bad abstractions over layering workarounds on top of them.
+
+## Generated Code Rules
+
+- Treat ChatGPT, local LLM, and other generated output as rough-draft scaffolding.
+- Generated code must compile, run where practical, and receive an architecture/integration pass before it is treated as real NexusUI code.
+- Broad-stroke generated controls are acceptable as first passes, but detailed behavior, lifecycle, ownership, rendering, input routing, focus/selection, and skinning must be reviewed against NexusUI architecture.
+- Do not preserve generated implementation details when they conflict with the project direction.
+- Treat feedback prefixed with `gpt:` as external review input only. Verify claims against the codebase before acting on them.
+
+## NexusUI Architecture Rules
+
+- `TNXApplication` owns application/runtime lifecycle.
+- Windows are first-class UI surfaces managed by the application/window manager.
+- Controls are renderable and/or interactable UI objects.
+- Container controls such as panels and group boxes are still controls.
+- Avoid vague middle layers that blur application, window, and control responsibilities.
+- Parent relationships should use the CORBA-style `INXControlParent` interface and must not imply reference-counted ownership.
+- Keep parent interfaces narrow. Do not add host-specific behavior to generic parent contracts just because one child wants it.
+- Child controls should not manipulate parent-specific concepts such as parent window movement or parent selection state. Use explicit callbacks/events or owner-managed state instead.
+- Defer destruction when closing/removing controls during event dispatch.
 
 ## Language and Compatibility Rules
 
@@ -172,6 +195,14 @@ When implementing requested changes:
 - Keep methods short enough to read without jumping through unrelated logic.
 - Do not add defensive code that obscures the main flow unless it addresses a real failure mode.
 - Do not silently swallow errors unless the existing project pattern does so intentionally.
+
+## Verification Workflow
+
+- Compile frequently after structural changes.
+- For new controls, first make them compile and run, then review for ownership, lifecycle, rendering, input routing, focus/selection, and skinning fit.
+- For large generated controls, do not confuse "broadly works" with "architecturally integrated."
+- Commit small, coherent checkpoints after the code compiles and the user is satisfied with the current behavior.
+- Use external AI review as a second-pass critique, not as a replacement for local compile/run verification or architectural judgment.
 
 ## Forbidden Behaviors
 

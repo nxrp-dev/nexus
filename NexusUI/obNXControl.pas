@@ -5,7 +5,7 @@ unit obNXControl;
 interface
 
 uses Classes, SysUtils, Math, fgl, obNXCanvas, obNXFont, obNXSkin,
-  tpNXEvents, tpNXPlatform, obNXPlatform;
+  tpNXEvents, tpNXLayout, tpNXPlatform, obNXPlatform;
 
 type
   TNXControl = class;
@@ -13,12 +13,15 @@ type
   INXControlParent = interface
     procedure AddChild(AChild: TNXControl);
     procedure FreeChild(AChild: TNXControl);
+    procedure LayoutChildren;
     procedure UnselectChildren;
     function GetAbsLeft: Integer;
     function GetAbsTop: Integer;
     function GetCanvas: TNXCanvas;
     function GetChildOriginX(AChild: TNXControl): Integer;
     function GetChildOriginY(AChild: TNXControl): Integer;
+    function GetChildLayoutHeight(AChild: TNXControl): Integer;
+    function GetChildLayoutWidth(AChild: TNXControl): Integer;
     function GetChildren: TNXControlList;
     function GetFontForChildren: TNXFont;
     function GetHeight: Integer;
@@ -38,12 +41,65 @@ type
   TNXTextInputEvent = procedure(Sender: TObject; const AText: string) of object;
   TNXKeyEvent = procedure(Sender: TObject; const AEvent: TNXKeyEventData) of object;
 
-  TNXControl = class(INXControlParent)
+  TNXControlHost = class(INXControlParent)
   private
     FChildren: TNXControlList;
+    FCanvas: TNXCanvas;
+    FLayoutBottom: Integer;
+    FLayoutLeft: Integer;
+    FLayoutRight: Integer;
+    FLayoutTop: Integer;
+    FLayouting: Boolean;
+  protected
+    procedure SetCanvas(ACanvas: TNXCanvas); virtual;
+
+    function GetAbsLeft: Integer; virtual; abstract;
+    function GetAbsTop: Integer; virtual; abstract;
+    function GetCanvas: TNXCanvas; virtual;
+    function GetChildAreaLeft: Integer; virtual; abstract;
+    function GetChildAreaTop: Integer; virtual; abstract;
+    function GetChildOriginX(AChild: TNXControl): Integer; virtual;
+    function GetChildOriginY(AChild: TNXControl): Integer; virtual;
+    function GetChildAreaHeight: Integer; virtual; abstract;
+    function GetChildAreaWidth: Integer; virtual; abstract;
+    function GetChildLayoutHeight(AChild: TNXControl): Integer; virtual;
+    function GetChildLayoutWidth(AChild: TNXControl): Integer; virtual;
+    function GetChildren: TNXControlList; virtual;
+    function GetFontForChildren: TNXFont; virtual; abstract;
+    function GetHeight: Integer; virtual; abstract;
+    function GetSkin: TNXSkin; virtual; abstract;
+    function GetWidth: Integer; virtual; abstract;
+  public
+    constructor Create; virtual;
+    destructor Destroy; override;
+
+    procedure AddChild(AChild: TNXControl); virtual;
+    procedure FreeChild(AChild: TNXControl); virtual;
+    procedure LayoutChildren; virtual;
+    procedure SendSizeCallback; virtual;
+    procedure UnselectChildren; virtual;
+
+    property AbsLeft: Integer read GetAbsLeft;
+    property AbsTop: Integer read GetAbsTop;
+    property Canvas: TNXCanvas read GetCanvas write SetCanvas;
+    property Children: TNXControlList read GetChildren;
+    property FontForChildren: TNXFont read GetFontForChildren;
+    property Height: Integer read GetHeight;
+    property Skin: TNXSkin read GetSkin;
+    property Width: Integer read GetWidth;
+  end;
+
+  TNXControl = class(TNXControlHost)
+  private
     FCurSelected, FDestroying, FEnabled, FMouseEntered, FReceiveAllEvents: Boolean;
     FSelectable, FVisible: Boolean;
     FHeight, FLeft, FTop, FWidth: integer;
+    FAlign: TNXControlAlign;
+    FAnchors: TNXControlAnchors;
+    FAnchorBottom: Integer;
+    FAnchorLeft: Integer;
+    FAnchorRight: Integer;
+    FAnchorTop: Integer;
     FHasLastClick: Boolean;
     FLastClickButton: TNXMouseButton;
     FLastClickTicks: UInt32;
@@ -61,7 +117,6 @@ type
     FOnResize: TNotifyEvent;
     FOnSelected: TNotifyEvent;
     FOnTextInput: TNXTextInputEvent;
-    FCanvas: TNXCanvas;
     FParent: INXControlParent;
     FFont: TNXFont;
     FMetricFont: TNXFont;
@@ -79,10 +134,11 @@ type
     FontHeight, FontAscent, FontDescent, FontLineSkip: Integer;
     FontMonospace: Integer;
     ButtonStates: TNXMouseButtons;
-    procedure SetWidth(NewWidth: integer); virtual;
-    procedure SetHeight(NewHeight: integer); virtual;
+    procedure SetWidth(AWidth: integer); virtual;
+    procedure SetHeight(AHeight: integer); virtual;
+    procedure SetAlign(AValue: TNXControlAlign); virtual;
+    procedure SetAnchors(AValue: TNXControlAnchors); virtual;
     procedure SetSelected(NewState: Boolean); virtual;
-    procedure SetCanvas(ACanvas: TNXCanvas); virtual;
     procedure PropagateParentContext; virtual;
     procedure AttachToParent(const AParent: INXControlParent); virtual;
     procedure BringToFront; virtual;
@@ -90,25 +146,27 @@ type
     procedure ReleaseMouseCapture; virtual;
     function HasMouseCapture: Boolean; virtual;
 
-    function GetAbsLeft: Integer; virtual;
-    function GetAbsTop: Integer; virtual;
-    function GetCanvas: TNXCanvas; virtual;
-    function GetChildOriginX(AChild: TNXControl): Integer; virtual;
-    function GetChildOriginY(AChild: TNXControl): Integer; virtual;
-    function GetChildren: TNXControlList; virtual;
+    function GetAbsLeft: Integer; override;
+    function GetAbsTop: Integer; override;
     function GetAbsContentRect: TNXRect; virtual;
     function GetBorderThickness: Integer; virtual;
+    function GetChildAreaLeft: Integer; override;
+    function GetChildAreaTop: Integer; override;
+    function GetChildAreaHeight: Integer; override;
+    function GetChildAreaWidth: Integer; override;
     function GetContentRect: TNXRect; virtual;
     function GetFont: TNXFont; virtual;
-    function GetFontForChildren: TNXFont; virtual;
-    function GetHeight: Integer; virtual;
+    function GetFontForChildren: TNXFont; override;
+    function GetHeight: Integer; override;
     function GetLeft: Integer; virtual;
     function GetPlatform: TNXPlatform; virtual;
-    function GetSkin: TNXSkin; virtual;
+    function GetSkin: TNXSkin; override;
     function GetTop: Integer; virtual;
-    function GetWidth: Integer; virtual;
+    function GetWidth: Integer; override;
     procedure SetLeft(AValue: Integer); virtual;
     procedure SetTop(AValue: Integer); virtual;
+    procedure SetBoundsInternal(ALeft, ATop, AWidth, AHeight: Integer;
+      AUpdateAnchors: Boolean); virtual;
     procedure SetBackColor(InColor: TNXColor);
     procedure SetBorderColor(InColor: TNXColor);
     procedure SetFont(AFont: TNXFont); virtual;
@@ -135,17 +193,14 @@ type
     procedure DoResize; virtual;
   public
     procedure SetParent(const AParent: INXControlParent); virtual;
+    procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); virtual;
     procedure Paint; virtual;
     procedure Render; virtual;
     procedure ctrl_FontChanged; virtual;
     constructor Create(const AParent: INXControlParent); overload; virtual;
     constructor Create(const AParent: INXControlParent; const ARect: TNXRect); overload; virtual;
     destructor Destroy; override;
-    procedure AddChild(Child: TNXControl); virtual;
-    procedure FreeChild(Child: TNXControl); virtual;
-    procedure UnselectChildren; virtual;
-    procedure ParentSizeCallback(NewW, NewH: Integer); virtual;
-    procedure SendSizeCallback(NewW, NewH: Integer);
+    procedure ParentSizeCallback(AWidth, AHeight: Integer); virtual;
     procedure ChildAddedCallback; virtual;
     property MouseEntered: Boolean read FMouseEntered;
     function InControl(AX, AY: Integer): Boolean; virtual;
@@ -167,6 +222,8 @@ type
     property AbsContentRect: TNXRect read GetAbsContentRect;
     property AbsTop: Integer read GetAbsTop;
     property ActiveColor: TNXColor read FActiveColor write FActiveColor;
+    property Align: TNXControlAlign read FAlign write SetAlign;
+    property Anchors: TNXControlAnchors read FAnchors write SetAnchors;
     property BackColor: TNXColor read FBackColor write SetBackColor;
     property BorderColor: TNXColor read FBorderColor write SetBorderColor;
     property BorderStyle: TBorderStyle read FBorderStyle write FBorderStyle;
@@ -225,36 +282,197 @@ begin
   Result := GCapturedMouseControl;
 end;
 
-procedure TNXControl.AddChild(Child: TNXControl);
+constructor TNXControlHost.Create;
 begin
-  if not Assigned(Child) then
+  inherited Create;
+  FChildren := TNXControlList.Create(True);
+  FLayoutLeft := 0;
+  FLayoutTop := 0;
+  FLayoutRight := 0;
+  FLayoutBottom := 0;
+end;
+
+destructor TNXControlHost.Destroy;
+begin
+  FreeAndNil(FChildren);
+  inherited Destroy;
+end;
+
+procedure TNXControlHost.AddChild(AChild: TNXControl);
+begin
+  if not Assigned(AChild) then
     Exit;
 
-  if Children.IndexOf(Child) >= 0 then
+  if Children.IndexOf(AChild) >= 0 then
   begin
     Exit;
   end;
 
-  if Assigned(Child.Parent) then
+  if Assigned(AChild.Parent) then
     raise Exception.Create('Cannot add child that is already attached to another parent');
 
-  Children.Add(Child);
-  Child.SetParent(Self);
-  Child.ChildAddedCallback;
+  Children.Add(AChild);
+  AChild.SetParent(INXControlParent(Self));
+  AChild.ChildAddedCallback;
+  LayoutChildren;
 end;
 
-procedure TNXControl.FreeChild(Child: TNXControl);
+procedure TNXControlHost.FreeChild(AChild: TNXControl);
 var
   lIndex: Integer;
 begin
-  if FDestroying or (not Assigned(FChildren)) or (not Assigned(Child)) then
+  if (not Assigned(FChildren)) or (not Assigned(AChild)) then
     Exit;
 
-  lIndex := Children.IndexOf(Child);
+  lIndex := Children.IndexOf(AChild);
   if lIndex < 0 then
     Exit;
 
   Children.Delete(lIndex);
+end;
+
+function TNXControlHost.GetCanvas: TNXCanvas;
+begin
+  Result := FCanvas;
+end;
+
+function TNXControlHost.GetChildOriginX(AChild: TNXControl): Integer;
+begin
+  Result := GetChildAreaLeft;
+  if Assigned(AChild) and (AChild.Align = caNone) then
+    Inc(Result, FLayoutLeft);
+end;
+
+function TNXControlHost.GetChildOriginY(AChild: TNXControl): Integer;
+begin
+  Result := GetChildAreaTop;
+  if Assigned(AChild) and (AChild.Align = caNone) then
+    Inc(Result, FLayoutTop);
+end;
+
+function TNXControlHost.GetChildLayoutHeight(AChild: TNXControl): Integer;
+begin
+  if Assigned(AChild) and (AChild.Align = caNone) then
+  begin
+    Result := Max(0, FLayoutBottom - FLayoutTop);
+    if (Result = 0) and (GetChildAreaHeight > 0) then
+      Result := GetChildAreaHeight;
+  end
+  else
+    Result := GetChildAreaHeight;
+end;
+
+function TNXControlHost.GetChildLayoutWidth(AChild: TNXControl): Integer;
+begin
+  if Assigned(AChild) and (AChild.Align = caNone) then
+  begin
+    Result := Max(0, FLayoutRight - FLayoutLeft);
+    if (Result = 0) and (GetChildAreaWidth > 0) then
+      Result := GetChildAreaWidth;
+  end
+  else
+    Result := GetChildAreaWidth;
+end;
+
+function TNXControlHost.GetChildren: TNXControlList;
+begin
+  Result := FChildren;
+end;
+
+procedure TNXControlHost.LayoutChildren;
+var
+  lBottom: Integer;
+  lChild: TNXControl;
+  lIndex: Integer;
+  lLeft: Integer;
+  lRight: Integer;
+  lTop: Integer;
+begin
+  if FLayouting then
+    Exit;
+
+  FLayouting := True;
+  try
+    lLeft := 0;
+    lTop := 0;
+    lRight := GetChildAreaWidth;
+    lBottom := GetChildAreaHeight;
+
+    for lIndex := 0 to Children.Count - 1 do
+    begin
+      lChild := Children[lIndex];
+      if (not lChild.Visible) or (lChild.Align = caNone) then
+        Continue;
+
+      case lChild.Align of
+        caTop:
+        begin
+          lChild.SetBoundsInternal(lLeft, lTop, Max(0, lRight - lLeft),
+            lChild.Height, False);
+          Inc(lTop, lChild.Height);
+        end;
+        caBottom:
+        begin
+          Dec(lBottom, lChild.Height);
+          lChild.SetBoundsInternal(lLeft, lBottom, Max(0, lRight - lLeft),
+            lChild.Height, False);
+        end;
+        caLeft:
+        begin
+          lChild.SetBoundsInternal(lLeft, lTop, lChild.Width,
+            Max(0, lBottom - lTop), False);
+          Inc(lLeft, lChild.Width);
+        end;
+        caRight:
+        begin
+          Dec(lRight, lChild.Width);
+          lChild.SetBoundsInternal(lRight, lTop, lChild.Width,
+            Max(0, lBottom - lTop), False);
+        end;
+        caClient:
+          lChild.SetBoundsInternal(lLeft, lTop, Max(0, lRight - lLeft),
+            Max(0, lBottom - lTop), False);
+      end;
+    end;
+
+    FLayoutLeft := lLeft;
+    FLayoutTop := lTop;
+    FLayoutRight := lRight;
+    FLayoutBottom := lBottom;
+
+    for lIndex := 0 to Children.Count - 1 do
+    begin
+      lChild := Children[lIndex];
+      if lChild.Align = caNone then
+        lChild.ParentSizeCallback(GetChildLayoutWidth(lChild),
+          GetChildLayoutHeight(lChild));
+    end;
+  finally
+    FLayouting := False;
+  end;
+end;
+
+procedure TNXControlHost.SendSizeCallback;
+begin
+  LayoutChildren;
+end;
+
+procedure TNXControlHost.SetCanvas(ACanvas: TNXCanvas);
+var
+  lIndex: Integer;
+begin
+  FCanvas := ACanvas;
+
+  for lIndex := 0 to Children.Count - 1 do
+    Children[lIndex].Canvas := ACanvas;
+end;
+
+procedure TNXControlHost.UnselectChildren;
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    Children[lIndex].IsSelected := False;
 end;
 
 procedure TNXControl.SetParent(const AParent: INXControlParent);
@@ -264,7 +482,9 @@ begin
     Exit;
 
   SetCanvas(Parent.Canvas);
-  ParentSizeCallback(Parent.Width, Parent.Height);
+  SetBoundsInternal(Left, Top, Width, Height, True);
+  ParentSizeCallback(Parent.GetChildLayoutWidth(Self),
+    Parent.GetChildLayoutHeight(Self));
   PropagateParentContext;
 end;
 
@@ -303,9 +523,32 @@ begin
   end;
 end;
 
-procedure TNXControl.ParentSizeCallback(NewW, NewH: Integer);
+procedure TNXControl.ParentSizeCallback(AWidth, AHeight: Integer);
+var
+  lHeight: Integer;
+  lLeft: Integer;
+  lTop: Integer;
+  lWidth: Integer;
 begin
+  if Align <> caNone then
+    Exit;
 
+  lLeft := Left;
+  lTop := Top;
+  lWidth := Width;
+  lHeight := Height;
+
+  if (ancLeft in Anchors) and (ancRight in Anchors) then
+    lWidth := Max(0, AWidth - FAnchorLeft - FAnchorRight)
+  else if (ancRight in Anchors) and not (ancLeft in Anchors) then
+    lLeft := AWidth - FAnchorRight - Width;
+
+  if (ancTop in Anchors) and (ancBottom in Anchors) then
+    lHeight := Max(0, AHeight - FAnchorTop - FAnchorBottom)
+  else if (ancBottom in Anchors) and not (ancTop in Anchors) then
+    lTop := AHeight - FAnchorBottom - Height;
+
+  SetBoundsInternal(lLeft, lTop, lWidth, lHeight, False);
 end;
 
 procedure TNXControl.Render;
@@ -348,15 +591,16 @@ end;
 
 constructor TNXControl.Create(const AParent: INXControlParent);
 begin
-  FChildren := TNXControlList.Create(True);
+  inherited Create;
   FHeight := 50;
   FWidth := 50;
-  FCanvas := nil;
   FHasLastClick := False;
   FLastClickButton := mbNone;
   FLastClickTicks := 0;
   FLastClickX := 0;
   FLastClickY := 0;
+  FAlign := caNone;
+  FAnchors := [ancLeft, ancTop];
   ReceiveAllEvents := False;
   Selectable := True;
   Enabled := True;
@@ -389,7 +633,6 @@ begin
   if GCapturedMouseControl = Self then
     GCapturedMouseControl := nil;
 
-  FreeAndNil(FChildren);
   inherited Destroy;
 end;
 
@@ -409,28 +652,35 @@ begin
   Result := GCapturedMouseControl = Self;
 end;
 
-procedure TNXControl.SetWidth(NewWidth: integer);
+procedure TNXControl.SetWidth(AWidth: integer);
 begin
-  FWidth := NewWidth;
-  ProcessResize;
-  SendSizeCallback(NewWidth, Height);
+  SetBoundsInternal(Left, Top, AWidth, Height, True);
+  if (Align <> caNone) and Assigned(Parent) then
+    Parent.LayoutChildren;
 end;
 
-procedure TNXControl.SetHeight(NewHeight: integer);
+procedure TNXControl.SetHeight(AHeight: integer);
 begin
-  FHeight := NewHeight;
-  ProcessResize;
-  SendSizeCallback(Width, NewHeight);
+  SetBoundsInternal(Left, Top, Width, AHeight, True);
+  if (Align <> caNone) and Assigned(Parent) then
+    Parent.LayoutChildren;
 end;
 
-procedure TNXControl.SetCanvas(ACanvas: TNXCanvas);
+procedure TNXControl.SetAlign(AValue: TNXControlAlign);
 begin
-  FCanvas := ACanvas;
+  if FAlign = AValue then
+    Exit;
+
+  FAlign := AValue;
+  SetBoundsInternal(Left, Top, Width, Height, True);
+  if Assigned(Parent) then
+    Parent.LayoutChildren;
 end;
 
-function TNXControl.GetCanvas: TNXCanvas;
+procedure TNXControl.SetAnchors(AValue: TNXControlAnchors);
 begin
-  Result := FCanvas;
+  FAnchors := AValue;
+  SetBoundsInternal(Left, Top, Width, Height, True);
 end;
 
 procedure TNXControl.BringToFront;
@@ -461,21 +711,6 @@ begin
     Result := Parent.AbsTop + Parent.GetChildOriginY(Self) + Top;
 end;
 
-function TNXControl.GetChildOriginX(AChild: TNXControl): Integer;
-begin
-  Result := 0;
-end;
-
-function TNXControl.GetChildOriginY(AChild: TNXControl): Integer;
-begin
-  Result := 0;
-end;
-
-function TNXControl.GetChildren: TNXControlList;
-begin
-  Result := FChildren;
-end;
-
 function TNXControl.GetAbsContentRect: TNXRect;
 var
   lBorderThickness: Integer;
@@ -484,6 +719,26 @@ begin
   Result := MakeNXRect(AbsLeft + lBorderThickness, AbsTop + lBorderThickness,
     Max(0, Width - (lBorderThickness * 2)),
     Max(0, Height - (lBorderThickness * 2)));
+end;
+
+function TNXControl.GetChildAreaLeft: Integer;
+begin
+  Result := ContentRect.x;
+end;
+
+function TNXControl.GetChildAreaTop: Integer;
+begin
+  Result := ContentRect.y;
+end;
+
+function TNXControl.GetChildAreaHeight: Integer;
+begin
+  Result := ContentRect.h;
+end;
+
+function TNXControl.GetChildAreaWidth: Integer;
+begin
+  Result := ContentRect.w;
 end;
 
 function TNXControl.GetBorderThickness: Integer;
@@ -561,12 +816,46 @@ end;
 
 procedure TNXControl.SetLeft(AValue: Integer);
 begin
-  FLeft := AValue;
+  SetBoundsInternal(AValue, Top, Width, Height, True);
 end;
 
 procedure TNXControl.SetTop(AValue: Integer);
 begin
-  FTop := AValue;
+  SetBoundsInternal(Left, AValue, Width, Height, True);
+end;
+
+procedure TNXControl.SetBoundsInternal(ALeft, ATop, AWidth, AHeight: Integer;
+  AUpdateAnchors: Boolean);
+var
+  lResized: Boolean;
+begin
+  lResized := (FWidth <> AWidth) or (FHeight <> AHeight);
+
+  FLeft := ALeft;
+  FTop := ATop;
+  FWidth := AWidth;
+  FHeight := AHeight;
+
+  if AUpdateAnchors and Assigned(Parent) then
+  begin
+    FAnchorLeft := Left;
+    FAnchorTop := Top;
+    FAnchorRight := Parent.GetChildLayoutWidth(Self) - (Left + Width);
+    FAnchorBottom := Parent.GetChildLayoutHeight(Self) - (Top + Height);
+  end;
+
+  if lResized then
+  begin
+    ProcessResize;
+    SendSizeCallback;
+  end;
+end;
+
+procedure TNXControl.SetBounds(ALeft, ATop, AWidth, AHeight: Integer);
+begin
+  SetBoundsInternal(ALeft, ATop, AWidth, AHeight, True);
+  if (Align <> caNone) and Assigned(Parent) then
+    Parent.LayoutChildren;
 end;
 
 procedure TNXControl.SetBackColor(InColor: TNXColor);
@@ -681,22 +970,6 @@ begin
       FCurSelected := False;
     end;
   end;
-end;
-
-procedure TNXControl.UnselectChildren;
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to Children.Count - 1 do
-    Children[lIndex].IsSelected := False;
-end;
-
-procedure TNXControl.SendSizeCallback(NewW, NewH: integer);
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to Children.Count - 1 do
-    Children[lIndex].ParentSizeCallback(NewW, NewH);
 end;
 
 procedure TNXControl.ChildAddedCallback;

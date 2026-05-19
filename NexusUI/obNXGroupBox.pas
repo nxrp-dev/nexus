@@ -8,6 +8,7 @@ uses
   obNXControl,
   obNXPanel,
   obNXTitleBar,
+  tpNXLayout,
   tpNXPlatform;
 
 type
@@ -16,6 +17,10 @@ type
     FTitleBar: TNXTitleBar;
   protected
     function GetAbsContentRect: TNXRect; override;
+    function GetChildAreaHeight: Integer; override;
+    function GetChildAreaLeft: Integer; override;
+    function GetChildAreaTop: Integer; override;
+    function GetChildAreaWidth: Integer; override;
     function GetChildOriginX(AChild: TNXControl): Integer; override;
     function GetChildOriginY(AChild: TNXControl): Integer; override;
     function GetContentRect: TNXRect; override;
@@ -35,6 +40,7 @@ begin
   inherited Create(AParent);
 
   FTitleBar := TNXTitleBar.Create(Self);
+  FTitleBar.Align := caTop;
   FTitleBar.BackColor := Skin.TitleBarBackColor;
   FTitleBar.ParentSizeCallback(Width, Height);
 end;
@@ -72,18 +78,38 @@ end;
 
 function TNXGroupBox.GetChildOriginX(AChild: TNXControl): Integer;
 begin
-  if AChild = FTitleBar then
-    Result := 0
-  else
-    Result := ContentRect.x;
+  Result := inherited GetChildOriginX(AChild);
 end;
 
 function TNXGroupBox.GetChildOriginY(AChild: TNXControl): Integer;
 begin
-  if AChild = FTitleBar then
-    Result := 0
-  else
-    Result := ContentRect.y;
+  Result := inherited GetChildOriginY(AChild);
+end;
+
+function TNXGroupBox.GetChildAreaHeight: Integer;
+var
+  lBorderThickness: Integer;
+begin
+  lBorderThickness := GetBorderThickness;
+  Result := Max(0, Height - (lBorderThickness * 2));
+end;
+
+function TNXGroupBox.GetChildAreaLeft: Integer;
+begin
+  Result := GetBorderThickness;
+end;
+
+function TNXGroupBox.GetChildAreaTop: Integer;
+begin
+  Result := GetBorderThickness;
+end;
+
+function TNXGroupBox.GetChildAreaWidth: Integer;
+var
+  lBorderThickness: Integer;
+begin
+  lBorderThickness := GetBorderThickness;
+  Result := Max(0, Width - (lBorderThickness * 2));
 end;
 
 function TNXGroupBox.GetContentRect: TNXRect;
@@ -106,17 +132,8 @@ begin
 end;
 
 procedure TNXGroupBox.AddChild(AChild: TNXControl);
-var
-  lTitleBarIndex: Integer;
 begin
   inherited AddChild(AChild);
-
-  if Assigned(FTitleBar) and (AChild <> FTitleBar) then
-  begin
-    lTitleBarIndex := Children.IndexOf(FTitleBar);
-    if (lTitleBarIndex >= 0) and (lTitleBarIndex < Children.Count - 1) then
-      Children.Move(lTitleBarIndex, Children.Count - 1);
-  end;
 end;
 
 procedure TNXGroupBox.Paint;
