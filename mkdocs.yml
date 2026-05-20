@@ -15,6 +15,11 @@ nav:
       - Roadmap: nexusui/roadmap.md
   - NexusSchema:
       - Overview: nexusschema/index.md
+      - Architecture: nexusschema/architecture.md
+      - Command Line Flow: nexusschema/command-line.md
+      - Metadata Model: nexusschema/metadata-model.md
+      - Templates: nexusschema/templates.md
+      - Code Review Notes: nexusschema/code-review.md
 
 markdown_extensions:
   - admonition
