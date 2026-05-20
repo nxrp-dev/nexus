@@ -1,141 +1,96 @@
-# Code Review Notes
+# Review Notes
 
-These notes are based on the current `dppCompiler` project structure and entry point.
+These are public-facing review notes for NexusSchema documentation and direction.
+
+They are intentionally not tied to unreleased private tools or obsolete project names.
 
 ## Keep
 
-### The pipeline is understandable
+### Keep NexusSchema separate from NexusUI
 
-The compiler has a clear pipeline:
+NexusUI and NexusSchema solve different problems.
+
+NexusUI is about interface controls, rendering, events, focus, styling, and application UI behavior.
+
+NexusSchema is about structured data definitions and repeatable generation from those definitions.
+
+The documentation should keep that separation clear.
+
+### Keep the pipeline simple
+
+The intended pipeline is easy to reason about:
 
 ```text
-metadata file -> parser -> metadata model -> transform -> XML -> template output
+schema definition -> schema model -> validation -> normalization -> generation
 ```
 
-That is the right basic shape. Keep it.
+That shape is worth preserving.
 
-### The model is separated from output
+### Keep generated output mechanical
 
-The parser writes to metadata objects. Output is delegated through XML and templates. That is better than embedding Firebird, CSV, or Pascal output directly in the parser.
+Generated files should come from schema facts.
 
-### Transform has a real place
-
-`TMetaDataTransform` exists as a dedicated stage. That is where normalization and derived metadata should live.
+If output requires meaningful decisions, those decisions probably belong in the schema model, validation layer, or normalization layer rather than scattered through generators.
 
 ## Fix soon
 
-### Make the FMPP path configurable
+### Replace placeholders with exact examples
 
-Current code directly calls:
-
-```text
-c:\fmpp\bin\fmpp.bat
-```
-
-That should become one of:
-
-- `/fmpp=...`
-- environment lookup
-- config file value
-- local tools folder convention
-- path lookup through the shell
-
-The compiler should not require one developer-specific absolute path.
-
-### Create `TCommandLine` once
-
-The main program creates `TCommandLine`, prints it, then `CompileScripts` creates a second `TCommandLine` instance.
-
-Better shape:
-
-```text
-main creates command line
-main passes command line into compiler runner
-runner uses that instance
-```
-
-That removes duplicated parsing and makes startup behavior easier to reason about.
-
-### Remove unused `TStringList`
-
-The main block creates `lCreateFile : TStringList`, but the shown entry point does not use it.
-
-Remove it unless a later version actually needs it.
-
-### Return a failing exit code
-
-The main exception handler prints the exception message, but the process should also return failure.
-
-Batch files, CI, and deployment scripts need an executable signal, not just text.
-
-Expected behavior:
-
-```text
-success -> exit code 0
-failure -> non-zero exit code
-```
-
-### Fix user-facing spelling
-
-The current startup/shutdown messages contain typos:
-
-```text
-ddpCompiler
-sucessfuly
-```
-
-Use the executable/project spelling consistently:
-
-```text
-dppCompiler
-successfully
-```
-
-## Design cleanup
-
-### Introduce a compiler runner object
-
-The entry point can become very small if the pipeline moves into an object.
-
-Potential shape:
-
-```text
-TNexusSchemaCompiler
-  CommandLine
-  MetaData
-  Parser
-  Execute
-```
-
-The goal is not abstraction for its own sake. The goal is to keep process startup separate from compiler behavior.
-
-### Keep filesystem coordination out of the parser
-
-The parser should not decide output paths, template paths, or external process execution. The current code mostly respects that. Preserve the boundary.
-
-### Keep template selection boring
-
-Extension-based template lookup is fine for now.
-
-Do not complicate it until there is a real need for multiple target profiles, database backends, or per-module overrides.
-
-## Documentation gaps
-
-The docs still need source-format examples once the `.dpp` syntax is stable enough to document directly.
+The documentation still needs real public examples once the source format is stable.
 
 Needed examples:
 
-- smallest valid metadata file
-- table definition
+- smallest valid schema definition
+- entity/table definition
 - field definition
-- foreign key definition
-- index definition
-- template reference
-- child data file reference
-- full input-to-output example
+- relationship definition
+- index or uniqueness rule
+- generated output example
 
-## Review conclusion
+### Define the public vocabulary
 
-The current direction is sound.
+The docs need stable names for the core concepts.
 
-The biggest immediate risk is not architecture. It is local-machine coupling. Remove hard-coded external paths, make failure observable through exit codes, and document the source language with runnable examples.
+Possible terms:
+
+- schema
+- entity
+- field
+- relationship
+- index
+- attribute
+- target
+- generator
+
+The exact words matter less than consistency.
+
+### Document what is real versus planned
+
+Each page should make it obvious whether it describes:
+
+- current behavior
+- planned behavior
+- design intent
+- open questions
+
+This prevents docs from becoming fake certainty.
+
+## Avoid
+
+### Do not document private history
+
+Public docs should not mention obsolete internal project names, unreleased experiments, or local-only tooling.
+
+### Do not over-specify early
+
+Until the source format and command-line interface are stable, keep the docs directional and conservative.
+
+### Do not mix project categories
+
+Do not let NexusSchema pages become a dumping ground for NexusUI, NexusCore, or unrelated compiler notes.
+
+## Next useful documentation step
+
+Write one small public schema example and one matching generated-output example.
+
+That will make the docs executable in spirit instead of merely descriptive.
