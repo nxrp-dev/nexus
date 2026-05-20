@@ -1,81 +1,59 @@
-# Templates
+# Generation
 
-NexusSchema currently delegates text generation to templates rather than building large string emitters in Pascal.
+NexusSchema should be able to generate output from schema definitions.
 
-## Current template runner
+This page intentionally avoids documenting any unreleased template system or obsolete internal implementation.
 
-The current compiler calls FMPP through `fmpp.bat`.
+## Goal
 
-Template execution is shaped around a `DDLPP` data-model binding.
+Generation should turn a normalized schema model into useful files.
 
-Whole-model execution uses this form:
+Possible generated outputs include:
 
-```text
--D "{DDLPP: xml(metadata.xml)}"
-```
+- database creation scripts
+- migration scripts
+- import/export scripts
+- source code
+- validation code
+- documentation
 
-Module/data-file execution uses this form:
+## Generator responsibilities
 
-```text
--D "{DDLPP: csv(data.csv, {separator:','}), TABLE_NAME: 'SOME_TABLE'}"
-```
+Generators should be mechanical.
 
-The exact function name changes with the input extension. A `.dpp` input uses the `/dpp` template key. A `.csv` input uses the `/csv` template key.
+They should read the schema model and write output. They should not rediscover schema meaning, invent missing relationships, or hide important defaults.
 
-## Template selection
+Good generator work:
 
-Template selection is extension-based.
+- emit table creation statements
+- emit class definitions
+- emit field declarations
+- emit relationship code
+- emit validation boilerplate
+- emit documentation tables
 
-| Input file | Extension | Command-line template key |
-| --- | --- | --- |
-| `inForceMain.dpp` | `dpp` | `/dpp` |
-| `SomeTable.csv` | `csv` | `/csv` |
-| `metadata.xml` | `xml` | internal generated XML path |
+Bad generator work:
 
-## Firebird script generation
+- decide what the schema means
+- repair invalid schema definitions silently
+- duplicate validation rules inconsistently
+- contain target-independent business logic
 
-The known Firebird output style uses helper procedures from a common SQL bootstrap script.
+## Target-specific output
 
-Application scripts call reusable helpers such as:
+Some details belong to a target.
 
-```text
-sp_create_domain
-sp_create_table
-sp_add_field
-sp_add_foreign_key_id
-sp_add_foreign_key_field
-```
+Examples:
 
-That keeps generated application scripts short and focused on schema intent.
+- SQL dialect syntax
+- identifier quoting rules
+- filename extensions
+- type mapping
+- reserved word handling
+- script batching rules
 
-## Good template responsibilities
+Those should be handled by the generator for that target, not by the source schema definition.
 
-Templates should emit mechanical text.
+## Documentation gap
 
-Good template work:
-
-- table creation statements
-- field creation calls
-- foreign key creation calls
-- index creation blocks
-- generated import scripts
-- repetitive boilerplate output
-
-Poor template work:
-
-- deciding core schema meaning
-- duplicating parser rules
-- compensating for missing transformation logic
-- hiding required defaults that belong in the model
-
-## Transformation before templates
-
-If multiple templates need the same derived value, calculate it in `TMetaDataTransform` and store it in the model before template execution.
-
-Do not copy the same derivation across templates.
-
-## Portability target
-
-The template runner path should become configurable.
-
-The current hard-coded FMPP location is useful for a local prototype, but the documentation, batch files, and future CI should be able to run from a clean checkout without assuming `c:\fmpp\bin\fmpp.bat`.
+Once the public generator system exists, this page should list the available targets and include exact runnable examples.
