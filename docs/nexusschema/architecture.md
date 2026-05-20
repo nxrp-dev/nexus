@@ -1,86 +1,78 @@
 # NexusSchema Architecture
 
-NexusSchema is a small compiler/generator pipeline.
+NexusSchema should stay small and explicit.
 
-The current implementation should be understood as a practical toolchain rather than a large language platform. Each stage has a clear job and should remain independently understandable.
+The architecture is a pipeline, not a framework maze.
 
-## Pipeline
+## Intended pipeline
 
 ```text
-command line
-    -> metadata input file
-    -> parser
-    -> metadata model
-    -> transformation pass
-    -> XML export
-    -> template execution
-    -> generated files
+schema definition
+    -> parser / loader
+    -> schema model
+    -> validation
+    -> normalization
+    -> generation
+    -> output files
 ```
 
-## Command line layer
+## Schema definition
 
-The compiler reads options through `TCommandLine`.
+A schema definition is the source of truth.
 
-The command line currently supplies:
+It should describe the structure and intent of the data without forcing the author to repeat every mechanical detail required by a target system.
 
-- `/metadata` for the primary metadata file
-- `/output` for the output folder
-- one template option per input extension, such as `/dpp` or `/csv`
+## Parser / loader
 
-The executable chooses the template by reading the metadata file extension and using that extension as a command-line key.
+The parser or loader reads the schema definition and converts it into the internal schema model.
 
-## Parser layer
+This layer should only understand the source format. It should not generate database scripts, UI code, or application code directly.
 
-`TDDLPPParser` parses the primary metadata file and writes results into `TMetaDataModuleList`.
+## Schema model
 
-The parser should stay responsible for language recognition only. It should not also become a template runner, database tool, or filesystem coordinator.
+The schema model is the in-memory representation of the parsed structure.
 
-## Metadata model layer
+This is where tables, fields, relationships, indexes, attributes, and other schema concepts belong.
 
-The metadata model is represented by list/object units such as:
+The model should be target-neutral where possible. Firebird, SQL Server, Pascal, C#, and documentation output should all be treated as possible targets rather than as the model itself.
 
-- `obMetaDataModuleList.pas`
-- `obTableList.pas`
-- `obFieldList.pas`
-- `obForeignKeyList.pas`
-- `obIndexList.pas`
-- `obTemplateList.pas`
-- `obAttributeSetList.pas`
-- `obNameValueList.pas`
-- `obNameList.pas`
+## Validation
 
-These units form the compiler's internal schema representation.
+Validation should catch bad schema definitions early.
 
-## Transformation layer
+Examples:
 
-`TMetaDataTransform` runs after parsing and before output.
+- missing names
+- duplicate names
+- invalid references
+- unsupported field types
+- relationship errors
+- target-specific incompatibilities
 
-This is the correct place for derived metadata, normalization, expansion, defaults, and other operations that should not be hard-coded into templates.
+## Normalization
 
-## XML export layer
+Normalization fills in derived facts and defaults.
 
-The compiler saves the transformed metadata model to XML before template execution.
+Examples:
 
-That XML is the bridge between the Pascal compiler code and the external template system.
+- generated constraint names
+- generated index names
+- default table suffixes
+- default field attributes
+- inferred relationships
 
-## Template execution layer
+If more than one output target needs the same derived value, calculate it once during normalization.
 
-The current implementation invokes FMPP and passes a `DDLPP` data-model binding into the template command line.
+## Generation
 
-There are two execution shapes:
+Generators turn the normalized schema model into files.
 
-- whole-model template execution against the generated XML
-- per-table or per-data-file template execution using the child data entries from `lMetaData.Data`
+Possible generators include:
 
-## Design boundary
+- database scripts
+- import scripts
+- source code
+- validation code
+- documentation
 
-Keep these jobs separate:
-
-- parser reads language
-- model stores facts
-- transform derives facts
-- XML exports facts
-- template writes text
-- database executes generated SQL
-
-NexusSchema should not blur those boundaries unless there is a concrete reason.
+Generators should be boring. They should emit from the model, not rediscover schema meaning.
