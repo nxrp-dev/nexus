@@ -12,15 +12,13 @@ uses
 type
   TNXCheckBox = class(TNXControl)
   private
-    FExcGroup: Integer;
     FValue: Boolean;
-    procedure ClearExclusiveGroupSiblings;
-    function GetBoxRect: TNXRect;
-    function GetBoxStateColor: TNXColor;
-    function GetMarkColor: TNXColor;
-    function GetTextLeft: Integer;
-    function GetTextTop: Integer;
   protected
+    function GetBoxRect: TNXRect; virtual;
+    function GetBoxStateColor: TNXColor; virtual;
+    function GetMarkColor: TNXColor; virtual;
+    function GetTextLeft: Integer; virtual;
+    function GetTextTop: Integer; virtual;
     procedure SetValue(AValue: Boolean); virtual;
     procedure ToggleValue; virtual;
     procedure ValueChanged; virtual;
@@ -33,7 +31,6 @@ type
     procedure BoxUnchecked; virtual;
 
     property Value: Boolean read FValue write SetValue;
-    property ExcGroup: Integer read FExcGroup write FExcGroup;
   end;
 
 implementation
@@ -55,27 +52,6 @@ begin
   BorderStyle := BS_None;
   Selectable := True;
   SkinClass := 'CheckBox';
-end;
-
-procedure TNXCheckBox.ClearExclusiveGroupSiblings;
-var
-  lControl: TNXControl;
-  lIndex: Integer;
-  lSibling: TNXCheckBox;
-begin
-  if (FExcGroup = 0) or (Parent = nil) then
-    Exit;
-
-  for lIndex := 0 to Parent.Children.Count - 1 do
-  begin
-    lControl := Parent.Children[lIndex];
-    if (lControl <> Self) and (lControl is TNXCheckBox) then
-    begin
-      lSibling := TNXCheckBox(lControl);
-      if lSibling.ExcGroup = FExcGroup then
-        lSibling.Value := False;
-    end;
-  end;
 end;
 
 function TNXCheckBox.GetBoxRect: TNXRect;
@@ -133,18 +109,12 @@ begin
   if FValue = AValue then
     Exit;
 
-  if AValue then
-    ClearExclusiveGroupSiblings;
-
   FValue := AValue;
   ValueChanged;
 end;
 
 procedure TNXCheckBox.ToggleValue;
 begin
-  if (FExcGroup <> 0) and FValue then
-    Exit;
-
   Value := not FValue;
 end;
 

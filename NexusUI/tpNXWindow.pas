@@ -27,6 +27,14 @@ type
     wcaDestroy
   );
 
+  TNXWindowStartPosition = (
+    wspDefault,
+    wspManual,
+    wspTopLeft,
+    wspCentered,
+    wspMaximized
+  );
+
 implementation
 
 end.

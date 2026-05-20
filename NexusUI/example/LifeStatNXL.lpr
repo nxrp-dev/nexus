@@ -21,6 +21,7 @@ uses
   obNXPopupMenu,
   obNXProgressBar,
   obNXPropertyEditor,
+  obNXRadioButton,
   obNXSplitPanel,
   obNXStatusBar,
   obNXTabControl,
@@ -54,7 +55,7 @@ var
   LayoutRightPanel: TNXPanel;
   LayoutTopPanel: TNXPanel;
   Chkbox1: TNXCheckBox;
-  Chkbox2, Chkbox3: TNXCheckBox;
+  RadioButton1, RadioButton2: TNXRadioButton;
   ComboBox1: TNXComboBox;
   Label1: TNXLabel;
   Label2: TNXLabel;
@@ -205,13 +206,14 @@ begin
   Chkbox1 := TNXCheckBox.Create(Form2, MakeNXRect(10, 40, 150, 30));
   ChkBox1.Caption := 'Check 1';
 
-  Chkbox2 := TNXCheckBox.Create(Form2, MakeNXRect(10, 80, 150, 30));
-  ChkBox2.Caption := 'Exclusive 1';
-  ChkBox2.ExcGroup := 1;
+  RadioButton1 := TNXRadioButton.Create(Form2, MakeNXRect(10, 80, 150, 30));
+  RadioButton1.Caption := 'Exclusive 1';
+  RadioButton1.GroupName := 'ExclusiveDemo';
+  RadioButton1.Value := True;
 
-  Chkbox3 := TNXCheckBox.Create(Form2, MakeNXRect(150, 80, 150, 30));
-  ChkBox3.Caption := 'Exclusive 2';
-  ChkBox3.ExcGroup := 1;
+  RadioButton2 := TNXRadioButton.Create(Form2, MakeNXRect(150, 80, 150, 30));
+  RadioButton2.Caption := 'Exclusive 2';
+  RadioButton2.GroupName := 'ExclusiveDemo';
 
   ComboBox1 := TNXComboBox.Create(Form2, MakeNXRect(10, 130, 220, 25));
   ComboBox1.Caption := 'Choose option';

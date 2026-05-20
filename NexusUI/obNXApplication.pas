@@ -39,7 +39,9 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure Initialize(const ATitle: AnsiString; AWidth, AHeight: Integer);
+    procedure Initialize(const ATitle: AnsiString; AWidth, AHeight: Integer;
+      AStartPosition: TNXWindowStartPosition = wspDefault; ALeft: Integer = 0;
+      ATop: Integer = 0);
     procedure ProcessMessages;
     procedure QueueFreeControl(AControl: TNXControl);
     procedure Render;
@@ -192,12 +194,13 @@ begin
 end;
 
 procedure TNXApplication.Initialize(const ATitle: AnsiString; AWidth,
-  AHeight: Integer);
+  AHeight: Integer; AStartPosition: TNXWindowStartPosition; ALeft: Integer;
+  ATop: Integer);
 begin
   if FInitialized then
     Exit;
 
-  FPlatform.CreateDisplay(ATitle, AWidth, AHeight);
+  FPlatform.CreateDisplay(ATitle, AWidth, AHeight, AStartPosition, ALeft, ATop);
   FInitialized := True;
   FreeAndNil(FCanvas);
   FCanvas := TNXCanvas.Create(FPlatform);

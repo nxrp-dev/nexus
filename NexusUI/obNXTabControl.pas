@@ -47,6 +47,7 @@ type
     function GetTabWidth(APage: TNXTabPage): Integer; virtual;
     function HitTestTab(AX, AY: Integer): Integer; virtual;
     procedure DoPageChanged; virtual;
+    procedure RenderTabs; virtual;
     procedure UpdatePageVisibility; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
@@ -58,6 +59,7 @@ type
     procedure DeletePage(AIndex: Integer); virtual;
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
+    procedure Paint; override;
     procedure Render; override;
     procedure SelectNextPage; virtual;
     procedure SelectPreviousPage; virtual;
@@ -269,10 +271,6 @@ begin
 end;
 
 procedure TNXTabControl.Render;
-var
-  lIndex: Integer;
-  lRect: TNXRect;
-  lTextY: Integer;
 begin
   if IsSelected then
     CurBorderColor := Skin.ForeColor
@@ -280,7 +278,15 @@ begin
     CurBorderColor := BorderColor;
 
   inherited Render;
+  RenderTabs;
+end;
 
+procedure TNXTabControl.RenderTabs;
+var
+  lIndex: Integer;
+  lRect: TNXRect;
+  lTextY: Integer;
+begin
   if not Assigned(Canvas) then
     Exit;
 
@@ -305,6 +311,49 @@ begin
     RenderRect(lRect, BorderColor);
     RenderText(Pages[lIndex].Caption,
       lRect.x - AbsLeft + (lRect.w div 2), lTextY, Align_Center);
+  end;
+end;
+
+procedure TNXTabControl.Paint;
+var
+  lChild: TNXControl;
+  lChildClipRect: TNXRect;
+  lClipRect: TNXRect;
+  lIndex: Integer;
+begin
+  if Assigned(Canvas) and Visible then
+  begin
+    lClipRect := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
+
+    Canvas.PushClip(lClipRect);
+    try
+      Render;
+
+      lChildClipRect := MakeNXRect(
+        AbsLeft + GetChildAreaLeft,
+        AbsTop + GetChildAreaTop,
+        Max(0, GetChildAreaWidth),
+        Max(0, GetChildAreaHeight)
+      );
+
+      Canvas.PushClip(lChildClipRect);
+      try
+        for lIndex := 0 to Children.Count - 1 do
+        begin
+          lChild := Children[lIndex];
+          if lChild.Visible then
+            lChild.Paint;
+        end;
+      finally
+        Canvas.PopClip;
+      end;
+
+      RenderTabs;
+      if BorderStyle = BS_Single then
+        RenderRect(lClipRect, CurBorderColor);
+    finally
+      Canvas.PopClip;
+    end;
   end;
 end;
 

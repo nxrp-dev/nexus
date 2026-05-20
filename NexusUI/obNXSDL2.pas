@@ -12,7 +12,8 @@ uses
   SDL2_TTF,
   obNXPlatform,
   tpNXEvents,
-  tpNXPlatform;
+  tpNXPlatform,
+  tpNXWindow;
 
 type
   TNXSDL2ClipState = record
@@ -40,7 +41,9 @@ type
     procedure Initialize; override;
     procedure Finalize; override;
 
-    procedure CreateDisplay(const ATitle: AnsiString; AWidth, AHeight: Integer); override;
+    procedure CreateDisplay(const ATitle: AnsiString; AWidth, AHeight: Integer;
+      AStartPosition: TNXWindowStartPosition = wspDefault; ALeft: Integer = 0;
+      ATop: Integer = 0); override;
     procedure DestroyDisplay; override;
 
     function PollEvent(out AEvent: TNXEvent): Boolean; override;
@@ -172,12 +175,41 @@ begin
 end;
 
 procedure TNXSDL2.CreateDisplay(const ATitle: AnsiString; AWidth,
-  AHeight: Integer);
+  AHeight: Integer; AStartPosition: TNXWindowStartPosition; ALeft: Integer;
+  ATop: Integer);
+var
+  lFlags: UInt32;
+  lWindowLeft: Integer;
+  lWindowTop: Integer;
 begin
   Initialize;
 
-  FWindow := SDL_CreateWindow(PChar(ATitle), 10, 10, AWidth, AHeight,
-    SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE);
+  lWindowLeft := SDL_WINDOWPOS_CENTERED;
+  lWindowTop := SDL_WINDOWPOS_CENTERED;
+  lFlags := SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE;
+
+  case AStartPosition of
+    wspManual:
+    begin
+      lWindowLeft := ALeft;
+      lWindowTop := ATop;
+    end;
+
+    wspTopLeft:
+    begin
+      lWindowLeft := 0;
+      lWindowTop := 0;
+    end;
+
+    wspMaximized:
+      lFlags := lFlags or SDL_WINDOW_MAXIMIZED;
+  else
+    lWindowLeft := SDL_WINDOWPOS_CENTERED;
+    lWindowTop := SDL_WINDOWPOS_CENTERED;
+  end;
+
+  FWindow := SDL_CreateWindow(PChar(ATitle), lWindowLeft, lWindowTop,
+    AWidth, AHeight, lFlags);
   if FWindow = nil then
     raise Exception.Create('Unable to create application window: ' +
       string(SDL_GetError));

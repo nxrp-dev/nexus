@@ -41,6 +41,8 @@ type
     FOnClose: TNotifyEvent;
     FOnHide: TNotifyEvent;
     FOnShow: TNotifyEvent;
+    FStartPosition: TNXWindowStartPosition;
+    FStartPositionApplied: Boolean;
     FTitleBar: TNXTitleBar;
     FTop: Integer;
     FVisible: Boolean;
@@ -50,6 +52,7 @@ type
     procedure SetHeight(AValue: Integer);
     procedure SetLeft(AValue: Integer);
     procedure SetMovable(AValue: Boolean);
+    procedure SetStartPosition(AValue: TNXWindowStartPosition);
     procedure SetTop(AValue: Integer);
     procedure SetWindowBorderStyle(AValue: TNXWindowBorderStyle);
     procedure SetWidth(AValue: Integer);
@@ -130,6 +133,7 @@ type
     property OnHide: TNotifyEvent read FOnHide write FOnHide;
     property OnShow: TNotifyEvent read FOnShow write FOnShow;
     property Skin: TNXSkin read GetSkin;
+    property StartPosition: TNXWindowStartPosition read FStartPosition write SetStartPosition;
     property Top: Integer read GetTop write SetTop;
     property Visible: Boolean read FVisible write FVisible;
     property Width: Integer read GetWidth write SetWidth;
@@ -151,6 +155,7 @@ type
     destructor Destroy; override;
 
     procedure AddWindow(AWindow: TNXWindow);
+    procedure ApplyStartPosition(AWindow: TNXWindow);
     procedure BringToFront(AWindow: TNXWindow);
     procedure CloseWindow(AWindow: TNXWindow);
     function CreateWindow(const ACaption: string; const ARect: TNXRect): TNXWindow;
@@ -191,6 +196,8 @@ begin
   FManager := nil;
   FModal := False;
   FModalResult := mrNone;
+  FStartPosition := wspManual;
+  FStartPositionApplied := False;
 
   if Assigned(Skin) then
   begin
@@ -680,6 +687,15 @@ begin
   FMovable := AValue;
 end;
 
+procedure TNXWindow.SetStartPosition(AValue: TNXWindowStartPosition);
+begin
+  if FStartPosition = AValue then
+    Exit;
+
+  FStartPosition := AValue;
+  FStartPositionApplied := False;
+end;
+
 procedure TNXWindow.SetTop(AValue: Integer);
 begin
   FTop := AValue;
@@ -765,6 +781,47 @@ begin
   AWindow.Canvas := FCanvas;
   FWindows.Add(AWindow);
   AWindow.SetManager(Self);
+end;
+
+procedure TNXWindowManager.ApplyStartPosition(AWindow: TNXWindow);
+var
+  lDisplayHeight: Integer;
+  lDisplayWidth: Integer;
+begin
+  if (not Assigned(AWindow)) or AWindow.FStartPositionApplied then
+    Exit;
+
+  AWindow.FStartPositionApplied := True;
+
+  if (not Assigned(FCanvas)) or (not Assigned(FCanvas.Platform)) then
+    Exit;
+
+  FCanvas.Platform.GetDisplaySize(lDisplayWidth, lDisplayHeight);
+
+  case AWindow.StartPosition of
+    wspTopLeft:
+    begin
+      AWindow.Left := 0;
+      AWindow.Top := 0;
+    end;
+
+    wspCentered,
+    wspDefault:
+    begin
+      AWindow.Left := Max(0, (lDisplayWidth - AWindow.Width) div 2);
+      AWindow.Top := Max(0, (lDisplayHeight - AWindow.Height) div 2);
+    end;
+
+    wspMaximized:
+    begin
+      AWindow.Left := 0;
+      AWindow.Top := 0;
+      AWindow.Width := lDisplayWidth;
+      AWindow.Height := lDisplayHeight;
+    end;
+  else
+    { wspManual keeps the explicit bounds already on the window. }
+  end;
 end;
 
 procedure TNXWindowManager.BringToFront(AWindow: TNXWindow);
@@ -1032,6 +1089,7 @@ begin
     FActiveWindow.SetActive(False);
   FActiveWindow := AWindow;
   FActiveWindow.SetActive(True);
+  ApplyStartPosition(AWindow);
   AWindow.InternalShow(True);
 end;
 

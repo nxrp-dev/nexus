@@ -6,7 +6,8 @@ interface
 
 uses
   tpNXEvents,
-  tpNXPlatform;
+  tpNXPlatform,
+  tpNXWindow;
 
 type
   TNXPlatform = class
@@ -20,7 +21,9 @@ type
   public
     procedure Initialize; virtual; abstract;
     procedure Finalize; virtual; abstract;
-    procedure CreateDisplay(const ATitle: AnsiString; AWidth, AHeight: Integer); virtual; abstract;
+    procedure CreateDisplay(const ATitle: AnsiString; AWidth, AHeight: Integer;
+      AStartPosition: TNXWindowStartPosition = wspDefault; ALeft: Integer = 0;
+      ATop: Integer = 0); virtual; abstract;
     procedure DestroyDisplay; virtual; abstract;
     function PollEvent(out AEvent: TNXEvent): Boolean; virtual; abstract;
     function Renderer: Pointer; virtual; abstract;
