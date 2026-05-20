@@ -9,9 +9,12 @@ nav:
       - Architecture: nexusui/architecture.md
       - Event and Focus Model: nexusui/event-focus.md
       - Controls: nexusui/controls.md
+      - Component Inventory: nexusui/components.md
       - Styling and Skins: nexusui/styling-skins.md
       - Development Notes: nexusui/development.md
       - Roadmap: nexusui/roadmap.md
+  - NexusSchema:
+      - Overview: nexusschema/index.md
 
 markdown_extensions:
   - admonition
