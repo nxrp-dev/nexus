@@ -26,6 +26,7 @@ uses
   obNXSplitPanel,
   obNXStatusBar,
   obNXTabControl,
+  obNXToolbar,
   obNXTrackBar,
   obNXTreeList,
   obNXTreeMap,
@@ -43,6 +44,7 @@ type
     procedure DialogResult(Sender: TObject; AResult: TNXModalResult);
     procedure MenuButtonClick(Sender: TObject; X, Y: Integer; Button: TNXMouseButton);
     procedure MenuExecute(Sender: TObject; AItem: TNXMenuItem);
+    procedure ToolbarButtonClick(Sender: TObject; AItem: TNXToolbarItem);
     procedure TrackBarChanged(Sender: TObject; AValue: Integer);
   end;
 
@@ -71,6 +73,7 @@ var
   PageVisuals: TNXTabPage;
   PropertyEditor1: TNXPropertyEditor;
   TabControl1: TNXTabControl;
+  Toolbar1: TNXToolbar;
   TextBox1: TNXEditBox;
   Image1: TNXImage;
   Grid1: TNXGrid;
@@ -135,6 +138,13 @@ begin
   StatusBar1.Panels[1].Text := AItem.Caption;
 end;
 
+procedure TDemoEvents.ToolbarButtonClick(Sender: TObject; AItem: TNXToolbarItem);
+begin
+  StatusBar1.SimplePanel := False;
+  StatusBar1.Panels[0].Text := 'Toolbar selected';
+  StatusBar1.Panels[1].Text := AItem.Caption;
+end;
+
 procedure TDemoEvents.TrackBarChanged(Sender: TObject; AValue: Integer);
 begin
   if not Assigned(StatusBar1) then
@@ -168,6 +178,14 @@ begin
   MainMenuHelp := MainMenu1.AddMenu('Help');
   MainMenuHelp.AddItem('About NexusUI', nil);
   MainMenuHelp.DropDown.OnExecute := @DemoEvents.MenuExecute;
+
+  Toolbar1 := TNXToolbar.Create(RootWindow);
+  Toolbar1.AddButton('New');
+  Toolbar1.AddButton('Open');
+  Toolbar1.AddSeparator;
+  Toolbar1.AddButton('Save');
+  Toolbar1.AddButton('Run');
+  Toolbar1.OnButtonClick := @DemoEvents.ToolbarButtonClick;
 
   TabControl1 := TNXTabControl.Create(RootWindow);
   TabControl1.Align := caClient;
