@@ -33,6 +33,7 @@ type
     nkEnd,
     nkEscape,
     nkEnter,
+    nkTab,
     nkA,
     nkC,
     nkV,

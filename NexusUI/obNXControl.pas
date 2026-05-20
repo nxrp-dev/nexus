@@ -96,7 +96,7 @@ type
   TNXControl = class(TNXControlHost)
   private
     FCanFocus, FDestroying, FEnabled, FFocused, FMouseEntered,
-      FReceiveAllEvents: Boolean;
+      FReceiveAllEvents, FTabStop: Boolean;
     FVisible: Boolean;
     FHeight, FLeft, FTop, FWidth: integer;
     FAlign: TNXControlAlign;
@@ -276,6 +276,7 @@ type
     property IsDestroying: Boolean read FDestroying;
     property Skin: TNXSkin read GetSkin;
     property SkinClass: string read FSkinClass write FSkinClass;
+    property TabStop: Boolean read FTabStop write FTabStop;
     property Top: Integer read GetTop write SetTop;
     property Visible: Boolean read FVisible write FVisible;
     property Width: Integer read FWidth write SetWidth;
@@ -617,6 +618,7 @@ begin
   FAnchors := [ancLeft, ancTop];
   ReceiveAllEvents := False;
   CanFocus := True;
+  TabStop := True;
   Enabled := True;
   Visible := True;
   AttachToParent(AParent);

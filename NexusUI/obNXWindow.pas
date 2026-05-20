@@ -61,6 +61,9 @@ type
     procedure DoClose; virtual;
     procedure DoHide; virtual;
     procedure DoShow; virtual;
+    function AcceptsTabFocus(AControl: TNXControl): Boolean; virtual;
+    procedure CollectTabControls(AHost: TNXControlHost; AList: TList); virtual;
+    function CompareTabControls(ALeft, ARight: TNXControl): Integer; virtual;
     function GetAbsContentRect: TNXRect; virtual;
     function GetBorderThickness: Integer; virtual;
     function GetChildAreaHeight: Integer; override;
@@ -78,6 +81,7 @@ type
     procedure RenderClient; virtual;
     procedure SetFocusedControl(AControl: TNXControl); virtual;
     procedure SetManager(AManager: TNXWindowManager); virtual;
+    procedure SortTabControls(AList: TList); virtual;
     procedure TitleBarDragged(Sender: TObject; ADeltaX, ADeltaY: Integer);
   public
     constructor Create; overload; override;
@@ -101,6 +105,7 @@ type
     function GetWidth: Integer; override;
     procedure Hide; virtual;
     procedure FocusChild(AChild: TNXControl); override;
+    procedure FocusNextControl(AReverse: Boolean); virtual;
     function InWindow(AX, AY: Integer): Boolean; virtual;
     procedure Paint; virtual;
     procedure ProcessKeyDown(const AEvent: TNXKeyEventData); virtual;
@@ -253,6 +258,12 @@ begin
   inherited AddChild(AChild);
 end;
 
+function TNXWindow.AcceptsTabFocus(AControl: TNXControl): Boolean;
+begin
+  Result := Assigned(AControl) and AControl.Visible and AControl.Enabled and
+    AControl.CanFocus and AControl.TabStop;
+end;
+
 procedure TNXWindow.BringWindowToFront;
 begin
   if Assigned(FManager) then
@@ -284,12 +295,91 @@ begin
   SetFocusedControl(AChild);
 end;
 
+procedure TNXWindow.FocusNextControl(AReverse: Boolean);
+var
+  lControls: TList;
+  lCurrentIndex: Integer;
+  lNextIndex: Integer;
+begin
+  lControls := TList.Create;
+  try
+    CollectTabControls(Self, lControls);
+    if lControls.Count = 0 then
+    begin
+      ClearFocus;
+      Exit;
+    end;
+
+    lCurrentIndex := lControls.IndexOf(FFocusedControl);
+    if lCurrentIndex < 0 then
+    begin
+      if AReverse then
+        lNextIndex := lControls.Count - 1
+      else
+        lNextIndex := 0;
+    end
+    else if AReverse then
+      lNextIndex := (lCurrentIndex + lControls.Count - 1) mod lControls.Count
+    else
+      lNextIndex := (lCurrentIndex + 1) mod lControls.Count;
+
+    SetFocusedControl(TNXControl(lControls[lNextIndex]));
+  finally
+    lControls.Free;
+  end;
+end;
+
 procedure TNXWindow.Close;
 begin
   if Assigned(FManager) then
     FManager.CloseWindow(Self)
   else
     InternalClose;
+end;
+
+procedure TNXWindow.CollectTabControls(AHost: TNXControlHost; AList: TList);
+var
+  lChild: TNXControl;
+  lChildren: TList;
+  lIndex: Integer;
+begin
+  if (not Assigned(AHost)) or (not Assigned(AList)) then
+    Exit;
+
+  lChildren := TList.Create;
+  try
+    for lIndex := 0 to AHost.Children.Count - 1 do
+    begin
+      lChild := AHost.Children[lIndex];
+      if lChild.Visible and lChild.Enabled then
+        lChildren.Add(lChild);
+    end;
+
+    SortTabControls(lChildren);
+
+    for lIndex := 0 to lChildren.Count - 1 do
+    begin
+      lChild := TNXControl(lChildren[lIndex]);
+      if AcceptsTabFocus(lChild) then
+        AList.Add(lChild);
+      CollectTabControls(lChild, AList);
+    end;
+  finally
+    lChildren.Free;
+  end;
+end;
+
+function TNXWindow.CompareTabControls(ALeft, ARight: TNXControl): Integer;
+begin
+  Result := 0;
+  if ALeft.AbsTop < ARight.AbsTop then
+    Result := -1
+  else if ALeft.AbsTop > ARight.AbsTop then
+    Result := 1
+  else if ALeft.AbsLeft < ARight.AbsLeft then
+    Result := -1
+  else if ALeft.AbsLeft > ARight.AbsLeft then
+    Result := 1;
 end;
 
 procedure TNXWindow.DoClose;
@@ -513,6 +603,12 @@ end;
 
 procedure TNXWindow.ProcessKeyDown(const AEvent: TNXKeyEventData);
 begin
+  if AEvent.Key = nkTab then
+  begin
+    FocusNextControl(nmShift in AEvent.Modifiers);
+    Exit;
+  end;
+
   if Assigned(FFocusedControl) and FFocusedControl.Visible and
     FFocusedControl.Enabled then
     FFocusedControl.ProcessKeyDown(AEvent);
@@ -754,6 +850,32 @@ begin
     FManager.ShowWindow(Self)
   else
     InternalShow(True);
+end;
+
+procedure TNXWindow.SortTabControls(AList: TList);
+var
+  lIndex: Integer;
+  lInsertIndex: Integer;
+  lValue: Pointer;
+begin
+  if not Assigned(AList) then
+    Exit;
+
+  for lIndex := 1 to AList.Count - 1 do
+  begin
+    lValue := AList[lIndex];
+    lInsertIndex := lIndex - 1;
+
+    while (lInsertIndex >= 0) and
+      (CompareTabControls(TNXControl(AList[lInsertIndex]),
+        TNXControl(lValue)) > 0) do
+    begin
+      AList[lInsertIndex + 1] := AList[lInsertIndex];
+      Dec(lInsertIndex);
+    end;
+
+    AList[lInsertIndex + 1] := lValue;
+  end;
 end;
 
 procedure TNXWindow.TitleBarDragged(Sender: TObject; ADeltaX,

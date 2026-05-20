@@ -105,6 +105,8 @@ begin
     SDLK_RETURN,
     SDLK_KP_ENTER:
       Result := nkEnter;
+    SDLK_TAB:
+      Result := nkTab;
     SDLK_a:
       Result := nkA;
     SDLK_c:

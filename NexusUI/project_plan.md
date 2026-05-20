@@ -27,7 +27,7 @@ Build a small, cross-platform, retained-mode Pascal UI framework over SDL2, with
 - Mouse capture
 - Popup/overlay layer
 - Keyboard navigation
-- Tab order
+- Structural Tab traversal
 - Theme/style object
 - Data context model
 - Layout helpers

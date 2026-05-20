@@ -21,6 +21,8 @@ constructor TNXPanel.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
 
+  CanFocus := False;
+  TabStop := False;
   BackColor := Skin.FormBackColor;
   Left := 100;
   Top := 100;
