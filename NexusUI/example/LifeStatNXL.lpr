@@ -8,6 +8,7 @@ uses
   obNXButton,
   obNXCheckBox,
   obNXComboBox,
+  obNXDateEdit,
   obNXEditBox,
   obNXControl,
   obNXGrid,
@@ -24,8 +25,10 @@ uses
   obNXPropertyEditor,
   obNXRadioButton,
   obNXSplitPanel,
+  obNXSplitter,
   obNXStatusBar,
   obNXTabControl,
+  obNXTimeEdit,
   obNXToolbar,
   obNXTrackBar,
   obNXTreeList,
@@ -58,10 +61,12 @@ var
   LayoutClientPanel: TNXPanel;
   LayoutLeftPanel: TNXPanel;
   LayoutRightPanel: TNXPanel;
+  LayoutSplitter: TNXSplitter;
   LayoutTopPanel: TNXPanel;
   Chkbox1: TNXCheckBox;
   RadioButton1, RadioButton2: TNXRadioButton;
   ComboBox1: TNXComboBox;
+  DateEdit1: TNXDateEdit;
   Label1: TNXLabel;
   Label2: TNXLabel;
   Label3: TNXLabel;
@@ -75,6 +80,7 @@ var
   TabControl1: TNXTabControl;
   Toolbar1: TNXToolbar;
   TextBox1: TNXEditBox;
+  TimeEdit1: TNXTimeEdit;
   Image1: TNXImage;
   Grid1: TNXGrid;
   ListBox: TNXListBox;
@@ -196,7 +202,7 @@ begin
   PageVisuals := TabControl1.AddPage('Visuals');
 
   Form1 := TNXGroupBox.Create(PageBasics, 'Form1', MakeNXRect(10, 10, 250, 256));
-  Form2 := TNXGroupBox.Create(PageBasics, 'Form2', MakeNXRect(280, 10, 400, 200));
+  Form2 := TNXGroupBox.Create(PageBasics, 'Form2', MakeNXRect(280, 10, 400, 245));
   Form4 := TNXGroupBox.Create(PageBasics, 'Form4', MakeNXRect(700, 10, 260, 300));
 
   Form6 := TNXGroupBox.Create(PageData, 'Tree List', MakeNXRect(10, 10, 300, 300));
@@ -228,6 +234,12 @@ begin
   LayoutLeftPanel.Width := 55;
   LayoutLeftPanel.BackColor := MakeNXColor(55, 95, 72, 255);
   LayoutLeftPanel.Align := caLeft;
+
+  LayoutSplitter := TNXSplitter.Create(Form10.ContentPanel);
+  LayoutSplitter.Align := caLeft;
+  LayoutSplitter.Width := 6;
+  LayoutSplitter.MinSize := 35;
+  LayoutSplitter.ResizeControl := LayoutLeftPanel;
 
   LayoutRightPanel := TNXPanel.Create(Form10.ContentPanel);
   LayoutRightPanel.Width := 55;
@@ -278,6 +290,14 @@ begin
   ComboBox1.Items.Add('Delta');
   ComboBox1.Items.Add('Echo');
   ComboBox1.SelectedIndex := 0;
+
+  DateEdit1 := TNXDateEdit.Create(Form2.ContentPanel);
+  DateEdit1.SetBounds(10, 165, 140, 25);
+  DateEdit1.Date := Date;
+
+  TimeEdit1 := TNXTimeEdit.Create(Form2.ContentPanel);
+  TimeEdit1.SetBounds(165, 165, 100, 25);
+  TimeEdit1.Time := EncodeTime(14, 30, 0, 0);
 
   ProgressBar1 := TNXProgressBar.Create(Form2.ContentPanel, MakeNXRect(250, 35, 120, 20));
   ProgressBar1.Value := 65;
