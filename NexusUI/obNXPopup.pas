@@ -8,6 +8,7 @@ uses
   Classes,
   obNXControl,
 
+  tpNXEvents,
   tpNXPlatform;
 
 type
@@ -44,7 +45,12 @@ type
     procedure BringActiveToFront;
     procedure HidePopup(APopup: TNXPopup);
     procedure HidePopups;
-    procedure ProcessMouseDown(AX, AY: Integer; AButton: TNXMouseButton);
+    function ProcessKeyDown(const AEvent: TNXKeyEventData): Boolean;
+    function ProcessKeyUp(const AEvent: TNXKeyEventData): Boolean;
+    function ProcessMouseDown(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
+    function ProcessMouseMotion(AX, AY: Integer; AButtonState: TNXMouseButtons): Boolean;
+    function ProcessMouseUp(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
+    function ProcessTextInput(const AText: string): Boolean;
     procedure ShowPopup(APopup: TNXPopup);
 
     property ActivePopup: TNXPopup read FActivePopup;
@@ -182,20 +188,116 @@ begin
   HidePopup(FActivePopup);
 end;
 
-procedure TNXPopupManager.ProcessMouseDown(AX, AY: Integer;
-  AButton: TNXMouseButton);
+function TNXPopupManager.ProcessKeyDown(const AEvent: TNXKeyEventData): Boolean;
 begin
+  Result := Assigned(FActivePopup) and FActivePopup.Visible;
+  if not Result then
+    Exit;
+
+  if AEvent.Key = nkEscape then
+  begin
+    HidePopup(FActivePopup);
+    Exit;
+  end;
+
+  if FActivePopup.CanFocus then
+    FActivePopup.ProcessKeyDown(AEvent)
+  else if Assigned(FActivePopup.Owner) then
+    FActivePopup.Owner.ProcessKeyDown(AEvent);
+end;
+
+function TNXPopupManager.ProcessKeyUp(const AEvent: TNXKeyEventData): Boolean;
+begin
+  Result := Assigned(FActivePopup) and FActivePopup.Visible;
+  if not Result then
+    Exit;
+
+  if FActivePopup.CanFocus then
+    FActivePopup.ProcessKeyUp(AEvent)
+  else if Assigned(FActivePopup.Owner) then
+    FActivePopup.Owner.ProcessKeyUp(AEvent);
+end;
+
+function TNXPopupManager.ProcessMouseDown(AX, AY: Integer;
+  AButton: TNXMouseButton): Boolean;
+var
+  lPoint: TNXPoint;
+begin
+  Result := False;
   if AButton = mbNone then
     Exit;
 
   if not Assigned(FActivePopup) or not FActivePopup.Visible then
     Exit;
 
-  if PointInElement(FActivePopup, AX, AY) or
-    PointInElement(FActivePopup.Owner, AX, AY) then
+  if PointInElement(FActivePopup, AX, AY) then
+  begin
+    lPoint := FActivePopup.ScreenToLocal(AX, AY);
+    FActivePopup.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+    Result := True;
+    Exit;
+  end;
+
+  if PointInElement(FActivePopup.Owner, AX, AY) then
     Exit;
 
   HidePopup(FActivePopup);
+end;
+
+function TNXPopupManager.ProcessMouseMotion(AX, AY: Integer;
+  AButtonState: TNXMouseButtons): Boolean;
+var
+  lPoint: TNXPoint;
+begin
+  Result := Assigned(FActivePopup) and FActivePopup.Visible;
+  if not Result then
+    Exit;
+
+  if PointInElement(FActivePopup, AX, AY) then
+  begin
+    if not FActivePopup.MouseEntered then
+      FActivePopup.ProcessMouseEnter;
+
+    lPoint := FActivePopup.ScreenToLocal(AX, AY);
+    FActivePopup.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+    Exit;
+  end;
+
+  if FActivePopup.MouseEntered then
+    FActivePopup.ProcessMouseExit;
+
+  Result := False;
+end;
+
+function TNXPopupManager.ProcessMouseUp(AX, AY: Integer;
+  AButton: TNXMouseButton): Boolean;
+var
+  lPoint: TNXPoint;
+begin
+  Result := Assigned(FActivePopup) and FActivePopup.Visible;
+  if not Result then
+    Exit;
+
+  if PointInElement(FActivePopup, AX, AY) then
+  begin
+    lPoint := FActivePopup.ScreenToLocal(AX, AY);
+    FActivePopup.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    Exit;
+  end;
+
+  Result := False;
+end;
+
+function TNXPopupManager.ProcessTextInput(const AText: string): Boolean;
+begin
+  Result := Assigned(FActivePopup) and FActivePopup.Visible;
+  if not Result then
+    Exit;
+
+  if FActivePopup.CanFocus then
+    FActivePopup.ProcessTextInput(AText)
+  else if Assigned(FActivePopup.Owner) then
+    FActivePopup.Owner.ProcessTextInput(AText);
 end;
 
 procedure TNXPopupManager.ShowPopup(APopup: TNXPopup);

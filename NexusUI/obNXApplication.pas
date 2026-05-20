@@ -134,6 +134,9 @@ begin
 
     nxeKeyDown:
     begin
+      if FPopups.ProcessKeyDown(AEvent.Key) then
+        Exit;
+
       if AEvent.Key.Key = nkEscape then
         Terminate;
 
@@ -147,6 +150,9 @@ begin
     nxeKeyUp:
       if FRootWindow <> nil then
       begin
+        if FPopups.ProcessKeyUp(AEvent.Key) then
+          Exit;
+
         if not FWindows.ProcessKeyUp(AEvent.Key) then
           FRootWindow.ProcessKeyUp(AEvent.Key);
       end;
@@ -154,6 +160,10 @@ begin
     nxeMouseMotion:
       if FRootWindow <> nil then
       begin
+        if FPopups.ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.ButtonState) then
+          Exit;
+
         if not FWindows.ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.ButtonState) then
           FRootWindow.ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
@@ -163,8 +173,9 @@ begin
     nxeMouseDown:
       if FRootWindow <> nil then
       begin
-        FPopups.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
-          AEvent.Mouse.Button);
+        if FPopups.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.Button) then
+          Exit;
 
         if not FWindows.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.Button) then
@@ -178,6 +189,10 @@ begin
     nxeMouseUp:
       if FRootWindow <> nil then
       begin
+        if FPopups.ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.Button) then
+          Exit;
+
         if not FWindows.ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.Button) then
           FRootWindow.ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
@@ -187,6 +202,9 @@ begin
     nxeTextInput:
       if FRootWindow <> nil then
       begin
+        if FPopups.ProcessTextInput(AEvent.Text) then
+          Exit;
+
         if not FWindows.ProcessTextInput(AEvent.Text) then
           FRootWindow.ProcessTextInput(AEvent.Text);
       end;
