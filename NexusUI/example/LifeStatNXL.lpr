@@ -15,6 +15,7 @@ uses
   obNXImage,
   obNXLabel,
   obNXListBox,
+  obNXMainMenu,
   obNXMemo,
   obNXMessageDialog,
   obNXPanel,
@@ -25,6 +26,7 @@ uses
   obNXSplitPanel,
   obNXStatusBar,
   obNXTabControl,
+  obNXTrackBar,
   obNXTreeList,
   obNXTreeMap,
   obNXTreeMapTestData,
@@ -41,6 +43,7 @@ type
     procedure DialogResult(Sender: TObject; AResult: TNXModalResult);
     procedure MenuButtonClick(Sender: TObject; X, Y: Integer; Button: TNXMouseButton);
     procedure MenuExecute(Sender: TObject; AItem: TNXMenuItem);
+    procedure TrackBarChanged(Sender: TObject; AValue: Integer);
   end;
 
 var
@@ -73,6 +76,10 @@ var
   Grid1: TNXGrid;
   ListBox: TNXListBox;
   Memo1: TNXMemo;
+  MainMenu1: TNXMainMenu;
+  MainMenuFile: TNXMainMenuItem;
+  MainMenuView: TNXMainMenuItem;
+  MainMenuHelp: TNXMainMenuItem;
   PopupMenu1: TNXPopupMenu;
   ProgressBar1: TNXProgressBar;
   ProgressBar2: TNXProgressBar;
@@ -82,6 +89,8 @@ var
   TreeNode1: TNXTreeListNode;
   TreeNode2: TNXTreeListNode;
   TreeNode3: TNXTreeListNode;
+  TrackBar1: TNXTrackBar;
+  TrackBar2: TNXTrackBar;
 
   DemoEvents: TDemoEvents;
   RootWindow: TNXWindow;
@@ -126,6 +135,16 @@ begin
   StatusBar1.Panels[1].Text := AItem.Caption;
 end;
 
+procedure TDemoEvents.TrackBarChanged(Sender: TObject; AValue: Integer);
+begin
+  if not Assigned(StatusBar1) then
+    Exit;
+
+  StatusBar1.SimplePanel := False;
+  StatusBar1.Panels[0].Text := 'Trackbar value';
+  StatusBar1.Panels[1].Text := IntToStr(AValue);
+end;
+
 begin
   Application.Initialize('Window', 1024, 768);
   Application.Skin.LoadNamedSkin('default', Application.Canvas);
@@ -133,7 +152,24 @@ begin
   RootWindow := Application.RootWindow;
   DemoEvents := TDemoEvents.Create;
 
-  TabControl1 := TNXTabControl.Create(RootWindow, MakeNXRect(10, 10, 1000, 700));
+  MainMenu1 := TNXMainMenu.Create(RootWindow);
+  MainMenuFile := MainMenu1.AddMenu('File');
+  MainMenuFile.AddItem('New', nil, 'Ctrl+N');
+  MainMenuFile.AddItem('Open', nil, 'Ctrl+O');
+  MainMenuFile.AddSeparator;
+  MainMenuFile.AddItem('Exit', nil, 'Esc');
+  MainMenuFile.DropDown.OnExecute := @DemoEvents.MenuExecute;
+
+  MainMenuView := MainMenu1.AddMenu('View');
+  MainMenuView.AddItem('Refresh', nil, 'F5');
+  MainMenuView.AddItem('Toggle Grid', nil);
+  MainMenuView.DropDown.OnExecute := @DemoEvents.MenuExecute;
+
+  MainMenuHelp := MainMenu1.AddMenu('Help');
+  MainMenuHelp.AddItem('About NexusUI', nil);
+  MainMenuHelp.DropDown.OnExecute := @DemoEvents.MenuExecute;
+
+  TabControl1 := TNXTabControl.Create(RootWindow, MakeNXRect(10, 34, 1000, 676));
   TabControl1.Anchors := [ancLeft, ancTop, ancRight, ancBottom];
 
   PageBasics := TabControl1.AddPage('Basics');
@@ -245,6 +281,17 @@ begin
 
   TextBox1 := TNXEditBox.Create(Form1, MakeNXRect(10, 150, 230, 25));
   TextBox1.Caption := 'Textbox 1';
+
+  TrackBar1 := TNXTrackBar.Create(Form1);
+  TrackBar1.SetBounds(10, 200, 220, 28);
+  TrackBar1.Value := 35;
+  TrackBar1.OnChange := @DemoEvents.TrackBarChanged;
+
+  TrackBar2 := TNXTrackBar.Create(Form2);
+  TrackBar2.SetBounds(315, 35, 28, 125);
+  TrackBar2.Direction := Dir_Vertical;
+  TrackBar2.Value := 60;
+  TrackBar2.OnChange := @DemoEvents.TrackBarChanged;
 
   SplitPanel1 := TNXSplitPanel.Create(Form8);
   SplitPanel1.Left := 10;

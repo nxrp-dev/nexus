@@ -5,7 +5,6 @@ unit obNXButton;
 interface
 
 uses
-  obNXSkin,
   tpNXPlatform,
   tpNXSkin,
   obNXControl;
