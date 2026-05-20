@@ -220,14 +220,14 @@ begin
     case Direction of
       Dir_Horizontal:
       begin
-        lX := AbsLeft + (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
-        lY := AbsTop + ((Height + cTrackThickness) div 2) + 3;
+        lX := (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
+        lY := ((Height + cTrackThickness) div 2) + 3;
         RenderLine(lX, lY, lX, lY + cTickSize, BorderColor);
       end;
       Dir_Vertical:
       begin
-        lX := AbsLeft + ((Width + cTrackThickness) div 2) + 3;
-        lY := AbsTop + (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
+        lX := ((Width + cTrackThickness) div 2) + 3;
+        lY := (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
         RenderLine(lX, lY, lX + cTickSize, lY, BorderColor);
       end;
     end;
@@ -241,14 +241,14 @@ begin
     case Direction of
       Dir_Horizontal:
       begin
-        lX := AbsLeft + (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
-        lY := AbsTop + ((Height + cTrackThickness) div 2) + 3;
+        lX := (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
+        lY := ((Height + cTrackThickness) div 2) + 3;
         RenderLine(lX, lY, lX, lY + cTickSize, BorderColor);
       end;
       Dir_Vertical:
       begin
-        lX := AbsLeft + ((Width + cTrackThickness) div 2) + 3;
-        lY := AbsTop + (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
+        lX := ((Width + cTrackThickness) div 2) + 3;
+        lY := (ThumbSize div 2) + Round(lTrackLength * lPositionRatio);
         RenderLine(lX, lY, lX + cTickSize, lY, BorderColor);
       end;
     end;
@@ -272,11 +272,11 @@ begin
 
   case Direction of
     Dir_Horizontal:
-      Result := MakeNXRect(AbsLeft + lPosition,
-        AbsTop + ((Height - ThumbSize) div 2), ThumbSize, ThumbSize);
+      Result := MakeNXRect(lPosition, (Height - ThumbSize) div 2,
+        ThumbSize, ThumbSize);
     Dir_Vertical:
-      Result := MakeNXRect(AbsLeft + ((Width - ThumbSize) div 2),
-        AbsTop + lPosition, ThumbSize, ThumbSize);
+      Result := MakeNXRect((Width - ThumbSize) div 2, lPosition,
+        ThumbSize, ThumbSize);
   end;
 end;
 
@@ -294,12 +294,12 @@ function TNXTrackBar.GetTrackRect: TNXRect;
 begin
   case Direction of
     Dir_Horizontal:
-      Result := MakeNXRect(AbsLeft + (ThumbSize div 2),
-        AbsTop + ((Height - cTrackThickness) div 2), GetTrackLength,
+      Result := MakeNXRect(ThumbSize div 2,
+        (Height - cTrackThickness) div 2, GetTrackLength,
         cTrackThickness);
     Dir_Vertical:
-      Result := MakeNXRect(AbsLeft + ((Width - cTrackThickness) div 2),
-        AbsTop + (ThumbSize div 2), cTrackThickness, GetTrackLength);
+      Result := MakeNXRect((Width - cTrackThickness) div 2,
+        ThumbSize div 2, cTrackThickness, GetTrackLength);
   end;
 end;
 

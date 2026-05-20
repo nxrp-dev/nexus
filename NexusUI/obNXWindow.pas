@@ -290,16 +290,14 @@ end;
 function TNXWindow.GetAbsContentRect: TNXRect;
 var
   lBorderThickness: Integer;
-  lTitleBarHeight: Integer;
 begin
   lBorderThickness := GetBorderThickness;
-  lTitleBarHeight := GetTitleBarHeight;
 
   Result := MakeNXRect(
     AbsLeft + lBorderThickness,
-    AbsTop + lBorderThickness + lTitleBarHeight,
+    AbsTop + lBorderThickness,
     Max(0, Width - (lBorderThickness * 2)),
-    Max(0, Height - (lBorderThickness * 2) - lTitleBarHeight)
+    Max(0, Height - (lBorderThickness * 2))
   );
 end;
 
@@ -360,16 +358,14 @@ end;
 function TNXWindow.GetContentRect: TNXRect;
 var
   lBorderThickness: Integer;
-  lTitleBarHeight: Integer;
 begin
   lBorderThickness := GetBorderThickness;
-  lTitleBarHeight := GetTitleBarHeight;
 
   Result := MakeNXRect(
     lBorderThickness,
-    lBorderThickness + lTitleBarHeight,
+    lBorderThickness,
     Max(0, Width - (lBorderThickness * 2)),
-    Max(0, Height - (lBorderThickness * 2) - lTitleBarHeight)
+    Max(0, Height - (lBorderThickness * 2))
   );
 end;
 
@@ -466,7 +462,6 @@ end;
 
 procedure TNXWindow.Paint;
 var
-  lChild: TNXControl;
   lChildClipRect: TNXRect;
   lClipRect: TNXRect;
   lIndex: Integer;
@@ -483,17 +478,10 @@ begin
       Canvas.PushClip(lChildClipRect);
       try
         for lIndex := 0 to Children.Count - 1 do
-        begin
-          lChild := Children[lIndex];
-          if lChild <> FTitleBar then
-            lChild.Paint;
-        end;
+          Children[lIndex].Paint;
       finally
         Canvas.PopClip;
       end;
-
-      if Assigned(FTitleBar) and FTitleBar.Visible then
-        FTitleBar.Paint;
     finally
       Canvas.PopClip;
     end;

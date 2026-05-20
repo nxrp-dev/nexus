@@ -59,29 +59,27 @@ begin
   case Dir of
     Dir_Horizontal:
     begin
-      RenderLine(AbsLeft, AbsTop + Height div 2, AbsLeft +
-        Width - 1, AbsTop + Height div 2, BorderColor);
+      RenderLine(0, Height div 2, Width - 1, Height div 2, BorderColor);
       r.w := GUI_ScrollbarSize;
       r.h := GUI_ScrollbarSize;
       lTrackSize := Width - r.w - 2;
       if (lRange > 0) and (lTrackSize > 0) then
-        r.x := AbsLeft + Floor(((Value - Min) * lTrackSize) / lRange)
+        r.x := Floor(((Value - Min) * lTrackSize) / lRange)
       else
-        r.x := AbsLeft;
-      r.y := AbsTop + (Height - r.h) div 2;
+        r.x := 0;
+      r.y := (Height - r.h) div 2;
     end;
     Dir_Vertical:
     begin
-      RenderLine(AbsLeft + Width div 2, AbsTop, AbsLeft +
-        Width div 2, AbsTop + Height, BorderColor);
+      RenderLine(Width div 2, 0, Width div 2, Height, BorderColor);
       r.w := GUI_ScrollbarSize;
       r.h := GUI_ScrollbarSize;
       lTrackSize := Height - r.h - 1;
       if (lRange > 0) and (lTrackSize > 0) then
-        r.y := AbsTop + Floor(((Value - Min) * lTrackSize) / lRange)
+        r.y := Floor(((Value - Min) * lTrackSize) / lRange)
       else
-        r.y := AbsTop;
-      r.x := AbsLeft + (Width - r.w) div 2;
+        r.y := 0;
+      r.x := (Width - r.w) div 2;
     end;
   end;
 

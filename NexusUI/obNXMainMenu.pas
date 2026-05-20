@@ -501,7 +501,7 @@ var
 begin
   inherited RenderClient;
 
-  RenderFilledRect(MakeNXRect(AbsLeft, AbsTop, Width, Height), BackColor);
+  RenderFilledRect(MakeNXRect(0, 0, Width, Height), BackColor);
 
   for lIndex := 0 to FItems.Count - 1 do
   begin
@@ -509,8 +509,7 @@ begin
     lRect := GetItemRect(lIndex);
 
     if (lIndex = FActiveIndex) or (lIndex = FHotIndex) then
-      RenderFilledRect(MakeNXRect(AbsLeft + lRect.x, AbsTop + lRect.y,
-        lRect.w, lRect.h), Skin.SelectedColor);
+      RenderFilledRect(lRect, Skin.SelectedColor);
 
     if lItem.Enabled then
       ForeColor := Skin.ForeColor
@@ -522,8 +521,7 @@ begin
   end;
 
   ForeColor := Skin.ForeColor;
-  RenderLine(AbsLeft, AbsTop + Height - 1, AbsLeft + Width, AbsTop + Height - 1,
-    Skin.BorderColor);
+  RenderLine(0, Height - 1, Width, Height - 1, Skin.BorderColor);
 end;
 
 procedure TNXMainMenu.ItemChanged(AItem: TNXMainMenuItem);

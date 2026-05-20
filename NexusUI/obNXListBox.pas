@@ -195,9 +195,9 @@ begin
     lItem := Items[lItemIndex];
     if lItem.Selected then
     begin
-      lRect.x := AbsLeft + 1;
+      lRect.x := 1;
       lRect.w := Width - 2;
-      lRect.y := AbsTop + lIndex * FontLineSkip + 1;
+      lRect.y := lIndex * FontLineSkip + 1;
       lRect.h := FontLineSkip - 2;
 
       if IsSelected then

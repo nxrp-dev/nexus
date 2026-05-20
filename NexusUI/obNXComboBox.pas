@@ -159,10 +159,7 @@ begin
       lTop := AbsTop - lDropDownHeight;
   end;
 
-  FDropDown.Left := AbsLeft;
-  FDropDown.Top := lTop;
-  FDropDown.Width := Width;
-  FDropDown.Height := lDropDownHeight;
+  FDropDown.SetAbsoluteBounds(AbsLeft, lTop, Width, lDropDownHeight);
 end;
 
 procedure TNXComboBox.SetDropDownItemCount(AValue: Integer);
@@ -257,12 +254,12 @@ begin
   else
     CurBorderColor := BorderColor;
 
-  lMainRect := MakeNXRect(AbsLeft, AbsTop, Width, Height);
+  lMainRect := MakeNXRect(0, 0, Width, Height);
   RenderFilledRect(lMainRect, BackColor);
   RenderRect(lMainRect, CurBorderColor);
 
-  lArrowRect := MakeNXRect(AbsLeft + Max(0, Width - cDropButtonWidth),
-    AbsTop, Min(cDropButtonWidth, Width), Height);
+  lArrowRect := MakeNXRect(Max(0, Width - cDropButtonWidth), 0,
+    Min(cDropButtonWidth, Width), Height);
   RenderFilledRect(lArrowRect, ActiveColor);
   RenderRect(lArrowRect, CurBorderColor);
   DrawArrow(lArrowRect);
@@ -274,9 +271,9 @@ begin
   if lText <> '' then
   begin
     lTextY := (Height - FontHeight) div 2;
-    Canvas.PushClip(MakeNXRect(AbsLeft + cTextPadding, AbsTop + 1,
+    Canvas.PushClip(LocalRectToAbs(MakeNXRect(cTextPadding, 1,
       Max(0, Width - cDropButtonWidth - cTextPadding - 2),
-      Max(0, Height - 2)));
+      Max(0, Height - 2))));
     try
       RenderText(lText, cTextPadding, lTextY, Align_Left);
     finally
@@ -367,8 +364,7 @@ begin
 
     if lItemIndex = FComboBox.FSelectedIndex then
     begin
-      lRect := MakeNXRect(AbsLeft + 1,
-        AbsTop + (lIndex * FComboBox.GetItemHeight) + 1,
+      lRect := MakeNXRect(1, (lIndex * FComboBox.GetItemHeight) + 1,
         Max(0, Width - 2), Max(0, FComboBox.GetItemHeight - 2));
       RenderFilledRect(lRect, Skin.SelectedColor);
     end;

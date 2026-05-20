@@ -78,7 +78,7 @@ type
       const ADataIndex: Integer
     ): Integer;
 
-    function GetClientRect: TNXRect;
+    function GetTreeMapRect: TNXRect;
     function NodeAt(const AX, AY: Integer): Integer;
     procedure DrawNode(const ANode: TTreeMapNode);
     procedure DrawTextIfRoom(const ARect: TNXRect; const AText: String);
@@ -499,7 +499,7 @@ begin
   FLayoutDirty := False;
 end;
 
-function TNXTreeMap.GetClientRect: TNXRect;
+function TNXTreeMap.GetTreeMapRect: TNXRect;
 begin
   Result := MakeNXRect(0, 0, Width, Height);
 end;
@@ -537,7 +537,7 @@ var
   lTransactionRect: TNXRect;
 begin
   ClearLayout;
-  lClientRect := GetClientRect;
+  lClientRect := GetTreeMapRect;
 
   if (Length(FData) = 0) or (RectWidth(lClientRect) <= 0) or (RectHeight(lClientRect) <= 0) then
     Exit;
@@ -607,7 +607,6 @@ end;
 procedure TNXTreeMap.DrawNode(const ANode: TTreeMapNode);
 var
   lRect: TNXRect;
-  lScreenRect: TNXRect;
   lDisplayText: String;
   lBorderColor: TNXColor;
 begin
@@ -616,16 +615,14 @@ begin
   if not RectIsUsable(lRect) then
     Exit;
 
-  lScreenRect := MakeNXRect(AbsLeft + lRect.x, AbsTop + lRect.y, lRect.w, lRect.h);
-
-  RenderFilledRect(lScreenRect, ANode.Color);
+  RenderFilledRect(lRect, ANode.Color);
 
   if ANode.Kind = tnkCategory then
     lBorderColor := cBlack
   else
     lBorderColor := cGray;
 
-  RenderRect(lScreenRect, lBorderColor);
+  RenderRect(lRect, lBorderColor);
 
   if ANode.Kind = tnkCategory then
     lDisplayText := ANode.Caption + '  ' + FormatFloat('$#,##0.00', ANode.Amount)
@@ -638,7 +635,6 @@ end;
 procedure TNXTreeMap.Render;
 var
   lIndex: Integer;
-  lScreenRect: TNXRect;
   lHighlightColor: TNXColor;
 begin
   inherited Render;
@@ -654,26 +650,14 @@ begin
 
   if (FHoverIndex >= 0) and (FHoverIndex <= High(FNodes)) then
   begin
-    lScreenRect := MakeNXRect(
-      AbsLeft + FNodes[FHoverIndex].Rect.x,
-      AbsTop + FNodes[FHoverIndex].Rect.y,
-      FNodes[FHoverIndex].Rect.w,
-      FNodes[FHoverIndex].Rect.h
-    );
     lHighlightColor := cWhite;
-    RenderRect(lScreenRect, lHighlightColor);
+    RenderRect(FNodes[FHoverIndex].Rect, lHighlightColor);
   end;
 
   if (FSelectedIndex >= 0) and (FSelectedIndex <= High(FNodes)) then
   begin
-    lScreenRect := MakeNXRect(
-      AbsLeft + FNodes[FSelectedIndex].Rect.x,
-      AbsTop + FNodes[FSelectedIndex].Rect.y,
-      FNodes[FSelectedIndex].Rect.w,
-      FNodes[FSelectedIndex].Rect.h
-    );
     lHighlightColor := cYellow;
-    RenderRect(lScreenRect, lHighlightColor);
+    RenderRect(FNodes[FSelectedIndex].Rect, lHighlightColor);
   end;
 end;
 

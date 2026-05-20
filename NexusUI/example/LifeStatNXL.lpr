@@ -169,8 +169,8 @@ begin
   MainMenuHelp.AddItem('About NexusUI', nil);
   MainMenuHelp.DropDown.OnExecute := @DemoEvents.MenuExecute;
 
-  TabControl1 := TNXTabControl.Create(RootWindow, MakeNXRect(10, 34, 1000, 676));
-  TabControl1.Anchors := [ancLeft, ancTop, ancRight, ancBottom];
+  TabControl1 := TNXTabControl.Create(RootWindow);
+  TabControl1.Align := caClient;
 
   PageBasics := TabControl1.AddPage('Basics');
   PageData := TabControl1.AddPage('Data');
@@ -193,7 +193,7 @@ begin
   Form3 := TNXGroupBox.Create(PageVisuals, 'Image', MakeNXRect(10, 10, 400, 325));
   Form5 := TNXGroupBox.Create(PageVisuals, 'Tree Map', MakeNXRect(430, 10, 400, 325));
 
-  LayoutTopPanel := TNXPanel.Create(Form10);
+  LayoutTopPanel := TNXPanel.Create(Form10.ContentPanel);
   LayoutTopPanel.Height := 18;
   LayoutTopPanel.BackColor := MakeNXColor(55, 78, 115, 255);
   LayoutTopPanel.Align := caTop;
@@ -201,37 +201,37 @@ begin
   LayoutTopLabel := TNXLabel.Create(LayoutTopPanel, MakeNXRect(6, 1, 120, 16));
   LayoutTopLabel.Caption := 'Align Top';
 
-  LayoutBottomPanel := TNXPanel.Create(Form10);
+  LayoutBottomPanel := TNXPanel.Create(Form10.ContentPanel);
   LayoutBottomPanel.Height := 18;
   LayoutBottomPanel.BackColor := MakeNXColor(88, 55, 74, 255);
   LayoutBottomPanel.Align := caBottom;
 
-  LayoutLeftPanel := TNXPanel.Create(Form10);
+  LayoutLeftPanel := TNXPanel.Create(Form10.ContentPanel);
   LayoutLeftPanel.Width := 55;
   LayoutLeftPanel.BackColor := MakeNXColor(55, 95, 72, 255);
   LayoutLeftPanel.Align := caLeft;
 
-  LayoutRightPanel := TNXPanel.Create(Form10);
+  LayoutRightPanel := TNXPanel.Create(Form10.ContentPanel);
   LayoutRightPanel.Width := 55;
   LayoutRightPanel.BackColor := MakeNXColor(96, 82, 48, 255);
   LayoutRightPanel.Align := caRight;
 
-  LayoutClientPanel := TNXPanel.Create(Form10);
+  LayoutClientPanel := TNXPanel.Create(Form10.ContentPanel);
   LayoutClientPanel.BackColor := MakeNXColor(43, 43, 48, 255);
   LayoutClientPanel.Align := caClient;
 
   LayoutClientLabel := TNXLabel.Create(LayoutClientPanel, MakeNXRect(8, 8, 200, 18));
   LayoutClientLabel.Caption := 'Align Client';
 
-  LayoutAnchorButton := TNXButton.Create(Form10, MakeNXRect(285, 38, 110, 22));
+  LayoutAnchorButton := TNXButton.Create(Form10.ContentPanel, MakeNXRect(285, 38, 110, 22));
   LayoutAnchorButton.Caption := 'Anchor RB';
   LayoutAnchorButton.Anchors := [ancRight, ancBottom];
 
-  ListBox := TNXListBox.Create(Form4, MakeNXRect(10, 30, 200, 200));
+  ListBox := TNXListBox.Create(Form4.ContentPanel, MakeNXRect(10, 30, 200, 200));
   for lIndex := 1 to 12 do
     ListBox.Items.AddItem('Item ' + IntToStr(lIndex), lIndex);
 
-  Memo1 := TNXMemo.Create(Form7, MakeNXRect(10, 30, 260, 190));
+  Memo1 := TNXMemo.Create(Form7.ContentPanel, MakeNXRect(10, 30, 260, 190));
   Memo1.Placeholder := 'Enter notes';
   Memo1.AddLine('Memo control');
   Memo1.AddLine('Supports multiple lines.');
@@ -239,19 +239,19 @@ begin
   for lIndex := 1 to 8 do
     Memo1.AddLine('Line ' + IntToStr(lIndex));
 
-  Chkbox1 := TNXCheckBox.Create(Form2, MakeNXRect(10, 40, 150, 30));
+  Chkbox1 := TNXCheckBox.Create(Form2.ContentPanel, MakeNXRect(10, 40, 150, 30));
   ChkBox1.Caption := 'Check 1';
 
-  RadioButton1 := TNXRadioButton.Create(Form2, MakeNXRect(10, 80, 150, 30));
+  RadioButton1 := TNXRadioButton.Create(Form2.ContentPanel, MakeNXRect(10, 80, 150, 30));
   RadioButton1.Caption := 'Exclusive 1';
   RadioButton1.GroupName := 'ExclusiveDemo';
   RadioButton1.Value := True;
 
-  RadioButton2 := TNXRadioButton.Create(Form2, MakeNXRect(150, 80, 150, 30));
+  RadioButton2 := TNXRadioButton.Create(Form2.ContentPanel, MakeNXRect(150, 80, 150, 30));
   RadioButton2.Caption := 'Exclusive 2';
   RadioButton2.GroupName := 'ExclusiveDemo';
 
-  ComboBox1 := TNXComboBox.Create(Form2, MakeNXRect(10, 130, 220, 25));
+  ComboBox1 := TNXComboBox.Create(Form2.ContentPanel, MakeNXRect(10, 130, 220, 25));
   ComboBox1.Caption := 'Choose option';
   ComboBox1.DropDownItemCount := 5;
   ComboBox1.Items.Add('Alpha');
@@ -261,39 +261,39 @@ begin
   ComboBox1.Items.Add('Echo');
   ComboBox1.SelectedIndex := 0;
 
-  ProgressBar1 := TNXProgressBar.Create(Form2, MakeNXRect(250, 35, 120, 20));
+  ProgressBar1 := TNXProgressBar.Create(Form2.ContentPanel, MakeNXRect(250, 35, 120, 20));
   ProgressBar1.Value := 65;
 
-  ProgressBar2 := TNXProgressBar.Create(Form2, MakeNXRect(250, 70, 20, 90));
+  ProgressBar2 := TNXProgressBar.Create(Form2.ContentPanel, MakeNXRect(250, 70, 20, 90));
   ProgressBar2.Direction := Dir_Vertical;
   ProgressBar2.Value := 40;
 
-  Button1 := TNXButton.Create(Form1, MakeNXRect(10, 100, 100, 20));
+  Button1 := TNXButton.Create(Form1.ContentPanel, MakeNXRect(10, 100, 100, 20));
   Button1.Caption := 'Dialog';
   Button1.OnMouseClick := @DemoEvents.DialogButtonClick;
 
-  Button2 := TNXButton.Create(Form1, MakeNXRect(130, 100, 100, 20));
+  Button2 := TNXButton.Create(Form1.ContentPanel, MakeNXRect(130, 100, 100, 20));
   Button2.Caption := 'Menu';
   Button2.OnMouseClick := @DemoEvents.MenuButtonClick;
 
-  Label1 := TNXLabel.Create(Form1, MakeNXRect(10, 40, 200, 30));
+  Label1 := TNXLabel.Create(Form1.ContentPanel, MakeNXRect(10, 40, 200, 30));
   Label1.Caption := 'Press ESC to quit.';
 
-  TextBox1 := TNXEditBox.Create(Form1, MakeNXRect(10, 150, 230, 25));
+  TextBox1 := TNXEditBox.Create(Form1.ContentPanel, MakeNXRect(10, 150, 230, 25));
   TextBox1.Caption := 'Textbox 1';
 
-  TrackBar1 := TNXTrackBar.Create(Form1);
+  TrackBar1 := TNXTrackBar.Create(Form1.ContentPanel);
   TrackBar1.SetBounds(10, 200, 220, 28);
   TrackBar1.Value := 35;
   TrackBar1.OnChange := @DemoEvents.TrackBarChanged;
 
-  TrackBar2 := TNXTrackBar.Create(Form2);
+  TrackBar2 := TNXTrackBar.Create(Form2.ContentPanel);
   TrackBar2.SetBounds(315, 35, 28, 125);
   TrackBar2.Direction := Dir_Vertical;
   TrackBar2.Value := 60;
   TrackBar2.OnChange := @DemoEvents.TrackBarChanged;
 
-  SplitPanel1 := TNXSplitPanel.Create(Form8);
+  SplitPanel1 := TNXSplitPanel.Create(Form8.ContentPanel);
   SplitPanel1.Left := 10;
   SplitPanel1.Top := 30;
   SplitPanel1.Width := 260;
@@ -312,14 +312,14 @@ begin
   PopupMenu1.AddItem('Disabled item').Enabled := False;
   PopupMenu1.OnExecute := @DemoEvents.MenuExecute;
 
-  Image1 := TNXImage.Create(Form3, MakeNXRect(0, 0, 398, 298));
+  Image1 := TNXImage.Create(Form3.ContentPanel, MakeNXRect(0, 0, 398, 298));
   Image1.LoadFromFile(ResourcesDir + 'nexus.png');
 
-  MoneyTreemap1 := TNXTreeMap.Create(Form5);
+  MoneyTreemap1 := TNXTreeMap.Create(Form5.ContentPanel);
   GenerateTestData(TestData);
   MoneyTreemap1.Data := TestData;
 
-  TreeList1 := TNXTreeList.Create(Form6);
+  TreeList1 := TNXTreeList.Create(Form6.ContentPanel);
   TreeList1.Left := 10;
   TreeList1.Top := 10;
   TreeList1.Width := 260;
@@ -342,7 +342,7 @@ begin
   TreeList1.ExpandAll;
   TreeList1.SelectedNode := TreeNode1;
 
-  Grid1 := TNXGrid.Create(Form9);
+  Grid1 := TNXGrid.Create(Form9.ContentPanel);
   Grid1.Left := 10;
   Grid1.Top := 30;
   Grid1.Width := 600;
@@ -367,7 +367,7 @@ begin
     Grid1.Cells[4, lIndex] := 'System ' + Chr(Ord('A') + lIndex);
   end;
 
-  PropertyEditor1 := TNXPropertyEditor.Create(Form11);
+  PropertyEditor1 := TNXPropertyEditor.Create(Form11.ContentPanel);
   PropertyEditor1.Left := 10;
   PropertyEditor1.Top := 30;
   PropertyEditor1.Width := 330;

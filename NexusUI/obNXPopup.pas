@@ -26,6 +26,8 @@ type
     destructor Destroy; override;
     procedure Close; virtual;
     procedure Open; virtual;
+    procedure SetAbsoluteBounds(ALeft, ATop, AWidth, AHeight: Integer); virtual;
+    procedure SetAbsolutePosition(ALeft, ATop: Integer); virtual;
 
     property Owner: TNXControl read FOwner;
   end;
@@ -100,6 +102,27 @@ end;
 
 procedure TNXPopup.DoOpened;
 begin
+end;
+
+procedure TNXPopup.SetAbsoluteBounds(ALeft, ATop, AWidth, AHeight: Integer);
+begin
+  Width := AWidth;
+  Height := AHeight;
+  SetAbsolutePosition(ALeft, ATop);
+end;
+
+procedure TNXPopup.SetAbsolutePosition(ALeft, ATop: Integer);
+begin
+  if Assigned(Parent) then
+  begin
+    Left := ALeft - Parent.AbsLeft - Parent.GetChildOriginX(Self);
+    Top := ATop - Parent.AbsTop - Parent.GetChildOriginY(Self);
+  end
+  else
+  begin
+    Left := ALeft;
+    Top := ATop;
+  end;
 end;
 
 constructor TNXPopupManager.Create(const AHost: INXControlParent);

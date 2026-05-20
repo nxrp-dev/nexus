@@ -299,20 +299,12 @@ end;
 procedure TNXStatusBar.RenderPanel(const ARect: TNXRect; const AText: string;
   ATextAlign: TTextAlign);
 var
-  lAbsRect: TNXRect;
   lTextWidth: Integer;
   lTextX: Integer;
   lTextY: Integer;
 begin
-  lAbsRect := MakeNXRect(
-    AbsLeft + ARect.x,
-    AbsTop + ARect.y,
-    ARect.w,
-    ARect.h
-  );
-
-  RenderFilledRect(lAbsRect, BackColor);
-  RenderRect(lAbsRect, BorderColor);
+  RenderFilledRect(ARect, BackColor);
+  RenderRect(ARect, BorderColor);
 
   if AText = '' then
     Exit;

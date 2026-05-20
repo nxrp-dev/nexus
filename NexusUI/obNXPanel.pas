@@ -4,7 +4,6 @@ unit obNXPanel;
 interface
 
 uses
-  Math,
   tpNXPlatform,
   obNXControl;
 
@@ -14,8 +13,6 @@ type
     constructor Create(const AParent: INXControlParent); overload; override;
     constructor Create(const AParent: INXControlParent; const ACaption: string;
       const ARect: TNXRect); overload; virtual;
-
-    procedure Paint; override;
   end;
 
 implementation
@@ -39,34 +36,6 @@ begin
   Top := ARect.y;
   Width := ARect.w;
   Height := ARect.h;
-end;
-
-procedure TNXPanel.Paint;
-var
-  lChildClipRect: TNXRect;
-  lClipRect: TNXRect;
-  lIndex: Integer;
-begin
-  if Assigned(Canvas) and Visible then
-  begin
-    lClipRect := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
-
-    Canvas.PushClip(lClipRect);
-    try
-      Render;
-
-      lChildClipRect := AbsContentRect;
-      Canvas.PushClip(lChildClipRect);
-      try
-        for lIndex := 0 to Children.Count - 1 do
-          Children[lIndex].Paint;
-      finally
-        Canvas.PopClip;
-      end;
-    finally
-      Canvas.PopClip;
-    end;
-  end;
 end;
 
 end.

@@ -148,8 +148,12 @@ type
 
     function GetAbsLeft: Integer; override;
     function GetAbsTop: Integer; override;
+    function GetAbsBoundsRect: TNXRect; virtual;
     function GetAbsContentRect: TNXRect; virtual;
+    function GetAbsClientRect: TNXRect; virtual;
+    function GetBoundsRect: TNXRect; virtual;
     function GetBorderThickness: Integer; virtual;
+    function GetClientRect: TNXRect; virtual;
     function GetChildAreaLeft: Integer; override;
     function GetChildAreaTop: Integer; override;
     function GetChildAreaHeight: Integer; override;
@@ -172,10 +176,11 @@ type
     procedure SetFont(AFont: TNXFont); virtual;
     procedure UpdateFontMetrics(AFont: TNXFont); virtual;
 
-    procedure RenderRect(const Rect: TNXRect; Color: TNXColor); overload;
-    procedure RenderFilledRect(const Rect: TNXRect; Color: TNXColor); overload;
-    procedure RenderLine(x0, y0, x1, y1: Integer; Color: TNXColor);
-    procedure RenderText(TextIn: string; x, y: Integer; Alignment: TTextAlign);
+    function LocalRectToAbs(const ARect: TNXRect): TNXRect; virtual;
+    procedure RenderRect(const ARect: TNXRect; AColor: TNXColor); overload;
+    procedure RenderFilledRect(const ARect: TNXRect; AColor: TNXColor); overload;
+    procedure RenderLine(AX0, AY0, AX1, AY1: Integer; AColor: TNXColor);
+    procedure RenderText(AText: string; AX, AY: Integer; AAlignment: TTextAlign);
     procedure RenderClient; virtual;
 
     procedure DoMouseEnter; virtual;
@@ -219,6 +224,8 @@ type
     procedure ProcessResize; virtual;
 
     property AbsLeft: Integer read GetAbsLeft;
+    property AbsBoundsRect: TNXRect read GetAbsBoundsRect;
+    property AbsClientRect: TNXRect read GetAbsClientRect;
     property AbsContentRect: TNXRect read GetAbsContentRect;
     property AbsTop: Integer read GetAbsTop;
     property ActiveColor: TNXColor read FActiveColor write FActiveColor;
@@ -227,8 +234,10 @@ type
     property BackColor: TNXColor read FBackColor write SetBackColor;
     property BorderColor: TNXColor read FBorderColor write SetBorderColor;
     property BorderStyle: TBorderStyle read FBorderStyle write FBorderStyle;
+    property BoundsRect: TNXRect read GetBoundsRect;
     property Caption: string read FCaption write FCaption;
     property Children: TNXControlList read GetChildren;
+    property ClientRect: TNXRect read GetClientRect;
     property ContentRect: TNXRect read GetContentRect;
     property Enabled: Boolean read FEnabled write FEnabled;
     property FillStyle: TFillStyle read FFillStyle write FFillStyle;
@@ -339,39 +348,21 @@ end;
 function TNXControlHost.GetChildOriginX(AChild: TNXControl): Integer;
 begin
   Result := GetChildAreaLeft;
-  if Assigned(AChild) and (AChild.Align = caNone) then
-    Inc(Result, FLayoutLeft);
 end;
 
 function TNXControlHost.GetChildOriginY(AChild: TNXControl): Integer;
 begin
   Result := GetChildAreaTop;
-  if Assigned(AChild) and (AChild.Align = caNone) then
-    Inc(Result, FLayoutTop);
 end;
 
 function TNXControlHost.GetChildLayoutHeight(AChild: TNXControl): Integer;
 begin
-  if Assigned(AChild) and (AChild.Align = caNone) then
-  begin
-    Result := Max(0, FLayoutBottom - FLayoutTop);
-    if (Result = 0) and (GetChildAreaHeight > 0) then
-      Result := GetChildAreaHeight;
-  end
-  else
-    Result := GetChildAreaHeight;
+  Result := GetChildAreaHeight;
 end;
 
 function TNXControlHost.GetChildLayoutWidth(AChild: TNXControl): Integer;
 begin
-  if Assigned(AChild) and (AChild.Align = caNone) then
-  begin
-    Result := Max(0, FLayoutRight - FLayoutLeft);
-    if (Result = 0) and (GetChildAreaWidth > 0) then
-      Result := GetChildAreaWidth;
-  end
-  else
-    Result := GetChildAreaWidth;
+  Result := GetChildAreaWidth;
 end;
 
 function TNXControlHost.GetChildren: TNXControlList;
@@ -401,7 +392,7 @@ begin
     for lIndex := 0 to Children.Count - 1 do
     begin
       lChild := Children[lIndex];
-      if (not lChild.Visible) or (lChild.Align = caNone) then
+      if (not lChild.Visible) or (lChild.Align in [caNone, caClient]) then
         Continue;
 
       case lChild.Align of
@@ -429,10 +420,17 @@ begin
           lChild.SetBoundsInternal(lRight, lTop, lChild.Width,
             Max(0, lBottom - lTop), False);
         end;
-        caClient:
-          lChild.SetBoundsInternal(lLeft, lTop, Max(0, lRight - lLeft),
-            Max(0, lBottom - lTop), False);
       end;
+    end;
+
+    for lIndex := 0 to Children.Count - 1 do
+    begin
+      lChild := Children[lIndex];
+      if (not lChild.Visible) or (lChild.Align <> caClient) then
+        Continue;
+
+      lChild.SetBoundsInternal(lLeft, lTop, Max(0, lRight - lLeft),
+        Max(0, lBottom - lTop), False);
     end;
 
     FLayoutLeft := lLeft;
@@ -501,22 +499,21 @@ end;
 
 procedure TNXControl.Paint;
 var
-  lClipRect: TNXRect;
   lIndex: Integer;
 begin
   if Assigned(Canvas) and Visible then
   begin
-    lClipRect.x := AbsLeft;
-    lClipRect.y := AbsTop;
-    lClipRect.w := Max(0, Width);
-    lClipRect.h := Max(0, Height);
-
-    Canvas.PushClip(lClipRect);
+    Canvas.PushClip(AbsBoundsRect);
     try
       Render;
 
-      for lIndex := 0 to Children.Count - 1 do
-        Children[lIndex].Paint;
+      Canvas.PushClip(AbsClientRect);
+      try
+        for lIndex := 0 to Children.Count - 1 do
+          Children[lIndex].Paint;
+      finally
+        Canvas.PopClip;
+      end;
     finally
       Canvas.PopClip;
     end;
@@ -559,7 +556,7 @@ begin
   if not Visible then
     Exit;
 
-  lRect := MakeNXRect(AbsLeft, AbsTop, Width, Height);
+  lRect := MakeNXRect(0, 0, Width, Height);
 
   case FFillStyle of
     FS_Filled:
@@ -569,7 +566,7 @@ begin
     end;
   end;
 
-  lClipRect := AbsContentRect;
+  lClipRect := AbsClientRect;
   Canvas.PushClip(lClipRect);
   try
     RenderClient;
@@ -711,14 +708,28 @@ begin
     Result := Parent.AbsTop + Parent.GetChildOriginY(Self) + Top;
 end;
 
-function TNXControl.GetAbsContentRect: TNXRect;
-var
-  lBorderThickness: Integer;
+function TNXControl.GetAbsBoundsRect: TNXRect;
 begin
-  lBorderThickness := GetBorderThickness;
-  Result := MakeNXRect(AbsLeft + lBorderThickness, AbsTop + lBorderThickness,
-    Max(0, Width - (lBorderThickness * 2)),
-    Max(0, Height - (lBorderThickness * 2)));
+  Result := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
+end;
+
+function TNXControl.GetAbsContentRect: TNXRect;
+begin
+  Result := AbsClientRect;
+end;
+
+function TNXControl.GetAbsClientRect: TNXRect;
+var
+  lClientRect: TNXRect;
+begin
+  lClientRect := ClientRect;
+  Result := MakeNXRect(AbsLeft + lClientRect.x, AbsTop + lClientRect.y,
+    lClientRect.w, lClientRect.h);
+end;
+
+function TNXControl.GetBoundsRect: TNXRect;
+begin
+  Result := MakeNXRect(Left, Top, Max(0, Width), Max(0, Height));
 end;
 
 function TNXControl.GetChildAreaLeft: Integer;
@@ -739,6 +750,11 @@ end;
 function TNXControl.GetChildAreaWidth: Integer;
 begin
   Result := ContentRect.w;
+end;
+
+function TNXControl.GetClientRect: TNXRect;
+begin
+  Result := GetContentRect;
 end;
 
 function TNXControl.GetBorderThickness: Integer;
@@ -898,47 +914,53 @@ begin
   FontMonospace := Ord(AFont.IsMonospace);
 end;
 
-procedure TNXControl.RenderRect(const Rect: TNXRect; Color: TNXColor);
+function TNXControl.LocalRectToAbs(const ARect: TNXRect): TNXRect;
 begin
-  Canvas.DrawRect(Rect, Color);
+  Result := MakeNXRect(AbsLeft + ARect.x, AbsTop + ARect.y, ARect.w, ARect.h);
 end;
 
-procedure TNXControl.RenderFilledRect(const Rect: TNXRect; Color: TNXColor);
+procedure TNXControl.RenderRect(const ARect: TNXRect; AColor: TNXColor);
 begin
-  Canvas.FillRect(Rect, Color);
+  Canvas.DrawRect(LocalRectToAbs(ARect), AColor);
 end;
 
-procedure TNXControl.RenderLine(x0, y0, x1, y1: Integer; Color: TNXColor);
+procedure TNXControl.RenderFilledRect(const ARect: TNXRect; AColor: TNXColor);
 begin
-  Canvas.DrawLine(x0, y0, x1, y1, Color);
+  Canvas.FillRect(LocalRectToAbs(ARect), AColor);
 end;
 
-procedure TNXControl.RenderText(TextIn: string; x, y: Integer;
-  Alignment: TTextAlign);
+procedure TNXControl.RenderLine(AX0, AY0, AX1, AY1: Integer; AColor: TNXColor);
+begin
+  Canvas.DrawLine(AbsLeft + AX0, AbsTop + AY0, AbsLeft + AX1,
+    AbsTop + AY1, AColor);
+end;
+
+procedure TNXControl.RenderText(AText: string; AX, AY: Integer;
+  AAlignment: TTextAlign);
 var
   lNXFont: TNXFont;
   lTextWidth: Integer;
   lTextX: Integer;
 begin
-  if TextIn = '' then
+  if AText = '' then
     Exit;
 
   lNXFont := Font;
   if not Assigned(lNXFont) then
-    raise Exception.Create('RenderText called on [' + TextIn + '] but no Font Set');
+    raise Exception.Create('RenderText called on [' + AText + '] but no Font Set');
 
-  lTextWidth := Canvas.TextWidth(TextIn, lNXFont);
+  lTextWidth := Canvas.TextWidth(AText, lNXFont);
 
-  case Alignment of
+  case AAlignment of
     Align_Left:
-      lTextX := AbsLeft + x;
+      lTextX := AbsLeft + AX;
     Align_Center:
-      lTextX := AbsLeft + x - (lTextWidth div 2);
+      lTextX := AbsLeft + AX - (lTextWidth div 2);
     Align_Right:
-      lTextX := AbsLeft + x - lTextWidth;
+      lTextX := AbsLeft + AX - lTextWidth;
   end;
 
-  Canvas.DrawText(TextIn, lTextX, AbsTop + y, FForeColor, lNXFont);
+  Canvas.DrawText(AText, lTextX, AbsTop + AY, FForeColor, lNXFont);
 end;
 
 procedure TNXControl.RenderClient;

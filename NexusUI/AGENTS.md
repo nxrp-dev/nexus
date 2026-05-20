@@ -23,6 +23,7 @@ This repository is an Object Pascal / Free Pascal GUI project. Treat the codebas
 - Broad-stroke generated controls are acceptable as first passes, but detailed behavior, lifecycle, ownership, rendering, input routing, focus/selection, and skinning must be reviewed against NexusUI architecture.
 - Do not preserve generated implementation details when they conflict with the project direction.
 - Treat feedback prefixed with `gpt:` as external review input only. Verify claims against the codebase before acting on them.
+- Use external AI review as a second-pass critique, not as a replacement for local compile/run verification or architectural judgment.
 
 ## NexusUI Architecture Rules
 
@@ -49,7 +50,6 @@ This repository is an Object Pascal / Free Pascal GUI project. Treat the codebas
 ## Language and Compatibility Rules
 
 - This is Object Pascal / Free Pascal code.
-- Keep code compatible with both Free Pascal and Delphi where practical.
 - Respect Pascal visibility and type rules.
 - Do not use clever workarounds to bypass language constraints.
 - Do not use casts to bypass design or type problems unless explicitly approved.
@@ -58,7 +58,7 @@ This repository is an Object Pascal / Free Pascal GUI project. Treat the codebas
 
 ## Unit Naming Rules
 
-Use the project’s intent-based unit prefixes:
+Use the project's intent-based unit prefixes:
 
 - `ob` for object/class definitions.
 - `ui` for GUI/forms/user-interface units.
@@ -90,13 +90,14 @@ Do not invent new naming conventions unless explicitly asked.
 
 - Fields belong in `private`.
 - Behavior getters and setters belong in `protected`.
-- Properties belong in `public`.
+- Properties used by other objects belong in `public`.
+- Persisted RTTI-visible properties belong in `published` when they are part of the serialized object model.
 - Trivial getters and setters should be replaced by direct field-backed properties.
 - Use properties to expose state intentionally.
 - Do not expose fields directly.
 - Keep constructors and destructors simple.
 - Avoid lifecycle magic hidden in unrelated methods.
-- Use protected getters/setters only when behavior is actually needed:
+- Use protected getters/setters only when behavior is actually needed.
 
 ## Function Return Rules
 
@@ -109,19 +110,16 @@ Do not invent new naming conventions unless explicitly asked.
 - Do not perform opportunistic refactors.
 - Do not reformat unrelated code.
 - Do not rename unrelated symbols.
-- Always correct naming/style rule violations in code being touched, even if not separately requested.
-- When making those incidental corrections, inform the user and verify the change did not break anything.
-- Do not change the public API unless explicitly requested or clearly required by the task.
-- If a rewrite is requested, preserve the original public API as much as reasonably possible.
+- Correct naming/style violations in the specific code being changed for the task.
+- Do not perform broad style cleanup in nearby or unrelated code unless explicitly requested.
+- Preserve APIs only when the user requests it or when known external compatibility requires it.
+- When correcting architecture or design, API changes are acceptable if they produce the correct model and all affected NexusUI/project call sites are updated.
 
 ## Simplicity Rules
 
-- Prefer straightforward Pascal over clever generic tricks.
 - Prefer explicit ownership over implicit lifecycle assumptions.
 - Prefer small, boring methods over dense multipurpose methods.
 - Avoid speculative architecture.
-- Avoid unnecessary interfaces, event buses, factories, adapters, or managers.
-- Do not introduce a message/event abstraction until the existing event flow requires it.
 
 ## SDL / Backend Rules
 
@@ -132,20 +130,16 @@ Do not invent new naming conventions unless explicitly asked.
 
 ## Collaboration Rules
 
-- Questions are not work directives. Treat them as discussion, validation, or design exploration only.
-- If the user asks a question, answer the question only. Do not infer permission to inspect, edit, build, run, refactor, or otherwise act from the question.
+- Questions, design discussion, diagnosis, and "thoughts only" requests are not work directives. Treat them as discussion, validation, or design exploration only.
+- Do not infer permission to inspect, edit, build, run, refactor, or otherwise act from a question or discussion.
 - Do not edit files, run builds, run tests, launch programs, or perform repository operations unless the user explicitly asks for that work to be performed.
-- The user may ask several questions while validating their own thinking. Wait for an explicit implementation request such as "do it", "make the change", "implement this", "run it", or equivalent before taking action.
-- Do not make unsolicited design commentary.
+- Treat clear imperative requests such as "fix", "integrate", "apply", "clean up", "rebuild", "commit", or "push" as work directives, even if they do not include "do it".
 - Do not over-explain obvious Pascal mechanics to an experienced developer.
 - Do not moralize, hedge excessively, or bury the answer in caveats.
 - Be direct, practical, and specific.
 - If the user asks for a bare minimum example, provide the bare minimum example.
 - If the user asks for review, review the current code as provided, not an imagined ideal version.
 - If information is uncertain, say so plainly instead of guessing.
-- References to GPT, ChatGPT, the other AI, or feedback prefixed with `gpt:` refer to an external reviewer.
-- Treat feedback prefixed with `gpt:` as ChatGPT review input only, not as a work directive.
-- Treat all `gpt:` claims with skepticism: verify claims against the codebase, judge whether the feedback is useful, and confirm with the user before making any changes based on it.
 
 ## Review Rules
 
@@ -154,7 +148,6 @@ When reviewing code:
 - Identify actual problems, not hypothetical architecture preferences.
 - Separate compile-breaking issues from design concerns.
 - Prefer concrete fixes over vague advice.
-- Do not suggest framework-level rewrites unless the current code is structurally blocking the requested goal.
 - Keep review comments tied to the code in front of you.
 
 ## Implementation Rules
@@ -162,7 +155,6 @@ When reviewing code:
 When implementing requested changes:
 
 - Make the smallest coherent change that accomplishes the goal.
-- Keep the public API relatively stable unless instructed otherwise.
 - Match the surrounding code style.
 - Use clear Pascal visibility sections.
 - Keep methods short enough to read without jumping through unrelated logic.
@@ -173,29 +165,22 @@ When implementing requested changes:
 
 - Compile frequently after structural changes.
 - For new controls, first make them compile and run, then review for ownership, lifecycle, rendering, input routing, focus/selection, and skinning fit.
-- For large generated controls, do not confuse "broadly works" with "architecturally integrated."
-- Commit small, coherent checkpoints after the code compiles and the user is satisfied with the current behavior.
-- Use external AI review as a second-pass critique, not as a replacement for local compile/run verification or architectural judgment.
+- When asked to commit, commit small, coherent checkpoints after the code compiles and the user is satisfied with the current behavior.
 
 ## Forbidden Behaviors
 
 - Do not guess about compiler, Lazarus, LPI, or platform behavior when the answer depends on exact tool behavior.
 - Do not invent configuration keys or project settings.
-- Do not claim a change will work unless it is grounded in known behavior or verified context.
 - Do not use casts as a substitute for proper design.
-- Do not add backward compatibility shims without being asked.
 - Do not convert simple code into abstract architecture for its own sake.
-- Do not rename the project owner’s concepts without permission.
+- Do not rename the project owner's concepts without permission.
 
 ## Default Bias
 
 When in doubt:
 
 1. Keep it simple.
-2. Keep it Pascal-compatible.
-3. Keep it narrowly scoped.
-4. Preserve the public API.
-5. Centralize lifecycle and ownership.
-6. When a shared concept crosses unit boundaries, place the real definition in the unit whose prefix matches what it is (`tp...` for shared type definitions, `ob...` for shared objects/classes, etc.) rather than aliasing or re-exporting it.
-7. Ask only when the missing detail blocks the work.
-8. Do not guess.
+2. Keep it narrowly scoped.
+3. Centralize lifecycle and ownership.
+4. When a shared concept crosses unit boundaries, place the real definition in the unit whose prefix matches what it is (`tp...` for shared type definitions, `ob...` for shared objects/classes, etc.) rather than aliasing or re-exporting it.
+5. Ask only when the missing detail blocks the work.

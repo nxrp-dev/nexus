@@ -281,8 +281,8 @@ end;
 
 function TNXPropertyEditor.RowRect(AIndex: Integer): TNXRect;
 begin
-  Result := MakeNXRect(AbsViewportRect.x - ScrollX,
-    AbsViewportRect.y + (AIndex * FRowHeight) - ScrollY,
+  Result := MakeNXRect(ViewportRect.x - ScrollX,
+    ViewportRect.y + (AIndex * FRowHeight) - ScrollY,
     Max(ViewportWidth, ContentWidth), FRowHeight);
 end;
 
@@ -319,8 +319,8 @@ begin
     Exit;
 
   lValueRect := ValueRect(FEditingIndex);
-  lLocalLeft := lValueRect.x - AbsLeft - ContentRect.x + 1;
-  lLocalTop := lValueRect.y - AbsTop - ContentRect.y + 1;
+  lLocalLeft := lValueRect.x + 1;
+  lLocalTop := lValueRect.y + 1;
 
   FEditor.SetBounds(lLocalLeft, lLocalTop,
     Max(0, lValueRect.w - 2), Max(0, lValueRect.h - 2));
@@ -498,7 +498,7 @@ begin
   end;
 
   lTextY := ARect.y + Max(0, (ARect.h - FontHeight) div 2);
-  Canvas.DrawText(AText, lTextX, lTextY, ForeColor, lFont);
+  Canvas.DrawText(AText, AbsLeft + lTextX, AbsTop + lTextY, ForeColor, lFont);
 end;
 
 procedure TNXPropertyEditor.DrawItem(AIndex: Integer; const ARect: TNXRect);
@@ -548,14 +548,14 @@ begin
   if FRowHeight <= 0 then
     Exit;
 
-  lViewportBottom := AbsViewportRect.y + ViewportHeight;
+  lViewportBottom := ViewportRect.y + ViewportHeight;
   lFirstRow := Max(0, ScrollY div FRowHeight);
   lLastRow := Min(FItems.Count - 1, (ScrollY + ViewportHeight) div FRowHeight + 1);
 
   for lRow := lFirstRow to lLastRow do
   begin
     lRowRect := RowRect(lRow);
-    if (lRowRect.y + lRowRect.h <= AbsViewportRect.y) or
+    if (lRowRect.y + lRowRect.h <= ViewportRect.y) or
       (lRowRect.y >= lViewportBottom) then
       Continue;
 

@@ -65,8 +65,7 @@ begin
   else if lSize > cMaxBoxSize then
     lSize := cMaxBoxSize;
 
-  Result := MakeNXRect(AbsLeft + cBoxPadding,
-    AbsTop + ((Height - lSize) div 2), lSize, lSize);
+  Result := MakeNXRect(cBoxPadding, (Height - lSize) div 2, lSize, lSize);
 end;
 
 function TNXCheckBox.GetBoxStateColor: TNXColor;
@@ -94,7 +93,7 @@ var
   lBoxRect: TNXRect;
 begin
   lBoxRect := GetBoxRect;
-  Result := (lBoxRect.x - AbsLeft) + lBoxRect.w + cBoxTextSpacing;
+  Result := lBoxRect.x + lBoxRect.w + cBoxTextSpacing;
 end;
 
 function TNXCheckBox.GetTextTop: Integer;
@@ -154,7 +153,7 @@ begin
   end;
 
   if IsSelected then
-    RenderRect(MakeNXRect(AbsLeft, AbsTop, Width, Height), ForeColor);
+    RenderRect(MakeNXRect(0, 0, Width, Height), ForeColor);
 
   RenderText(Caption, GetTextLeft, GetTextTop, Align_Left);
 end;

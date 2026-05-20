@@ -512,9 +512,9 @@ begin
     (((GetPlatform.GetTicks div cCaretBlinkMS) mod 2) <> 0) then
     Exit;
 
-  lCaretX := AbsLeft + GetCaretX;
+  lCaretX := GetCaretX;
   lClientRect := ContentRect;
-  lTop := AbsTop + lClientRect.y + ((lClientRect.h - FontHeight) div 2);
+  lTop := lClientRect.y + ((lClientRect.h - FontHeight) div 2);
   RenderLine(lCaretX, lTop, lCaretX, lTop + FontHeight, ForeColor);
 end;
 
@@ -536,8 +536,8 @@ begin
   lSelectionWidth := GetTextWidth(Copy(lDisplayText, SelectionStart + 1,
     SelectionEnd - SelectionStart));
 
-  lRect.x := AbsLeft + lSelectionLeft;
-  lRect.y := AbsTop + lClientRect.y + ((lClientRect.h - FontHeight) div 2);
+  lRect.x := lSelectionLeft;
+  lRect.y := lClientRect.y + ((lClientRect.h - FontHeight) div 2);
   lRect.w := lSelectionWidth;
   lRect.h := FontHeight;
   RenderFilledRect(lRect, Skin.SelectedColor);

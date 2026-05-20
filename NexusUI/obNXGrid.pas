@@ -341,16 +341,16 @@ begin
   else
     lHeaderHeight := 0;
 
-  Result.x := AbsViewportRect.x + ColLeft(ACol) - ScrollX;
-  Result.y := AbsViewportRect.y + lHeaderHeight + ALine * FLineHeight - ScrollY;
+  Result.x := ViewportRect.x + ColLeft(ACol) - ScrollX;
+  Result.y := ViewportRect.y + lHeaderHeight + ALine * FLineHeight - ScrollY;
   Result.w := GetColWidth(ACol);
   Result.h := FLineHeight;
 end;
 
 function TNXGrid.HeaderRect(ACol: Integer): TNXRect;
 begin
-  Result.x := AbsViewportRect.x + ColLeft(ACol) - ScrollX;
-  Result.y := AbsViewportRect.y;
+  Result.x := ViewportRect.x + ColLeft(ACol) - ScrollX;
+  Result.y := ViewportRect.y;
   Result.w := GetColWidth(ACol);
   Result.h := FHeaderHeight;
 end;
@@ -560,7 +560,7 @@ begin
   end;
 
   lTextY := ARect.y + Max(0, (ARect.h - FontHeight) div 2);
-  Canvas.DrawText(AText, lTextX, lTextY, ForeColor, lFont);
+  Canvas.DrawText(AText, AbsLeft + lTextX, AbsTop + lTextY, ForeColor, lFont);
 end;
 
 procedure TNXGrid.DrawHeader(ACol: Integer; const ARect: TNXRect);
@@ -618,14 +618,14 @@ begin
   else
     lHeaderHeight := 0;
 
-  lViewportRight := AbsViewportRect.x + ViewportWidth;
-  lViewportBottom := AbsViewportRect.y + ViewportHeight;
+  lViewportRight := ViewportRect.x + ViewportWidth;
+  lViewportBottom := ViewportRect.y + ViewportHeight;
 
   if FShowHeaders then
     for lCol := 0 to FColCount - 1 do
     begin
       lRect := HeaderRect(lCol);
-      if (lRect.x + lRect.w <= AbsViewportRect.x) or
+      if (lRect.x + lRect.w <= ViewportRect.x) or
         (lRect.x >= lViewportRight) then
         Continue;
       DrawHeader(lCol, lRect);
@@ -642,9 +642,9 @@ begin
     for lCol := 0 to FColCount - 1 do
     begin
       lRect := CellRect(lCol, lLine);
-      if (lRect.x + lRect.w <= AbsViewportRect.x) or
+      if (lRect.x + lRect.w <= ViewportRect.x) or
         (lRect.x >= lViewportRight) or
-        (lRect.y + lRect.h <= AbsViewportRect.y + lHeaderHeight) or
+        (lRect.y + lRect.h <= ViewportRect.y + lHeaderHeight) or
         (lRect.y >= lViewportBottom) then
         Continue;
       DrawCell(lCol, lLine, lRect);

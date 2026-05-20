@@ -436,11 +436,11 @@ begin
 
     if lItem.Separator then
     begin
-      lLineY := AbsTop + lRect.y + (lRect.h div 2);
+      lLineY := lRect.y + (lRect.h div 2);
       RenderLine(
-        AbsLeft + cMenuPaddingX,
+        cMenuPaddingX,
         lLineY,
-        AbsLeft + Width - cMenuPaddingX,
+        Width - cMenuPaddingX,
         lLineY,
         Skin.BorderColor
       );
@@ -449,7 +449,7 @@ begin
 
     if lIndex = FSelectedIndex then
       RenderFilledRect(
-        MakeNXRect(AbsLeft + lRect.x, AbsTop + lRect.y, lRect.w, lRect.h),
+        lRect,
         Skin.SelectedColor
       );
 
@@ -561,20 +561,23 @@ procedure TNXPopupMenu.ShowAt(AX, AY: Integer);
 var
   lMaxLeft: Integer;
   lMaxTop: Integer;
+  lOriginX: Integer;
+  lOriginY: Integer;
 begin
   AutoSizeMenu;
 
-  Left := AX;
-  Top := AY;
-
   if Assigned(Parent) then
   begin
-    lMaxLeft := Max(0, Parent.Width - Width);
-    lMaxTop := Max(0, Parent.Height - Height);
+    lOriginX := Parent.AbsLeft + Parent.GetChildOriginX(Self);
+    lOriginY := Parent.AbsTop + Parent.GetChildOriginY(Self);
+    lMaxLeft := Max(lOriginX, Parent.AbsLeft + Parent.Width - Width);
+    lMaxTop := Max(lOriginY, Parent.AbsTop + Parent.Height - Height);
 
-    Left := Max(0, Min(Left, lMaxLeft));
-    Top := Max(0, Min(Top, lMaxTop));
+    AX := Max(lOriginX, Min(AX, lMaxLeft));
+    AY := Max(lOriginY, Min(AY, lMaxTop));
   end;
+
+  SetAbsolutePosition(AX, AY);
 
   if Assigned(Application) and Assigned(Application.RootWindow) then
     Application.Popups.ShowPopup(Self)

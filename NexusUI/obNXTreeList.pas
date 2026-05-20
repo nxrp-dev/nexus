@@ -407,8 +407,8 @@ var
   lTop: Integer;
 begin
   lItemHeight := GetItemHeight;
-  lLeft := AbsLeft + GetBorderThickness + (ANode.Level * FIndentWidth) + cTextPadding;
-  lTop := AbsTop + GetBorderThickness + (ADrawIndex * lItemHeight) +
+  lLeft := GetBorderThickness + (ANode.Level * FIndentWidth) + cTextPadding;
+  lTop := GetBorderThickness + (ADrawIndex * lItemHeight) +
     ((lItemHeight - cGlyphSize) div 2);
   Result := MakeNXRect(lLeft, lTop, cGlyphSize, cGlyphSize);
 end;
@@ -446,8 +446,8 @@ begin
     Exit;
 
   lItemHeight := GetItemHeight;
-  lNodeRect := MakeNXRect(AbsLeft + GetBorderThickness,
-    AbsTop + GetBorderThickness + (ADrawIndex * lItemHeight),
+  lNodeRect := MakeNXRect(GetBorderThickness,
+    GetBorderThickness + (ADrawIndex * lItemHeight),
     Max(0, Width - (GetBorderThickness * 2) - IfThen(FScrollbar.Visible, GUI_ScrollbarSize + 4, 0)),
     lItemHeight);
 
@@ -460,8 +460,8 @@ begin
   lGlyphRect := GetNodeGlyphRect(ANode, ADrawIndex);
   DrawExpandGlyph(ANode, lGlyphRect);
 
-  lTextClip := MakeNXRect(AbsLeft + GetNodeTextX(ANode), lNodeRect.y,
-    Max(0, lNodeRect.w - GetNodeTextX(ANode) - cTextPadding), lItemHeight);
+  lTextClip := LocalRectToAbs(MakeNXRect(GetNodeTextX(ANode), lNodeRect.y,
+    Max(0, lNodeRect.w - GetNodeTextX(ANode) - cTextPadding), lItemHeight));
   Canvas.PushClip(lTextClip);
   try
     RenderText(ANode.Caption, GetNodeTextX(ANode),
@@ -561,8 +561,8 @@ begin
     Exit;
 
   lGlyphRect := GetNodeGlyphRect(lNode, lDrawIndex);
-  if (AbsLeft + AX >= lGlyphRect.x) and (AbsLeft + AX < lGlyphRect.x + lGlyphRect.w) and
-    (AbsTop + AY >= lGlyphRect.y) and (AbsTop + AY < lGlyphRect.y + lGlyphRect.h) then
+  if (AX >= lGlyphRect.x) and (AX < lGlyphRect.x + lGlyphRect.w) and
+    (AY >= lGlyphRect.y) and (AY < lGlyphRect.y + lGlyphRect.h) then
     ToggleNode(lNode);
 end;
 

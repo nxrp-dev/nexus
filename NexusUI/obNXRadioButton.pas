@@ -127,7 +127,7 @@ begin
     DrawRadioDot(lBoxRect, GetMarkColor);
 
   if IsSelected then
-    RenderRect(MakeNXRect(AbsLeft, AbsTop, Width, Height), ForeColor);
+    RenderRect(MakeNXRect(0, 0, Width, Height), ForeColor);
 
   RenderText(Caption, GetTextLeft, GetTextTop, Align_Left);
 end;

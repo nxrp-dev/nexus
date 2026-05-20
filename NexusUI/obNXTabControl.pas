@@ -16,6 +16,8 @@ uses
   obNXPanel;
 
 type
+  TNXTabControl = class;
+
   TNXTabPage = class(TNXPanel)
   private
     FTabVisible: Boolean;
@@ -28,12 +30,36 @@ type
   TNXTabPageList = class(specialize TFPGObjectList<TNXTabPage>)
   end;
 
+  TNXTabPageHost = class(TNXPanel)
+  public
+    constructor Create(const AParent: INXControlParent); overload; override;
+  end;
+
+  TNXTabStrip = class(TNXControl)
+  private
+    FOwnerTabControl: TNXTabControl;
+  protected
+    function GetTabRect(AIndex: Integer): TNXRect; virtual;
+    function GetTabWidth(APage: TNXTabPage): Integer; virtual;
+    function HitTestTab(AX, AY: Integer): Integer; virtual;
+  public
+    constructor Create(const AParent: INXControlParent;
+      AOwnerTabControl: TNXTabControl); reintroduce; overload; virtual;
+
+    procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
+    procedure Render; override;
+
+    property OwnerTabControl: TNXTabControl read FOwnerTabControl;
+  end;
+
   TNXTabControl = class(TNXControl)
   private
     FActivePageIndex: Integer;
     FOnPageChanged: TNotifyEvent;
+    FPageHost: TNXTabPageHost;
     FPages: TNXTabPageList;
     FTabHeight: Integer;
+    FTabStrip: TNXTabStrip;
 
     function GetActivePage: TNXTabPage;
     function GetPage(AIndex: Integer): TNXTabPage;
@@ -41,13 +67,7 @@ type
     procedure SetActivePageIndex(AValue: Integer);
     procedure SetTabHeight(AValue: Integer);
   protected
-    function GetChildAreaTop: Integer; override;
-    function GetChildAreaHeight: Integer; override;
-    function GetTabRect(AIndex: Integer): TNXRect; virtual;
-    function GetTabWidth(APage: TNXTabPage): Integer; virtual;
-    function HitTestTab(AX, AY: Integer): Integer; virtual;
     procedure DoPageChanged; virtual;
-    procedure RenderTabs; virtual;
     procedure UpdatePageVisibility; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
@@ -58,9 +78,6 @@ type
     procedure ClearPages; virtual;
     procedure DeletePage(AIndex: Integer); virtual;
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
-    procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
-    procedure Paint; override;
-    procedure Render; override;
     procedure SelectNextPage; virtual;
     procedure SelectPreviousPage; virtual;
 
@@ -68,8 +85,10 @@ type
     property ActivePageIndex: Integer read FActivePageIndex write SetActivePageIndex;
     property OnPageChanged: TNotifyEvent read FOnPageChanged write FOnPageChanged;
     property PageCount: Integer read GetPageCount;
+    property PageHost: TNXTabPageHost read FPageHost;
     property Pages[AIndex: Integer]: TNXTabPage read GetPage;
     property TabHeight: Integer read FTabHeight write SetTabHeight;
+    property TabStrip: TNXTabStrip read FTabStrip;
   end;
 
 implementation
@@ -85,7 +104,136 @@ begin
   inherited Create(AParent);
   Align := caClient;
   BorderStyle := BS_None;
+  FillStyle := FS_Filled;
   FTabVisible := True;
+end;
+
+constructor TNXTabPageHost.Create(const AParent: INXControlParent);
+begin
+  inherited Create(AParent);
+  Align := caClient;
+  BorderStyle := BS_None;
+  FillStyle := FS_None;
+  Selectable := False;
+end;
+
+constructor TNXTabStrip.Create(const AParent: INXControlParent;
+  AOwnerTabControl: TNXTabControl);
+begin
+  inherited Create(AParent);
+  FOwnerTabControl := AOwnerTabControl;
+  Align := caTop;
+  BorderStyle := BS_None;
+  FillStyle := FS_None;
+  Height := cDefaultTabHeight;
+  Selectable := False;
+end;
+
+procedure TNXTabStrip.DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton);
+var
+  lTabIndex: Integer;
+begin
+  inherited DoMouseDown(AX, AY, AButton);
+
+  if (AButton <> mbLeft) or (not Assigned(FOwnerTabControl)) then
+    Exit;
+
+  lTabIndex := HitTestTab(AX, AY);
+  if lTabIndex >= 0 then
+  begin
+    FOwnerTabControl.ActivePageIndex := lTabIndex;
+    FOwnerTabControl.IsSelected := True;
+  end;
+end;
+
+function TNXTabStrip.GetTabRect(AIndex: Integer): TNXRect;
+var
+  lIndex: Integer;
+  lLeft: Integer;
+begin
+  Result := MakeNXRect(0, 0, 0, Height);
+  if (not Assigned(FOwnerTabControl)) or
+    (AIndex < 0) or (AIndex >= FOwnerTabControl.PageCount) then
+    Exit;
+
+  lLeft := 0;
+  for lIndex := 0 to AIndex - 1 do
+    if FOwnerTabControl.Pages[lIndex].TabVisible then
+      Inc(lLeft, GetTabWidth(FOwnerTabControl.Pages[lIndex]));
+
+  if FOwnerTabControl.Pages[AIndex].TabVisible then
+    Result := MakeNXRect(lLeft, 0,
+      GetTabWidth(FOwnerTabControl.Pages[AIndex]), Height)
+  else
+    Result := MakeNXRect(lLeft, 0, 0, Height);
+end;
+
+function TNXTabStrip.GetTabWidth(APage: TNXTabPage): Integer;
+var
+  lTextWidth: Integer;
+begin
+  lTextWidth := 0;
+  if Assigned(Canvas) and Assigned(Font) and Assigned(APage) then
+    lTextWidth := Canvas.TextWidth(APage.Caption, Font);
+
+  Result := Max(cMinTabWidth, lTextWidth + (cTabPaddingX * 2));
+end;
+
+function TNXTabStrip.HitTestTab(AX, AY: Integer): Integer;
+var
+  lIndex: Integer;
+  lRect: TNXRect;
+begin
+  Result := -1;
+
+  if (not Assigned(FOwnerTabControl)) or (AY < 0) or (AY >= Height) then
+    Exit;
+
+  for lIndex := 0 to FOwnerTabControl.PageCount - 1 do
+  begin
+    if not FOwnerTabControl.Pages[lIndex].TabVisible then
+      Continue;
+
+    lRect := GetTabRect(lIndex);
+    if (AX >= lRect.x) and (AX < lRect.x + lRect.w) then
+    begin
+      Result := lIndex;
+      Exit;
+    end;
+  end;
+end;
+
+procedure TNXTabStrip.Render;
+var
+  lIndex: Integer;
+  lRect: TNXRect;
+  lTextY: Integer;
+begin
+  inherited Render;
+
+  if (not Assigned(Canvas)) or (not Assigned(FOwnerTabControl)) then
+    Exit;
+
+  lTextY := (Height - FontHeight) div 2;
+  if lTextY < 0 then
+    lTextY := cTabTextOffsetY;
+
+  for lIndex := 0 to FOwnerTabControl.PageCount - 1 do
+  begin
+    if not FOwnerTabControl.Pages[lIndex].TabVisible then
+      Continue;
+
+    lRect := GetTabRect(lIndex);
+
+    if lIndex = FOwnerTabControl.ActivePageIndex then
+      RenderFilledRect(lRect, Skin.SelectedColor)
+    else
+      RenderFilledRect(lRect, BackColor);
+
+    RenderRect(lRect, BorderColor);
+    RenderText(FOwnerTabControl.Pages[lIndex].Caption,
+      lRect.x + (lRect.w div 2), lTextY, Align_Center);
+  end;
 end;
 
 constructor TNXTabControl.Create(const AParent: INXControlParent);
@@ -97,6 +245,10 @@ begin
   BorderStyle := BS_Single;
   Selectable := True;
   SkinClass := 'TabControl';
+
+  FTabStrip := TNXTabStrip.Create(Self, Self);
+  FTabStrip.Height := FTabHeight;
+  FPageHost := TNXTabPageHost.Create(Self);
 end;
 
 constructor TNXTabControl.Create(const AParent: INXControlParent;
@@ -111,13 +263,15 @@ end;
 
 destructor TNXTabControl.Destroy;
 begin
+  FTabStrip := nil;
+  FPageHost := nil;
   FreeAndNil(FPages);
   inherited Destroy;
 end;
 
 function TNXTabControl.AddPage(const ACaption: string): TNXTabPage;
 begin
-  Result := TNXTabPage.Create(Self);
+  Result := TNXTabPage.Create(FPageHost);
   Result.Caption := ACaption;
   FPages.Add(Result);
 
@@ -151,7 +305,7 @@ begin
   if PageCount = 0 then
     FActivePageIndex := -1;
 
-  FreeChild(lPage);
+  FPageHost.FreeChild(lPage);
   UpdatePageVisibility;
   LayoutChildren;
   DoPageChanged;
@@ -169,20 +323,6 @@ begin
   end;
 end;
 
-procedure TNXTabControl.DoMouseDown(X, Y: Integer; Button: TNXMouseButton);
-var
-  lTabIndex: Integer;
-begin
-  inherited DoMouseDown(X, Y, Button);
-
-  if Button <> mbLeft then
-    Exit;
-
-  lTabIndex := HitTestTab(X, Y);
-  if lTabIndex >= 0 then
-    ActivePageIndex := lTabIndex;
-end;
-
 procedure TNXTabControl.DoPageChanged;
 begin
   if Assigned(FOnPageChanged) then
@@ -196,16 +336,6 @@ begin
     Result := Pages[FActivePageIndex];
 end;
 
-function TNXTabControl.GetChildAreaTop: Integer;
-begin
-  Result := inherited GetChildAreaTop + TabHeight;
-end;
-
-function TNXTabControl.GetChildAreaHeight: Integer;
-begin
-  Result := Max(0, inherited GetChildAreaHeight - TabHeight);
-end;
-
 function TNXTabControl.GetPage(AIndex: Integer): TNXTabPage;
 begin
   if (AIndex < 0) or (AIndex >= PageCount) then
@@ -217,144 +347,6 @@ end;
 function TNXTabControl.GetPageCount: Integer;
 begin
   Result := FPages.Count;
-end;
-
-function TNXTabControl.GetTabRect(AIndex: Integer): TNXRect;
-var
-  lIndex: Integer;
-  lLeft: Integer;
-begin
-  lLeft := 0;
-  for lIndex := 0 to AIndex - 1 do
-    if Pages[lIndex].TabVisible then
-      Inc(lLeft, GetTabWidth(Pages[lIndex]));
-
-  if Pages[AIndex].TabVisible then
-    Result := MakeNXRect(lLeft, 0, GetTabWidth(Pages[AIndex]), TabHeight)
-  else
-    Result := MakeNXRect(lLeft, 0, 0, TabHeight);
-end;
-
-function TNXTabControl.GetTabWidth(APage: TNXTabPage): Integer;
-var
-  lTextWidth: Integer;
-begin
-  lTextWidth := 0;
-  if Assigned(Canvas) and Assigned(Font) and Assigned(APage) then
-    lTextWidth := Canvas.TextWidth(APage.Caption, Font);
-
-  Result := Max(cMinTabWidth, lTextWidth + (cTabPaddingX * 2));
-end;
-
-function TNXTabControl.HitTestTab(AX, AY: Integer): Integer;
-var
-  lIndex: Integer;
-  lRect: TNXRect;
-begin
-  Result := -1;
-
-  if (AY < 0) or (AY >= TabHeight) then
-    Exit;
-
-  for lIndex := 0 to PageCount - 1 do
-  begin
-    if not Pages[lIndex].TabVisible then
-      Continue;
-
-    lRect := GetTabRect(lIndex);
-    if (AX >= lRect.x) and (AX < lRect.x + lRect.w) then
-    begin
-      Result := lIndex;
-      Exit;
-    end;
-  end;
-end;
-
-procedure TNXTabControl.Render;
-begin
-  if IsSelected then
-    CurBorderColor := Skin.ForeColor
-  else
-    CurBorderColor := BorderColor;
-
-  inherited Render;
-  RenderTabs;
-end;
-
-procedure TNXTabControl.RenderTabs;
-var
-  lIndex: Integer;
-  lRect: TNXRect;
-  lTextY: Integer;
-begin
-  if not Assigned(Canvas) then
-    Exit;
-
-  lTextY := (TabHeight - FontHeight) div 2;
-  if lTextY < 0 then
-    lTextY := cTabTextOffsetY;
-
-  for lIndex := 0 to PageCount - 1 do
-  begin
-    if not Pages[lIndex].TabVisible then
-      Continue;
-
-    lRect := GetTabRect(lIndex);
-    Inc(lRect.x, AbsLeft);
-    Inc(lRect.y, AbsTop);
-
-    if lIndex = ActivePageIndex then
-      RenderFilledRect(lRect, Skin.SelectedColor)
-    else
-      RenderFilledRect(lRect, BackColor);
-
-    RenderRect(lRect, BorderColor);
-    RenderText(Pages[lIndex].Caption,
-      lRect.x - AbsLeft + (lRect.w div 2), lTextY, Align_Center);
-  end;
-end;
-
-procedure TNXTabControl.Paint;
-var
-  lChild: TNXControl;
-  lChildClipRect: TNXRect;
-  lClipRect: TNXRect;
-  lIndex: Integer;
-begin
-  if Assigned(Canvas) and Visible then
-  begin
-    lClipRect := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
-
-    Canvas.PushClip(lClipRect);
-    try
-      Render;
-
-      lChildClipRect := MakeNXRect(
-        AbsLeft + GetChildAreaLeft,
-        AbsTop + GetChildAreaTop,
-        Max(0, GetChildAreaWidth),
-        Max(0, GetChildAreaHeight)
-      );
-
-      Canvas.PushClip(lChildClipRect);
-      try
-        for lIndex := 0 to Children.Count - 1 do
-        begin
-          lChild := Children[lIndex];
-          if lChild.Visible then
-            lChild.Paint;
-        end;
-      finally
-        Canvas.PopClip;
-      end;
-
-      RenderTabs;
-      if BorderStyle = BS_Single then
-        RenderRect(lClipRect, CurBorderColor);
-    finally
-      Canvas.PopClip;
-    end;
-  end;
 end;
 
 procedure TNXTabControl.SelectNextPage;
@@ -420,6 +412,8 @@ end;
 procedure TNXTabControl.SetTabHeight(AValue: Integer);
 begin
   FTabHeight := Max(0, AValue);
+  if Assigned(FTabStrip) then
+    FTabStrip.Height := FTabHeight;
   LayoutChildren;
 end;
 

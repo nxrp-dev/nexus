@@ -796,8 +796,8 @@ begin
     if lEndX <= lStartX then
       Continue;
 
-    lRect := MakeNXRect(AbsLeft + ViewportRect.x + cTextMargin + lStartX,
-      AbsTop + ViewportRect.y + (lDrawIndex * GetLineHeight),
+    lRect := MakeNXRect(ViewportRect.x + cTextMargin + lStartX,
+      ViewportRect.y + (lDrawIndex * GetLineHeight),
       lEndX - lStartX,
       GetLineHeight);
     RenderFilledRect(lRect, Skin.SelectedColor);
@@ -838,12 +838,11 @@ begin
   lDrawIndex := lCaretLine - FFirstVisibleLine;
   lClientRect := ViewportRect;
   lCaretX := GetCaretX - FTextOffsetX;
-  lTop := AbsTop + lClientRect.y + (lDrawIndex * GetLineHeight) +
+  lTop := lClientRect.y + (lDrawIndex * GetLineHeight) +
     ((GetLineHeight - FontHeight) div 2);
 
-  RenderLine(AbsLeft + lClientRect.x + cTextMargin + lCaretX, lTop,
-    AbsLeft + lClientRect.x + cTextMargin + lCaretX, lTop + FontHeight,
-    ForeColor);
+  RenderLine(lClientRect.x + cTextMargin + lCaretX, lTop,
+    lClientRect.x + cTextMargin + lCaretX, lTop + FontHeight, ForeColor);
 end;
 
 procedure TNXMemo.RenderViewport;

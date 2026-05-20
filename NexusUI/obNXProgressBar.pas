@@ -193,7 +193,7 @@ var
 begin
   inherited RenderClient;
 
-  lRect := AbsContentRect;
+  lRect := ContentRect;
   if (lRect.w <= 0) or (lRect.h <= 0) then
     Exit;
 
