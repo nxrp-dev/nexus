@@ -50,6 +50,7 @@ type
     function ProcessMouseDown(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
     function ProcessMouseMotion(AX, AY: Integer; AButtonState: TNXMouseButtons): Boolean;
     function ProcessMouseUp(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
+    function ProcessMouseWheel(AX, AY, ADeltaX, ADeltaY: Integer): Boolean;
     function ProcessTextInput(const AText: string): Boolean;
     procedure ShowPopup(APopup: TNXPopup);
 
@@ -282,6 +283,25 @@ begin
   begin
     lPoint := FActivePopup.ScreenToLocal(AX, AY);
     FActivePopup.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    Exit;
+  end;
+
+  Result := False;
+end;
+
+function TNXPopupManager.ProcessMouseWheel(AX, AY, ADeltaX,
+  ADeltaY: Integer): Boolean;
+var
+  lPoint: TNXPoint;
+begin
+  Result := Assigned(FActivePopup) and FActivePopup.Visible;
+  if not Result then
+    Exit;
+
+  if PointInElement(FActivePopup, AX, AY) then
+  begin
+    lPoint := FActivePopup.ScreenToLocal(AX, AY);
+    FActivePopup.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
     Exit;
   end;
 

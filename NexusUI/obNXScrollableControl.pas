@@ -26,6 +26,7 @@ type
     procedure SetScrollX(AValue: Integer);
     procedure SetScrollY(AValue: Integer);
   protected
+    procedure DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); override;
     function GetAbsViewportRect: TNXRect; virtual;
     function GetViewportHeight: Integer; virtual;
     function GetViewportRect: TNXRect; virtual;
@@ -112,6 +113,26 @@ begin
 
   if Assigned(FHorizontalScrollBar) and FHorizontalScrollBar.Visible then
     Result.h := Max(0, Result.h - FHorizontalScrollBar.Height - 2);
+end;
+
+procedure TNXScrollableControl.DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
+var
+  lStep: Integer;
+begin
+  inherited DoMouseWheel(X, Y, ADeltaX, ADeltaY);
+
+  if FontLineSkip > 0 then
+    lStep := FontLineSkip
+  else
+    lStep := GUI_ScrollbarSize;
+
+  if (ADeltaY <> 0) and Assigned(FVerticalScrollBar) and
+    FVerticalScrollBar.Visible then
+    ScrollY := ScrollY - (ADeltaY * lStep);
+
+  if (ADeltaX <> 0) and Assigned(FHorizontalScrollBar) and
+    FHorizontalScrollBar.Visible then
+    ScrollX := ScrollX + (ADeltaX * lStep);
 end;
 
 function TNXScrollableControl.GetAbsViewportRect: TNXRect;

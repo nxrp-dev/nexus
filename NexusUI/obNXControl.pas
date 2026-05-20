@@ -43,6 +43,7 @@ type
   end;
   TNXMouseEvent = procedure(Sender: TObject; X, Y: Integer; Button: TNXMouseButton) of object;
   TNXMouseMotionEvent = procedure(Sender: TObject; X, Y: Integer; ButtonState: TNXMouseButtons) of object;
+  TNXMouseWheelEvent = procedure(Sender: TObject; X, Y, ADeltaX, ADeltaY: Integer) of object;
   TNXTextInputEvent = procedure(Sender: TObject; const AText: string) of object;
   TNXKeyEvent = procedure(Sender: TObject; const AEvent: TNXKeyEventData) of object;
 
@@ -126,6 +127,7 @@ type
     FOnMouseExit: TNotifyEvent;
     FOnMouseMotion: TNXMouseMotionEvent;
     FOnMouseUp: TNXMouseEvent;
+    FOnMouseWheel: TNXMouseWheelEvent;
     FOnResize: TNotifyEvent;
     FOnTextInput: TNXTextInputEvent;
     FParent: INXControlParent;
@@ -199,6 +201,7 @@ type
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure DoMouseUp(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); virtual;
+    procedure DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); virtual;
     procedure DoTextInput(const AText: string); virtual;
     procedure DoMouseClick(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure DoMouseDoubleClick(X, Y: Integer; Button: TNXMouseButton); virtual;
@@ -230,6 +233,7 @@ type
     procedure ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure ProcessMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); virtual;
+    procedure ProcessMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); virtual;
     procedure ProcessTextInput(const AText: string); virtual;
     procedure ProcessMouseClick(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure ProcessFocus; virtual;
@@ -272,6 +276,7 @@ type
     property OnMouseExit: TNotifyEvent read FOnMouseExit write FOnMouseExit;
     property OnMouseMotion: TNXMouseMotionEvent read FOnMouseMotion write FOnMouseMotion;
     property OnMouseUp: TNXMouseEvent read FOnMouseUp write FOnMouseUp;
+    property OnMouseWheel: TNXMouseWheelEvent read FOnMouseWheel write FOnMouseWheel;
     property OnResize: TNotifyEvent read FOnResize write FOnResize;
     property OnTextInput: TNXTextInputEvent read FOnTextInput write FOnTextInput;
     property Parent: INXControlParent read FParent;
@@ -1330,6 +1335,38 @@ begin
     DoMouseMotion(X, Y, ButtonState);
 end;
 
+procedure TNXControl.ProcessMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
+var
+  lIndex: Integer;
+  lChild: TNXControl;
+  lPassed: Boolean;
+begin
+  lPassed := False;
+  for lIndex := Children.Count - 1 downto 0 do
+  begin
+    if lPassed then
+      Break;
+
+    lChild := Children[lIndex];
+    if lChild.InControl(
+      X - GetChildOriginX(lChild),
+      Y - GetChildOriginY(lChild)
+    ) and lChild.Visible then
+    begin
+      lPassed := True;
+      lChild.ProcessMouseWheel(
+        X - GetChildOriginX(lChild) - lChild.Left,
+        Y - GetChildOriginY(lChild) - lChild.Top,
+        ADeltaX,
+        ADeltaY
+      );
+    end;
+  end;
+
+  if (not lPassed) or ReceiveAllEvents then
+    DoMouseWheel(X, Y, ADeltaX, ADeltaY);
+end;
+
 procedure TNXControl.ProcessTextInput(const AText: string);
 begin
   DoTextInput(AText);
@@ -1388,6 +1425,12 @@ procedure TNXControl.DoMouseMotion(X, Y: integer; ButtonState: TNXMouseButtons);
 begin
   if Assigned(FOnMouseMotion) then
     FOnMouseMotion(Self, X, Y, ButtonState);
+end;
+
+procedure TNXControl.DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
+begin
+  if Assigned(FOnMouseWheel) then
+    FOnMouseWheel(Self, X, Y, ADeltaX, ADeltaY);
 end;
 
 procedure TNXControl.DoTextInput(const AText: string);

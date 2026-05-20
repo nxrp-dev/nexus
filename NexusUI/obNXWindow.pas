@@ -113,6 +113,7 @@ type
     procedure ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure ProcessMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); virtual;
     procedure ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton); virtual;
+    procedure ProcessMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); virtual;
     procedure ProcessTextInput(const AText: string); virtual;
     procedure Show; virtual;
 
@@ -178,6 +179,7 @@ type
     function ProcessMouseDown(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
     function ProcessMouseMotion(AX, AY: Integer; AButtonState: TNXMouseButtons): Boolean;
     function ProcessMouseUp(AX, AY: Integer; AButton: TNXMouseButton): Boolean;
+    function ProcessMouseWheel(AX, AY, ADeltaX, ADeltaY: Integer): Boolean;
     function ProcessTextInput(const AText: string): Boolean;
     procedure RemoveWindow(AWindow: TNXWindow);
     procedure ShowModal(AWindow: TNXWindow);
@@ -744,6 +746,30 @@ begin
   end;
 end;
 
+procedure TNXWindow.ProcessMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
+var
+  lChild: TNXControl;
+  lIndex: Integer;
+begin
+  for lIndex := Children.Count - 1 downto 0 do
+  begin
+    lChild := Children[lIndex];
+    if lChild.Visible and lChild.InControl(
+      X - GetChildOriginX(lChild),
+      Y - GetChildOriginY(lChild)
+    ) then
+    begin
+      lChild.ProcessMouseWheel(
+        X - GetChildOriginX(lChild) - lChild.Left,
+        Y - GetChildOriginY(lChild) - lChild.Top,
+        ADeltaX,
+        ADeltaY
+      );
+      Exit;
+    end;
+  end;
+end;
+
 procedure TNXWindow.ProcessTextInput(const AText: string);
 begin
   if Assigned(FFocusedControl) and FFocusedControl.Visible and
@@ -1196,6 +1222,37 @@ begin
     lPoint := FActiveWindow.ScreenToLocal(AX, AY);
     FActiveWindow.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
     Result := True;
+  end;
+end;
+
+function TNXWindowManager.ProcessMouseWheel(AX, AY, ADeltaX,
+  ADeltaY: Integer): Boolean;
+var
+  lIndex: Integer;
+  lPoint: TNXPoint;
+  lWindow: TNXWindow;
+begin
+  Result := Assigned(FModalWindow) and FModalWindow.Visible;
+  if Result then
+  begin
+    if FModalWindow.InWindow(AX, AY) then
+    begin
+      lPoint := FModalWindow.ScreenToLocal(AX, AY);
+      FModalWindow.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
+    end;
+    Exit;
+  end;
+
+  for lIndex := FWindows.Count - 1 downto 0 do
+  begin
+    lWindow := Windows[lIndex];
+    if lWindow.InWindow(AX, AY) then
+    begin
+      lPoint := lWindow.ScreenToLocal(AX, AY);
+      lWindow.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
+      Result := True;
+      Exit;
+    end;
   end;
 end;
 

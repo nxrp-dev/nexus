@@ -199,6 +199,19 @@ begin
             AEvent.Mouse.Button);
       end;
 
+    nxeMouseWheel:
+      if FRootWindow <> nil then
+      begin
+        if FPopups.ProcessMouseWheel(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.WheelDeltaX, AEvent.Mouse.WheelDeltaY) then
+          Exit;
+
+        if not FWindows.ProcessMouseWheel(AEvent.Mouse.X, AEvent.Mouse.Y,
+          AEvent.Mouse.WheelDeltaX, AEvent.Mouse.WheelDeltaY) then
+          FRootWindow.ProcessMouseWheel(AEvent.Mouse.X, AEvent.Mouse.Y,
+            AEvent.Mouse.WheelDeltaX, AEvent.Mouse.WheelDeltaY);
+      end;
+
     nxeTextInput:
       if FRootWindow <> nil then
       begin

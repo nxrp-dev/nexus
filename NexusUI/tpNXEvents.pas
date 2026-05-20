@@ -18,6 +18,7 @@ type
     nxeMouseMotion,
     nxeMouseDown,
     nxeMouseUp,
+    nxeMouseWheel,
     nxeTextInput
   );
 
@@ -59,6 +60,8 @@ type
     Y: Integer;
     Button: TNXMouseButton;
     ButtonState: TNXMouseButtons;
+    WheelDeltaX: Integer;
+    WheelDeltaY: Integer;
   end;
 
   TNXWindowEventData = record

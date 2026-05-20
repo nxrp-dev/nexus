@@ -246,6 +246,8 @@ end;
 function TNXSDL2.PollEvent(out AEvent: TNXEvent): Boolean;
 var
   lEvent: TSDL_Event;
+  lMouseX: LongInt;
+  lMouseY: LongInt;
 begin
   AEvent.EventType := nxeNone;
   Result := SDL_PollEvent(@lEvent) > 0;
@@ -309,6 +311,21 @@ begin
       AEvent.Mouse.X := lEvent.button.X;
       AEvent.Mouse.Y := lEvent.button.Y;
       AEvent.Mouse.Button := ToNXMouseButton(lEvent.button.button);
+    end;
+
+    SDL_MOUSEWHEEL:
+    begin
+      SDL_GetMouseState(@lMouseX, @lMouseY);
+      AEvent.EventType := nxeMouseWheel;
+      AEvent.Mouse.X := lMouseX;
+      AEvent.Mouse.Y := lMouseY;
+      AEvent.Mouse.WheelDeltaX := lEvent.wheel.x;
+      AEvent.Mouse.WheelDeltaY := lEvent.wheel.y;
+      if lEvent.wheel.direction = SDL_MOUSEWHEEL_FLIPPED then
+      begin
+        AEvent.Mouse.WheelDeltaX := -AEvent.Mouse.WheelDeltaX;
+        AEvent.Mouse.WheelDeltaY := -AEvent.Mouse.WheelDeltaY;
+      end;
     end;
 
     SDL_TEXTINPUT:
