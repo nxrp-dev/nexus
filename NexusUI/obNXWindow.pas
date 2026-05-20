@@ -536,8 +536,7 @@ end;
 
 function TNXWindow.InWindow(AX, AY: Integer): Boolean;
 begin
-  Result := Visible and (AX >= AbsLeft) and (AX < AbsLeft + Width) and
-    (AY >= AbsTop) and (AY < AbsTop + Height);
+  Result := Visible and ContainsScreenPoint(AX, AY);
 end;
 
 procedure TNXWindow.InternalClose;
@@ -663,13 +662,16 @@ var
   lChild: TNXControl;
   lIndex: Integer;
   lPassed: Boolean;
+  lPoint: TNXPoint;
 begin
   lCapturedControl := NXCapturedMouseControl;
   if Assigned(lCapturedControl) then
   begin
+    lPoint := LocalToScreen(X, Y);
+    lPoint := lCapturedControl.ScreenToLocal(lPoint.x, lPoint.y);
     lCapturedControl.ProcessMouseMotion(
-      X + AbsLeft - lCapturedControl.AbsLeft,
-      Y + AbsTop - lCapturedControl.AbsTop,
+      lPoint.x,
+      lPoint.y,
       ButtonState
     );
     Exit;
@@ -706,6 +708,7 @@ var
   lCapturedControl: TNXControl;
   lChild: TNXControl;
   lIndex: Integer;
+  lPoint: TNXPoint;
 begin
   if Button = mbNone then
     Exit;
@@ -713,9 +716,11 @@ begin
   lCapturedControl := NXCapturedMouseControl;
   if Assigned(lCapturedControl) then
   begin
+    lPoint := LocalToScreen(X, Y);
+    lPoint := lCapturedControl.ScreenToLocal(lPoint.x, lPoint.y);
     lCapturedControl.ProcessMouseUp(
-      X + AbsLeft - lCapturedControl.AbsLeft,
-      Y + AbsTop - lCapturedControl.AbsTop,
+      lPoint.x,
+      lPoint.y,
       Button
     );
     Exit;
@@ -1100,6 +1105,7 @@ function TNXWindowManager.ProcessMouseDown(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
 var
   lIndex: Integer;
+  lPoint: TNXPoint;
   lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
@@ -1108,8 +1114,8 @@ begin
     if FModalWindow.InWindow(AX, AY) then
     begin
       SetActiveWindow(FModalWindow);
-      FModalWindow.ProcessMouseDown(AX - FModalWindow.AbsLeft,
-        AY - FModalWindow.AbsTop, AButton);
+      lPoint := FModalWindow.ScreenToLocal(AX, AY);
+      FModalWindow.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
     end
     else
       BringToFront(FModalWindow);
@@ -1122,8 +1128,8 @@ begin
     if lWindow.InWindow(AX, AY) then
     begin
       SetActiveWindow(lWindow);
-      lWindow.ProcessMouseDown(AX - lWindow.AbsLeft, AY - lWindow.AbsTop,
-        AButton);
+      lPoint := lWindow.ScreenToLocal(AX, AY);
+      lWindow.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
       Result := True;
       Exit;
     end;
@@ -1134,6 +1140,7 @@ function TNXWindowManager.ProcessMouseMotion(AX, AY: Integer;
   AButtonState: TNXMouseButtons): Boolean;
 var
   lIndex: Integer;
+  lPoint: TNXPoint;
   lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
@@ -1143,8 +1150,8 @@ begin
       FHoverWindow.ClearMouseHover;
     FHoverWindow := FModalWindow;
 
-    FModalWindow.ProcessMouseMotion(AX - FModalWindow.AbsLeft,
-      AY - FModalWindow.AbsTop, AButtonState);
+    lPoint := FModalWindow.ScreenToLocal(AX, AY);
+    FModalWindow.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
     Exit;
   end;
 
@@ -1157,8 +1164,8 @@ begin
         FHoverWindow.ClearMouseHover;
       FHoverWindow := lWindow;
 
-      lWindow.ProcessMouseMotion(AX - lWindow.AbsLeft, AY - lWindow.AbsTop,
-        AButtonState);
+      lPoint := lWindow.ScreenToLocal(AX, AY);
+      lWindow.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
       Result := True;
       Exit;
     end;
@@ -1173,19 +1180,21 @@ end;
 
 function TNXWindowManager.ProcessMouseUp(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
+var
+  lPoint: TNXPoint;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
   begin
-    FModalWindow.ProcessMouseUp(AX - FModalWindow.AbsLeft,
-      AY - FModalWindow.AbsTop, AButton);
+    lPoint := FModalWindow.ScreenToLocal(AX, AY);
+    FModalWindow.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
     Exit;
   end;
 
   if Assigned(FActiveWindow) and FActiveWindow.Visible then
   begin
-    FActiveWindow.ProcessMouseUp(AX - FActiveWindow.AbsLeft,
-      AY - FActiveWindow.AbsTop, AButton);
+    lPoint := FActiveWindow.ScreenToLocal(AX, AY);
+    FActiveWindow.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
     Result := True;
   end;
 end;

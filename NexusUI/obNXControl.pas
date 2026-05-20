@@ -29,6 +29,9 @@ type
     function GetHeight: Integer;
     function GetSkin: TNXSkin;
     function GetWidth: Integer;
+    function ContainsScreenPoint(AX, AY: Integer): Boolean;
+    function LocalToScreen(AX, AY: Integer): TNXPoint;
+    function ScreenToLocal(AX, AY: Integer): TNXPoint;
     property AbsLeft: Integer read GetAbsLeft;
     property AbsTop: Integer read GetAbsTop;
     property Canvas: TNXCanvas read GetCanvas;
@@ -78,9 +81,12 @@ type
     procedure AddChild(AChild: TNXControl); virtual;
     procedure ChildDestroying(AChild: TNXControl); virtual;
     procedure ClearChildFocus; virtual;
+    function ContainsScreenPoint(AX, AY: Integer): Boolean; virtual;
     procedure FocusChild(AChild: TNXControl); virtual;
     procedure FreeChild(AChild: TNXControl); virtual;
     procedure LayoutChildren; virtual;
+    function LocalToScreen(AX, AY: Integer): TNXPoint; virtual;
+    function ScreenToLocal(AX, AY: Integer): TNXPoint; virtual;
     procedure SendSizeCallback; virtual;
 
     property AbsLeft: Integer read GetAbsLeft;
@@ -348,6 +354,15 @@ begin
     Children[lIndex].IsFocused := False;
 end;
 
+function TNXControlHost.ContainsScreenPoint(AX, AY: Integer): Boolean;
+var
+  lPoint: TNXPoint;
+begin
+  lPoint := ScreenToLocal(AX, AY);
+  Result := (lPoint.x >= 0) and (lPoint.x < Width) and
+    (lPoint.y >= 0) and (lPoint.y < Height);
+end;
+
 procedure TNXControlHost.FocusChild(AChild: TNXControl);
 begin
 end;
@@ -394,6 +409,11 @@ end;
 function TNXControlHost.GetChildren: TNXControlList;
 begin
   Result := FChildren;
+end;
+
+function TNXControlHost.LocalToScreen(AX, AY: Integer): TNXPoint;
+begin
+  Result := MakeNXPoint(AbsLeft + AX, AbsTop + AY);
 end;
 
 procedure TNXControlHost.LayoutChildren;
@@ -479,6 +499,11 @@ end;
 procedure TNXControlHost.SendSizeCallback;
 begin
   LayoutChildren;
+end;
+
+function TNXControlHost.ScreenToLocal(AX, AY: Integer): TNXPoint;
+begin
+  Result := MakeNXPoint(AX - AbsLeft, AY - AbsTop);
 end;
 
 procedure TNXControlHost.SetCanvas(ACanvas: TNXCanvas);
@@ -1176,6 +1201,7 @@ var
   lIndex: Integer;
   lChild: TNXControl;
   lPassed: Boolean;
+  lPoint: TNXPoint;
 begin
   if Button = mbNone then
     Exit;
@@ -1183,9 +1209,11 @@ begin
   if (Parent = nil) and Assigned(GCapturedMouseControl) and
     (GCapturedMouseControl <> Self) then
   begin
+    lPoint := LocalToScreen(X, Y);
+    lPoint := GCapturedMouseControl.ScreenToLocal(lPoint.x, lPoint.y);
     GCapturedMouseControl.ProcessMouseUp(
-      X - GCapturedMouseControl.AbsLeft,
-      Y - GCapturedMouseControl.AbsTop,
+      lPoint.x,
+      lPoint.y,
       Button
     );
     Exit;
@@ -1255,13 +1283,16 @@ var
   lIndex: Integer;
   lChild: TNXControl;
   lPassed: Boolean;
+  lPoint: TNXPoint;
 begin
   if (Parent = nil) and Assigned(GCapturedMouseControl) and
     (GCapturedMouseControl <> Self) then
   begin
+    lPoint := LocalToScreen(X, Y);
+    lPoint := GCapturedMouseControl.ScreenToLocal(lPoint.x, lPoint.y);
     GCapturedMouseControl.ProcessMouseMotion(
-      X - GCapturedMouseControl.AbsLeft,
-      Y - GCapturedMouseControl.AbsTop,
+      lPoint.x,
+      lPoint.y,
       ButtonState
     );
     Exit;

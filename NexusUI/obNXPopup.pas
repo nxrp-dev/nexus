@@ -112,11 +112,14 @@ begin
 end;
 
 procedure TNXPopup.SetAbsolutePosition(ALeft, ATop: Integer);
+var
+  lPoint: TNXPoint;
 begin
   if Assigned(Parent) then
   begin
-    Left := ALeft - Parent.AbsLeft - Parent.GetChildOriginX(Self);
-    Top := ATop - Parent.AbsTop - Parent.GetChildOriginY(Self);
+    lPoint := Parent.ScreenToLocal(ALeft, ATop);
+    Left := lPoint.x - Parent.GetChildOriginX(Self);
+    Top := lPoint.y - Parent.GetChildOriginY(Self);
   end
   else
   begin
@@ -148,8 +151,7 @@ function TNXPopupManager.PointInElement(AElement: TNXControl; AX,
   AY: Integer): Boolean;
 begin
   Result := Assigned(AElement) and AElement.Visible and
-    (AX >= AElement.AbsLeft) and (AX < AElement.AbsLeft + AElement.Width) and
-    (AY >= AElement.AbsTop) and (AY < AElement.AbsTop + AElement.Height);
+    AElement.ContainsScreenPoint(AX, AY);
 end;
 
 procedure TNXPopupManager.ForgetPopup(APopup: TNXPopup);

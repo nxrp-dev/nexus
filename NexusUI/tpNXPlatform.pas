@@ -17,6 +17,11 @@ type
     h: Integer;
   end;
 
+  TNXPoint = record
+    x: Integer;
+    y: Integer;
+  end;
+
   TNXImageHandle = Pointer;
   TNXFontHandle = Pointer;
 
@@ -49,6 +54,7 @@ const
   GUI_ScrollbarSize = 11;
 
 function MakeNXColor(ARed, AGreen, ABlue, AAlpha: Integer): TNXColor;
+function MakeNXPoint(AX, AY: Integer): TNXPoint;
 function MakeNXRect(AX, AY, AWidth, AHeight: Integer): TNXRect;
 
 implementation
@@ -59,6 +65,12 @@ begin
   Result.g := AGreen;
   Result.b := ABlue;
   Result.a := AAlpha;
+end;
+
+function MakeNXPoint(AX, AY: Integer): TNXPoint;
+begin
+  Result.x := AX;
+  Result.y := AY;
 end;
 
 function MakeNXRect(AX, AY, AWidth, AHeight: Integer): TNXRect;
