@@ -1,87 +1,51 @@
-# Metadata Model
+# Schema Model
 
-The metadata model is the in-memory representation produced by the parser and consumed by the transformation and template stages.
+The schema model is the internal representation of a schema after it has been loaded.
 
 ## Core idea
 
-The parser should collect schema facts.
+The source definition should describe intent.
 
-The model should hold those facts.
+The schema model should hold structured facts.
 
-The transform should derive additional facts.
+Generators should emit mechanical output from those facts.
 
-The templates should emit text from the final model.
+## Likely concepts
 
-## Known model units
+NexusSchema will likely need model objects for common schema concepts:
 
-The current project file lists the main schema model units:
-
-| Unit | Role |
+| Concept | Meaning |
 | --- | --- |
-| `obMetaDataModuleList.pas` | top-level metadata module collection |
-| `obTableList.pas` | table collection/model |
-| `obFieldList.pas` | field collection/model |
-| `obForeignKeyList.pas` | foreign key collection/model |
-| `obIndexList.pas` | index collection/model |
-| `obTemplateList.pas` | template metadata |
-| `obAttributeSetList.pas` | grouped attributes |
-| `obNameValueList.pas` | generic name/value data |
-| `obNameList.pas` | generic name list data |
+| Schema | the top-level definition set |
+| Entity | a table-like or object-like structure |
+| Field | a named value on an entity |
+| Type | the kind of value a field stores |
+| Relationship | a reference from one entity to another |
+| Index | a lookup or uniqueness rule |
+| Attribute | extra metadata attached to a schema object |
+| Target | a generation backend or output profile |
 
-## Supporting common units
+## Model rules
 
-The compiler also uses common infrastructure:
+The model should avoid being target-specific too early.
 
-| Unit | Role |
-| --- | --- |
-| `obCommandLine.pas` | command-line options |
-| `obXMLObjects.pas` | XML object support |
-| `csXMLObjects.pas` | XML constants/support |
-| `libxml2.pas` | libxml2 binding |
-| `obTokenQueue.pas` | token stream support |
-| `tpTokenizer.pas` | tokenizer types/constants |
-| `utFile.pas` | file utilities |
-| `FastStrings.pas` | string helper support |
-| `FastStringFuncs.pas` | string helper functions |
+For example, an entity may eventually generate a Firebird table, a SQL Server table, a Pascal class, a C# class, or documentation. The model should describe the entity first. Target-specific generators can decide how to express it.
 
-## Data child files
+## Derived values
 
-The compiler loops through `lMetaData.Data` after the primary metadata file is processed.
+Generated names and defaults should be calculated once and stored consistently.
 
-Each data item provides:
+Examples:
 
-- a name, used as `TABLE_NAME` in module-style template execution
-- a value, used as the child data filename
+- default primary key names
+- default foreign key names
+- default index names
+- default generated filenames
+- normalized type names
+- target-specific escaped identifiers
 
-That creates a two-level generation model:
+If multiple generators need the same derived value, it should not be recalculated differently in each generator.
 
-1. Generate from the transformed whole metadata model.
-2. Generate additional files from metadata-referenced child data files.
+## Documentation gap
 
-## Database-oriented output
-
-The current Firebird scripts show the expected database style:
-
-- create reusable domains
-- create base tables through helper procedures
-- add fields through helper procedures
-- add foreign keys through helper procedures
-- add unique constraints and indexes after table creation
-
-Generated database output should preserve this pattern unless the schema model evolves beyond it.
-
-## Naming conventions seen in output
-
-The current generated SQL uses these conventions:
-
-| Concept | Convention |
-| --- | --- |
-| Base table | `<NAME>_TBL` |
-| Primary key | `<NAME>_PK` |
-| Sequence | `<NAME>_SEQ` |
-| Before insert trigger | `<NAME>_BI` |
-| Before update trigger | `<NAME>_BU` |
-| Foreign key field | `<REFERENCE>_ID` |
-| Foreign key constraint | `<TABLE>_<FIELD>_FK` |
-
-Those are output conventions. They should not leak backward into the parser unless the source language intentionally exposes them.
+This page should eventually include the exact public schema object model once the current implementation is ready to document.
