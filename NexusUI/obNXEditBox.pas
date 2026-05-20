@@ -76,8 +76,8 @@ type
   public
     constructor Create(const AParent: INXControlParent); overload; override;
 
-    procedure DoSelected; override;
-    procedure DoLostSelected; override;
+    procedure DoFocus; override;
+    procedure DoLoseFocus; override;
     procedure DoMouseDoubleClick(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
@@ -505,7 +505,7 @@ var
   lClientRect: TNXRect;
   lTop: Integer;
 begin
-  if (not IsSelected) or HasSelection then
+  if (not IsFocused) or HasSelection then
     Exit;
 
   if (not Assigned(GetPlatform)) or
@@ -526,7 +526,7 @@ var
   lSelectionLeft: Integer;
   lSelectionWidth: Integer;
 begin
-  if (not IsSelected) or (not HasSelection) then
+  if (not IsFocused) or (not HasSelection) then
     Exit;
 
   lDisplayText := GetDisplayText;
@@ -549,7 +549,7 @@ var
   lDisplayText: string;
   lTextY: Integer;
 begin
-  if (FText = '') and (not IsSelected) then
+  if (FText = '') and (not IsFocused) then
     lDisplayText := GetPlaceholderText
   else
     lDisplayText := GetDisplayText;
@@ -574,7 +574,7 @@ begin
   RenderCaret;
 end;
 
-procedure TNXEditBox.DoSelected;
+procedure TNXEditBox.DoFocus;
 begin
   inherited;
   CurFillColor := BackColor;
@@ -583,7 +583,7 @@ begin
   EnsureCaretVisible;
 end;
 
-procedure TNXEditBox.DoLostSelected;
+procedure TNXEditBox.DoLoseFocus;
 begin
   inherited;
   CurFillColor := BackColor;

@@ -146,7 +146,7 @@ begin
   inherited Create(AParent);
 
   BorderStyle := BS_Single;
-  Selectable := True;
+  CanFocus := True;
 
   FEditingIndex := -1;
   FItems := TNXPropertyEditorItemList.Create(True);
@@ -340,7 +340,7 @@ begin
   FEditingIndex := FSelectedIndex;
   FEditor.Text := ItemValue(lItem);
   FEditor.Visible := True;
-  FEditor.IsSelected := True;
+  FEditor.Focus;
   UpdateEditorBounds;
 end;
 
@@ -351,7 +351,7 @@ begin
 
   FEditingIndex := -1;
   FEditor.Visible := False;
-  FEditor.IsSelected := False;
+  FEditor.IsFocused := False;
 end;
 
 procedure TNXPropertyEditor.CommitEdit;

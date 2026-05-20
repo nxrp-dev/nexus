@@ -32,6 +32,7 @@ type
     FFillStyle: TFillStyle;
     FFont: TNXFont;
     FForeColor: TNXColor;
+    FFocusedControl: TNXControl;
     FHeight: Integer;
     FLeft: Integer;
     FManager: TNXWindowManager;
@@ -75,6 +76,7 @@ type
     procedure InternalShow(AActivate: Boolean); virtual;
     procedure Render; virtual;
     procedure RenderClient; virtual;
+    procedure SetFocusedControl(AControl: TNXControl); virtual;
     procedure SetManager(AManager: TNXWindowManager); virtual;
     procedure TitleBarDragged(Sender: TObject; ADeltaX, ADeltaY: Integer);
   public
@@ -85,6 +87,8 @@ type
     procedure Activate; virtual;
     procedure AddChild(AChild: TNXControl); override;
     procedure BringWindowToFront; virtual;
+    procedure ChildDestroying(AChild: TNXControl); override;
+    procedure ClearFocus; virtual;
     procedure ClearMouseHover; virtual;
     procedure Close; virtual;
     function GetAbsLeft: Integer; override;
@@ -96,6 +100,7 @@ type
     function GetTop: Integer; virtual;
     function GetWidth: Integer; override;
     procedure Hide; virtual;
+    procedure FocusChild(AChild: TNXControl); override;
     function InWindow(AX, AY: Integer): Boolean; virtual;
     procedure Paint; virtual;
     procedure ProcessKeyDown(const AEvent: TNXKeyEventData); virtual;
@@ -122,8 +127,9 @@ type
     property Font: TNXFont read FFont write FFont;
     property FontForChildren: TNXFont read GetFontForChildren;
     property ForeColor: TNXColor read FForeColor write FForeColor;
+    property FocusedControl: TNXControl read FFocusedControl;
     property Height: Integer read GetHeight write SetHeight;
-    property IsSelected: Boolean read FActive;
+    property IsFocused: Boolean read FActive;
     property Left: Integer read GetLeft write SetLeft;
     property Manager: TNXWindowManager read FManager;
     property Modal: Boolean read FModal;
@@ -193,6 +199,7 @@ begin
   FCanClose := True;
   FCloseAction := wcaHide;
   FFillStyle := FS_Filled;
+  FFocusedControl := nil;
   FManager := nil;
   FModal := False;
   FModalResult := mrNone;
@@ -252,6 +259,17 @@ begin
     FManager.BringToFront(Self);
 end;
 
+procedure TNXWindow.ChildDestroying(AChild: TNXControl);
+begin
+  if FFocusedControl = AChild then
+    FFocusedControl := nil;
+end;
+
+procedure TNXWindow.ClearFocus;
+begin
+  SetFocusedControl(nil);
+end;
+
 procedure TNXWindow.ClearMouseHover;
 var
   lIndex: Integer;
@@ -259,6 +277,11 @@ begin
   for lIndex := 0 to Children.Count - 1 do
     if Children[lIndex].MouseEntered then
       Children[lIndex].ProcessMouseExit;
+end;
+
+procedure TNXWindow.FocusChild(AChild: TNXControl);
+begin
+  SetFocusedControl(AChild);
 end;
 
 procedure TNXWindow.Close;
@@ -489,31 +512,29 @@ begin
 end;
 
 procedure TNXWindow.ProcessKeyDown(const AEvent: TNXKeyEventData);
-var
-  lIndex: Integer;
 begin
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].IsSelected then
-      Children[lIndex].ProcessKeyDown(AEvent);
+  if Assigned(FFocusedControl) and FFocusedControl.Visible and
+    FFocusedControl.Enabled then
+    FFocusedControl.ProcessKeyDown(AEvent);
 end;
 
 procedure TNXWindow.ProcessKeyUp(const AEvent: TNXKeyEventData);
-var
-  lIndex: Integer;
 begin
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].IsSelected then
-      Children[lIndex].ProcessKeyUp(AEvent);
+  if Assigned(FFocusedControl) and FFocusedControl.Visible and
+    FFocusedControl.Enabled then
+    FFocusedControl.ProcessKeyUp(AEvent);
 end;
 
 procedure TNXWindow.ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton);
 var
+  lFocusControl: TNXControl;
   lChild: TNXControl;
   lIndex: Integer;
 begin
   if Button = mbNone then
     Exit;
 
+  lFocusControl := nil;
   for lIndex := Children.Count - 1 downto 0 do
   begin
     lChild := Children[lIndex];
@@ -522,17 +543,21 @@ begin
       Y - GetChildOriginY(lChild)
     ) then
     begin
+      lFocusControl := lChild.FindFocusableControlAt(
+        X - GetChildOriginX(lChild) - lChild.Left,
+        Y - GetChildOriginY(lChild) - lChild.Top
+      );
+      SetFocusedControl(lFocusControl);
       lChild.ProcessMouseDown(
         X - GetChildOriginX(lChild) - lChild.Left,
         Y - GetChildOriginY(lChild) - lChild.Top,
         Button
       );
-      lChild.IsSelected := True;
       Exit;
     end;
   end;
 
-  UnselectChildren;
+  ClearFocus;
 end;
 
 procedure TNXWindow.ProcessMouseMotion(X, Y: Integer;
@@ -619,12 +644,10 @@ begin
 end;
 
 procedure TNXWindow.ProcessTextInput(const AText: string);
-var
-  lIndex: Integer;
 begin
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].IsSelected then
-      Children[lIndex].ProcessTextInput(AText);
+  if Assigned(FFocusedControl) and FFocusedControl.Visible and
+    FFocusedControl.Enabled then
+    FFocusedControl.ProcessTextInput(AText);
 end;
 
 procedure TNXWindow.Render;
@@ -652,6 +675,23 @@ begin
 
   if Assigned(FTitleBar) then
     FTitleBar.Active := AValue;
+end;
+
+procedure TNXWindow.SetFocusedControl(AControl: TNXControl);
+begin
+  if Assigned(AControl) and ((not AControl.CanFocus) or (not AControl.Enabled)) then
+    AControl := nil;
+
+  if FFocusedControl = AControl then
+    Exit;
+
+  if Assigned(FFocusedControl) then
+    FFocusedControl.IsFocused := False;
+
+  FFocusedControl := AControl;
+
+  if Assigned(FFocusedControl) then
+    FFocusedControl.IsFocused := True;
 end;
 
 procedure TNXWindow.SetHeight(AValue: Integer);

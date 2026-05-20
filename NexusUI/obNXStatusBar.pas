@@ -149,7 +149,7 @@ begin
   BorderStyle := BS_Single;
   BackColor := Skin.BackColor;
   ForeColor := Skin.ForeColor;
-  Selectable := False;
+  CanFocus := False;
 
   LayoutToParent;
 end;

@@ -139,7 +139,7 @@ begin
   FillStyle := FS_Filled;
   BorderStyle := BS_None;
   BackColor := Skin.FullTransColor;
-  Selectable := True;
+  CanFocus := True;
   ReceiveAllEvents := True;
 
   FButtons := specialize TFPGList<TNXMessageDialogActionButton>.Create;
@@ -394,7 +394,7 @@ begin
     Height := Parent.Height;
   end;
 
-  IsSelected := True;
+  Focus;
   LayoutDialog;
 end;
 

@@ -27,7 +27,7 @@ constructor TNXLabel.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   FillStyle := FS_None;
-  Selectable := False;
+  CanFocus := False;
   TextA := Align_Left;
   VertA := VAlign_Top;
 end;

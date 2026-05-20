@@ -40,7 +40,7 @@ type
     function IndexAtY(AY: Integer): Integer; virtual;
 
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
-    procedure DoLostSelected; override;
+    procedure DoLoseFocus; override;
     procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
     procedure SelectionChanged; virtual;
   public
@@ -249,7 +249,7 @@ var
   lText: string;
   lTextY: Integer;
 begin
-  if IsSelected or FDroppedDown then
+  if IsFocused or FDroppedDown then
     CurBorderColor := ForeColor
   else
     CurBorderColor := BorderColor;
@@ -387,10 +387,10 @@ begin
   end;
 end;
 
-procedure TNXComboBox.DoLostSelected;
+procedure TNXComboBox.DoLoseFocus;
 begin
   DroppedDown := False;
-  inherited DoLostSelected;
+  inherited DoLoseFocus;
 end;
 
 procedure TNXComboBox.DoKeyDown(const AEvent: TNXKeyEventData);

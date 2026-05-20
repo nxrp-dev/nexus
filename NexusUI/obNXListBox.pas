@@ -117,7 +117,7 @@ constructor TNXListBox.Create(const AParent: INXControlParent);
 begin
   inherited Create(AParent);
   BorderStyle := BS_Single;
-  Selectable := True;
+  CanFocus := True;
   FItems := TNXListBoxItemList.Create(True);
   FScrollbar := TNXScrollBar.Create(Self);
   FScrollbar.Min := 0;
@@ -164,7 +164,7 @@ var
 begin
   UpdateItemsToShow;
 
-  if IsSelected then
+  if IsFocused then
     CurBorderColor := Skin.ForeColor
   else
     CurBorderColor := BorderColor;
@@ -200,7 +200,7 @@ begin
       lRect.y := lIndex * FontLineSkip + 1;
       lRect.h := FontLineSkip - 2;
 
-      if IsSelected then
+      if IsFocused then
         RenderFilledRect(lRect, Skin.SelectedColor)
       else
         RenderFilledRect(lRect, Skin.TextBackColor);

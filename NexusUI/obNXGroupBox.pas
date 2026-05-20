@@ -40,7 +40,7 @@ begin
   FContentPanel.Align := caClient;
   FContentPanel.BorderStyle := BS_None;
   FContentPanel.FillStyle := FS_None;
-  FContentPanel.Selectable := False;
+  FContentPanel.CanFocus := False;
 end;
 
 constructor TNXGroupBox.Create(const AParent: INXControlParent; const ACaption: string;

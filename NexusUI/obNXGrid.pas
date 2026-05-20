@@ -119,7 +119,7 @@ begin
   inherited Create(AParent);
 
   BorderStyle := BS_Single;
-  Selectable := True;
+  CanFocus := True;
   FDefaultColWidth := cDefaultColWidth;
   FLineHeight := cDefaultLineHeight;
   FHeaderHeight := cDefaultHeaderHeight;

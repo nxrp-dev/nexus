@@ -76,7 +76,7 @@ type
     procedure CloseDropDown;
   protected
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
-    procedure DoLostSelected; override;
+    procedure DoLoseFocus; override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
     procedure RenderClient; override;
@@ -211,7 +211,7 @@ begin
   Height := cMenuHeight;
   BorderStyle := BS_None;
   FillStyle := FS_Filled;
-  Selectable := True;
+  CanFocus := True;
   ReceiveAllEvents := False;
   BackColor := Skin.BackColor;
   ForeColor := Skin.ForeColor;
@@ -454,9 +454,9 @@ begin
   end;
 end;
 
-procedure TNXMainMenu.DoLostSelected;
+procedure TNXMainMenu.DoLoseFocus;
 begin
-  inherited DoLostSelected;
+  inherited DoLoseFocus;
   FHotIndex := -1;
 end;
 

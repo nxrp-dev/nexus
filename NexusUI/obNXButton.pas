@@ -41,7 +41,7 @@ begin
     Result := ssPressed
   else if MouseEntered then
     Result := ssHot
-  else if IsSelected then
+  else if IsFocused then
     Result := ssFocused
   else
     Result := ssNormal;

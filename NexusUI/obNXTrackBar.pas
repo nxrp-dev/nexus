@@ -100,7 +100,7 @@ begin
   Height := 28;
   FillStyle := FS_None;
   BorderStyle := BS_None;
-  Selectable := True;
+  CanFocus := True;
 end;
 
 function TNXTrackBar.ClampValue(AValue: Integer): Integer;
@@ -152,7 +152,7 @@ begin
   if (AButton <> mbLeft) or (not Enabled) then
     Exit;
 
-  IsSelected := True;
+  Focus;
   Value := ValueFromPoint(AX, AY);
   FMoving := True;
   CaptureMouse;
@@ -355,12 +355,12 @@ begin
   DrawTickMarks;
 
   lThumbRect := GetThumbRect;
-  if (FMoving or MouseEntered or IsSelected) and Enabled then
+  if (FMoving or MouseEntered or IsFocused) and Enabled then
     RenderFilledRect(lThumbRect, Skin.SelectedColor)
   else
     RenderFilledRect(lThumbRect, BackColor);
 
-  if IsSelected then
+  if IsFocused then
     RenderRect(lThumbRect, ForeColor)
   else
     RenderRect(lThumbRect, BorderColor);

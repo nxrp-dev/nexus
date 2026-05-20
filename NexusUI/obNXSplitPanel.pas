@@ -103,7 +103,7 @@ begin
   Height := 50;
   FillStyle := FS_Filled;
   BorderStyle := BS_None;
-  Selectable := False;
+  CanFocus := False;
 end;
 
 constructor TNXSplitPanelSplitter.Create(const AParent: INXControlParent; AOwner: TNXSplitPanel);
@@ -112,7 +112,7 @@ begin
   FOwner := AOwner;
   BorderStyle := BS_None;
   FillStyle := FS_Filled;
-  Selectable := False;
+  CanFocus := False;
 end;
 
 procedure TNXSplitPanelSplitter.Render;

@@ -126,7 +126,7 @@ begin
   if Value then
     DrawRadioDot(lBoxRect, GetMarkColor);
 
-  if IsSelected then
+  if IsFocused then
     RenderRect(MakeNXRect(0, 0, Width, Height), ForeColor);
 
   RenderText(Caption, GetTextLeft, GetTextTop, Align_Left);

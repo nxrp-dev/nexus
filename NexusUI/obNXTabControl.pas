@@ -114,7 +114,7 @@ begin
   Align := caClient;
   BorderStyle := BS_None;
   FillStyle := FS_None;
-  Selectable := False;
+  CanFocus := False;
 end;
 
 constructor TNXTabStrip.Create(const AParent: INXControlParent;
@@ -126,7 +126,7 @@ begin
   BorderStyle := BS_None;
   FillStyle := FS_None;
   Height := cDefaultTabHeight;
-  Selectable := False;
+  CanFocus := False;
 end;
 
 procedure TNXTabStrip.DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton);
@@ -142,7 +142,7 @@ begin
   if lTabIndex >= 0 then
   begin
     FOwnerTabControl.ActivePageIndex := lTabIndex;
-    FOwnerTabControl.IsSelected := True;
+    FOwnerTabControl.Focus;
   end;
 end;
 
@@ -243,7 +243,7 @@ begin
   FActivePageIndex := -1;
   FTabHeight := cDefaultTabHeight;
   BorderStyle := BS_Single;
-  Selectable := True;
+  CanFocus := True;
   SkinClass := 'TabControl';
 
   FTabStrip := TNXTabStrip.Create(Self, Self);

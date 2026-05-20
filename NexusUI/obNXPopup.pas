@@ -58,7 +58,7 @@ begin
   FManager := nil;
   FOwner := AOwner;
   BorderStyle := BS_Single;
-  Selectable := False;
+  CanFocus := False;
   Visible := False;
 end;
 

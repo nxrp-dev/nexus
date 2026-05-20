@@ -87,7 +87,7 @@ begin
   BackColor := Skin.TextBackColor;
   Width := 160;
   Height := 20;
-  Selectable := False;
+  CanFocus := False;
 end;
 
 function TNXProgressBar.ClampValue(AValue: Integer): Integer;

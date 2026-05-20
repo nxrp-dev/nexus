@@ -50,7 +50,7 @@ begin
   Height := cDefaultCheckBoxHeight;
   FillStyle := FS_None;
   BorderStyle := BS_None;
-  Selectable := True;
+  CanFocus := True;
   SkinClass := 'CheckBox';
 end;
 
@@ -76,7 +76,7 @@ begin
     Result := Skin.TextBackColor
   else if mbLeft in ButtonStates then
     Result := ActiveColor
-  else if MouseEntered or IsSelected then
+  else if MouseEntered or IsFocused then
     Result := Skin.SelectedColor;
 end;
 
@@ -152,7 +152,7 @@ begin
       lBoxRect.y + 3, lMarkColor);
   end;
 
-  if IsSelected then
+  if IsFocused then
     RenderRect(MakeNXRect(0, 0, Width, Height), ForeColor);
 
   RenderText(Caption, GetTextLeft, GetTextTop, Align_Left);

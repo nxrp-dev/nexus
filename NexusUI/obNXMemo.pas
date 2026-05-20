@@ -96,12 +96,12 @@ type
     procedure AddLine(const AText: string); virtual;
     procedure Clear; virtual;
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
-    procedure DoLostSelected; override;
+    procedure DoLoseFocus; override;
     procedure DoMouseDoubleClick(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
     procedure DoMouseUp(X, Y: Integer; Button: TNXMouseButton); override;
-    procedure DoSelected; override;
+    procedure DoFocus; override;
     procedure DoTextInput(const AText: string); override;
 
     property CaretIndex: Integer read FCaretIndex write SetCaretIndex;
@@ -129,7 +129,7 @@ begin
   inherited Create(AParent);
   BackColor := Skin.TextBackColor;
   BorderStyle := BS_Single;
-  Selectable := True;
+  CanFocus := True;
   FCaretIndex := 0;
   FFirstVisibleLine := 0;
   FMaxLength := 0;
@@ -743,7 +743,7 @@ procedure TNXMemo.RenderPlaceholder;
 var
   lClientRect: TNXRect;
 begin
-  if (FText <> '') or IsSelected or (FPlaceholder = '') then
+  if (FText <> '') or IsFocused or (FPlaceholder = '') then
     Exit;
 
   lClientRect := ViewportRect;
@@ -823,7 +823,7 @@ var
   lDrawIndex: Integer;
   lTop: Integer;
 begin
-  if (not IsSelected) or HasSelection then
+  if (not IsFocused) or HasSelection then
     Exit;
 
   if (not Assigned(GetPlatform)) or
@@ -882,16 +882,16 @@ begin
   SetText('');
 end;
 
-procedure TNXMemo.DoSelected;
+procedure TNXMemo.DoFocus;
 begin
-  inherited DoSelected;
+  inherited DoFocus;
   if Assigned(GetPlatform) then
     GetPlatform.StartTextInput;
 end;
 
-procedure TNXMemo.DoLostSelected;
+procedure TNXMemo.DoLoseFocus;
 begin
-  inherited DoLostSelected;
+  inherited DoLoseFocus;
   FMouseSelecting := False;
   ReleaseMouseCapture;
   if Assigned(GetPlatform) then

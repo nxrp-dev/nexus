@@ -219,7 +219,7 @@ begin
   inherited Create(nil);
   BorderStyle := BS_Single;
   FillStyle := FS_Filled;
-  Selectable := True;
+  CanFocus := True;
   FIndentWidth := cDefaultIndentWidth;
   FRootNodes := TNXTreeListRootList.Create(True);
   FVisibleNodes := TNXTreeListVisibleNodeList.Create;
@@ -452,7 +452,7 @@ begin
     lItemHeight);
 
   if ANode = FSelectedNode then
-    if IsSelected then
+    if IsFocused then
       RenderFilledRect(lNodeRect, Skin.SelectedColor)
     else
       RenderFilledRect(lNodeRect, Skin.TextBackColor);

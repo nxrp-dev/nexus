@@ -183,7 +183,7 @@ begin
   FillStyle := FS_Filled;
   BackColor := Skin.BackColor;
   ForeColor := Skin.ForeColor;
-  Selectable := True;
+  CanFocus := True;
   ReceiveAllEvents := True;
 
   Width := cMenuMinWidth;
@@ -415,7 +415,7 @@ begin
   if FSelectedIndex < 0 then
     FSelectedIndex := FirstExecutableIndex;
 
-  IsSelected := True;
+  Focus;
 end;
 
 procedure TNXPopupMenu.RenderClient;

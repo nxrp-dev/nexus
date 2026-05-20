@@ -12,9 +12,11 @@ type
   TNXControlList = specialize TFPGObjectList<TNXControl>;
   INXControlParent = interface
     procedure AddChild(AChild: TNXControl);
+    procedure ChildDestroying(AChild: TNXControl);
+    procedure ClearChildFocus;
+    procedure FocusChild(AChild: TNXControl);
     procedure FreeChild(AChild: TNXControl);
     procedure LayoutChildren;
-    procedure UnselectChildren;
     function GetAbsLeft: Integer;
     function GetAbsTop: Integer;
     function GetCanvas: TNXCanvas;
@@ -74,10 +76,12 @@ type
     destructor Destroy; override;
 
     procedure AddChild(AChild: TNXControl); virtual;
+    procedure ChildDestroying(AChild: TNXControl); virtual;
+    procedure ClearChildFocus; virtual;
+    procedure FocusChild(AChild: TNXControl); virtual;
     procedure FreeChild(AChild: TNXControl); virtual;
     procedure LayoutChildren; virtual;
     procedure SendSizeCallback; virtual;
-    procedure UnselectChildren; virtual;
 
     property AbsLeft: Integer read GetAbsLeft;
     property AbsTop: Integer read GetAbsTop;
@@ -91,8 +95,9 @@ type
 
   TNXControl = class(TNXControlHost)
   private
-    FCurSelected, FDestroying, FEnabled, FMouseEntered, FReceiveAllEvents: Boolean;
-    FSelectable, FVisible: Boolean;
+    FCanFocus, FDestroying, FEnabled, FFocused, FMouseEntered,
+      FReceiveAllEvents: Boolean;
+    FVisible: Boolean;
     FHeight, FLeft, FTop, FWidth: integer;
     FAlign: TNXControlAlign;
     FAnchors: TNXControlAnchors;
@@ -106,7 +111,8 @@ type
     FLastClickX, FLastClickY: Integer;
     FOnKeyDown: TNXKeyEvent;
     FOnKeyUp: TNXKeyEvent;
-    FOnLostSelected: TNotifyEvent;
+    FOnFocus: TNotifyEvent;
+    FOnLoseFocus: TNotifyEvent;
     FOnMouseClick: TNXMouseEvent;
     FOnMouseDoubleClick: TNXMouseEvent;
     FOnMouseDown: TNXMouseEvent;
@@ -115,7 +121,6 @@ type
     FOnMouseMotion: TNXMouseMotionEvent;
     FOnMouseUp: TNXMouseEvent;
     FOnResize: TNotifyEvent;
-    FOnSelected: TNotifyEvent;
     FOnTextInput: TNXTextInputEvent;
     FParent: INXControlParent;
     FFont: TNXFont;
@@ -138,7 +143,7 @@ type
     procedure SetHeight(AHeight: integer); virtual;
     procedure SetAlign(AValue: TNXControlAlign); virtual;
     procedure SetAnchors(AValue: TNXControlAnchors); virtual;
-    procedure SetSelected(NewState: Boolean); virtual;
+    procedure SetFocused(AValue: Boolean); virtual;
     procedure PropagateParentContext; virtual;
     procedure AttachToParent(const AParent: INXControlParent); virtual;
     procedure BringToFront; virtual;
@@ -191,13 +196,16 @@ type
     procedure DoTextInput(const AText: string); virtual;
     procedure DoMouseClick(X, Y: Integer; Button: TNXMouseButton); virtual;
     procedure DoMouseDoubleClick(X, Y: Integer; Button: TNXMouseButton); virtual;
-    procedure DoSelected; virtual;
-    procedure DoLostSelected; virtual;
+    procedure DoFocus; virtual;
+    procedure DoLoseFocus; virtual;
     procedure DoKeyDown(const AEvent: TNXKeyEventData); virtual;
     procedure DoKeyUp(const AEvent: TNXKeyEventData); virtual;
     procedure DoResize; virtual;
   public
     procedure SetParent(const AParent: INXControlParent); virtual;
+    procedure ChildDestroying(AChild: TNXControl); override;
+    procedure Focus; virtual;
+    procedure FocusChild(AChild: TNXControl); override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); virtual;
     procedure Paint; virtual;
     procedure Render; virtual;
@@ -209,6 +217,7 @@ type
     procedure ChildAddedCallback; virtual;
     property MouseEntered: Boolean read FMouseEntered;
     function InControl(AX, AY: Integer): Boolean; virtual;
+    function FindFocusableControlAt(X, Y: Integer): TNXControl; virtual;
 
     procedure ProcessMouseEnter; virtual;
     procedure ProcessMouseExit; virtual;
@@ -217,8 +226,8 @@ type
     procedure ProcessMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); virtual;
     procedure ProcessTextInput(const AText: string); virtual;
     procedure ProcessMouseClick(X, Y: Integer; Button: TNXMouseButton); virtual;
-    procedure ProcessSelected; virtual;
-    procedure ProcessLostSelected; virtual;
+    procedure ProcessFocus; virtual;
+    procedure ProcessLoseFocus; virtual;
     procedure ProcessKeyDown(const AEvent: TNXKeyEventData); virtual;
     procedure ProcessKeyUp(const AEvent: TNXKeyEventData); virtual;
     procedure ProcessResize; virtual;
@@ -248,7 +257,8 @@ type
     property Left: Integer read GetLeft write SetLeft;
     property OnKeyDown: TNXKeyEvent read FOnKeyDown write FOnKeyDown;
     property OnKeyUp: TNXKeyEvent read FOnKeyUp write FOnKeyUp;
-    property OnLostSelected: TNotifyEvent read FOnLostSelected write FOnLostSelected;
+    property OnFocus: TNotifyEvent read FOnFocus write FOnFocus;
+    property OnLoseFocus: TNotifyEvent read FOnLoseFocus write FOnLoseFocus;
     property OnMouseClick: TNXMouseEvent read FOnMouseClick write FOnMouseClick;
     property OnMouseDoubleClick: TNXMouseEvent read FOnMouseDoubleClick write FOnMouseDoubleClick;
     property OnMouseDown: TNXMouseEvent read FOnMouseDown write FOnMouseDown;
@@ -257,13 +267,12 @@ type
     property OnMouseMotion: TNXMouseMotionEvent read FOnMouseMotion write FOnMouseMotion;
     property OnMouseUp: TNXMouseEvent read FOnMouseUp write FOnMouseUp;
     property OnResize: TNotifyEvent read FOnResize write FOnResize;
-    property OnSelected: TNotifyEvent read FOnSelected write FOnSelected;
     property OnTextInput: TNXTextInputEvent read FOnTextInput write FOnTextInput;
     property Parent: INXControlParent read FParent;
     property ReceiveAllEvents: Boolean read FReceiveAllEvents write FReceiveAllEvents;
     property Canvas: TNXCanvas read GetCanvas write SetCanvas;
-    property Selectable: Boolean read FSelectable write FSelectable;
-    property IsSelected: Boolean read FCurSelected write SetSelected;
+    property CanFocus: Boolean read FCanFocus write FCanFocus;
+    property IsFocused: Boolean read FFocused write SetFocused;
     property IsDestroying: Boolean read FDestroying;
     property Skin: TNXSkin read GetSkin;
     property SkinClass: string read FSkinClass write FSkinClass;
@@ -324,6 +333,22 @@ begin
   AChild.SetParent(INXControlParent(Self));
   AChild.ChildAddedCallback;
   LayoutChildren;
+end;
+
+procedure TNXControlHost.ChildDestroying(AChild: TNXControl);
+begin
+end;
+
+procedure TNXControlHost.ClearChildFocus;
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to Children.Count - 1 do
+    Children[lIndex].IsFocused := False;
+end;
+
+procedure TNXControlHost.FocusChild(AChild: TNXControl);
+begin
 end;
 
 procedure TNXControlHost.FreeChild(AChild: TNXControl);
@@ -465,14 +490,6 @@ begin
     Children[lIndex].Canvas := ACanvas;
 end;
 
-procedure TNXControlHost.UnselectChildren;
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to Children.Count - 1 do
-    Children[lIndex].IsSelected := False;
-end;
-
 procedure TNXControl.SetParent(const AParent: INXControlParent);
 begin
   FParent := AParent;
@@ -599,7 +616,7 @@ begin
   FAlign := caNone;
   FAnchors := [ancLeft, ancTop];
   ReceiveAllEvents := False;
-  Selectable := True;
+  CanFocus := True;
   Enabled := True;
   Visible := True;
   AttachToParent(AParent);
@@ -627,10 +644,36 @@ destructor TNXControl.Destroy;
 begin
   FDestroying := True;
 
+  if Assigned(Parent) then
+    Parent.ChildDestroying(Self);
+
   if GCapturedMouseControl = Self then
     GCapturedMouseControl := nil;
 
   inherited Destroy;
+end;
+
+procedure TNXControl.ChildDestroying(AChild: TNXControl);
+begin
+  if Assigned(Parent) then
+    Parent.ChildDestroying(AChild);
+end;
+
+procedure TNXControl.Focus;
+begin
+  if not CanFocus then
+    Exit;
+
+  if Assigned(Parent) then
+    Parent.FocusChild(Self)
+  else
+    IsFocused := True;
+end;
+
+procedure TNXControl.FocusChild(AChild: TNXControl);
+begin
+  if Assigned(Parent) then
+    Parent.FocusChild(AChild);
 end;
 
 procedure TNXControl.CaptureMouse;
@@ -971,25 +1014,23 @@ procedure TNXControl.ctrl_FontChanged;
 begin
 end;
 
-procedure TNXControl.SetSelected(NewState: Boolean);
+procedure TNXControl.SetFocused(AValue: Boolean);
 begin
-  if NewState then
+  if AValue then
   begin
-    if (not FCurSelected) and Selectable then
+    if (not FFocused) and CanFocus then
     begin
-      if Assigned(Parent) then
-        Parent.UnSelectChildren;
-      FCurSelected := True;
-      ProcessSelected;
+      FFocused := True;
+      ProcessFocus;
     end;
   end
   else
   begin
-    if FCurSelected and Selectable then
+    if FFocused then
     begin
-      ProcessLostSelected;
-      UnSelectChildren;
-      FCurSelected := False;
+      ProcessLoseFocus;
+      ClearChildFocus;
+      FFocused := False;
     end;
   end;
 end;
@@ -1027,6 +1068,37 @@ begin
       Exit;
     end;
   end;
+end;
+
+function TNXControl.FindFocusableControlAt(X, Y: Integer): TNXControl;
+var
+  lChild: TNXControl;
+  lIndex: Integer;
+  lLocalX: Integer;
+  lLocalY: Integer;
+begin
+  Result := nil;
+  if (not Visible) or (not InControl(X + Left, Y + Top)) then
+    Exit;
+
+  for lIndex := Children.Count - 1 downto 0 do
+  begin
+    lChild := Children[lIndex];
+    if not lChild.Visible then
+      Continue;
+
+    lLocalX := X - GetChildOriginX(lChild) - lChild.Left;
+    lLocalY := Y - GetChildOriginY(lChild) - lChild.Top;
+    if lChild.InControl(lLocalX + lChild.Left, lLocalY + lChild.Top) then
+    begin
+      Result := lChild.FindFocusableControlAt(lLocalX, lLocalY);
+      if Assigned(Result) then
+        Exit;
+    end;
+  end;
+
+  if Enabled and CanFocus then
+    Result := Self;
 end;
 
 procedure TNXControl.ProcessMouseEnter;
@@ -1087,13 +1159,11 @@ begin
         Y - GetChildOriginY(lChild) - lChild.Top,
         Button
       );
-      lChild.IsSelected := True;
     end;
   end;
 
   if (not lPassed) or ReceiveAllEvents then
   begin
-    UnselectChildren;
     Include(ButtonStates, Button);
     DoMouseDown(X, Y, Button);
   end;
@@ -1228,44 +1298,28 @@ begin
 end;
 
 procedure TNXControl.ProcessTextInput(const AText: string);
-var
-  lIndex: Integer;
 begin
   DoTextInput(AText);
-
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].IsSelected then
-      Children[lIndex].ProcessTextInput(AText);
 end;
 
-procedure TNXControl.ProcessSelected;
+procedure TNXControl.ProcessFocus;
 begin
-  DoSelected;
+  DoFocus;
 end;
 
-procedure TNXControl.ProcessLostSelected;
+procedure TNXControl.ProcessLoseFocus;
 begin
-  DoLostSelected;
+  DoLoseFocus;
 end;
 
 procedure TNXControl.ProcessKeyDown(const AEvent: TNXKeyEventData);
-var
-  lIndex: Integer;
 begin
   DoKeyDown(AEvent);
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].IsSelected then
-      Children[lIndex].ProcessKeyDown(AEvent);
 end;
 
 procedure TNXControl.ProcessKeyUp(const AEvent: TNXKeyEventData);
-var
-  lIndex: Integer;
 begin
   DoKeyUp(AEvent);
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].IsSelected then
-      Children[lIndex].ProcessKeyUp(AEvent);
 end;
 
 procedure TNXControl.ProcessResize;
@@ -1321,16 +1375,16 @@ begin
     FOnMouseDoubleClick(Self, X, Y, Button);
 end;
 
-procedure TNXControl.DoSelected;
+procedure TNXControl.DoFocus;
 begin
-  if Assigned(FOnSelected) then
-    FOnSelected(Self);
+  if Assigned(FOnFocus) then
+    FOnFocus(Self);
 end;
 
-procedure TNXControl.DoLostSelected;
+procedure TNXControl.DoLoseFocus;
 begin
-  if Assigned(FOnLostSelected) then
-    FOnLostSelected(Self);
+  if Assigned(FOnLoseFocus) then
+    FOnLoseFocus(Self);
 end;
 
 procedure TNXControl.DoKeyDown(const AEvent: TNXKeyEventData);
