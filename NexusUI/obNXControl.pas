@@ -635,10 +635,18 @@ begin
 end;
 
 constructor TNXControl.Create(const AParent: INXControlParent);
+var
+  lSkin: TNXSkin;
 begin
   inherited Create;
-  FHeight := 50;
-  FWidth := 50;
+  lSkin := nil;
+  if Assigned(AParent) then
+    lSkin := AParent.Skin
+  else if Assigned(Application) then
+    lSkin := Application.Skin;
+
+  FHeight := 256;
+  FWidth := 256;
   FHasLastClick := False;
   FLastClickButton := mbNone;
   FLastClickTicks := 0;
@@ -651,16 +659,17 @@ begin
   TabStop := True;
   Enabled := True;
   Visible := True;
-  AttachToParent(AParent);
-  ForeColor := Skin.ForeColor;
-  BackColor := Skin.BackColor;
-  Width := 256;
-  Height := 256;
+  if Assigned(lSkin) then
+  begin
+    ForeColor := lSkin.ForeColor;
+    BackColor := lSkin.BackColor;
+    BorderColor := lSkin.BorderColor;
+    ActiveColor := lSkin.ActiveColor;
+  end;
   BorderStyle := BS_None;
-  BorderColor := Skin.BorderColor;
-  ActiveColor := Skin.ActiveColor;
   FillStyle := FS_Filled;
   SkinClass := '';
+  AttachToParent(AParent);
 end;
 
 constructor TNXControl.Create(const AParent: INXControlParent; const ARect: TNXRect);
