@@ -208,7 +208,7 @@ begin
   CreateRootWindow;
 
   FFonts.Initialize;
-  FFonts.LoadDefaultFont('resources\Federation.ttf', 13);
+  FFonts.LoadDefaultFont('resources' + PathDelim + 'Federation.ttf', 13);
   RootWindow.Font := FFonts.DefaultFont;
 end;
 

@@ -99,7 +99,7 @@ var
   MoneyTreemap1: TNXTreeMap;
   lIndex: Integer;
 const
-  ResourcesDir = 'resources\';
+  ResourcesDir = 'resources' + PathDelim;
 
 procedure TDemoEvents.DialogButtonClick(Sender: TObject; X, Y: Integer;
   Button: TNXMouseButton);

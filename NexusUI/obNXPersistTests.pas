@@ -277,7 +277,7 @@ begin
     AssertTrue('Favorite should stream out', Pos('"Favorite"', lJSON) > 0);
     AssertTrue('Favorite descendant data should stream out',
       Pos('"Lives" : 7', lJSON) > 0);
-    SaveTextFile('test_output\nxpersist.json', lJSON);
+    SaveTextFile('test_output' + PathDelim + 'nxpersist.json', lJSON);
 
     lLoaded := TNXPersistObject.CreateObjectFromJSON(lJSON);
     try
