@@ -2,8 +2,35 @@ site_name: Nexus
 site_description: Nexus project documentation
 repo_url: https://github.com/nxrp-dev/nexus
 
-theme:
-  name: material
-
 nav:
   - Home: index.md
+  - NexusUI:
+      - Overview: nexusui/index.md
+      - Architecture: nexusui/architecture.md
+      - Event and Focus Model: nexusui/event-focus.md
+      - Controls: nexusui/controls.md
+      - Styling and Skins: nexusui/styling-skins.md
+      - Development Notes: nexusui/development.md
+      - Roadmap: nexusui/roadmap.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+    - search.suggest
