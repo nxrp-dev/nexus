@@ -1,61 +1,42 @@
 # NexusSchema
 
-NexusSchema is the schema/compiler side of the Nexus project family.
+NexusSchema is the schema side of the Nexus project family.
 
-Its job is to keep schema intent in a small source format and generate the mechanical output from that intent. The current implementation lineage comes from `dppCompiler`, a Free Pascal console compiler that parses metadata input, transforms it into an internal metadata model, writes XML, then drives template-based generation.
+Its purpose is to describe structured data and the relationships between that data in a form that can later drive repeatable tooling.
 
-## What it is for
+## Purpose
 
-NexusSchema exists to avoid hand-maintaining repetitive schema artifacts.
+NexusSchema should make schema intent explicit.
 
-The practical targets are:
+The goal is not to create another pile of hand-maintained scripts. The goal is to define structure once, then let tooling produce the repetitive output that follows from that structure.
 
-- schema definition files
-- metadata parsing
-- metadata transformation
-- XML export
-- template-driven output generation
-- database creation scripts
-- import scripts
-- future code generation
+Useful targets include:
 
-## Current implementation shape
+- database schema definitions
+- validation rules
+- import/export definitions
+- generated scripts
+- generated source code
+- documentation derived from schema definitions
 
-The current compiler project is a Lazarus / Free Pascal console program named `dppCompiler`.
+## Boundary
 
-The project file includes parser, list/model, transformation, XML, command-line, tokenizer, and utility units. The active run parameters show the intended generation flow:
+NexusSchema is separate from NexusUI.
 
-```text
-/dpp="firebird\DatabaseSchema.create.ftl" /csv="firebird\DatabaseImport.import.ftl" /output="output" /metadata="inForceMain.dpp"
-```
+NexusUI is the UI framework. NexusSchema is for describing data structures, schema rules, and generation inputs. They are part of the same broader Nexus project family, but they should stay documented separately.
 
-This means a metadata file is selected with `/metadata`, output goes to `/output`, and template selection is keyed by source-file extension.
+## Current documentation status
 
-## Generation flow
+This documentation is intentionally conservative.
 
-At a high level:
+It describes the public direction of NexusSchema without documenting unreleased private history or obsolete internal project names.
 
-1. Read command-line options.
-2. Determine the metadata file extension.
-3. Select the matching template from the command line.
-4. Parse the metadata file into `TMetaDataModuleList`.
-5. Transform the metadata model.
-6. Save the transformed model as XML.
-7. Run the matching template against the XML.
-8. Process child data files listed in the metadata model.
+## Working model
 
-## Relationship to NexusUI
-
-NexusSchema is not part of NexusUI.
-
-NexusUI is the retained-mode SDL-backed UI framework. NexusSchema is the schema/parser/generator toolchain. They live under the same Nexus documentation site because they are part of the same broader project family, but they should stay documented separately.
-
-## Current priority
-
-The useful next step is to stabilize NexusSchema around a clean executable pipeline:
+The intended shape is simple:
 
 ```text
-source metadata -> parser -> metadata model -> transform -> XML -> templates -> generated output
+schema definition -> schema model -> validation/normalization -> generated output
 ```
 
-The implementation already has most of those pieces. The immediate work is mostly cleanup, naming, portability, and documentation of the actual source format.
+The exact source syntax and implementation details should be documented only after they are stable enough to be public.
