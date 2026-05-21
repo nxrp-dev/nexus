@@ -2,6 +2,17 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"type": "lazarus",
+			"label": "NexusSchema",
+			"project": "NexusSchema.lpi",
+			"buildMode": "Default",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
 			"type": "fpc",
 			"label": "NexusSchema",
 			"file": "NexusSchema.lpr",

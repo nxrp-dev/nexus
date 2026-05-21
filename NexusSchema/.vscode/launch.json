@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Lazarus App",
+      "type": "by-gdb",
+      "request": "launch",
+      "program": "${workspaceFolder}\\NexusSchema.exe",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "NexusSchema"
+    }
+  ]
+}
