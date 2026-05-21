@@ -3,7 +3,7 @@
   "configurations": [
     {
       "name": "Debug Lazarus App",
-      "type": "by-gdb",
+      "type": "cppdbg",
       "request": "launch",
       "program": "${workspaceFolder}\\NexusSchema.exe",
       "cwd": "${workspaceFolder}",

@@ -11,18 +11,6 @@
 				"isDefault": true
 			},
 			"problemMatcher": []
-		},
-		{
-			"type": "fpc",
-			"label": "NexusSchema",
-			"file": "NexusSchema.lpr",
-			"buildOption": {
-				"unitOutputDir": "./bin/${targetOS}-${targetCPU}"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": false
-			}
 		}
 	]
 }
