@@ -4,22 +4,54 @@ repo_url: https://github.com/nxrp-dev/nexus
 
 nav:
   - Home: index.md
-  - NexusUI:
-      - Overview: nexusui/index.md
-      - Architecture: nexusui/architecture.md
-      - Event and Focus Model: nexusui/event-focus.md
-      - Controls: nexusui/controls.md
-      - Component Inventory: nexusui/components.md
-      - Styling and Skins: nexusui/styling-skins.md
-      - Development Notes: nexusui/development.md
-      - Roadmap: nexusui/roadmap.md
-  - NexusSchema:
-      - Overview: nexusschema/index.md
-      - Architecture: nexusschema/architecture.md
-      - Command Line Flow: nexusschema/command-line.md
-      - Metadata Model: nexusschema/metadata-model.md
-      - Templates: nexusschema/templates.md
-      - Code Review Notes: nexusschema/code-review.md
+  - Nexus Pascal:
+      - Overview: nexus-pascal/overview.md
+      - Installation: nexus-pascal/installation.md
+      - Quick Start: nexus-pascal/quick-start.md
+      - Project Types: nexus-pascal/project-types.md
+      - Project Starters: nexus-pascal/project-starters.md
+      - Building: nexus-pascal/building.md
+      - Debugging: nexus-pascal/debugging.md
+      - Code Intelligence: nexus-pascal/code-intelligence.md
+      - Configuration: nexus-pascal/configuration.md
+      - Troubleshooting: nexus-pascal/troubleshooting.md
+  - Nexus UI:
+      - Overview: nexus-ui/overview.md
+      - Philosophy: nexus-ui/philosophy.md
+      - Getting Started: nexus-ui/getting-started.md
+      - Architecture: nexus-ui/architecture.md
+      - Controls: nexus-ui/controls.md
+      - Layout: nexus-ui/layout.md
+      - Styling: nexus-ui/styling.md
+      - Data Binding: nexus-ui/data-binding.md
+      - Cross Platform: nexus-ui/cross-platform.md
+  - Nexus Schema:
+      - Overview: nexus-schema/overview.md
+      - Philosophy: nexus-schema/philosophy.md
+      - Getting Started: nexus-schema/getting-started.md
+      - Schema Language: nexus-schema/schema-language.md
+      - Templates: nexus-schema/templates.md
+      - Database Generation: nexus-schema/database-generation.md
+      - Code Generation: nexus-schema/code-generation.md
+      - Command Line: nexus-schema/command-line.md
+      - Examples: nexus-schema/examples.md
+  - Guides:
+      - Building a Pascal Application in VS Code: guides/building-pascal-vscode.md
+      - Building a Nexus UI Application: guides/building-nexus-ui.md
+      - Creating a Schema-Driven Project: guides/schema-driven-project.md
+      - Maintaining Legacy Pascal Code: guides/maintaining-legacy-pascal.md
+      - AI-Assisted Pascal Development: guides/ai-assisted-pascal.md
+  - Reference:
+      - Naming Conventions: reference/naming-conventions.md
+      - File and Folder Conventions: reference/file-folder-conventions.md
+      - VS Code Configuration: reference/vscode-configuration.md
+      - Pascal Compiler Options: reference/pascal-compiler-options.md
+      - Glossary: reference/glossary.md
+  - Roadmap:
+      - Nexus Pascal Roadmap: roadmap/nexus-pascal.md
+      - Nexus UI Roadmap: roadmap/nexus-ui.md
+      - Nexus Schema Roadmap: roadmap/nexus-schema.md
+      - Planned Ecosystem Integration: roadmap/ecosystem-integration.md
 
 markdown_extensions:
   - admonition
