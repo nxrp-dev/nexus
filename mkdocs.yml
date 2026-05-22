@@ -73,8 +73,9 @@ markdown_extensions:
 theme:
   name: material
   features:
+    - navigation.tabs
     - navigation.sections
-    - navigation.expand
+    - navigation.indexes
     - navigation.top
     - content.code.copy
     - search.highlight
