@@ -36,13 +36,20 @@ type
     procedure DrawRect(const ARect: TNXRect; const AColor: TNXColor); virtual; abstract;
     procedure FillRect(const ARect: TNXRect; const AColor: TNXColor); virtual; abstract;
     procedure DrawLine(AX0, AY0, AX1, AY1: Integer; const AColor: TNXColor); virtual; abstract;
+    procedure DrawCircle(AX, AY, ARadius: Integer; const AColor: TNXColor); virtual; abstract;
+    procedure FillCircle(AX, AY, ARadius: Integer; const AColor: TNXColor); virtual; abstract;
     procedure DrawText(const AText: string; AX, AY: Integer;
       const AColor: TNXColor; AFont: TNXFontHandle); virtual; abstract;
     function LoadImage(const AFileName: string): TNXImageHandle; virtual; abstract;
     procedure DestroyImage(AImage: TNXImageHandle); virtual; abstract;
+    procedure GetImageSize(AImage: TNXImageHandle; out AWidth, AHeight: Integer); virtual; abstract;
     procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect); virtual; abstract;
+    procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect;
+      AAlpha: Integer); virtual; abstract;
     procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
       ADestRect: TNXRect); virtual; abstract;
+    procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
+      ADestRect: TNXRect; AAlpha: Integer); virtual; abstract;
     function TextWidth(const AText: string; AFont: TNXFontHandle): Integer; virtual; abstract;
     function GetTicks: UInt32; virtual; abstract;
     function IsControlDown: Boolean; virtual; abstract;

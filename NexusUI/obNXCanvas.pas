@@ -27,13 +27,20 @@ type
     procedure DrawRect(const ARect: TNXRect; const AColor: TNXColor);
     procedure FillRect(const ARect: TNXRect; const AColor: TNXColor);
     procedure DrawLine(AX0, AY0, AX1, AY1: Integer; const AColor: TNXColor);
+    procedure DrawCircle(AX, AY, ARadius: Integer; const AColor: TNXColor);
+    procedure FillCircle(AX, AY, ARadius: Integer; const AColor: TNXColor);
     procedure DrawText(const AText: string; AX, AY: Integer;
       const AColor: TNXColor; AFont: TNXFont);
     function LoadImage(const AFileName: string): TNXImageHandle;
     procedure DestroyImage(AImage: TNXImageHandle);
+    procedure GetImageSize(AImage: TNXImageHandle; out AWidth, AHeight: Integer);
     procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect); overload;
+    procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect;
+      AAlpha: Integer); overload;
     procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
       ADestRect: TNXRect); overload;
+    procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
+      ADestRect: TNXRect; AAlpha: Integer); overload;
     procedure DrawNineSlice(AImage: TNXImageHandle; const ASourceRect: TNXRect;
       ALeft, ATop, ARight, ABottom: Integer; const ADestRect: TNXRect);
     function TextWidth(const AText: string; AFont: TNXFont): Integer;
@@ -85,6 +92,18 @@ begin
   FPlatform.DrawLine(AX0, AY0, AX1, AY1, AColor);
 end;
 
+procedure TNXCanvas.DrawCircle(AX, AY, ARadius: Integer;
+  const AColor: TNXColor);
+begin
+  FPlatform.DrawCircle(AX, AY, ARadius, AColor);
+end;
+
+procedure TNXCanvas.FillCircle(AX, AY, ARadius: Integer;
+  const AColor: TNXColor);
+begin
+  FPlatform.FillCircle(AX, AY, ARadius, AColor);
+end;
+
 procedure TNXCanvas.DrawText(const AText: string; AX, AY: Integer;
   const AColor: TNXColor; AFont: TNXFont);
 begin
@@ -104,15 +123,33 @@ begin
   FPlatform.DestroyImage(AImage);
 end;
 
+procedure TNXCanvas.GetImageSize(AImage: TNXImageHandle; out AWidth,
+  AHeight: Integer);
+begin
+  FPlatform.GetImageSize(AImage, AWidth, AHeight);
+end;
+
 procedure TNXCanvas.DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect);
 begin
   FPlatform.DrawImage(AImage, ADestRect);
+end;
+
+procedure TNXCanvas.DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect;
+  AAlpha: Integer);
+begin
+  FPlatform.DrawImage(AImage, ADestRect, AAlpha);
 end;
 
 procedure TNXCanvas.DrawImage(AImage: TNXImageHandle; const ASourceRect,
   ADestRect: TNXRect);
 begin
   FPlatform.DrawImage(AImage, ASourceRect, ADestRect);
+end;
+
+procedure TNXCanvas.DrawImage(AImage: TNXImageHandle; const ASourceRect,
+  ADestRect: TNXRect; AAlpha: Integer);
+begin
+  FPlatform.DrawImage(AImage, ASourceRect, ADestRect, AAlpha);
 end;
 
 procedure TNXCanvas.DrawNineSlicePart(AImage: TNXImageHandle;

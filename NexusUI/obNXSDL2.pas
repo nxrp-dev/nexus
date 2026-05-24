@@ -57,13 +57,20 @@ type
     procedure DrawRect(const ARect: TNXRect; const AColor: TNXColor); override;
     procedure FillRect(const ARect: TNXRect; const AColor: TNXColor); override;
     procedure DrawLine(AX0, AY0, AX1, AY1: Integer; const AColor: TNXColor); override;
+    procedure DrawCircle(AX, AY, ARadius: Integer; const AColor: TNXColor); override;
+    procedure FillCircle(AX, AY, ARadius: Integer; const AColor: TNXColor); override;
     procedure DrawText(const AText: string; AX, AY: Integer;
       const AColor: TNXColor; AFont: TNXFontHandle); override;
     function LoadImage(const AFileName: string): TNXImageHandle; override;
     procedure DestroyImage(AImage: TNXImageHandle); override;
+    procedure GetImageSize(AImage: TNXImageHandle; out AWidth, AHeight: Integer); override;
     procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect); override;
+    procedure DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect;
+      AAlpha: Integer); override;
     procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
       ADestRect: TNXRect); override;
+    procedure DrawImage(AImage: TNXImageHandle; const ASourceRect,
+      ADestRect: TNXRect; AAlpha: Integer); override;
     function TextWidth(const AText: string; AFont: TNXFontHandle): Integer; override;
     function GetTicks: UInt32; override;
     function IsControlDown: Boolean; override;
@@ -224,6 +231,8 @@ begin
     raise Exception.Create('Unable to create application renderer: ' +
       string(SDL_GetError));
   end;
+
+  SDL_SetRenderDrawBlendMode(FRenderer, SDL_BLENDMODE_BLEND);
 end;
 
 procedure TNXSDL2.DestroyDisplay;
@@ -472,6 +481,76 @@ begin
   SDL_RenderDrawLine(FRenderer, AX0, AY0, AX1, AY1);
 end;
 
+procedure TNXSDL2.DrawCircle(AX, AY, ARadius: Integer; const AColor: TNXColor);
+var
+  lDecision: Integer;
+  lX: Integer;
+  lY: Integer;
+begin
+  if (FRenderer = nil) or (ARadius < 0) then
+    Exit;
+
+  SDL_SetRenderDrawColor(FRenderer, AColor.r, AColor.g, AColor.b, AColor.a);
+
+  lX := ARadius;
+  lY := 0;
+  lDecision := 1 - lX;
+
+  while lY <= lX do
+  begin
+    SDL_RenderDrawPoint(FRenderer, AX + lX, AY + lY);
+    SDL_RenderDrawPoint(FRenderer, AX + lY, AY + lX);
+    SDL_RenderDrawPoint(FRenderer, AX - lY, AY + lX);
+    SDL_RenderDrawPoint(FRenderer, AX - lX, AY + lY);
+    SDL_RenderDrawPoint(FRenderer, AX - lX, AY - lY);
+    SDL_RenderDrawPoint(FRenderer, AX - lY, AY - lX);
+    SDL_RenderDrawPoint(FRenderer, AX + lY, AY - lX);
+    SDL_RenderDrawPoint(FRenderer, AX + lX, AY - lY);
+
+    Inc(lY);
+    if lDecision <= 0 then
+      lDecision := lDecision + (2 * lY) + 1
+    else
+    begin
+      Dec(lX);
+      lDecision := lDecision + (2 * (lY - lX)) + 1;
+    end;
+  end;
+end;
+
+procedure TNXSDL2.FillCircle(AX, AY, ARadius: Integer; const AColor: TNXColor);
+var
+  lDecision: Integer;
+  lX: Integer;
+  lY: Integer;
+begin
+  if (FRenderer = nil) or (ARadius < 0) then
+    Exit;
+
+  SDL_SetRenderDrawColor(FRenderer, AColor.r, AColor.g, AColor.b, AColor.a);
+
+  lX := ARadius;
+  lY := 0;
+  lDecision := 1 - lX;
+
+  while lY <= lX do
+  begin
+    SDL_RenderDrawLine(FRenderer, AX - lX, AY + lY, AX + lX, AY + lY);
+    SDL_RenderDrawLine(FRenderer, AX - lX, AY - lY, AX + lX, AY - lY);
+    SDL_RenderDrawLine(FRenderer, AX - lY, AY + lX, AX + lY, AY + lX);
+    SDL_RenderDrawLine(FRenderer, AX - lY, AY - lX, AX + lY, AY - lX);
+
+    Inc(lY);
+    if lDecision <= 0 then
+      lDecision := lDecision + (2 * lY) + 1
+    else
+    begin
+      Dec(lX);
+      lDecision := lDecision + (2 * (lY - lX)) + 1;
+    end;
+  end;
+end;
+
 procedure TNXSDL2.DrawText(const AText: string; AX, AY: Integer;
   const AColor: TNXColor; AFont: TNXFontHandle);
 var
@@ -531,12 +610,31 @@ begin
   if Result = nil then
     raise Exception.Create('Unable to load image "' + AFileName + '": ' +
       string(SDL_GetError));
+
+  SDL_SetTextureBlendMode(PSDL_Texture(Result), SDL_BLENDMODE_BLEND);
 end;
 
 procedure TNXSDL2.DestroyImage(AImage: TNXImageHandle);
 begin
   if AImage <> nil then
     SDL_DestroyTexture(PSDL_Texture(AImage));
+end;
+
+procedure TNXSDL2.GetImageSize(AImage: TNXImageHandle; out AWidth,
+  AHeight: Integer);
+var
+  lHeight: LongInt;
+  lWidth: LongInt;
+begin
+  AWidth := 0;
+  AHeight := 0;
+
+  if AImage = nil then
+    Exit;
+
+  SDL_QueryTexture(PSDL_Texture(AImage), nil, nil, @lWidth, @lHeight);
+  AWidth := lWidth;
+  AHeight := lHeight;
 end;
 
 procedure TNXSDL2.DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect);
@@ -547,7 +645,24 @@ begin
     Exit;
 
   ToNativeRect(ADestRect, lDestRect);
+  SDL_SetTextureAlphaMod(PSDL_Texture(AImage), 255);
   SDL_RenderCopy(FRenderer, PSDL_Texture(AImage), nil, @lDestRect);
+end;
+
+procedure TNXSDL2.DrawImage(AImage: TNXImageHandle; const ADestRect: TNXRect;
+  AAlpha: Integer);
+var
+  lAlpha: Integer;
+  lDestRect: TSDL_Rect;
+begin
+  if (FRenderer = nil) or (AImage = nil) then
+    Exit;
+
+  lAlpha := EnsureRange(AAlpha, 0, 255);
+  ToNativeRect(ADestRect, lDestRect);
+  SDL_SetTextureAlphaMod(PSDL_Texture(AImage), lAlpha);
+  SDL_RenderCopy(FRenderer, PSDL_Texture(AImage), nil, @lDestRect);
+  SDL_SetTextureAlphaMod(PSDL_Texture(AImage), 255);
 end;
 
 procedure TNXSDL2.DrawImage(AImage: TNXImageHandle; const ASourceRect,
@@ -561,7 +676,26 @@ begin
 
   ToNativeRect(ASourceRect, lSourceRect);
   ToNativeRect(ADestRect, lDestRect);
+  SDL_SetTextureAlphaMod(PSDL_Texture(AImage), 255);
   SDL_RenderCopy(FRenderer, PSDL_Texture(AImage), @lSourceRect, @lDestRect);
+end;
+
+procedure TNXSDL2.DrawImage(AImage: TNXImageHandle; const ASourceRect,
+  ADestRect: TNXRect; AAlpha: Integer);
+var
+  lAlpha: Integer;
+  lDestRect: TSDL_Rect;
+  lSourceRect: TSDL_Rect;
+begin
+  if (FRenderer = nil) or (AImage = nil) then
+    Exit;
+
+  lAlpha := EnsureRange(AAlpha, 0, 255);
+  ToNativeRect(ASourceRect, lSourceRect);
+  ToNativeRect(ADestRect, lDestRect);
+  SDL_SetTextureAlphaMod(PSDL_Texture(AImage), lAlpha);
+  SDL_RenderCopy(FRenderer, PSDL_Texture(AImage), @lSourceRect, @lDestRect);
+  SDL_SetTextureAlphaMod(PSDL_Texture(AImage), 255);
 end;
 
 function TNXSDL2.TextWidth(const AText: string; AFont: TNXFontHandle): Integer;

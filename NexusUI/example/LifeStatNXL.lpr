@@ -11,6 +11,7 @@ uses
   obNXDateEdit,
   obNXEditBox,
   obNXControl,
+  obNXGlyphButton,
   obNXGrid,
   obNXGroupBox,
   obNXImage,
@@ -83,6 +84,8 @@ var
   TimeEdit1: TNXTimeEdit;
   Image1: TNXImage;
   Grid1: TNXGrid;
+  GlyphButton1: TNXGlyphButton;
+  GlyphButton2: TNXGlyphButton;
   ListBox: TNXListBox;
   Memo1: TNXMemo;
   MainMenu1: TNXMainMenu;
@@ -350,8 +353,21 @@ begin
   PopupMenu1.AddItem('Disabled item').Enabled := False;
   PopupMenu1.OnExecute := @DemoEvents.MenuExecute;
 
-  Image1 := TNXImage.Create(Form3.ContentPanel, MakeNXRect(0, 0, 398, 298));
-  Image1.LoadFromFile(ResourcesDir + 'nexus.png');
+  Image1 := TNXImage.Create(Form3.ContentPanel, MakeNXRect(0, 0, 398, 248));
+  Image1.LoadFromFile(ResourcesDir + 'nexus_old.png');
+
+  GlyphButton1 := TNXGlyphButton.Create(Form3.ContentPanel);
+  GlyphButton1.SetBounds(10, 258, 36, 28);
+  GlyphButton1.GlyphMargin := 4;
+  GlyphButton1.LoadFromFile(ResourcesDir + 'nexus_old.png');
+
+  GlyphButton2 := TNXGlyphButton.Create(Form3.ContentPanel);
+  GlyphButton2.SetBounds(54, 258, 36, 28);
+  GlyphButton2.GlyphMargin := 4;
+  GlyphButton2.ImageAlpha := 160;
+  GlyphButton2.DisabledAlpha := 56;
+  GlyphButton2.LoadFromFile(ResourcesDir + 'nexus_old.png');
+  GlyphButton2.Enabled := False;
 
   MoneyTreemap1 := TNXTreeMap.Create(Form5.ContentPanel);
   GenerateTestData(TestData);
