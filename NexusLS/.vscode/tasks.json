@@ -1,0 +1,19 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Lazarus: NexusLS",
+            "type": "shell",
+            "command": "lazbuild",
+            "args": [
+                "${workspaceFolder}\\nexusls.lpi"
+            ],
+            "cwd": "${workspaceFolder}",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$fpc"
+        }
+    ]
+}

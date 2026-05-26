@@ -280,7 +280,7 @@ begin
       Continue;
 
     lY := AY + Max(0, (AHeight - lChild.Height) div 2);
-    lChild.SetBoundsInternal(lX, lY, lChild.Width, lChild.Height, False);
+    lChild.SetBounds(lX, lY, lChild.Width, lChild.Height);
     Inc(lX, lChild.Width + FSpacing);
   end;
 end;
@@ -309,7 +309,7 @@ begin
       Continue;
 
     lX := AX + Max(0, (AWidth - lChild.Width) div 2);
-    lChild.SetBoundsInternal(lX, lY, lChild.Width, lChild.Height, False);
+    lChild.SetBounds(lX, lY, lChild.Width, lChild.Height);
     Inc(lY, lChild.Height + FSpacing);
   end;
 end;

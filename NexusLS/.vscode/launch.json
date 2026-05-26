@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Lazarus: NexusLS",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\lib\\x86_64-win64\\nexusls.exe",
+            "cwd": "${workspaceFolder}",
+            "args": ["/mode=tcp", "/host=127.0.0.1", "/port=2087"],
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "preLaunchTask": "Build Lazarus: NexusLS",
+            "stopAtEntry": false,
+            "externalConsole": false
+        }
+    ]
+}
