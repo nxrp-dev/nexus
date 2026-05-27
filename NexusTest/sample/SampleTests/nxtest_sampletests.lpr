@@ -6,6 +6,7 @@ uses
   SysUtils,
   tpNXTest,
   obNXTestModule,
+  obNXTestRPCRequests,
   tsSampleTests;
 
 var

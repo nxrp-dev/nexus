@@ -14,7 +14,7 @@ type
   TNXTestModule = class
   private
     class var FCurrent: TNXTestModule;
-
+  private
     FRegistry: TNXTestRegistry;
     FProcessor: TNXTestCommandProcessor;
     FResults: TNXTestResultStore;
@@ -26,10 +26,10 @@ type
     function ExecuteCommand(ARequest: PAnsiChar; var AResultId: Integer; var AResultSize: Integer): Integer;
     function ReadResult(AResultId: Integer; ABuffer: PAnsiChar; ABufferSize: Integer; var ABytesWritten: Integer): Integer;
 
-    class function Current: TNXTestModule; static;
-
     property Registry: TNXTestRegistry read FRegistry;
     property Runner: TNXTestRunner read GetRunner;
+
+    class function Current: TNXTestModule; static;
   end;
 
 implementation

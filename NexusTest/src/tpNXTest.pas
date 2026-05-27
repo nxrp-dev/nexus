@@ -33,7 +33,7 @@ const
   cNXTestMethodRunSuite = 'nxtest/runSuite';
   cNXTestMethodRunAll = 'nxtest/runAll';
 
-  cNXTestApiVersion = 1;
+  cNXTestApiVersion = '1';
 
 implementation
 

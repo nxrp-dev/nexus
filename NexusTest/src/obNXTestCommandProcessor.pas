@@ -33,7 +33,6 @@ uses
   obNXClassFactory,
   obNXJSONRPCMessages,
   obNXJSONValues,
-  obNXTestRPCRequests,
   obNXTestRPCValues;
 
 function ExtractErrorID(const AMessage: string): TJSONData;

@@ -107,7 +107,7 @@ begin
   if lSuiteName = '' then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorInvalidRequest, 'Missing suite parameter.');
 
-  if not Assigned(CurrentModule.Registry.FindSuite(lSuiteName)) then
+  if CurrentModule.Registry.FindSuite(lSuiteName) = nil then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorUnknownTest, 'Unknown suite.');
 
   Result := NXTestRunSuiteResultValue(lSuiteName, CurrentModule.Runner.RunSuite(lSuiteName));
@@ -137,7 +137,7 @@ begin
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorInvalidRequest, 'Missing test parameter.');
 
   Result := CurrentModule.Runner.RunTest(lTestId);
-  if not Assigned(Result) then
+  if Result = nil then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorUnknownTest, 'Unknown test.');
 end;
 
