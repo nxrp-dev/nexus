@@ -5,7 +5,7 @@ unit obNXTestRegistry;
 interface
 
 uses
-  Classes, SysUtils, fpjson, obNXTestSuite, obNXTestCase;
+  Classes, SysUtils, obNXTestSuite, obNXTestCase;
 
 type
   TNXTestRegistry = class
@@ -20,7 +20,6 @@ type
     function FindSuite(const AName: string): TNXTestSuite;
     function FindTest(const ANameOrId: string; out ASuite: TNXTestSuite): TNXTestCase;
     function SuiteCount: Integer;
-    function ToJsonObject: TJSONObject;
 
     property Suites[AIndex: Integer]: TNXTestSuite read GetSuite;
   end;
@@ -96,19 +95,6 @@ end;
 function TNXTestRegistry.SuiteCount: Integer;
 begin
   Result := FSuites.Count;
-end;
-
-function TNXTestRegistry.ToJsonObject: TJSONObject;
-var
-  lSuites: TJSONArray;
-  lIndex: Integer;
-begin
-  Result := TJSONObject.Create;
-  lSuites := TJSONArray.Create;
-  Result.Add('suites', lSuites);
-
-  for lIndex := 0 to FSuites.Count - 1 do
-    lSuites.Add(TNXTestSuite(FSuites[lIndex]).ToJsonObject);
 end;
 
 end.

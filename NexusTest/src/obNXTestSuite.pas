@@ -5,7 +5,7 @@ unit obNXTestSuite;
 interface
 
 uses
-  Classes, SysUtils, fpjson, obNXTestCase;
+  Classes, SysUtils, obNXTestCase;
 
 type
   TNXTestSuite = class
@@ -20,7 +20,6 @@ type
     function AddTest(const AName: string; ATestProcedure: TNXTestProcedure): TNXTestCase;
     function FindTest(const ANameOrId: string): TNXTestCase;
     function TestCount: Integer;
-    function ToJsonObject: TJSONObject;
 
     property Name: string read FName;
     property Tests[AIndex: Integer]: TNXTestCase read GetTest;
@@ -74,27 +73,6 @@ end;
 function TNXTestSuite.TestCount: Integer;
 begin
   Result := FTests.Count;
-end;
-
-function TNXTestSuite.ToJsonObject: TJSONObject;
-var
-  lTests: TJSONArray;
-  lTest: TJSONObject;
-  lIndex: Integer;
-begin
-  Result := TJSONObject.Create;
-  Result.Add('name', FName);
-
-  lTests := TJSONArray.Create;
-  Result.Add('tests', lTests);
-
-  for lIndex := 0 to FTests.Count - 1 do
-  begin
-    lTest := TJSONObject.Create;
-    lTest.Add('name', TNXTestCase(FTests[lIndex]).Name);
-    lTest.Add('id', TNXTestCase(FTests[lIndex]).TestId);
-    lTests.Add(lTest);
-  end;
 end;
 
 end.

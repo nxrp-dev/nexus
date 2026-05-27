@@ -44,8 +44,6 @@ type
 implementation
 
 uses
-  SysUtils,
-  fpjson,
   obNXClassFactory,
   obNXTestModule,
   obNXTestRPCValues,
@@ -62,28 +60,8 @@ begin
 end;
 
 function TNXTestGetCapabilitiesRequest.Execute: TNXJSONValue;
-var
-  lCapabilities: TJSONObject;
-  lMethods: TJSONArray;
 begin
-  lCapabilities := TJSONObject.Create;
-  try
-    lCapabilities.Add('apiVersion', cNXTestApiVersion);
-    lCapabilities.Add('protocol', 'json-rpc-2.0');
-
-    lMethods := TJSONArray.Create;
-    lMethods.Add(cNXTestMethodGetCapabilities);
-    lMethods.Add(cNXTestMethodListTests);
-    lMethods.Add(cNXTestMethodRunTest);
-    lMethods.Add(cNXTestMethodRunSuite);
-    lMethods.Add(cNXTestMethodRunAll);
-    lCapabilities.Add('methods', lMethods);
-
-    Result := NXTestJSONValueFromObject(lCapabilities);
-    lCapabilities := nil;
-  finally
-    lCapabilities.Free;
-  end;
+  Result := NXTestCapabilitiesValue;
 end;
 
 class function TNXTestListTestsRequest.GetFactoryName: string;
@@ -93,7 +71,7 @@ end;
 
 function TNXTestListTestsRequest.Execute: TNXJSONValue;
 begin
-  Result := NXTestJSONValueFromObject(CurrentModule.Registry.ToJsonObject);
+  Result := NXTestRegistryValue(CurrentModule.Registry);
 end;
 
 class function TNXTestRunAllRequest.GetFactoryName: string;
@@ -102,17 +80,8 @@ begin
 end;
 
 function TNXTestRunAllRequest.Execute: TNXJSONValue;
-var
-  lObject: TJSONObject;
 begin
-  lObject := TJSONObject.Create;
-  try
-    lObject.Add('results', CurrentModule.Runner.RunAll);
-    Result := NXTestJSONValueFromObject(lObject);
-    lObject := nil;
-  finally
-    lObject.Free;
-  end;
+  Result := NXTestRunAllResultValue(CurrentModule.Runner.RunAll);
 end;
 
 class function TNXTestRunSuiteRequest.GetFactoryName: string;
@@ -129,7 +98,6 @@ function TNXTestRunSuiteRequest.Execute: TNXJSONValue;
 var
   lParams: TNXTestRunSuiteParams;
   lSuiteName: string;
-  lObject: TJSONObject;
 begin
   if not (params is TNXTestRunSuiteParams) then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorInvalidRequest, 'Missing suite parameter.');
@@ -142,15 +110,7 @@ begin
   if not Assigned(CurrentModule.Registry.FindSuite(lSuiteName)) then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorUnknownTest, 'Unknown suite.');
 
-  lObject := TJSONObject.Create;
-  try
-    lObject.Add('suite', lSuiteName);
-    lObject.Add('results', CurrentModule.Runner.RunSuite(lSuiteName));
-    Result := NXTestJSONValueFromObject(lObject);
-    lObject := nil;
-  finally
-    lObject.Free;
-  end;
+  Result := NXTestRunSuiteResultValue(lSuiteName, CurrentModule.Runner.RunSuite(lSuiteName));
 end;
 
 class function TNXTestRunTestRequest.GetFactoryName: string;
@@ -167,7 +127,6 @@ function TNXTestRunTestRequest.Execute: TNXJSONValue;
 var
   lParams: TNXTestRunTestParams;
   lTestId: string;
-  lJsonResult: TJSONObject;
 begin
   if not (params is TNXTestRunTestParams) then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorInvalidRequest, 'Missing test parameter.');
@@ -177,11 +136,9 @@ begin
   if lTestId = '' then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorInvalidRequest, 'Missing test parameter.');
 
-  lJsonResult := CurrentModule.Runner.RunTest(lTestId);
-  if not Assigned(lJsonResult) then
+  Result := CurrentModule.Runner.RunTest(lTestId);
+  if not Assigned(Result) then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorUnknownTest, 'Unknown test.');
-
-  Result := NXTestJSONValueFromObject(lJsonResult);
 end;
 
 initialization

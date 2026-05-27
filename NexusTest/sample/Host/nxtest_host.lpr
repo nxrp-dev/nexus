@@ -57,9 +57,7 @@ begin
     lRequest.Add('method', AMethod);
 
     if Assigned(AParams) then
-      lRequest.Add('params', AParams)
-    else
-      lRequest.Add('params', TJSONObject.Create);
+      lRequest.Add('params', AParams);
 
     Result := lRequest.AsJSON;
   finally

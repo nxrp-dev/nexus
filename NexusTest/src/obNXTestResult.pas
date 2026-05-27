@@ -5,7 +5,7 @@ unit obNXTestResult;
 interface
 
 uses
-  Classes, SysUtils, fpjson, tpNXTest;
+  Classes, SysUtils, tpNXTest;
 
 type
   TNXTestStatus = (tsNotRun, tsPassed, tsFailed, tsError, tsSkipped);
@@ -25,7 +25,6 @@ type
   public
     constructor Create;
     function StatusText: string;
-    function ToJsonObject: TJSONObject;
 
     property SuiteName: string read FSuiteName write FSuiteName;
     property TestName: string read FTestName write FTestName;
@@ -57,27 +56,6 @@ begin
   else
     Result := cNXTestStatusNotRun;
   end;
-end;
-
-function TNXTestResult.ToJsonObject: TJSONObject;
-begin
-  Result := TJSONObject.Create;
-  Result.Add('suite', FSuiteName);
-  Result.Add('test', FTestName);
-  Result.Add('id', FTestId);
-  Result.Add('status', StatusText);
-  Result.Add('durationMs', FDurationMs);
-
-  if FMessage <> '' then
-    Result.Add('message', FMessage);
-  if FExpected <> '' then
-    Result.Add('expected', FExpected);
-  if FActual <> '' then
-    Result.Add('actual', FActual);
-  if FErrorClass <> '' then
-    Result.Add('errorClass', FErrorClass);
-  if FErrorMessage <> '' then
-    Result.Add('errorMessage', FErrorMessage);
 end;
 
 end.

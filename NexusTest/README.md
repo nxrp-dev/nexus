@@ -9,7 +9,8 @@ It includes:
 - explicit test cases
 - test context/assertions
 - structured result objects
-- JSON-RPC command processor
+- NexusLib JSON-RPC command processor
+- typed NexusTest JSON-RPC DTO values
 - reusable module/result-store layer
 - sample test DLL/shared library
 - simple host app that loads the library and calls `NXTest_ExecuteCommand`
@@ -36,7 +37,7 @@ function NXTest_ReadResult(
 ): Integer; cdecl;
 ```
 
-The command payload is UTF-8 JSON-RPC 2.0 text.
+The command payload is UTF-8 JSON-RPC 2.0 text. Internally, NexusTest uses NexusLib JSON-RPC request classes and typed `TNXJSONValue` descendants for command params and result payloads.
 
 `NXTest_ExecuteCommand` executes the command and stores the response inside the module. It returns a result ID and the exact buffer size needed to read the response.
 
@@ -53,6 +54,10 @@ No Pascal objects, Pascal strings, records, exceptions, or caller/callee-owned a
 - `nxtest/runTest`
 - `nxtest/runSuite`
 - `nxtest/runAll`
+
+## Source dependency
+
+This playground expects `NexusLib/src` to be available as a sibling folder to `NexusTest`. The build scripts include both `NexusTest/src` and `../NexusLib/src`.
 
 ## Build
 

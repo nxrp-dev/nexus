@@ -6,16 +6,19 @@ interface
 
 uses
   Classes, SysUtils, tpNXTest, obNXTestRegistry, obNXTestCommandProcessor,
-  obNXTestResultStore;
+  obNXTestResultStore, obNXTestRunner;
 
 type
   TNXTestRegistryProc = procedure(ARegistry: TNXTestRegistry);
 
   TNXTestModule = class
   private
+    class var FCurrent: TNXTestModule;
+
     FRegistry: TNXTestRegistry;
     FProcessor: TNXTestCommandProcessor;
     FResults: TNXTestResultStore;
+    function GetRunner: TNXTestRunner;
   public
     constructor Create(ARegisterTests: TNXTestRegistryProc);
     destructor Destroy; override;
@@ -23,7 +26,10 @@ type
     function ExecuteCommand(ARequest: PAnsiChar; var AResultId: Integer; var AResultSize: Integer): Integer;
     function ReadResult(AResultId: Integer; ABuffer: PAnsiChar; ABufferSize: Integer; var ABytesWritten: Integer): Integer;
 
+    class function Current: TNXTestModule; static;
+
     property Registry: TNXTestRegistry read FRegistry;
+    property Runner: TNXTestRunner read GetRunner;
   end;
 
 implementation
@@ -31,6 +37,7 @@ implementation
 constructor TNXTestModule.Create(ARegisterTests: TNXTestRegistryProc);
 begin
   inherited Create;
+  FCurrent := Self;
   FRegistry := TNXTestRegistry.Create;
   try
     if Assigned(ARegisterTests) then
@@ -38,6 +45,9 @@ begin
     FProcessor := TNXTestCommandProcessor.Create(FRegistry);
     FResults := TNXTestResultStore.Create;
   except
+    if FCurrent = Self then
+      FCurrent := nil;
+
     FreeAndNil(FResults);
     FreeAndNil(FProcessor);
     FreeAndNil(FRegistry);
@@ -47,10 +57,26 @@ end;
 
 destructor TNXTestModule.Destroy;
 begin
+  if FCurrent = Self then
+    FCurrent := nil;
+
   FreeAndNil(FResults);
   FreeAndNil(FProcessor);
   FreeAndNil(FRegistry);
   inherited Destroy;
+end;
+
+function TNXTestModule.GetRunner: TNXTestRunner;
+begin
+  if Assigned(FProcessor) then
+    Result := FProcessor.Runner
+  else
+    Result := nil;
+end;
+
+class function TNXTestModule.Current: TNXTestModule;
+begin
+  Result := FCurrent;
 end;
 
 function TNXTestModule.ExecuteCommand(ARequest: PAnsiChar; var AResultId: Integer; var AResultSize: Integer): Integer;
