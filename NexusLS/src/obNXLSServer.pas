@@ -33,6 +33,7 @@ begin
   inherited Create;
   FTransport := ATransport;
   FModel := TNXLSLSPModel.Create;
+  FModel.Transport := FTransport;
   TNXLSLSPModel.SetCurrent(FModel);
 end;
 

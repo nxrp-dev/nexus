@@ -65,7 +65,7 @@
     <Version Value="11"/>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;..\NexusLib\src;..\lib\synapse;C:\lazarus\components\codetools;C:\lazarus\components\lazutils"/>
+      <OtherUnitFiles Value="src;src\protocol;src\service;..\NexusLib\src;..\lib\synapse;C:\lazarus\components\codetools;C:\lazarus\components\lazutils"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

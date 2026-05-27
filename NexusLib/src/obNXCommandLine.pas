@@ -71,6 +71,7 @@ type
     class function SuppliedRaw(const AName: string): Boolean; static;
 
     class procedure ApplyDefaults; static;
+    class procedure WriteHelpAndHaltIfRequested; static;
     class procedure ParseArgument(const AArgument: string; out AName, AValue: string; out AHasValue: Boolean); static;
   public
     class constructor Create;
@@ -301,6 +302,37 @@ begin
   end;
 end;
 
+
+class procedure TNXCommandLine.WriteHelpAndHaltIfRequested;
+var
+  lHelpFlagName: string;
+begin
+  if not SuppliedRaw('help') then
+    Exit;
+
+  lHelpFlagName := GetValueRaw('help');
+
+  if lHelpFlagName = 'true' then
+    lHelpFlagName := '';
+
+  if lHelpFlagName = '' then
+  begin
+    Write(HelpText);
+    Halt(0);
+  end;
+
+  if FindFlag(lHelpFlagName) = nil then
+  begin
+    WriteLn('Unknown help topic: ' + lHelpFlagName);
+    WriteLn;
+    WriteLn('Use /help to list available options.');
+    Halt(1);
+  end;
+
+  Write(FlagHelpText(lHelpFlagName));
+  Halt(0);
+end;
+
 class procedure TNXCommandLine.ParseArgument(const AArgument: string; out AName, AValue: string; out AHasValue: Boolean);
 var
   lArgument: string;
@@ -400,6 +432,8 @@ begin
   if not FParsed then
     Parse;
 
+  WriteHelpAndHaltIfRequested;
+
   if not FDirty then
     Exit;
 
@@ -471,15 +505,18 @@ end;
 
 class function TNXCommandLine.GetHelpRequested: Boolean;
 begin
-  Result := Supplied('help');
+  if not FParsed then
+    Parse;
+
+  Result := SuppliedRaw('help');
 end;
 
 class function TNXCommandLine.GetHelpFlagName: string;
 begin
-  if HelpRequested then
-    Result := Value['help']
-  else
-    Result := '';
+  if not HelpRequested then
+    Exit('');
+
+  Result := GetValueRaw('help');
 
   if Result = 'true' then
     Result := '';

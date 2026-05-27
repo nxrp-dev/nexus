@@ -1,0 +1,596 @@
+unit obNXLSSymbolService;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes,
+  CodeCache,
+  Contnrs,
+  obNXJSONValues,
+  obNXLSProtocolParams,
+  obNXLSServiceContext;
+
+type
+  TNXLSIndexedSymbol = class
+  private
+    FName: string;
+    FKind: Integer;
+    FURI: string;
+    FRangeStartLine: Integer;
+    FRangeStartCharacter: Integer;
+    FRangeEndLine: Integer;
+    FRangeEndCharacter: Integer;
+    FSelectionStartLine: Integer;
+    FSelectionStartCharacter: Integer;
+    FSelectionEndLine: Integer;
+    FSelectionEndCharacter: Integer;
+    FContainerName: string;
+  public
+    property Name: string read FName write FName;
+    property Kind: Integer read FKind write FKind;
+    property URI: string read FURI write FURI;
+    property RangeStartLine: Integer read FRangeStartLine write FRangeStartLine;
+    property RangeStartCharacter: Integer read FRangeStartCharacter write FRangeStartCharacter;
+    property RangeEndLine: Integer read FRangeEndLine write FRangeEndLine;
+    property RangeEndCharacter: Integer read FRangeEndCharacter write FRangeEndCharacter;
+    property SelectionStartLine: Integer read FSelectionStartLine write FSelectionStartLine;
+    property SelectionStartCharacter: Integer read FSelectionStartCharacter write FSelectionStartCharacter;
+    property SelectionEndLine: Integer read FSelectionEndLine write FSelectionEndLine;
+    property SelectionEndCharacter: Integer read FSelectionEndCharacter write FSelectionEndCharacter;
+    property ContainerName: string read FContainerName write FContainerName;
+  end;
+
+  TNXLSSymbolService = class(TNXLSLSPService)
+  private
+    FWorkspaceFolders: TStringList;
+    FIndexedSymbols: TObjectList;
+    procedure ClearWorkspaceFolders;
+    procedure AddWorkspaceFolderPath(const APath: string);
+    procedure AddWorkspaceFolderURI(const AURI: string);
+    procedure RemoveWorkspaceFolderURI(const AURI: string);
+    procedure ClearIndexedSymbolsForURI(const AURI: string);
+    procedure IndexCodeBuffer(const AURI: string; ACodeBuffer: TCodeBuffer);
+    procedure IndexWorkspaceFile(const AFileName: string);
+  public
+    constructor Create(AModel: TNXLSLSPContext); override;
+    destructor Destroy; override;
+
+    function DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue; virtual;
+    function WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue; virtual;
+    procedure SetWorkspaceFolders(AParams: TNXLSInitializeParams);
+    procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
+    procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
+    procedure RebuildWorkspaceIndex;
+    procedure ReindexDocument(ADocument: TNXLSDocument);
+    property IndexedSymbols: TObjectList read FIndexedSymbols;
+  end;
+
+implementation
+
+uses
+  SysUtils,
+  fpjson,
+  CodeTree,
+  CodeToolManager,
+  PascalParserTool,
+  obNXLSProtocolBase,
+  obNXLSProtocolObjects;
+
+procedure NXLSSetRange(ARange: TNXLSRange; const AStartPos, AEndPos: TCodeXYPosition);
+begin
+  NXLSSetPosition(ARange.start, AStartPos.Y - 1, AStartPos.X - 1);
+  NXLSSetPosition(ARange.&end, AEndPos.Y - 1, AEndPos.X - 1);
+  ARange.Assigned := True;
+end;
+
+procedure NXLSSetNodeRange(ATool: TCodeTool; ANode: TCodeTreeNode; ARange: TNXLSRange);
+var
+  lStart: TCodeXYPosition;
+  lEnd: TCodeXYPosition;
+begin
+  if (ATool = nil) or (ANode = nil) or (ARange = nil) then
+    Exit;
+
+  if not ATool.CleanPosToCaret(ANode.StartPos, lStart) then
+    Exit;
+
+  if not ATool.CleanPosToCaret(ANode.EndPos, lEnd) then
+    lEnd := lStart;
+
+  NXLSSetRange(ARange, lStart, lEnd);
+end;
+
+function NXLSNodeRange(ATool: TCodeTool; ANode: TCodeTreeNode;
+  out AStartLine, AStartCharacter, AEndLine, AEndCharacter: Integer): Boolean;
+var
+  lStart: TCodeXYPosition;
+  lEnd: TCodeXYPosition;
+begin
+  Result := False;
+  AStartLine := 0;
+  AStartCharacter := 0;
+  AEndLine := 0;
+  AEndCharacter := 0;
+
+  if (ATool = nil) or (ANode = nil) then
+    Exit;
+
+  if not ATool.CleanPosToCaret(ANode.StartPos, lStart) then
+    Exit;
+
+  if not ATool.CleanPosToCaret(ANode.EndPos, lEnd) then
+    lEnd := lStart;
+
+  AStartLine := lStart.Y - 1;
+  AStartCharacter := lStart.X - 1;
+  AEndLine := lEnd.Y - 1;
+  AEndCharacter := lEnd.X - 1;
+  if AStartLine < 0 then
+    AStartLine := 0;
+  if AStartCharacter < 0 then
+    AStartCharacter := 0;
+  if AEndLine < 0 then
+    AEndLine := 0;
+  if AEndCharacter < 0 then
+    AEndCharacter := 0;
+  Result := True;
+end;
+
+function NXLSNodeHasClassChild(ANode: TCodeTreeNode): Boolean;
+var
+  lChild: TCodeTreeNode;
+begin
+  Result := False;
+  if ANode = nil then
+    Exit;
+
+  lChild := ANode.FirstChild;
+  while lChild <> nil do
+  begin
+    if lChild.Desc in AllClasses then
+      Exit(True);
+    lChild := lChild.NextBrother;
+  end;
+end;
+
+function NXLSNodeInClass(ANode: TCodeTreeNode): Boolean;
+begin
+  Result := (ANode <> nil) and
+    ((ANode.GetNodeOfTypes([ctnClass, ctnObject, ctnRecordType, ctnObjCClass,
+      ctnObjCCategory, ctnCPPClass, ctnClassHelper, ctnRecordHelper,
+      ctnTypeHelper, ctnClassInterface, ctnDispinterface, ctnObjCProtocol]) <> nil));
+end;
+
+function NXLSNodeSymbolKind(ANode: TCodeTreeNode): Integer;
+begin
+  Result := 13;
+  if ANode = nil then
+    Exit;
+
+  case ANode.Desc of
+    ctnClass, ctnObject, ctnObjCClass, ctnObjCCategory, ctnCPPClass,
+    ctnClassHelper, ctnRecordHelper, ctnTypeHelper:
+      Result := 5;
+    ctnClassInterface, ctnDispinterface, ctnObjCProtocol:
+      Result := 11;
+    ctnRecordType:
+      Result := 23;
+    ctnProcedure:
+      if NXLSNodeInClass(ANode.Parent) then
+        Result := 6
+      else
+        Result := 12;
+    ctnProperty, ctnGlobalProperty:
+      Result := 7;
+    ctnVarDefinition:
+      if NXLSNodeInClass(ANode.Parent) then
+        Result := 8
+      else
+        Result := 13;
+    ctnConstDefinition, ctnConstant:
+      Result := 14;
+    ctnEnumIdentifier:
+      Result := 22;
+    ctnEnumerationType:
+      Result := 10;
+    ctnTypeDefinition, ctnGenericType:
+      Result := 23;
+  end;
+end;
+
+function NXLSNodeSymbolName(ATool: TCodeTool; ANode: TCodeTreeNode): string;
+begin
+  Result := '';
+  if (ATool = nil) or (ANode = nil) then
+    Exit;
+
+  case ANode.Desc of
+    ctnProcedure:
+      Result := ATool.ExtractProcName(ANode, [phpWithoutClassName]);
+    ctnProperty:
+      Result := ATool.ExtractPropName(ANode, False);
+    ctnTypeDefinition, ctnVarDefinition, ctnConstDefinition, ctnGlobalProperty,
+    ctnGenericType, ctnEnumIdentifier:
+      Result := ATool.ExtractDefinitionName(ANode);
+    ctnClass, ctnObject, ctnRecordType, ctnObjCClass, ctnObjCCategory,
+    ctnCPPClass, ctnClassHelper, ctnRecordHelper, ctnTypeHelper,
+    ctnClassInterface, ctnDispinterface, ctnObjCProtocol:
+      if (ANode.Parent <> nil) and (ANode.Parent.Desc = ctnTypeDefinition) then
+        Result := ATool.ExtractDefinitionName(ANode.Parent);
+  end;
+end;
+
+function NXLSNodeIsDocumentSymbol(ANode: TCodeTreeNode): Boolean;
+begin
+  Result := False;
+  if ANode = nil then
+    Exit;
+
+  case ANode.Desc of
+    ctnProcedure, ctnProperty, ctnGlobalProperty, ctnVarDefinition,
+    ctnConstDefinition, ctnEnumIdentifier, ctnClass, ctnObject,
+    ctnRecordType, ctnObjCClass, ctnObjCCategory, ctnCPPClass,
+    ctnClassHelper, ctnRecordHelper, ctnTypeHelper, ctnClassInterface,
+    ctnDispinterface, ctnObjCProtocol:
+      Result := True;
+    ctnTypeDefinition, ctnGenericType:
+      Result := not NXLSNodeHasClassChild(ANode);
+  end;
+end;
+
+procedure NXLSAddDocumentSymbols(ATool: TCodeTool; ANode: TCodeTreeNode; ATarget: TNXJSONArray);
+var
+  lNode: TCodeTreeNode;
+  lSymbol: TNXLSDocumentSymbol;
+  lTarget: TNXJSONArray;
+  lName: string;
+begin
+  lNode := ANode;
+  while lNode <> nil do
+  begin
+    lTarget := ATarget;
+    lSymbol := nil;
+
+    if NXLSNodeIsDocumentSymbol(lNode) then
+    begin
+      lName := NXLSNodeSymbolName(ATool, lNode);
+      if lName <> '' then
+      begin
+        lSymbol := TNXLSDocumentSymbol(ATarget.AddObject(TNXLSDocumentSymbol));
+        lSymbol.name.Value := lName;
+        lSymbol.kind.Value := NXLSNodeSymbolKind(lNode);
+        lSymbol.detail.Value := NodeDescriptionAsString(lNode.Desc);
+        NXLSSetNodeRange(ATool, lNode, lSymbol.range);
+        NXLSSetNodeRange(ATool, lNode, lSymbol.selectionRange);
+        lSymbol.Assigned := True;
+        lTarget := lSymbol.children;
+      end;
+    end;
+
+    if lNode.FirstChild <> nil then
+      NXLSAddDocumentSymbols(ATool, lNode.FirstChild, lTarget);
+
+    lNode := lNode.NextBrother;
+  end;
+end;
+
+procedure NXLSAddIndexedSymbols(ATool: TCodeTool; ANode: TCodeTreeNode; const AURI,
+  AContainerName: string; ATarget: TObjectList);
+var
+  lNode: TCodeTreeNode;
+  lSymbol: TNXLSIndexedSymbol;
+  lName: string;
+  lContainerName: string;
+  lStartLine: Integer;
+  lStartCharacter: Integer;
+  lEndLine: Integer;
+  lEndCharacter: Integer;
+begin
+  lNode := ANode;
+  while lNode <> nil do
+  begin
+    lContainerName := AContainerName;
+
+    if NXLSNodeIsDocumentSymbol(lNode) then
+    begin
+      lName := NXLSNodeSymbolName(ATool, lNode);
+      if lName <> '' then
+      begin
+        lSymbol := TNXLSIndexedSymbol.Create;
+        ATarget.Add(lSymbol);
+        lSymbol.Name := lName;
+        lSymbol.Kind := NXLSNodeSymbolKind(lNode);
+        lSymbol.URI := AURI;
+        lSymbol.ContainerName := AContainerName;
+        if NXLSNodeRange(ATool, lNode, lStartLine, lStartCharacter, lEndLine, lEndCharacter) then
+        begin
+          lSymbol.RangeStartLine := lStartLine;
+          lSymbol.RangeStartCharacter := lStartCharacter;
+          lSymbol.RangeEndLine := lEndLine;
+          lSymbol.RangeEndCharacter := lEndCharacter;
+          lSymbol.SelectionStartLine := lStartLine;
+          lSymbol.SelectionStartCharacter := lStartCharacter;
+          lSymbol.SelectionEndLine := lEndLine;
+          lSymbol.SelectionEndCharacter := lEndCharacter;
+        end;
+        lContainerName := lName;
+      end;
+    end;
+
+    if lNode.FirstChild <> nil then
+      NXLSAddIndexedSymbols(ATool, lNode.FirstChild, AURI, lContainerName, ATarget);
+
+    lNode := lNode.NextBrother;
+  end;
+end;
+
+constructor TNXLSSymbolService.Create(AModel: TNXLSLSPContext);
+begin
+  inherited Create(AModel);
+  FWorkspaceFolders := TStringList.Create;
+  FWorkspaceFolders.Sorted := True;
+  FWorkspaceFolders.Duplicates := dupIgnore;
+  FIndexedSymbols := TObjectList.Create(True);
+end;
+
+destructor TNXLSSymbolService.Destroy;
+begin
+  FreeAndNil(FIndexedSymbols);
+  FreeAndNil(FWorkspaceFolders);
+  inherited Destroy;
+end;
+
+function TNXLSSymbolService.DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue;
+var
+  lDocument: TNXLSDocument;
+  lTool: TCodeTool;
+begin
+  if (AParams = nil) or (AParams.textDocument = nil) then
+    raise Exception.Create('Document symbol params require a text document.');
+
+  Result := TNXLSDocumentSymbolArrayResult.CreateValue;
+  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
+  if lDocument.CodeBuffer = nil then
+    Exit;
+
+  lTool := nil;
+  if (not CodeToolBoss.Explore(lDocument.CodeBuffer, lTool, False)) or
+    (lTool = nil) or (lTool.Tree = nil) or (lTool.Tree.Root = nil) then
+    Exit;
+
+  NXLSAddDocumentSymbols(lTool, lTool.Tree.Root.FirstChild, TNXJSONArray(Result));
+end;
+
+function TNXLSSymbolService.WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue;
+var
+  lQuery: string;
+  lIdx: Integer;
+  lIndexedSymbol: TNXLSIndexedSymbol;
+  lSymbol: TNXLSWorkspaceSymbol;
+  lLocation: TNXLSLocation;
+  lJSON: TJSONData;
+begin
+  Result := TNXLSWorkspaceSymbolArrayResult.CreateValue;
+  if AParams = nil then
+    Exit;
+
+  lQuery := LowerCase(Trim(AParams.query.Value));
+
+  for lIdx := 0 to IndexedSymbols.Count - 1 do
+  begin
+    lIndexedSymbol := TNXLSIndexedSymbol(IndexedSymbols[lIdx]);
+    if (lQuery <> '') and (Pos(lQuery, LowerCase(lIndexedSymbol.Name)) = 0) then
+      Continue;
+
+    lSymbol := TNXLSWorkspaceSymbol(TNXJSONArray(Result).AddObject(TNXLSWorkspaceSymbol));
+    lSymbol.name.Value := lIndexedSymbol.Name;
+    lSymbol.kind.Value := lIndexedSymbol.Kind;
+    if lIndexedSymbol.ContainerName <> '' then
+      lSymbol.containerName.Value := lIndexedSymbol.ContainerName;
+
+    lLocation := TNXLSLocation.Create;
+    try
+      lLocation.uri.Value := lIndexedSymbol.URI;
+      NXLSSetPosition(lLocation.range.start, lIndexedSymbol.RangeStartLine, lIndexedSymbol.RangeStartCharacter);
+      NXLSSetPosition(lLocation.range.&end, lIndexedSymbol.RangeEndLine, lIndexedSymbol.RangeEndCharacter);
+      lLocation.range.Assigned := True;
+      lLocation.Assigned := True;
+
+      lJSON := lLocation.ToJSONData;
+      try
+        lSymbol.location.FromJSONData(lJSON);
+      finally
+        lJSON.Free;
+      end;
+    finally
+      lLocation.Free;
+    end;
+
+    lSymbol.Assigned := True;
+  end;
+end;
+
+procedure TNXLSSymbolService.ClearWorkspaceFolders;
+begin
+  FWorkspaceFolders.Clear;
+end;
+
+procedure TNXLSSymbolService.AddWorkspaceFolderPath(const APath: string);
+var
+  lPath: string;
+begin
+  lPath := Trim(APath);
+  if lPath = '' then
+    Exit;
+
+  lPath := ExpandFileName(lPath);
+  if DirectoryExists(lPath) then
+    FWorkspaceFolders.Add(lPath);
+end;
+
+procedure TNXLSSymbolService.AddWorkspaceFolderURI(const AURI: string);
+begin
+  if Trim(AURI) = '' then
+    Exit;
+
+  AddWorkspaceFolderPath(NXLSFileURIToPath(AURI));
+end;
+
+procedure TNXLSSymbolService.RemoveWorkspaceFolderURI(const AURI: string);
+var
+  lIdx: Integer;
+  lPath: string;
+begin
+  if Trim(AURI) = '' then
+    Exit;
+
+  lPath := ExpandFileName(NXLSFileURIToPath(AURI));
+  lIdx := FWorkspaceFolders.IndexOf(lPath);
+  if lIdx >= 0 then
+    FWorkspaceFolders.Delete(lIdx);
+end;
+
+procedure TNXLSSymbolService.ClearIndexedSymbolsForURI(const AURI: string);
+var
+  lIdx: Integer;
+begin
+  for lIdx := FIndexedSymbols.Count - 1 downto 0 do
+    if SameText(TNXLSIndexedSymbol(FIndexedSymbols[lIdx]).URI, AURI) then
+      FIndexedSymbols.Delete(lIdx);
+end;
+
+procedure TNXLSSymbolService.IndexCodeBuffer(const AURI: string; ACodeBuffer: TCodeBuffer);
+var
+  lTool: TCodeTool;
+begin
+  if (Trim(AURI) = '') or (ACodeBuffer = nil) then
+    Exit;
+
+  ClearIndexedSymbolsForURI(AURI);
+
+  lTool := nil;
+  if (not CodeToolBoss.Explore(ACodeBuffer, lTool, False)) or
+    (lTool = nil) or (lTool.Tree = nil) or (lTool.Tree.Root = nil) then
+    Exit;
+
+  NXLSAddIndexedSymbols(lTool, lTool.Tree.Root.FirstChild, AURI, '', FIndexedSymbols);
+end;
+
+procedure TNXLSSymbolService.IndexWorkspaceFile(const AFileName: string);
+var
+  lCodeBuffer: TCodeBuffer;
+begin
+  if not NXLSIsPascalSourceFile(AFileName) then
+    Exit;
+
+  try
+    lCodeBuffer := NXLSLoadCodeBuffer(AFileName);
+    IndexCodeBuffer(NXLSPathToFileURI(AFileName), lCodeBuffer);
+  except
+    on Exception do
+      ClearIndexedSymbolsForURI(NXLSPathToFileURI(AFileName));
+  end;
+end;
+
+procedure TNXLSSymbolService.SetWorkspaceFolders(AParams: TNXLSInitializeParams);
+var
+  lIdx: Integer;
+  lFolder: TNXLSWorkspaceFolder;
+begin
+  ClearWorkspaceFolders;
+
+  if AParams = nil then
+    Exit;
+
+  if (AParams.workspaceFolders <> nil) and AParams.workspaceFolders.Assigned then
+    for lIdx := 0 to AParams.workspaceFolders.Count - 1 do
+    begin
+      lFolder := TNXLSWorkspaceFolder(AParams.workspaceFolders[lIdx]);
+      AddWorkspaceFolderURI(lFolder.uri.Value);
+    end;
+
+  if (FWorkspaceFolders.Count = 0) and (AParams.rootUri <> nil) and AParams.rootUri.Assigned then
+    AddWorkspaceFolderURI(AParams.rootUri.AsString);
+
+  if (FWorkspaceFolders.Count = 0) and (AParams.rootPath <> nil) and AParams.rootPath.Assigned then
+    AddWorkspaceFolderPath(AParams.rootPath.AsString);
+end;
+
+procedure TNXLSSymbolService.AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
+var
+  lIdx: Integer;
+  lFolder: TNXLSWorkspaceFolder;
+begin
+  if AFolders = nil then
+    Exit;
+
+  for lIdx := 0 to AFolders.Count - 1 do
+  begin
+    lFolder := TNXLSWorkspaceFolder(AFolders[lIdx]);
+    AddWorkspaceFolderURI(lFolder.uri.Value);
+  end;
+end;
+
+procedure TNXLSSymbolService.RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
+var
+  lIdx: Integer;
+  lFolder: TNXLSWorkspaceFolder;
+begin
+  if AFolders = nil then
+    Exit;
+
+  for lIdx := 0 to AFolders.Count - 1 do
+  begin
+    lFolder := TNXLSWorkspaceFolder(AFolders[lIdx]);
+    RemoveWorkspaceFolderURI(lFolder.uri.Value);
+  end;
+end;
+
+procedure TNXLSSymbolService.RebuildWorkspaceIndex;
+var
+  lIdx: Integer;
+
+  procedure IndexFolder(const AFolder: string);
+  var
+    lSearch: TSearchRec;
+    lPath: string;
+  begin
+    if FindFirst(IncludeTrailingPathDelimiter(AFolder) + '*', faAnyFile, lSearch) <> 0 then
+      Exit;
+    try
+      repeat
+        if (lSearch.Name = '.') or (lSearch.Name = '..') then
+          Continue;
+
+        lPath := IncludeTrailingPathDelimiter(AFolder) + lSearch.Name;
+        if (lSearch.Attr and faDirectory) <> 0 then
+          IndexFolder(lPath)
+        else
+          IndexWorkspaceFile(lPath);
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+  end;
+
+begin
+  FIndexedSymbols.Clear;
+
+  for lIdx := 0 to FWorkspaceFolders.Count - 1 do
+    IndexFolder(FWorkspaceFolders[lIdx]);
+
+  for lIdx := 0 to Model.DocumentCount - 1 do
+    ReindexDocument(Model.DocumentByIndex(lIdx));
+end;
+
+procedure TNXLSSymbolService.ReindexDocument(ADocument: TNXLSDocument);
+begin
+  if ADocument = nil then
+    Exit;
+
+  IndexCodeBuffer(ADocument.URI, ADocument.CodeBuffer);
+end;
+
+end.

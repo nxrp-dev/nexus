@@ -6,7 +6,8 @@ interface
 
 uses
   Classes,
-  SysUtils;
+  SysUtils,
+  obNXPersist;
 
 type
   TNXFPCSwitchState = (
@@ -61,8 +62,9 @@ type
     fbkPackage
   );
 
-  TNXFPCOptionSection = class
+  TNXFPCOptionSection = class(TNXPersistObject)
   public
+    constructor Create; override;
     procedure AppendArguments(AArguments: TStrings); virtual;
   end;
 
@@ -71,10 +73,11 @@ type
     FDisableDefaultConfigFiles: Boolean;
     FOptionFiles: TStringList;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property DisableDefaultConfigFiles: Boolean read FDisableDefaultConfigFiles write FDisableDefaultConfigFiles;
     property OptionFiles: TStringList read FOptionFiles;
   end;
@@ -93,10 +96,11 @@ type
     FReadingStyle: string;
     FSkipRegisterAllocation: TNXFPCSwitchState;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property PreserveAssemblerFile: TNXFPCSwitchState read FPreserveAssemblerFile write FPreserveAssemblerFile;
     property GenerateBigObjCOFF: TNXFPCSwitchState read FGenerateBigObjCOFF write FGenerateBigObjCOFF;
     property ListSourceLines: TNXFPCSwitchState read FListSourceLines write FListSourceLines;
@@ -120,6 +124,7 @@ type
   public
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property BuildAllModules: TNXFPCSwitchState read FBuildAllModules write FBuildAllModules;
     property BrowserInfo: TNXFPCSwitchState read FBrowserInfo write FBrowserInfo;
     property BrowserLocalSymbols: TNXFPCSwitchState read FBrowserLocalSymbols write FBrowserLocalSymbols;
@@ -132,10 +137,11 @@ type
     FDefines: TStringList;
     FUndefines: TStringList;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property Defines: TStringList read FDefines;
     property Undefines: TStringList read FUndefines;
   end;
@@ -148,6 +154,7 @@ type
   public
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property GenerateDefFile: TNXFPCSwitchState read FGenerateDefFile write FGenerateDefFile;
     property Description: string read FDescription write FDescription;
     property DllVersion: string read FDllVersion write FDllVersion;
@@ -180,10 +187,11 @@ type
     FTargetSpecificOptions: TStringList;
     FSmartLinkedLibrary: TNXFPCSwitchState;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property IEEEConstantChecks: TNXFPCSwitchState read FIEEEConstantChecks write FIEEEConstantChecks;
     property ABI: string read FABI write FABI;
     property BigEndianCode: TNXFPCSwitchState read FBigEndianCode write FBigEndianCode;
@@ -235,10 +243,11 @@ type
     FWholeProgramFeedbackOutput: string;
     FWholeProgramFeedbackInput: string;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property ExecutableSearchPath: string read FExecutableSearchPath write FExecutableSearchPath;
     property PreloadUnits: TStringList read FPreloadUnits;
     property InputCodePage: string read FInputCodePage write FInputCodePage;
@@ -275,10 +284,11 @@ type
     FTrashLocalVariables: Integer;
     FValgrind: TNXFPCSwitchState;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property GenerateDebugInfo: TNXFPCSwitchState read FGenerateDebugInfo write FGenerateDebugInfo;
     property PointerChecks: TNXFPCSwitchState read FPointerChecks write FPointerChecks;
     property HeapTrace: TNXFPCSwitchState read FHeapTrace write FHeapTrace;
@@ -311,6 +321,7 @@ type
   public
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property CompilerDate: TNXFPCSwitchState read FCompilerDate write FCompilerDate;
     property CompilerOS: TNXFPCSwitchState read FCompilerOS write FCompilerOS;
     property HostProcessor: TNXFPCSwitchState read FHostProcessor write FHostProcessor;
@@ -335,10 +346,11 @@ type
     FEnabledModeSwitches: TStringList;
     FDisabledModeSwitches: TStringList;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property Mode: TNXFPCLanguageMode read FMode write FMode;
     property EnabledModeSwitches: TStringList read FEnabledModeSwitches;
     property DisabledModeSwitches: TStringList read FDisabledModeSwitches;
@@ -355,10 +367,11 @@ type
     FWholeProgramFeedbackOptimizations: TStringList;
     FWholeProgramUseOptimizations: TStringList;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property Level: TNXFPCOptimizationLevel read FLevel write FLevel;
     property OptimizeForSize: TNXFPCSwitchState read FOptimizeForSize write FOptimizeForSize;
     property TargetCPU: string read FTargetCPU write FTargetCPU;
@@ -394,10 +407,11 @@ type
     FExceptions: TNXFPCSwitchState;
     FTypedAddressOperator: TNXFPCSwitchState;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property ObjFPCModeShortcut: TNXFPCSwitchState read FObjFPCModeShortcut write FObjFPCModeShortcut;
     property DelphiModeShortcut: TNXFPCSwitchState read FDelphiModeShortcut write FDelphiModeShortcut;
     property TurboPascalModeShortcut: TNXFPCSwitchState read FTurboPascalModeShortcut write FTurboPascalModeShortcut;
@@ -440,10 +454,11 @@ type
     FExecutableStack: TNXFPCSwitchState;
     FRawTargetOptions: TStringList;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property OperatingSystem: string read FOperatingSystem write FOperatingSystem;
     property ApplicationType: TNXFPCApplicationType read FApplicationType write FApplicationType;
     property CreateBundle: TNXFPCSwitchState read FCreateBundle write FCreateBundle;
@@ -469,6 +484,7 @@ type
   public
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property DoNotCheckUnitNameMatchesFileName: TNXFPCSwitchState read FDoNotCheckUnitNameMatchesFileName write FDoNotCheckUnitNameMatchesFileName;
     property GenerateReleaseUnitFiles: TNXFPCSwitchState read FGenerateReleaseUnitFiles write FGenerateReleaseUnitFiles;
     property CompileSystemUnit: TNXFPCSwitchState read FCompileSystemUnit write FCompileSystemUnit;
@@ -500,10 +516,11 @@ type
   protected
     function BuildVerbosityValue: string;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property ShowErrors: TNXFPCSwitchState read FShowErrors write FShowErrors;
     property ShowWarnings: TNXFPCSwitchState read FShowWarnings write FShowWarnings;
     property ShowNotes: TNXFPCSwitchState read FShowNotes write FShowNotes;
@@ -557,10 +574,11 @@ type
     FVLinkExternalLinker: TNXFPCSwitchState;
     FSmartLinkedUnits: TNXFPCSwitchState;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
 
+  published
     property DoNotCallAssemblerAndLinker: TNXFPCSwitchState read FDoNotCallAssemblerAndLinker write FDoNotCallAssemblerAndLinker;
     property GenerateHostLinkScript: TNXFPCSwitchState read FGenerateHostLinkScript write FGenerateHostLinkScript;
     property GenerateTargetLinkScript: TNXFPCSwitchState read FGenerateTargetLinkScript write FGenerateTargetLinkScript;
@@ -614,11 +632,12 @@ type
     FLinking: TNXFPCLinkingOptions;
     FRawOptions: TStringList;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
     procedure AppendArguments(AArguments: TStrings); override;
     function BuildArguments: TStringList;
 
+  published
     property CompilerPath: string read FCompilerPath write FCompilerPath;
     property InputFile: string read FInputFile write FInputFile;
     property OutputFile: string read FOutputFile write FOutputFile;
@@ -721,6 +740,12 @@ end;
 function NXFPCOperatingSystemDarwin: string;
 begin
   Result := 'darwin';
+end;
+
+constructor TNXFPCOptionSection.Create;
+begin
+  inherited Create;
+  StoreReadOnlyProperties := True;
 end;
 
 procedure TNXFPCOptionSection.AppendArguments(AArguments: TStrings);

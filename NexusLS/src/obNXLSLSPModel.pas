@@ -5,113 +5,30 @@ unit obNXLSLSPModel;
 interface
 
 uses
+  Classes,
   Contnrs,
-  CodeCache,
-  obNXJSONValues,
+  fpjson,
+  obNXLSTransport,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
-  obNXLSDocumentSyncParams;
+  obNXLSDocumentSyncParams,
+  obNXLSServiceContext,
+  obNXLSLifecycleService,
+  obNXLSDocumentService,
+  obNXLSNavigationService,
+  obNXLSCompletionService,
+  obNXLSRefactoringService,
+  obNXLSEditorService,
+  obNXLSSymbolService,
+  obNXLSWorkspaceService,
+  obNXLSCommandService,
+  obNXLSDiagnosticsService;
 
 type
-  TNXLSLSPModel = class;
-
-  TNXLSDocument = class
-  private
-    FURI: string;
-    FLocalPath: string;
-    FLanguageID: string;
-    FVersion: Int64;
-    FText: string;
-    FOpen: Boolean;
-    FCodeBuffer: TCodeBuffer;
-  public
-    procedure OpenFrom(AItem: TNXLSTextDocumentItem);
-    procedure ApplyFullChange(AVersion: Int64; const AText: string);
-    procedure SaveText(const AText: string);
-    procedure Close;
-
-    property URI: string read FURI;
-    property LocalPath: string read FLocalPath;
-    property LanguageID: string read FLanguageID;
-    property Version: Int64 read FVersion;
-    property Text: string read FText;
-    property Open: Boolean read FOpen;
-    property CodeBuffer: TCodeBuffer read FCodeBuffer;
-  end;
-
-  TNXLSLSPService = class
-  protected
-    FModel: TNXLSLSPModel;
-  public
-    constructor Create(AModel: TNXLSLSPModel); virtual;
-    property Model: TNXLSLSPModel read FModel;
-  end;
-
-  TNXLSLifecycleService = class(TNXLSLSPService)
-  public
-    function Initialize(AParams: TNXLSInitializeParams): TNXJSONValue; virtual;
-    procedure Initialized(AParams: TNXLSInitializedParams); virtual;
-    function Shutdown: TNXJSONValue; virtual;
-    procedure ExitServer; virtual;
-    procedure CancelRequest(AParams: TNXLSCancelParams); virtual;
-  end;
-
-  TNXLSDocumentService = class(TNXLSLSPService)
-  public
-    procedure DidOpen(AParams: TNXLSDidOpenTextDocumentParams); virtual;
-    procedure DidChange(AParams: TNXLSDidChangeTextDocumentParams); virtual;
-    procedure DidSave(AParams: TNXLSDidSaveTextDocumentParams); virtual;
-    procedure DidClose(AParams: TNXLSDidCloseTextDocumentParams); virtual;
-  end;
-
-  TNXLSNavigationService = class(TNXLSLSPService)
-  public
-    function Declaration(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function Definition(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function ImplementationLocation(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function References(AParams: TNXLSReferenceParams): TNXJSONValue; virtual;
-  end;
-
-  TNXLSCompletionService = class(TNXLSLSPService)
-  public
-    function Completion(AParams: TNXLSCompletionParams): TNXJSONValue; virtual;
-    function SignatureHelp(AParams: TNXLSSignatureHelpParams): TNXJSONValue; virtual;
-  end;
-
-  TNXLSRefactoringService = class(TNXLSLSPService)
-  public
-    function Rename(AParams: TNXLSRenameParams): TNXJSONValue; virtual;
-    function PrepareRename(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-  end;
-
-  TNXLSEditorService = class(TNXLSLSPService)
-  public
-    function CodeAction(AParams: TNXLSCodeActionParams): TNXJSONValue; virtual;
-    function DocumentHighlight(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function Hover(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function InlayHint(AParams: TNXLSInlayHintParams): TNXJSONValue; virtual;
-  end;
-
-  TNXLSSymbolService = class(TNXLSLSPService)
-  public
-    function DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue; virtual;
-    function WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue; virtual;
-  end;
-
-  TNXLSWorkspaceService = class(TNXLSLSPService)
-  public
-    procedure DidChangeConfiguration(AParams: TNXLSDidChangeConfigurationParams); virtual;
-    procedure DidChangeWorkspaceFolders(AParams: TNXLSDidChangeWorkspaceFoldersParams); virtual;
-  end;
-
-  TNXLSCommandService = class(TNXLSLSPService)
-  public
-    function ExecuteCommand(AParams: TNXLSExecuteCommandParams): TNXJSONValue; virtual;
-  end;
-
-  TNXLSLSPModel = class
+  TNXLSLSPModel = class(TNXLSLSPContext)
   private
     FDocumentsByURI: TObjectList;
+    FTransport: TNXLSTransport;
     FInitializeReceived: Boolean;
     FInitialized: Boolean;
     FShutdownRequested: Boolean;
@@ -126,6 +43,7 @@ type
     FSymbols: TNXLSSymbolService;
     FWorkspace: TNXLSWorkspaceService;
     FCommands: TNXLSCommandService;
+    FDiagnostics: TNXLSDiagnosticsService;
 
     function FindDocumentIndex(const AURI: string): Integer;
   public
@@ -135,17 +53,32 @@ type
     class function Current: TNXLSLSPModel;
     class procedure SetCurrent(AModel: TNXLSLSPModel);
 
-    function FindDocument(const AURI: string): TNXLSDocument;
-    function RequireDocument(const AURI: string): TNXLSDocument;
-    function OpenDocument(AItem: TNXLSTextDocumentItem): TNXLSDocument;
-    procedure ChangeDocument(AIdentifier: TNXLSVersionedTextDocumentIdentifier; AChanges: TNXLSContentChangeArray);
-    procedure SaveDocument(AParams: TNXLSDidSaveTextDocumentParams);
-    procedure CloseDocument(AIdentifier: TNXLSTextDocumentIdentifier);
+    procedure BeginInitialize(AParams: TNXLSInitializeParams); override;
+    procedure MarkInitialized; override;
+    procedure RequestShutdown; override;
+    procedure RequestExit; override;
+
+    function FindDocument(const AURI: string): TNXLSDocument; override;
+    function RequireDocument(const AURI: string): TNXLSDocument; override;
+    function OpenDocument(AItem: TNXLSTextDocumentItem): TNXLSDocument; override;
+    procedure ChangeDocument(AIdentifier: TNXLSVersionedTextDocumentIdentifier; AChanges: TNXLSContentChangeArray); override;
+    procedure SaveDocument(AParams: TNXLSDidSaveTextDocumentParams); override;
+    procedure CloseDocument(AIdentifier: TNXLSTextDocumentIdentifier); override;
+    function DocumentCount: Integer; override;
+    function DocumentByIndex(AIndex: Integer): TNXLSDocument; override;
+
+    procedure CheckDocument(ADocument: TNXLSDocument); override;
+    procedure ReindexDocument(ADocument: TNXLSDocument); override;
+    procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
+    procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
+    procedure RebuildWorkspaceIndex; override;
+    procedure SendNotification(const AMethod: string; AParams: TJSONData); override;
 
     property InitializeReceived: Boolean read FInitializeReceived;
     property Initialized: Boolean read FInitialized;
     property ShutdownRequested: Boolean read FShutdownRequested;
     property ExitRequested: Boolean read FExitRequested;
+    property Transport: TNXLSTransport read FTransport write FTransport;
 
     property Lifecycle: TNXLSLifecycleService read FLifecycle;
     property Documents: TNXLSDocumentService read FDocuments;
@@ -156,300 +89,16 @@ type
     property Symbols: TNXLSSymbolService read FSymbols;
     property Workspace: TNXLSWorkspaceService read FWorkspace;
     property Commands: TNXLSCommandService read FCommands;
+    property Diagnostics: TNXLSDiagnosticsService read FDiagnostics;
   end;
 
 implementation
 
 uses
-  SysUtils,
-  CodeToolManager,
-  obNXLSProtocolObjects;
+  SysUtils;
 
 var
   gCurrentLSPModel: TNXLSLSPModel;
-
-function NXLSHexValue(AChar: Char): Integer;
-begin
-  case AChar of
-    '0'..'9': Result := Ord(AChar) - Ord('0');
-    'A'..'F': Result := Ord(AChar) - Ord('A') + 10;
-    'a'..'f': Result := Ord(AChar) - Ord('a') + 10;
-  else
-    Result := -1;
-  end;
-end;
-
-function NXLSDecodeURIPath(const AValue: string): string;
-var
-  lIdx: Integer;
-  lHi: Integer;
-  lLo: Integer;
-begin
-  Result := '';
-  lIdx := 1;
-  while lIdx <= Length(AValue) do
-  begin
-    if (AValue[lIdx] = '%') and (lIdx + 2 <= Length(AValue)) then
-    begin
-      lHi := NXLSHexValue(AValue[lIdx + 1]);
-      lLo := NXLSHexValue(AValue[lIdx + 2]);
-      if (lHi >= 0) and (lLo >= 0) then
-      begin
-        Result := Result + Chr((lHi shl 4) + lLo);
-        Inc(lIdx, 3);
-        Continue;
-      end;
-    end;
-
-    Result := Result + AValue[lIdx];
-    Inc(lIdx);
-  end;
-end;
-
-function NXLSFileURIToPath(const AURI: string): string;
-var
-  lRest: string;
-  lAuthority: string;
-  lPath: string;
-  lSlashPos: Integer;
-begin
-  if Copy(AURI, 1, 7) <> 'file://' then
-    raise Exception.CreateFmt('Only file URIs are supported for text documents: %s', [AURI]);
-
-  lRest := Copy(AURI, 8, MaxInt);
-  lAuthority := '';
-  lPath := lRest;
-
-  if (lRest <> '') and (lRest[1] <> '/') then
-  begin
-    lSlashPos := Pos('/', lRest);
-    if lSlashPos = 0 then
-    begin
-      lAuthority := lRest;
-      lPath := '';
-    end
-    else
-    begin
-      lAuthority := Copy(lRest, 1, lSlashPos - 1);
-      lPath := Copy(lRest, lSlashPos, MaxInt);
-    end;
-  end;
-
-  lPath := NXLSDecodeURIPath(lPath);
-
-  if (lAuthority <> '') and (not SameText(lAuthority, 'localhost')) then
-    Result := '\\' + NXLSDecodeURIPath(lAuthority) + lPath
-  else
-  begin
-    Result := lPath;
-    if (Length(Result) >= 3) and (Result[1] = '/') and (Result[3] = ':') then
-      Delete(Result, 1, 1);
-  end;
-
-  Result := StringReplace(Result, '/', DirectorySeparator, [rfReplaceAll]);
-end;
-
-function NXLSLoadCodeBuffer(const ALocalPath: string): TCodeBuffer;
-begin
-  if ALocalPath = '' then
-    raise Exception.Create('Document local path is required.');
-
-  Result := CodeToolBoss.FindFile(ALocalPath);
-  if Result = nil then
-    Result := CodeToolBoss.LoadFile(ALocalPath, False, False);
-  if Result = nil then
-    Result := CodeToolBoss.CreateFile(ALocalPath);
-  if Result = nil then
-    raise Exception.CreateFmt('Unable to create CodeTools buffer for %s', [ALocalPath]);
-end;
-
-constructor TNXLSLSPService.Create(AModel: TNXLSLSPModel);
-begin
-  inherited Create;
-  FModel := AModel;
-end;
-
-procedure TNXLSDocument.OpenFrom(AItem: TNXLSTextDocumentItem);
-begin
-  if AItem = nil then
-    raise Exception.Create('Text document item is required.');
-
-  FURI := AItem.uri.Value;
-  FLocalPath := NXLSFileURIToPath(FURI);
-  FLanguageID := AItem.languageId.Value;
-  FVersion := AItem.version.Value;
-  FText := AItem.text.Value;
-  FCodeBuffer := NXLSLoadCodeBuffer(FLocalPath);
-  FCodeBuffer.Source := FText;
-  FOpen := True;
-end;
-
-procedure TNXLSDocument.ApplyFullChange(AVersion: Int64; const AText: string);
-begin
-  FVersion := AVersion;
-  FText := AText;
-  if FCodeBuffer = nil then
-    FCodeBuffer := NXLSLoadCodeBuffer(FLocalPath);
-  FCodeBuffer.Source := FText;
-  FOpen := True;
-end;
-
-procedure TNXLSDocument.SaveText(const AText: string);
-begin
-  FText := AText;
-  if FCodeBuffer = nil then
-    FCodeBuffer := NXLSLoadCodeBuffer(FLocalPath);
-  FCodeBuffer.Source := FText;
-end;
-
-procedure TNXLSDocument.Close;
-begin
-  FOpen := False;
-end;
-
-function TNXLSLifecycleService.Initialize(AParams: TNXLSInitializeParams): TNXJSONValue;
-begin
-  Model.FInitializeReceived := True;
-  Model.FInitialized := False;
-  Model.FShutdownRequested := False;
-  Model.FExitRequested := False;
-  Result := TNXLSInitializeResult.CreateValue;
-end;
-
-procedure TNXLSLifecycleService.Initialized(AParams: TNXLSInitializedParams);
-begin
-  Model.FInitialized := True;
-end;
-
-function TNXLSLifecycleService.Shutdown: TNXJSONValue;
-begin
-  Model.FShutdownRequested := True;
-  Result := TNXLSNullResult.CreateValue;
-end;
-
-procedure TNXLSLifecycleService.ExitServer;
-begin
-  Model.FExitRequested := True;
-end;
-
-procedure TNXLSLifecycleService.CancelRequest(AParams: TNXLSCancelParams);
-begin
-end;
-
-procedure TNXLSDocumentService.DidOpen(AParams: TNXLSDidOpenTextDocumentParams);
-begin
-  if AParams = nil then
-    raise Exception.Create('didOpen params are required.');
-
-  Model.OpenDocument(AParams.textDocument);
-end;
-
-procedure TNXLSDocumentService.DidChange(AParams: TNXLSDidChangeTextDocumentParams);
-begin
-  if AParams = nil then
-    raise Exception.Create('didChange params are required.');
-
-  Model.ChangeDocument(AParams.textDocument, AParams.contentChanges);
-end;
-
-procedure TNXLSDocumentService.DidSave(AParams: TNXLSDidSaveTextDocumentParams);
-begin
-  if AParams = nil then
-    raise Exception.Create('didSave params are required.');
-
-  Model.SaveDocument(AParams);
-end;
-
-procedure TNXLSDocumentService.DidClose(AParams: TNXLSDidCloseTextDocumentParams);
-begin
-  if AParams = nil then
-    raise Exception.Create('didClose params are required.');
-
-  Model.CloseDocument(AParams.textDocument);
-end;
-
-function TNXLSNavigationService.Declaration(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
-begin
-  Result := TNXLSLocationResult.CreateValue;
-end;
-
-function TNXLSNavigationService.Definition(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
-begin
-  Result := TNXLSLocationResult.CreateValue;
-end;
-
-function TNXLSNavigationService.ImplementationLocation(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
-begin
-  Result := TNXLSLocationResult.CreateValue;
-end;
-
-function TNXLSNavigationService.References(AParams: TNXLSReferenceParams): TNXJSONValue;
-begin
-  Result := TNXLSLocationArrayResult.CreateValue;
-end;
-
-function TNXLSCompletionService.Completion(AParams: TNXLSCompletionParams): TNXJSONValue;
-begin
-  Result := TNXLSCompletionResult.CreateValue;
-end;
-
-function TNXLSCompletionService.SignatureHelp(AParams: TNXLSSignatureHelpParams): TNXJSONValue;
-begin
-  Result := TNXLSSignatureHelpResult.CreateValue;
-end;
-
-function TNXLSRefactoringService.Rename(AParams: TNXLSRenameParams): TNXJSONValue;
-begin
-  Result := TNXLSWorkspaceEditResult.CreateValue;
-end;
-
-function TNXLSRefactoringService.PrepareRename(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
-begin
-  Result := TNXLSPrepareRenameResult.CreateValue;
-end;
-
-function TNXLSEditorService.CodeAction(AParams: TNXLSCodeActionParams): TNXJSONValue;
-begin
-  Result := TNXLSCodeActionArrayResult.CreateValue;
-end;
-
-function TNXLSEditorService.DocumentHighlight(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
-begin
-  Result := TNXLSDocumentHighlightArrayResult.CreateValue;
-end;
-
-function TNXLSEditorService.Hover(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
-begin
-  Result := TNXLSHoverResult.CreateValue;
-end;
-
-function TNXLSEditorService.InlayHint(AParams: TNXLSInlayHintParams): TNXJSONValue;
-begin
-  Result := TNXLSInlayHintArrayResult.CreateValue;
-end;
-
-function TNXLSSymbolService.DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue;
-begin
-  Result := TNXLSDocumentSymbolArrayResult.CreateValue;
-end;
-
-function TNXLSSymbolService.WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue;
-begin
-  Result := TNXLSWorkspaceSymbolArrayResult.CreateValue;
-end;
-
-procedure TNXLSWorkspaceService.DidChangeConfiguration(AParams: TNXLSDidChangeConfigurationParams);
-begin
-end;
-
-procedure TNXLSWorkspaceService.DidChangeWorkspaceFolders(AParams: TNXLSDidChangeWorkspaceFoldersParams);
-begin
-end;
-
-function TNXLSCommandService.ExecuteCommand(AParams: TNXLSExecuteCommandParams): TNXJSONValue;
-begin
-  Result := TNXLSCommandResult.CreateValue;
-end;
 
 constructor TNXLSLSPModel.Create;
 begin
@@ -464,10 +113,12 @@ begin
   FSymbols := TNXLSSymbolService.Create(Self);
   FWorkspace := TNXLSWorkspaceService.Create(Self);
   FCommands := TNXLSCommandService.Create(Self);
+  FDiagnostics := TNXLSDiagnosticsService.Create(Self);
 end;
 
 destructor TNXLSLSPModel.Destroy;
 begin
+  FreeAndNil(FDiagnostics);
   FreeAndNil(FCommands);
   FreeAndNil(FWorkspace);
   FreeAndNil(FSymbols);
@@ -483,6 +134,31 @@ begin
     gCurrentLSPModel := nil;
 
   inherited Destroy;
+end;
+
+procedure TNXLSLSPModel.BeginInitialize(AParams: TNXLSInitializeParams);
+begin
+  FInitializeReceived := True;
+  FInitialized := False;
+  FShutdownRequested := False;
+  FExitRequested := False;
+  FSymbols.SetWorkspaceFolders(AParams);
+  FSymbols.RebuildWorkspaceIndex;
+end;
+
+procedure TNXLSLSPModel.MarkInitialized;
+begin
+  FInitialized := True;
+end;
+
+procedure TNXLSLSPModel.RequestShutdown;
+begin
+  FShutdownRequested := True;
+end;
+
+procedure TNXLSLSPModel.RequestExit;
+begin
+  FExitRequested := True;
 end;
 
 function TNXLSLSPModel.FindDocumentIndex(const AURI: string): Integer;
@@ -567,7 +243,7 @@ begin
   if (AParams.text <> nil) and AParams.text.Assigned then
     lDocument.SaveText(AParams.text.Value)
   else if lDocument.CodeBuffer = nil then
-    lDocument.FCodeBuffer := NXLSLoadCodeBuffer(lDocument.LocalPath);
+    lDocument.SaveText(lDocument.Text);
 end;
 
 procedure TNXLSLSPModel.CloseDocument(AIdentifier: TNXLSTextDocumentIdentifier);
@@ -579,6 +255,63 @@ begin
 
   lDocument := RequireDocument(AIdentifier.uri.Value);
   lDocument.Close;
+end;
+
+function TNXLSLSPModel.DocumentCount: Integer;
+begin
+  Result := FDocumentsByURI.Count;
+end;
+
+function TNXLSLSPModel.DocumentByIndex(AIndex: Integer): TNXLSDocument;
+begin
+  Result := TNXLSDocument(FDocumentsByURI[AIndex]);
+end;
+
+procedure TNXLSLSPModel.CheckDocument(ADocument: TNXLSDocument);
+begin
+  FDiagnostics.CheckDocument(ADocument);
+end;
+
+procedure TNXLSLSPModel.ReindexDocument(ADocument: TNXLSDocument);
+begin
+  FSymbols.ReindexDocument(ADocument);
+end;
+
+procedure TNXLSLSPModel.AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
+begin
+  FSymbols.AddWorkspaceFolders(AFolders);
+end;
+
+procedure TNXLSLSPModel.RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
+begin
+  FSymbols.RemoveWorkspaceFolders(AFolders);
+end;
+
+procedure TNXLSLSPModel.RebuildWorkspaceIndex;
+begin
+  FSymbols.RebuildWorkspaceIndex;
+end;
+
+procedure TNXLSLSPModel.SendNotification(const AMethod: string; AParams: TJSONData);
+var
+  lNotification: TJSONObject;
+begin
+  if FTransport = nil then
+    Exit;
+
+  lNotification := TJSONObject.Create;
+  try
+    lNotification.Add('jsonrpc', '2.0');
+    lNotification.Add('method', AMethod);
+    if AParams = nil then
+      lNotification.Add('params', TJSONObject.Create)
+    else
+      lNotification.Add('params', AParams.Clone);
+
+    FTransport.WriteMessage(lNotification.AsJSON);
+  finally
+    lNotification.Free;
+  end;
 end;
 
 class function TNXLSLSPModel.Current: TNXLSLSPModel;
