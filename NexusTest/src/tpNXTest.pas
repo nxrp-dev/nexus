@@ -15,6 +15,12 @@ const
   cNXTestErrorUnknownResult = -7;
   cNXTestErrorInvalidArgument = -8;
 
+  cJsonRpcParseError = -32700;
+  cJsonRpcInvalidRequest = -32600;
+  cJsonRpcMethodNotFound = -32601;
+  cJsonRpcInvalidParams = -32602;
+  cJsonRpcInternalError = -32603;
+
   cNXTestStatusNotRun = 'notRun';
   cNXTestStatusPassed = 'passed';
   cNXTestStatusFailed = 'failed';

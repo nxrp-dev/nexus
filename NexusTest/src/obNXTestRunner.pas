@@ -12,16 +12,12 @@ type
   TNXTestRunner = class
   private
     FRegistry: TNXTestRegistry;
-    FResults: TList;
-    procedure ClearResults;
-    procedure AddResult(AResult: TNXTestResult);
   public
     constructor Create(ARegistry: TNXTestRegistry);
-    destructor Destroy; override;
 
     function RunAll: TJSONArray;
     function RunSuite(const ASuiteName: string): TJSONArray;
-    function RunTest(const ATestId: string): TNXTestResult;
+    function RunTest(const ATestId: string): TJSONObject;
 
     property Registry: TNXTestRegistry read FRegistry;
   end;
@@ -32,28 +28,6 @@ constructor TNXTestRunner.Create(ARegistry: TNXTestRegistry);
 begin
   inherited Create;
   FRegistry := ARegistry;
-  FResults := TList.Create;
-end;
-
-destructor TNXTestRunner.Destroy;
-begin
-  ClearResults;
-  FResults.Free;
-  inherited Destroy;
-end;
-
-procedure TNXTestRunner.ClearResults;
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to FResults.Count - 1 do
-    TObject(FResults[lIndex]).Free;
-  FResults.Clear;
-end;
-
-procedure TNXTestRunner.AddResult(AResult: TNXTestResult);
-begin
-  FResults.Add(AResult);
 end;
 
 function TNXTestRunner.RunAll: TJSONArray;
@@ -63,7 +37,6 @@ var
   lSuite: TNXTestSuite;
   lResult: TNXTestResult;
 begin
-  ClearResults;
   Result := TJSONArray.Create;
 
   for lSuiteIndex := 0 to FRegistry.SuiteCount - 1 do
@@ -72,8 +45,11 @@ begin
     for lTestIndex := 0 to lSuite.TestCount - 1 do
     begin
       lResult := lSuite.Tests[lTestIndex].Execute(lSuite.Name);
-      Result.Add(lResult.ToJsonObject);
-      AddResult(lResult);
+      try
+        Result.Add(lResult.ToJsonObject);
+      finally
+        lResult.Free;
+      end;
     end;
   end;
 end;
@@ -84,7 +60,6 @@ var
   lSuite: TNXTestSuite;
   lResult: TNXTestResult;
 begin
-  ClearResults;
   Result := TJSONArray.Create;
 
   lSuite := FRegistry.FindSuite(ASuiteName);
@@ -94,23 +69,32 @@ begin
   for lTestIndex := 0 to lSuite.TestCount - 1 do
   begin
     lResult := lSuite.Tests[lTestIndex].Execute(lSuite.Name);
-    Result.Add(lResult.ToJsonObject);
-    AddResult(lResult);
+    try
+      Result.Add(lResult.ToJsonObject);
+    finally
+      lResult.Free;
+    end;
   end;
 end;
 
-function TNXTestRunner.RunTest(const ATestId: string): TNXTestResult;
+function TNXTestRunner.RunTest(const ATestId: string): TJSONObject;
 var
   lSuite: TNXTestSuite;
   lTest: TNXTestCase;
+  lResult: TNXTestResult;
 begin
-  ClearResults;
+  Result := nil;
+
   lTest := FRegistry.FindTest(ATestId, lSuite);
   if not Assigned(lTest) then
-    Exit(nil);
+    Exit;
 
-  Result := lTest.Execute(lSuite.Name);
-  AddResult(Result);
+  lResult := lTest.Execute(lSuite.Name);
+  try
+    Result := lResult.ToJsonObject;
+  finally
+    lResult.Free;
+  end;
 end;
 
 end.

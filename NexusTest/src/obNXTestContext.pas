@@ -21,8 +21,8 @@ type
     procedure Skip(const AMessage: string);
     procedure AssertTrue(AValue: Boolean; const AMessage: string = '');
     procedure AssertFalse(AValue: Boolean; const AMessage: string = '');
-    procedure AssertEquals(const AExpected, AActual: string; const AMessage: string = '');
-    procedure AssertEquals(AExpected, AActual: Integer; const AMessage: string = '');
+    procedure AssertEquals(const AExpected, AActual: string; const AMessage: string = ''); overload;
+    procedure AssertEquals(AExpected, AActual: Integer; const AMessage: string = ''); overload;
 
     property Result: TNXTestResult read FResult;
   end;
@@ -69,7 +69,7 @@ begin
   end;
 end;
 
-procedure TNXTestContext.AssertEquals(const AExpected, AActual: string; const AMessage: string);
+procedure TNXTestContext.AssertEquals(const AExpected, AActual: string; const AMessage: string); overload;
 begin
   if AExpected <> AActual then
   begin
@@ -83,7 +83,7 @@ begin
   end;
 end;
 
-procedure TNXTestContext.AssertEquals(AExpected, AActual: Integer; const AMessage: string);
+procedure TNXTestContext.AssertEquals(AExpected, AActual: Integer; const AMessage: string); overload;
 begin
   AssertEquals(IntToStr(AExpected), IntToStr(AActual), AMessage);
 end;

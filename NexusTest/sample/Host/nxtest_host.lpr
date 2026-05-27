@@ -3,13 +3,13 @@ program nxtest_host;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, DynLibs, tpNXTest;
+  Classes, SysUtils, DynLibs, fpjson, tpNXTest;
 
 type
   TNXTestInitFunc = function: Integer; cdecl;
   TNXTestReleaseProc = procedure; cdecl;
-  TNXTestExecuteCommandFunc = function(ARequest: PChar; var AResultId: Integer; var AResultSize: Integer): Integer; cdecl;
-  TNXTestReadResultFunc = function(AResultId: Integer; ABuffer: PChar; ABufferSize: Integer; var ABytesWritten: Integer): Integer; cdecl;
+  TNXTestExecuteCommandFunc = function(ARequest: PAnsiChar; var AResultId: Integer; var AResultSize: Integer): Integer; cdecl;
+  TNXTestReadResultFunc = function(AResultId: Integer; ABuffer: PAnsiChar; ABufferSize: Integer; var ABytesWritten: Integer): Integer; cdecl;
 
 function ExecuteCommand(AExecuteCommand: TNXTestExecuteCommandFunc; AReadResult: TNXTestReadResultFunc; const ARequest: string): string;
 var
@@ -17,13 +17,13 @@ var
   lResultId: Integer;
   lResultSize: Integer;
   lBytesWritten: Integer;
-  lBuffer: PChar;
+  lBuffer: PAnsiChar;
 begin
   Result := '';
   lResultId := 0;
   lResultSize := 0;
 
-  lStatus := AExecuteCommand(PChar(ARequest), lResultId, lResultSize);
+  lStatus := AExecuteCommand(PAnsiChar(ARequest), lResultId, lResultSize);
   if lStatus <> cNXTestSuccess then
     raise Exception.CreateFmt('NXTest_ExecuteCommand failed. Status=%d', [lStatus]);
 
@@ -35,7 +35,10 @@ begin
     lBytesWritten := 0;
     lStatus := AReadResult(lResultId, lBuffer, lResultSize, lBytesWritten);
     if lStatus <> cNXTestSuccess then
-      raise Exception.CreateFmt('NXTest_ReadResult failed. Status=%d', [lStatus]);
+      raise Exception.CreateFmt('NXTest_ReadResult failed. Status=%d BytesWritten=%d', [lStatus, lBytesWritten]);
+
+    if lBytesWritten <> lResultSize then
+      raise Exception.CreateFmt('NXTest_ReadResult returned unexpected size. Expected=%d Actual=%d', [lResultSize, lBytesWritten]);
 
     Result := StrPas(lBuffer);
   finally
@@ -43,12 +46,31 @@ begin
   end;
 end;
 
-function BuildRequest(AId: Integer; const AMethod, AParams: string): string;
+function BuildRequest(AId: Integer; const AMethod: string; AParams: TJSONObject = nil): string;
+var
+  lRequest: TJSONObject;
 begin
-  if AParams = '' then
-    Result := Format('{"jsonrpc":"2.0","id":%d,"method":"%s","params":{}}', [AId, AMethod])
-  else
-    Result := Format('{"jsonrpc":"2.0","id":%d,"method":"%s","params":%s}', [AId, AMethod, AParams]);
+  lRequest := TJSONObject.Create;
+  try
+    lRequest.Add('jsonrpc', '2.0');
+    lRequest.Add('id', AId);
+    lRequest.Add('method', AMethod);
+
+    if Assigned(AParams) then
+      lRequest.Add('params', AParams)
+    else
+      lRequest.Add('params', TJSONObject.Create);
+
+    Result := lRequest.AsJSON;
+  finally
+    lRequest.Free;
+  end;
+end;
+
+function BuildSingleStringParam(const AName, AValue: string): TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.Add(AName, AValue);
 end;
 
 procedure Run;
@@ -88,22 +110,22 @@ begin
 
     try
       if (ParamCount = 1) or SameText(ParamStr(2), 'list') then
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodListTests, '')))
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodListTests)))
       else if SameText(ParamStr(2), 'capabilities') then
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodGetCapabilities, '')))
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodGetCapabilities)))
       else if SameText(ParamStr(2), 'run-all') then
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunAll, '')))
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunAll)))
       else if SameText(ParamStr(2), 'run-test') then
       begin
         if ParamCount < 3 then
           raise Exception.Create('run-test requires a test id.');
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunTest, Format('{"test":"%s"}', [ParamStr(3)]))));
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunTest, BuildSingleStringParam('test', ParamStr(3)))));
       end
       else if SameText(ParamStr(2), 'run-suite') then
       begin
         if ParamCount < 3 then
           raise Exception.Create('run-suite requires a suite name.');
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunSuite, Format('{"suite":"%s"}', [ParamStr(3)]))));
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunSuite, BuildSingleStringParam('suite', ParamStr(3)))));
       end
       else
         raise Exception.Create('Unknown command: ' + ParamStr(2));
