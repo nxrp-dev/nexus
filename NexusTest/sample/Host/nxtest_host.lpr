@@ -8,25 +8,34 @@ uses
 type
   TNXTestInitFunc = function: Integer; cdecl;
   TNXTestReleaseProc = procedure; cdecl;
-  TNXTestExecuteCommandFunc = function(ARequest: PChar; AResponse: PChar; AResponseSize: Integer; var ABytesWritten: Integer): Integer; cdecl;
+  TNXTestExecuteCommandFunc = function(ARequest: PChar; var AResultId: Integer; var AResultSize: Integer): Integer; cdecl;
+  TNXTestReadResultFunc = function(AResultId: Integer; ABuffer: PChar; ABufferSize: Integer; var ABytesWritten: Integer): Integer; cdecl;
 
-function ExecuteCommand(AExecuteCommand: TNXTestExecuteCommandFunc; const ARequest: string): string;
+function ExecuteCommand(AExecuteCommand: TNXTestExecuteCommandFunc; AReadResult: TNXTestReadResultFunc; const ARequest: string): string;
 var
   lStatus: Integer;
+  lResultId: Integer;
+  lResultSize: Integer;
   lBytesWritten: Integer;
   lBuffer: PChar;
-  lBufferSize: Integer;
 begin
   Result := '';
-  lBufferSize := 1024 * 1024;
-  GetMem(lBuffer, lBufferSize);
+  lResultId := 0;
+  lResultSize := 0;
+
+  lStatus := AExecuteCommand(PChar(ARequest), lResultId, lResultSize);
+  if lStatus <> cNXTestSuccess then
+    raise Exception.CreateFmt('NXTest_ExecuteCommand failed. Status=%d', [lStatus]);
+
+  if lResultSize <= 0 then
+    raise Exception.CreateFmt('NXTest_ExecuteCommand returned invalid result size. ResultSize=%d', [lResultSize]);
+
+  GetMem(lBuffer, lResultSize);
   try
     lBytesWritten := 0;
-    lStatus := AExecuteCommand(PChar(ARequest), lBuffer, lBufferSize, lBytesWritten);
-    if lStatus = cNXTestErrorBufferTooSmall then
-      raise Exception.CreateFmt('Response buffer too small. Required=%d', [lBytesWritten]);
+    lStatus := AReadResult(lResultId, lBuffer, lResultSize, lBytesWritten);
     if lStatus <> cNXTestSuccess then
-      raise Exception.CreateFmt('NXTest_ExecuteCommand failed. Status=%d', [lStatus]);
+      raise Exception.CreateFmt('NXTest_ReadResult failed. Status=%d', [lStatus]);
 
     Result := StrPas(lBuffer);
   finally
@@ -49,6 +58,7 @@ var
   lInit: TNXTestInitFunc;
   lRelease: TNXTestReleaseProc;
   lExecuteCommand: TNXTestExecuteCommandFunc;
+  lReadResult: TNXTestReadResultFunc;
   lStatus: Integer;
 begin
   if ParamCount < 1 then
@@ -67,8 +77,9 @@ begin
     Pointer(lInit) := GetProcedureAddress(lHandle, 'NXTest_Init');
     Pointer(lRelease) := GetProcedureAddress(lHandle, 'NXTest_Release');
     Pointer(lExecuteCommand) := GetProcedureAddress(lHandle, 'NXTest_ExecuteCommand');
+    Pointer(lReadResult) := GetProcedureAddress(lHandle, 'NXTest_ReadResult');
 
-    if not Assigned(lInit) or not Assigned(lRelease) or not Assigned(lExecuteCommand) then
+    if not Assigned(lInit) or not Assigned(lRelease) or not Assigned(lExecuteCommand) or not Assigned(lReadResult) then
       raise Exception.Create('The library does not expose the required NXTest functions.');
 
     lStatus := lInit();
@@ -77,22 +88,22 @@ begin
 
     try
       if (ParamCount = 1) or SameText(ParamStr(2), 'list') then
-        WriteLn(ExecuteCommand(lExecuteCommand, BuildRequest(1, cNXTestMethodListTests, '')))
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodListTests, '')))
       else if SameText(ParamStr(2), 'capabilities') then
-        WriteLn(ExecuteCommand(lExecuteCommand, BuildRequest(1, cNXTestMethodGetCapabilities, '')))
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodGetCapabilities, '')))
       else if SameText(ParamStr(2), 'run-all') then
-        WriteLn(ExecuteCommand(lExecuteCommand, BuildRequest(1, cNXTestMethodRunAll, '')))
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunAll, '')))
       else if SameText(ParamStr(2), 'run-test') then
       begin
         if ParamCount < 3 then
           raise Exception.Create('run-test requires a test id.');
-        WriteLn(ExecuteCommand(lExecuteCommand, BuildRequest(1, cNXTestMethodRunTest, Format('{"test":"%s"}', [ParamStr(3)]))));
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunTest, Format('{"test":"%s"}', [ParamStr(3)]))));
       end
       else if SameText(ParamStr(2), 'run-suite') then
       begin
         if ParamCount < 3 then
           raise Exception.Create('run-suite requires a suite name.');
-        WriteLn(ExecuteCommand(lExecuteCommand, BuildRequest(1, cNXTestMethodRunSuite, Format('{"suite":"%s"}', [ParamStr(3)]))));
+        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunSuite, Format('{"suite":"%s"}', [ParamStr(3)]))));
       end
       else
         raise Exception.Create('Unknown command: ' + ParamStr(2));

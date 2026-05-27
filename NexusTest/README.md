@@ -20,15 +20,30 @@ The sample test module exports:
 ```pascal
 function NXTest_Init: Integer; cdecl;
 procedure NXTest_Release; cdecl;
+
 function NXTest_ExecuteCommand(
   ARequest: PChar;
-  AResponse: PChar;
-  AResponseSize: Integer;
+  var AResultId: Integer;
+  var AResultSize: Integer
+): Integer; cdecl;
+
+function NXTest_ReadResult(
+  AResultId: Integer;
+  ABuffer: PChar;
+  ABufferSize: Integer;
   var ABytesWritten: Integer
 ): Integer; cdecl;
 ```
 
-The command payload is currently UTF-8 JSON-RPC 2.0 text. The caller supplies the response buffer. For commands that run tests, call once with a sufficiently large buffer; do not use a sizing call that would execute the same command twice.
+The command payload is currently UTF-8 JSON-RPC 2.0 text.
+
+`NXTest_ExecuteCommand` executes the command and stores the response inside the module. It returns a result ID and the exact buffer size needed to read the response.
+
+`AResultSize` includes every byte required by `NXTest_ReadResult`, including the trailing `#0` terminator.
+
+`NXTest_ReadResult` copies and consumes the stored result. A result is single-use. If the supplied buffer is too small, the result is not consumed.
+
+No Pascal objects, Pascal strings, records, exceptions, or caller/callee-owned allocations cross the module boundary.
 
 ## Supported commands
 
@@ -74,4 +89,4 @@ sample/Host/nxtest_host sample/SampleTests/libnxtest_sampletests.so run-test Sam
 
 The DLL boundary exposes intent, not encoding: `NXTest_ExecuteCommand`.
 
-JSON-RPC is the current command contract. Pascal objects, Pascal strings, records, and exceptions do not cross the module boundary.
+JSON-RPC is the current command contract. The result boundary is deterministic: execute returns a result ID and exact result buffer size; read consumes that specific result.

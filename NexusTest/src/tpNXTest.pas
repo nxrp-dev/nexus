@@ -12,6 +12,8 @@ const
   cNXTestErrorUnknownTest = -4;
   cNXTestErrorBufferTooSmall = -5;
   cNXTestErrorInternal = -6;
+  cNXTestErrorUnknownResult = -7;
+  cNXTestErrorInvalidArgument = -8;
 
   cNXTestStatusNotRun = 'notRun';
   cNXTestStatusPassed = 'passed';
