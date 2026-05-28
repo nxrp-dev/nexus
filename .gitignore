@@ -1,1 +1,7 @@
 site/
+*.compiled
+*.dll
+*.exe
+*.o
+*.ppu
+lib/

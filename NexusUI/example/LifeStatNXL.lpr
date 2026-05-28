@@ -35,6 +35,7 @@ uses
   obNXTreeList,
   obNXTreeMap,
   obNXTreeMapTestData,
+  obNXTreeView,
   obNXWindow,
   obNXApplication,
   tpNXLayout,
@@ -56,6 +57,7 @@ var
   Form1, Form2, Form3, Form4, Form5, Form6, Form7, Form8, Form9: TNXGroupBox;
   Form10: TNXGroupBox;
   Form11: TNXGroupBox;
+  Form12: TNXGroupBox;
   Button1, Button2: TNXButton;
   LayoutAnchorButton: TNXButton;
   LayoutBottomPanel: TNXPanel;
@@ -101,6 +103,10 @@ var
   TreeNode1: TNXTreeListNode;
   TreeNode2: TNXTreeListNode;
   TreeNode3: TNXTreeListNode;
+  TreeView1: TNXTreeView;
+  TreeViewNode1: TNXTreeViewNode;
+  TreeViewNode2: TNXTreeViewNode;
+  TreeViewNode3: TNXTreeViewNode;
   TrackBar1: TNXTrackBar;
   TrackBar2: TNXTrackBar;
 
@@ -211,6 +217,7 @@ begin
   Form6 := TNXGroupBox.Create(PageData, 'Tree List', MakeNXRect(10, 10, 300, 300));
   Form9 := TNXGroupBox.Create(PageData, 'Grid', MakeNXRect(330, 10, 630, 180));
   Form11 := TNXGroupBox.Create(PageData, 'Property Editor', MakeNXRect(330, 210, 360, 260));
+  Form12 := TNXGroupBox.Create(PageData, 'Tree View', MakeNXRect(710, 210, 250, 260));
 
   Form7 := TNXGroupBox.Create(PageLayout, 'Memo', MakeNXRect(10, 10, 300, 256));
   Form8 := TNXGroupBox.Create(PageLayout, 'Split Panel', MakeNXRect(330, 10, 300, 140));
@@ -395,6 +402,46 @@ begin
   TreeList1.AddChildNode(TreeNode3, 'Net Worth');
   TreeList1.ExpandAll;
   TreeList1.SelectedNode := TreeNode1;
+
+  TreeView1 := TNXTreeView.Create(Form12.ContentPanel);
+  TreeView1.SetBounds(10, 10, 220, 210);
+  TreeView1.Columns[0].Caption := 'Name';
+  TreeView1.Columns[0].Width := 110;
+  TreeView1.AddColumn('Type', 70);
+  TreeView1.AddColumn('Value', 70);
+
+  TreeViewNode1 := TreeView1.AddNode('Assets');
+  TreeViewNode1.Cell[1].Text := 'Group';
+  TreeViewNode1.Cell[2].Text := '$18.5k';
+  TreeViewNode1.Cell[0].GlyphKind := tvgkCircle;
+  TreeViewNode1.Cell[0].GlyphColor := MakeNXColor(80, 180, 255, 255);
+  TreeViewNode1.Cell[0].UseGlyphColor := True;
+
+  TreeViewNode2 := TreeView1.AddChildNode(TreeViewNode1, 'Checking');
+  TreeViewNode2.Cell[1].Text := 'Cash';
+  TreeViewNode2.Cell[2].Text := '$4.2k';
+
+  TreeViewNode2 := TreeView1.AddChildNode(TreeViewNode1, 'Brokerage');
+  TreeViewNode2.Cell[1].Text := 'Invest';
+  TreeViewNode2.Cell[2].Text := '$14.3k';
+
+  TreeViewNode3 := TreeView1.AddNode('Tasks');
+  TreeViewNode3.Cell[1].Text := 'Group';
+  TreeViewNode3.Cell[2].Text := '3';
+  TreeViewNode3.Cell[0].GlyphKind := tvgkSquare;
+  TreeViewNode3.Cell[0].GlyphColor := MakeNXColor(120, 210, 140, 255);
+  TreeViewNode3.Cell[0].UseGlyphColor := True;
+
+  TreeViewNode2 := TreeView1.AddChildNode(TreeViewNode3, 'Review');
+  TreeViewNode2.Cell[1].Text := 'Action';
+  TreeViewNode2.Cell[2].Text := 'Open';
+
+  TreeViewNode2 := TreeView1.AddChildNode(TreeViewNode3, 'Deploy');
+  TreeViewNode2.Cell[1].Text := 'Action';
+  TreeViewNode2.Cell[2].Text := 'Hold';
+
+  TreeView1.ExpandAll;
+  TreeView1.SelectedNode := TreeViewNode1;
 
   Grid1 := TNXGrid.Create(Form9.ContentPanel);
   Grid1.Left := 10;
