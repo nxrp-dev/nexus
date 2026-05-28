@@ -53,6 +53,7 @@ type
     FDiagnostics: TNXLSDiagnosticsService;
 
     function FindDocumentIndex(const AURI: string): Integer;
+    function RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
     function IsWorkspacePathExcluded(const APath: string): Boolean;
     procedure AddWorkspacePath(const APath: string);
     procedure FindPascalSourceDirectories(const ARootPath: string);
@@ -174,6 +175,24 @@ begin
   FSymbols.RebuildWorkspaceIndex;
 end;
 
+function TNXLSLSPModel.RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
+begin
+  Result := '';
+  if AParams = nil then
+    Exit;
+
+  if (AParams.rootUri <> nil) and AParams.rootUri.Assigned then
+    Result := NXLSFileURIToPath(AParams.rootUri.AsString);
+
+  if (Result = '') and (AParams.rootPath <> nil) and AParams.rootPath.Assigned then
+    Result := AParams.rootPath.AsString;
+
+  if (Result <> '') and DirectoryExists(Result) then
+    Result := IncludeTrailingPathDelimiter(ExpandFileName(Result))
+  else
+    Result := '';
+end;
+
 function TNXLSLSPModel.IsWorkspacePathExcluded(const APath: string): Boolean;
 var
   lIdx: Integer;
@@ -242,27 +261,12 @@ procedure TNXLSLSPModel.CollectWorkspacePaths(AParams: TNXLSInitializeParams);
 var
   lIdx: Integer;
   lFolder: TNXLSWorkspaceFolder;
-  lRoot: string;
 begin
   FEffectiveWorkspacePaths.Clear;
-  FProjectDir := '';
+  FProjectDir := RootPathFromInitializeParams(AParams);
 
   if AParams = nil then
     Exit;
-
-  if (AParams.rootUri <> nil) and AParams.rootUri.Assigned then
-  begin
-    lRoot := NXLSFileURIToPath(AParams.rootUri.AsString);
-    if DirectoryExists(lRoot) then
-      FProjectDir := IncludeTrailingPathDelimiter(ExpandFileName(lRoot));
-  end;
-
-  if (FProjectDir = '') and (AParams.rootPath <> nil) and AParams.rootPath.Assigned then
-  begin
-    lRoot := AParams.rootPath.AsString;
-    if DirectoryExists(lRoot) then
-      FProjectDir := IncludeTrailingPathDelimiter(ExpandFileName(lRoot));
-  end;
 
   if (AParams.workspaceFolders <> nil) and AParams.workspaceFolders.Assigned and
     (AParams.workspaceFolders.Count > 0) then
@@ -287,6 +291,8 @@ begin
     Exit;
 
   FSettings.LoadFromInitializationOptions(AParams.initializationOptions);
+  FProjectDir := RootPathFromInitializeParams(AParams);
+  FSettings.ExpandMacros(FProjectDir, GetTempDir(True));
   CollectWorkspacePaths(AParams);
 
   FEffectiveFPCOptions.Clear;

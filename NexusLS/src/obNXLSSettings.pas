@@ -18,6 +18,8 @@ type
     FIncludeWorkspaceFoldersAsUnitPaths: Boolean;
     FIncludeWorkspaceFoldersAsIncludePaths: Boolean;
     FExcludeWorkspaceFolders: TStringList;
+    function ExpandMacrosInString(const AValue, ARootPath, ATempPath: string): string;
+    procedure ExpandMacrosInStrings(AValues: TStrings; const ARootPath, ATempPath: string);
     procedure LoadStringArray(AData: TJSONData; ATarget: TStrings);
     procedure LoadStringValue(AObject: TJSONObject; const AName: string; var ATarget: string);
     procedure LoadBooleanValue(AObject: TJSONObject; const AName: string; var ATarget: Boolean);
@@ -27,6 +29,7 @@ type
 
     procedure Clear;
     procedure LoadFromInitializationOptions(AOptions: TNXJSONValue);
+    procedure ExpandMacros(const ARootPath, ATempPath: string);
 
     property ProgramFile: string read FProgramFile write FProgramFile;
     property FPCOptions: TStringList read FFPCOptions;
@@ -64,6 +67,25 @@ begin
   FExcludeWorkspaceFolders.Clear;
   FIncludeWorkspaceFoldersAsUnitPaths := True;
   FIncludeWorkspaceFoldersAsIncludePaths := True;
+end;
+
+function TNXLSSettings.ExpandMacrosInString(const AValue, ARootPath,
+  ATempPath: string): string;
+begin
+  Result := AValue;
+  Result := StringReplace(Result, '$(root)', ARootPath, [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '$root', ARootPath, [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '$(tmpdir)', ATempPath, [rfReplaceAll, rfIgnoreCase]);
+  Result := StringReplace(Result, '$tmpdir', ATempPath, [rfReplaceAll, rfIgnoreCase]);
+end;
+
+procedure TNXLSSettings.ExpandMacrosInStrings(AValues: TStrings;
+  const ARootPath, ATempPath: string);
+var
+  lIdx: Integer;
+begin
+  for lIdx := 0 to AValues.Count - 1 do
+    AValues[lIdx] := ExpandMacrosInString(AValues[lIdx], ARootPath, ATempPath);
 end;
 
 procedure TNXLSSettings.LoadStringArray(AData: TJSONData; ATarget: TStrings);
@@ -141,6 +163,14 @@ begin
   finally
     lData.Free;
   end;
+end;
+
+procedure TNXLSSettings.ExpandMacros(const ARootPath, ATempPath: string);
+begin
+  FProgramFile := ExpandMacrosInString(FProgramFile, ARootPath, ATempPath);
+  FCodeToolsConfig := ExpandMacrosInString(FCodeToolsConfig, ARootPath, ATempPath);
+  ExpandMacrosInStrings(FFPCOptions, ARootPath, ATempPath);
+  ExpandMacrosInStrings(FExcludeWorkspaceFolders, ARootPath, ATempPath);
 end;
 
 end.
