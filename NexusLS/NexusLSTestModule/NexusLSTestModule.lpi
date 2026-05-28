@@ -18,7 +18,7 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
-    <Units Count="7">
+    <Units Count="8">
       <Unit0>
         <Filename Value="NexusLSTestModule.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -44,9 +44,13 @@
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="tsNXTestJSONRPCHardeningTests.pas"/>
+        <Filename Value="tsNXLSDiagnosticsTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
+      <Unit7>
+        <Filename Value="tsNXTestJSONRPCHardeningTests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit7>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

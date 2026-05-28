@@ -53,6 +53,10 @@ type
     procedure CloseDocument(AIdentifier: TNXLSTextDocumentIdentifier); virtual; abstract;
     function DocumentCount: Integer; virtual; abstract;
     function DocumentByIndex(AIndex: Integer): TNXLSDocument; virtual; abstract;
+    function CheckSyntaxEnabled: Boolean; virtual; abstract;
+    function PublishDiagnosticsEnabled: Boolean; virtual; abstract;
+    function ShowSyntaxErrorsEnabled: Boolean; virtual; abstract;
+    function EffectiveFPCOptionList: TStrings; virtual; abstract;
     procedure CheckDocument(ADocument: TNXLSDocument); virtual; abstract;
     procedure CheckInactiveRegions(ADocument: TNXLSDocument); virtual; abstract;
     procedure ReindexDocument(ADocument: TNXLSDocument); virtual; abstract;

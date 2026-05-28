@@ -83,6 +83,10 @@ type
     function DocumentCount: Integer; override;
     function DocumentByIndex(AIndex: Integer): TNXLSDocument; override;
 
+    function CheckSyntaxEnabled: Boolean; override;
+    function PublishDiagnosticsEnabled: Boolean; override;
+    function ShowSyntaxErrorsEnabled: Boolean; override;
+    function EffectiveFPCOptionList: TStrings; override;
     procedure CheckDocument(ADocument: TNXLSDocument); override;
     procedure CheckInactiveRegions(ADocument: TNXLSDocument); override;
     procedure ReindexDocument(ADocument: TNXLSDocument); override;
@@ -453,6 +457,26 @@ end;
 function TNXLSLSPModel.DocumentByIndex(AIndex: Integer): TNXLSDocument;
 begin
   Result := TNXLSDocument(FDocumentsByURI[AIndex]);
+end;
+
+function TNXLSLSPModel.CheckSyntaxEnabled: Boolean;
+begin
+  Result := FSettings.CheckSyntax;
+end;
+
+function TNXLSLSPModel.PublishDiagnosticsEnabled: Boolean;
+begin
+  Result := FSettings.PublishDiagnostics;
+end;
+
+function TNXLSLSPModel.ShowSyntaxErrorsEnabled: Boolean;
+begin
+  Result := FSettings.ShowSyntaxErrors;
+end;
+
+function TNXLSLSPModel.EffectiveFPCOptionList: TStrings;
+begin
+  Result := FEffectiveFPCOptions;
 end;
 
 procedure TNXLSLSPModel.CheckDocument(ADocument: TNXLSDocument);

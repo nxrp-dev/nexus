@@ -15,6 +15,9 @@ type
     FProgramFile: string;
     FFPCOptions: TStringList;
     FCodeToolsConfig: string;
+    FCheckSyntax: Boolean;
+    FPublishDiagnostics: Boolean;
+    FShowSyntaxErrors: Boolean;
     FIncludeWorkspaceFoldersAsUnitPaths: Boolean;
     FIncludeWorkspaceFoldersAsIncludePaths: Boolean;
     FCheckInactiveRegions: Boolean;
@@ -35,6 +38,9 @@ type
     property ProgramFile: string read FProgramFile write FProgramFile;
     property FPCOptions: TStringList read FFPCOptions;
     property CodeToolsConfig: string read FCodeToolsConfig write FCodeToolsConfig;
+    property CheckSyntax: Boolean read FCheckSyntax write FCheckSyntax;
+    property PublishDiagnostics: Boolean read FPublishDiagnostics write FPublishDiagnostics;
+    property ShowSyntaxErrors: Boolean read FShowSyntaxErrors write FShowSyntaxErrors;
     property IncludeWorkspaceFoldersAsUnitPaths: Boolean read FIncludeWorkspaceFoldersAsUnitPaths write FIncludeWorkspaceFoldersAsUnitPaths;
     property IncludeWorkspaceFoldersAsIncludePaths: Boolean read FIncludeWorkspaceFoldersAsIncludePaths write FIncludeWorkspaceFoldersAsIncludePaths;
     property CheckInactiveRegions: Boolean read FCheckInactiveRegions write FCheckInactiveRegions;
@@ -67,6 +73,9 @@ begin
   FCodeToolsConfig := '';
   FFPCOptions.Clear;
   FExcludeWorkspaceFolders.Clear;
+  FCheckSyntax := False;
+  FPublishDiagnostics := False;
+  FShowSyntaxErrors := False;
   FIncludeWorkspaceFoldersAsUnitPaths := True;
   FIncludeWorkspaceFoldersAsIncludePaths := True;
   FCheckInactiveRegions := True;
@@ -161,6 +170,9 @@ begin
     LoadStringValue(lObject, 'codeToolsConfig', FCodeToolsConfig);
     LoadStringArray(lObject.Find('fpcOptions'), FFPCOptions);
     LoadStringArray(lObject.Find('excludeWorkspaceFolders'), FExcludeWorkspaceFolders);
+    LoadBooleanValue(lObject, 'checkSyntax', FCheckSyntax);
+    LoadBooleanValue(lObject, 'publishDiagnostics', FPublishDiagnostics);
+    LoadBooleanValue(lObject, 'showSyntaxErrors', FShowSyntaxErrors);
     LoadBooleanValue(lObject, 'includeWorkspaceFoldersAsUnitPaths', FIncludeWorkspaceFoldersAsUnitPaths);
     LoadBooleanValue(lObject, 'includeWorkspaceFoldersAsIncludePaths', FIncludeWorkspaceFoldersAsIncludePaths);
     LoadBooleanValue(lObject, 'checkInactiveRegions', FCheckInactiveRegions);

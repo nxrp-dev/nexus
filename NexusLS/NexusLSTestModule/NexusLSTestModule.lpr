@@ -13,6 +13,7 @@ uses
   tsNXLSLegacySymbolTests,
   tsNXLSNavigationTests,
   tsNXLSIntelligenceTests,
+  tsNXLSDiagnosticsTests,
   tsNXTestJSONRPCHardeningTests;
 
 var
@@ -25,6 +26,7 @@ begin
   RegisterNXLSLegacySymbolTests(ARegistry);
   RegisterNXLSNavigationTests(ARegistry);
   RegisterNXLSIntelligenceTests(ARegistry);
+  RegisterNXLSDiagnosticsTests(ARegistry);
   RegisterNXTestJSONRPCHardeningTests(ARegistry);
 end;
 
