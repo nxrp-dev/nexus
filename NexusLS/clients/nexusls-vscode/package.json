@@ -1,0 +1,147 @@
+{
+  "name": "nexusls-vscode",
+  "displayName": "Nexus Pascal",
+  "description": "VS Code client for NexusLS.",
+  "publisher": "nxrp-dev",
+  "version": "0.0.1",
+  "license": "MIT",
+  "categories": [
+    "Programming Languages"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "activationEvents": [
+    "onLanguage:pascal"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "pascal",
+        "extensions": [
+          ".pas",
+          ".pp",
+          ".lpr",
+          ".inc"
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "nexusPascal.completeCode",
+        "title": "Nexus Pascal: Complete Code"
+      },
+      {
+        "command": "nexusPascal.invertAssignment",
+        "title": "Nexus Pascal: Invert Assignment"
+      },
+      {
+        "command": "nexusPascal.removeEmptyMethods",
+        "title": "Nexus Pascal: Remove Empty Methods"
+      },
+      {
+        "command": "nexusPascal.removeUnusedUnits",
+        "title": "Nexus Pascal: Remove Unused Units"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "nexusPascal.completeCode",
+        "key": "ctrl+shift+c",
+        "when": "editorTextFocus && editorLangId == pascal"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Nexus Pascal",
+      "properties": {
+        "nexusLS.trace.server": {
+          "scope": "window",
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication between VS Code and NexusLS."
+        },
+        "nexusLS.executable": {
+          "type": "string",
+          "default": "C:\\gitdev\\nexus\\output\\NexusLS\\x86_64-win64\\nexusls.exe",
+          "description": "Path to the NexusLS executable."
+        },
+        "nexusLS.initializationOptions.program": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the main Pascal program file for CodeTools context."
+        },
+        "nexusLS.initializationOptions.fpcOptions": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional FPC/CodeTools switches such as -Fu, -Fi, and -d."
+        },
+        "nexusLS.initializationOptions.includeWorkspaceFoldersAsUnitPaths": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add workspace folders as unit search paths."
+        },
+        "nexusLS.initializationOptions.includeWorkspaceFoldersAsIncludePaths": {
+          "type": "boolean",
+          "default": true,
+          "description": "Add workspace folders as include search paths."
+        },
+        "nexusLS.initializationOptions.excludeWorkspaceFolders": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Workspace folder paths to exclude from CodeTools path collection."
+        },
+        "nexusLS.env.PP": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Free Pascal compiler."
+        },
+        "nexusLS.env.FPCDIR": {
+          "type": "string",
+          "default": "",
+          "description": "Path to FPC sources."
+        },
+        "nexusLS.env.LAZARUSDIR": {
+          "type": "string",
+          "default": "",
+          "description": "Path to Lazarus sources."
+        },
+        "nexusLS.env.FPCTARGET": {
+          "type": "string",
+          "default": "",
+          "description": "FPC target OS."
+        },
+        "nexusLS.env.FPCTARGETCPU": {
+          "type": "string",
+          "default": "",
+          "description": "FPC target CPU."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.4.5"
+  }
+}
