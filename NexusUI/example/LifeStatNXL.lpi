@@ -42,12 +42,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="LifeStatNXL"/>
+      <Filename Value="..\..\output\LifeStatNXL\$(TargetCPU)-$(TargetOS)\LifeStatNXL"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;..\..\NexusUI;..\..\sdl\units;..\..\sdl_ext"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <OtherUnitFiles Value="..;..\..\NexusUI;..\..\..\common\sdl\units;..\..\..\common\sdl_ext"/>
+      <UnitOutputDirectory Value="..\..\output\LifeStatNXL\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
       <Debugging>

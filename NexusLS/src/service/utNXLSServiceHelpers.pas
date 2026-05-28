@@ -11,6 +11,8 @@ uses
 
 procedure NXLSSetRange(ARange: TNXLSRange; AStartLine, AStartCharacter,
   AEndLine, AEndCharacter: Integer);
+procedure NXLSSetIdentifierRange(ARange: TNXLSRange; ACode: TCodeBuffer;
+  AX, AY: Integer);
 procedure NXLSSetIdentifierRange(ALocation: TNXLSLocation; ACode: TCodeBuffer;
   AX, AY: Integer);
 function NXLSIsIdentChar(AChar: Char): Boolean;
@@ -31,25 +33,37 @@ uses
 procedure NXLSSetRange(ARange: TNXLSRange; AStartLine, AStartCharacter,
   AEndLine, AEndCharacter: Integer);
 begin
+  if ARange = nil then
+    Exit;
+
   NXLSSetPosition(ARange.start, AStartLine, AStartCharacter);
   NXLSSetPosition(ARange.&end, AEndLine, AEndCharacter);
   ARange.Assigned := True;
 end;
 
-procedure NXLSSetIdentifierRange(ALocation: TNXLSLocation; ACode: TCodeBuffer;
+procedure NXLSSetIdentifierRange(ARange: TNXLSRange; ACode: TCodeBuffer;
   AX, AY: Integer);
 var
   lLine: string;
   lIdentStart: Integer;
   lIdentEnd: Integer;
 begin
-  if (ALocation = nil) or (ACode = nil) or (AY < 0) or
+  if (ARange = nil) or (ACode = nil) or (AY < 0) or
     (AY >= ACode.LineCount) then
     Exit;
 
   lLine := ACode.GetLine(AY);
   GetIdentStartEndAtPosition(lLine, AX, lIdentStart, lIdentEnd);
-  NXLSSetRange(ALocation.range, AY, lIdentStart - 1, AY, lIdentEnd - 1);
+  NXLSSetRange(ARange, AY, lIdentStart - 1, AY, lIdentEnd - 1);
+end;
+
+procedure NXLSSetIdentifierRange(ALocation: TNXLSLocation; ACode: TCodeBuffer;
+  AX, AY: Integer);
+begin
+  if ALocation = nil then
+    Exit;
+
+  NXLSSetIdentifierRange(ALocation.range, ACode, AX, AY);
 end;
 
 function NXLSIsIdentChar(AChar: Char): Boolean;

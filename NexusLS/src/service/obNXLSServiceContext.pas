@@ -60,6 +60,7 @@ type
     procedure RebuildWorkspaceIndex; virtual; abstract;
 
     procedure SendNotification(const AMethod: string; AParams: TJSONData); virtual; abstract;
+    function SendClientRequest(const AMethod: string; AParams: TJSONData): Int64; virtual; abstract;
   end;
 
   TNXLSLSPService = class

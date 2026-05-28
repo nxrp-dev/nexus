@@ -51,10 +51,13 @@
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
+    <Target>
+      <Filename Value="..\..\output\NexusLSTestModule\$(TargetCPU)-$(TargetOS)\NexusLSTestModule"/>
+    </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value=".;..\src;..\src\protocol;..\src\service;..\..\NexusTest\src;..\..\NexusLib\src;..\..\lib\synapse;C:\lazarus\components\codetools;C:\lazarus\components\lazutils"/>
-      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="..\..\output\NexusLSTestModule\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

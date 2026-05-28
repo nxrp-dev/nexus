@@ -49,36 +49,13 @@ const
     'begin end;' + LineEnding +
     'end.';
 
-  cSublimeUnit =
-    'unit TestUnit;' + LineEnding +
+  cForwardUnit =
+    'unit TestForwardUnit;' + LineEnding +
     '{$mode objfpc}{$H+}' + LineEnding +
     'interface' + LineEnding +
     'type' + LineEnding +
     '  TForward = class;' + LineEnding +
-    '  TMyClass = class' + LineEnding +
-    '    procedure MethodA;' + LineEnding +
-    '    function MethodB: Integer;' + LineEnding +
-    '  end;' + LineEnding +
-    '  TMyRecord = record' + LineEnding +
-    '    Field1: Integer;' + LineEnding +
-    '  end;' + LineEnding +
-    'function GlobalFunc: Boolean;' + LineEnding +
-    'implementation' + LineEnding +
-    'type' + LineEnding +
-    '  TImplOnlyClass = class' + LineEnding +
-    '    procedure ImplMethod;' + LineEnding +
-    '  end;' + LineEnding +
-    'procedure TMyClass.MethodA;' + LineEnding +
-    '  procedure NestedProc;' + LineEnding +
-    '  begin end;' + LineEnding +
-    'begin NestedProc; end;' + LineEnding +
-    'function TMyClass.MethodB: Integer;' + LineEnding +
-    'begin Result := 0; end;' + LineEnding +
-    'procedure TImplOnlyClass.ImplMethod;' + LineEnding +
-    'begin end;' + LineEnding +
-    'function GlobalFunc: Boolean;' + LineEnding +
-    'begin Result := True; end;' + LineEnding +
-    'end.';
+    'implementation end.';
 
   cEnumUnit =
     'unit TestEnumUnit;' + LineEnding +
@@ -358,7 +335,7 @@ procedure TestForwardDeclarationSkipped(AContext: TNXTestContext);
 var
   lSymbols: TJSONArray;
 begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
+  lSymbols := NXLSDocumentSymbols(cForwardUnit);
   try
     AContext.AssertEquals(0, NXLSCountSymbol(lSymbols, 'TForward'),
       'Forward declarations should not be reported as document symbols.');
@@ -592,103 +569,6 @@ begin
   end;
 end;
 
-procedure TestSublimeFlatModeHasLocation(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-  lJSON: string;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    lJSON := lSymbols.AsJSON;
-    AContext.AssertTrue(Pos('"location"', lJSON) > 0,
-      'Legacy Sublime flat output should expose SymbolInformation.location.');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
-procedure TestSublimeFlatModeNoChildren(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    AContext.AssertFalse(Pos('"children"', lSymbols.AsJSON) > 0,
-      'Legacy Sublime flat output should not contain children.');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
-procedure TestSublimeMethodNaming(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    NXLSAssertHasSymbol(AContext, lSymbols, 'TMyClass.MethodA');
-    NXLSAssertHasSymbol(AContext, lSymbols, 'TMyClass.MethodB');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
-procedure TestSublimeNoContainers(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    NXLSAssertNoSymbol(AContext, lSymbols, 'interface');
-    NXLSAssertNoSymbol(AContext, lSymbols, 'implementation');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
-procedure TestSublimeClassesAtTopLevel(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-  lIdx: Integer;
-  lFound: Boolean;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    lFound := False;
-    for lIdx := 0 to lSymbols.Count - 1 do
-      if (lSymbols.Items[lIdx] is TJSONObject) and
-        SameText(NXLSJSONName(TJSONObject(lSymbols.Items[lIdx])), 'TMyClass') then
-        lFound := True;
-    AContext.AssertTrue(lFound, 'TMyClass should appear at top level.');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
-procedure TestSublimeGlobalFuncPreserved(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    NXLSAssertHasSymbol(AContext, lSymbols, 'GlobalFunc');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
-procedure TestSublimeNestedProcPreserved(AContext: TNXTestContext);
-var
-  lSymbols: TJSONArray;
-begin
-  lSymbols := NXLSDocumentSymbols(cSublimeUnit);
-  try
-    NXLSAssertHasSymbol(AContext, lSymbols, 'TMyClass.MethodA.NestedProc');
-  finally
-    lSymbols.Free;
-  end;
-end;
-
 procedure TestSymbolPersistenceReindexDocument(AContext: TNXTestContext);
 var
   lSymbols: TJSONArray;
@@ -830,15 +710,6 @@ begin
   lSuite.AddTest('QueryFilterByName', @TestWorkspaceQueryFilterByName);
   lSuite.AddTest('QueryFilterCaseInsensitive', @TestWorkspaceQueryFilterCaseInsensitive);
   lSuite.AddTest('EmptyQueryReturnsAll', @TestWorkspaceEmptyQueryReturnsAll);
-
-  lSuite := ARegistry.AddSuite('NexusLS.Legacy.SublimeProfile');
-  lSuite.AddTest('FlatModeHasLocation', @TestSublimeFlatModeHasLocation);
-  lSuite.AddTest('FlatModeNoChildren', @TestSublimeFlatModeNoChildren);
-  lSuite.AddTest('FlatModeMethodNaming', @TestSublimeMethodNaming);
-  lSuite.AddTest('NoInterfaceOrImplementationContainers', @TestSublimeNoContainers);
-  lSuite.AddTest('ClassesAtTopLevel', @TestSublimeClassesAtTopLevel);
-  lSuite.AddTest('GlobalFuncPreserved', @TestSublimeGlobalFuncPreserved);
-  lSuite.AddTest('NestedProcPreserved', @TestSublimeNestedProcPreserved);
 
   lSuite := ARegistry.AddSuite('NexusLS.Legacy.SymbolPersistence');
   lSuite.AddTest('ReindexDocument', @TestSymbolPersistenceReindexDocument);

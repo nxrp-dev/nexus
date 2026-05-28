@@ -40,6 +40,7 @@ type
     FEffectiveFPCOptions: TStringList;
     FEffectiveWorkspacePaths: TStringList;
     FSettings: TNXLSSettings;
+    FNextClientRequestID: Int64;
 
     FLifecycle: TNXLSLifecycleService;
     FDocuments: TNXLSDocumentService;
@@ -86,6 +87,7 @@ type
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RebuildWorkspaceIndex; override;
     procedure SendNotification(const AMethod: string; AParams: TJSONData); override;
+    function SendClientRequest(const AMethod: string; AParams: TJSONData): Int64; override;
 
     property InitializeReceived: Boolean read FInitializeReceived;
     property Initialized: Boolean read FInitialized;
@@ -491,6 +493,32 @@ begin
     FTransport.WriteMessage(lNotification.AsJSON);
   finally
     lNotification.Free;
+  end;
+end;
+
+function TNXLSLSPModel.SendClientRequest(const AMethod: string; AParams: TJSONData): Int64;
+var
+  lRequest: TJSONObject;
+begin
+  if FTransport = nil then
+    Exit(0);
+
+  Inc(FNextClientRequestID);
+  Result := FNextClientRequestID;
+
+  lRequest := TJSONObject.Create;
+  try
+    lRequest.Add('jsonrpc', '2.0');
+    lRequest.Add('id', TJSONIntegerNumber.Create(Result));
+    lRequest.Add('method', AMethod);
+    if AParams = nil then
+      lRequest.Add('params', TJSONObject.Create)
+    else
+      lRequest.Add('params', AParams.Clone);
+
+    FTransport.WriteMessage(lRequest.AsJSON);
+  finally
+    lRequest.Free;
   end;
 end;
 

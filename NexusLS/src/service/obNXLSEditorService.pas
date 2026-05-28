@@ -66,8 +66,48 @@ begin
 end;
 
 function TNXLSEditorService.DocumentHighlight(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+var
+  lDocument: TNXLSDocument;
+  lCode: TCodeBuffer;
+  lNewCode: TCodeBuffer;
+  lNewX: Integer;
+  lNewY: Integer;
+  lNewTopLine: Integer;
+  lHighlight: TNXLSDocumentHighlight;
 begin
   Result := TNXLSDocumentHighlightArrayResult.CreateValue;
+  if (AParams = nil) or (AParams.textDocument = nil) or
+    (AParams.position = nil) then
+    Exit;
+
+  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
+  lCode := lDocument.CodeBuffer;
+  if lCode = nil then
+    Exit;
+  if (AParams.position.line.Value < 0) or
+    (AParams.position.line.Value >= lCode.LineCount) then
+    Exit;
+
+  if CodeToolBoss.FindBlockCounterPart(lCode,
+    AParams.position.character.Value + 1, AParams.position.line.Value + 1,
+    lNewCode, lNewX, lNewY, lNewTopLine) then
+  begin
+    if lNewY - (AParams.position.line.Value + 1) <> 0 then
+    begin
+      lHighlight := TNXLSDocumentHighlight(
+        TNXJSONArray(Result).AddObject(TNXLSDocumentHighlight));
+      lHighlight.kind.Value := 1;
+      NXLSSetIdentifierRange(lHighlight.range, lNewCode, lNewX, lNewY - 1);
+      lHighlight.Assigned := True;
+
+      lHighlight := TNXLSDocumentHighlight(
+        TNXJSONArray(Result).AddObject(TNXLSDocumentHighlight));
+      lHighlight.kind.Value := 1;
+      NXLSSetIdentifierRange(lHighlight.range, lCode,
+        AParams.position.character.Value + 1, AParams.position.line.Value);
+      lHighlight.Assigned := True;
+    end;
+  end;
 end;
 
 function TNXLSEditorService.Hover(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;

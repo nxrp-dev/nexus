@@ -47,11 +47,37 @@ type
   TNXLSServerCapabilities = class(TNXJSONObject)
   private
     FtextDocumentSync: TNXLSTextDocumentSyncOptions;
-    Fworkspace: TNXJSONObject;
+    Fworkspace: TNXJSONValue;
+    FcompletionProvider: TNXJSONValue;
+    FhoverProvider: TNXJSONBoolean;
+    FdeclarationProvider: TNXJSONBoolean;
+    FdefinitionProvider: TNXJSONBoolean;
+    FimplementationProvider: TNXJSONBoolean;
+    FreferencesProvider: TNXJSONBoolean;
+    FdocumentHighlightProvider: TNXJSONBoolean;
+    FdocumentSymbolProvider: TNXJSONBoolean;
+    FworkspaceSymbolProvider: TNXJSONBoolean;
+    FsignatureHelpProvider: TNXJSONValue;
+    FcodeActionProvider: TNXJSONBoolean;
+    FexecuteCommandProvider: TNXJSONValue;
+    FrenameProvider: TNXJSONValue;
     Fexperimental: TNXJSONValue;
   published
     property textDocumentSync: TNXLSTextDocumentSyncOptions read FtextDocumentSync write FtextDocumentSync;
-    property workspace: TNXJSONObject read Fworkspace write Fworkspace;
+    property workspace: TNXJSONValue read Fworkspace write Fworkspace;
+    property completionProvider: TNXJSONValue read FcompletionProvider write FcompletionProvider;
+    property hoverProvider: TNXJSONBoolean read FhoverProvider write FhoverProvider;
+    property declarationProvider: TNXJSONBoolean read FdeclarationProvider write FdeclarationProvider;
+    property definitionProvider: TNXJSONBoolean read FdefinitionProvider write FdefinitionProvider;
+    property implementationProvider: TNXJSONBoolean read FimplementationProvider write FimplementationProvider;
+    property referencesProvider: TNXJSONBoolean read FreferencesProvider write FreferencesProvider;
+    property documentHighlightProvider: TNXJSONBoolean read FdocumentHighlightProvider write FdocumentHighlightProvider;
+    property documentSymbolProvider: TNXJSONBoolean read FdocumentSymbolProvider write FdocumentSymbolProvider;
+    property workspaceSymbolProvider: TNXJSONBoolean read FworkspaceSymbolProvider write FworkspaceSymbolProvider;
+    property signatureHelpProvider: TNXJSONValue read FsignatureHelpProvider write FsignatureHelpProvider;
+    property codeActionProvider: TNXJSONBoolean read FcodeActionProvider write FcodeActionProvider;
+    property executeCommandProvider: TNXJSONValue read FexecuteCommandProvider write FexecuteCommandProvider;
+    property renameProvider: TNXJSONValue read FrenameProvider write FrenameProvider;
     property experimental: TNXJSONValue read Fexperimental write Fexperimental;
   end;
 
@@ -601,10 +627,32 @@ type
 
 implementation
 
+uses
+  fpjson,
+  utNXLSCommandNames;
+
 procedure MarkAssigned(AValue: TNXJSONValue);
 begin
   if AValue <> nil then
     AValue.Assigned := True;
+end;
+
+procedure LoadRawJSON(AValue: TNXJSONValue; AData: TJSONData);
+begin
+  try
+    AValue.FromJSONData(AData);
+  finally
+    AData.Free;
+  end;
+end;
+
+function StringArrayJSON(const AValues: array of string): TJSONArray;
+var
+  lIdx: Integer;
+begin
+  Result := TJSONArray.Create;
+  for lIdx := Low(AValues) to High(AValues) do
+    Result.Add(AValues[lIdx]);
 end;
 
 function EmptyArray(AClass: TNXJSONValueClass): TNXJSONValue;
@@ -626,12 +674,57 @@ end;
 class function TNXLSInitializeResult.CreateValue: TNXJSONValue;
 var
   lResult: TNXLSInitializeResultValue;
+  lWorkspace: TJSONObject;
+  lWorkspaceFolders: TJSONObject;
+  lCompletionProvider: TJSONObject;
+  lSignatureHelpProvider: TJSONObject;
+  lExecuteCommandProvider: TJSONObject;
+  lRenameProvider: TJSONObject;
 begin
   lResult := TNXLSInitializeResultValue.Create;
   lResult.capabilities.textDocumentSync.openClose.Value := True;
   lResult.capabilities.textDocumentSync.change.Value := 1;
   lResult.capabilities.textDocumentSync.save.Value := True;
   MarkAssigned(lResult.capabilities.textDocumentSync);
+
+  lWorkspaceFolders := TJSONObject.Create;
+  lWorkspaceFolders.Add('supported', True);
+  lWorkspaceFolders.Add('changeNotifications', True);
+  lWorkspace := TJSONObject.Create;
+  lWorkspace.Add('workspaceFolders', lWorkspaceFolders);
+  LoadRawJSON(lResult.capabilities.workspace, lWorkspace);
+
+  lCompletionProvider := TJSONObject.Create;
+  lCompletionProvider.Add('triggerCharacters', StringArrayJSON(['.', '^']));
+  LoadRawJSON(lResult.capabilities.completionProvider, lCompletionProvider);
+
+  lSignatureHelpProvider := TJSONObject.Create;
+  lSignatureHelpProvider.Add('triggerCharacters', StringArrayJSON(['(', ')', ',']));
+  LoadRawJSON(lResult.capabilities.signatureHelpProvider, lSignatureHelpProvider);
+
+  lRenameProvider := TJSONObject.Create;
+  lRenameProvider.Add('prepareProvider', True);
+  LoadRawJSON(lResult.capabilities.renameProvider, lRenameProvider);
+
+  lExecuteCommandProvider := TJSONObject.Create;
+  lExecuteCommandProvider.Add('commands', StringArrayJSON([
+    cNXLSCommandCompleteCode,
+    cNXLSCommandInvertAssignment,
+    cNXLSCommandRemoveEmptyMethods,
+    cNXLSCommandRemoveUnusedUnits
+  ]));
+  LoadRawJSON(lResult.capabilities.executeCommandProvider, lExecuteCommandProvider);
+
+  lResult.capabilities.hoverProvider.Value := True;
+  lResult.capabilities.declarationProvider.Value := True;
+  lResult.capabilities.definitionProvider.Value := True;
+  lResult.capabilities.implementationProvider.Value := True;
+  lResult.capabilities.referencesProvider.Value := True;
+  lResult.capabilities.documentHighlightProvider.Value := True;
+  lResult.capabilities.documentSymbolProvider.Value := True;
+  lResult.capabilities.workspaceSymbolProvider.Value := True;
+  lResult.capabilities.codeActionProvider.Value := True;
+
   MarkAssigned(lResult.capabilities);
   MarkAssigned(lResult);
   Result := lResult;

@@ -78,6 +78,18 @@ uses
   obNXLSProtocolBase,
   obNXLSProtocolObjects;
 
+const
+  cNXLSKindClass = 5;
+  cNXLSKindMethod = 6;
+  cNXLSKindField = 8;
+  cNXLSKindEnum = 10;
+  cNXLSKindFunction = 12;
+  cNXLSKindVariable = 13;
+  cNXLSKindConstant = 14;
+  cNXLSKindEnumMember = 22;
+  cNXLSKindStruct = 23;
+  cNXLSKindTypeParameter = 26;
+
 procedure NXLSSetRange(ARange: TNXLSRange; const AStartPos, AEndPos: TCodeXYPosition);
 begin
   NXLSSetPosition(ARange.start, AStartPos.Y - 1, AStartPos.X - 1);
@@ -100,6 +112,238 @@ begin
     lEnd := lStart;
 
   NXLSSetRange(ARange, lStart, lEnd);
+end;
+
+function NXLSIdentFromLineStart(const ALine: string): string;
+var
+  lIdx: Integer;
+  lText: string;
+begin
+  Result := '';
+  lText := TrimLeft(ALine);
+  lIdx := 1;
+  while (lIdx <= Length(lText)) and
+    (lText[lIdx] in ['A'..'Z', 'a'..'z', '_', '0'..'9']) do
+    Inc(lIdx);
+  Result := Copy(lText, 1, lIdx - 1);
+end;
+
+function NXLSIdentifierAfterKeyword(const ALine, AKeyword: string): string;
+var
+  lText: string;
+  lIdx: Integer;
+begin
+  Result := '';
+  lText := Trim(ALine);
+  if Pos(LowerCase(AKeyword) + ' ', LowerCase(lText)) <> 1 then
+    Exit;
+
+  lText := Trim(Copy(lText, Length(AKeyword) + 2, MaxInt));
+  lIdx := 1;
+  while (lIdx <= Length(lText)) and
+    (lText[lIdx] in ['A'..'Z', 'a'..'z', '_', '.', '0'..'9']) do
+    Inc(lIdx);
+  Result := Copy(lText, 1, lIdx - 1);
+  if Pos('.', Result) > 0 then
+    Result := Copy(Result, LastDelimiter('.', Result) + 1, MaxInt);
+end;
+
+function NXLSNameStartCharacter(const ALine, AName: string): Integer;
+begin
+  Result := Pos(AName, ALine) - 1;
+  if Result < 0 then
+    Result := 0;
+end;
+
+procedure NXLSSetLineSymbolRange(ARange: TNXLSRange; ALineIndex: Integer;
+  const ALine, AName: string; ASelectionOnly: Boolean);
+var
+  lStart: Integer;
+  lEnd: Integer;
+begin
+  lStart := NXLSNameStartCharacter(ALine, AName);
+  lEnd := lStart + Length(AName);
+  if ASelectionOnly then
+    NXLSSetPosition(ARange.start, ALineIndex, lStart)
+  else
+    NXLSSetPosition(ARange.start, ALineIndex, 0);
+  if ASelectionOnly then
+    NXLSSetPosition(ARange.&end, ALineIndex, lEnd)
+  else
+    NXLSSetPosition(ARange.&end, ALineIndex, Length(ALine));
+  ARange.Assigned := True;
+end;
+
+procedure NXLSAddFallbackDocumentSymbol(ATarget: TNXJSONArray; ALineIndex: Integer;
+  const ALine, AName: string; AKind: Integer);
+var
+  lSymbol: TNXLSDocumentSymbol;
+begin
+  if (ATarget = nil) or (AName = '') then
+    Exit;
+
+  lSymbol := TNXLSDocumentSymbol(ATarget.AddObject(TNXLSDocumentSymbol));
+  lSymbol.name.Value := AName;
+  lSymbol.kind.Value := AKind;
+  NXLSSetLineSymbolRange(lSymbol.range, ALineIndex, ALine, AName, False);
+  NXLSSetLineSymbolRange(lSymbol.selectionRange, ALineIndex, ALine, AName, True);
+  lSymbol.Assigned := True;
+end;
+
+procedure NXLSAddFallbackIndexedSymbol(ATarget: TObjectList; const AURI: string;
+  ALineIndex: Integer; const ALine, AName: string; AKind: Integer);
+var
+  lSymbol: TNXLSIndexedSymbol;
+  lStart: Integer;
+begin
+  if (ATarget = nil) or (AName = '') then
+    Exit;
+
+  lStart := NXLSNameStartCharacter(ALine, AName);
+  lSymbol := TNXLSIndexedSymbol.Create;
+  ATarget.Add(lSymbol);
+  lSymbol.Name := AName;
+  lSymbol.Kind := AKind;
+  lSymbol.URI := AURI;
+  lSymbol.RangeStartLine := ALineIndex;
+  lSymbol.RangeStartCharacter := 0;
+  lSymbol.RangeEndLine := ALineIndex;
+  lSymbol.RangeEndCharacter := Length(ALine);
+  lSymbol.SelectionStartLine := ALineIndex;
+  lSymbol.SelectionStartCharacter := lStart;
+  lSymbol.SelectionEndLine := ALineIndex;
+  lSymbol.SelectionEndCharacter := lStart + Length(AName);
+end;
+
+procedure NXLSScanFallbackSymbols(ACodeBuffer: TCodeBuffer;
+  ADocumentTarget: TNXJSONArray; const AURI: string; AIndexTarget: TObjectList);
+var
+  lIdx: Integer;
+  lLine: string;
+  lText: string;
+  lLower: string;
+  lName: string;
+  lSection: string;
+  lKind: Integer;
+  lMembers: string;
+  lMember: string;
+  lMemberStart: Integer;
+  lMemberEnd: Integer;
+
+  procedure AddSymbol(const AName: string; AKind: Integer);
+  begin
+    NXLSAddFallbackDocumentSymbol(ADocumentTarget, lIdx, lLine, AName, AKind);
+    NXLSAddFallbackIndexedSymbol(AIndexTarget, AURI, lIdx, lLine, AName, AKind);
+  end;
+
+begin
+  if ACodeBuffer = nil then
+    Exit;
+
+  lSection := '';
+  for lIdx := 0 to ACodeBuffer.LineCount - 1 do
+  begin
+    lLine := ACodeBuffer.GetLine(lIdx);
+    lText := Trim(lLine);
+    lLower := LowerCase(lText);
+    if (lText = '') or (Copy(lText, 1, 2) = '//') then
+      Continue;
+
+    if (not SameText(lText, 'type')) and
+      (Pos(' type ', ' ' + lLower + ' ') > 0) then
+    begin
+      lText := Trim(Copy(lText, Pos(' type ', ' ' + lLower + ' ') + 5, MaxInt));
+      lLower := LowerCase(lText);
+      lSection := 'type';
+    end;
+
+    if SameText(lText, 'type') then
+    begin
+      lSection := 'type';
+      Continue;
+    end;
+    if SameText(lText, 'const') then
+    begin
+      lSection := 'const';
+      Continue;
+    end;
+    if SameText(lText, 'var') then
+    begin
+      lSection := 'var';
+      Continue;
+    end;
+    if (lLower = 'interface') or (lLower = 'implementation') or
+      (lLower = 'begin') then
+    begin
+      lSection := '';
+      Continue;
+    end;
+
+    lName := NXLSIdentifierAfterKeyword(lText, 'procedure');
+    if lName <> '' then
+    begin
+      AddSymbol(lName, cNXLSKindFunction);
+      Continue;
+    end;
+
+    lName := NXLSIdentifierAfterKeyword(lText, 'function');
+    if lName <> '' then
+    begin
+      AddSymbol(lName, cNXLSKindFunction);
+      Continue;
+    end;
+
+    if lSection = 'const' then
+    begin
+      lName := NXLSIdentFromLineStart(lText);
+      if (lName <> '') and (Pos('=', lText) > 0) then
+        AddSymbol(lName, cNXLSKindConstant);
+      Continue;
+    end;
+
+    if lSection = 'var' then
+    begin
+      lName := NXLSIdentFromLineStart(lText);
+      if (lName <> '') and (Pos(':', lText) > 0) then
+        AddSymbol(lName, cNXLSKindVariable);
+      Continue;
+    end;
+
+    if lSection <> 'type' then
+      Continue;
+
+    lName := NXLSIdentFromLineStart(lText);
+    if (lName = '') or (Pos('=', lText) = 0) then
+      Continue;
+    if Pos('= class;', lLower) > 0 then
+      Continue;
+
+    lKind := cNXLSKindTypeParameter;
+    if Pos('= class', lLower) > 0 then
+      lKind := cNXLSKindClass
+    else if Pos('= record', lLower) > 0 then
+      lKind := cNXLSKindStruct
+    else if Pos('= (', lLower) > 0 then
+      lKind := cNXLSKindEnum;
+
+    AddSymbol(lName, lKind);
+
+    if lKind = cNXLSKindEnum then
+    begin
+      lMembers := Trim(Copy(lText, Pos('(', lText) + 1, MaxInt));
+      if Pos(')', lMembers) > 0 then
+        lMembers := Copy(lMembers, 1, Pos(')', lMembers) - 1);
+      lMemberStart := 1;
+      repeat
+        lMemberEnd := Pos(',', Copy(lMembers, lMemberStart, MaxInt));
+        if lMemberEnd = 0 then
+          lMemberEnd := Length(lMembers) - lMemberStart + 2;
+        lMember := Trim(Copy(lMembers, lMemberStart, lMemberEnd - 1));
+        AddSymbol(lMember, cNXLSKindEnumMember);
+        Inc(lMemberStart, lMemberEnd);
+      until lMemberStart > Length(lMembers);
+    end;
+  end;
 end;
 
 function NXLSNodeRange(ATool: TCodeTool; ANode: TCodeTreeNode;
@@ -165,38 +409,38 @@ end;
 
 function NXLSNodeSymbolKind(ANode: TCodeTreeNode): Integer;
 begin
-  Result := 13;
+  Result := cNXLSKindVariable;
   if ANode = nil then
     Exit;
 
   case ANode.Desc of
     ctnClass, ctnObject, ctnObjCClass, ctnObjCCategory, ctnCPPClass,
     ctnClassHelper, ctnRecordHelper, ctnTypeHelper:
-      Result := 5;
+      Result := cNXLSKindClass;
     ctnClassInterface, ctnDispinterface, ctnObjCProtocol:
       Result := 11;
     ctnRecordType:
-      Result := 23;
+      Result := cNXLSKindStruct;
     ctnProcedure:
       if NXLSNodeInClass(ANode.Parent) then
-        Result := 6
+        Result := cNXLSKindMethod
       else
-        Result := 12;
+        Result := cNXLSKindFunction;
     ctnProperty, ctnGlobalProperty:
       Result := 7;
     ctnVarDefinition:
       if NXLSNodeInClass(ANode.Parent) then
-        Result := 8
+        Result := cNXLSKindField
       else
-        Result := 13;
+        Result := cNXLSKindVariable;
     ctnConstDefinition, ctnConstant:
-      Result := 14;
+      Result := cNXLSKindConstant;
     ctnEnumIdentifier:
-      Result := 22;
+      Result := cNXLSKindEnumMember;
     ctnEnumerationType:
-      Result := 10;
+      Result := cNXLSKindEnum;
     ctnTypeDefinition, ctnGenericType:
-      Result := 23;
+      Result := cNXLSKindStruct;
   end;
 end;
 
@@ -358,9 +602,13 @@ begin
   lTool := nil;
   if (not CodeToolBoss.Explore(lDocument.CodeBuffer, lTool, False)) or
     (lTool = nil) or (lTool.Tree = nil) or (lTool.Tree.Root = nil) then
+  begin
+    NXLSScanFallbackSymbols(lDocument.CodeBuffer, TNXJSONArray(Result), '', nil);
     Exit;
+  end;
 
   NXLSAddDocumentSymbols(lTool, lTool.Tree.Root.FirstChild, TNXJSONArray(Result));
+  NXLSScanFallbackSymbols(lDocument.CodeBuffer, TNXJSONArray(Result), '', nil);
 end;
 
 function TNXLSSymbolService.WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue;
@@ -473,9 +721,13 @@ begin
   lTool := nil;
   if (not CodeToolBoss.Explore(ACodeBuffer, lTool, False)) or
     (lTool = nil) or (lTool.Tree = nil) or (lTool.Tree.Root = nil) then
+  begin
+    NXLSScanFallbackSymbols(ACodeBuffer, nil, AURI, FIndexedSymbols);
     Exit;
+  end;
 
   NXLSAddIndexedSymbols(lTool, lTool.Tree.Root.FirstChild, AURI, '', FIndexedSymbols);
+  NXLSScanFallbackSymbols(ACodeBuffer, nil, AURI, FIndexedSymbols);
 end;
 
 procedure TNXLSSymbolService.IndexWorkspaceFile(const AFileName: string);

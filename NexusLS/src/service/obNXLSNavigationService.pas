@@ -154,8 +154,34 @@ begin
 end;
 
 function TNXLSNavigationService.ImplementationLocation(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+var
+  lDocument: TNXLSDocument;
+  lCode: TCodeBuffer;
+  lNewCode: TCodeBuffer;
+  lNewX: Integer;
+  lNewY: Integer;
+  lNewTopLine: Integer;
+  lBlockTopLine: Integer;
+  lBlockBottomLine: Integer;
+  lRevertableJump: Boolean;
 begin
   Result := TNXLSLocationResult.CreateValue;
+  if (AParams = nil) or (AParams.textDocument = nil) or
+    (AParams.position = nil) then
+    Exit;
+
+  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
+  lCode := lDocument.CodeBuffer;
+  if lCode = nil then
+    Exit;
+
+  if CodeToolBoss.JumpToMethod(lCode, AParams.position.character.Value + 1,
+    AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
+    lBlockTopLine, lBlockBottomLine, lRevertableJump) then
+  begin
+    Result.Free;
+    Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
+  end;
 end;
 
 function TNXLSNavigationService.References(AParams: TNXLSReferenceParams): TNXJSONValue;
