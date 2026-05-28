@@ -1,0 +1,555 @@
+--- nexus_patch_work_orig/NexusLS/src/service/obNXLSSymbolCache.pas	2026-05-28 11:26:10.000000000 +0000
++++ nexus_patch_work/NexusLS/src/service/obNXLSSymbolCache.pas	2026-05-28 19:31:26.244639737 +0000
+@@ -65,12 +65,16 @@
+     FCacheVersion: Integer;
+     FScannerVersion: Integer;
+     FDirty: Boolean;
++    FStoreFileName: string;
++    FStoreAvailable: Boolean;
+     function FindFileIndexByURI(const AURI: string): Integer;
+-    function ReadInteger(AObject: TObject; const AName: string; ADefault: Integer): Integer;
+-    function ReadInt64(AObject: TObject; const AName: string; ADefault: Int64): Int64;
+-    function ReadString(AObject: TObject; const AName, ADefault: string): string;
+-    procedure LoadSymbol(AObject: TObject; AFile: TNXLSSymbolCacheFile);
+-    procedure LoadFile(AObject: TObject);
++    function AddFileFromQuery(AQuery: TObject): TNXLSSymbolCacheFile;
++    procedure LoadSymbolsForFile(AConnection: TObject; ATransaction: TObject; AFileID: Int64;
++      AFile: TNXLSSymbolCacheFile);
++    procedure ExecuteSQL(AConnection: TObject; const ASQL: string);
++    procedure CreateSchema(AConnection: TObject);
++    procedure DeleteFileRows(AConnection: TObject; const AURI: string);
++    procedure InsertFileRows(AConnection: TObject; AFile: TNXLSSymbolCacheFile);
+   public
+     constructor Create;
+     destructor Destroy; override;
+@@ -87,19 +91,26 @@
+     property CacheVersion: Integer read FCacheVersion;
+     property ScannerVersion: Integer read FScannerVersion write FScannerVersion;
+     property Dirty: Boolean read FDirty write FDirty;
++    property StoreAvailable: Boolean read FStoreAvailable;
+   end;
+ 
+ implementation
+ 
+ uses
+   SysUtils,
+-  fpjson,
+-  jsonparser;
++  DB,
++  SQLDB,
++  SQLite3Conn;
+ 
+ const
+   cNXLSSymbolCacheVersion = 1;
+   cNXLSSymbolScannerVersion = 1;
+ 
++function NXLSSQLText(const AValue: string): string;
++begin
++  Result := QuotedStr(AValue);
++end;
++
+ constructor TNXLSSymbolCacheFile.Create;
+ begin
+   inherited Create;
+@@ -123,6 +134,7 @@
+   FFiles := TObjectList.Create(True);
+   FCacheVersion := cNXLSSymbolCacheVersion;
+   FScannerVersion := cNXLSSymbolScannerVersion;
++  FStoreAvailable := True;
+ end;
+ 
+ destructor TNXLSSymbolCache.Destroy;
+@@ -147,209 +159,299 @@
+       Exit(lIdx);
+ end;
+ 
+-function TNXLSSymbolCache.ReadInteger(AObject: TObject; const AName: string;
+-  ADefault: Integer): Integer;
+-var
+-  lValue: TJSONData;
++procedure TNXLSSymbolCache.ExecuteSQL(AConnection: TObject; const ASQL: string);
+ begin
+-  Result := ADefault;
+-  if not (AObject is TJSONObject) then
+-    Exit;
+-
+-  lValue := TJSONObject(AObject).Find(AName);
+-  if lValue <> nil then
+-    Result := lValue.AsInteger;
++  TSQLite3Connection(AConnection).ExecuteDirect(ASQL);
+ end;
+ 
+-function TNXLSSymbolCache.ReadInt64(AObject: TObject; const AName: string;
+-  ADefault: Int64): Int64;
+-var
+-  lValue: TJSONData;
++procedure TNXLSSymbolCache.CreateSchema(AConnection: TObject);
+ begin
+-  Result := ADefault;
+-  if not (AObject is TJSONObject) then
+-    Exit;
+-
+-  lValue := TJSONObject(AObject).Find(AName);
+-  if lValue <> nil then
+-    Result := StrToInt64Def(lValue.AsString, ADefault);
++  ExecuteSQL(AConnection,
++    'create table if not exists cache_meta (' +
++    'key text primary key, ' +
++    'value text not null)');
++  ExecuteSQL(AConnection,
++    'create table if not exists cache_file (' +
++    'id integer primary key, ' +
++    'file_name text not null, ' +
++    'uri text not null unique, ' +
++    'file_stamp integer not null, ' +
++    'file_size integer not null, ' +
++    'scanner_version integer not null)');
++  ExecuteSQL(AConnection,
++    'create table if not exists cache_symbol (' +
++    'id integer primary key, ' +
++    'file_id integer not null, ' +
++    'name text not null, ' +
++    'lower_name text not null, ' +
++    'kind integer not null, ' +
++    'range_start_line integer not null, ' +
++    'range_start_character integer not null, ' +
++    'range_end_line integer not null, ' +
++    'range_end_character integer not null, ' +
++    'selection_start_line integer not null, ' +
++    'selection_start_character integer not null, ' +
++    'selection_end_line integer not null, ' +
++    'selection_end_character integer not null, ' +
++    'container_name text not null, ' +
++    'foreign key(file_id) references cache_file(id) on delete cascade)');
++  ExecuteSQL(AConnection,
++    'create index if not exists idx_cache_symbol_file_id on cache_symbol(file_id)');
++  ExecuteSQL(AConnection,
++    'create index if not exists idx_cache_symbol_lower_name on cache_symbol(lower_name)');
++  ExecuteSQL(AConnection,
++    'insert or replace into cache_meta(key, value) values(' +
++    NXLSSQLText('cache_version') + ', ' + NXLSSQLText(IntToStr(FCacheVersion)) + ')');
++  ExecuteSQL(AConnection,
++    'insert or replace into cache_meta(key, value) values(' +
++    NXLSSQLText('scanner_version') + ', ' + NXLSSQLText(IntToStr(FScannerVersion)) + ')');
+ end;
+ 
+-function TNXLSSymbolCache.ReadString(AObject: TObject; const AName,
+-  ADefault: string): string;
++function TNXLSSymbolCache.AddFileFromQuery(AQuery: TObject): TNXLSSymbolCacheFile;
+ var
+-  lValue: TJSONData;
++  lQuery: TSQLQuery;
+ begin
+-  Result := ADefault;
+-  if not (AObject is TJSONObject) then
+-    Exit;
++  lQuery := TSQLQuery(AQuery);
++  Result := TNXLSSymbolCacheFile.Create;
++  try
++    Result.FileName := lQuery.FieldByName('file_name').AsString;
++    Result.URI := lQuery.FieldByName('uri').AsString;
++    Result.FileStamp := lQuery.FieldByName('file_stamp').AsInteger;
++    Result.FileSize := StrToInt64Def(lQuery.FieldByName('file_size').AsString, -1);
++    Result.ScannerVersion := lQuery.FieldByName('scanner_version').AsInteger;
++
++    if (Result.FileName = '') or (Result.URI = '') or (not FileExists(Result.FileName)) then
++      Exit;
++
++    FFiles.Add(Result);
++    Result := nil;
++  finally
++    Result.Free;
++  end;
+ 
+-  lValue := TJSONObject(AObject).Find(AName);
+-  if lValue <> nil then
+-    Result := lValue.AsString;
++  Result := TNXLSSymbolCacheFile(FFiles[FFiles.Count - 1]);
+ end;
+ 
+-procedure TNXLSSymbolCache.LoadSymbol(AObject: TObject; AFile: TNXLSSymbolCacheFile);
++procedure TNXLSSymbolCache.LoadSymbolsForFile(AConnection: TObject; ATransaction: TObject;
++  AFileID: Int64; AFile: TNXLSSymbolCacheFile);
+ var
++  lQuery: TSQLQuery;
+   lSymbol: TNXLSSymbolCacheSymbol;
+ begin
+-  if (AFile = nil) or (not (AObject is TJSONObject)) then
++  if AFile = nil then
+     Exit;
+ 
+-  lSymbol := TNXLSSymbolCacheSymbol.Create;
+-  AFile.Symbols.Add(lSymbol);
+-  lSymbol.Name := ReadString(AObject, 'name', '');
+-  lSymbol.Kind := ReadInteger(AObject, 'kind', 0);
+-  lSymbol.URI := AFile.URI;
+-  lSymbol.RangeStartLine := ReadInteger(AObject, 'rangeStartLine', 0);
+-  lSymbol.RangeStartCharacter := ReadInteger(AObject, 'rangeStartCharacter', 0);
+-  lSymbol.RangeEndLine := ReadInteger(AObject, 'rangeEndLine', 0);
+-  lSymbol.RangeEndCharacter := ReadInteger(AObject, 'rangeEndCharacter', 0);
+-  lSymbol.SelectionStartLine := ReadInteger(AObject, 'selectionStartLine', 0);
+-  lSymbol.SelectionStartCharacter := ReadInteger(AObject, 'selectionStartCharacter', 0);
+-  lSymbol.SelectionEndLine := ReadInteger(AObject, 'selectionEndLine', 0);
+-  lSymbol.SelectionEndCharacter := ReadInteger(AObject, 'selectionEndCharacter', 0);
+-  lSymbol.ContainerName := ReadString(AObject, 'containerName', '');
++  lQuery := TSQLQuery.Create(nil);
++  try
++    lQuery.DataBase := TSQLite3Connection(AConnection);
++    lQuery.Transaction := TSQLTransaction(ATransaction);
++    lQuery.SQL.Text :=
++      'select name, kind, range_start_line, range_start_character, ' +
++      'range_end_line, range_end_character, selection_start_line, ' +
++      'selection_start_character, selection_end_line, selection_end_character, ' +
++      'container_name from cache_symbol where file_id = ' + IntToStr(AFileID) +
++      ' order by id';
++    lQuery.Open;
++    while not lQuery.EOF do
++    begin
++      lSymbol := TNXLSSymbolCacheSymbol.Create;
++      AFile.Symbols.Add(lSymbol);
++      lSymbol.Name := lQuery.FieldByName('name').AsString;
++      lSymbol.Kind := lQuery.FieldByName('kind').AsInteger;
++      lSymbol.URI := AFile.URI;
++      lSymbol.RangeStartLine := lQuery.FieldByName('range_start_line').AsInteger;
++      lSymbol.RangeStartCharacter := lQuery.FieldByName('range_start_character').AsInteger;
++      lSymbol.RangeEndLine := lQuery.FieldByName('range_end_line').AsInteger;
++      lSymbol.RangeEndCharacter := lQuery.FieldByName('range_end_character').AsInteger;
++      lSymbol.SelectionStartLine := lQuery.FieldByName('selection_start_line').AsInteger;
++      lSymbol.SelectionStartCharacter := lQuery.FieldByName('selection_start_character').AsInteger;
++      lSymbol.SelectionEndLine := lQuery.FieldByName('selection_end_line').AsInteger;
++      lSymbol.SelectionEndCharacter := lQuery.FieldByName('selection_end_character').AsInteger;
++      lSymbol.ContainerName := lQuery.FieldByName('container_name').AsString;
++      lQuery.Next;
++    end;
++  finally
++    lQuery.Free;
++  end;
+ end;
+ 
+-procedure TNXLSSymbolCache.LoadFile(AObject: TObject);
++procedure TNXLSSymbolCache.Load(const AFileName: string);
+ var
++  lDir: string;
++  lConnection: TSQLite3Connection;
++  lTransaction: TSQLTransaction;
++  lQuery: TSQLQuery;
+   lFile: TNXLSSymbolCacheFile;
+-  lSymbols: TJSONData;
+-  lIdx: Integer;
++  lFileID: Int64;
+ begin
+-  if not (AObject is TJSONObject) then
++  Clear;
++  FStoreFileName := AFileName;
++  if AFileName = '' then
+     Exit;
+ 
+-  lFile := TNXLSSymbolCacheFile.Create;
++  lDir := ExtractFileDir(AFileName);
++  if (lDir <> '') and (not DirectoryExists(lDir)) then
++    ForceDirectories(lDir);
++
++  lConnection := TSQLite3Connection.Create(nil);
++  lTransaction := TSQLTransaction.Create(nil);
+   try
+-    lFile.FileName := ReadString(AObject, 'fileName', '');
+-    lFile.URI := ReadString(AObject, 'uri', '');
+-    if (lFile.FileName = '') or (lFile.URI = '') or (not FileExists(lFile.FileName)) then
+-      Exit;
++    lConnection.DatabaseName := AFileName;
++    lConnection.Transaction := lTransaction;
++    lTransaction.DataBase := lConnection;
++    lConnection.Open;
++    lTransaction.StartTransaction;
++    try
++      ExecuteSQL(lConnection, 'pragma foreign_keys = on');
++      CreateSchema(lConnection);
+ 
+-    FFiles.Add(lFile);
+-    lFile := nil;
++      lQuery := TSQLQuery.Create(nil);
++      try
++        lQuery.DataBase := lConnection;
++        lQuery.Transaction := lTransaction;
++        lQuery.SQL.Text :=
++          'select id, file_name, uri, file_stamp, file_size, scanner_version ' +
++          'from cache_file where scanner_version = ' + IntToStr(FScannerVersion) +
++          ' order by id';
++        lQuery.Open;
++        while not lQuery.EOF do
++        begin
++          lFileID := StrToInt64Def(lQuery.FieldByName('id').AsString, -1);
++          lFile := AddFileFromQuery(lQuery);
++          if lFile <> nil then
++            LoadSymbolsForFile(lConnection, lTransaction, lFileID, lFile);
++          lQuery.Next;
++        end;
++      finally
++        lQuery.Free;
++      end;
++      lTransaction.Commit;
++      FDirty := False;
++      FStoreAvailable := True;
++    except
++      on Exception do
++      begin
++        if lTransaction.Active then
++          lTransaction.Rollback;
++        FStoreAvailable := False;
++        Clear;
++      end;
++    end;
+   finally
+-    lFile.Free;
++    lTransaction.Free;
++    lConnection.Free;
+   end;
++end;
+ 
+-  lFile := TNXLSSymbolCacheFile(FFiles[FFiles.Count - 1]);
+-  lFile.FileStamp := ReadInteger(AObject, 'fileStamp', -1);
+-  lFile.FileSize := ReadInt64(AObject, 'fileSize', -1);
+-  lFile.ScannerVersion := ReadInteger(AObject, 'scannerVersion', 0);
+-
+-  lSymbols := TJSONObject(AObject).Find('symbols');
+-  if lSymbols is TJSONArray then
+-    for lIdx := 0 to TJSONArray(lSymbols).Count - 1 do
+-      LoadSymbol(TJSONArray(lSymbols).Items[lIdx], lFile);
++procedure TNXLSSymbolCache.DeleteFileRows(AConnection: TObject; const AURI: string);
++begin
++  ExecuteSQL(AConnection,
++    'delete from cache_symbol where file_id in ' +
++    '(select id from cache_file where uri = ' + NXLSSQLText(AURI) + ')');
++  ExecuteSQL(AConnection,
++    'delete from cache_file where uri = ' + NXLSSQLText(AURI));
+ end;
+ 
+-procedure TNXLSSymbolCache.Load(const AFileName: string);
++procedure TNXLSSymbolCache.InsertFileRows(AConnection: TObject; AFile: TNXLSSymbolCacheFile);
+ var
+-  lStream: TFileStream;
+-  lData: TJSONData;
+-  lFiles: TJSONData;
++  lFileID: Int64;
++  lSymbol: TNXLSSymbolCacheSymbol;
+   lIdx: Integer;
+ begin
+-  Clear;
+-  if not FileExists(AFileName) then
++  if AFile = nil then
+     Exit;
+ 
+-  lStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
++  ExecuteSQL(AConnection,
++    'insert into cache_file(file_name, uri, file_stamp, file_size, scanner_version) values(' +
++    NXLSSQLText(AFile.FileName) + ', ' +
++    NXLSSQLText(AFile.URI) + ', ' +
++    IntToStr(AFile.FileStamp) + ', ' +
++    IntToStr(AFile.FileSize) + ', ' +
++    IntToStr(AFile.ScannerVersion) + ')');
++  lFileID := -1;
++  with TSQLQuery.Create(nil) do
+   try
+-    lData := GetJSON(lStream);
++    DataBase := TSQLite3Connection(AConnection);
++    Transaction := TSQLite3Connection(AConnection).Transaction;
++    SQL.Text := 'select last_insert_rowid() as id';
++    Open;
++    if not EOF then
++      lFileID := StrToInt64Def(FieldByName('id').AsString, -1);
+   finally
+-    lStream.Free;
++    Free;
+   end;
+-  try
+-    if not (lData is TJSONObject) then
+-      Exit;
+ 
+-    if ReadInteger(lData, 'cacheVersion', 0) <> FCacheVersion then
+-      Exit;
++  if lFileID < 0 then
++    Exit;
+ 
+-    lFiles := TJSONObject(lData).Find('files');
+-    if lFiles is TJSONArray then
+-      for lIdx := 0 to TJSONArray(lFiles).Count - 1 do
+-        LoadFile(TJSONArray(lFiles).Items[lIdx]);
+-  finally
+-    lData.Free;
++  for lIdx := 0 to AFile.Symbols.Count - 1 do
++  begin
++    lSymbol := TNXLSSymbolCacheSymbol(AFile.Symbols[lIdx]);
++    ExecuteSQL(AConnection,
++      'insert into cache_symbol(file_id, name, lower_name, kind, ' +
++      'range_start_line, range_start_character, range_end_line, range_end_character, ' +
++      'selection_start_line, selection_start_character, selection_end_line, ' +
++      'selection_end_character, container_name) values(' +
++      IntToStr(lFileID) + ', ' +
++      NXLSSQLText(lSymbol.Name) + ', ' +
++      NXLSSQLText(LowerCase(lSymbol.Name)) + ', ' +
++      IntToStr(lSymbol.Kind) + ', ' +
++      IntToStr(lSymbol.RangeStartLine) + ', ' +
++      IntToStr(lSymbol.RangeStartCharacter) + ', ' +
++      IntToStr(lSymbol.RangeEndLine) + ', ' +
++      IntToStr(lSymbol.RangeEndCharacter) + ', ' +
++      IntToStr(lSymbol.SelectionStartLine) + ', ' +
++      IntToStr(lSymbol.SelectionStartCharacter) + ', ' +
++      IntToStr(lSymbol.SelectionEndLine) + ', ' +
++      IntToStr(lSymbol.SelectionEndCharacter) + ', ' +
++      NXLSSQLText(lSymbol.ContainerName) + ')');
+   end;
+-  FDirty := False;
+ end;
+ 
+ procedure TNXLSSymbolCache.Save(const AFileName: string);
+ var
+-  lRoot: TJSONObject;
+-  lFiles: TJSONArray;
+-  lFile: TNXLSSymbolCacheFile;
+-  lFileObject: TJSONObject;
+-  lSymbols: TJSONArray;
+-  lSymbol: TNXLSSymbolCacheSymbol;
+-  lSymbolObject: TJSONObject;
+-  lIdx: Integer;
+-  lSymbolIdx: Integer;
+   lDir: string;
+-  lText: TStringList;
++  lConnection: TSQLite3Connection;
++  lTransaction: TSQLTransaction;
++  lIdx: Integer;
+ begin
+-  if AFileName = '' then
++  if (AFileName = '') or (not FStoreAvailable) then
+     Exit;
+ 
+   lDir := ExtractFileDir(AFileName);
+   if (lDir <> '') and (not DirectoryExists(lDir)) then
+     ForceDirectories(lDir);
+ 
+-  lRoot := TJSONObject.Create;
++  lConnection := TSQLite3Connection.Create(nil);
++  lTransaction := TSQLTransaction.Create(nil);
+   try
+-    lRoot.Add('cacheVersion', FCacheVersion);
+-    lRoot.Add('scannerVersion', FScannerVersion);
+-    lFiles := TJSONArray.Create;
+-    lRoot.Add('files', lFiles);
+-
+-    for lIdx := 0 to FFiles.Count - 1 do
+-    begin
+-      lFile := TNXLSSymbolCacheFile(FFiles[lIdx]);
+-      lFileObject := TJSONObject.Create;
+-      lFiles.Add(lFileObject);
+-      lFileObject.Add('fileName', lFile.FileName);
+-      lFileObject.Add('uri', lFile.URI);
+-      lFileObject.Add('fileStamp', lFile.FileStamp);
+-      lFileObject.Add('fileSize', lFile.FileSize);
+-      lFileObject.Add('scannerVersion', lFile.ScannerVersion);
+-      lSymbols := TJSONArray.Create;
+-      lFileObject.Add('symbols', lSymbols);
+-
+-      for lSymbolIdx := 0 to lFile.Symbols.Count - 1 do
++    lConnection.DatabaseName := AFileName;
++    lConnection.Transaction := lTransaction;
++    lTransaction.DataBase := lConnection;
++    lConnection.Open;
++    lTransaction.StartTransaction;
++    try
++      ExecuteSQL(lConnection, 'pragma foreign_keys = on');
++      CreateSchema(lConnection);
++      ExecuteSQL(lConnection, 'delete from cache_symbol');
++      ExecuteSQL(lConnection, 'delete from cache_file');
++      for lIdx := 0 to FFiles.Count - 1 do
++        InsertFileRows(lConnection, TNXLSSymbolCacheFile(FFiles[lIdx]));
++      lTransaction.Commit;
++      FDirty := False;
++      FStoreAvailable := True;
++    except
++      on Exception do
+       begin
+-        lSymbol := TNXLSSymbolCacheSymbol(lFile.Symbols[lSymbolIdx]);
+-        lSymbolObject := TJSONObject.Create;
+-        lSymbols.Add(lSymbolObject);
+-        lSymbolObject.Add('name', lSymbol.Name);
+-        lSymbolObject.Add('kind', lSymbol.Kind);
+-        lSymbolObject.Add('rangeStartLine', lSymbol.RangeStartLine);
+-        lSymbolObject.Add('rangeStartCharacter', lSymbol.RangeStartCharacter);
+-        lSymbolObject.Add('rangeEndLine', lSymbol.RangeEndLine);
+-        lSymbolObject.Add('rangeEndCharacter', lSymbol.RangeEndCharacter);
+-        lSymbolObject.Add('selectionStartLine', lSymbol.SelectionStartLine);
+-        lSymbolObject.Add('selectionStartCharacter', lSymbol.SelectionStartCharacter);
+-        lSymbolObject.Add('selectionEndLine', lSymbol.SelectionEndLine);
+-        lSymbolObject.Add('selectionEndCharacter', lSymbol.SelectionEndCharacter);
+-        lSymbolObject.Add('containerName', lSymbol.ContainerName);
++        if lTransaction.Active then
++          lTransaction.Rollback;
++        FStoreAvailable := False;
+       end;
+     end;
+-
+-    lText := TStringList.Create;
+-    try
+-      lText.Text := lRoot.AsJSON;
+-      lText.SaveToFile(AFileName);
+-    finally
+-      lText.Free;
+-    end;
+   finally
+-    lRoot.Free;
++    lTransaction.Free;
++    lConnection.Free;
+   end;
+-  FDirty := False;
+ end;
+ 
+ function TNXLSSymbolCache.FileByURI(const AURI: string): TNXLSSymbolCacheFile;
+--- nexus_patch_work_orig/NexusLS/src/service/obNXLSSymbolService.pas	2026-05-28 11:42:58.000000000 +0000
++++ nexus_patch_work/NexusLS/src/service/obNXLSSymbolService.pas	2026-05-28 19:31:13.587483128 +0000
+@@ -100,7 +100,7 @@
+   cNXLSKindStruct = 23;
+   cNXLSKindTypeParameter = 26;
+   cNXLSSymbolCacheEnv = 'NEXUSLS_CACHE_DIR';
+-  cNXLSSymbolCacheFileName = 'symbol-cache.json';
++  cNXLSSymbolCacheFileName = 'symbols.sqlite';
+ 
+ procedure NXLSSetRange(ARange: TNXLSRange; const AStartPos, AEndPos: TCodeXYPosition);
+ begin
+@@ -735,9 +735,6 @@
+ function TNXLSSymbolService.SymbolCacheFileName: string;
+ var
+   lCacheDir: string;
+-  lWorkspaceKey: string;
+-  lHash: Cardinal;
+-  lIdx: Integer;
+ begin
+   Result := FCacheFileName;
+   if Result <> '' then
+@@ -745,21 +742,16 @@
+ 
+   lCacheDir := GetEnvironmentVariable(cNXLSSymbolCacheEnv);
+   if lCacheDir = '' then
+-    lCacheDir := IncludeTrailingPathDelimiter(GetTempDir) + 'NexusLS';
+-
+-  lWorkspaceKey := FWorkspaceFolders.Text;
+-  if lWorkspaceKey = '' then
+-    lWorkspaceKey := 'global';
+-
+-  lHash := 2166136261;
+-  for lIdx := 1 to Length(lWorkspaceKey) do
+   begin
+-    lHash := lHash xor Ord(lWorkspaceKey[lIdx]);
+-    lHash := lHash * 16777619;
++    if FWorkspaceFolders.Count > 0 then
++      lCacheDir := IncludeTrailingPathDelimiter(FWorkspaceFolders[0]) + '.nexusls' +
++        DirectorySeparator + 'cache'
++    else
++      lCacheDir := IncludeTrailingPathDelimiter(GetTempDir) + 'NexusLS' +
++        DirectorySeparator + 'cache';
+   end;
+ 
+-  Result := IncludeTrailingPathDelimiter(lCacheDir) + IntToHex(lHash, 8) +
+-    DirectorySeparator + cNXLSSymbolCacheFileName;
++  Result := IncludeTrailingPathDelimiter(lCacheDir) + cNXLSSymbolCacheFileName;
+   FCacheFileName := Result;
+ end;
+ 

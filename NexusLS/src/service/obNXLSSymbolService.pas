@@ -100,7 +100,7 @@ const
   cNXLSKindStruct = 23;
   cNXLSKindTypeParameter = 26;
   cNXLSSymbolCacheEnv = 'NEXUSLS_CACHE_DIR';
-  cNXLSSymbolCacheFileName = 'symbol-cache.json';
+  cNXLSSymbolCacheFileName = 'symbols.sqlite';
 
 procedure NXLSSetRange(ARange: TNXLSRange; const AStartPos, AEndPos: TCodeXYPosition);
 begin
@@ -735,9 +735,6 @@ end;
 function TNXLSSymbolService.SymbolCacheFileName: string;
 var
   lCacheDir: string;
-  lWorkspaceKey: string;
-  lHash: Cardinal;
-  lIdx: Integer;
 begin
   Result := FCacheFileName;
   if Result <> '' then
@@ -745,21 +742,16 @@ begin
 
   lCacheDir := GetEnvironmentVariable(cNXLSSymbolCacheEnv);
   if lCacheDir = '' then
-    lCacheDir := IncludeTrailingPathDelimiter(GetTempDir) + 'NexusLS';
-
-  lWorkspaceKey := FWorkspaceFolders.Text;
-  if lWorkspaceKey = '' then
-    lWorkspaceKey := 'global';
-
-  lHash := 2166136261;
-  for lIdx := 1 to Length(lWorkspaceKey) do
   begin
-    lHash := lHash xor Ord(lWorkspaceKey[lIdx]);
-    lHash := lHash * 16777619;
+    if FWorkspaceFolders.Count > 0 then
+      lCacheDir := IncludeTrailingPathDelimiter(FWorkspaceFolders[0]) + '.nexusls' +
+        DirectorySeparator + 'cache'
+    else
+      lCacheDir := IncludeTrailingPathDelimiter(GetTempDir) + 'NexusLS' +
+        DirectorySeparator + 'cache';
   end;
 
-  Result := IncludeTrailingPathDelimiter(lCacheDir) + IntToHex(lHash, 8) +
-    DirectorySeparator + cNXLSSymbolCacheFileName;
+  Result := IncludeTrailingPathDelimiter(lCacheDir) + cNXLSSymbolCacheFileName;
   FCacheFileName := Result;
 end;
 
