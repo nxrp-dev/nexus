@@ -26,6 +26,8 @@ const
   cNXTestStatusFailed = 'failed';
   cNXTestStatusError = 'error';
   cNXTestStatusSkipped = 'skipped';
+  cNXTestStatusRunning = 'running';
+  cNXTestStatusMixed = 'mixed';
 
   cNXTestMethodGetCapabilities = 'nxtest/getCapabilities';
   cNXTestMethodListTests = 'nxtest/listTests';

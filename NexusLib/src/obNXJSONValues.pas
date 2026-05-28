@@ -301,6 +301,39 @@ begin
   end;
 end;
 
+function HasAssignedJSONProperties(AInstance: TObject): Boolean;
+var
+  lList: PPropList;
+  lCount: Integer;
+  lIdx: Integer;
+  lValue: TObject;
+begin
+  Result := False;
+  lCount := GetPropList(PTypeInfo(AInstance.ClassInfo), [tkClass], nil);
+  if lCount <= 0 then
+    Exit;
+
+  GetMem(lList, lCount * SizeOf(Pointer));
+  try
+    GetPropList(PTypeInfo(AInstance.ClassInfo), [tkClass], lList);
+
+    for lIdx := 0 to lCount - 1 do
+    begin
+      lValue := GetObjectProp(AInstance, lList^[lIdx]);
+      if not (lValue is TNXJSONValue) then
+        Continue;
+
+      if TNXJSONValue(lValue).Assigned then
+        Exit(True);
+
+      if (lValue is TNXJSONObject) and HasAssignedJSONProperties(lValue) then
+        Exit(True);
+    end;
+  finally
+    FreeMem(lList);
+  end;
+end;
+
 constructor TNXJSONValue.Create;
 begin
   inherited Create;
@@ -931,7 +964,7 @@ begin
     jtArray:
       Result := TNXJSONArray;
     jtObject:
-      Result := TNXJSONObject;
+      Result := TNXJSONValue;
   else
     Result := TNXJSONValue;
   end;
@@ -994,7 +1027,9 @@ begin
             Continue;
 
           lJSONValue := TNXJSONValue(lValue);
-          if not lJSONValue.Assigned then
+          if (not lJSONValue.Assigned) and
+            ((not (lJSONValue is TNXJSONObject)) or
+             (not HasAssignedJSONProperties(lJSONValue))) then
             Continue;
 
           lObject.Add(GetPropInfoName(lPropInfo), lJSONValue.ToJSONData);

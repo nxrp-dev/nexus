@@ -70,6 +70,7 @@ type
       const ATestId: string): TNXTreeViewNode;
     function NodeRef(ANode: TNXTreeViewNode): TNXTestUINodeRef;
     procedure PopulateTree;
+    function RolledUpStatus(ANode: TNXTreeViewNode): string;
     procedure RefreshButtonClick(Sender: TObject; X, Y: Integer;
       Button: TNXMouseButton);
     procedure RunAllButtonClick(Sender: TObject; X, Y: Integer;
@@ -80,6 +81,7 @@ type
       ADurationMs: Int64 = 0; const AMessage: string = '');
     procedure TreeChange(Sender: TObject; ANode: TNXTreeViewNode);
     procedure UpdateDetails(ANode: TNXTreeViewNode);
+    procedure UpdateParentStatuses(ANode: TNXTreeViewNode);
     procedure UpdateResult(AResult: TNXTestResultValue);
     procedure UpdateResults(AResults: TNXTestResultArray);
   public
@@ -238,7 +240,18 @@ begin
     Exit;
   end;
 
-  lRegistry := FClient.ListTests;
+  try
+    lRegistry := FClient.ListTests;
+  except
+    on E: Exception do
+    begin
+      SetNodeStatus(FRootNode, cNXTestStatusError, 0, E.Message);
+      FTree.SelectedNode := FRootNode;
+      UpdateDetails(FRootNode);
+      Exit;
+    end;
+  end;
+
   try
     for lSuiteIndex := 0 to lRegistry.suites.Count - 1 do
     begin
@@ -274,6 +287,62 @@ begin
   PopulateTree;
 end;
 
+function TNXTestUIController.RolledUpStatus(ANode: TNXTreeViewNode): string;
+var
+  lIndex: Integer;
+  lStatus: string;
+  lAnyError: Boolean;
+  lAnyFailed: Boolean;
+  lAnyRunning: Boolean;
+  lAllPassedOrSkipped: Boolean;
+  lAllNotRun: Boolean;
+begin
+  Result := cNXTestStatusNotRun;
+  if not Assigned(ANode) then
+    Exit;
+
+  if ANode.ChildCount <= 0 then
+    Exit(ANode.Cell[1].Text);
+
+  lAnyError := False;
+  lAnyFailed := False;
+  lAnyRunning := False;
+  lAllPassedOrSkipped := True;
+  lAllNotRun := True;
+
+  for lIndex := 0 to ANode.ChildCount - 1 do
+  begin
+    lStatus := ANode.Child[lIndex].Cell[1].Text;
+
+    if SameText(lStatus, cNXTestStatusError) then
+      lAnyError := True
+    else if SameText(lStatus, cNXTestStatusFailed) then
+      lAnyFailed := True
+    else if SameText(lStatus, cNXTestStatusRunning) then
+      lAnyRunning := True;
+
+    if not (SameText(lStatus, cNXTestStatusPassed) or
+      SameText(lStatus, cNXTestStatusSkipped)) then
+      lAllPassedOrSkipped := False;
+
+    if not SameText(lStatus, cNXTestStatusNotRun) then
+      lAllNotRun := False;
+  end;
+
+  if lAnyError then
+    Result := cNXTestStatusError
+  else if lAnyFailed then
+    Result := cNXTestStatusFailed
+  else if lAnyRunning then
+    Result := cNXTestStatusRunning
+  else if lAllPassedOrSkipped then
+    Result := cNXTestStatusPassed
+  else if lAllNotRun then
+    Result := cNXTestStatusNotRun
+  else
+    Result := cNXTestStatusMixed;
+end;
+
 procedure TNXTestUIController.RunAllButtonClick(Sender: TObject; X,
   Y: Integer; Button: TNXMouseButton);
 var
@@ -282,7 +351,7 @@ begin
   if Button <> mbLeft then
     Exit;
 
-  SetNodeStatus(FRootNode, 'running');
+  SetNodeStatus(FRootNode, cNXTestStatusRunning);
   Application.Render;
 
   try
@@ -292,7 +361,7 @@ begin
     finally
       lResult.Free;
     end;
-    SetNodeStatus(FRootNode, 'complete');
+    UpdateParentStatuses(FRootNode);
   except
     on E: Exception do
       SetNodeStatus(FRootNode, cNXTestStatusError, 0, E.Message);
@@ -322,7 +391,7 @@ begin
 
     nkSuite:
     begin
-      SetNodeStatus(lNode, 'running');
+      SetNodeStatus(lNode, cNXTestStatusRunning);
       Application.Render;
       try
         lSuiteResult := FClient.RunSuite(lRef.SuiteName);
@@ -331,7 +400,7 @@ begin
         finally
           lSuiteResult.Free;
         end;
-        SetNodeStatus(lNode, 'complete');
+        UpdateParentStatuses(FRootNode);
       except
         on E: Exception do
           SetNodeStatus(lNode, cNXTestStatusError, 0, E.Message);
@@ -340,7 +409,7 @@ begin
 
     nkTest:
     begin
-      SetNodeStatus(lNode, 'running');
+      SetNodeStatus(lNode, cNXTestStatusRunning);
       Application.Render;
       try
         lResult := FClient.RunTest(lRef.TestId);
@@ -349,6 +418,7 @@ begin
         finally
           lResult.Free;
         end;
+        UpdateParentStatuses(FRootNode);
       except
         on E: Exception do
           SetNodeStatus(lNode, cNXTestStatusError, 0, E.Message);
@@ -374,8 +444,10 @@ begin
   else if SameText(AStatus, cNXTestStatusFailed) or
     SameText(AStatus, cNXTestStatusError) then
     ANode.Cell[1].GlyphColor := MakeNXColor(215, 70, 70, 255)
-  else if SameText(AStatus, 'running') then
+  else if SameText(AStatus, cNXTestStatusRunning) then
     ANode.Cell[1].GlyphColor := MakeNXColor(70, 145, 230, 255)
+  else if SameText(AStatus, cNXTestStatusMixed) then
+    ANode.Cell[1].GlyphColor := MakeNXColor(210, 165, 60, 255)
   else
     ANode.Cell[1].GlyphColor := MakeNXColor(130, 130, 130, 255);
 
@@ -391,6 +463,20 @@ procedure TNXTestUIController.TreeChange(Sender: TObject;
   ANode: TNXTreeViewNode);
 begin
   UpdateDetails(ANode);
+end;
+
+procedure TNXTestUIController.UpdateParentStatuses(ANode: TNXTreeViewNode);
+var
+  lIndex: Integer;
+begin
+  if not Assigned(ANode) then
+    Exit;
+
+  for lIndex := 0 to ANode.ChildCount - 1 do
+    UpdateParentStatuses(ANode.Child[lIndex]);
+
+  if ANode.ChildCount > 0 then
+    SetNodeStatus(ANode, RolledUpStatus(ANode));
 end;
 
 procedure TNXTestUIController.UpdateDetails(ANode: TNXTreeViewNode);

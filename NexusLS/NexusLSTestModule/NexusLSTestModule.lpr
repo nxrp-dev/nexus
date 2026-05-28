@@ -10,8 +10,10 @@ uses
   obNXTestRPCRequests,
   tsNXLSCoreTests,
   tsNXLSProtocolObjectTests,
-  tsNXLSJSONRPCMessageTests,
-  tsNXLSLegacySymbolTests;
+  tsNXLSLegacySymbolTests,
+  tsNXLSNavigationTests,
+  tsNXLSIntelligenceTests,
+  tsNXTestJSONRPCHardeningTests;
 
 var
   gModule: TNXTestModule = nil;
@@ -20,8 +22,10 @@ procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXLSCoreTests(ARegistry);
   RegisterNXLSProtocolObjectTests(ARegistry);
-  RegisterNXLSJSONRPCMessageTests(ARegistry);
   RegisterNXLSLegacySymbolTests(ARegistry);
+  RegisterNXLSNavigationTests(ARegistry);
+  RegisterNXLSIntelligenceTests(ARegistry);
+  RegisterNXTestJSONRPCHardeningTests(ARegistry);
 end;
 
 function NXTest_Init: Integer; cdecl;

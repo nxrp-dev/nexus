@@ -189,7 +189,13 @@ begin
 
   lJSON := nil;
   try
-    lJSON := GetJSON(AJSON);
+    try
+      lJSON := GetJSON(AJSON);
+    except
+      on E: Exception do
+        raise ENXJSONRPC.CreateCode(ParseError, E.Message);
+    end;
+
     if not (lJSON is TJSONObject) then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC message must be a JSON object.');
 
@@ -210,6 +216,8 @@ class procedure TNXJSONRPC.ValidateMessage(AMessage: TNXJSONRPCMessage);
 var
   lIDJSON: TJSONData;
   lParamsJSON: TJSONData;
+  lErrorJSON: TJSONData;
+  lErrorObject: TJSONObject;
   lKind: TNXJSONRPCMessageKind;
 begin
   if AMessage = nil then
@@ -266,6 +274,24 @@ begin
   begin
     if (AMessage.result <> nil) and AMessage.result.Assigned then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response cannot contain both result and error.');
+
+    lErrorJSON := AMessage.error.ToJSONData;
+    try
+      if not (lErrorJSON is TJSONObject) then
+        raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC error must be an object.');
+
+      lErrorObject := TJSONObject(lErrorJSON);
+      if (lErrorObject.Find('code') = nil) or
+        (lErrorObject.Find('code').JSONType <> jtNumber) or
+        (Pos('.', lErrorObject.Find('code').AsJSON) > 0) then
+        raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC error code must be an integer.');
+
+      if (lErrorObject.Find('message') = nil) or
+        (lErrorObject.Find('message').JSONType <> jtString) then
+        raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC error message must be a string.');
+    finally
+      lErrorJSON.Free;
+    end;
   end;
 
   if AMessage.HasID then
