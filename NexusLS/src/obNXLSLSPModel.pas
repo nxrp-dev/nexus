@@ -8,11 +8,13 @@ uses
   Classes,
   Contnrs,
   fpjson,
+  CodeToolsConfig,
   obNXLSTransport,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
   obNXLSServiceContext,
+  obNXLSSettings,
   obNXLSLifecycleService,
   obNXLSDocumentService,
   obNXLSNavigationService,
@@ -33,6 +35,11 @@ type
     FInitialized: Boolean;
     FShutdownRequested: Boolean;
     FExitRequested: Boolean;
+    FCodeToolsInitialized: Boolean;
+    FProjectDir: string;
+    FEffectiveFPCOptions: TStringList;
+    FEffectiveWorkspacePaths: TStringList;
+    FSettings: TNXLSSettings;
 
     FLifecycle: TNXLSLifecycleService;
     FDocuments: TNXLSDocumentService;
@@ -46,6 +53,11 @@ type
     FDiagnostics: TNXLSDiagnosticsService;
 
     function FindDocumentIndex(const AURI: string): Integer;
+    function IsWorkspacePathExcluded(const APath: string): Boolean;
+    procedure AddWorkspacePath(const APath: string);
+    procedure FindPascalSourceDirectories(const ARootPath: string);
+    procedure CollectWorkspacePaths(AParams: TNXLSInitializeParams);
+    procedure ConfigureCodeTools(AParams: TNXLSInitializeParams);
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -78,6 +90,11 @@ type
     property Initialized: Boolean read FInitialized;
     property ShutdownRequested: Boolean read FShutdownRequested;
     property ExitRequested: Boolean read FExitRequested;
+    property CodeToolsInitialized: Boolean read FCodeToolsInitialized;
+    property ProjectDir: string read FProjectDir;
+    property EffectiveFPCOptions: TStringList read FEffectiveFPCOptions;
+    property EffectiveWorkspacePaths: TStringList read FEffectiveWorkspacePaths;
+    property Settings: TNXLSSettings read FSettings;
     property Transport: TNXLSTransport read FTransport write FTransport;
 
     property Lifecycle: TNXLSLifecycleService read FLifecycle;
@@ -95,7 +112,9 @@ type
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  CodeToolManager,
+  IdentCompletionTool;
 
 var
   gCurrentLSPModel: TNXLSLSPModel;
@@ -104,6 +123,11 @@ constructor TNXLSLSPModel.Create;
 begin
   inherited Create;
   FDocumentsByURI := TObjectList.Create(True);
+  FSettings := TNXLSSettings.Create;
+  FEffectiveFPCOptions := TStringList.Create;
+  FEffectiveWorkspacePaths := TStringList.Create;
+  FEffectiveWorkspacePaths.Sorted := True;
+  FEffectiveWorkspacePaths.Duplicates := dupIgnore;
   FLifecycle := TNXLSLifecycleService.Create(Self);
   FDocuments := TNXLSDocumentService.Create(Self);
   FNavigation := TNXLSNavigationService.Create(Self);
@@ -128,6 +152,9 @@ begin
   FreeAndNil(FNavigation);
   FreeAndNil(FDocuments);
   FreeAndNil(FLifecycle);
+  FreeAndNil(FEffectiveWorkspacePaths);
+  FreeAndNil(FEffectiveFPCOptions);
+  FreeAndNil(FSettings);
   FreeAndNil(FDocumentsByURI);
 
   if gCurrentLSPModel = Self then
@@ -142,8 +169,155 @@ begin
   FInitialized := False;
   FShutdownRequested := False;
   FExitRequested := False;
+  ConfigureCodeTools(AParams);
   FSymbols.SetWorkspaceFolders(AParams);
   FSymbols.RebuildWorkspaceIndex;
+end;
+
+function TNXLSLSPModel.IsWorkspacePathExcluded(const APath: string): Boolean;
+var
+  lIdx: Integer;
+  lPath: string;
+  lExcludePath: string;
+begin
+  Result := False;
+  lPath := IncludeTrailingPathDelimiter(ExpandFileName(APath));
+
+  for lIdx := 0 to FSettings.ExcludeWorkspaceFolders.Count - 1 do
+  begin
+    lExcludePath := IncludeTrailingPathDelimiter(ExpandFileName(
+      FSettings.ExcludeWorkspaceFolders[lIdx]));
+    if (lExcludePath <> '') and (Pos(lExcludePath, lPath) = 1) then
+      Exit(True);
+  end;
+end;
+
+procedure TNXLSLSPModel.AddWorkspacePath(const APath: string);
+var
+  lPath: string;
+begin
+  lPath := Trim(APath);
+  if lPath = '' then
+    Exit;
+
+  lPath := IncludeTrailingPathDelimiter(ExpandFileName(lPath));
+  if DirectoryExists(lPath) and not IsWorkspacePathExcluded(lPath) then
+    FEffectiveWorkspacePaths.Add(lPath);
+end;
+
+procedure TNXLSLSPModel.FindPascalSourceDirectories(const ARootPath: string);
+var
+  lSearch: TSearchRec;
+  lPath: string;
+  lHasPascalSource: Boolean;
+begin
+  if (Trim(ARootPath) = '') or (not DirectoryExists(ARootPath)) or
+    IsWorkspacePathExcluded(ARootPath) then
+    Exit;
+
+  lHasPascalSource := False;
+
+  if FindFirst(IncludeTrailingPathDelimiter(ARootPath) + '*', faAnyFile, lSearch) <> 0 then
+    Exit;
+  try
+    repeat
+      if (lSearch.Name = '.') or (lSearch.Name = '..') then
+        Continue;
+
+      lPath := IncludeTrailingPathDelimiter(ARootPath) + lSearch.Name;
+      if (lSearch.Attr and faDirectory) <> 0 then
+        FindPascalSourceDirectories(lPath)
+      else if NXLSIsPascalSourceFile(lPath) then
+        lHasPascalSource := True;
+    until FindNext(lSearch) <> 0;
+  finally
+    FindClose(lSearch);
+  end;
+
+  if lHasPascalSource then
+    AddWorkspacePath(ARootPath);
+end;
+
+procedure TNXLSLSPModel.CollectWorkspacePaths(AParams: TNXLSInitializeParams);
+var
+  lIdx: Integer;
+  lFolder: TNXLSWorkspaceFolder;
+  lRoot: string;
+begin
+  FEffectiveWorkspacePaths.Clear;
+  FProjectDir := '';
+
+  if AParams = nil then
+    Exit;
+
+  if (AParams.rootUri <> nil) and AParams.rootUri.Assigned then
+  begin
+    lRoot := NXLSFileURIToPath(AParams.rootUri.AsString);
+    if DirectoryExists(lRoot) then
+      FProjectDir := IncludeTrailingPathDelimiter(ExpandFileName(lRoot));
+  end;
+
+  if (FProjectDir = '') and (AParams.rootPath <> nil) and AParams.rootPath.Assigned then
+  begin
+    lRoot := AParams.rootPath.AsString;
+    if DirectoryExists(lRoot) then
+      FProjectDir := IncludeTrailingPathDelimiter(ExpandFileName(lRoot));
+  end;
+
+  if (AParams.workspaceFolders <> nil) and AParams.workspaceFolders.Assigned and
+    (AParams.workspaceFolders.Count > 0) then
+  begin
+    for lIdx := 0 to AParams.workspaceFolders.Count - 1 do
+    begin
+      lFolder := TNXLSWorkspaceFolder(AParams.workspaceFolders[lIdx]);
+      if (lFolder <> nil) and (lFolder.uri <> nil) and lFolder.uri.Assigned then
+        FindPascalSourceDirectories(NXLSFileURIToPath(lFolder.uri.Value));
+    end;
+  end
+  else if FProjectDir <> '' then
+    FindPascalSourceDirectories(FProjectDir);
+end;
+
+procedure TNXLSLSPModel.ConfigureCodeTools(AParams: TNXLSInitializeParams);
+var
+  lOptions: TCodeToolsOptions;
+  lIdx: Integer;
+begin
+  if AParams = nil then
+    Exit;
+
+  FSettings.LoadFromInitializationOptions(AParams.initializationOptions);
+  CollectWorkspacePaths(AParams);
+
+  FEffectiveFPCOptions.Clear;
+  FEffectiveFPCOptions.Assign(FSettings.FPCOptions);
+
+  for lIdx := 0 to FEffectiveWorkspacePaths.Count - 1 do
+  begin
+    if FSettings.IncludeWorkspaceFoldersAsUnitPaths then
+      FEffectiveFPCOptions.Add('-Fu' + FEffectiveWorkspacePaths[lIdx]);
+    if FSettings.IncludeWorkspaceFoldersAsIncludePaths then
+      FEffectiveFPCOptions.Add('-Fi' + FEffectiveWorkspacePaths[lIdx]);
+  end;
+
+  lOptions := TCodeToolsOptions.Create;
+  try
+    lOptions.ProjectDir := FProjectDir;
+    lOptions.TargetOS := {$i %FPCTARGETOS%};
+    lOptions.TargetProcessor := {$i %FPCTARGETCPU%};
+    lOptions.InitWithEnvironmentVariables;
+
+    if (FSettings.CodeToolsConfig <> '') and FileExists(FSettings.CodeToolsConfig) then
+      lOptions.LoadFromFile(FSettings.CodeToolsConfig);
+
+    lOptions.FPCOptions := Trim(StringReplace(FEffectiveFPCOptions.Text, LineEnding, ' ', [rfReplaceAll]));
+    CodeToolBoss.Init(lOptions);
+    CodeToolBoss.IdentifierList.SortForHistory := True;
+    CodeToolBoss.IdentifierList.SortMethodForCompletion := icsScopedAlphabetic;
+    FCodeToolsInitialized := True;
+  finally
+    lOptions.Free;
+  end;
 end;
 
 procedure TNXLSLSPModel.MarkInitialized;

@@ -63,9 +63,7 @@ This playground expects `NexusLib/src` to be available as a sibling folder to `N
 
 Windows:
 
-```bat
-build_windows.bat
-```
+No Windows project file has been added for the sample host/module yet.
 
 Linux/macOS-ish:
 

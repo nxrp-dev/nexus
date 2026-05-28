@@ -6,11 +6,23 @@ uses
   SysUtils,
   tpNXTest,
   obNXTestModule,
+  obNXTestRegistry,
   obNXTestRPCRequests,
-  tsNXLSCoreTests;
+  tsNXLSCoreTests,
+  tsNXLSProtocolObjectTests,
+  tsNXLSJSONRPCMessageTests,
+  tsNXLSLegacySymbolTests;
 
 var
   gModule: TNXTestModule = nil;
+
+procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
+begin
+  RegisterNXLSCoreTests(ARegistry);
+  RegisterNXLSProtocolObjectTests(ARegistry);
+  RegisterNXLSJSONRPCMessageTests(ARegistry);
+  RegisterNXLSLegacySymbolTests(ARegistry);
+end;
 
 function NXTest_Init: Integer; cdecl;
 begin
@@ -18,7 +30,7 @@ begin
     Exit(cNXTestSuccess);
 
   try
-    gModule := TNXTestModule.Create(@RegisterNXLSCoreTests);
+    gModule := TNXTestModule.Create(@RegisterNXLSTests);
     Result := cNXTestSuccess;
   except
     on E: Exception do

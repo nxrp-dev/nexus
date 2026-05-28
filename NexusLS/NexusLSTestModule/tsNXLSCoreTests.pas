@@ -14,8 +14,11 @@ implementation
 uses
   Classes,
   SysUtils,
+  fpjson,
   obNXFPCBuildOptions,
   obNXLSLSPModel,
+  obNXLSProtocolParams,
+  obNXLSServiceContext,
   obNXPascalProject,
   obNXTestContext,
   obNXTestSuite;
@@ -103,6 +106,82 @@ begin
   end;
 end;
 
+function NXLSCreateUniqueTempDir(const APrefix: string): string;
+var
+  lTempFile: string;
+begin
+  lTempFile := GetTempFileName('', APrefix);
+  if FileExists(lTempFile) then
+    DeleteFile(lTempFile);
+
+  Result := lTempFile + '_dir';
+  ForceDirectories(Result);
+end;
+
+procedure TestInitializeConfiguresCodeToolsWorkspace(AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSInitializeParams;
+  lFolder: TNXLSWorkspaceFolder;
+  lRoot: string;
+  lUnitDir: string;
+  lFileName: string;
+  lFile: TextFile;
+  lJSON: TJSONData;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxls');
+  lUnitDir := IncludeTrailingPathDelimiter(lRoot) + 'src';
+  ForceDirectories(lUnitDir);
+
+  lFileName := IncludeTrailingPathDelimiter(lUnitDir) + 'SampleUnit.pas';
+  AssignFile(lFile, lFileName);
+  Rewrite(lFile);
+  try
+    WriteLn(lFile, 'unit SampleUnit;');
+    WriteLn(lFile, 'interface');
+    WriteLn(lFile, 'implementation');
+    WriteLn(lFile, 'end.');
+  finally
+    CloseFile(lFile);
+  end;
+
+  lParams := TNXLSInitializeParams.Create;
+  lModel := TNXLSLSPModel.Create;
+  try
+    lJSON := TJSONString.Create(NXLSPathToFileURI(lRoot));
+    try
+      lParams.rootUri.FromJSONData(lJSON);
+    finally
+      lJSON.Free;
+    end;
+
+    lFolder := TNXLSWorkspaceFolder(lParams.workspaceFolders.AddObject(TNXLSWorkspaceFolder));
+    lFolder.uri.Value := NXLSPathToFileURI(lRoot);
+    lFolder.name.Value := 'nexusls-core-test';
+
+    lModel.BeginInitialize(lParams);
+
+    AContext.AssertTrue(lModel.CodeToolsInitialized,
+      'Initialize should configure CodeTools.');
+    AContext.AssertTrue(lModel.EffectiveWorkspacePaths.IndexOf(
+      IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
+      'Initialize should collect workspace folders containing Pascal source.');
+    AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fu' +
+      IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
+      'Initialize should add workspace source folders as unit paths.');
+    AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fi' +
+      IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
+      'Initialize should add workspace source folders as include paths.');
+  finally
+    lModel.Free;
+    lParams.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lUnitDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
 procedure RegisterNXLSCoreTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -114,6 +193,8 @@ begin
   lSuite.AddTest('PascalProjectVariableResolution',
     @TestPascalProjectVariableResolution);
   lSuite.AddTest('LSPModelStartsEmpty', @TestLSPModelStartsEmpty);
+  lSuite.AddTest('InitializeConfiguresCodeToolsWorkspace',
+    @TestInitializeConfiguresCodeToolsWorkspace);
 end;
 
 end.
