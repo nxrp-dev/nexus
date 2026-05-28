@@ -1,0 +1,432 @@
+unit obNXLSSymbolCache;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes,
+  Contnrs;
+
+type
+  TNXLSSymbolCacheSymbol = class
+  private
+    FName: string;
+    FKind: Integer;
+    FURI: string;
+    FRangeStartLine: Integer;
+    FRangeStartCharacter: Integer;
+    FRangeEndLine: Integer;
+    FRangeEndCharacter: Integer;
+    FSelectionStartLine: Integer;
+    FSelectionStartCharacter: Integer;
+    FSelectionEndLine: Integer;
+    FSelectionEndCharacter: Integer;
+    FContainerName: string;
+  public
+    property Name: string read FName write FName;
+    property Kind: Integer read FKind write FKind;
+    property URI: string read FURI write FURI;
+    property RangeStartLine: Integer read FRangeStartLine write FRangeStartLine;
+    property RangeStartCharacter: Integer read FRangeStartCharacter write FRangeStartCharacter;
+    property RangeEndLine: Integer read FRangeEndLine write FRangeEndLine;
+    property RangeEndCharacter: Integer read FRangeEndCharacter write FRangeEndCharacter;
+    property SelectionStartLine: Integer read FSelectionStartLine write FSelectionStartLine;
+    property SelectionStartCharacter: Integer read FSelectionStartCharacter write FSelectionStartCharacter;
+    property SelectionEndLine: Integer read FSelectionEndLine write FSelectionEndLine;
+    property SelectionEndCharacter: Integer read FSelectionEndCharacter write FSelectionEndCharacter;
+    property ContainerName: string read FContainerName write FContainerName;
+  end;
+
+  TNXLSSymbolCacheFile = class
+  private
+    FFileName: string;
+    FURI: string;
+    FFileStamp: LongInt;
+    FFileSize: Int64;
+    FScannerVersion: Integer;
+    FSymbols: TObjectList;
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure ClearSymbols;
+    property FileName: string read FFileName write FFileName;
+    property URI: string read FURI write FURI;
+    property FileStamp: LongInt read FFileStamp write FFileStamp;
+    property FileSize: Int64 read FFileSize write FFileSize;
+    property ScannerVersion: Integer read FScannerVersion write FScannerVersion;
+    property Symbols: TObjectList read FSymbols;
+  end;
+
+  TNXLSSymbolCache = class
+  private
+    FFiles: TObjectList;
+    FCacheVersion: Integer;
+    FScannerVersion: Integer;
+    FDirty: Boolean;
+    function FindFileIndexByURI(const AURI: string): Integer;
+    function ReadInteger(AObject: TObject; const AName: string; ADefault: Integer): Integer;
+    function ReadInt64(AObject: TObject; const AName: string; ADefault: Int64): Int64;
+    function ReadString(AObject: TObject; const AName, ADefault: string): string;
+    procedure LoadSymbol(AObject: TObject; AFile: TNXLSSymbolCacheFile);
+    procedure LoadFile(AObject: TObject);
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Clear;
+    procedure Load(const AFileName: string);
+    procedure Save(const AFileName: string);
+    function FileByURI(const AURI: string): TNXLSSymbolCacheFile;
+    function IsFresh(const AFileName, AURI: string): Boolean;
+    function ReplaceFile(const AFileName, AURI: string): TNXLSSymbolCacheFile;
+    procedure RemoveFile(const AURI: string);
+    class function FileStamp(const AFileName: string): LongInt; static;
+    class function FileSize(const AFileName: string): Int64; static;
+    property CacheVersion: Integer read FCacheVersion;
+    property ScannerVersion: Integer read FScannerVersion write FScannerVersion;
+    property Dirty: Boolean read FDirty write FDirty;
+  end;
+
+implementation
+
+uses
+  SysUtils,
+  fpjson,
+  jsonparser;
+
+const
+  cNXLSSymbolCacheVersion = 1;
+  cNXLSSymbolScannerVersion = 1;
+
+constructor TNXLSSymbolCacheFile.Create;
+begin
+  inherited Create;
+  FSymbols := TObjectList.Create(True);
+end;
+
+destructor TNXLSSymbolCacheFile.Destroy;
+begin
+  FreeAndNil(FSymbols);
+  inherited Destroy;
+end;
+
+procedure TNXLSSymbolCacheFile.ClearSymbols;
+begin
+  FSymbols.Clear;
+end;
+
+constructor TNXLSSymbolCache.Create;
+begin
+  inherited Create;
+  FFiles := TObjectList.Create(True);
+  FCacheVersion := cNXLSSymbolCacheVersion;
+  FScannerVersion := cNXLSSymbolScannerVersion;
+end;
+
+destructor TNXLSSymbolCache.Destroy;
+begin
+  FreeAndNil(FFiles);
+  inherited Destroy;
+end;
+
+procedure TNXLSSymbolCache.Clear;
+begin
+  FFiles.Clear;
+  FDirty := False;
+end;
+
+function TNXLSSymbolCache.FindFileIndexByURI(const AURI: string): Integer;
+var
+  lIdx: Integer;
+begin
+  Result := -1;
+  for lIdx := 0 to FFiles.Count - 1 do
+    if SameText(TNXLSSymbolCacheFile(FFiles[lIdx]).URI, AURI) then
+      Exit(lIdx);
+end;
+
+function TNXLSSymbolCache.ReadInteger(AObject: TObject; const AName: string;
+  ADefault: Integer): Integer;
+var
+  lValue: TJSONData;
+begin
+  Result := ADefault;
+  if not (AObject is TJSONObject) then
+    Exit;
+
+  lValue := TJSONObject(AObject).Find(AName);
+  if lValue <> nil then
+    Result := lValue.AsInteger;
+end;
+
+function TNXLSSymbolCache.ReadInt64(AObject: TObject; const AName: string;
+  ADefault: Int64): Int64;
+var
+  lValue: TJSONData;
+begin
+  Result := ADefault;
+  if not (AObject is TJSONObject) then
+    Exit;
+
+  lValue := TJSONObject(AObject).Find(AName);
+  if lValue <> nil then
+    Result := StrToInt64Def(lValue.AsString, ADefault);
+end;
+
+function TNXLSSymbolCache.ReadString(AObject: TObject; const AName,
+  ADefault: string): string;
+var
+  lValue: TJSONData;
+begin
+  Result := ADefault;
+  if not (AObject is TJSONObject) then
+    Exit;
+
+  lValue := TJSONObject(AObject).Find(AName);
+  if lValue <> nil then
+    Result := lValue.AsString;
+end;
+
+procedure TNXLSSymbolCache.LoadSymbol(AObject: TObject; AFile: TNXLSSymbolCacheFile);
+var
+  lSymbol: TNXLSSymbolCacheSymbol;
+begin
+  if (AFile = nil) or (not (AObject is TJSONObject)) then
+    Exit;
+
+  lSymbol := TNXLSSymbolCacheSymbol.Create;
+  AFile.Symbols.Add(lSymbol);
+  lSymbol.Name := ReadString(AObject, 'name', '');
+  lSymbol.Kind := ReadInteger(AObject, 'kind', 0);
+  lSymbol.URI := AFile.URI;
+  lSymbol.RangeStartLine := ReadInteger(AObject, 'rangeStartLine', 0);
+  lSymbol.RangeStartCharacter := ReadInteger(AObject, 'rangeStartCharacter', 0);
+  lSymbol.RangeEndLine := ReadInteger(AObject, 'rangeEndLine', 0);
+  lSymbol.RangeEndCharacter := ReadInteger(AObject, 'rangeEndCharacter', 0);
+  lSymbol.SelectionStartLine := ReadInteger(AObject, 'selectionStartLine', 0);
+  lSymbol.SelectionStartCharacter := ReadInteger(AObject, 'selectionStartCharacter', 0);
+  lSymbol.SelectionEndLine := ReadInteger(AObject, 'selectionEndLine', 0);
+  lSymbol.SelectionEndCharacter := ReadInteger(AObject, 'selectionEndCharacter', 0);
+  lSymbol.ContainerName := ReadString(AObject, 'containerName', '');
+end;
+
+procedure TNXLSSymbolCache.LoadFile(AObject: TObject);
+var
+  lFile: TNXLSSymbolCacheFile;
+  lSymbols: TJSONData;
+  lIdx: Integer;
+begin
+  if not (AObject is TJSONObject) then
+    Exit;
+
+  lFile := TNXLSSymbolCacheFile.Create;
+  try
+    lFile.FileName := ReadString(AObject, 'fileName', '');
+    lFile.URI := ReadString(AObject, 'uri', '');
+    if (lFile.FileName = '') or (lFile.URI = '') or (not FileExists(lFile.FileName)) then
+      Exit;
+
+    FFiles.Add(lFile);
+    lFile := nil;
+  finally
+    lFile.Free;
+  end;
+
+  lFile := TNXLSSymbolCacheFile(FFiles[FFiles.Count - 1]);
+  lFile.FileStamp := ReadInteger(AObject, 'fileStamp', -1);
+  lFile.FileSize := ReadInt64(AObject, 'fileSize', -1);
+  lFile.ScannerVersion := ReadInteger(AObject, 'scannerVersion', 0);
+
+  lSymbols := TJSONObject(AObject).Find('symbols');
+  if lSymbols is TJSONArray then
+    for lIdx := 0 to TJSONArray(lSymbols).Count - 1 do
+      LoadSymbol(TJSONArray(lSymbols).Items[lIdx], lFile);
+end;
+
+procedure TNXLSSymbolCache.Load(const AFileName: string);
+var
+  lStream: TFileStream;
+  lData: TJSONData;
+  lFiles: TJSONData;
+  lIdx: Integer;
+begin
+  Clear;
+  if not FileExists(AFileName) then
+    Exit;
+
+  lStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
+  try
+    lData := GetJSON(lStream);
+  finally
+    lStream.Free;
+  end;
+  try
+    if not (lData is TJSONObject) then
+      Exit;
+
+    if ReadInteger(lData, 'cacheVersion', 0) <> FCacheVersion then
+      Exit;
+
+    lFiles := TJSONObject(lData).Find('files');
+    if lFiles is TJSONArray then
+      for lIdx := 0 to TJSONArray(lFiles).Count - 1 do
+        LoadFile(TJSONArray(lFiles).Items[lIdx]);
+  finally
+    lData.Free;
+  end;
+  FDirty := False;
+end;
+
+procedure TNXLSSymbolCache.Save(const AFileName: string);
+var
+  lRoot: TJSONObject;
+  lFiles: TJSONArray;
+  lFile: TNXLSSymbolCacheFile;
+  lFileObject: TJSONObject;
+  lSymbols: TJSONArray;
+  lSymbol: TNXLSSymbolCacheSymbol;
+  lSymbolObject: TJSONObject;
+  lIdx: Integer;
+  lSymbolIdx: Integer;
+  lDir: string;
+  lText: TStringList;
+begin
+  if AFileName = '' then
+    Exit;
+
+  lDir := ExtractFileDir(AFileName);
+  if (lDir <> '') and (not DirectoryExists(lDir)) then
+    ForceDirectories(lDir);
+
+  lRoot := TJSONObject.Create;
+  try
+    lRoot.Add('cacheVersion', FCacheVersion);
+    lRoot.Add('scannerVersion', FScannerVersion);
+    lFiles := TJSONArray.Create;
+    lRoot.Add('files', lFiles);
+
+    for lIdx := 0 to FFiles.Count - 1 do
+    begin
+      lFile := TNXLSSymbolCacheFile(FFiles[lIdx]);
+      lFileObject := TJSONObject.Create;
+      lFiles.Add(lFileObject);
+      lFileObject.Add('fileName', lFile.FileName);
+      lFileObject.Add('uri', lFile.URI);
+      lFileObject.Add('fileStamp', lFile.FileStamp);
+      lFileObject.Add('fileSize', lFile.FileSize);
+      lFileObject.Add('scannerVersion', lFile.ScannerVersion);
+      lSymbols := TJSONArray.Create;
+      lFileObject.Add('symbols', lSymbols);
+
+      for lSymbolIdx := 0 to lFile.Symbols.Count - 1 do
+      begin
+        lSymbol := TNXLSSymbolCacheSymbol(lFile.Symbols[lSymbolIdx]);
+        lSymbolObject := TJSONObject.Create;
+        lSymbols.Add(lSymbolObject);
+        lSymbolObject.Add('name', lSymbol.Name);
+        lSymbolObject.Add('kind', lSymbol.Kind);
+        lSymbolObject.Add('rangeStartLine', lSymbol.RangeStartLine);
+        lSymbolObject.Add('rangeStartCharacter', lSymbol.RangeStartCharacter);
+        lSymbolObject.Add('rangeEndLine', lSymbol.RangeEndLine);
+        lSymbolObject.Add('rangeEndCharacter', lSymbol.RangeEndCharacter);
+        lSymbolObject.Add('selectionStartLine', lSymbol.SelectionStartLine);
+        lSymbolObject.Add('selectionStartCharacter', lSymbol.SelectionStartCharacter);
+        lSymbolObject.Add('selectionEndLine', lSymbol.SelectionEndLine);
+        lSymbolObject.Add('selectionEndCharacter', lSymbol.SelectionEndCharacter);
+        lSymbolObject.Add('containerName', lSymbol.ContainerName);
+      end;
+    end;
+
+    lText := TStringList.Create;
+    try
+      lText.Text := lRoot.AsJSON;
+      lText.SaveToFile(AFileName);
+    finally
+      lText.Free;
+    end;
+  finally
+    lRoot.Free;
+  end;
+  FDirty := False;
+end;
+
+function TNXLSSymbolCache.FileByURI(const AURI: string): TNXLSSymbolCacheFile;
+var
+  lIdx: Integer;
+begin
+  Result := nil;
+  lIdx := FindFileIndexByURI(AURI);
+  if lIdx >= 0 then
+    Result := TNXLSSymbolCacheFile(FFiles[lIdx]);
+end;
+
+function TNXLSSymbolCache.IsFresh(const AFileName, AURI: string): Boolean;
+var
+  lFile: TNXLSSymbolCacheFile;
+begin
+  Result := False;
+  lFile := FileByURI(AURI);
+  if lFile = nil then
+    Exit;
+
+  Result := SameText(ExpandFileName(AFileName), ExpandFileName(lFile.FileName)) and
+    (lFile.ScannerVersion = FScannerVersion) and
+    (lFile.FileStamp = FileStamp(AFileName)) and
+    (lFile.FileSize = FileSize(AFileName));
+end;
+
+function TNXLSSymbolCache.ReplaceFile(const AFileName, AURI: string): TNXLSSymbolCacheFile;
+var
+  lIdx: Integer;
+begin
+  lIdx := FindFileIndexByURI(AURI);
+  if lIdx >= 0 then
+    Result := TNXLSSymbolCacheFile(FFiles[lIdx])
+  else
+  begin
+    Result := TNXLSSymbolCacheFile.Create;
+    FFiles.Add(Result);
+  end;
+
+  Result.FileName := ExpandFileName(AFileName);
+  Result.URI := AURI;
+  Result.FileStamp := FileStamp(AFileName);
+  Result.FileSize := FileSize(AFileName);
+  Result.ScannerVersion := FScannerVersion;
+  Result.ClearSymbols;
+  FDirty := True;
+end;
+
+procedure TNXLSSymbolCache.RemoveFile(const AURI: string);
+var
+  lIdx: Integer;
+begin
+  lIdx := FindFileIndexByURI(AURI);
+  if lIdx >= 0 then
+  begin
+    FFiles.Delete(lIdx);
+    FDirty := True;
+  end;
+end;
+
+class function TNXLSSymbolCache.FileStamp(const AFileName: string): LongInt;
+begin
+  Result := SysUtils.FileAge(AFileName);
+end;
+
+class function TNXLSSymbolCache.FileSize(const AFileName: string): Int64;
+var
+  lSearch: TSearchRec;
+begin
+  Result := -1;
+  if FindFirst(AFileName, faAnyFile, lSearch) = 0 then
+  try
+    Result := lSearch.Size;
+  finally
+    FindClose(lSearch);
+  end;
+end;
+
+end.

@@ -10,7 +10,8 @@ uses
   Contnrs,
   obNXJSONValues,
   obNXLSProtocolParams,
-  obNXLSServiceContext;
+  obNXLSServiceContext,
+  obNXLSSymbolCache;
 
 type
   TNXLSIndexedSymbol = class
@@ -46,11 +47,20 @@ type
   private
     FWorkspaceFolders: TStringList;
     FIndexedSymbols: TObjectList;
+    FCache: TNXLSSymbolCache;
+    FCacheFileName: string;
+    FCacheLoaded: Boolean;
     procedure ClearWorkspaceFolders;
     procedure AddWorkspaceFolderPath(const APath: string);
     procedure AddWorkspaceFolderURI(const AURI: string);
     procedure RemoveWorkspaceFolderURI(const AURI: string);
     procedure ClearIndexedSymbolsForURI(const AURI: string);
+    procedure ResetSymbolCacheState;
+    procedure LoadSymbolCache;
+    procedure SaveSymbolCache;
+    function SymbolCacheFileName: string;
+    procedure CopyCacheFileToIndexedSymbols(AFile: TNXLSSymbolCacheFile);
+    procedure CopyIndexedSymbolsToCacheFile(AStartIndex: Integer; AFile: TNXLSSymbolCacheFile);
     procedure IndexCodeBuffer(const AURI: string; ACodeBuffer: TCodeBuffer);
     procedure IndexWorkspaceFile(const AFileName: string);
   public
@@ -89,6 +99,8 @@ const
   cNXLSKindEnumMember = 22;
   cNXLSKindStruct = 23;
   cNXLSKindTypeParameter = 26;
+  cNXLSSymbolCacheEnv = 'NEXUSLS_CACHE_DIR';
+  cNXLSSymbolCacheFileName = 'symbol-cache.json';
 
 procedure NXLSSetRange(ARange: TNXLSRange; const AStartPos, AEndPos: TCodeXYPosition);
 begin
@@ -577,10 +589,13 @@ begin
   FWorkspaceFolders.Sorted := True;
   FWorkspaceFolders.Duplicates := dupIgnore;
   FIndexedSymbols := TObjectList.Create(True);
+  FCache := TNXLSSymbolCache.Create;
 end;
 
 destructor TNXLSSymbolService.Destroy;
 begin
+  SaveSymbolCache;
+  FreeAndNil(FCache);
   FreeAndNil(FIndexedSymbols);
   FreeAndNil(FWorkspaceFolders);
   inherited Destroy;
@@ -709,6 +724,135 @@ begin
       FIndexedSymbols.Delete(lIdx);
 end;
 
+procedure TNXLSSymbolService.ResetSymbolCacheState;
+begin
+  FCacheFileName := '';
+  FCacheLoaded := False;
+  if FCache <> nil then
+    FCache.Clear;
+end;
+
+function TNXLSSymbolService.SymbolCacheFileName: string;
+var
+  lCacheDir: string;
+  lWorkspaceKey: string;
+  lHash: Cardinal;
+  lIdx: Integer;
+begin
+  Result := FCacheFileName;
+  if Result <> '' then
+    Exit;
+
+  lCacheDir := GetEnvironmentVariable(cNXLSSymbolCacheEnv);
+  if lCacheDir = '' then
+    lCacheDir := IncludeTrailingPathDelimiter(GetTempDir) + 'NexusLS';
+
+  lWorkspaceKey := FWorkspaceFolders.Text;
+  if lWorkspaceKey = '' then
+    lWorkspaceKey := 'global';
+
+  lHash := 2166136261;
+  for lIdx := 1 to Length(lWorkspaceKey) do
+  begin
+    lHash := lHash xor Ord(lWorkspaceKey[lIdx]);
+    lHash := lHash * 16777619;
+  end;
+
+  Result := IncludeTrailingPathDelimiter(lCacheDir) + IntToHex(lHash, 8) +
+    DirectorySeparator + cNXLSSymbolCacheFileName;
+  FCacheFileName := Result;
+end;
+
+procedure TNXLSSymbolService.LoadSymbolCache;
+var
+  lFileName: string;
+begin
+  if FCacheLoaded then
+    Exit;
+
+  FCacheLoaded := True;
+  lFileName := SymbolCacheFileName;
+  if lFileName <> '' then
+    FCache.Load(lFileName);
+end;
+
+procedure TNXLSSymbolService.SaveSymbolCache;
+var
+  lFileName: string;
+begin
+  if (FCache = nil) or (not FCache.Dirty) then
+    Exit;
+
+  lFileName := SymbolCacheFileName;
+  if lFileName <> '' then
+    FCache.Save(lFileName);
+end;
+
+procedure TNXLSSymbolService.CopyCacheFileToIndexedSymbols(AFile: TNXLSSymbolCacheFile);
+var
+  lIdx: Integer;
+  lCachedSymbol: TNXLSSymbolCacheSymbol;
+  lSymbol: TNXLSIndexedSymbol;
+begin
+  if AFile = nil then
+    Exit;
+
+  ClearIndexedSymbolsForURI(AFile.URI);
+
+  for lIdx := 0 to AFile.Symbols.Count - 1 do
+  begin
+    lCachedSymbol := TNXLSSymbolCacheSymbol(AFile.Symbols[lIdx]);
+    lSymbol := TNXLSIndexedSymbol.Create;
+    FIndexedSymbols.Add(lSymbol);
+    lSymbol.Name := lCachedSymbol.Name;
+    lSymbol.Kind := lCachedSymbol.Kind;
+    lSymbol.URI := lCachedSymbol.URI;
+    lSymbol.RangeStartLine := lCachedSymbol.RangeStartLine;
+    lSymbol.RangeStartCharacter := lCachedSymbol.RangeStartCharacter;
+    lSymbol.RangeEndLine := lCachedSymbol.RangeEndLine;
+    lSymbol.RangeEndCharacter := lCachedSymbol.RangeEndCharacter;
+    lSymbol.SelectionStartLine := lCachedSymbol.SelectionStartLine;
+    lSymbol.SelectionStartCharacter := lCachedSymbol.SelectionStartCharacter;
+    lSymbol.SelectionEndLine := lCachedSymbol.SelectionEndLine;
+    lSymbol.SelectionEndCharacter := lCachedSymbol.SelectionEndCharacter;
+    lSymbol.ContainerName := lCachedSymbol.ContainerName;
+  end;
+end;
+
+procedure TNXLSSymbolService.CopyIndexedSymbolsToCacheFile(AStartIndex: Integer;
+  AFile: TNXLSSymbolCacheFile);
+var
+  lIdx: Integer;
+  lIndexedSymbol: TNXLSIndexedSymbol;
+  lCachedSymbol: TNXLSSymbolCacheSymbol;
+begin
+  if AFile = nil then
+    Exit;
+
+  AFile.ClearSymbols;
+  for lIdx := AStartIndex to FIndexedSymbols.Count - 1 do
+  begin
+    lIndexedSymbol := TNXLSIndexedSymbol(FIndexedSymbols[lIdx]);
+    if not SameText(lIndexedSymbol.URI, AFile.URI) then
+      Continue;
+
+    lCachedSymbol := TNXLSSymbolCacheSymbol.Create;
+    AFile.Symbols.Add(lCachedSymbol);
+    lCachedSymbol.Name := lIndexedSymbol.Name;
+    lCachedSymbol.Kind := lIndexedSymbol.Kind;
+    lCachedSymbol.URI := lIndexedSymbol.URI;
+    lCachedSymbol.RangeStartLine := lIndexedSymbol.RangeStartLine;
+    lCachedSymbol.RangeStartCharacter := lIndexedSymbol.RangeStartCharacter;
+    lCachedSymbol.RangeEndLine := lIndexedSymbol.RangeEndLine;
+    lCachedSymbol.RangeEndCharacter := lIndexedSymbol.RangeEndCharacter;
+    lCachedSymbol.SelectionStartLine := lIndexedSymbol.SelectionStartLine;
+    lCachedSymbol.SelectionStartCharacter := lIndexedSymbol.SelectionStartCharacter;
+    lCachedSymbol.SelectionEndLine := lIndexedSymbol.SelectionEndLine;
+    lCachedSymbol.SelectionEndCharacter := lIndexedSymbol.SelectionEndCharacter;
+    lCachedSymbol.ContainerName := lIndexedSymbol.ContainerName;
+  end;
+end;
+
 procedure TNXLSSymbolService.IndexCodeBuffer(const AURI: string; ACodeBuffer: TCodeBuffer);
 var
   lTool: TCodeTool;
@@ -733,16 +877,35 @@ end;
 procedure TNXLSSymbolService.IndexWorkspaceFile(const AFileName: string);
 var
   lCodeBuffer: TCodeBuffer;
+  lURI: string;
+  lStartIndex: Integer;
+  lCacheFile: TNXLSSymbolCacheFile;
 begin
   if not NXLSIsPascalSourceFile(AFileName) then
     Exit;
 
+  lURI := NXLSPathToFileURI(AFileName);
+  LoadSymbolCache;
+
+  if FCache.IsFresh(AFileName, lURI) then
+  begin
+    CopyCacheFileToIndexedSymbols(FCache.FileByURI(lURI));
+    Exit;
+  end;
+
   try
+    ClearIndexedSymbolsForURI(lURI);
+    lStartIndex := FIndexedSymbols.Count;
     lCodeBuffer := NXLSLoadCodeBuffer(AFileName);
-    IndexCodeBuffer(NXLSPathToFileURI(AFileName), lCodeBuffer);
+    IndexCodeBuffer(lURI, lCodeBuffer);
+    lCacheFile := FCache.ReplaceFile(AFileName, lURI);
+    CopyIndexedSymbolsToCacheFile(lStartIndex, lCacheFile);
   except
     on Exception do
-      ClearIndexedSymbolsForURI(NXLSPathToFileURI(AFileName));
+    begin
+      ClearIndexedSymbolsForURI(lURI);
+      FCache.RemoveFile(lURI);
+    end;
   end;
 end;
 
@@ -752,6 +915,7 @@ var
   lFolder: TNXLSWorkspaceFolder;
 begin
   ClearWorkspaceFolders;
+  ResetSymbolCacheState;
 
   if AParams = nil then
     Exit;
@@ -783,6 +947,8 @@ begin
     lFolder := TNXLSWorkspaceFolder(AFolders[lIdx]);
     AddWorkspaceFolderURI(lFolder.uri.Value);
   end;
+
+  ResetSymbolCacheState;
 end;
 
 procedure TNXLSSymbolService.RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
@@ -798,6 +964,8 @@ begin
     lFolder := TNXLSWorkspaceFolder(AFolders[lIdx]);
     RemoveWorkspaceFolderURI(lFolder.uri.Value);
   end;
+
+  ResetSymbolCacheState;
 end;
 
 procedure TNXLSSymbolService.RebuildWorkspaceIndex;
@@ -829,12 +997,15 @@ var
 
 begin
   FIndexedSymbols.Clear;
+  LoadSymbolCache;
 
   for lIdx := 0 to FWorkspaceFolders.Count - 1 do
     IndexFolder(FWorkspaceFolders[lIdx]);
 
   for lIdx := 0 to Model.DocumentCount - 1 do
     ReindexDocument(Model.DocumentByIndex(lIdx));
+
+  SaveSymbolCache;
 end;
 
 procedure TNXLSSymbolService.ReindexDocument(ADocument: TNXLSDocument);
