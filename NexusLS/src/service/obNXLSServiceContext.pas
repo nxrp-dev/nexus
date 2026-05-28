@@ -54,6 +54,7 @@ type
     function DocumentCount: Integer; virtual; abstract;
     function DocumentByIndex(AIndex: Integer): TNXLSDocument; virtual; abstract;
     procedure CheckDocument(ADocument: TNXLSDocument); virtual; abstract;
+    procedure CheckInactiveRegions(ADocument: TNXLSDocument); virtual; abstract;
     procedure ReindexDocument(ADocument: TNXLSDocument); virtual; abstract;
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;

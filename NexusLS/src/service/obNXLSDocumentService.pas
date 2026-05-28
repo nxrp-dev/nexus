@@ -32,6 +32,7 @@ begin
   lDocument := Model.OpenDocument(AParams.textDocument);
   Model.ReindexDocument(lDocument);
   Model.CheckDocument(lDocument);
+  Model.CheckInactiveRegions(lDocument);
 end;
 
 procedure TNXLSDocumentService.DidChange(AParams: TNXLSDidChangeTextDocumentParams);
@@ -45,6 +46,7 @@ begin
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
   Model.ReindexDocument(lDocument);
   Model.CheckDocument(lDocument);
+  Model.CheckInactiveRegions(lDocument);
 end;
 
 procedure TNXLSDocumentService.DidSave(AParams: TNXLSDidSaveTextDocumentParams);
@@ -58,6 +60,7 @@ begin
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
   Model.ReindexDocument(lDocument);
   Model.CheckDocument(lDocument);
+  Model.CheckInactiveRegions(lDocument);
 end;
 
 procedure TNXLSDocumentService.DidClose(AParams: TNXLSDidCloseTextDocumentParams);

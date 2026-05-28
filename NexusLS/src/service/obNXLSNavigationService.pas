@@ -135,6 +135,10 @@ var
   lNewX: Integer;
   lNewY: Integer;
   lNewTopLine: Integer;
+  lBlockTopLine: Integer;
+  lBlockBottomLine: Integer;
+  lIdentifier: string;
+  lDeclCode: TCodeBuffer;
 begin
   Result := TNXLSLocationResult.CreateValue;
   if (AParams = nil) or (AParams.textDocument = nil) or (AParams.position = nil) then
@@ -150,6 +154,32 @@ begin
   begin
     Result.Free;
     Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
+    Exit;
+  end;
+
+  if CodeToolBoss.FindDeclaration(lCode, AParams.position.character.Value + 1,
+    AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
+    lBlockTopLine, lBlockBottomLine) then
+  begin
+    Result.Free;
+    Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
+    Exit;
+  end;
+
+  lIdentifier := NXLSIdentifierNear(lCode, AParams.position.character.Value + 1,
+    AParams.position.line.Value);
+  if NXLSFindTypeDeclaration(lCode, lIdentifier, lNewX, lNewY) then
+  begin
+    Result.Free;
+    Result := NXLSCreateLocation(lCode, lNewX, lNewY);
+    Exit;
+  end;
+
+  if NXLSFindRoutineDeclarationInUses(lCode, lIdentifier, lDeclCode, lNewX,
+    lNewY) then
+  begin
+    Result.Free;
+    Result := NXLSCreateLocation(lDeclCode, lNewX, lNewY);
   end;
 end;
 

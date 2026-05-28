@@ -122,9 +122,12 @@ var
   lDeclX: Integer;
   lDeclY: Integer;
   lTopLine: Integer;
+  lBlockTopLine: Integer;
+  lBlockBottomLine: Integer;
   lMarkup: TJSONObject;
   lHover: TNXLSHover;
   lIdentifier: string;
+  lUsedDeclCode: TCodeBuffer;
 begin
   Result := TNXLSHoverResult.CreateValue;
   if (AParams = nil) or (AParams.textDocument = nil) or
@@ -153,6 +156,31 @@ begin
       AParams.position.character.Value + 1, AParams.position.line.Value + 1,
       lDeclCode, lDeclX, lDeclY, lTopLine) then
       lHint := Trim(lDeclCode.GetLine(lDeclY - 1));
+  end;
+
+  if lHint = '' then
+  begin
+    if CodeToolBoss.FindDeclaration(lCode,
+      AParams.position.character.Value + 1, AParams.position.line.Value + 1,
+      lDeclCode, lDeclX, lDeclY, lTopLine, lBlockTopLine, lBlockBottomLine) then
+      lHint := Trim(lDeclCode.GetLine(lDeclY - 1));
+  end;
+
+  if lHint = '' then
+  begin
+    lIdentifier := NXLSIdentifierNear(lCode,
+      AParams.position.character.Value + 1, AParams.position.line.Value);
+    if NXLSFindTypeDeclaration(lCode, lIdentifier, lDeclX, lDeclY) then
+      lHint := Trim(lCode.GetLine(lDeclY - 1));
+  end;
+
+  if lHint = '' then
+  begin
+    lIdentifier := NXLSIdentifierNear(lCode,
+      AParams.position.character.Value + 1, AParams.position.line.Value);
+    if NXLSFindRoutineDeclarationInUses(lCode, lIdentifier, lUsedDeclCode,
+      lDeclX, lDeclY) then
+      lHint := Trim(lUsedDeclCode.GetLine(lDeclY - 1));
   end;
 
   if lHint = '' then

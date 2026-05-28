@@ -17,6 +17,7 @@ type
     FCodeToolsConfig: string;
     FIncludeWorkspaceFoldersAsUnitPaths: Boolean;
     FIncludeWorkspaceFoldersAsIncludePaths: Boolean;
+    FCheckInactiveRegions: Boolean;
     FExcludeWorkspaceFolders: TStringList;
     function ExpandMacrosInString(const AValue, ARootPath, ATempPath: string): string;
     procedure ExpandMacrosInStrings(AValues: TStrings; const ARootPath, ATempPath: string);
@@ -36,6 +37,7 @@ type
     property CodeToolsConfig: string read FCodeToolsConfig write FCodeToolsConfig;
     property IncludeWorkspaceFoldersAsUnitPaths: Boolean read FIncludeWorkspaceFoldersAsUnitPaths write FIncludeWorkspaceFoldersAsUnitPaths;
     property IncludeWorkspaceFoldersAsIncludePaths: Boolean read FIncludeWorkspaceFoldersAsIncludePaths write FIncludeWorkspaceFoldersAsIncludePaths;
+    property CheckInactiveRegions: Boolean read FCheckInactiveRegions write FCheckInactiveRegions;
     property ExcludeWorkspaceFolders: TStringList read FExcludeWorkspaceFolders;
   end;
 
@@ -67,6 +69,7 @@ begin
   FExcludeWorkspaceFolders.Clear;
   FIncludeWorkspaceFoldersAsUnitPaths := True;
   FIncludeWorkspaceFoldersAsIncludePaths := True;
+  FCheckInactiveRegions := True;
 end;
 
 function TNXLSSettings.ExpandMacrosInString(const AValue, ARootPath,
@@ -160,6 +163,7 @@ begin
     LoadStringArray(lObject.Find('excludeWorkspaceFolders'), FExcludeWorkspaceFolders);
     LoadBooleanValue(lObject, 'includeWorkspaceFoldersAsUnitPaths', FIncludeWorkspaceFoldersAsUnitPaths);
     LoadBooleanValue(lObject, 'includeWorkspaceFoldersAsIncludePaths', FIncludeWorkspaceFoldersAsIncludePaths);
+    LoadBooleanValue(lObject, 'checkInactiveRegions', FCheckInactiveRegions);
   finally
     lData.Free;
   end;

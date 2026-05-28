@@ -24,7 +24,8 @@ uses
   obNXLSSymbolService,
   obNXLSWorkspaceService,
   obNXLSCommandService,
-  obNXLSDiagnosticsService;
+  obNXLSDiagnosticsService,
+  obNXLSInactiveRegionService;
 
 type
   TNXLSLSPModel = class(TNXLSLSPContext)
@@ -52,6 +53,7 @@ type
     FWorkspace: TNXLSWorkspaceService;
     FCommands: TNXLSCommandService;
     FDiagnostics: TNXLSDiagnosticsService;
+    FInactiveRegions: TNXLSInactiveRegionService;
 
     function FindDocumentIndex(const AURI: string): Integer;
     function RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
@@ -82,6 +84,7 @@ type
     function DocumentByIndex(AIndex: Integer): TNXLSDocument; override;
 
     procedure CheckDocument(ADocument: TNXLSDocument); override;
+    procedure CheckInactiveRegions(ADocument: TNXLSDocument); override;
     procedure ReindexDocument(ADocument: TNXLSDocument); override;
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
@@ -110,6 +113,7 @@ type
     property Workspace: TNXLSWorkspaceService read FWorkspace;
     property Commands: TNXLSCommandService read FCommands;
     property Diagnostics: TNXLSDiagnosticsService read FDiagnostics;
+    property InactiveRegions: TNXLSInactiveRegionService read FInactiveRegions;
   end;
 
 implementation
@@ -141,10 +145,12 @@ begin
   FWorkspace := TNXLSWorkspaceService.Create(Self);
   FCommands := TNXLSCommandService.Create(Self);
   FDiagnostics := TNXLSDiagnosticsService.Create(Self);
+  FInactiveRegions := TNXLSInactiveRegionService.Create(Self);
 end;
 
 destructor TNXLSLSPModel.Destroy;
 begin
+  FreeAndNil(FInactiveRegions);
   FreeAndNil(FDiagnostics);
   FreeAndNil(FCommands);
   FreeAndNil(FWorkspace);
@@ -452,6 +458,12 @@ end;
 procedure TNXLSLSPModel.CheckDocument(ADocument: TNXLSDocument);
 begin
   FDiagnostics.CheckDocument(ADocument);
+end;
+
+procedure TNXLSLSPModel.CheckInactiveRegions(ADocument: TNXLSDocument);
+begin
+  if FSettings.CheckInactiveRegions then
+    FInactiveRegions.CheckDocument(ADocument);
 end;
 
 procedure TNXLSLSPModel.ReindexDocument(ADocument: TNXLSDocument);
