@@ -479,7 +479,7 @@ begin
   else
     lModuleFileName := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
       '..' + PathDelim + '..' + PathDelim + 'NexusLS' + PathDelim +
-      'NexusLSTestModule' + PathDelim + 'NexusLSTestModule' + SharedSuffix;
+      'NexusLSTestModule' + PathDelim + 'NexusLSTestModule.' + SharedSuffix;
 
   lResourceRoot := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
     '..' + PathDelim + '..' + PathDelim + 'NexusUI' + PathDelim + 'example';
