@@ -18,10 +18,7 @@ type
     FCheckSyntax: Boolean;
     FPublishDiagnostics: Boolean;
     FShowSyntaxErrors: Boolean;
-    FIncludeWorkspaceFoldersAsUnitPaths: Boolean;
-    FIncludeWorkspaceFoldersAsIncludePaths: Boolean;
     FCheckInactiveRegions: Boolean;
-    FExcludeWorkspaceFolders: TStringList;
     function ExpandMacrosInString(const AValue, ARootPath, ATempPath: string): string;
     procedure ExpandMacrosInStrings(AValues: TStrings; const ARootPath, ATempPath: string);
     procedure LoadStringArray(AData: TJSONData; ATarget: TStrings);
@@ -41,10 +38,7 @@ type
     property CheckSyntax: Boolean read FCheckSyntax write FCheckSyntax;
     property PublishDiagnostics: Boolean read FPublishDiagnostics write FPublishDiagnostics;
     property ShowSyntaxErrors: Boolean read FShowSyntaxErrors write FShowSyntaxErrors;
-    property IncludeWorkspaceFoldersAsUnitPaths: Boolean read FIncludeWorkspaceFoldersAsUnitPaths write FIncludeWorkspaceFoldersAsUnitPaths;
-    property IncludeWorkspaceFoldersAsIncludePaths: Boolean read FIncludeWorkspaceFoldersAsIncludePaths write FIncludeWorkspaceFoldersAsIncludePaths;
     property CheckInactiveRegions: Boolean read FCheckInactiveRegions write FCheckInactiveRegions;
-    property ExcludeWorkspaceFolders: TStringList read FExcludeWorkspaceFolders;
   end;
 
 implementation
@@ -56,13 +50,11 @@ constructor TNXLSSettings.Create;
 begin
   inherited Create;
   FFPCOptions := TStringList.Create;
-  FExcludeWorkspaceFolders := TStringList.Create;
   Clear;
 end;
 
 destructor TNXLSSettings.Destroy;
 begin
-  FreeAndNil(FExcludeWorkspaceFolders);
   FreeAndNil(FFPCOptions);
   inherited Destroy;
 end;
@@ -72,12 +64,9 @@ begin
   FProgramFile := '';
   FCodeToolsConfig := '';
   FFPCOptions.Clear;
-  FExcludeWorkspaceFolders.Clear;
   FCheckSyntax := False;
   FPublishDiagnostics := False;
   FShowSyntaxErrors := False;
-  FIncludeWorkspaceFoldersAsUnitPaths := True;
-  FIncludeWorkspaceFoldersAsIncludePaths := True;
   FCheckInactiveRegions := True;
 end;
 
@@ -169,12 +158,9 @@ begin
     LoadStringValue(lObject, 'program', FProgramFile);
     LoadStringValue(lObject, 'codeToolsConfig', FCodeToolsConfig);
     LoadStringArray(lObject.Find('fpcOptions'), FFPCOptions);
-    LoadStringArray(lObject.Find('excludeWorkspaceFolders'), FExcludeWorkspaceFolders);
     LoadBooleanValue(lObject, 'checkSyntax', FCheckSyntax);
     LoadBooleanValue(lObject, 'publishDiagnostics', FPublishDiagnostics);
     LoadBooleanValue(lObject, 'showSyntaxErrors', FShowSyntaxErrors);
-    LoadBooleanValue(lObject, 'includeWorkspaceFoldersAsUnitPaths', FIncludeWorkspaceFoldersAsUnitPaths);
-    LoadBooleanValue(lObject, 'includeWorkspaceFoldersAsIncludePaths', FIncludeWorkspaceFoldersAsIncludePaths);
     LoadBooleanValue(lObject, 'checkInactiveRegions', FCheckInactiveRegions);
   finally
     lData.Free;
@@ -186,7 +172,6 @@ begin
   FProgramFile := ExpandMacrosInString(FProgramFile, ARootPath, ATempPath);
   FCodeToolsConfig := ExpandMacrosInString(FCodeToolsConfig, ARootPath, ATempPath);
   ExpandMacrosInStrings(FFPCOptions, ARootPath, ATempPath);
-  ExpandMacrosInStrings(FExcludeWorkspaceFolders, ARootPath, ATempPath);
 end;
 
 end.

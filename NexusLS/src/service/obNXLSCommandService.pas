@@ -36,6 +36,7 @@ uses
   FindDeclarationTool,
   PascalParserTool,
   SourceChanger,
+  obNXLSProjectService,
   obNXLSProtocolObjects,
   utNXLSCommandNames;
 
@@ -533,6 +534,7 @@ end;
 function TNXLSCommandService.ExecuteCommand(AParams: TNXLSExecuteCommandParams): TNXJSONValue;
 var
   lCommand: string;
+  lData: TJSONData;
 begin
   if (AParams <> nil) and (AParams.command <> nil) then
   begin
@@ -545,6 +547,26 @@ begin
       ExecuteRemoveEmptyMethods(AParams)
     else if SameText(lCommand, cNXLSCommandRemoveUnusedUnits) then
       ExecuteRemoveUnusedUnits(AParams)
+    else if SameText(lCommand, cNXLSCommandNexusProjectCreateWizard) then
+      Exit(TNXLSProjectService.CreateNexusProjectWizard(NXLSArgumentString(AParams, 0)))
+    else if SameText(lCommand, cNXLSCommandNexusProjectPlanCreate) then
+    begin
+      lData := NXLSArgument(AParams, 0).ToJSONData;
+      try
+        Exit(TNXLSProjectService.PlanNexusProjectCreate(lData));
+      finally
+        lData.Free;
+      end;
+    end
+    else if SameText(lCommand, cNXLSCommandNexusProjectCreate) then
+    begin
+      lData := NXLSArgument(AParams, 0).ToJSONData;
+      try
+        Exit(TNXLSProjectService.CreateNexusProject(lData));
+      finally
+        lData.Free;
+      end;
+    end
     else
       raise Exception.CreateFmt('Unsupported command: %s', [lCommand]);
   end;

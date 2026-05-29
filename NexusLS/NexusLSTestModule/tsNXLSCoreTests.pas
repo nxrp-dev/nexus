@@ -118,36 +118,24 @@ begin
   ForceDirectories(Result);
 end;
 
-procedure NXLSWriteTextFile(const AFileName, AText: string);
-var
-  lFile: TextFile;
-begin
-  AssignFile(lFile, AFileName);
-  Rewrite(lFile);
-  try
-    Write(lFile, AText);
-  finally
-    CloseFile(lFile);
-  end;
-end;
-
-procedure TestInitializeConfiguresCodeToolsWorkspace(AContext: TNXTestContext);
+procedure TestInitializeConfiguresCodeToolsWithExplicitPaths(AContext: TNXTestContext);
 var
   lModel: TNXLSLSPModel;
   lParams: TNXLSInitializeParams;
   lFolder: TNXLSWorkspaceFolder;
   lRoot: string;
   lUnitDir: string;
-  lFileName: string;
+  lIncludeDir: string;
+  lOptions: TJSONObject;
+  lFPCOptions: TJSONArray;
   lJSON: TJSONData;
+  lOptionsJSON: TJSONData;
 begin
   lRoot := NXLSCreateUniqueTempDir('nxls');
   lUnitDir := IncludeTrailingPathDelimiter(lRoot) + 'src';
+  lIncludeDir := IncludeTrailingPathDelimiter(lRoot) + 'include';
   ForceDirectories(lUnitDir);
-
-  lFileName := IncludeTrailingPathDelimiter(lUnitDir) + 'SampleUnit.pas';
-  NXLSWriteTextFile(lFileName, 'unit SampleUnit;' + LineEnding +
-    'interface' + LineEnding + 'implementation' + LineEnding + 'end.');
+  ForceDirectories(lIncludeDir);
 
   lParams := TNXLSInitializeParams.Create;
   lModel := TNXLSLSPModel.Create;
@@ -163,55 +151,50 @@ begin
     lFolder.uri.Value := NXLSPathToFileURI(lRoot);
     lFolder.name.Value := 'nexusls-core-test';
 
+    lOptions := TJSONObject.Create;
+    try
+      lFPCOptions := TJSONArray.Create;
+      lFPCOptions.Add('-Fu$(root)src');
+      lFPCOptions.Add('-Fi$(root)include');
+      lOptions.Add('fpcOptions', lFPCOptions);
+
+      lOptionsJSON := lOptions;
+      lParams.initializationOptions.FromJSONData(lOptionsJSON);
+    finally
+      lOptions.Free;
+    end;
+
     lModel.BeginInitialize(lParams);
 
     AContext.AssertTrue(lModel.CodeToolsInitialized,
       'Initialize should configure CodeTools.');
-    AContext.AssertTrue(lModel.EffectiveWorkspacePaths.IndexOf(
-      IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
-      'Initialize should collect workspace folders containing Pascal source.');
     AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fu' +
       IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
-      'Initialize should add workspace source folders as unit paths.');
+      'Explicit unit search paths should be passed to CodeTools.');
     AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fi' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
-      'Initialize should add workspace source folders as include paths.');
+      IncludeTrailingPathDelimiter(ExpandFileName(lIncludeDir))) >= 0,
+      'Explicit include search paths should be passed to CodeTools.');
   finally
     lModel.Free;
     lParams.Free;
-    if FileExists(lFileName) then
-      DeleteFile(lFileName);
+    RemoveDir(lIncludeDir);
     RemoveDir(lUnitDir);
     RemoveDir(lRoot);
   end;
 end;
 
-procedure TestInitializeHonorsOptionsMacrosAndExcludes(AContext: TNXTestContext);
+procedure TestInitializeHonorsOptionsMacros(AContext: TNXTestContext);
 var
   lModel: TNXLSLSPModel;
   lParams: TNXLSInitializeParams;
   lFolder: TNXLSWorkspaceFolder;
   lRoot: string;
-  lSourceDir: string;
-  lExcludedDir: string;
-  lSourceFile: string;
-  lExcludedFile: string;
   lOptions: TJSONObject;
   lFPCOptions: TJSONArray;
-  lExcludes: TJSONArray;
   lRootJSON: TJSONData;
   lOptionsJSON: TJSONData;
 begin
   lRoot := NXLSCreateUniqueTempDir('nxls');
-  lSourceDir := IncludeTrailingPathDelimiter(lRoot) + 'src';
-  lExcludedDir := IncludeTrailingPathDelimiter(lRoot) + 'ignored';
-  ForceDirectories(lSourceDir);
-  ForceDirectories(lExcludedDir);
-
-  lSourceFile := IncludeTrailingPathDelimiter(lSourceDir) + 'IncludedUnit.pas';
-  lExcludedFile := IncludeTrailingPathDelimiter(lExcludedDir) + 'IgnoredUnit.pas';
-  NXLSWriteTextFile(lSourceFile, 'unit IncludedUnit; interface implementation end.');
-  NXLSWriteTextFile(lExcludedFile, 'unit IgnoredUnit; interface implementation end.');
 
   lParams := TNXLSInitializeParams.Create;
   lModel := TNXLSLSPModel.Create;
@@ -233,12 +216,6 @@ begin
       lFPCOptions.Add('$(root)manual');
       lFPCOptions.Add('$(tmpdir)nxls-include');
       lOptions.Add('fpcOptions', lFPCOptions);
-      lOptions.Add('includeWorkspaceFoldersAsUnitPaths', False);
-      lOptions.Add('includeWorkspaceFoldersAsIncludePaths', True);
-
-      lExcludes := TJSONArray.Create;
-      lExcludes.Add('$(root)ignored');
-      lOptions.Add('excludeWorkspaceFolders', lExcludes);
 
       lOptionsJSON := lOptions;
       lParams.initializationOptions.FromJSONData(lOptionsJSON);
@@ -254,24 +231,9 @@ begin
     AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf(
       GetTempDir(True) + 'nxls-include') >= 0,
       'Initialization option macros should expand $(tmpdir).');
-    AContext.AssertFalse(lModel.EffectiveFPCOptions.IndexOf('-Fu' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lSourceDir))) >= 0,
-      'Unit path generation should honor includeWorkspaceFoldersAsUnitPaths=false.');
-    AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fi' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lSourceDir))) >= 0,
-      'Include path generation should honor includeWorkspaceFoldersAsIncludePaths=true.');
-    AContext.AssertFalse(lModel.EffectiveWorkspacePaths.IndexOf(
-      IncludeTrailingPathDelimiter(ExpandFileName(lExcludedDir))) >= 0,
-      'Excluded workspace folders should not be scanned.');
   finally
     lModel.Free;
     lParams.Free;
-    if FileExists(lExcludedFile) then
-      DeleteFile(lExcludedFile);
-    if FileExists(lSourceFile) then
-      DeleteFile(lSourceFile);
-    RemoveDir(lExcludedDir);
-    RemoveDir(lSourceDir);
     RemoveDir(lRoot);
   end;
 end;
@@ -281,18 +243,11 @@ var
   lModel: TNXLSLSPModel;
   lParams: TNXLSInitializeParams;
   lRoot: string;
-  lSourceDir: string;
-  lFileName: string;
   lRootJSON: TJSONData;
   lOptions: TJSONObject;
   lOptionsJSON: TJSONData;
 begin
   lRoot := NXLSCreateUniqueTempDir('nxls');
-  lSourceDir := IncludeTrailingPathDelimiter(lRoot) + 'src';
-  ForceDirectories(lSourceDir);
-
-  lFileName := IncludeTrailingPathDelimiter(lSourceDir) + 'RootPathUnit.pas';
-  NXLSWriteTextFile(lFileName, 'unit RootPathUnit; interface implementation end.');
 
   lParams := TNXLSInitializeParams.Create;
   lModel := TNXLSLSPModel.Create;
@@ -308,8 +263,6 @@ begin
     try
       lOptions.Add('program', '$(root)app.lpr');
       lOptions.Add('codeToolsConfig', '$(root)codetools.config');
-      lOptions.Add('includeWorkspaceFoldersAsUnitPaths', True);
-      lOptions.Add('includeWorkspaceFoldersAsIncludePaths', False);
 
       lOptionsJSON := lOptions;
       lParams.initializationOptions.FromJSONData(lOptionsJSON);
@@ -325,18 +278,9 @@ begin
       lModel.Settings.ProgramFile, 'program should parse and expand $(root).');
     AContext.AssertEquals(IncludeTrailingPathDelimiter(ExpandFileName(lRoot)) + 'codetools.config',
       lModel.Settings.CodeToolsConfig, 'codeToolsConfig should parse and expand $(root).');
-    AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fu' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lSourceDir))) >= 0,
-      'Unit path generation should honor includeWorkspaceFoldersAsUnitPaths=true.');
-    AContext.AssertFalse(lModel.EffectiveFPCOptions.IndexOf('-Fi' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lSourceDir))) >= 0,
-      'Include path generation should honor includeWorkspaceFoldersAsIncludePaths=false.');
   finally
     lModel.Free;
     lParams.Free;
-    if FileExists(lFileName) then
-      DeleteFile(lFileName);
-    RemoveDir(lSourceDir);
     RemoveDir(lRoot);
   end;
 end;
@@ -352,10 +296,10 @@ begin
   lSuite.AddTest('PascalProjectVariableResolution',
     @TestPascalProjectVariableResolution);
   lSuite.AddTest('LSPModelStartsEmpty', @TestLSPModelStartsEmpty);
-  lSuite.AddTest('InitializeConfiguresCodeToolsWorkspace',
-    @TestInitializeConfiguresCodeToolsWorkspace);
-  lSuite.AddTest('InitializeHonorsOptionsMacrosAndExcludes',
-    @TestInitializeHonorsOptionsMacrosAndExcludes);
+  lSuite.AddTest('InitializeConfiguresCodeToolsWithExplicitPaths',
+    @TestInitializeConfiguresCodeToolsWithExplicitPaths);
+  lSuite.AddTest('InitializeHonorsOptionsMacros',
+    @TestInitializeHonorsOptionsMacros);
   lSuite.AddTest('InitializeHonorsProgramConfigAndRootPathFallback',
     @TestInitializeHonorsProgramConfigAndRootPathFallback);
 end;

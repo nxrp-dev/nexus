@@ -9,6 +9,9 @@ const
   cNXLSCommandInvertAssignment = 'pasls.invertAssignment';
   cNXLSCommandRemoveEmptyMethods = 'pasls.removeEmptyMethods';
   cNXLSCommandRemoveUnusedUnits = 'pasls.removeUnusedUnits';
+  cNXLSCommandNexusProjectCreateWizard = 'nexus.project.createWizard';
+  cNXLSCommandNexusProjectPlanCreate = 'nexus.project.planCreate';
+  cNXLSCommandNexusProjectCreate = 'nexus.project.create';
 
 implementation
 

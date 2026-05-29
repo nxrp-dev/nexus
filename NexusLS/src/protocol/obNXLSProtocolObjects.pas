@@ -711,7 +711,10 @@ begin
     cNXLSCommandCompleteCode,
     cNXLSCommandInvertAssignment,
     cNXLSCommandRemoveEmptyMethods,
-    cNXLSCommandRemoveUnusedUnits
+    cNXLSCommandRemoveUnusedUnits,
+    cNXLSCommandNexusProjectCreateWizard,
+    cNXLSCommandNexusProjectPlanCreate,
+    cNXLSCommandNexusProjectCreate
   ]));
   LoadRawJSON(lResult.capabilities.executeCommandProvider, lExecuteCommandProvider);
 
