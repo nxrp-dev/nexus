@@ -1,17 +1,18 @@
 # Nexus
 
-Nexus is a Pascal project family focused on modern, practical development tools.
+Nexus is a Pascal project family focused on practical tools and frameworks:
 
-The current ecosystem includes:
+- `NexusUI` for retained-mode UI applications.
+- `NexusSchema` for schema-driven generation.
+- `NexusLS` for Pascal language-server behavior.
+- `NexusTest` for repeatable test modules and GUI test running.
+- `NexusLib` for shared runtime code.
 
-- **Nexus Pascal** — VS Code tooling for Free Pascal, Lazarus, build tasks, debugging, project starters, and code intelligence.
-- **Nexus UI** — a cross-platform Pascal UI framework built around explicit code, retained controls, and backend isolation.
-- **Nexus Schema** — schema-driven tooling for generating database structures, code, and project artifacts.
+The projects are developed together, but each keeps a clear ownership boundary. Documentation should follow those boundaries instead of mixing runtime, tooling, test, and schema concepts into one pile.
 
-## Documentation areas
+## Start Here
 
-Use the main navigation to browse the documentation by project, guide, reference material, or roadmap.
-
-## Current status
-
-The documentation is being reorganized around the Nexus ecosystem. Many pages currently contain structural notes and planned topics rather than final reference content.
+- Use the ecosystem page for the repository map.
+- Use module sections for project-specific architecture and behavior.
+- Use guides for workflows that cross module boundaries.
+- Use reference pages for conventions and shared facts.

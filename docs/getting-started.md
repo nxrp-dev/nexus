@@ -1,17 +1,23 @@
 # Getting Started
 
-This page will introduce the recommended starting path through the Nexus ecosystem.
+Pick the module that matches the work you are doing.
 
-## Choose a Project Area
+## Build a UI Application
 
-- Nexus Pascal
-- Nexus UI
-- Nexus Schema
+Start with `NexusUI` if you are building a native-style Pascal application or testing controls, layout, windows, skins, and SDL2-backed rendering.
 
-## Install Required Tools
+## Work on Pascal Tooling
 
-Tooling requirements will vary by project area.
+Start with `NexusLS` for language-server behavior and `Nexus Pascal` documentation for the VS Code-facing tooling workflow.
 
-## Build Something Small
+## Work on Tests
 
-The documentation will favor small working examples before larger reference material.
+Start with `NexusTest` if you need to create or run test suites through the shared-library test module boundary or the NexusTest UI.
+
+## Work on Schema Generation
+
+Start with `NexusSchema` if the task is about schema definitions, metadata, generation, or command-line schema tooling.
+
+## Work on Shared Runtime Code
+
+Start with `NexusLib` when the change belongs below the application/framework layer and is shared by several Nexus projects.

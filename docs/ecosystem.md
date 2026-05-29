@@ -2,18 +2,18 @@
 
 Nexus is organized as a family of related Pascal projects.
 
-## Nexus Pascal
+## Module Map
 
-VS Code tooling for Free Pascal, Lazarus, build tasks, debugging, project starters, and language support.
+- `NexusUI`: retained-mode UI framework, controls, layout, rendering, input routing, windows, popups, and skins.
+- `NexusSchema`: schema model and generation tooling.
+- `NexusLS`: language-server executable and LSP service implementation.
+- `NexusTest`: test framework, JSON-RPC test-module contract, host client, and test UI.
+- `NexusLib`: shared JSON, persistence, command-line, and support code.
+- `scripts`: repository automation used by builds, archives, notifications, and development workflow.
+- `codec`: legacy or supporting code; document it only where it is intentionally part of the current architecture.
 
-## Nexus UI
+## Boundary Rule
 
-A cross-platform Pascal UI framework focused on explicit code, retained controls, and backend isolation.
+Each module should document what it owns. Cross-module workflows belong in guides. Shared concepts belong in reference or architecture pages.
 
-## Nexus Schema
-
-Schema-driven tooling for generating database structures, code, and project artifacts.
-
-## Ecosystem Direction
-
-The long-term goal is for the Nexus tools to work together without forcing each project to lose its own clear boundary.
+This keeps the docs useful as the repository grows: readers can find the owner of a concept without reading every page.
