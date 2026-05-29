@@ -10,6 +10,7 @@ uses
   obNXComboBox,
   obNXDateEdit,
   obNXEditBox,
+  obNXFileDialog,
   obNXControl,
   obNXGlyphButton,
   obNXGrid,
@@ -47,6 +48,8 @@ type
   public
     procedure DialogButtonClick(Sender: TObject; X, Y: Integer; Button: TNXMouseButton);
     procedure DialogResult(Sender: TObject; AResult: TNXModalResult);
+    procedure FileDialogButtonClick(Sender: TObject; X, Y: Integer; Button: TNXMouseButton);
+    procedure FileDialogResult(Sender: TObject; AResult: TNXModalResult; const APath: string);
     procedure MenuButtonClick(Sender: TObject; X, Y: Integer; Button: TNXMouseButton);
     procedure MenuExecute(Sender: TObject; AItem: TNXMenuItem);
     procedure ToolbarButtonClick(Sender: TObject; AItem: TNXToolbarItem);
@@ -58,7 +61,7 @@ var
   Form10: TNXGroupBox;
   Form11: TNXGroupBox;
   Form12: TNXGroupBox;
-  Button1, Button2: TNXButton;
+  Button1, Button2, Button3: TNXButton;
   LayoutAnchorButton: TNXButton;
   LayoutBottomPanel: TNXPanel;
   LayoutClientPanel: TNXPanel;
@@ -135,6 +138,26 @@ begin
   StatusBar1.SimplePanel := False;
   StatusBar1.Panels[0].Text := 'Dialog result';
   StatusBar1.Panels[1].Text := IntToStr(Ord(AResult));
+end;
+
+procedure TDemoEvents.FileDialogButtonClick(Sender: TObject; X, Y: Integer;
+  Button: TNXMouseButton);
+begin
+  if Button <> mbLeft then
+    Exit;
+
+  TNXFileDialog.ShowOpen('Open File', GetCurrentDir, '*.*', @FileDialogResult);
+end;
+
+procedure TDemoEvents.FileDialogResult(Sender: TObject; AResult: TNXModalResult;
+  const APath: string);
+begin
+  StatusBar1.SimplePanel := False;
+  StatusBar1.Panels[0].Text := 'File dialog';
+  if AResult = mrOK then
+    StatusBar1.Panels[1].Text := APath
+  else
+    StatusBar1.Panels[1].Text := 'Canceled';
 end;
 
 procedure TDemoEvents.MenuButtonClick(Sender: TObject; X, Y: Integer;
@@ -323,6 +346,10 @@ begin
   Button2 := TNXButton.Create(Form1.ContentPanel, MakeNXRect(130, 100, 100, 20));
   Button2.Caption := 'Menu';
   Button2.OnMouseClick := @DemoEvents.MenuButtonClick;
+
+  Button3 := TNXButton.Create(Form1.ContentPanel, MakeNXRect(10, 125, 100, 20));
+  Button3.Caption := 'File...';
+  Button3.OnMouseClick := @DemoEvents.FileDialogButtonClick;
 
   Label1 := TNXLabel.Create(Form1.ContentPanel, MakeNXRect(10, 40, 200, 30));
   Label1.Caption := 'Press ESC to quit.';

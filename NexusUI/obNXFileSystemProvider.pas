@@ -44,6 +44,9 @@ type
 
 implementation
 
+const
+  cFileAttributeHidden = $00000002;
+
 procedure NXAddFileSystemItem(var AItems: TNXFileSystemItemArray;
   const AItem: TNXFileSystemItem);
 var
@@ -100,7 +103,11 @@ begin
   Result.Kind := AKind;
   Result.Size := AInfo.Size;
   Result.ModifiedAt := FileDateToDateTime(AInfo.Time);
-  Result.IsHidden := (AInfo.Attr and faHidden) <> 0;
+  {$IFDEF MSWINDOWS}
+  Result.IsHidden := (AInfo.Attr and cFileAttributeHidden) <> 0;
+  {$ELSE}
+  Result.IsHidden := False;
+  {$ENDIF}
   Result.IsReadOnly := (AInfo.Attr and faReadOnly) <> 0;
 end;
 
@@ -135,6 +142,7 @@ var
   lDrive: Char;
   lPath: string;
 begin
+  Result := nil;
   SetLength(Result, 0);
 
   {$IFDEF MSWINDOWS}
@@ -153,6 +161,7 @@ function TNXFileSystemProvider.GetSpecialFolders: TNXFileSystemItemArray;
 var
   lPath: string;
 begin
+  Result := nil;
   SetLength(Result, 0);
 
   {$IFDEF MSWINDOWS}
@@ -198,6 +207,7 @@ var
   lPath: string;
   lSearchPath: string;
 begin
+  Result := nil;
   SetLength(Result, 0);
 
   if not SysUtils.DirectoryExists(APath) then

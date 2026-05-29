@@ -84,7 +84,6 @@ type
     procedure SetMode(AValue: TNXFileDialogMode);
     procedure UpButtonClick(ASender: TObject; AX, AY: Integer; AButton: TNXMouseButton);
   protected
-    procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
     procedure DoOpened; override;
     procedure LayoutDialog; virtual;
   public
@@ -92,6 +91,7 @@ type
     destructor Destroy; override;
 
     procedure NavigateTo(const APath: string); virtual;
+    procedure ProcessKeyDown(const AEvent: TNXKeyEventData); override;
     procedure ShowDialog(AMode: TNXFileDialogMode; const ATitle: string;
       const AInitialPath: string; const AFilter: string;
       AOnResult: TNXFileDialogResultEvent); virtual;
@@ -546,15 +546,18 @@ begin
     Application.QueueFreeControl(Self);
 end;
 
-procedure TNXFileDialog.DoKeyDown(const AEvent: TNXKeyEventData);
+procedure TNXFileDialog.ProcessKeyDown(const AEvent: TNXKeyEventData);
 begin
-  inherited DoKeyDown(AEvent);
-
   case AEvent.Key of
     nkEscape:
       Complete(mrCancel, '');
     nkEnter:
-      ResultButtonClick(Self, 0, 0, mbLeft);
+      if FocusedControl = FFileGrid then
+        inherited ProcessKeyDown(AEvent)
+      else
+        ResultButtonClick(Self, 0, 0, mbLeft);
+  else
+    inherited ProcessKeyDown(AEvent);
   end;
 end;
 

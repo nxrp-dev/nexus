@@ -9,6 +9,10 @@ nav:
       - The Nexus Ecosystem: ecosystem.md
       - Getting Started: getting-started.md
       - Project Status: project-status.md
+      - NAQ: naq.md
+      - Support: support.md
+      - Attribution: attribution.md
+      - License: license.md
   - Architecture:
       - System Boundaries: architecture/system-boundaries.md
       - Dependencies: architecture/dependencies.md
@@ -31,7 +35,7 @@ nav:
       - Getting Started: nexus-schema/getting-started.md
       - Architecture: nexus-schema/architecture.md
       - Metadata Model: nexus-schema/metadata-model.md
-      - Schema Language: nexus-schema/schema-language.md
+      - Syntax: nexus-schema/schema-language.md
       - Templates: nexus-schema/templates.md
       - Database Generation: nexus-schema/database-generation.md
       - Code Generation: nexus-schema/code-generation.md

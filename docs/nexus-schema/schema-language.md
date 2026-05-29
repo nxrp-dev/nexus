@@ -1,104 +1,108 @@
-# Nexus Schema Language
+# Nexus Schema Syntax
 
-The `.nxs` language is a small declaration language parsed by `TNexusSchemaParser`.
+The `.nxs` language is a compact declaration format parsed by `TNexusSchemaParser`. It describes metadata; rendering details belong in Mustache templates.
 
-## Tokens
-
-The tokenizer recognizes:
-
-- identifiers
-- keywords
-- operators
-- quoted strings
-- angle-bracket strings
-- line and block comments
-
-Quoted strings use double quotes:
+## Quick Example
 
 ```text
-DOM_NAME : "varchar(100)"
-```
+module Catalog
 
-Angle-bracket strings are useful for paths:
-
-```text
-data STATE <DML\STATE.csv>
-```
-
-Line comments use `//`. Block comments use `/* ... */`.
-
-## Keywords
-
-The current keyword set is:
-
-| Keyword | Purpose |
-| --- | --- |
-| `module` | Starts a schema module. |
-| `uses` | Loads another schema file. |
-| `data` | Registers an external data file. |
-| `var` | Sets a metadata attribute. |
-| `table` | Declares a table. |
-| `template` | Declares reusable fields and metadata. |
-| `type` | Declares named type mappings. |
-| `attributes` | Declares or applies attribute sets. |
-| `children` | Records child references on a table or template. |
-
-Keywords are matched case-insensitively by the parser.
-
-## Modules
-
-Every file starts with a module declaration:
-
-```text
-module Example
-```
-
-The parser stores declarations from that file under the module name. `uses` can load another schema file:
-
-```text
-uses <SharedTypes.nxs>
-```
-
-## Variables
-
-Variables are stored as metadata attributes on the top-level metadata model:
-
-```text
 var MODULE_POSTFIX = "_TBL"
+var MODULE_ID_POSTFIX = "_ID"
+var GENERATOR_PREFIX = "GEN_"
 var NEXUS_SCHEMA_PRIMARY_KEY_TYPE = "DOM_INDEX"
-```
 
-If no value is supplied, the value is `true`:
-
-```text
-var ENABLE_REPORTS
-```
-
-The transform step currently defaults `NEXUS_SCHEMA_PRIMARY_KEY_TYPE` to `integer` when it is not set.
-
-## Data Files
-
-Top-level data declarations register data files by module name:
-
-```text
 data STATE <DML\STATE.csv>
-```
 
-Inside a table block, `data` registers a data file for that table:
+CoreTypes = Type {
+  DOM_INDEX : "integer"
+  DOM_NAME : "varchar(100)"
+  DOM_DESCRIPTION : "blob sub_type 1 segment size 100"
+}
 
-```text
-STATE = Table {
-  CODE : DOM_STATE
+ATTR_HISTORY = Attributes {
+  IS_HISTORY : "True"
+}
+
+TMPL_TYPE = Template {
   NAME : DOM_NAME
-  data <DML\STATE.csv>
+  DESCRIPTION : DOM_DESCRIPTION
+}
+
+CATEGORY = Table(TMPL_TYPE)
+
+PRODUCT = Table(TMPL_TYPE) Attributes(ATTR_HISTORY) {
+  CATEGORY_ID : @CATEGORY
+  EXTERNAL_CODE : "varchar(30)"
 }
 ```
 
-CSV, JCSV, TSV, and TAB files can be converted into Mustache JSON during rendering.
+## Lexical Rules
 
-## Types
+- Keywords are case-insensitive: `table`, `Table`, and `TABLE` are all recognized.
+- Identifiers are unquoted tokens that stop at whitespace, an operator, or the end of the file. They are stored with their original spelling.
+- Newlines are normalized as semicolon operators. You may also write explicit `;` separators.
+- Whitespace is otherwise insignificant.
+- Line comments use `//`. Block comments use `/* ... */`.
+- Strings use either double quotes or angle brackets:
 
-Types are name-value mappings:
+```text
+DOM_NAME : "varchar(100)"
+data STATE <DML\STATE.csv>
+```
+
+Quoted and angle-bracket strings cannot span lines. To include the terminator inside the string, double it, such as `""` inside a quoted string.
+
+## File Structure
+
+Every schema file starts with a module declaration:
+
+```text
+module ModuleName
+```
+
+After the module declaration, the parser accepts these top-level forms:
+
+```text
+uses <OtherFile.nxs>
+data NAME <DataFile.csv>
+var NAME = "value"
+Name = Type { ... }
+Name = Attributes { ... }
+Name = Template(...) Attributes(...) Children(...) { ... }
+Name = Table(...) Attributes(...) Children(...) { ... }
+```
+
+`uses` parses another `.nxs` file into the same metadata model. The loader first tries the supplied path, then the basename in the current process directory.
+
+## Declaration Forms
+
+| Form | Syntax | Result |
+| --- | --- | --- |
+| Module | `module Name` | Starts a schema module. |
+| Uses | `uses <File.nxs>` | Loads another schema file. |
+| Data | `data NAME <File.csv>` | Registers a top-level data file. |
+| Variable | `var NAME = VALUE` | Stores a top-level metadata attribute. |
+| Type block | `Name = Type { NAME : "value" }` | Adds type/domain mappings to the module. |
+| Attribute set | `Name = Attributes { NAME : "value" }` | Defines reusable metadata attributes. |
+| Template | `Name = Template(...) { fields }` | Defines reusable fields and metadata. |
+| Table | `Name = Table(...) { fields }` | Defines a table. |
+
+## Variables
+
+Variables become top-level metadata attributes:
+
+```text
+var MODULE_POSTFIX = "_TBL"
+var NEXUS_SCHEMA_PRIMARY_KEY_TYPE = DOM_INDEX
+var ENABLE_REPORTS
+```
+
+The value may be a string or identifier. If no value is supplied, the parser stores `true`. During transformation, `NEXUS_SCHEMA_PRIMARY_KEY_TYPE` defaults to `integer` when it is not set.
+
+## Type Blocks
+
+Type blocks contain `name : string` pairs:
 
 ```text
 CoreTypes = Type {
@@ -107,11 +111,11 @@ CoreTypes = Type {
 }
 ```
 
-The Firebird schema template renders these as domains, but the model stores them as target-neutral metadata.
+The declaration name, such as `CoreTypes`, is a source label. The block entries are stored directly in the module `Types` list. The current Firebird template renders them as domains, but the metadata model itself is target-neutral.
 
 ## Attribute Sets
 
-Attribute sets are reusable name-value metadata:
+Attribute sets contain `name : string` pairs:
 
 ```text
 ATTR_HISTORY = Attributes {
@@ -122,64 +126,75 @@ ATTR_HISTORY = Attributes {
 Tables, templates, and fields can reference attribute sets:
 
 ```text
-TENANT_UNIT = Table(TMPL_TRACKED) Attributes(ATTR_HISTORY) {
-  TENANT_ID : @TENANT
+ORDER = Table() Attributes(ATTR_HISTORY) {
+  CUSTOMER_ID(ATTR_REQUIRED) : @CUSTOMER
 }
 ```
 
-During transformation, referenced attributes are copied into the target object's `Attributes` JSON object.
+Referenced attribute sets are copied into the target object's `Attributes` JSON object during transformation.
 
-## Templates
+## Templates And Tables
 
-Templates define reusable fields and metadata:
+Templates and tables share the same declaration shape:
 
 ```text
 TMPL_TRACKED = Template {
   CREATED_BY : @PERSON
   CREATED_DATE : DOM_TIMESTAMP
-  MODIFIED_BY : @PERSON
-  MODIFIED_DATE : DOM_TIMESTAMP
 }
-```
 
-Templates can reference other templates:
-
-```text
-TMPL_PERSON = Template(TMPL_TRACKED) {
-  FIRST_NAME : DOM_NAME
-  LAST_NAME : DOM_NAME
-}
-```
-
-## Tables
-
-Tables may reference zero or more templates and may contain fields:
-
-```text
 PERSON = Table(TMPL_TRACKED) {
   FIRST_NAME : DOM_NAME
   LAST_NAME : DOM_NAME
 }
 ```
 
-An empty table declaration is valid:
+The optional parenthesized list immediately after `Table` or `Template` is the template-reference list. Empty lists are valid:
+
+```text
+LOG_ENTRY = Table()
+```
+
+`Attributes(...)` and `Children(...)` may appear after the template-reference list and before the field block:
+
+```text
+CATEGORY = Table(TMPL_TYPE) Children(CATEGORY_INDEX) {
+  PARENT_ID : @CATEGORY
+}
+```
+
+`children(...)` records child references in metadata. The current Firebird template does not consume those references directly.
+
+The field block is optional, so these are valid:
 
 ```text
 PERSON_TYPE = Table(TMPL_TYPE, TMPL_TRACKED)
+SYSTEM_MODULE = Table(TMPL_TRACKED) {}
 ```
 
 ## Fields
 
-Fields are `name : type` pairs:
+Fields are `name : type` pairs inside a table or template block:
 
 ```text
 NAME : DOM_NAME
+DESCRIPTION : "blob sub_type 1 segment size 100"
 ```
 
-Fields can reference attributes:
+A field type may be an identifier, a string, or a reference. Field-level attributes are written before the colon:
 
 ```text
-NAME(ATTR_REQUIRED) : DOM_NAME
+NAME(ATTR_REQUIRED, ATTR_SEARCHABLE) : DOM_NAME
+```
+
+Inside a table block, `data` registers an additional data file for that table:
+
+```text
+STATE = Table {
+  CODE : DOM_STATE
+  NAME : DOM_NAME
+  data <DML\STATE.csv>
+}
 ```
 
 ## References
@@ -196,4 +211,8 @@ The referenced field can be named explicitly:
 PERSON_NAME : @PERSON.NAME
 ```
 
-The transform step creates foreign key metadata and assigns a field type from either the default primary-key type or the referenced field type.
+During transformation, reference fields create foreign key metadata. A plain `@TABLE` reference receives the type from `NEXUS_SCHEMA_PRIMARY_KEY_TYPE`. A `@TABLE.FIELD` reference receives the type from the referenced field when the transform can resolve it.
+
+## Current Limits
+
+The current parser does not have dedicated syntax for indexes, nullability, default values, constraints, or target-specific database options. Capture that information with attributes or templates when a Mustache template needs it.
