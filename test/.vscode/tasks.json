@@ -1,0 +1,44 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Lazarus: Test Debug",
+            "type": "lazarus",
+            "project": "${workspaceFolder}\\Test.lpi",
+            "cwd": "${workspaceFolder}",
+            "buildMode": "Debug",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": "$fpc"
+        },
+        {
+            "label": "Build Lazarus: Test Release",
+            "type": "lazarus",
+            "project": "${workspaceFolder}\\Test.lpi",
+            "cwd": "${workspaceFolder}",
+            "buildMode": "Release",
+            "problemMatcher": "$fpc"
+        },
+        {
+            "label": "Build Lazarus: newprojectsdfsefr Debug",
+            "type": "lazarus",
+            "project": "${workspaceFolder}\\newprojectsdfsefr.lpi",
+            "cwd": "${workspaceFolder}",
+            "buildMode": "Debug",
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": "$fpc"
+        },
+        {
+            "label": "Build Lazarus: newprojectsdfsefr Release",
+            "type": "lazarus",
+            "project": "${workspaceFolder}\\newprojectsdfsefr.lpi",
+            "cwd": "${workspaceFolder}",
+            "buildMode": "Release",
+            "problemMatcher": "$fpc"
+        }
+    ]
+}

@@ -12,10 +12,16 @@ uses
   Classes,
   DynLibs,
   SysUtils,
+  {$IFDEF MSWINDOWS}
+  Windows,
+  CommDlg,
+  {$ENDIF}
   obNXApplication,
   obNXButton,
   obNXControl,
+  obNXEditBox,
   obNXGroupBox,
+  obNXLabel,
   obNXMemo,
   obNXPanel,
   obNXTestModuleClient,
@@ -52,10 +58,15 @@ type
   TNXTestUIController = class
   private
     FButtonPanel: TNXPanel;
+    FBrowseButton: TNXButton;
     FDetailsBox: TNXGroupBox;
     FDetailsMemo: TNXMemo;
     FClient: TNXTestModuleClient;
+    FLoadButton: TNXButton;
+    FModuleFileName: string;
     FModuleLoadError: string;
+    FModulePathEdit: TNXEditBox;
+    FModulePathLabel: TNXLabel;
     FNodeRefs: TList;
     FRefreshButton: TNXButton;
     FRootNode: TNXTreeViewNode;
@@ -65,9 +76,14 @@ type
 
     function AddNodeRef(AKind: TNXTestUINodeKind; const ASuiteName: string;
       const ATestName: string = ''; const ATestId: string = ''): TNXTestUINodeRef;
+    procedure BrowseButtonClick(Sender: TObject; X, Y: Integer;
+      Button: TNXMouseButton);
     procedure ClearNodeRefs;
     function FindNodeByTestId(ANode: TNXTreeViewNode;
       const ATestId: string): TNXTreeViewNode;
+    procedure LoadButtonClick(Sender: TObject; X, Y: Integer;
+      Button: TNXMouseButton);
+    procedure LoadModule(const AModuleFileName: string);
     function NodeRef(ANode: TNXTreeViewNode): TNXTestUINodeRef;
     procedure PopulateTree;
     function RolledUpStatus(ANode: TNXTreeViewNode): string;
@@ -91,6 +107,9 @@ type
     procedure BuildUI;
   end;
 
+function BrowseForModuleFile(const AInitialFileName: string;
+  out AFileName: string): Boolean; forward;
+
 constructor TNXTestUINodeRef.Create(AKind: TNXTestUINodeKind;
   const ASuiteName: string; const ATestName: string; const ATestId: string);
 begin
@@ -107,12 +126,7 @@ begin
   FNodeRefs := TList.Create;
   FClient := TNXTestModuleClient.Create;
 
-  try
-    FClient.LoadModule(AModuleFileName);
-  except
-    on E: Exception do
-      FModuleLoadError := E.Message;
-  end;
+  LoadModule(AModuleFileName);
 end;
 
 destructor TNXTestUIController.Destroy;
@@ -134,22 +148,42 @@ end;
 procedure TNXTestUIController.BuildUI;
 begin
   FButtonPanel := TNXPanel.Create(Application.RootWindow);
-  FButtonPanel.Height := 38;
+  FButtonPanel.Height := 70;
   FButtonPanel.BorderStyle := BS_None;
   FButtonPanel.Align := caTop;
 
+  FModulePathLabel := TNXLabel.Create(FButtonPanel);
+  FModulePathLabel.SetBounds(8, 10, 80, 20);
+  FModulePathLabel.Caption := 'Module:';
+  FModulePathLabel.VertA := VAlign_Center;
+
+  FModulePathEdit := TNXEditBox.Create(FButtonPanel);
+  FModulePathEdit.SetBounds(88, 8, 700, 24);
+  FModulePathEdit.Text := FModuleFileName;
+  FModulePathEdit.Placeholder := 'Choose or enter an NXTest DLL/shared library path';
+
+  FBrowseButton := TNXButton.Create(FButtonPanel);
+  FBrowseButton.SetBounds(796, 7, 82, 24);
+  FBrowseButton.Caption := 'Browse...';
+  FBrowseButton.OnMouseClick := @BrowseButtonClick;
+
+  FLoadButton := TNXButton.Create(FButtonPanel);
+  FLoadButton.SetBounds(886, 7, 70, 24);
+  FLoadButton.Caption := 'Load';
+  FLoadButton.OnMouseClick := @LoadButtonClick;
+
   FRunAllButton := TNXButton.Create(FButtonPanel);
-  FRunAllButton.SetBounds(8, 7, 90, 24);
+  FRunAllButton.SetBounds(8, 39, 90, 24);
   FRunAllButton.Caption := 'Run All';
   FRunAllButton.OnMouseClick := @RunAllButtonClick;
 
   FRunSelectedButton := TNXButton.Create(FButtonPanel);
-  FRunSelectedButton.SetBounds(106, 7, 105, 24);
+  FRunSelectedButton.SetBounds(106, 39, 105, 24);
   FRunSelectedButton.Caption := 'Run Selected';
   FRunSelectedButton.OnMouseClick := @RunSelectedButtonClick;
 
   FRefreshButton := TNXButton.Create(FButtonPanel);
-  FRefreshButton.SetBounds(219, 7, 90, 24);
+  FRefreshButton.SetBounds(219, 39, 90, 24);
   FRefreshButton.Caption := 'Refresh';
   FRefreshButton.OnMouseClick := @RefreshButtonClick;
 
@@ -172,6 +206,23 @@ begin
   FTree.OnChange := @TreeChange;
 
   PopulateTree;
+end;
+
+procedure TNXTestUIController.BrowseButtonClick(Sender: TObject; X,
+  Y: Integer; Button: TNXMouseButton);
+var
+  lFileName: string;
+begin
+  if Button <> mbLeft then
+    Exit;
+
+  lFileName := FModulePathEdit.Text;
+  if BrowseForModuleFile(lFileName, lFileName) then
+  begin
+    FModulePathEdit.Text := lFileName;
+    LoadModule(lFileName);
+    PopulateTree;
+  end;
 end;
 
 procedure TNXTestUIController.ClearNodeRefs;
@@ -202,6 +253,38 @@ begin
     Result := FindNodeByTestId(ANode.Child[lIndex], ATestId);
     if Assigned(Result) then
       Exit;
+  end;
+end;
+
+procedure TNXTestUIController.LoadButtonClick(Sender: TObject; X, Y: Integer;
+  Button: TNXMouseButton);
+begin
+  if Button <> mbLeft then
+    Exit;
+
+  LoadModule(FModulePathEdit.Text);
+  PopulateTree;
+end;
+
+procedure TNXTestUIController.LoadModule(const AModuleFileName: string);
+begin
+  FModuleLoadError := '';
+  FModuleFileName := AModuleFileName;
+  FClient.UnloadModule;
+
+  if Trim(AModuleFileName) = '' then
+  begin
+    FModuleLoadError :=
+      'Choose a test module DLL/shared library, then click Load.';
+    Exit;
+  end;
+
+  try
+    FClient.LoadModule(AModuleFileName);
+    FModuleFileName := FClient.LibraryName;
+  except
+    on E: Exception do
+      FModuleLoadError := E.Message;
   end;
 end;
 
@@ -502,7 +585,15 @@ begin
 
   case lRef.Kind of
     nkRoot:
+    begin
       FDetailsMemo.AddLine('Root: NexusTest');
+      if Assigned(FModulePathEdit) and (FModulePathEdit.Text <> '') then
+        FDetailsMemo.AddLine('Module: ' + FModulePathEdit.Text)
+      else if FModuleFileName <> '' then
+        FDetailsMemo.AddLine('Module: ' + FModuleFileName)
+      else if FClient.LibraryName <> '' then
+        FDetailsMemo.AddLine('Module: ' + FClient.LibraryName);
+    end;
     nkSuite:
     begin
       FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
@@ -522,6 +613,43 @@ begin
   if ANode.Cell[3].Text <> '' then
     FDetailsMemo.AddLine('Message: ' + ANode.Cell[3].Text);
 end;
+
+function BrowseForModuleFile(const AInitialFileName: string;
+  out AFileName: string): Boolean;
+{$IFDEF MSWINDOWS}
+var
+  lDialog: TOpenFileName;
+  lFileName: array[0..4095] of Char;
+  lFilter: string;
+  lInitialDir: string;
+begin
+  FillChar(lDialog, SizeOf(lDialog), 0);
+  FillChar(lFileName, SizeOf(lFileName), 0);
+  StrPLCopy(lFileName, AInitialFileName, High(lFileName));
+
+  lInitialDir := ExtractFilePath(AInitialFileName);
+  lFilter := 'Shared libraries (*.dll;*.so;*.dylib)'#0'*.dll;*.so;*.dylib'#0 +
+    'All files (*.*)'#0'*.*'#0#0;
+
+  lDialog.lStructSize := SizeOf(lDialog);
+  lDialog.lpstrFile := lFileName;
+  lDialog.nMaxFile := SizeOf(lFileName);
+  lDialog.lpstrFilter := PChar(lFilter);
+  lDialog.lpstrTitle := 'Select NXTest Module';
+  if lInitialDir <> '' then
+    lDialog.lpstrInitialDir := PChar(lInitialDir);
+  lDialog.Flags := OFN_FILEMUSTEXIST or OFN_PATHMUSTEXIST or
+    OFN_HIDEREADONLY or OFN_NOCHANGEDIR;
+
+  Result := GetOpenFileName(@lDialog);
+  if Result then
+    AFileName := StrPas(lFileName);
+end;
+{$ELSE}
+begin
+  Result := False;
+end;
+{$ENDIF}
 
 procedure TNXTestUIController.UpdateResult(AResult: TNXTestResultValue);
 var
@@ -563,10 +691,7 @@ begin
   if ParamCount > 0 then
     lModuleFileName := ParamStr(1)
   else
-    lModuleFileName := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-      '..' + PathDelim + '..' + PathDelim + 'NexusLS' + PathDelim +
-      'NexusLSTestModule' + PathDelim + 'lib' + PathDelim +
-      'x86_64-win64' + PathDelim + 'NexusLSTestModule.' + SharedSuffix;
+    lModuleFileName := '';
 
   lResourceRoot := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
     '..' + PathDelim + '..' + PathDelim + 'NexusUI' + PathDelim + 'example';

@@ -94,7 +94,7 @@ type
       AAlign: TTextAlign); virtual;
     procedure DrawItem(AIndex: Integer; const ARect: TNXRect); virtual;
     procedure RenderViewport; override;
-    procedure UpdateContentSize; virtual;
+    procedure UpdateContentSize; override;
     procedure UpdateEditorBounds; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;

@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Lazarus: Test",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\Test.exe",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "preLaunchTask": "Build Lazarus: Test Debug",
+            "stopAtEntry": false,
+            "externalConsole": false
+        },
+        {
+            "name": "Debug Lazarus: newprojectsdfsefr",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\newprojectsdfsefr.exe",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "preLaunchTask": "Build Lazarus: newprojectsdfsefr Debug",
+            "stopAtEntry": false,
+            "externalConsole": false
+        }
+    ]
+}

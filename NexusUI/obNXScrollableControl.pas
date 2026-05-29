@@ -27,22 +27,28 @@ type
     procedure SetScrollY(AValue: Integer);
   protected
     procedure DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); override;
+    function GetAbsScrollableViewportRect: TNXRect; virtual;
     function GetAbsViewportRect: TNXRect; virtual;
+    function GetScrollableViewportRect: TNXRect; virtual;
     function GetViewportHeight: Integer; virtual;
     function GetViewportRect: TNXRect; virtual;
     function GetViewportWidth: Integer; virtual;
     procedure RenderClient; override;
     procedure RenderViewport; virtual;
+    procedure RenderViewportChrome; virtual;
+    procedure UpdateContentSize; virtual;
     procedure UpdateScrollBars; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
 
+    property AbsScrollableViewportRect: TNXRect read GetAbsScrollableViewportRect;
     property AbsViewportRect: TNXRect read GetAbsViewportRect;
     property ContentHeight: Integer read FContentHeight write SetContentHeight;
     property ContentWidth: Integer read FContentWidth write SetContentWidth;
     property HorizontalScrollBar: TNXScrollBar read FHorizontalScrollBar;
     property ScrollX: Integer read FScrollX write SetScrollX;
     property ScrollY: Integer read FScrollY write SetScrollY;
+    property ScrollableViewportRect: TNXRect read GetScrollableViewportRect;
     property VerticalScrollBar: TNXScrollBar read FVerticalScrollBar;
     property ViewportHeight: Integer read GetViewportHeight;
     property ViewportRect: TNXRect read GetViewportRect;
@@ -115,6 +121,11 @@ begin
     Result.h := Max(0, Result.h - FHorizontalScrollBar.Height - 2);
 end;
 
+function TNXScrollableControl.GetScrollableViewportRect: TNXRect;
+begin
+  Result := ViewportRect;
+end;
+
 procedure TNXScrollableControl.DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
 var
   lStep: Integer;
@@ -133,6 +144,13 @@ begin
   if (ADeltaX <> 0) and Assigned(FHorizontalScrollBar) and
     FHorizontalScrollBar.Visible then
     ScrollX := ScrollX + (ADeltaX * lStep);
+end;
+
+function TNXScrollableControl.GetAbsScrollableViewportRect: TNXRect;
+begin
+  Result := ScrollableViewportRect;
+  Result.x := AbsLeft + Result.x;
+  Result.y := AbsTop + Result.y;
 end;
 
 function TNXScrollableControl.GetAbsViewportRect: TNXRect;
@@ -197,6 +215,7 @@ procedure TNXScrollableControl.RenderClient;
 var
   lClipRect: TNXRect;
 begin
+  UpdateContentSize;
   UpdateScrollBars;
 
   if Assigned(FHorizontalScrollBar) then
@@ -207,6 +226,14 @@ begin
   lClipRect := AbsViewportRect;
   Canvas.PushClip(lClipRect);
   try
+    RenderViewportChrome;
+  finally
+    Canvas.PopClip;
+  end;
+
+  lClipRect := AbsScrollableViewportRect;
+  Canvas.PushClip(lClipRect);
+  try
     RenderViewport;
   finally
     Canvas.PopClip;
@@ -214,6 +241,14 @@ begin
 end;
 
 procedure TNXScrollableControl.RenderViewport;
+begin
+end;
+
+procedure TNXScrollableControl.RenderViewportChrome;
+begin
+end;
+
+procedure TNXScrollableControl.UpdateContentSize;
 begin
 end;
 

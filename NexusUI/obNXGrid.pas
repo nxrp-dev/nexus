@@ -74,11 +74,13 @@ type
     procedure DrawCellText(const AText: string; const ARect: TNXRect;
       AAlign: TNXGridCellAlign); virtual;
     procedure DrawHeader(ACol: Integer; const ARect: TNXRect); virtual;
+    function GetScrollableViewportRect: TNXRect; override;
     procedure RenderViewport; override;
+    procedure RenderViewportChrome; override;
     procedure EnsureSelectedVisible; virtual;
     procedure ResizeStorage(AColCount, ALineCount: Integer); virtual;
     procedure SetSelectedCell(ACol, ALine: Integer); virtual;
-    procedure UpdateContentSize; virtual;
+    procedure UpdateContentSize; override;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
 
@@ -600,55 +602,70 @@ begin
   end;
 end;
 
+function TNXGrid.GetScrollableViewportRect: TNXRect;
+var
+  lHeaderHeight: Integer;
+begin
+  Result := inherited GetScrollableViewportRect;
+  if FShowHeaders then
+    lHeaderHeight := Min(FHeaderHeight, Result.h)
+  else
+    lHeaderHeight := 0;
+  Inc(Result.y, lHeaderHeight);
+  Dec(Result.h, lHeaderHeight);
+end;
+
 procedure TNXGrid.RenderViewport;
 var
   lCol: Integer;
   lFirstLine: Integer;
-  lHeaderHeight: Integer;
   lLastLine: Integer;
   lLine: Integer;
   lRect: TNXRect;
-  lViewportBottom: Integer;
+  lScrollableRect: TNXRect;
   lViewportRight: Integer;
 begin
-  UpdateContentSize;
-
-  if FShowHeaders then
-    lHeaderHeight := FHeaderHeight
-  else
-    lHeaderHeight := 0;
-
-  lViewportRight := ViewportRect.x + ViewportWidth;
-  lViewportBottom := ViewportRect.y + ViewportHeight;
-
-  if FShowHeaders then
-    for lCol := 0 to FColCount - 1 do
-    begin
-      lRect := HeaderRect(lCol);
-      if (lRect.x + lRect.w <= ViewportRect.x) or
-        (lRect.x >= lViewportRight) then
-        Continue;
-      DrawHeader(lCol, lRect);
-    end;
+  lScrollableRect := ScrollableViewportRect;
+  lViewportRight := lScrollableRect.x + lScrollableRect.w;
 
   if FLineHeight <= 0 then
     Exit;
 
   lFirstLine := Max(0, ScrollY div FLineHeight);
   lLastLine := Min(FLineCount - 1,
-    (ScrollY + ViewportHeight - lHeaderHeight) div FLineHeight + 1);
+    (ScrollY + lScrollableRect.h) div FLineHeight + 1);
 
   for lLine := lFirstLine to lLastLine do
     for lCol := 0 to FColCount - 1 do
     begin
       lRect := CellRect(lCol, lLine);
-      if (lRect.x + lRect.w <= ViewportRect.x) or
+      if (lRect.x + lRect.w <= lScrollableRect.x) or
         (lRect.x >= lViewportRight) or
-        (lRect.y + lRect.h <= ViewportRect.y + lHeaderHeight) or
-        (lRect.y >= lViewportBottom) then
+        (lRect.y + lRect.h <= lScrollableRect.y) or
+        (lRect.y >= lScrollableRect.y + lScrollableRect.h) then
         Continue;
       DrawCell(lCol, lLine, lRect);
     end;
+end;
+
+procedure TNXGrid.RenderViewportChrome;
+var
+  lCol: Integer;
+  lRect: TNXRect;
+  lViewportRight: Integer;
+begin
+  if not FShowHeaders then
+    Exit;
+
+  lViewportRight := ViewportRect.x + ViewportWidth;
+  for lCol := 0 to FColCount - 1 do
+  begin
+    lRect := HeaderRect(lCol);
+    if (lRect.x + lRect.w <= ViewportRect.x) or
+      (lRect.x >= lViewportRight) then
+      Continue;
+    DrawHeader(lCol, lRect);
+  end;
 end;
 
 end.

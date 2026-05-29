@@ -1,0 +1,17 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Lazarus: newproject",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}\\newproject.exe",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "gdb",
+            "preLaunchTask": "Build Lazarus: newproject Debug",
+            "stopAtEntry": false,
+            "externalConsole": false
+        }
+    ]
+}

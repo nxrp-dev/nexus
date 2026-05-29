@@ -195,11 +195,13 @@ type
     function GetDefaultLineHeight: Integer; virtual;
     function GetHeaderRect(AColumn: Integer): TNXRect; virtual;
     function GetNodeGlyphRect(ANode: TNXTreeViewNode; AVisibleIndex: Integer; const ACellRect: TNXRect): TNXRect; virtual;
+    function GetScrollableViewportRect: TNXRect; override;
     procedure RebuildVisibleNodes; virtual;
     procedure RenderViewport; override;
+    procedure RenderViewportChrome; override;
     procedure SelectNode(ANode: TNXTreeViewNode; AColumn: Integer = 0); virtual;
     procedure ToggleNode(ANode: TNXTreeViewNode); virtual;
-    procedure UpdateContentSize; virtual;
+    procedure UpdateContentSize; override;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
@@ -1077,6 +1079,16 @@ begin
     cGlyphSize);
 end;
 
+function TNXTreeView.GetScrollableViewportRect: TNXRect;
+var
+  lHeaderHeight: Integer;
+begin
+  Result := inherited GetScrollableViewportRect;
+  lHeaderHeight := Min(GetContentTop, Result.h);
+  Inc(Result.y, lHeaderHeight);
+  Dec(Result.h, lHeaderHeight);
+end;
+
 procedure TNXTreeView.NodeChanged(ANode: TNXTreeViewNode);
 begin
   RebuildVisibleNodes;
@@ -1097,33 +1109,18 @@ var
   lLastLine: Integer;
   lLine: Integer;
   lRect: TNXRect;
-  lViewportBottom: Integer;
+  lScrollableRect: TNXRect;
   lViewportRight: Integer;
 begin
-  RebuildVisibleNodes;
-  UpdateContentSize;
-
-  lViewportRight := ViewportRect.x + ViewportWidth;
-  lViewportBottom := ViewportRect.y + ViewportHeight;
-
-  if FShowColumnHeaders then
-    for lColumn := 0 to FColumns.Count - 1 do
-    begin
-      if not FColumns[lColumn].Visible then
-        Continue;
-
-      lRect := GetHeaderRect(lColumn);
-      if (lRect.x + lRect.w <= ViewportRect.x) or (lRect.x >= lViewportRight) then
-        Continue;
-      DrawHeader(lColumn, lRect);
-    end;
+  lScrollableRect := ScrollableViewportRect;
+  lViewportRight := lScrollableRect.x + lScrollableRect.w;
 
   if FLineHeight <= 0 then
     Exit;
 
   lFirstLine := Max(0, ScrollY div FLineHeight);
   lLastLine := Min(FVisibleNodes.Count - 1,
-    (ScrollY + ViewportHeight - GetContentTop) div FLineHeight + 1);
+    (ScrollY + lScrollableRect.h) div FLineHeight + 1);
 
   for lLine := lFirstLine to lLastLine do
     for lColumn := 0 to FColumns.Count - 1 do
@@ -1132,13 +1129,35 @@ begin
         Continue;
 
       lRect := CellRect(lColumn, lLine);
-      if (lRect.x + lRect.w <= ViewportRect.x) or
+      if (lRect.x + lRect.w <= lScrollableRect.x) or
         (lRect.x >= lViewportRight) or
-        (lRect.y + lRect.h <= ViewportRect.y + GetContentTop) or
-        (lRect.y >= lViewportBottom) then
+        (lRect.y + lRect.h <= lScrollableRect.y) or
+        (lRect.y >= lScrollableRect.y + lScrollableRect.h) then
         Continue;
       DrawCell(FVisibleNodes[lLine], lColumn, lLine, lRect);
     end;
+end;
+
+procedure TNXTreeView.RenderViewportChrome;
+var
+  lColumn: Integer;
+  lRect: TNXRect;
+  lViewportRight: Integer;
+begin
+  if not FShowColumnHeaders then
+    Exit;
+
+  lViewportRight := ViewportRect.x + ViewportWidth;
+  for lColumn := 0 to FColumns.Count - 1 do
+  begin
+    if not FColumns[lColumn].Visible then
+      Continue;
+
+    lRect := GetHeaderRect(lColumn);
+    if (lRect.x + lRect.w <= ViewportRect.x) or (lRect.x >= lViewportRight) then
+      Continue;
+    DrawHeader(lColumn, lRect);
+  end;
 end;
 
 procedure TNXTreeView.SelectNode(ANode: TNXTreeViewNode; AColumn: Integer);
