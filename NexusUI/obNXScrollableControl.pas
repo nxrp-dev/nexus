@@ -19,25 +19,32 @@ type
     FHorizontalScrollBar: TNXScrollBar;
     FScrollX: Integer;
     FScrollY: Integer;
+    FUpdatingScrollBars: Boolean;
     FVerticalScrollBar: TNXScrollBar;
 
+    function GetMaxScrollX: Integer;
+    function GetMaxScrollY: Integer;
+    procedure ScrollBarChanged(ASender: TObject);
     procedure SetContentHeight(AValue: Integer);
     procedure SetContentWidth(AValue: Integer);
-    procedure SetScrollX(AValue: Integer);
-    procedure SetScrollY(AValue: Integer);
+    procedure SyncScrollBarValue(AScrollBar: TNXScrollBar; AValue: Integer);
   protected
+    procedure BeginScrollBarUpdate(var AWasUpdating: Boolean); virtual;
     procedure DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); override;
+    procedure EndScrollBarUpdate(AWasUpdating: Boolean); virtual;
     function GetAbsScrollableViewportRect: TNXRect; virtual;
     function GetAbsViewportRect: TNXRect; virtual;
     function GetScrollableViewportRect: TNXRect; virtual;
     function GetViewportHeight: Integer; virtual;
     function GetViewportRect: TNXRect; virtual;
     function GetViewportWidth: Integer; virtual;
+    procedure SetScrollX(AValue: Integer); virtual;
+    procedure SetScrollY(AValue: Integer); virtual;
     procedure RenderClient; override;
     procedure RenderViewport; virtual;
     procedure RenderViewportChrome; virtual;
     procedure UpdateContentSize; virtual;
-    procedure UpdateScrollBars; virtual;
+    procedure UpdateScrollMetrics; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
 
@@ -68,6 +75,7 @@ begin
   FHorizontalScrollBar.Dir := Dir_Horizontal;
   FHorizontalScrollBar.AutoAlign := True;
   FHorizontalScrollBar.Visible := False;
+  FHorizontalScrollBar.OnChange := @ScrollBarChanged;
 
   FVerticalScrollBar := TNXScrollBar.Create(Self);
   FVerticalScrollBar.Min := 0;
@@ -76,38 +84,96 @@ begin
   FVerticalScrollBar.Dir := Dir_Vertical;
   FVerticalScrollBar.AutoAlign := True;
   FVerticalScrollBar.Visible := False;
+  FVerticalScrollBar.OnChange := @ScrollBarChanged;
+end;
+
+procedure TNXScrollableControl.BeginScrollBarUpdate(var AWasUpdating: Boolean);
+begin
+  AWasUpdating := FUpdatingScrollBars;
+  FUpdatingScrollBars := True;
+end;
+
+procedure TNXScrollableControl.EndScrollBarUpdate(AWasUpdating: Boolean);
+begin
+  FUpdatingScrollBars := AWasUpdating;
+end;
+
+function TNXScrollableControl.GetMaxScrollX: Integer;
+begin
+  if Assigned(FHorizontalScrollBar) then
+    Result := FHorizontalScrollBar.Max
+  else
+    Result := Max(0, ContentWidth - ViewportWidth);
+end;
+
+function TNXScrollableControl.GetMaxScrollY: Integer;
+begin
+  if Assigned(FVerticalScrollBar) then
+    Result := FVerticalScrollBar.Max
+  else
+    Result := Max(0, ContentHeight - ViewportHeight);
+end;
+
+procedure TNXScrollableControl.ScrollBarChanged(ASender: TObject);
+begin
+  if FUpdatingScrollBars then
+    Exit;
+
+  if ASender = FHorizontalScrollBar then
+    SetScrollX(FHorizontalScrollBar.Value)
+  else if ASender = FVerticalScrollBar then
+    SetScrollY(FVerticalScrollBar.Value);
 end;
 
 procedure TNXScrollableControl.SetContentHeight(AValue: Integer);
 begin
   FContentHeight := Max(0, AValue);
-  UpdateScrollBars;
+  UpdateScrollMetrics;
 end;
 
 procedure TNXScrollableControl.SetContentWidth(AValue: Integer);
 begin
   FContentWidth := Max(0, AValue);
-  UpdateScrollBars;
+  UpdateScrollMetrics;
+end;
+
+procedure TNXScrollableControl.SyncScrollBarValue(AScrollBar: TNXScrollBar;
+  AValue: Integer);
+var
+  lWasUpdating: Boolean;
+begin
+  if not Assigned(AScrollBar) then
+    Exit;
+
+  lWasUpdating := False;
+  BeginScrollBarUpdate(lWasUpdating);
+  try
+    AScrollBar.Value := AValue;
+  finally
+    EndScrollBarUpdate(lWasUpdating);
+  end;
 end;
 
 procedure TNXScrollableControl.SetScrollX(AValue: Integer);
+var
+  lValue: Integer;
 begin
-  if Assigned(FHorizontalScrollBar) then
-    FScrollX := EnsureRange(AValue, FHorizontalScrollBar.Min, FHorizontalScrollBar.Max)
-  else
-    FScrollX := EnsureRange(AValue, 0, Max(0, ContentWidth - ViewportWidth));
-  if Assigned(FHorizontalScrollBar) and (FHorizontalScrollBar.Value <> FScrollX) then
-    FHorizontalScrollBar.Value := FScrollX;
+  lValue := EnsureRange(AValue, 0, GetMaxScrollX);
+  if FScrollX <> lValue then
+    FScrollX := lValue;
+
+  SyncScrollBarValue(FHorizontalScrollBar, FScrollX);
 end;
 
 procedure TNXScrollableControl.SetScrollY(AValue: Integer);
+var
+  lValue: Integer;
 begin
-  if Assigned(FVerticalScrollBar) then
-    FScrollY := EnsureRange(AValue, FVerticalScrollBar.Min, FVerticalScrollBar.Max)
-  else
-    FScrollY := EnsureRange(AValue, 0, Max(0, ContentHeight - ViewportHeight));
-  if Assigned(FVerticalScrollBar) and (FVerticalScrollBar.Value <> FScrollY) then
-    FVerticalScrollBar.Value := FScrollY;
+  lValue := EnsureRange(AValue, 0, GetMaxScrollY);
+  if FScrollY <> lValue then
+    FScrollY := lValue;
+
+  SyncScrollBarValue(FVerticalScrollBar, FScrollY);
 end;
 
 function TNXScrollableControl.GetViewportRect: TNXRect;
@@ -170,10 +236,11 @@ begin
   Result := ViewportRect.w;
 end;
 
-procedure TNXScrollableControl.UpdateScrollBars;
+procedure TNXScrollableControl.UpdateScrollMetrics;
 var
   lContentRect: TNXRect;
   lHorizontalVisible: Boolean;
+  lWasUpdating: Boolean;
   lVerticalVisible: Boolean;
   lViewportHeight: Integer;
   lViewportWidth: Integer;
@@ -199,13 +266,27 @@ begin
     Dec(lViewportWidth, FVerticalScrollBar.Width + 2);
   end;
 
-  FHorizontalScrollBar.AutoAlignBoth := lVerticalVisible;
-  FVerticalScrollBar.AutoAlignBoth := lHorizontalVisible;
-  FHorizontalScrollBar.Visible := lHorizontalVisible;
-  FVerticalScrollBar.Visible := lVerticalVisible;
+  lViewportWidth := Max(0, lViewportWidth);
+  lViewportHeight := Max(0, lViewportHeight);
 
-  FHorizontalScrollBar.Max := Max(0, ContentWidth - Max(0, lViewportWidth));
-  FVerticalScrollBar.Max := Max(0, ContentHeight - Max(0, lViewportHeight));
+  lWasUpdating := False;
+  BeginScrollBarUpdate(lWasUpdating);
+  try
+    FHorizontalScrollBar.AutoAlignBoth := lVerticalVisible;
+    FVerticalScrollBar.AutoAlignBoth := lHorizontalVisible;
+    FHorizontalScrollBar.Visible := lHorizontalVisible;
+    FVerticalScrollBar.Visible := lVerticalVisible;
+
+    FHorizontalScrollBar.Min := 0;
+    FHorizontalScrollBar.Max := Max(0, ContentWidth - lViewportWidth);
+    FHorizontalScrollBar.PageSize := lViewportWidth;
+
+    FVerticalScrollBar.Min := 0;
+    FVerticalScrollBar.Max := Max(0, ContentHeight - lViewportHeight);
+    FVerticalScrollBar.PageSize := lViewportHeight;
+  finally
+    EndScrollBarUpdate(lWasUpdating);
+  end;
 
   SetScrollX(FScrollX);
   SetScrollY(FScrollY);
@@ -216,12 +297,7 @@ var
   lClipRect: TNXRect;
 begin
   UpdateContentSize;
-  UpdateScrollBars;
-
-  if Assigned(FHorizontalScrollBar) then
-    FScrollX := FHorizontalScrollBar.Value;
-  if Assigned(FVerticalScrollBar) then
-    FScrollY := FVerticalScrollBar.Value;
+  UpdateScrollMetrics;
 
   lClipRect := AbsViewportRect;
   Canvas.PushClip(lClipRect);

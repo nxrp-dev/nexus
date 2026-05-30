@@ -73,8 +73,9 @@ type
     procedure SelectAll; virtual;
     procedure SelectWordAt(AIndex: Integer); virtual;
     procedure SetFirstVisibleLine(AValue: Integer); virtual;
+    procedure SetScrollY(AValue: Integer); override;
     procedure SetSelection(AAnchorIndex, ACaretIndex: Integer); virtual;
-    procedure UpdateScrollBars; override;
+    procedure UpdateScrollMetrics; override;
 
     procedure CursorBackspace(AWordJump: Boolean); virtual;
     procedure CursorDelete(AWordJump: Boolean); virtual;
@@ -424,7 +425,7 @@ begin
   FCaretIndex := ClampTextIndex(ANewCaretIndex);
   FSelectionAnchor := FCaretIndex;
   EnsureCaretVisible;
-  UpdateScrollBars;
+  UpdateScrollMetrics;
   DoChanged;
 end;
 
@@ -487,9 +488,14 @@ var
   lMaxFirstLine: Integer;
 begin
   lMaxFirstLine := Max(0, LineCount - Max(1, GetVisibleLineCount));
-  FFirstVisibleLine := EnsureRange(AValue, 0, lMaxFirstLine);
+  ScrollY := EnsureRange(AValue, 0, lMaxFirstLine);
+end;
 
-  ScrollY := FFirstVisibleLine;
+procedure TNXMemo.SetScrollY(AValue: Integer);
+begin
+  inherited SetScrollY(AValue);
+  FFirstVisibleLine := EnsureRange(ScrollY, 0,
+    Max(0, LineCount - Max(1, GetVisibleLineCount)));
 end;
 
 procedure TNXMemo.EnsureCaretVisible;
@@ -618,29 +624,34 @@ begin
   EnsureCaretVisible;
 end;
 
-procedure TNXMemo.UpdateScrollBars;
+procedure TNXMemo.UpdateScrollMetrics;
 var
   lMaxScroll: Integer;
+  lVisibleLineCount: Integer;
+  lWasUpdating: Boolean;
 begin
-  lMaxScroll := Max(0, LineCount - Max(1, GetVisibleLineCount));
-  HorizontalScrollBar.Visible := False;
-  HorizontalScrollBar.Max := 0;
-  HorizontalScrollBar.Value := 0;
-  VerticalScrollBar.Max := lMaxScroll;
-  VerticalScrollBar.Visible := lMaxScroll > 0;
+  lVisibleLineCount := Max(1, GetVisibleLineCount);
+  lMaxScroll := Max(0, LineCount - lVisibleLineCount);
 
-  if lMaxScroll = 0 then
-  begin
-    FFirstVisibleLine := 0;
-    VerticalScrollBar.Value := 0;
-    Exit;
+  lWasUpdating := False;
+  BeginScrollBarUpdate(lWasUpdating);
+  try
+    HorizontalScrollBar.Visible := False;
+    HorizontalScrollBar.Min := 0;
+    HorizontalScrollBar.Max := 0;
+    HorizontalScrollBar.PageSize := 0;
+    HorizontalScrollBar.Value := 0;
+
+    VerticalScrollBar.Min := 0;
+    VerticalScrollBar.Max := lMaxScroll;
+    VerticalScrollBar.PageSize := lVisibleLineCount;
+    VerticalScrollBar.Visible := lMaxScroll > 0;
+  finally
+    EndScrollBarUpdate(lWasUpdating);
   end;
 
-  if FFirstVisibleLine > lMaxScroll then
-    FFirstVisibleLine := lMaxScroll;
-
-  if VerticalScrollBar.Value > lMaxScroll then
-    VerticalScrollBar.Value := lMaxScroll;
+  SetScrollX(0);
+  SetScrollY(ScrollY);
 end;
 
 procedure TNXMemo.CursorBackspace(AWordJump: Boolean);
@@ -851,9 +862,6 @@ var
   lLineIndex: Integer;
   lVisibleLineCount: Integer;
 begin
-  FFirstVisibleLine := EnsureRange(ScrollY, 0,
-    Max(0, LineCount - Max(1, GetVisibleLineCount)));
-
   RenderPlaceholder;
   RenderSelection;
 

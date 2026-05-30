@@ -5,6 +5,7 @@ unit obNXScrollBar;
 interface
 
 uses
+  Classes,
   Math,
   tpNXPlatform,
   obNXControl;
@@ -12,14 +13,28 @@ uses
 type
   TNXScrollBar = class(TNXControl)
   private
-    FMinVal, FMaxVal, FValue: Integer;
+    FAutoAlign: Boolean;
+    FAutoAlignBoth: Boolean;
     FDir: TDirection;
-    Moving: Boolean;
-    FAutoAlign, FAutoAlignBoth: Boolean;
+    FDragging: Boolean;
+    FDragOffset: Integer;
+    FMaxVal: Integer;
+    FMinVal: Integer;
+    FOnChange: TNotifyEvent;
+    FPageSize: Integer;
+    FValue: Integer;
+
+    function GetThumbRect: TNXRect;
+    function GetThumbSize: Integer;
+    function GetTrackSize: Integer;
+    function TrackPositionToValue(APosition: Integer): Integer;
   protected
-    procedure SetValue(NewValue: Integer);
-    procedure SetAutoAlign(NewValue: Boolean);
-    procedure SetAutoAlignBoth(NewValue: Boolean);
+    procedure SetAutoAlign(AValue: Boolean);
+    procedure SetAutoAlignBoth(AValue: Boolean);
+    procedure SetMax(AValue: Integer);
+    procedure SetMin(AValue: Integer);
+    procedure SetPageSize(AValue: Integer);
+    procedure SetValue(AValue: Integer);
   public
     constructor Create(const AParent: INXControlParent); overload; override;
     procedure Render; override;
@@ -27,15 +42,17 @@ type
     procedure DoMouseDown(X, Y: Integer; Button: TNXMouseButton); override;
     procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
     procedure DoMouseUp(X, Y: Integer; Button: TNXMouseButton); override;
-    procedure ctrl_ValueChanged(NewValue: Integer); virtual;
-    procedure ValueChanged(NewValue: Integer); virtual;
+    procedure ctrl_ValueChanged(AValue: Integer); virtual;
+    procedure ValueChanged(AValue: Integer); virtual;
 
-    property Min: Integer read FMinVal write FMinVal;
-    property Max: Integer read FMaxVal write FMaxVal;
+    property Min: Integer read FMinVal write SetMin;
+    property Max: Integer read FMaxVal write SetMax;
+    property PageSize: Integer read FPageSize write SetPageSize;
     property Value: Integer read FValue write SetValue;
     property Dir: TDirection read FDir write FDir;
     property AutoAlign: Boolean read FAutoAlign write SetAutoAlign;
     property AutoAlignBoth: Boolean read FAutoAlignBoth write SetAutoAlignBoth;
+    property OnChange: TNotifyEvent read FOnChange write FOnChange;
   end;
 
 implementation
@@ -48,69 +65,155 @@ begin
   Max := 100;
 end;
 
-procedure TNXScrollBar.Render;
+function TNXScrollBar.GetTrackSize: Integer;
+begin
+  case Dir of
+    Dir_Horizontal:
+      Result := Width;
+    Dir_Vertical:
+      Result := Height;
+  end;
+end;
+
+function TNXScrollBar.GetThumbSize: Integer;
 var
-  r: TNXRect;
   lRange: Integer;
   lTrackSize: Integer;
 begin
+  lTrackSize := GetTrackSize;
+  if lTrackSize <= 0 then
+  begin
+    Result := 0;
+    Exit;
+  end;
+
+  Result := Math.Min(GUI_ScrollbarSize, lTrackSize);
   lRange := Max - Min;
+  if (PageSize > 0) and (lRange > 0) then
+    Result := Math.Max(Result, (PageSize * lTrackSize) div
+      Math.Max(1, PageSize + lRange));
+
+  Result := EnsureRange(Result, 1, lTrackSize);
+end;
+
+function TNXScrollBar.GetThumbRect: TNXRect;
+var
+  lRange: Integer;
+  lThumbSize: Integer;
+  lTrackSize: Integer;
+  lTravelSize: Integer;
+  lPosition: Integer;
+begin
+  lRange := Max - Min;
+  lTrackSize := GetTrackSize;
+  lThumbSize := GetThumbSize;
+  lTravelSize := Math.Max(0, lTrackSize - lThumbSize);
+
+  if (lRange > 0) and (lTravelSize > 0) then
+    lPosition := ((Value - Min) * lTravelSize) div lRange
+  else
+    lPosition := 0;
 
   case Dir of
     Dir_Horizontal:
-    begin
-      RenderLine(0, Height div 2, Width - 1, Height div 2, BorderColor);
-      r.w := GUI_ScrollbarSize;
-      r.h := GUI_ScrollbarSize;
-      lTrackSize := Width - r.w - 2;
-      if (lRange > 0) and (lTrackSize > 0) then
-        r.x := Floor(((Value - Min) * lTrackSize) / lRange)
-      else
-        r.x := 0;
-      r.y := (Height - r.h) div 2;
-    end;
+      Result := MakeNXRect(lPosition, (Height - GUI_ScrollbarSize) div 2,
+        lThumbSize, Math.Min(GUI_ScrollbarSize, Height));
     Dir_Vertical:
-    begin
-      RenderLine(Width div 2, 0, Width div 2, Height, BorderColor);
-      r.w := GUI_ScrollbarSize;
-      r.h := GUI_ScrollbarSize;
-      lTrackSize := Height - r.h - 1;
-      if (lRange > 0) and (lTrackSize > 0) then
-        r.y := Floor(((Value - Min) * lTrackSize) / lRange)
-      else
-        r.y := 0;
-      r.x := (Width - r.w) div 2;
-    end;
+      Result := MakeNXRect((Width - GUI_ScrollbarSize) div 2, lPosition,
+        Math.Min(GUI_ScrollbarSize, Width), lThumbSize);
+  end;
+end;
+
+function TNXScrollBar.TrackPositionToValue(APosition: Integer): Integer;
+var
+  lRange: Integer;
+  lThumbSize: Integer;
+  lTrackSize: Integer;
+  lTravelSize: Integer;
+begin
+  lRange := Max - Min;
+  lTrackSize := GetTrackSize;
+  lThumbSize := GetThumbSize;
+  lTravelSize := Math.Max(0, lTrackSize - lThumbSize);
+
+  if (lRange <= 0) or (lTravelSize <= 0) then
+    Result := Min
+  else
+    Result := Min + (EnsureRange(APosition, 0, lTravelSize) * lRange) div
+      lTravelSize;
+end;
+
+procedure TNXScrollBar.Render;
+var
+  lThumbRect: TNXRect;
+begin
+  case Dir of
+    Dir_Horizontal:
+      RenderLine(0, Height div 2, Width - 1, Height div 2, BorderColor);
+    Dir_Vertical:
+      RenderLine(Width div 2, 0, Width div 2, Height - 1, BorderColor);
   end;
 
-  if MouseEntered or Moving then
-    RenderFilledRect(r, Skin.SelectedColor)
+  lThumbRect := GetThumbRect;
+  if MouseEntered or FDragging then
+    RenderFilledRect(lThumbRect, Skin.SelectedColor)
   else
-    RenderFilledRect(r, BackColor);
-  RenderRect(r, CurBorderColor);
+    RenderFilledRect(lThumbRect, BackColor);
+  RenderRect(lThumbRect, CurBorderColor);
 end;
 
-procedure TNXScrollBar.SetValue(NewValue: Integer);
+procedure TNXScrollBar.SetAutoAlign(AValue: Boolean);
 begin
-  FValue := Math.Max(Min, NewValue);
-  FValue := Math.Min(Max, FValue);
-  ctrl_ValueChanged(FValue);
-end;
-
-procedure TNXScrollBar.SetAutoAlign(NewValue: Boolean);
-begin
-  FAutoAlign := NewValue;
+  FAutoAlign := AValue;
   if AutoAlign then
     if Parent <> nil then
       ParentSizeCallback(Parent.Width, Parent.Height);
 end;
 
-procedure TNXScrollBar.SetAutoAlignBoth(NewValue: Boolean);
+procedure TNXScrollBar.SetAutoAlignBoth(AValue: Boolean);
 begin
-  FAutoAlignBoth := NewValue;
+  FAutoAlignBoth := AValue;
   if AutoAlignBoth then
     if Parent <> nil then
       ParentSizeCallback(Parent.Width, Parent.Height);
+end;
+
+procedure TNXScrollBar.SetMin(AValue: Integer);
+begin
+  if FMinVal = AValue then
+    Exit;
+
+  FMinVal := AValue;
+  if FMaxVal < FMinVal then
+    FMaxVal := FMinVal;
+  SetValue(FValue);
+end;
+
+procedure TNXScrollBar.SetMax(AValue: Integer);
+begin
+  AValue := Math.Max(Min, AValue);
+  if FMaxVal = AValue then
+    Exit;
+
+  FMaxVal := AValue;
+  SetValue(FValue);
+end;
+
+procedure TNXScrollBar.SetPageSize(AValue: Integer);
+begin
+  FPageSize := Math.Max(0, AValue);
+end;
+
+procedure TNXScrollBar.SetValue(AValue: Integer);
+var
+  lValue: Integer;
+begin
+  lValue := EnsureRange(AValue, Min, Max);
+  if FValue = lValue then
+    Exit;
+
+  FValue := lValue;
+  ctrl_ValueChanged(FValue);
 end;
 
 procedure TNXScrollBar.ParentSizeCallback(NewW, NewH: Integer);
@@ -138,8 +241,9 @@ end;
 
 procedure TNXScrollBar.DoMouseDown(X, Y: Integer; Button: TNXMouseButton);
 var
-  NewVal: Integer;
+  lPosition: Integer;
   lRange: Integer;
+  lThumbRect: TNXRect;
 begin
   inherited;
   if Button = mbLeft then
@@ -148,67 +252,56 @@ begin
     if lRange <= 0 then
       Exit;
 
+    lThumbRect := GetThumbRect;
     case Dir of
       Dir_Horizontal:
-      begin
-        if Width <= 0 then
-          Exit;
-        NewVal := Min + (X * lRange) div Width;
-      end;
+        lPosition := X;
       Dir_Vertical:
-      begin
-        if Height <= 0 then
-          Exit;
-        NewVal := Min + (Y * lRange) div Height;
-      end;
+        lPosition := Y;
     end;
-    NewVal := Math.Max(Min, NewVal);
-    NewVal := Math.Min(Max, NewVal);
-    Value := NewVal;
-    Moving := True;
+
+    if NXRectContainsPoint(lThumbRect, X, Y) then
+      case Dir of
+        Dir_Horizontal:
+          FDragOffset := lPosition - lThumbRect.x;
+        Dir_Vertical:
+          FDragOffset := lPosition - lThumbRect.y;
+      end
+    else
+    begin
+      FDragOffset := GetThumbSize div 2;
+      Value := TrackPositionToValue(lPosition - FDragOffset);
+    end;
+
+    FDragging := True;
     CaptureMouse;
   end;
 end;
 
 procedure TNXScrollBar.DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons);
 var
-  NewVal: Integer;
-  lRange: Integer;
+  lPosition: Integer;
 begin
   inherited;
 
-  if not Moving then
+  if not FDragging then
     Exit;
 
   if not (mbLeft in ButtonState) then
   begin
-    Moving := False;
+    FDragging := False;
     ReleaseMouseCapture;
     Exit;
   end;
 
-  lRange := Max - Min;
-  if lRange <= 0 then
-    Exit;
-
   case Dir of
     Dir_Horizontal:
-    begin
-      if Width <= 6 then
-        Exit;
-      NewVal := Min + (X * lRange) div (Width - 6);
-    end;
+      lPosition := X;
     Dir_Vertical:
-    begin
-      if Height <= 6 then
-        Exit;
-      NewVal := Min + (Y * lRange) div (Height - 6);
-    end;
+      lPosition := Y;
   end;
 
-  NewVal := Math.Max(Min, NewVal);
-  NewVal := Math.Min(Max, NewVal);
-  Value := NewVal;
+  Value := TrackPositionToValue(lPosition - FDragOffset);
 end;
 
 procedure TNXScrollBar.DoMouseUp(X, Y: Integer; Button: TNXMouseButton);
@@ -216,17 +309,19 @@ begin
   inherited;
   if Button = mbLeft then
   begin
-    Moving := False;
+    FDragging := False;
     ReleaseMouseCapture;
   end;
 end;
 
-procedure TNXScrollBar.ctrl_ValueChanged(NewValue: Integer);
+procedure TNXScrollBar.ctrl_ValueChanged(AValue: Integer);
 begin
-  ValueChanged(NewValue);
+  ValueChanged(AValue);
+  if Assigned(FOnChange) then
+    FOnChange(Self);
 end;
 
-procedure TNXScrollBar.ValueChanged(NewValue: Integer);
+procedure TNXScrollBar.ValueChanged(AValue: Integer);
 begin
 
 end;
