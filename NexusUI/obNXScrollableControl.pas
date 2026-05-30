@@ -14,11 +14,13 @@ uses
 type
   TNXScrollableControl = class(TNXControl)
   private
+    FContentSizeDirty: Boolean;
     FContentHeight: Integer;
     FContentWidth: Integer;
     FHorizontalScrollBar: TNXScrollBar;
     FScrollX: Integer;
     FScrollY: Integer;
+    FScrollMetricsDirty: Boolean;
     FUpdatingScrollBars: Boolean;
     FVerticalScrollBar: TNXScrollBar;
 
@@ -38,12 +40,15 @@ type
     function GetViewportHeight: Integer; virtual;
     function GetViewportRect: TNXRect; virtual;
     function GetViewportWidth: Integer; virtual;
+    procedure InvalidateContentSize; virtual;
+    procedure InvalidateScrollMetrics; virtual;
+    procedure MeasureContent; virtual;
     procedure SetScrollX(AValue: Integer); virtual;
     procedure SetScrollY(AValue: Integer); virtual;
     procedure RenderClient; override;
     procedure RenderViewport; virtual;
     procedure RenderViewportChrome; virtual;
-    procedure UpdateContentSize; virtual;
+    procedure UpdateLayoutIfNeeded; virtual;
     procedure UpdateScrollMetrics; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
@@ -85,6 +90,8 @@ begin
   FVerticalScrollBar.AutoAlign := True;
   FVerticalScrollBar.Visible := False;
   FVerticalScrollBar.OnChange := @ScrollBarChanged;
+
+  InvalidateContentSize;
 end;
 
 procedure TNXScrollableControl.BeginScrollBarUpdate(var AWasUpdating: Boolean);
@@ -127,14 +134,22 @@ end;
 
 procedure TNXScrollableControl.SetContentHeight(AValue: Integer);
 begin
-  FContentHeight := Max(0, AValue);
-  UpdateScrollMetrics;
+  AValue := Max(0, AValue);
+  if FContentHeight = AValue then
+    Exit;
+
+  FContentHeight := AValue;
+  InvalidateScrollMetrics;
 end;
 
 procedure TNXScrollableControl.SetContentWidth(AValue: Integer);
 begin
-  FContentWidth := Max(0, AValue);
-  UpdateScrollMetrics;
+  AValue := Max(0, AValue);
+  if FContentWidth = AValue then
+    Exit;
+
+  FContentWidth := AValue;
+  InvalidateScrollMetrics;
 end;
 
 procedure TNXScrollableControl.SyncScrollBarValue(AScrollBar: TNXScrollBar;
@@ -197,6 +212,7 @@ var
   lStep: Integer;
 begin
   inherited DoMouseWheel(X, Y, ADeltaX, ADeltaY);
+  UpdateLayoutIfNeeded;
 
   if FontLineSkip > 0 then
     lStep := FontLineSkip
@@ -234,6 +250,21 @@ end;
 function TNXScrollableControl.GetViewportWidth: Integer;
 begin
   Result := ViewportRect.w;
+end;
+
+procedure TNXScrollableControl.InvalidateContentSize;
+begin
+  FContentSizeDirty := True;
+  InvalidateScrollMetrics;
+end;
+
+procedure TNXScrollableControl.InvalidateScrollMetrics;
+begin
+  FScrollMetricsDirty := True;
+end;
+
+procedure TNXScrollableControl.MeasureContent;
+begin
 end;
 
 procedure TNXScrollableControl.UpdateScrollMetrics;
@@ -292,12 +323,27 @@ begin
   SetScrollY(FScrollY);
 end;
 
+procedure TNXScrollableControl.UpdateLayoutIfNeeded;
+begin
+  if FContentSizeDirty then
+  begin
+    MeasureContent;
+    FContentSizeDirty := False;
+    FScrollMetricsDirty := True;
+  end;
+
+  if FScrollMetricsDirty then
+  begin
+    UpdateScrollMetrics;
+    FScrollMetricsDirty := False;
+  end;
+end;
+
 procedure TNXScrollableControl.RenderClient;
 var
   lClipRect: TNXRect;
 begin
-  UpdateContentSize;
-  UpdateScrollMetrics;
+  UpdateLayoutIfNeeded;
 
   lClipRect := AbsViewportRect;
   Canvas.PushClip(lClipRect);
@@ -321,10 +367,6 @@ begin
 end;
 
 procedure TNXScrollableControl.RenderViewportChrome;
-begin
-end;
-
-procedure TNXScrollableControl.UpdateContentSize;
 begin
 end;
 

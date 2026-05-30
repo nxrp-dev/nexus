@@ -23,6 +23,7 @@ This repository is an Object Pascal / Free Pascal project. Treat the codebase as
 ## Project Direction
 
 - The project includes the NexusUI style GUI framework built in Object Pascal.
+- For architecture-level corrections, follow the process in `ARCHITECTURE_PROCESS.md`.
 - Do not introduce large abstractions before they are needed.
 - Prefer correct design over preserving existing code shape. Existing code and generated code have no special authority just because they already exist.
 - Code does not exist for its own sake. It exists to serve the current design and purpose; when that purpose changes, adjust, reshape, or remove the code to match the new goal.

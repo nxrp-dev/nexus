@@ -75,6 +75,7 @@ type
     procedure SetFirstVisibleLine(AValue: Integer); virtual;
     procedure SetScrollY(AValue: Integer); override;
     procedure SetSelection(AAnchorIndex, ACaretIndex: Integer); virtual;
+    procedure MeasureContent; override;
     procedure UpdateScrollMetrics; override;
 
     procedure CursorBackspace(AWordJump: Boolean); virtual;
@@ -375,6 +376,8 @@ var
   lLocalX: Integer;
   lLocalY: Integer;
 begin
+  UpdateLayoutIfNeeded;
+
   lClientRect := ContentRect;
   lLocalX := AX - lClientRect.x - cTextMargin;
   lLocalY := AY - lClientRect.y;
@@ -424,8 +427,8 @@ begin
   RebuildLineCache;
   FCaretIndex := ClampTextIndex(ANewCaretIndex);
   FSelectionAnchor := FCaretIndex;
+  InvalidateContentSize;
   EnsureCaretVisible;
-  UpdateScrollMetrics;
   DoChanged;
 end;
 
@@ -487,7 +490,8 @@ procedure TNXMemo.SetFirstVisibleLine(AValue: Integer);
 var
   lMaxFirstLine: Integer;
 begin
-  lMaxFirstLine := Max(0, LineCount - Max(1, GetVisibleLineCount));
+  UpdateLayoutIfNeeded;
+  lMaxFirstLine := Max(0, ContentHeight - Max(1, GetVisibleLineCount));
   ScrollY := EnsureRange(AValue, 0, lMaxFirstLine);
 end;
 
@@ -505,6 +509,8 @@ var
   lTextAreaWidth: Integer;
   lVisibleLineCount: Integer;
 begin
+  UpdateLayoutIfNeeded;
+
   lCaretLine := GetCaretLineIndex;
   lVisibleLineCount := Max(1, GetVisibleLineCount);
 
@@ -624,6 +630,12 @@ begin
   EnsureCaretVisible;
 end;
 
+procedure TNXMemo.MeasureContent;
+begin
+  ContentWidth := 0;
+  ContentHeight := LineCount;
+end;
+
 procedure TNXMemo.UpdateScrollMetrics;
 var
   lMaxScroll: Integer;
@@ -631,7 +643,7 @@ var
   lWasUpdating: Boolean;
 begin
   lVisibleLineCount := Max(1, GetVisibleLineCount);
-  lMaxScroll := Max(0, LineCount - lVisibleLineCount);
+  lMaxScroll := Max(0, ContentHeight - lVisibleLineCount);
 
   lWasUpdating := False;
   BeginScrollBarUpdate(lWasUpdating);

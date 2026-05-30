@@ -16,6 +16,7 @@ uses
   obNXScrollableControl;
 
 type
+  TNXTreeView = class;
   TNXTreeViewNode = class;
   TNXTreeViewCell = class;
   TNXTreeViewColumn = class;
@@ -74,9 +75,12 @@ type
     FAlign: TNXTreeViewCellAlign;
     FCaption: string;
     FMinWidth: Integer;
+    FOwner: TNXTreeView;
     FVisible: Boolean;
     FWidth: Integer;
+    procedure InvalidateOwnerContentSize;
     procedure SetMinWidth(AValue: Integer);
+    procedure SetVisible(AValue: Boolean);
     procedure SetWidth(AValue: Integer);
   public
     constructor Create(const ACaption: string; AWidth: Integer); virtual;
@@ -84,7 +88,7 @@ type
     property Align: TNXTreeViewCellAlign read FAlign write FAlign;
     property Caption: string read FCaption write FCaption;
     property MinWidth: Integer read FMinWidth write SetMinWidth;
-    property Visible: Boolean read FVisible write FVisible;
+    property Visible: Boolean read FVisible write SetVisible;
     property Width: Integer read FWidth write SetWidth;
   end;
 
@@ -201,7 +205,7 @@ type
     procedure RenderViewportChrome; override;
     procedure SelectNode(ANode: TNXTreeViewNode; AColumn: Integer = 0); virtual;
     procedure ToggleNode(ANode: TNXTreeViewNode); virtual;
-    procedure UpdateContentSize; override;
+    procedure MeasureContent; override;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
@@ -276,16 +280,43 @@ begin
   FWidth := Max(FMinWidth, AWidth);
 end;
 
+procedure TNXTreeViewColumn.InvalidateOwnerContentSize;
+begin
+  if Assigned(FOwner) then
+    FOwner.InvalidateContentSize;
+end;
+
 procedure TNXTreeViewColumn.SetMinWidth(AValue: Integer);
 begin
-  FMinWidth := Max(8, AValue);
+  AValue := Max(8, AValue);
+  if FMinWidth = AValue then
+    Exit;
+
+  FMinWidth := AValue;
   if FWidth < FMinWidth then
+  begin
     FWidth := FMinWidth;
+    InvalidateOwnerContentSize;
+  end;
 end;
 
 procedure TNXTreeViewColumn.SetWidth(AValue: Integer);
 begin
-  FWidth := Max(FMinWidth, AValue);
+  AValue := Max(FMinWidth, AValue);
+  if FWidth = AValue then
+    Exit;
+
+  FWidth := AValue;
+  InvalidateOwnerContentSize;
+end;
+
+procedure TNXTreeViewColumn.SetVisible(AValue: Boolean);
+begin
+  if FVisible = AValue then
+    Exit;
+
+  FVisible := AValue;
+  InvalidateOwnerContentSize;
 end;
 
 constructor TNXTreeViewNode.Create(const AText: string; AData: Pointer);
@@ -413,6 +444,8 @@ begin
 end;
 
 constructor TNXTreeView.Create(const AParent: INXControlParent);
+var
+  lColumn: TNXTreeViewColumn;
 begin
   inherited Create(AParent);
 
@@ -429,8 +462,9 @@ begin
   FShowColumnHeaders := True;
   FShowGridLines := True;
   FVisibleNodes := TNXTreeViewVisibleNodeList.Create;
-  FColumns.AddColumn('Name', FDefaultColumnWidth);
-  UpdateContentSize;
+  lColumn := FColumns.AddColumn('Name', FDefaultColumnWidth);
+  lColumn.FOwner := Self;
+  InvalidateContentSize;
 end;
 
 destructor TNXTreeView.Destroy;
@@ -449,8 +483,7 @@ begin
     Result := FRootNodes.AddNode(AText, AData);
 
   Result.EnsureCellCount(Max(1, FColumns.Count));
-  RebuildVisibleNodes;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 function TNXTreeView.AddColumn(const ACaption: string; AWidth: Integer): TNXTreeViewColumn;
@@ -463,7 +496,8 @@ begin
     lWidth := AWidth;
 
   Result := FColumns.AddColumn(ACaption, lWidth);
-  UpdateContentSize;
+  Result.FOwner := Self;
+  InvalidateContentSize;
 end;
 
 function TNXTreeView.AddNode(const AText: string; AData: Pointer): TNXTreeViewNode;
@@ -491,14 +525,14 @@ begin
   FSelectedNode := nil;
   FRootNodes.Clear;
   FVisibleNodes.Clear;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXTreeView.ClearColumns;
 begin
   FColumns.Clear;
   FSelectedColumn := -1;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXTreeView.CollapseAll;
@@ -518,9 +552,8 @@ begin
   for lIndex := 0 to FRootNodes.Count - 1 do
     CollapseChildren(FRootNodes[lIndex]);
 
-  RebuildVisibleNodes;
+  InvalidateContentSize;
   EnsureSelectedVisible;
-  UpdateContentSize;
 end;
 
 procedure TNXTreeView.ExpandAll;
@@ -541,9 +574,8 @@ begin
   for lIndex := 0 to FRootNodes.Count - 1 do
     ExpandChildren(FRootNodes[lIndex]);
 
-  RebuildVisibleNodes;
+  InvalidateContentSize;
   EnsureSelectedVisible;
-  UpdateContentSize;
 end;
 
 function TNXTreeView.GetTotalColumnWidth: Integer;
@@ -559,19 +591,19 @@ end;
 procedure TNXTreeView.SetHeaderHeight(AValue: Integer);
 begin
   FHeaderHeight := Max(0, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXTreeView.SetIndentWidth(AValue: Integer);
 begin
   FIndentWidth := Max(4, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXTreeView.SetLineHeight(AValue: Integer);
 begin
   FLineHeight := Max(8, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXTreeView.SetSelectedNode(AValue: TNXTreeViewNode);
@@ -585,7 +617,7 @@ begin
     Exit;
 
   FShowColumnHeaders := AValue;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 function TNXTreeView.CellAt(AX, AY: Integer; out AColumn: Integer; out ANode: TNXTreeViewNode): Boolean;
@@ -597,6 +629,7 @@ begin
   Result := False;
   AColumn := -1;
   ANode := nil;
+  UpdateLayoutIfNeeded;
 
   lViewportRect := ViewportRect;
   if (AX < lViewportRect.x) or (AX >= lViewportRect.x + lViewportRect.w) or
@@ -638,12 +671,11 @@ begin
     Exit;
 
   ANode.Expanded := False;
+  InvalidateContentSize;
   if ANode.Contains(FSelectedNode) and (ANode <> FSelectedNode) then
     SelectNode(ANode, FSelectedColumn);
 
-  RebuildVisibleNodes;
   EnsureSelectedVisible;
-  UpdateContentSize;
 
   if Assigned(FOnCollapsed) then
     FOnCollapsed(Self, ANode);
@@ -658,6 +690,8 @@ var
 begin
   Result := False;
   AColumn := -1;
+  UpdateLayoutIfNeeded;
+
   lViewportRect := ViewportRect;
   if (AX < lViewportRect.x) or (AX >= lViewportRect.x + lViewportRect.w) or
     (AY < lViewportRect.y) or (AY >= lViewportRect.y + lViewportRect.h) then
@@ -715,7 +749,7 @@ var
 begin
   inherited DoKeyDown(AEvent);
 
-  RebuildVisibleNodes;
+  UpdateLayoutIfNeeded;
   lIndex := FVisibleNodes.IndexOf(FSelectedNode);
 
   case AEvent.Key of
@@ -1010,10 +1044,11 @@ var
   lLineTop: Integer;
   lVisibleHeight: Integer;
 begin
+  UpdateLayoutIfNeeded;
+
   if not Assigned(FSelectedNode) then
     Exit;
 
-  RebuildVisibleNodes;
   lIndex := FVisibleNodes.IndexOf(FSelectedNode);
   if lIndex < 0 then
     Exit;
@@ -1040,9 +1075,8 @@ begin
     Exit;
 
   ANode.Expanded := True;
-  RebuildVisibleNodes;
+  InvalidateContentSize;
   EnsureSelectedVisible;
-  UpdateContentSize;
 
   if Assigned(FOnExpanded) then
     FOnExpanded(Self, ANode);
@@ -1091,9 +1125,8 @@ end;
 
 procedure TNXTreeView.NodeChanged(ANode: TNXTreeViewNode);
 begin
-  RebuildVisibleNodes;
+  InvalidateContentSize;
   EnsureSelectedVisible;
-  UpdateContentSize;
 end;
 
 procedure TNXTreeView.RebuildVisibleNodes;
@@ -1191,7 +1224,7 @@ begin
     ExpandNode(ANode);
 end;
 
-procedure TNXTreeView.UpdateContentSize;
+procedure TNXTreeView.MeasureContent;
 var
   lLineHeight: Integer;
 begin

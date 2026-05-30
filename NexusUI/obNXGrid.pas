@@ -80,7 +80,7 @@ type
     procedure EnsureSelectedVisible; virtual;
     procedure ResizeStorage(AColCount, ALineCount: Integer); virtual;
     procedure SetSelectedCell(ACol, ALine: Integer); virtual;
-    procedure UpdateContentSize; override;
+    procedure MeasureContent; override;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
 
@@ -186,7 +186,7 @@ begin
     Exit;
 
   FColWidths[ACol] := Max(8, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXGrid.SetDefaultColWidth(AValue: Integer);
@@ -205,19 +205,19 @@ begin
     if FColWidths[lIndex] = lOldDefault then
       FColWidths[lIndex] := FDefaultColWidth;
 
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXGrid.SetHeaderHeight(AValue: Integer);
 begin
   FHeaderHeight := Max(0, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXGrid.SetLineHeight(AValue: Integer);
 begin
   FLineHeight := Max(8, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXGrid.SetShowHeaders(AValue: Boolean);
@@ -226,7 +226,7 @@ begin
     Exit;
 
   FShowHeaders := AValue;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXGrid.SetColCount(AValue: Integer);
@@ -292,7 +292,7 @@ begin
     FSelectedLine := -1;
   end;
 
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXGrid.Clear;
@@ -312,7 +312,7 @@ begin
     Inc(Result, FColWidths[lIndex]);
 end;
 
-procedure TNXGrid.UpdateContentSize;
+procedure TNXGrid.MeasureContent;
 var
   lHeaderHeight: Integer;
 begin
@@ -369,6 +369,7 @@ begin
   Result := False;
   ACol := -1;
   ALine := -1;
+  UpdateLayoutIfNeeded;
 
   lViewportRect := ViewportRect;
   if (AX < lViewportRect.x) or (AX >= lViewportRect.x + lViewportRect.w) or
@@ -412,6 +413,8 @@ var
   lHeaderHeight: Integer;
   lVisibleHeight: Integer;
 begin
+  UpdateLayoutIfNeeded;
+
   if (FSelectedCol < 0) or (FSelectedLine < 0) then
     Exit;
 

@@ -94,7 +94,7 @@ type
       AAlign: TTextAlign); virtual;
     procedure DrawItem(AIndex: Integer; const ARect: TNXRect); virtual;
     procedure RenderViewport; override;
-    procedure UpdateContentSize; override;
+    procedure MeasureContent; override;
     procedure UpdateEditorBounds; virtual;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
@@ -183,13 +183,14 @@ end;
 procedure TNXPropertyEditor.SetNameColumnWidth(AValue: Integer);
 begin
   FNameColumnWidth := Max(40, AValue);
+  InvalidateContentSize;
   UpdateEditorBounds;
 end;
 
 procedure TNXPropertyEditor.SetRowHeight(AValue: Integer);
 begin
   FRowHeight := Max(12, AValue);
-  UpdateContentSize;
+  InvalidateContentSize;
   UpdateEditorBounds;
 end;
 
@@ -218,7 +219,7 @@ begin
   FItems.Add(Result);
   if FSelectedIndex < 0 then
     FSelectedIndex := 0;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXPropertyEditor.Clear;
@@ -226,7 +227,7 @@ begin
   CancelEdit;
   FItems.Clear;
   FSelectedIndex := -1;
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 procedure TNXPropertyEditor.DeleteProperty(AIndex: Integer);
@@ -245,7 +246,7 @@ begin
   if FEditingIndex > AIndex then
     Dec(FEditingIndex);
 
-  UpdateContentSize;
+  InvalidateContentSize;
 end;
 
 function TNXPropertyEditor.ItemValue(AItem: TNXPropertyEditorItem): string;
@@ -264,6 +265,8 @@ var
   lY: Integer;
 begin
   Result := -1;
+  UpdateLayoutIfNeeded;
+
   lViewportRect := ViewportRect;
 
   if (AX < lViewportRect.x) or (AX >= lViewportRect.x + lViewportRect.w) or
@@ -281,6 +284,8 @@ end;
 
 function TNXPropertyEditor.RowRect(AIndex: Integer): TNXRect;
 begin
+  UpdateLayoutIfNeeded;
+
   Result := MakeNXRect(ViewportRect.x - ScrollX,
     ViewportRect.y + (AIndex * FRowHeight) - ScrollY,
     Max(ViewportWidth, ContentWidth), FRowHeight);
@@ -303,7 +308,7 @@ begin
     Max(0, lRowRect.w - FNameColumnWidth), lRowRect.h);
 end;
 
-procedure TNXPropertyEditor.UpdateContentSize;
+procedure TNXPropertyEditor.MeasureContent;
 begin
   ContentWidth := Max(0, FNameColumnWidth + 160);
   ContentHeight := FItems.Count * FRowHeight;
@@ -542,7 +547,6 @@ var
   lRowRect: TNXRect;
   lViewportBottom: Integer;
 begin
-  UpdateContentSize;
   UpdateEditorBounds;
 
   if FRowHeight <= 0 then
