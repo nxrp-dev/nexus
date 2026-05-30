@@ -34,6 +34,8 @@ Whether Codex should:
 - return a plan only, or
 - proceed with approved implementation
 
+When a plan is requested, Codex should return a Markdown work plan using `ARCH_WORK_PLAN_TEMPLATE.md` as the default structure.
+
 ## Acceptance Criteria
 
 What must be true when done.

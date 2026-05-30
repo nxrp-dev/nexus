@@ -22,7 +22,9 @@ Inspection is allowed during design discussion. Mutation is not.
 
 ## Planning Gate
 
-Before implementation, produce a work plan for approval.
+Before implementation, produce a Markdown work plan for approval.
+
+Use `ARCH_WORK_PLAN_TEMPLATE.md` as the default structure for substantial architecture passes. The plan may be supplied inline in the conversation, or as a separate Markdown file when the user asks for an artifact. The important requirement is that the plan is structured, reviewable, and explicit enough for the user to take it to external review before implementation.
 
 The plan should include:
 
@@ -84,7 +86,7 @@ Handle review feedback the same way:
 - Read the feedback.
 - Verify each claim against the code.
 - Separate actual defects from preferences or hypothetical risks.
-- Produce a focused work plan for approval.
+- Produce a focused Markdown work plan for approval.
 - Do not patch from review feedback until directed.
 
 This keeps outside review useful without letting it replace local judgment.
