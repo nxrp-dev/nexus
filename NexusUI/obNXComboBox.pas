@@ -23,21 +23,22 @@ type
     FItems: TStringList;
     FOnChange: TNotifyEvent;
     FSelectedIndex: Integer;
-    FTopIndex: Integer;
 
     function GetDropDownHeight: Integer;
     function GetItemHeight: Integer;
     function GetSelectedText: string;
     function GetVisibleItemCount: Integer;
     procedure EnsureDropDown;
+    procedure ItemsChanged(ASender: TObject);
     procedure PositionDropDown;
     procedure SetDroppedDown(AValue: Boolean);
     procedure SetDropDownItemCount(AValue: Integer);
     procedure SetSelectedIndex(AValue: Integer);
+    procedure SyncDropDownItems;
+    procedure SyncDropDownSelection;
   protected
     procedure DrawArrow(const ARect: TNXRect); virtual;
     procedure EnsureSelectedVisible; virtual;
-    function IndexAtY(AY: Integer): Integer; virtual;
 
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
     procedure DoLoseFocus; override;
@@ -60,18 +61,30 @@ type
 implementation
 
 uses
-  obNXApplication;
+  obNXApplication,
+  obNXListBox;
 
 type
+  TNXComboBoxDropDownList = class(TNXListBox)
+  private
+    FComboBox: TNXComboBox;
+  public
+    constructor Create(const AParent: INXControlParent; AComboBox: TNXComboBox); reintroduce;
+    procedure NewSelection(ASelection: TNXListBoxItem); override;
+    procedure SyncSelection(AIndex: Integer);
+  end;
+
   TNXComboBoxDropDown = class(TNXPopup)
   private
     FComboBox: TNXComboBox;
+    FList: TNXComboBoxDropDownList;
   protected
     procedure DoClosed; override;
-    procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
   public
     constructor Create(const AParent: INXControlParent; AComboBox: TNXComboBox); reintroduce;
-    procedure Render; override;
+    procedure SetListBounds; virtual;
+
+    property List: TNXComboBoxDropDownList read FList;
   end;
 
 const
@@ -88,8 +101,8 @@ begin
   FDropDownItemCount := cDefaultDropDownItemCount;
   FDroppedDown := False;
   FItems := TStringList.Create;
+  FItems.OnChange := @ItemsChanged;
   FSelectedIndex := -1;
-  FTopIndex := 0;
   FDropDown := nil;
 end;
 
@@ -160,12 +173,15 @@ begin
   end;
 
   FDropDown.SetAbsoluteBounds(AbsLeft, lTop, Width, lDropDownHeight);
+  TNXComboBoxDropDown(FDropDown).SetListBounds;
 end;
 
 procedure TNXComboBox.SetDropDownItemCount(AValue: Integer);
 begin
   FDropDownItemCount := Max(1, AValue);
   EnsureSelectedVisible;
+  if FDroppedDown then
+    PositionDropDown;
 end;
 
 procedure TNXComboBox.SetDroppedDown(AValue: Boolean);
@@ -176,6 +192,8 @@ begin
   FDroppedDown := AValue;
   if FDroppedDown then
   begin
+    EnsureDropDown;
+    SyncDropDownItems;
     EnsureSelectedVisible;
     PositionDropDown;
     Application.Popups.ShowPopup(FDropDown);
@@ -202,44 +220,50 @@ begin
   SelectionChanged;
 end;
 
-procedure TNXComboBox.EnsureSelectedVisible;
+procedure TNXComboBox.ItemsChanged(ASender: TObject);
 var
-  lVisibleCount: Integer;
+  lOldSelectedIndex: Integer;
 begin
-  lVisibleCount := GetVisibleItemCount;
-  if lVisibleCount <= 0 then
-  begin
-    FTopIndex := 0;
-    Exit;
-  end;
+  lOldSelectedIndex := FSelectedIndex;
 
-  if FTopIndex > FItems.Count - lVisibleCount then
-    FTopIndex := Max(0, FItems.Count - lVisibleCount);
+  if FItems.Count = 0 then
+    FSelectedIndex := -1
+  else if FSelectedIndex >= FItems.Count then
+    FSelectedIndex := FItems.Count - 1;
 
-  if FSelectedIndex < 0 then
-    Exit;
+  SyncDropDownItems;
+  EnsureSelectedVisible;
+  if FDroppedDown then
+    PositionDropDown;
 
-  if FSelectedIndex < FTopIndex then
-    FTopIndex := FSelectedIndex
-  else if FSelectedIndex >= FTopIndex + lVisibleCount then
-    FTopIndex := FSelectedIndex - lVisibleCount + 1;
+  if FSelectedIndex <> lOldSelectedIndex then
+    SelectionChanged;
 end;
 
-function TNXComboBox.IndexAtY(AY: Integer): Integer;
+procedure TNXComboBox.SyncDropDownItems;
 var
-  lItemHeight: Integer;
+  lDropDown: TNXComboBoxDropDown;
+  lIndex: Integer;
 begin
-  Result := -1;
-  if AY < Height then
+  if not Assigned(FDropDown) then
     Exit;
 
-  lItemHeight := GetItemHeight;
-  if lItemHeight <= 0 then
-    Exit;
+  lDropDown := TNXComboBoxDropDown(FDropDown);
+  lDropDown.List.Items.Clear;
+  for lIndex := 0 to FItems.Count - 1 do
+    lDropDown.List.Items.AddItem(FItems[lIndex], lIndex);
+  lDropDown.List.SyncSelection(FSelectedIndex);
+end;
 
-  Result := FTopIndex + ((AY - Height) div lItemHeight);
-  if (Result < 0) or (Result >= FItems.Count) then
-    Result := -1;
+procedure TNXComboBox.SyncDropDownSelection;
+begin
+  if Assigned(FDropDown) then
+    TNXComboBoxDropDown(FDropDown).List.SyncSelection(FSelectedIndex);
+end;
+
+procedure TNXComboBox.EnsureSelectedVisible;
+begin
+  SyncDropDownSelection;
 end;
 
 procedure TNXComboBox.Render;
@@ -309,12 +333,38 @@ begin
   end;
 end;
 
+constructor TNXComboBoxDropDownList.Create(const AParent: INXControlParent;
+  AComboBox: TNXComboBox);
+begin
+  inherited Create(AParent);
+  FComboBox := AComboBox;
+  BorderStyle := BS_None;
+  FillStyle := FS_None;
+end;
+
+procedure TNXComboBoxDropDownList.NewSelection(ASelection: TNXListBoxItem);
+begin
+  inherited NewSelection(ASelection);
+  if Assigned(FComboBox) and Assigned(ASelection) then
+  begin
+    FComboBox.SelectedIndex := ASelection.Index;
+    FComboBox.DroppedDown := False;
+  end;
+end;
+
+procedure TNXComboBoxDropDownList.SyncSelection(AIndex: Integer);
+begin
+  SelectItem(Items.ReturnItem(AIndex));
+end;
+
 constructor TNXComboBoxDropDown.Create(const AParent: INXControlParent;
   AComboBox: TNXComboBox);
 begin
   inherited Create(AParent, AComboBox);
   FComboBox := AComboBox;
   BackColor := Skin.TextBackColor;
+  FList := TNXComboBoxDropDownList.Create(Self, AComboBox);
+  FList.BackColor := Skin.TextBackColor;
 end;
 
 procedure TNXComboBoxDropDown.DoClosed;
@@ -324,54 +374,10 @@ begin
     FComboBox.FDroppedDown := False;
 end;
 
-procedure TNXComboBoxDropDown.DoMouseDown(AX, AY: Integer;
-  AButton: TNXMouseButton);
-var
-  lIndex: Integer;
+procedure TNXComboBoxDropDown.SetListBounds;
 begin
-  inherited DoMouseDown(AX, AY, AButton);
-  if (AButton <> mbLeft) or not Assigned(FComboBox) then
-    Exit;
-
-  lIndex := FComboBox.IndexAtY(FComboBox.Height + AY);
-  if lIndex >= 0 then
-    FComboBox.SelectedIndex := lIndex;
-
-  FComboBox.DroppedDown := False;
-end;
-
-procedure TNXComboBoxDropDown.Render;
-var
-  lIndex: Integer;
-  lItemIndex: Integer;
-  lRect: TNXRect;
-  lVisibleCount: Integer;
-begin
-  inherited Render;
-
-  if not Assigned(FComboBox) then
-    Exit;
-
-  lVisibleCount := FComboBox.GetVisibleItemCount;
-  if lVisibleCount <= 0 then
-    Exit;
-
-  for lIndex := 0 to lVisibleCount - 1 do
-  begin
-    lItemIndex := FComboBox.FTopIndex + lIndex;
-    if lItemIndex >= FComboBox.FItems.Count then
-      Break;
-
-    if lItemIndex = FComboBox.FSelectedIndex then
-    begin
-      lRect := MakeNXRect(1, (lIndex * FComboBox.GetItemHeight) + 1,
-        Max(0, Width - 2), Max(0, FComboBox.GetItemHeight - 2));
-      RenderFilledRect(lRect, Skin.SelectedColor);
-    end;
-
-    RenderText(FComboBox.FItems[lItemIndex], cTextPadding,
-      lIndex * FComboBox.GetItemHeight, Align_Left);
-  end;
+  if Assigned(FList) then
+    FList.SetBounds(0, 0, Width, Height);
 end;
 
 procedure TNXComboBox.DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton);

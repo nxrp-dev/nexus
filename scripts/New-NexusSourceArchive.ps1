@@ -19,6 +19,7 @@ if ([string]::IsNullOrWhiteSpace($ArchiveName)) {
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $OutputPath = Join-Path $OutputDirectory $ArchiveName
 $StagePath = Join-Path $env:TEMP ('nexus-source-chatgpt-{0}' -f ([guid]::NewGuid().ToString('N')))
+$ArchiveFileNamePattern = '^nexus-source-chatgpt-\d{8}-\d{6}\.zip$'
 
 $SourceDirectories = @(
   'NexusLib',
@@ -56,6 +57,25 @@ function Copy-SourceFile {
 
   New-Item -ItemType Directory -Force -Path $DestinationDirectory | Out-Null
   Copy-Item -LiteralPath $SourceFile.FullName -Destination $DestinationPath -Force
+}
+
+function Remove-OldArchives {
+  param(
+    [System.IO.FileInfo]$CurrentArchive
+  )
+
+  $OldArchives = Get-ChildItem -LiteralPath $OutputDirectory -File | Where-Object {
+    ($_.Name -match $ArchiveFileNamePattern) -and
+      ($_.FullName -ne $CurrentArchive.FullName)
+  }
+
+  $DeletedCount = 0
+  foreach ($OldArchive in $OldArchives) {
+    Remove-Item -LiteralPath $OldArchive.FullName -Force
+    $DeletedCount++
+  }
+
+  return $DeletedCount
 }
 
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
@@ -97,7 +117,9 @@ finally {
 }
 
 $Archive = Get-Item -LiteralPath $OutputPath
+$OldArchiveCount = Remove-OldArchives -CurrentArchive $Archive
 
 Write-Host ('Created: {0}' -f $Archive.FullName)
 Write-Host ('Size: {0} bytes' -f $Archive.Length)
 Write-Host ('Files: {0}' -f $FileCount)
+Write-Host ('Old archives removed: {0}' -f $OldArchiveCount)

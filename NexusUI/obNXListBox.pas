@@ -6,14 +6,16 @@ interface
 
 uses
   SysUtils,
+  Math,
   fgl,
   tpNXEvents,
   tpNXPlatform,
   obNXControl,
-
-  obNXScrollBar;
+  obNXScrollableControl;
 
 type
+  TNXListBox = class;
+
   TNXListBoxItem = class
   private
     FIndexNo: Integer;
@@ -30,33 +32,38 @@ type
   TNXListBoxItemListBase = specialize TFPGObjectList<TNXListBoxItem>;
 
   TNXListBoxItemList = class(TNXListBoxItemListBase)
+  private
+    FOwner: TNXListBox;
+    procedure NotifyOwnerContentChanged;
   protected
     function GetSelectedItem: TNXListBoxItem;
   public
+    function Add(const AItem: TNXListBoxItem): Integer;
     procedure AddItem(const AStr: string; AIndex: Integer);
+    procedure Clear;
+    procedure Delete(AIndex: Integer);
     function ReturnItem(AItemIndex: Integer): TNXListBoxItem;
 
     property SelectedItem: TNXListBoxItem read GetSelectedItem;
   end;
 
-  TNXListBox = class(TNXControl)
+  TNXListBox = class(TNXScrollableControl)
   private
     FItems: TNXListBoxItemList;
-    FListCount: Integer;
-    FItemsToShow: Integer;
-    FScrollbar: TNXScrollBar;
   protected
+    procedure EnsureItemVisible(AItem: TNXListBoxItem); virtual;
+    function GetItemHeight: Integer; virtual;
     function GetSelectedItem: TNXListBoxItem;
+    procedure MeasureContent; override;
+    procedure RenderViewport; override;
     procedure SelectItem(AItem: TNXListBoxItem);
-    procedure UpdateItemsToShow;
+    procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
+    procedure DoMouseDown(X, Y: integer; Button: TNXMouseButton); override;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
     destructor Destroy; override;
     procedure Render; override;
     procedure ctrl_FontChanged; override;
-    procedure DoResize; override;
-    procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
-    procedure DoMouseDown(X, Y: integer; Button: TNXMouseButton); override;
     procedure ctrl_NewSelection(Selection: TNXListBoxItem); virtual;
     procedure NewSelection(Selection: TNXListBoxItem); virtual;
 
@@ -87,6 +94,18 @@ begin
   end;
 end;
 
+procedure TNXListBoxItemList.NotifyOwnerContentChanged;
+begin
+  if Assigned(FOwner) then
+    FOwner.InvalidateContentSize;
+end;
+
+function TNXListBoxItemList.Add(const AItem: TNXListBoxItem): Integer;
+begin
+  Result := inherited Add(AItem);
+  NotifyOwnerContentChanged;
+end;
+
 procedure TNXListBoxItemList.AddItem(const AStr: string; AIndex: Integer);
 var
   lItem: TNXListBoxItem;
@@ -95,6 +114,18 @@ begin
   lItem.Str := AStr;
   lItem.Index := AIndex;
   Add(lItem);
+end;
+
+procedure TNXListBoxItemList.Clear;
+begin
+  inherited Clear;
+  NotifyOwnerContentChanged;
+end;
+
+procedure TNXListBoxItemList.Delete(AIndex: Integer);
+begin
+  inherited Delete(AIndex);
+  NotifyOwnerContentChanged;
 end;
 
 function TNXListBoxItemList.ReturnItem(AItemIndex: Integer): TNXListBoxItem;
@@ -119,10 +150,7 @@ begin
   BorderStyle := BS_Single;
   CanFocus := True;
   FItems := TNXListBoxItemList.Create(True);
-  FScrollbar := TNXScrollBar.Create(Self);
-  FScrollbar.Min := 0;
-  FScrollbar.Dir := DIR_VERTICAL;
-  FScrollbar.AutoAlign := True;
+  FItems.FOwner := Self;
 end;
 
 destructor TNXListBox.Destroy;
@@ -134,80 +162,97 @@ end;
 procedure TNXListBox.ctrl_FontChanged;
 begin
   inherited;
-  UpdateItemsToShow;
+  InvalidateContentSize;
 end;
 
-procedure TNXListBox.UpdateItemsToShow;
+function TNXListBox.GetItemHeight: Integer;
 begin
-  if (Font <> nil) and (FontLineSkip <> 0) then
-  begin
-    FItemsToShow := (Height div FontLineSkip);
-  end
+  if FontLineSkip > 0 then
+    Result := FontLineSkip
   else
-    FItemsToShow := 0;
+    Result := Max(1, GUI_TitleBarHeight);
 end;
 
-procedure TNXListBox.DoResize;
+procedure TNXListBox.EnsureItemVisible(AItem: TNXListBoxItem);
+var
+  lIndex: Integer;
+  lItemBottom: Integer;
+  lItemHeight: Integer;
+  lItemTop: Integer;
 begin
-  inherited;
-  UpdateItemsToShow;
+  if not Assigned(AItem) then
+    Exit;
+
+  UpdateLayoutIfNeeded;
+  lIndex := Items.IndexOf(AItem);
+  if lIndex < 0 then
+    Exit;
+
+  lItemHeight := GetItemHeight;
+  lItemTop := lIndex * lItemHeight;
+  lItemBottom := lItemTop + lItemHeight;
+
+  if lItemTop < ScrollY then
+    ScrollY := lItemTop
+  else if lItemBottom > ScrollY + ViewportHeight then
+    ScrollY := lItemBottom - ViewportHeight;
 end;
 
 procedure TNXListBox.Render;
-var
-  lCount: Integer;
-  lIndex: Integer;
-  lItemIndex: Integer;
-  lMaxScroll: Integer;
-  lItem: TNXListBoxItem;
-  lRect: TNXRect;
 begin
-  UpdateItemsToShow;
-
   if IsFocused then
     CurBorderColor := Skin.ForeColor
   else
     CurBorderColor := BorderColor;
   inherited;
+end;
 
-  lCount := Items.Count;
-  if lCount <> FListCount then
-  begin
-    FListCount := lCount;
-    lMaxScroll := lCount - FItemsToShow;
-    if lMaxScroll > 0 then
-    begin
-      FScrollbar.Max := lMaxScroll;
-      FScrollbar.Visible := True;
-    end
-    else
-    begin
-      FScrollbar.Value := 0;
-      FScrollbar.Max := 0;
-      FScrollbar.Visible := False;
-    end;
-  end;
+procedure TNXListBox.MeasureContent;
+begin
+  ContentWidth := 0;
+  ContentHeight := Items.Count * GetItemHeight;
+end;
 
-  lIndex := 0;
-  lItemIndex := FScrollbar.Value;
-  while (lIndex < FItemsToShow) and (lItemIndex < Items.Count) do
+procedure TNXListBox.RenderViewport;
+var
+  lDrawIndex: Integer;
+  lFirstItemIndex: Integer;
+  lItem: TNXListBoxItem;
+  lItemHeight: Integer;
+  lItemIndex: Integer;
+  lRect: TNXRect;
+  lViewportRect: TNXRect;
+begin
+  lItemHeight := GetItemHeight;
+  if lItemHeight <= 0 then
+    Exit;
+
+  lViewportRect := ScrollableViewportRect;
+  lFirstItemIndex := Max(0, ScrollY div lItemHeight);
+  lDrawIndex := 0;
+  lItemIndex := lFirstItemIndex;
+
+  while (lItemIndex < Items.Count) and
+    (lDrawIndex * lItemHeight - (ScrollY mod lItemHeight) < lViewportRect.h) do
   begin
     lItem := Items[lItemIndex];
+    lRect.x := lViewportRect.x;
+    lRect.w := lViewportRect.w;
+    lRect.y := lViewportRect.y + (lDrawIndex * lItemHeight) -
+      (ScrollY mod lItemHeight);
+    lRect.h := lItemHeight;
+
     if lItem.Selected then
     begin
-      lRect.x := 1;
-      lRect.w := Width - 2;
-      lRect.y := lIndex * FontLineSkip + 1;
-      lRect.h := FontLineSkip - 2;
-
       if IsFocused then
         RenderFilledRect(lRect, Skin.SelectedColor)
       else
         RenderFilledRect(lRect, Skin.TextBackColor);
     end;
-    RenderText(lItem.Str, 3, lIndex * FontLineSkip, Align_Left);
+
+    RenderText(lItem.Str, lRect.x + 2, lRect.y, Align_Left);
     Inc(lItemIndex);
-    Inc(lIndex);
+    Inc(lDrawIndex);
   end;
 end;
 
@@ -217,6 +262,7 @@ var
   lIndex: Integer;
 begin
   inherited DoKeyDown(AEvent);
+  UpdateLayoutIfNeeded;
 
   lItem := Items.SelectedItem;
   lIndex := Items.IndexOf(lItem);
@@ -244,19 +290,28 @@ end;
 
 procedure TNXListBox.DoMouseDown(X, Y: integer; Button: TNXMouseButton);
 var
+  lContentY: Integer;
   lItemIndex: Integer;
+  lItemHeight: Integer;
   lItem: TNXListBoxItem;
+  lViewportRect: TNXRect;
 begin
   inherited;
   if Button <> mbLeft then
     Exit;
 
-  UpdateItemsToShow;
-
-  if FontLineSkip = 0 then
+  UpdateLayoutIfNeeded;
+  lItemHeight := GetItemHeight;
+  if lItemHeight <= 0 then
     Exit;
 
-  lItemIndex := FScrollbar.Value + (Y div FontLineSkip);
+  lViewportRect := ScrollableViewportRect;
+  if (X < lViewportRect.x) or (X >= lViewportRect.x + lViewportRect.w) or
+    (Y < lViewportRect.y) or (Y >= lViewportRect.y + lViewportRect.h) then
+    Exit;
+
+  lContentY := Y - lViewportRect.y + ScrollY;
+  lItemIndex := lContentY div lItemHeight;
   if (lItemIndex >= 0) and (lItemIndex < Items.Count) then
   begin
     lItem := Items[lItemIndex];
@@ -286,6 +341,7 @@ var
 begin
   for lIndex := 0 to Items.Count - 1 do
     Items[lIndex].Selected := Items[lIndex] = AItem;
+  EnsureItemVisible(AItem);
 end;
 
 end.

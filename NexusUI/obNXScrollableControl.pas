@@ -32,6 +32,7 @@ type
     procedure SyncScrollBarValue(AScrollBar: TNXScrollBar; AValue: Integer);
   protected
     procedure BeginScrollBarUpdate(var AWasUpdating: Boolean); virtual;
+    procedure DoResize; override;
     procedure DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); override;
     procedure EndScrollBarUpdate(AWasUpdating: Boolean); virtual;
     function GetAbsScrollableViewportRect: TNXRect; virtual;
@@ -103,6 +104,12 @@ end;
 procedure TNXScrollableControl.EndScrollBarUpdate(AWasUpdating: Boolean);
 begin
   FUpdatingScrollBars := AWasUpdating;
+end;
+
+procedure TNXScrollableControl.DoResize;
+begin
+  inherited DoResize;
+  InvalidateScrollMetrics;
 end;
 
 function TNXScrollableControl.GetMaxScrollX: Integer;

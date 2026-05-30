@@ -13,9 +13,10 @@ uses
   tpNXPlatform,
   obNXControl,
 
-  obNXScrollBar;
+  obNXScrollableControl;
 
 type
+  TNXTreeList = class;
   TNXTreeListNode = class;
   TNXTreeListNodeListBase = specialize TFPGObjectList<TNXTreeListNode>;
   TNXTreeListVisibleNodeListBase = specialize TFPGList<TNXTreeListNode>;
@@ -26,13 +27,16 @@ type
     FChildren: TNXTreeListNodeListBase;
     FData: Pointer;
     FExpanded: Boolean;
+    FOwner: TNXTreeList;
     FParent: TNXTreeListNode;
     FSelected: Boolean;
 
     function GetChildCount: Integer;
     function GetChild(AIndex: Integer): TNXTreeListNode;
     function GetLevel: Integer;
+    procedure InvalidateOwnerContentSize;
     procedure SetExpanded(AValue: Boolean);
+    procedure SetOwner(AOwner: TNXTreeList);
   public
     constructor Create(const ACaption: string; AData: Pointer = nil); virtual;
     destructor Destroy; override;
@@ -53,8 +57,14 @@ type
   end;
 
   TNXTreeListRootList = class(TNXTreeListNodeListBase)
+  private
+    FOwner: TNXTreeList;
+    procedure NotifyOwnerContentChanged;
   public
+    function Add(const ANode: TNXTreeListNode): Integer;
     function AddNode(const ACaption: string; AData: Pointer = nil): TNXTreeListNode;
+    procedure Clear;
+    procedure Delete(AIndex: Integer);
   end;
 
   TNXTreeListVisibleNodeList = class(TNXTreeListVisibleNodeListBase)
@@ -62,14 +72,13 @@ type
 
   TNXTreeListNodeEvent = procedure(Sender: TObject; ANode: TNXTreeListNode) of object;
 
-  TNXTreeList = class(TNXControl)
+  TNXTreeList = class(TNXScrollableControl)
   private
     FIndentWidth: Integer;
     FOnChange: TNXTreeListNodeEvent;
     FOnCollapsed: TNXTreeListNodeEvent;
     FOnExpanded: TNXTreeListNodeEvent;
     FRootNodes: TNXTreeListRootList;
-    FScrollbar: TNXScrollBar;
     FSelectedNode: TNXTreeListNode;
     FVisibleNodes: TNXTreeListVisibleNodeList;
 
@@ -81,21 +90,21 @@ type
     procedure AddVisibleNodes(ANodes: TNXTreeListNodeListBase); virtual;
     procedure CollapseNode(ANode: TNXTreeListNode); virtual;
     procedure DrawExpandGlyph(ANode: TNXTreeListNode; const ARect: TNXRect); virtual;
-    procedure DrawNode(ANode: TNXTreeListNode; ADrawIndex: Integer); virtual;
+    procedure DrawNode(ANode: TNXTreeListNode; const ANodeRect: TNXRect); virtual;
     procedure EnsureSelectedVisible; virtual;
     procedure ExpandNode(ANode: TNXTreeListNode); virtual;
     function GetNodeAtY(AY: Integer): TNXTreeListNode; virtual;
-    function GetNodeGlyphRect(ANode: TNXTreeListNode; ADrawIndex: Integer): TNXRect; virtual;
+    function GetNodeGlyphRect(ANode: TNXTreeListNode; const ANodeRect: TNXRect): TNXRect; virtual;
     function GetNodeTextX(ANode: TNXTreeListNode): Integer; virtual;
+    procedure MeasureContent; override;
     procedure RebuildVisibleNodes; virtual;
+    procedure RenderViewport; override;
     procedure SelectNode(ANode: TNXTreeListNode); virtual;
     procedure ToggleNode(ANode: TNXTreeListNode); virtual;
-    procedure UpdateScrollBar; virtual;
 
     procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
     procedure DoMouseDoubleClick(AX, AY: Integer; AButton: TNXMouseButton); override;
     procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
-    procedure RenderClient; override;
   public
     constructor Create(const AParent: INXControlParent); override;
     destructor Destroy; override;
@@ -143,12 +152,15 @@ function TNXTreeListNode.AddChild(const ACaption: string; AData: Pointer): TNXTr
 begin
   Result := TNXTreeListNode.Create(ACaption, AData);
   Result.FParent := Self;
+  Result.SetOwner(FOwner);
   FChildren.Add(Result);
+  InvalidateOwnerContentSize;
 end;
 
 procedure TNXTreeListNode.Clear;
 begin
   FChildren.Clear;
+  InvalidateOwnerContentSize;
 end;
 
 function TNXTreeListNode.Contains(ANode: TNXTreeListNode): Boolean;
@@ -200,12 +212,43 @@ begin
   Result := FChildren.Count > 0;
 end;
 
+procedure TNXTreeListNode.InvalidateOwnerContentSize;
+begin
+  if Assigned(FOwner) then
+    FOwner.InvalidateContentSize;
+end;
+
 procedure TNXTreeListNode.SetExpanded(AValue: Boolean);
 begin
   if FExpanded = AValue then
     Exit;
 
   FExpanded := AValue;
+  InvalidateOwnerContentSize;
+end;
+
+procedure TNXTreeListNode.SetOwner(AOwner: TNXTreeList);
+var
+  lIndex: Integer;
+begin
+  FOwner := AOwner;
+  for lIndex := 0 to ChildCount - 1 do
+    Child[lIndex].SetOwner(AOwner);
+end;
+
+procedure TNXTreeListRootList.NotifyOwnerContentChanged;
+begin
+  if Assigned(FOwner) then
+    FOwner.InvalidateContentSize;
+end;
+
+function TNXTreeListRootList.Add(const ANode: TNXTreeListNode): Integer;
+begin
+  if Assigned(ANode) then
+    ANode.SetOwner(FOwner);
+
+  Result := inherited Add(ANode);
+  NotifyOwnerContentChanged;
 end;
 
 function TNXTreeListRootList.AddNode(const ACaption: string; AData: Pointer): TNXTreeListNode;
@@ -214,27 +257,29 @@ begin
   Add(Result);
 end;
 
+procedure TNXTreeListRootList.Clear;
+begin
+  inherited Clear;
+  NotifyOwnerContentChanged;
+end;
+
+procedure TNXTreeListRootList.Delete(AIndex: Integer);
+begin
+  inherited Delete(AIndex);
+  NotifyOwnerContentChanged;
+end;
+
 constructor TNXTreeList.Create(const AParent: INXControlParent);
 begin
-  inherited Create(nil);
+  inherited Create(AParent);
   BorderStyle := BS_Single;
   FillStyle := FS_Filled;
   CanFocus := True;
   FIndentWidth := cDefaultIndentWidth;
   FRootNodes := TNXTreeListRootList.Create(True);
+  FRootNodes.FOwner := Self;
   FVisibleNodes := TNXTreeListVisibleNodeList.Create;
   FSelectedNode := nil;
-  FScrollbar := TNXScrollBar.Create(Self);
-  with FScrollbar do
-  begin
-    Min := 0;
-    Max := 0;
-    Value := 0;
-    Dir := Dir_Vertical;
-    AutoAlign := True;
-    Visible := False;
-  end;
-  AttachToParent(AParent);
 end;
 
 destructor TNXTreeList.Destroy;
@@ -250,9 +295,6 @@ begin
     Result := AParentNode.AddChild(ACaption, AData)
   else
     Result := FRootNodes.AddNode(ACaption, AData);
-
-  RebuildVisibleNodes;
-  UpdateScrollBar;
 end;
 
 function TNXTreeList.AddNode(const ACaption: string; AData: Pointer): TNXTreeListNode;
@@ -279,7 +321,7 @@ begin
   FSelectedNode := nil;
   FRootNodes.Clear;
   FVisibleNodes.Clear;
-  UpdateScrollBar;
+  ScrollY := 0;
 end;
 
 procedure TNXTreeList.CollapseAll;
@@ -299,9 +341,7 @@ begin
   for lIndex := 0 to FRootNodes.Count - 1 do
     CollapseChildren(FRootNodes[lIndex]);
 
-  RebuildVisibleNodes;
   EnsureSelectedVisible;
-  UpdateScrollBar;
 end;
 
 procedure TNXTreeList.ExpandAll;
@@ -322,9 +362,7 @@ begin
   for lIndex := 0 to FRootNodes.Count - 1 do
     ExpandChildren(FRootNodes[lIndex]);
 
-  RebuildVisibleNodes;
   EnsureSelectedVisible;
-  UpdateScrollBar;
 end;
 
 procedure TNXTreeList.CollapseNode(ANode: TNXTreeListNode);
@@ -338,9 +376,7 @@ begin
   ANode.Expanded := False;
   if ANode.Contains(FSelectedNode) and (ANode <> FSelectedNode) then
     SelectNode(ANode);
-  RebuildVisibleNodes;
   EnsureSelectedVisible;
-  UpdateScrollBar;
 
   if Assigned(FOnCollapsed) then
     FOnCollapsed(Self, ANode);
@@ -358,9 +394,7 @@ begin
     Exit;
 
   ANode.Expanded := True;
-  RebuildVisibleNodes;
   EnsureSelectedVisible;
-  UpdateScrollBar;
 
   if Assigned(FOnExpanded) then
     FOnExpanded(Self, ANode);
@@ -377,39 +411,50 @@ end;
 function TNXTreeList.GetVisibleItemCount: Integer;
 var
   lItemHeight: Integer;
+  lViewportRect: TNXRect;
 begin
   lItemHeight := GetItemHeight;
   if lItemHeight <= 0 then
     Result := 0
   else
-    Result := Max(0, ContentRect.h div lItemHeight);
+  begin
+    lViewportRect := ScrollableViewportRect;
+    Result := Max(0, (lViewportRect.h + lItemHeight - 1) div lItemHeight);
+  end;
 end;
 
 function TNXTreeList.GetNodeAtY(AY: Integer): TNXTreeListNode;
 var
+  lContentY: Integer;
   lIndex: Integer;
   lItemHeight: Integer;
+  lViewportRect: TNXRect;
 begin
   Result := nil;
+  UpdateLayoutIfNeeded;
+
   lItemHeight := GetItemHeight;
   if lItemHeight <= 0 then
     Exit;
 
-  lIndex := FScrollbar.Value + (AY div lItemHeight);
+  lViewportRect := ScrollableViewportRect;
+  if (AY < lViewportRect.y) or (AY >= lViewportRect.y + lViewportRect.h) then
+    Exit;
+
+  lContentY := AY - lViewportRect.y + ScrollY;
+  lIndex := lContentY div lItemHeight;
   if (lIndex >= 0) and (lIndex < FVisibleNodes.Count) then
     Result := FVisibleNodes[lIndex];
 end;
 
-function TNXTreeList.GetNodeGlyphRect(ANode: TNXTreeListNode; ADrawIndex: Integer): TNXRect;
+function TNXTreeList.GetNodeGlyphRect(ANode: TNXTreeListNode;
+  const ANodeRect: TNXRect): TNXRect;
 var
-  lItemHeight: Integer;
   lLeft: Integer;
   lTop: Integer;
 begin
-  lItemHeight := GetItemHeight;
-  lLeft := GetBorderThickness + (ANode.Level * FIndentWidth) + cTextPadding;
-  lTop := GetBorderThickness + (ADrawIndex * lItemHeight) +
-    ((lItemHeight - cGlyphSize) div 2);
+  lLeft := ANodeRect.x + (ANode.Level * FIndentWidth) + cTextPadding;
+  lTop := ANodeRect.y + ((ANodeRect.h - cGlyphSize) div 2);
   Result := MakeNXRect(lLeft, lTop, cGlyphSize, cGlyphSize);
 end;
 
@@ -435,37 +480,30 @@ begin
     RenderLine(lCenterX, ARect.y + 2, lCenterX, ARect.y + ARect.h - 3, ForeColor);
 end;
 
-procedure TNXTreeList.DrawNode(ANode: TNXTreeListNode; ADrawIndex: Integer);
+procedure TNXTreeList.DrawNode(ANode: TNXTreeListNode; const ANodeRect: TNXRect);
 var
   lGlyphRect: TNXRect;
-  lItemHeight: Integer;
-  lNodeRect: TNXRect;
   lTextClip: TNXRect;
+  lTextX: Integer;
 begin
   if not Assigned(ANode) then
     Exit;
 
-  lItemHeight := GetItemHeight;
-  lNodeRect := MakeNXRect(GetBorderThickness,
-    GetBorderThickness + (ADrawIndex * lItemHeight),
-    Max(0, Width - (GetBorderThickness * 2) - IfThen(FScrollbar.Visible, GUI_ScrollbarSize + 4, 0)),
-    lItemHeight);
-
   if ANode = FSelectedNode then
     if IsFocused then
-      RenderFilledRect(lNodeRect, Skin.SelectedColor)
+      RenderFilledRect(ANodeRect, Skin.SelectedColor)
     else
-      RenderFilledRect(lNodeRect, Skin.TextBackColor);
+      RenderFilledRect(ANodeRect, Skin.TextBackColor);
 
-  lGlyphRect := GetNodeGlyphRect(ANode, ADrawIndex);
+  lGlyphRect := GetNodeGlyphRect(ANode, ANodeRect);
   DrawExpandGlyph(ANode, lGlyphRect);
 
-  lTextClip := LocalRectToAbs(MakeNXRect(GetNodeTextX(ANode), lNodeRect.y,
-    Max(0, lNodeRect.w - GetNodeTextX(ANode) - cTextPadding), lItemHeight));
+  lTextX := ANodeRect.x + GetNodeTextX(ANode);
+  lTextClip := LocalRectToAbs(MakeNXRect(lTextX, ANodeRect.y,
+    Max(0, (ANodeRect.x + ANodeRect.w) - lTextX - cTextPadding), ANodeRect.h));
   Canvas.PushClip(lTextClip);
   try
-    RenderText(ANode.Caption, GetNodeTextX(ANode),
-      GetBorderThickness + (ADrawIndex * lItemHeight), Align_Left);
+    RenderText(ANode.Caption, lTextX, ANodeRect.y, Align_Left);
   finally
     Canvas.PopClip;
   end;
@@ -478,7 +516,7 @@ var
 begin
   inherited DoKeyDown(AEvent);
 
-  RebuildVisibleNodes;
+  UpdateLayoutIfNeeded;
   lIndex := FVisibleNodes.IndexOf(FSelectedNode);
 
   case AEvent.Key of
@@ -534,66 +572,88 @@ begin
   if AButton <> mbLeft then
     Exit;
 
-  lNode := GetNodeAtY(AY - GetBorderThickness);
+  lNode := GetNodeAtY(AY);
   if Assigned(lNode) then
     ToggleNode(lNode);
 end;
 
 procedure TNXTreeList.DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton);
 var
-  lDrawIndex: Integer;
   lGlyphRect: TNXRect;
+  lItemHeight: Integer;
   lNode: TNXTreeListNode;
+  lNodeIndex: Integer;
+  lNodeRect: TNXRect;
+  lViewportRect: TNXRect;
 begin
   inherited DoMouseDown(AX, AY, AButton);
   if AButton <> mbLeft then
     Exit;
 
-  RebuildVisibleNodes;
-  lNode := GetNodeAtY(AY - GetBorderThickness);
+  UpdateLayoutIfNeeded;
+  lViewportRect := ScrollableViewportRect;
+  if not NXRectContainsPoint(lViewportRect, AX, AY) then
+    Exit;
+
+  lNode := GetNodeAtY(AY);
   if not Assigned(lNode) then
     Exit;
 
   SelectNode(lNode);
 
-  lDrawIndex := FVisibleNodes.IndexOf(lNode) - FScrollbar.Value;
-  if lDrawIndex < 0 then
+  lItemHeight := GetItemHeight;
+  if lItemHeight <= 0 then
     Exit;
 
-  lGlyphRect := GetNodeGlyphRect(lNode, lDrawIndex);
-  if (AX >= lGlyphRect.x) and (AX < lGlyphRect.x + lGlyphRect.w) and
-    (AY >= lGlyphRect.y) and (AY < lGlyphRect.y + lGlyphRect.h) then
+  lNodeIndex := FVisibleNodes.IndexOf(lNode);
+  if lNodeIndex < 0 then
+    Exit;
+
+  lNodeRect := MakeNXRect(lViewportRect.x,
+    lViewportRect.y + (lNodeIndex * lItemHeight) - ScrollY,
+    lViewportRect.w, lItemHeight);
+  lGlyphRect := GetNodeGlyphRect(lNode, lNodeRect);
+  if NXRectContainsPoint(lGlyphRect, AX, AY) then
     ToggleNode(lNode);
 end;
 
 procedure TNXTreeList.EnsureSelectedVisible;
 var
   lIndex: Integer;
-  lVisibleCount: Integer;
+  lItemBottom: Integer;
+  lItemHeight: Integer;
+  lItemTop: Integer;
+  lViewportRect: TNXRect;
 begin
   if not Assigned(FSelectedNode) then
     Exit;
 
-  RebuildVisibleNodes;
+  UpdateLayoutIfNeeded;
   lIndex := FVisibleNodes.IndexOf(FSelectedNode);
   if lIndex < 0 then
     Exit;
 
-  lVisibleCount := GetVisibleItemCount;
-  if lVisibleCount <= 0 then
+  lItemHeight := GetItemHeight;
+  if lItemHeight <= 0 then
     Exit;
 
-  if lIndex < FScrollbar.Value then
-    FScrollbar.Value := lIndex
-  else if lIndex >= FScrollbar.Value + lVisibleCount then
-    FScrollbar.Value := lIndex - lVisibleCount + 1;
+  lViewportRect := ScrollableViewportRect;
+  if lViewportRect.h <= 0 then
+    Exit;
+
+  lItemTop := lIndex * lItemHeight;
+  lItemBottom := lItemTop + lItemHeight;
+
+  if lItemTop < ScrollY then
+    ScrollY := lItemTop
+  else if lItemBottom > ScrollY + lViewportRect.h then
+    ScrollY := lItemBottom - lViewportRect.h;
 end;
 
 procedure TNXTreeList.NodeChanged(ANode: TNXTreeListNode);
 begin
-  RebuildVisibleNodes;
+  InvalidateContentSize;
   EnsureSelectedVisible;
-  UpdateScrollBar;
 end;
 
 procedure TNXTreeList.RebuildVisibleNodes;
@@ -602,24 +662,36 @@ begin
   AddVisibleNodes(FRootNodes);
 end;
 
-procedure TNXTreeList.RenderClient;
-var
-  lDrawIndex: Integer;
-  lNodeIndex: Integer;
-  lVisibleCount: Integer;
+procedure TNXTreeList.MeasureContent;
 begin
   RebuildVisibleNodes;
-  UpdateScrollBar;
+  ContentWidth := 0;
+  ContentHeight := FVisibleNodes.Count * GetItemHeight;
+end;
 
-  lVisibleCount := GetVisibleItemCount;
-  lNodeIndex := FScrollbar.Value;
-  lDrawIndex := 0;
+procedure TNXTreeList.RenderViewport;
+var
+  lItemHeight: Integer;
+  lNodeRect: TNXRect;
+  lNodeIndex: Integer;
+  lNodeTop: Integer;
+  lViewportRect: TNXRect;
+begin
+  lItemHeight := GetItemHeight;
+  if lItemHeight <= 0 then
+    Exit;
 
-  while (lDrawIndex < lVisibleCount) and (lNodeIndex < FVisibleNodes.Count) do
+  lViewportRect := ScrollableViewportRect;
+  lNodeIndex := Max(0, ScrollY div lItemHeight);
+  lNodeTop := lViewportRect.y - (ScrollY mod lItemHeight);
+
+  while (lNodeIndex < FVisibleNodes.Count) and (lNodeTop < lViewportRect.y + lViewportRect.h) do
   begin
-    DrawNode(FVisibleNodes[lNodeIndex], lDrawIndex);
-    Inc(lDrawIndex);
+    lNodeRect := MakeNXRect(lViewportRect.x, lNodeTop, lViewportRect.w,
+      lItemHeight);
+    DrawNode(FVisibleNodes[lNodeIndex], lNodeRect);
     Inc(lNodeIndex);
+    Inc(lNodeTop, lItemHeight);
   end;
 end;
 
@@ -630,7 +702,12 @@ end;
 
 procedure TNXTreeList.SetIndentWidth(AValue: Integer);
 begin
-  FIndentWidth := Max(4, AValue);
+  AValue := Max(4, AValue);
+  if FIndentWidth = AValue then
+    Exit;
+
+  FIndentWidth := AValue;
+  InvalidateContentSize;
 end;
 
 procedure TNXTreeList.SetSelectedNode(AValue: TNXTreeListNode);
@@ -661,20 +738,6 @@ begin
     CollapseNode(ANode)
   else
     ExpandNode(ANode);
-end;
-
-procedure TNXTreeList.UpdateScrollBar;
-var
-  lMaxValue: Integer;
-  lVisibleCount: Integer;
-begin
-  RebuildVisibleNodes;
-  lVisibleCount := GetVisibleItemCount;
-  lMaxValue := Max(0, FVisibleNodes.Count - lVisibleCount);
-  FScrollbar.Max := lMaxValue;
-  if FScrollbar.Value > lMaxValue then
-    FScrollbar.Value := lMaxValue;
-  FScrollbar.Visible := lMaxValue > 0;
 end;
 
 end.
