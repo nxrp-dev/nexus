@@ -1,5 +1,7 @@
 # Codex Architecture Work Plan: <short title>
 
+Save substantial work plans as Markdown files under `workplans/` and provide a clickable link in chat instead of pasting the full plan inline.
+
 ## Inputs
 
 - Source prompt:

@@ -36,6 +36,8 @@ Whether Codex should:
 
 When a plan is requested, Codex should return a Markdown work plan using `ARCH_WORK_PLAN_TEMPLATE.md` as the default structure.
 
+For substantial architecture work, Codex should save the work plan as a Markdown file, preferably under `workplans/`, and provide a clickable link instead of pasting the full plan inline.
+
 ## Acceptance Criteria
 
 What must be true when done.

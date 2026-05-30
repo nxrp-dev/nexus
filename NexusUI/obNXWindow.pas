@@ -55,6 +55,7 @@ type
     procedure SetMovable(AValue: Boolean);
     procedure SetStartPosition(AValue: TNXWindowStartPosition);
     procedure SetTop(AValue: Integer);
+    procedure SetVisible(AValue: Boolean);
     procedure SetWindowBorderStyle(AValue: TNXWindowBorderStyle);
     procedure SetWidth(AValue: Integer);
   protected
@@ -92,6 +93,7 @@ type
     procedure AddChild(AChild: TNXControl); override;
     procedure BringWindowToFront; virtual;
     procedure ChildDestroying(AChild: TNXControl); override;
+    procedure ChildInputStateChanged(AChild: TNXControl); override;
     procedure ClearChildFocus; override;
     procedure ClearFocus; virtual;
     procedure ClearMouseHover; override;
@@ -108,6 +110,8 @@ type
     procedure FocusChild(AChild: TNXControl); override;
     procedure FocusNextControl(AReverse: Boolean); virtual;
     function InWindow(AX, AY: Integer): Boolean; virtual;
+    function IsChildEffectivelyEnabled(AChild: TNXControl): Boolean; override;
+    function IsChildEffectivelyVisible(AChild: TNXControl): Boolean; override;
     procedure Paint; virtual;
     procedure ProcessKeyDown(const AEvent: TNXKeyEventData); virtual;
     procedure ProcessKeyUp(const AEvent: TNXKeyEventData); virtual;
@@ -148,7 +152,7 @@ type
     property Skin: TNXSkin read GetSkin;
     property StartPosition: TNXWindowStartPosition read FStartPosition write SetStartPosition;
     property Top: Integer read GetTop write SetTop;
-    property Visible: Boolean read FVisible write FVisible;
+    property Visible: Boolean read FVisible write SetVisible;
     property Width: Integer read GetWidth write SetWidth;
   end;
 
@@ -263,7 +267,7 @@ end;
 
 function TNXWindow.AcceptsTabFocus(AControl: TNXControl): Boolean;
 begin
-  Result := Assigned(AControl) and AControl.Visible and AControl.Enabled and
+  Result := Assigned(AControl) and AControl.IsInputEligible and
     AControl.CanFocus and AControl.TabStop;
 end;
 
@@ -277,8 +281,16 @@ procedure TNXWindow.ChildDestroying(AChild: TNXControl);
 begin
   inherited ChildDestroying(AChild);
 
-  if FFocusedControl = AChild then
+  if ControlContains(AChild, FFocusedControl) then
     FFocusedControl := nil;
+end;
+
+procedure TNXWindow.ChildInputStateChanged(AChild: TNXControl);
+begin
+  inherited ChildInputStateChanged(AChild);
+
+  if ControlContains(AChild, FFocusedControl) then
+    SetFocusedControl(nil);
 end;
 
 procedure TNXWindow.ClearChildFocus;
@@ -357,7 +369,7 @@ begin
     for lIndex := 0 to AHost.Children.Count - 1 do
     begin
       lChild := AHost.Children[lIndex];
-      if lChild.Visible and lChild.Enabled then
+      if lChild.IsInputEligible then
         lChildren.Add(lChild);
     end;
 
@@ -545,6 +557,16 @@ begin
   Result := Visible and ContainsScreenPoint(AX, AY);
 end;
 
+function TNXWindow.IsChildEffectivelyEnabled(AChild: TNXControl): Boolean;
+begin
+  Result := True;
+end;
+
+function TNXWindow.IsChildEffectivelyVisible(AChild: TNXControl): Boolean;
+begin
+  Result := Visible;
+end;
+
 procedure TNXWindow.InternalClose;
 begin
   if not FCanClose then
@@ -614,15 +636,13 @@ begin
     Exit;
   end;
 
-  if Assigned(FFocusedControl) and FFocusedControl.Visible and
-    FFocusedControl.Enabled then
+  if Assigned(FFocusedControl) and FFocusedControl.IsInputEligible then
     FFocusedControl.ProcessKeyDown(AEvent);
 end;
 
 procedure TNXWindow.ProcessKeyUp(const AEvent: TNXKeyEventData);
 begin
-  if Assigned(FFocusedControl) and FFocusedControl.Visible and
-    FFocusedControl.Enabled then
+  if Assigned(FFocusedControl) and FFocusedControl.IsInputEligible then
     FFocusedControl.ProcessKeyUp(AEvent);
 end;
 
@@ -651,8 +671,7 @@ end;
 
 procedure TNXWindow.ProcessTextInput(const AText: string);
 begin
-  if Assigned(FFocusedControl) and FFocusedControl.Visible and
-    FFocusedControl.Enabled then
+  if Assigned(FFocusedControl) and FFocusedControl.IsInputEligible then
     FFocusedControl.ProcessTextInput(AText);
 end;
 
@@ -685,7 +704,8 @@ end;
 
 procedure TNXWindow.SetFocusedControl(AControl: TNXControl);
 begin
-  if Assigned(AControl) and ((not AControl.CanFocus) or (not AControl.Enabled)) then
+  if Assigned(AControl) and
+    ((not AControl.CanFocus) or (not AControl.IsInputEligible)) then
     AControl := nil;
 
   if FFocusedControl = AControl then
@@ -733,6 +753,22 @@ end;
 procedure TNXWindow.SetTop(AValue: Integer);
 begin
   FTop := AValue;
+end;
+
+procedure TNXWindow.SetVisible(AValue: Boolean);
+var
+  lIndex: Integer;
+begin
+  if FVisible = AValue then
+    Exit;
+
+  FVisible := AValue;
+  if not FVisible then
+  begin
+    ClearFocus;
+    for lIndex := 0 to Children.Count - 1 do
+      ChildInputStateChanged(Children[lIndex]);
+  end;
 end;
 
 procedure TNXWindow.SetWidth(AValue: Integer);

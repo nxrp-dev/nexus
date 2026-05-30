@@ -10,9 +10,11 @@ uses Classes, SysUtils, Math, fgl, obNXCanvas, obNXFont, obNXPersist,
 type
   TNXControl = class;
   TNXControlList = specialize TFPGObjectList<TNXControl>;
+  TNXHitTestResult = (htNone, htTarget, htBlocked);
   INXControlParent = interface
     procedure AddChild(AChild: TNXControl);
     procedure ChildDestroying(AChild: TNXControl);
+    procedure ChildInputStateChanged(AChild: TNXControl);
     procedure ClearChildFocus;
     procedure FocusChild(AChild: TNXControl);
     procedure FreeChild(AChild: TNXControl);
@@ -30,6 +32,8 @@ type
     function GetHeight: Integer;
     function GetSkin: TNXSkin;
     function GetWidth: Integer;
+    function IsChildEffectivelyEnabled(AChild: TNXControl): Boolean;
+    function IsChildEffectivelyVisible(AChild: TNXControl): Boolean;
     function ContainsScreenPoint(AX, AY: Integer): Boolean;
     function LocalToScreen(AX, AY: Integer): TNXPoint;
     function ScreenToLocal(AX, AY: Integer): TNXPoint;
@@ -64,6 +68,10 @@ type
     function EnsureHoverPath: TList;
     function EnsurePressedPath(AButton: TNXMouseButton): TList;
     function FocusableControlFromPath(APath: TList): TNXControl;
+    function PathContainsControl(APath: TList; AControl: TNXControl): Boolean;
+    procedure ClearInteractionStateFor(AControl: TNXControl;
+      ANotifyHoverExit: Boolean);
+    procedure ClearLocalInputStateFor(AControl: TNXControl);
     procedure ClearPressedPath(AButton: TNXMouseButton);
     procedure DeliverMouseDownPath(APath: TList; AX, AY: Integer;
       AButton: TNXMouseButton);
@@ -97,17 +105,20 @@ type
     function GetHeight: Integer; virtual; abstract;
     function GetSkin: TNXSkin; virtual; abstract;
     function GetWidth: Integer; virtual; abstract;
+    function ControlContains(AParent, AControl: TNXControl): Boolean; virtual;
     function HitTestChildren: Boolean; virtual;
     function HitTestChildrenScreen(AX, AY: Integer; const AClipRect: TNXRect;
-      APath: TList): TNXControl; virtual;
+      APath: TList): TNXHitTestResult; virtual;
     function HitTestSelf(AX, AY: Integer): Boolean; virtual;
   public
     constructor Create; override;
     destructor Destroy; override;
 
     procedure AddChild(AChild: TNXControl); virtual;
-    procedure BuildHitPathScreen(AX, AY: Integer; APath: TList); virtual;
+    function BuildHitPathScreen(AX, AY: Integer;
+      APath: TList): TNXHitTestResult; virtual;
     procedure ChildDestroying(AChild: TNXControl); virtual;
+    procedure ChildInputStateChanged(AChild: TNXControl); virtual;
     procedure ClearMouseHover; virtual;
     procedure ClearChildFocus; virtual;
     function ContainsLocalPoint(AX, AY: Integer): Boolean; virtual;
@@ -124,6 +135,8 @@ type
     procedure FreeChild(AChild: TNXControl); virtual;
     function HasPressedControl(AButton: TNXMouseButton): Boolean; virtual;
     function HitTestScreen(AX, AY: Integer): TNXControl; virtual;
+    function IsChildEffectivelyEnabled(AChild: TNXControl): Boolean; virtual;
+    function IsChildEffectivelyVisible(AChild: TNXControl): Boolean; virtual;
     procedure LayoutChildren; virtual;
     function LocalToScreen(AX, AY: Integer): TNXPoint; virtual;
     function ScreenToLocal(AX, AY: Integer): TNXPoint; virtual;
@@ -193,7 +206,9 @@ type
     procedure SetHeight(AHeight: integer); virtual;
     procedure SetAlign(AValue: TNXControlAlign); virtual;
     procedure SetAnchors(AValue: TNXControlAnchors); virtual;
+    procedure SetEnabled(AValue: Boolean); virtual;
     procedure SetFocused(AValue: Boolean); virtual;
+    procedure SetVisible(AValue: Boolean); virtual;
     procedure PropagateParentContext; virtual;
     procedure AttachToParent(const AParent: INXControlParent); virtual;
     procedure BringToFront; virtual;
@@ -257,6 +272,7 @@ type
   public
     procedure SetParent(const AParent: INXControlParent); virtual;
     procedure ChildDestroying(AChild: TNXControl); override;
+    procedure ChildInputStateChanged(AChild: TNXControl); override;
     procedure Focus; virtual;
     procedure FocusChild(AChild: TNXControl); override;
     procedure SetBounds(ALeft, ATop, AWidth, AHeight: Integer); virtual;
@@ -284,6 +300,11 @@ type
     procedure ProcessKeyDown(const AEvent: TNXKeyEventData); virtual;
     procedure ProcessKeyUp(const AEvent: TNXKeyEventData); virtual;
     procedure ProcessResize; virtual;
+    function IsChildEffectivelyEnabled(AChild: TNXControl): Boolean; override;
+    function IsChildEffectivelyVisible(AChild: TNXControl): Boolean; override;
+    function IsEffectivelyEnabled: Boolean; virtual;
+    function IsEffectivelyVisible: Boolean; virtual;
+    function IsInputEligible: Boolean; virtual;
 
     property AbsLeft: Integer read GetAbsLeft;
     property AbsBoundsRect: TNXRect read GetAbsBoundsRect;
@@ -301,7 +322,7 @@ type
     property Children: TNXControlList read GetChildren;
     property ClientRect: TNXRect read GetClientRect;
     property ContentRect: TNXRect read GetContentRect;
-    property Enabled: Boolean read FEnabled write FEnabled;
+    property Enabled: Boolean read FEnabled write SetEnabled;
     property FillStyle: TFillStyle read FFillStyle write FFillStyle;
     property Font: TNXFont read GetFont write SetFont;
     property FontForChildren: TNXFont read GetFontForChildren;
@@ -332,7 +353,7 @@ type
     property SkinClass: string read FSkinClass write FSkinClass;
     property TabStop: Boolean read FTabStop write FTabStop;
     property Top: Integer read GetTop write SetTop;
-    property Visible: Boolean read FVisible write FVisible;
+    property Visible: Boolean read FVisible write SetVisible;
     property Width: Integer read FWidth write SetWidth;
   end;
 
@@ -383,13 +404,99 @@ begin
   for lIndex := APath.Count - 1 downto 0 do
   begin
     lControl := TNXControl(APath[lIndex]);
-    if Assigned(lControl) and lControl.Visible and lControl.Enabled and
+    if Assigned(lControl) and lControl.IsInputEligible and
       lControl.CanFocus then
     begin
       Result := lControl;
       Exit;
     end;
   end;
+end;
+
+function TNXControlHost.PathContainsControl(APath: TList;
+  AControl: TNXControl): Boolean;
+var
+  lIndex: Integer;
+begin
+  Result := False;
+  if (not Assigned(APath)) or (not Assigned(AControl)) then
+    Exit;
+
+  for lIndex := 0 to APath.Count - 1 do
+  begin
+    if ControlContains(AControl, TNXControl(APath[lIndex])) then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+procedure TNXControlHost.ClearInteractionStateFor(AControl: TNXControl;
+  ANotifyHoverExit: Boolean);
+var
+  lButton: TNXMouseButton;
+  lHoverIndex: Integer;
+  lIndex: Integer;
+begin
+  if not Assigned(AControl) then
+    Exit;
+
+  if ANotifyHoverExit then
+    ClearLocalInputStateFor(AControl);
+
+  if Assigned(FHoverPath) then
+  begin
+    lHoverIndex := -1;
+    for lIndex := 0 to FHoverPath.Count - 1 do
+    begin
+      if ControlContains(AControl, TNXControl(FHoverPath[lIndex])) then
+      begin
+        lHoverIndex := lIndex;
+        Break;
+      end;
+    end;
+
+    if (lHoverIndex >= 0) and (lHoverIndex < FHoverPath.Count) then
+    begin
+      if ANotifyHoverExit then
+        while FHoverPath.Count > lHoverIndex do
+        begin
+          TNXControl(FHoverPath[FHoverPath.Count - 1]).ProcessMouseExit;
+          FHoverPath.Delete(FHoverPath.Count - 1);
+        end
+      else
+        while FHoverPath.Count > lHoverIndex do
+          FHoverPath.Delete(FHoverPath.Count - 1);
+    end;
+  end;
+
+  for lButton := Low(TNXMouseButton) to High(TNXMouseButton) do
+  begin
+    if ControlContains(AControl, FPressedControls[lButton]) then
+      FPressedControls[lButton] := nil;
+
+    if PathContainsControl(FPressedPaths[lButton], AControl) then
+      ClearPressedPath(lButton);
+  end;
+
+  if ControlContains(AControl, GCapturedMouseControl) then
+    GCapturedMouseControl := nil;
+end;
+
+procedure TNXControlHost.ClearLocalInputStateFor(AControl: TNXControl);
+var
+  lIndex: Integer;
+begin
+  if not Assigned(AControl) then
+    Exit;
+
+  AControl.ButtonStates := [];
+  if AControl.IsFocused then
+    AControl.IsFocused := False;
+
+  for lIndex := 0 to AControl.Children.Count - 1 do
+    ClearLocalInputStateFor(AControl.Children[lIndex]);
 end;
 
 procedure TNXControlHost.ClearPressedPath(AButton: TNXMouseButton);
@@ -585,29 +692,13 @@ begin
 end;
 
 procedure TNXControlHost.ChildDestroying(AChild: TNXControl);
-var
-  lButton: TNXMouseButton;
-  lHoverIndex: Integer;
 begin
-  if not Assigned(AChild) then
-    Exit;
+  ClearInteractionStateFor(AChild, False);
+end;
 
-  if Assigned(FHoverPath) then
-  begin
-    lHoverIndex := FHoverPath.IndexOf(AChild);
-    while (lHoverIndex >= 0) and (FHoverPath.Count > lHoverIndex) do
-      FHoverPath.Delete(FHoverPath.Count - 1);
-  end;
-
-  for lButton := Low(TNXMouseButton) to High(TNXMouseButton) do
-  begin
-    if FPressedControls[lButton] = AChild then
-      FPressedControls[lButton] := nil;
-
-    if Assigned(FPressedPaths[lButton]) and
-      (FPressedPaths[lButton].IndexOf(AChild) >= 0) then
-      ClearPressedPath(lButton);
-  end;
+procedure TNXControlHost.ChildInputStateChanged(AChild: TNXControl);
+begin
+  ClearInteractionStateFor(AChild, True);
 end;
 
 function TNXControlHost.GetAbsChildClipRect: TNXRect;
@@ -660,14 +751,17 @@ begin
   Result := ContainsLocalPoint(lPoint.x, lPoint.y);
 end;
 
-procedure TNXControlHost.BuildHitPathScreen(AX, AY: Integer; APath: TList);
+function TNXControlHost.BuildHitPathScreen(AX, AY: Integer;
+  APath: TList): TNXHitTestResult;
 var
   lChildClipRect: TNXRect;
   lControl: TNXControl;
+  lHitResult: TNXHitTestResult;
   lHitRect: TNXRect;
   lLocalPoint: TNXPoint;
   lPathCount: Integer;
 begin
+  Result := htNone;
   if not Assigned(APath) then
     Exit;
 
@@ -676,9 +770,15 @@ begin
   if Self is TNXControl then
   begin
     lControl := TNXControl(Self);
-    if (not lControl.Visible) or
+    if (not lControl.IsEffectivelyVisible) or
       (not NXRectContainsPoint(lControl.AbsEffectiveHitRect, AX, AY)) then
       Exit;
+
+    if not lControl.IsEffectivelyEnabled then
+    begin
+      Result := htBlocked;
+      Exit;
+    end;
 
     APath.Add(lControl);
     lPathCount := APath.Count;
@@ -686,22 +786,40 @@ begin
     begin
       lHitRect := lControl.AbsEffectiveHitRect;
       lChildClipRect := NXRectIntersect(lHitRect, AbsChildClipRect);
-      HitTestChildrenScreen(AX, AY, lChildClipRect, APath);
+      lHitResult := HitTestChildrenScreen(AX, AY, lChildClipRect, APath);
+      if lHitResult = htTarget then
+      begin
+        Result := htTarget;
+        Exit;
+      end;
+
+      if lHitResult = htBlocked then
+      begin
+        APath.Clear;
+        Result := htBlocked;
+        Exit;
+      end;
     end;
 
     if APath.Count > lPathCount then
+    begin
+      Result := htTarget;
       Exit;
+    end;
 
     lLocalPoint := lControl.ScreenToLocal(AX, AY);
     if lControl.HitTestSelf(lLocalPoint.x, lLocalPoint.y) then
+    begin
+      Result := htTarget;
       Exit;
+    end;
 
     APath.Clear;
     Exit;
   end;
 
   if HitTestChildren then
-    HitTestChildrenScreen(AX, AY, AbsChildClipRect, APath);
+    Result := HitTestChildrenScreen(AX, AY, AbsChildClipRect, APath);
 end;
 
 procedure TNXControlHost.DispatchMouseDownScreen(AX, AY: Integer;
@@ -709,6 +827,7 @@ procedure TNXControlHost.DispatchMouseDownScreen(AX, AY: Integer;
 var
   lCapturedControl: TNXControl;
   lFocusControl: TNXControl;
+  lHitResult: TNXHitTestResult;
   lPath: TList;
   lPoint: TNXPoint;
 begin
@@ -718,15 +837,26 @@ begin
   lCapturedControl := NXCapturedMouseControl;
   if Assigned(lCapturedControl) then
   begin
-    FPressedControls[AButton] := lCapturedControl;
-    lPoint := lCapturedControl.ScreenToLocal(AX, AY);
-    lCapturedControl.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
-    Exit;
+    if not lCapturedControl.IsInputEligible then
+    begin
+      GCapturedMouseControl := nil;
+      ClearPressedPath(AButton);
+    end
+    else
+    begin
+      FPressedControls[AButton] := lCapturedControl;
+      lPoint := lCapturedControl.ScreenToLocal(AX, AY);
+      lCapturedControl.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+      Exit;
+    end;
   end;
 
   lPath := TList.Create;
   try
-    BuildHitPathScreen(AX, AY, lPath);
+    lHitResult := BuildHitPathScreen(AX, AY, lPath);
+    if lHitResult = htBlocked then
+      Exit;
+
     lFocusControl := FocusableControlFromPath(lPath);
     if Assigned(lFocusControl) then
       lFocusControl.Focus
@@ -754,9 +884,16 @@ begin
   lCapturedControl := NXCapturedMouseControl;
   if Assigned(lCapturedControl) then
   begin
-    lPoint := lCapturedControl.ScreenToLocal(AX, AY);
-    lCapturedControl.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
-    Exit;
+    if not lCapturedControl.IsInputEligible then
+    begin
+      GCapturedMouseControl := nil;
+    end
+    else
+    begin
+      lPoint := lCapturedControl.ScreenToLocal(AX, AY);
+      lCapturedControl.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+      Exit;
+    end;
   end;
 
   lPath := TList.Create;
@@ -777,6 +914,7 @@ procedure TNXControlHost.DispatchMouseUpScreen(AX, AY: Integer;
   AButton: TNXMouseButton);
 var
   lCapturedControl: TNXControl;
+  lHitResult: TNXHitTestResult;
   lPath: TList;
   lPoint: TNXPoint;
   lPressedPath: TList;
@@ -788,6 +926,14 @@ begin
   lCapturedControl := NXCapturedMouseControl;
   if Assigned(lCapturedControl) then
   begin
+    if not lCapturedControl.IsInputEligible then
+    begin
+      GCapturedMouseControl := nil;
+      ClearPressedPath(AButton);
+      Exit;
+    end;
+
+    FPressedControls[AButton] := lCapturedControl;
     lPoint := lCapturedControl.ScreenToLocal(AX, AY);
     lCapturedControl.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
     ClearPressedPath(AButton);
@@ -798,6 +944,12 @@ begin
   lPressedPath := FPressedPaths[AButton];
   if Assigned(lTarget) then
   begin
+    if not lTarget.IsInputEligible then
+    begin
+      ClearPressedPath(AButton);
+      Exit;
+    end;
+
     if Assigned(lPressedPath) and (lPressedPath.Count > 0) then
       DeliverMouseUpPath(lPressedPath, AX, AY, AButton)
     else
@@ -811,7 +963,10 @@ begin
 
   lPath := TList.Create;
   try
-    BuildHitPathScreen(AX, AY, lPath);
+    lHitResult := BuildHitPathScreen(AX, AY, lPath);
+    if lHitResult = htBlocked then
+      Exit;
+
     if lPath.Count > 0 then
       DeliverMouseUpPath(lPath, AX, AY, AButton);
   finally
@@ -854,6 +1009,20 @@ end;
 function TNXControlHost.HasPressedControl(AButton: TNXMouseButton): Boolean;
 begin
   Result := Assigned(FPressedControls[AButton]);
+  if Result then
+    Result := FPressedControls[AButton].IsInputEligible;
+end;
+
+function TNXControlHost.IsChildEffectivelyEnabled(
+  AChild: TNXControl): Boolean;
+begin
+  Result := True;
+end;
+
+function TNXControlHost.IsChildEffectivelyVisible(
+  AChild: TNXControl): Boolean;
+begin
+  Result := True;
 end;
 
 function TNXControlHost.GetCanvas: TNXCanvas;
@@ -886,22 +1055,47 @@ begin
   Result := FChildren;
 end;
 
+function TNXControlHost.ControlContains(AParent, AControl: TNXControl): Boolean;
+var
+  lIndex: Integer;
+begin
+  Result := False;
+  if (not Assigned(AParent)) or (not Assigned(AControl)) then
+    Exit;
+
+  if AParent = AControl then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  for lIndex := 0 to AParent.Children.Count - 1 do
+  begin
+    if ControlContains(AParent.Children[lIndex], AControl) then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
 function TNXControlHost.HitTestChildren: Boolean;
 begin
   Result := True;
 end;
 
 function TNXControlHost.HitTestChildrenScreen(AX, AY: Integer;
-  const AClipRect: TNXRect; APath: TList): TNXControl;
+  const AClipRect: TNXRect; APath: TList): TNXHitTestResult;
 var
   lChild: TNXControl;
   lChildClipRect: TNXRect;
   lHitRect: TNXRect;
+  lHitResult: TNXHitTestResult;
   lIndex: Integer;
   lLocalPoint: TNXPoint;
   lPathCount: Integer;
 begin
-  Result := nil;
+  Result := htNone;
   if NXRectIsEmpty(AClipRect) or
     (not NXRectContainsPoint(AClipRect, AX, AY)) then
     Exit;
@@ -909,12 +1103,18 @@ begin
   for lIndex := Children.Count - 1 downto 0 do
   begin
     lChild := Children[lIndex];
-    if (not Assigned(lChild)) or (not lChild.Visible) then
+    if (not Assigned(lChild)) or (not lChild.IsEffectivelyVisible) then
       Continue;
 
     lHitRect := NXRectIntersect(AClipRect, lChild.AbsHitRect);
     if not NXRectContainsPoint(lHitRect, AX, AY) then
       Continue;
+
+    if not lChild.IsEffectivelyEnabled then
+    begin
+      Result := htBlocked;
+      Exit;
+    end;
 
     lPathCount := APath.Count;
     APath.Add(lChild);
@@ -922,15 +1122,26 @@ begin
     if lChild.HitTestChildren then
     begin
       lChildClipRect := NXRectIntersect(lHitRect, lChild.AbsChildClipRect);
-      Result := lChild.HitTestChildrenScreen(AX, AY, lChildClipRect, APath);
-      if Assigned(Result) then
+      lHitResult := lChild.HitTestChildrenScreen(AX, AY, lChildClipRect, APath);
+      if lHitResult = htTarget then
+      begin
+        Result := htTarget;
         Exit;
+      end;
+
+      if lHitResult = htBlocked then
+      begin
+        while APath.Count > lPathCount do
+          APath.Delete(APath.Count - 1);
+        Result := htBlocked;
+        Exit;
+      end;
     end;
 
     lLocalPoint := lChild.ScreenToLocal(AX, AY);
     if lChild.HitTestSelf(lLocalPoint.x, lLocalPoint.y) then
     begin
-      Result := lChild;
+      Result := htTarget;
       Exit;
     end;
 
@@ -1200,8 +1411,8 @@ begin
   ReceiveAllEvents := False;
   CanFocus := True;
   TabStop := True;
-  Enabled := True;
-  Visible := True;
+  FEnabled := True;
+  FVisible := True;
   if Assigned(lSkin) then
   begin
     ForeColor := lSkin.ForeColor;
@@ -1245,9 +1456,17 @@ begin
     Parent.ChildDestroying(AChild);
 end;
 
+procedure TNXControl.ChildInputStateChanged(AChild: TNXControl);
+begin
+  inherited ChildInputStateChanged(AChild);
+
+  if Assigned(Parent) then
+    Parent.ChildInputStateChanged(AChild);
+end;
+
 procedure TNXControl.Focus;
 begin
-  if not CanFocus then
+  if (not CanFocus) or (not IsInputEligible) then
     Exit;
 
   if Assigned(Parent) then
@@ -1307,6 +1526,29 @@ procedure TNXControl.SetAnchors(AValue: TNXControlAnchors);
 begin
   FAnchors := AValue;
   SetBoundsInternal(Left, Top, Width, Height, True);
+end;
+
+procedure TNXControl.SetEnabled(AValue: Boolean);
+begin
+  if FEnabled = AValue then
+    Exit;
+
+  FEnabled := AValue;
+  if not FEnabled then
+    ChildInputStateChanged(Self);
+end;
+
+procedure TNXControl.SetVisible(AValue: Boolean);
+begin
+  if FVisible = AValue then
+    Exit;
+
+  FVisible := AValue;
+  if not FVisible then
+    ChildInputStateChanged(Self);
+
+  if Assigned(Parent) then
+    Parent.LayoutChildren;
 end;
 
 procedure TNXControl.BringToFront;
@@ -1616,7 +1858,7 @@ procedure TNXControl.SetFocused(AValue: Boolean);
 begin
   if AValue then
   begin
-    if (not FFocused) and CanFocus then
+    if (not FFocused) and CanFocus and IsInputEligible then
     begin
       FFocused := True;
       ProcessFocus;
@@ -1640,29 +1882,33 @@ end;
 
 function TNXControl.FindFocusableControlAt(X, Y: Integer): TNXControl;
 var
+  lHitResult: TNXHitTestResult;
   lPath: TList;
   lIndex: Integer;
   lPoint: TNXPoint;
 begin
   Result := nil;
-  if not Visible then
+  if not IsInputEligible then
     Exit;
 
   lPoint := LocalToScreen(X, Y);
   lPath := TList.Create;
   try
-    BuildHitPathScreen(lPoint.x, lPoint.y, lPath);
+    lHitResult := BuildHitPathScreen(lPoint.x, lPoint.y, lPath);
+    if lHitResult = htBlocked then
+      Exit;
+
     for lIndex := lPath.Count - 1 downto 0 do
     begin
       Result := TNXControl(lPath[lIndex]);
-      if Result.Visible and Result.Enabled and Result.CanFocus then
+      if Result.IsInputEligible and Result.CanFocus then
         Exit;
     end;
   finally
     lPath.Free;
   end;
 
-  if Enabled and CanFocus then
+  if IsInputEligible and CanFocus then
     Result := Self;
 end;
 
@@ -1768,6 +2014,35 @@ end;
 procedure TNXControl.ProcessResize;
 begin
   DoResize;
+end;
+
+function TNXControl.IsChildEffectivelyEnabled(AChild: TNXControl): Boolean;
+begin
+  Result := IsEffectivelyEnabled;
+end;
+
+function TNXControl.IsChildEffectivelyVisible(AChild: TNXControl): Boolean;
+begin
+  Result := IsEffectivelyVisible;
+end;
+
+function TNXControl.IsEffectivelyEnabled: Boolean;
+begin
+  Result := Enabled;
+  if Result and Assigned(Parent) then
+    Result := Parent.IsChildEffectivelyEnabled(Self);
+end;
+
+function TNXControl.IsEffectivelyVisible: Boolean;
+begin
+  Result := Visible;
+  if Result and Assigned(Parent) then
+    Result := Parent.IsChildEffectivelyVisible(Self);
+end;
+
+function TNXControl.IsInputEligible: Boolean;
+begin
+  Result := IsEffectivelyVisible and IsEffectivelyEnabled;
 end;
 
 procedure TNXControl.DoMouseEnter;

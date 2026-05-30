@@ -33,6 +33,7 @@ type
     constructor Create(const AParent: INXControlParent; AOwner: TNXControl); reintroduce; virtual;
     destructor Destroy; override;
     procedure ChildDestroying(AChild: TNXControl); override;
+    procedure ChildInputStateChanged(AChild: TNXControl); override;
     procedure ClearChildFocus; override;
     procedure Close; virtual;
     procedure FocusChild(AChild: TNXControl); override;
@@ -108,7 +109,7 @@ end;
 
 function TNXPopup.AcceptsTabFocus(AControl: TNXControl): Boolean;
 begin
-  Result := Assigned(AControl) and AControl.Visible and AControl.Enabled and
+  Result := Assigned(AControl) and AControl.IsInputEligible and
     AControl.CanFocus and AControl.TabStop and (AControl <> Self);
 end;
 
@@ -131,7 +132,7 @@ begin
     for lIndex := 0 to AHost.Children.Count - 1 do
     begin
       lChild := AHost.Children[lIndex];
-      if lChild.Visible and lChild.Enabled then
+      if lChild.IsInputEligible then
         lChildren.Add(lChild);
     end;
 
@@ -165,7 +166,8 @@ end;
 procedure TNXPopup.SetFocusedControl(AControl: TNXControl);
 begin
   if Assigned(AControl) and
-    ((AControl = Self) or (not AControl.CanFocus) or (not AControl.Enabled)) then
+    ((AControl = Self) or (not AControl.CanFocus) or
+    (not AControl.IsInputEligible)) then
     AControl := nil;
 
   if FFocusedControl = AControl then
@@ -208,10 +210,18 @@ end;
 
 procedure TNXPopup.ChildDestroying(AChild: TNXControl);
 begin
-  if FFocusedControl = AChild then
+  if ControlContains(AChild, FFocusedControl) then
     FFocusedControl := nil;
 
   inherited ChildDestroying(AChild);
+end;
+
+procedure TNXPopup.ChildInputStateChanged(AChild: TNXControl);
+begin
+  if ControlContains(AChild, FFocusedControl) then
+    SetFocusedControl(nil);
+
+  inherited ChildInputStateChanged(AChild);
 end;
 
 procedure TNXPopup.ClearChildFocus;
@@ -297,8 +307,7 @@ begin
     Exit;
   end;
 
-  if Assigned(FFocusedControl) and FFocusedControl.Visible and
-    FFocusedControl.Enabled then
+  if Assigned(FFocusedControl) and FFocusedControl.IsInputEligible then
     FFocusedControl.ProcessKeyDown(AEvent)
   else
     inherited ProcessKeyDown(AEvent);
@@ -306,8 +315,7 @@ end;
 
 procedure TNXPopup.ProcessKeyUp(const AEvent: TNXKeyEventData);
 begin
-  if Assigned(FFocusedControl) and FFocusedControl.Visible and
-    FFocusedControl.Enabled then
+  if Assigned(FFocusedControl) and FFocusedControl.IsInputEligible then
     FFocusedControl.ProcessKeyUp(AEvent)
   else
     inherited ProcessKeyUp(AEvent);
@@ -338,8 +346,7 @@ end;
 
 procedure TNXPopup.ProcessTextInput(const AText: string);
 begin
-  if Assigned(FFocusedControl) and FFocusedControl.Visible and
-    FFocusedControl.Enabled then
+  if Assigned(FFocusedControl) and FFocusedControl.IsInputEligible then
     FFocusedControl.ProcessTextInput(AText)
   else
     inherited ProcessTextInput(AText);
@@ -391,7 +398,7 @@ end;
 function TNXPopupManager.PointInElement(AElement: TNXControl; AX,
   AY: Integer): Boolean;
 begin
-  Result := Assigned(AElement) and AElement.Visible and
+  Result := Assigned(AElement) and AElement.IsEffectivelyVisible and
     AElement.ContainsScreenPoint(AX, AY);
 end;
 
@@ -435,9 +442,9 @@ begin
     Exit;
   end;
 
-  if FActivePopup.CanFocus then
+  if FActivePopup.CanFocus and FActivePopup.IsInputEligible then
     FActivePopup.ProcessKeyDown(AEvent)
-  else if Assigned(FActivePopup.Owner) then
+  else if Assigned(FActivePopup.Owner) and FActivePopup.Owner.IsInputEligible then
     FActivePopup.Owner.ProcessKeyDown(AEvent);
 end;
 
@@ -447,9 +454,9 @@ begin
   if not Result then
     Exit;
 
-  if FActivePopup.CanFocus then
+  if FActivePopup.CanFocus and FActivePopup.IsInputEligible then
     FActivePopup.ProcessKeyUp(AEvent)
-  else if Assigned(FActivePopup.Owner) then
+  else if Assigned(FActivePopup.Owner) and FActivePopup.Owner.IsInputEligible then
     FActivePopup.Owner.ProcessKeyUp(AEvent);
 end;
 
@@ -534,9 +541,9 @@ begin
   if not Result then
     Exit;
 
-  if FActivePopup.CanFocus then
+  if FActivePopup.CanFocus and FActivePopup.IsInputEligible then
     FActivePopup.ProcessTextInput(AText)
-  else if Assigned(FActivePopup.Owner) then
+  else if Assigned(FActivePopup.Owner) and FActivePopup.Owner.IsInputEligible then
     FActivePopup.Owner.ProcessTextInput(AText);
 end;
 

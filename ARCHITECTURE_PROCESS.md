@@ -24,7 +24,9 @@ Inspection is allowed during design discussion. Mutation is not.
 
 Before implementation, produce a Markdown work plan for approval.
 
-Use `ARCH_WORK_PLAN_TEMPLATE.md` as the default structure for substantial architecture passes. The plan may be supplied inline in the conversation, or as a separate Markdown file when the user asks for an artifact. The important requirement is that the plan is structured, reviewable, and explicit enough for the user to take it to external review before implementation.
+Use `ARCH_WORK_PLAN_TEMPLATE.md` as the default structure for substantial architecture passes. Save the plan as a Markdown artifact, preferably under `workplans/`, and provide a clickable link to that file in chat instead of pasting the full plan inline. Inline plans are only for very small plans or when the user explicitly asks for the text in the conversation.
+
+The important requirement is that the plan is structured, reviewable, easy to download or open, and explicit enough for the user to take it to external review before implementation.
 
 The plan should include:
 
