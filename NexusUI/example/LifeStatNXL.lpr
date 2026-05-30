@@ -290,11 +290,11 @@ begin
   LayoutAnchorButton.Caption := 'Anchor RB';
   LayoutAnchorButton.Anchors := [ancRight, ancBottom];
 
-  ListBox := TNXListBox.Create(Form4.ContentPanel, MakeNXRect(10, 30, 200, 200));
+  ListBox := TNXListBox.Create(Form4.ContentPanel, MakeNXRect(10, 10, 200, 220));
   for lIndex := 1 to 12 do
     ListBox.Items.AddItem('Item ' + IntToStr(lIndex), lIndex);
 
-  Memo1 := TNXMemo.Create(Form7.ContentPanel, MakeNXRect(10, 30, 260, 190));
+  Memo1 := TNXMemo.Create(Form7.ContentPanel, MakeNXRect(10, 10, 260, 210));
   Memo1.Placeholder := 'Enter notes';
   Memo1.AddLine('Memo control');
   Memo1.AddLine('Supports multiple lines.');
@@ -370,9 +370,9 @@ begin
 
   SplitPanel1 := TNXSplitPanel.Create(Form8.ContentPanel);
   SplitPanel1.Left := 10;
-  SplitPanel1.Top := 30;
+  SplitPanel1.Top := 10;
   SplitPanel1.Width := 260;
-  SplitPanel1.Height := 70;
+  SplitPanel1.Height := 90;
   SplitPanel1.SplitPercent := 0.45;
 
   Label2 := TNXLabel.Create(SplitPanel1.PaneA, MakeNXRect(6, 8, 100, 20));
@@ -472,9 +472,9 @@ begin
 
   Grid1 := TNXGrid.Create(Form9.ContentPanel);
   Grid1.Left := 10;
-  Grid1.Top := 30;
+  Grid1.Top := 10;
   Grid1.Width := 600;
-  Grid1.Height := 130;
+  Grid1.Height := 150;
   Grid1.ResizeGrid(5, 12);
   Grid1.Headers[0] := 'Code';
   Grid1.Headers[1] := 'Commodity';
@@ -497,9 +497,9 @@ begin
 
   PropertyEditor1 := TNXPropertyEditor.Create(Form11.ContentPanel);
   PropertyEditor1.Left := 10;
-  PropertyEditor1.Top := 30;
+  PropertyEditor1.Top := 10;
   PropertyEditor1.Width := 330;
-  PropertyEditor1.Height := 210;
+  PropertyEditor1.Height := 230;
   PropertyEditor1.AddProperty('Name', 'TNXPropertyEditor', pkString);
   PropertyEditor1.AddProperty('Rows', '5', pkInteger);
   PropertyEditor1.AddProperty('Editable', 'True', pkBoolean);
