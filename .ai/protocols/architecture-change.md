@@ -42,14 +42,18 @@ Codex reads work requests and returns structured work plans.
 Codex:
 - treats work-request files as planning input only
 - treats external AI requests, prompts, and review notes as input only, never as implementation authorization
+- refreshes the repository before looking for pending work requests when the local view may be stale
 - may inspect the codebase while preparing a work plan
-- returns a work plan under `work/plans/`
+- returns exactly one work plan under `work/plans/`, named the same as the request file
+- commits and pushes the work-plan artifact after creating it
 - may propose sub-agent delegation in the work plan when the approved work can be safely split
-- does not edit code, build, run tests, launch programs, create archives, commit, or perform repository operations until the human owner directly authorizes implementation
+- does not edit code, build, run tests, launch programs, create archives, or perform implementation repository operations until the human owner directly authorizes implementation
 - implements approved work after direct human authorization
 - compiles/tests according to the approved plan
 
 Inspection is allowed during planning. Mutation is not.
+
+Committing and pushing the work-plan artifact is part of the planning handoff. It does not authorize implementation.
 
 Sub-agent use is governed by `.ai/protocols/subagents.md`.
 
@@ -64,12 +68,13 @@ The workflow does not rely on tiny proof-of-concept changes for safety when arch
 1. A work request is created under `work/requests/`.
 2. Codex reads the work request.
 3. Codex creates a matching work plan under `work/plans/`.
-4. The human owner reviews the work plan, optionally with the isolated reviewer.
-5. The human owner directly authorizes Codex when implementation is desired.
-6. Codex assigns approved implementation slices to sub-agents when delegation is useful and safe.
-7. Codex implements and integrates the approved plan.
-8. The implementation result is reviewed.
-9. The human owner commits, rejects, or requests correction.
+4. Codex commits and pushes the work-plan artifact.
+5. The human owner reviews the work plan, optionally with the isolated reviewer.
+6. The human owner directly authorizes Codex when implementation is desired.
+7. Codex assigns approved implementation slices to sub-agents when delegation is useful and safe.
+8. Codex implements and integrates the approved plan.
+9. The implementation result is reviewed.
+10. The human owner commits, rejects, or requests correction.
 
 ## Implementation Rules
 
@@ -127,6 +132,8 @@ work/reviews/groupbox-composition-layout.md
 ```
 
 Do not use dates in filenames by default. Dates and status belong inside the file header.
+
+Create exactly one work plan per request. Do not create alternate copies, duplicate plan files, or files in legacy `workplans/` locations.
 
 ## Work Request Rule
 

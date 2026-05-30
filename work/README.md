@@ -28,6 +28,8 @@ work/plans/groupbox-composition-layout.md
 work/reviews/groupbox-composition-layout.md
 ```
 
+Create exactly one plan file for each request file. Do not create duplicate plan files, alternate names, or files in legacy `workplans/` locations.
+
 ## Request Files
 
 Request files are architecture handoffs to Codex.
@@ -54,6 +56,8 @@ Request files should describe:
 Plan files are produced by Codex.
 
 They explain what Codex plans to do, based on the request, before the human owner authorizes implementation.
+
+After producing a plan file, Codex commits and pushes that plan artifact so it is available for review. This does not authorize implementation.
 
 ## Review Files
 
