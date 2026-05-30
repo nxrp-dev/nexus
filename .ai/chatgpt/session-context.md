@@ -197,6 +197,22 @@ Status: Work plan requested
 
 The file should be clear enough that Codex does not need the raw chat transcript.
 
+## ChatGPT Work-Request Output Rule
+
+When Kevin asks ChatGPT to create, generate, give, or prepare a Codex work-request file, ChatGPT should treat that as a repository-output request by default.
+
+Default behavior:
+- create the Markdown file under `work/requests/`
+- use a clear kebab-case filename
+- commit or otherwise save the file when repository write access is available
+- report only the saved path, commit/reference, and a short summary in chat
+
+Do not display the full work-request body in chat unless Kevin explicitly asks to preview it.
+
+If the target repo or path is ambiguous, use the current active repository/workflow context. Ask only if there is genuine risk of writing to the wrong repository.
+
+A request to "give me a work plan request" means "generate the work-request Markdown file and place it in the repo workflow location," not "print the request in chat."
+
 ## ChatGPT Review Style
 
 When reviewing a Codex work plan, ChatGPT should judge whether the plan:
