@@ -17,6 +17,7 @@ type
     procedure FocusChild(AChild: TNXControl);
     procedure FreeChild(AChild: TNXControl);
     procedure LayoutChildren;
+    function GetAbsChildClipRect: TNXRect;
     function GetAbsLeft: Integer;
     function GetAbsTop: Integer;
     function GetCanvas: TNXCanvas;
@@ -51,14 +52,35 @@ type
   private
     FChildren: TNXControlList;
     FCanvas: TNXCanvas;
+    FHoverPath: TList;
     FLayoutBottom: Integer;
     FLayoutLeft: Integer;
     FLayoutRight: Integer;
     FLayoutTop: Integer;
     FLayouting: Boolean;
+    FPressedControls: array[TNXMouseButton] of TNXControl;
+    FPressedPaths: array[TNXMouseButton] of TList;
+
+    function EnsureHoverPath: TList;
+    function EnsurePressedPath(AButton: TNXMouseButton): TList;
+    function FocusableControlFromPath(APath: TList): TNXControl;
+    procedure ClearPressedPath(AButton: TNXMouseButton);
+    procedure DeliverMouseDownPath(APath: TList; AX, AY: Integer;
+      AButton: TNXMouseButton);
+    procedure DeliverMouseMotionPath(APath: TList; AX, AY: Integer;
+      AButtonState: TNXMouseButtons);
+    procedure DeliverMouseUpPath(APath: TList; AX, AY: Integer;
+      AButton: TNXMouseButton);
+    procedure DeliverMouseWheelPath(APath: TList; AX, AY, ADeltaX,
+      ADeltaY: Integer);
+    procedure SetHoverPath(APath: TList);
+    procedure StorePressedPath(AButton: TNXMouseButton; APath: TList);
   protected
     procedure SetCanvas(ACanvas: TNXCanvas); virtual;
 
+    function GetAbsChildClipRect: TNXRect; virtual;
+    function GetAbsEffectiveHitRect: TNXRect; virtual;
+    function GetAbsHitRect: TNXRect; virtual;
     function GetAbsLeft: Integer; virtual; abstract;
     function GetAbsTop: Integer; virtual; abstract;
     function GetCanvas: TNXCanvas; virtual;
@@ -75,21 +97,41 @@ type
     function GetHeight: Integer; virtual; abstract;
     function GetSkin: TNXSkin; virtual; abstract;
     function GetWidth: Integer; virtual; abstract;
+    function HitTestChildren: Boolean; virtual;
+    function HitTestChildrenScreen(AX, AY: Integer; const AClipRect: TNXRect;
+      APath: TList): TNXControl; virtual;
+    function HitTestSelf(AX, AY: Integer): Boolean; virtual;
   public
     constructor Create; override;
     destructor Destroy; override;
 
     procedure AddChild(AChild: TNXControl); virtual;
+    procedure BuildHitPathScreen(AX, AY: Integer; APath: TList); virtual;
     procedure ChildDestroying(AChild: TNXControl); virtual;
+    procedure ClearMouseHover; virtual;
     procedure ClearChildFocus; virtual;
+    function ContainsLocalPoint(AX, AY: Integer): Boolean; virtual;
     function ContainsScreenPoint(AX, AY: Integer): Boolean; virtual;
+    procedure DispatchMouseDownScreen(AX, AY: Integer;
+      AButton: TNXMouseButton); virtual;
+    procedure DispatchMouseMotionScreen(AX, AY: Integer;
+      AButtonState: TNXMouseButtons); virtual;
+    procedure DispatchMouseUpScreen(AX, AY: Integer;
+      AButton: TNXMouseButton); virtual;
+    procedure DispatchMouseWheelScreen(AX, AY, ADeltaX,
+      ADeltaY: Integer); virtual;
     procedure FocusChild(AChild: TNXControl); virtual;
     procedure FreeChild(AChild: TNXControl); virtual;
+    function HasPressedControl(AButton: TNXMouseButton): Boolean; virtual;
+    function HitTestScreen(AX, AY: Integer): TNXControl; virtual;
     procedure LayoutChildren; virtual;
     function LocalToScreen(AX, AY: Integer): TNXPoint; virtual;
     function ScreenToLocal(AX, AY: Integer): TNXPoint; virtual;
     procedure SendSizeCallback; virtual;
 
+    property AbsChildClipRect: TNXRect read GetAbsChildClipRect;
+    property AbsEffectiveHitRect: TNXRect read GetAbsEffectiveHitRect;
+    property AbsHitRect: TNXRect read GetAbsHitRect;
     property AbsLeft: Integer read GetAbsLeft;
     property AbsTop: Integer read GetAbsTop;
     property Canvas: TNXCanvas read GetCanvas write SetCanvas;
@@ -162,6 +204,7 @@ type
     function GetAbsLeft: Integer; override;
     function GetAbsTop: Integer; override;
     function GetAbsBoundsRect: TNXRect; virtual;
+    function GetAbsEffectiveHitRect: TNXRect; override;
     function GetAbsContentRect: TNXRect; virtual;
     function GetAbsClientRect: TNXRect; virtual;
     function GetBoundsRect: TNXRect; virtual;
@@ -195,6 +238,7 @@ type
     procedure RenderLine(AX0, AY0, AX1, AY1: Integer; AColor: TNXColor);
     procedure RenderText(AText: string; AX, AY: Integer; AAlignment: TTextAlign);
     procedure RenderClient; virtual;
+    function HitTestSelf(AX, AY: Integer): Boolean; override;
 
     procedure DoMouseEnter; virtual;
     procedure DoMouseExit; virtual;
@@ -225,7 +269,6 @@ type
     procedure ParentSizeCallback(AWidth, AHeight: Integer); virtual;
     procedure ChildAddedCallback; virtual;
     property MouseEntered: Boolean read FMouseEntered;
-    function InControl(AX, AY: Integer): Boolean; virtual;
     function FindFocusableControlAt(X, Y: Integer): TNXControl; virtual;
 
     procedure ProcessMouseEnter; virtual;
@@ -312,6 +355,194 @@ begin
   Result := GCapturedMouseControl;
 end;
 
+function TNXControlHost.EnsureHoverPath: TList;
+begin
+  if not Assigned(FHoverPath) then
+    FHoverPath := TList.Create;
+
+  Result := FHoverPath;
+end;
+
+function TNXControlHost.EnsurePressedPath(AButton: TNXMouseButton): TList;
+begin
+  if not Assigned(FPressedPaths[AButton]) then
+    FPressedPaths[AButton] := TList.Create;
+
+  Result := FPressedPaths[AButton];
+end;
+
+function TNXControlHost.FocusableControlFromPath(APath: TList): TNXControl;
+var
+  lControl: TNXControl;
+  lIndex: Integer;
+begin
+  Result := nil;
+  if not Assigned(APath) then
+    Exit;
+
+  for lIndex := APath.Count - 1 downto 0 do
+  begin
+    lControl := TNXControl(APath[lIndex]);
+    if Assigned(lControl) and lControl.Visible and lControl.Enabled and
+      lControl.CanFocus then
+    begin
+      Result := lControl;
+      Exit;
+    end;
+  end;
+end;
+
+procedure TNXControlHost.ClearPressedPath(AButton: TNXMouseButton);
+begin
+  FPressedControls[AButton] := nil;
+  if Assigned(FPressedPaths[AButton]) then
+    FPressedPaths[AButton].Clear;
+end;
+
+procedure TNXControlHost.DeliverMouseDownPath(APath: TList; AX, AY: Integer;
+  AButton: TNXMouseButton);
+var
+  lControl: TNXControl;
+  lIndex: Integer;
+  lPoint: TNXPoint;
+begin
+  if not Assigned(APath) then
+    Exit;
+
+  for lIndex := APath.Count - 1 downto 0 do
+  begin
+    lControl := TNXControl(APath[lIndex]);
+    if (lIndex = APath.Count - 1) or
+      (lControl.ReceiveAllEvents and
+      ((lIndex <> 0) or (TObject(lControl) <> Self) or
+      (APath.Count = 1))) then
+    begin
+      lPoint := lControl.ScreenToLocal(AX, AY);
+      lControl.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+    end;
+  end;
+end;
+
+procedure TNXControlHost.DeliverMouseMotionPath(APath: TList; AX,
+  AY: Integer; AButtonState: TNXMouseButtons);
+var
+  lControl: TNXControl;
+  lIndex: Integer;
+  lPoint: TNXPoint;
+begin
+  if not Assigned(APath) then
+    Exit;
+
+  for lIndex := APath.Count - 1 downto 0 do
+  begin
+    lControl := TNXControl(APath[lIndex]);
+    if (lIndex = APath.Count - 1) or
+      (lControl.ReceiveAllEvents and
+      ((lIndex <> 0) or (TObject(lControl) <> Self) or
+      (APath.Count = 1))) then
+    begin
+      lPoint := lControl.ScreenToLocal(AX, AY);
+      lControl.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+    end;
+  end;
+end;
+
+procedure TNXControlHost.DeliverMouseUpPath(APath: TList; AX, AY: Integer;
+  AButton: TNXMouseButton);
+var
+  lControl: TNXControl;
+  lIndex: Integer;
+  lPoint: TNXPoint;
+begin
+  if not Assigned(APath) then
+    Exit;
+
+  for lIndex := APath.Count - 1 downto 0 do
+  begin
+    lControl := TNXControl(APath[lIndex]);
+    if (lIndex = APath.Count - 1) or
+      (lControl.ReceiveAllEvents and
+      ((lIndex <> 0) or (TObject(lControl) <> Self) or
+      (APath.Count = 1))) then
+    begin
+      lPoint := lControl.ScreenToLocal(AX, AY);
+      lControl.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    end;
+  end;
+end;
+
+procedure TNXControlHost.DeliverMouseWheelPath(APath: TList; AX, AY, ADeltaX,
+  ADeltaY: Integer);
+var
+  lControl: TNXControl;
+  lIndex: Integer;
+  lPoint: TNXPoint;
+begin
+  if not Assigned(APath) then
+    Exit;
+
+  for lIndex := APath.Count - 1 downto 0 do
+  begin
+    lControl := TNXControl(APath[lIndex]);
+    if (lIndex = APath.Count - 1) or
+      (lControl.ReceiveAllEvents and
+      ((lIndex <> 0) or (TObject(lControl) <> Self) or
+      (APath.Count = 1))) then
+    begin
+      lPoint := lControl.ScreenToLocal(AX, AY);
+      lControl.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
+    end;
+  end;
+end;
+
+procedure TNXControlHost.SetHoverPath(APath: TList);
+var
+  lCommonCount: Integer;
+  lHoverPath: TList;
+  lIndex: Integer;
+begin
+  lHoverPath := EnsureHoverPath;
+  lCommonCount := 0;
+
+  while (lCommonCount < lHoverPath.Count) and
+    Assigned(APath) and (lCommonCount < APath.Count) and
+    (lHoverPath[lCommonCount] = APath[lCommonCount]) do
+    Inc(lCommonCount);
+
+  for lIndex := lHoverPath.Count - 1 downto lCommonCount do
+    if Assigned(lHoverPath[lIndex]) then
+      TNXControl(lHoverPath[lIndex]).ProcessMouseExit;
+
+  if Assigned(APath) then
+  begin
+    for lIndex := lCommonCount to APath.Count - 1 do
+      if Assigned(APath[lIndex]) then
+        TNXControl(APath[lIndex]).ProcessMouseEnter;
+
+    lHoverPath.Clear;
+    for lIndex := 0 to APath.Count - 1 do
+      lHoverPath.Add(APath[lIndex]);
+  end
+  else
+    lHoverPath.Clear;
+end;
+
+procedure TNXControlHost.StorePressedPath(AButton: TNXMouseButton;
+  APath: TList);
+var
+  lIndex: Integer;
+  lPressedPath: TList;
+begin
+  lPressedPath := EnsurePressedPath(AButton);
+  lPressedPath.Clear;
+
+  if not Assigned(APath) then
+    Exit;
+
+  for lIndex := 0 to APath.Count - 1 do
+    lPressedPath.Add(APath[lIndex]);
+end;
+
 constructor TNXControlHost.Create;
 begin
   inherited Create;
@@ -323,7 +554,13 @@ begin
 end;
 
 destructor TNXControlHost.Destroy;
+var
+  lButton: TNXMouseButton;
 begin
+  FreeAndNil(FHoverPath);
+  for lButton := Low(TNXMouseButton) to High(TNXMouseButton) do
+    FreeAndNil(FPressedPaths[lButton]);
+
   FreeAndNil(FChildren);
   inherited Destroy;
 end;
@@ -348,7 +585,45 @@ begin
 end;
 
 procedure TNXControlHost.ChildDestroying(AChild: TNXControl);
+var
+  lButton: TNXMouseButton;
+  lHoverIndex: Integer;
 begin
+  if not Assigned(AChild) then
+    Exit;
+
+  if Assigned(FHoverPath) then
+  begin
+    lHoverIndex := FHoverPath.IndexOf(AChild);
+    while (lHoverIndex >= 0) and (FHoverPath.Count > lHoverIndex) do
+      FHoverPath.Delete(FHoverPath.Count - 1);
+  end;
+
+  for lButton := Low(TNXMouseButton) to High(TNXMouseButton) do
+  begin
+    if FPressedControls[lButton] = AChild then
+      FPressedControls[lButton] := nil;
+
+    if Assigned(FPressedPaths[lButton]) and
+      (FPressedPaths[lButton].IndexOf(AChild) >= 0) then
+      ClearPressedPath(lButton);
+  end;
+end;
+
+function TNXControlHost.GetAbsChildClipRect: TNXRect;
+begin
+  Result := MakeNXRect(AbsLeft + GetChildAreaLeft, AbsTop + GetChildAreaTop,
+    Max(0, GetChildAreaWidth), Max(0, GetChildAreaHeight));
+end;
+
+function TNXControlHost.GetAbsEffectiveHitRect: TNXRect;
+begin
+  Result := AbsHitRect;
+end;
+
+function TNXControlHost.GetAbsHitRect: TNXRect;
+begin
+  Result := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
 end;
 
 procedure TNXControlHost.ClearChildFocus;
@@ -359,13 +634,203 @@ begin
     Children[lIndex].IsFocused := False;
 end;
 
+procedure TNXControlHost.ClearMouseHover;
+var
+  lHoverPath: TList;
+  lIndex: Integer;
+begin
+  lHoverPath := EnsureHoverPath;
+  for lIndex := lHoverPath.Count - 1 downto 0 do
+    if Assigned(lHoverPath[lIndex]) then
+      TNXControl(lHoverPath[lIndex]).ProcessMouseExit;
+
+  lHoverPath.Clear;
+end;
+
+function TNXControlHost.ContainsLocalPoint(AX, AY: Integer): Boolean;
+begin
+  Result := (AX >= 0) and (AX < Width) and (AY >= 0) and (AY < Height);
+end;
+
 function TNXControlHost.ContainsScreenPoint(AX, AY: Integer): Boolean;
 var
   lPoint: TNXPoint;
 begin
   lPoint := ScreenToLocal(AX, AY);
-  Result := (lPoint.x >= 0) and (lPoint.x < Width) and
-    (lPoint.y >= 0) and (lPoint.y < Height);
+  Result := ContainsLocalPoint(lPoint.x, lPoint.y);
+end;
+
+procedure TNXControlHost.BuildHitPathScreen(AX, AY: Integer; APath: TList);
+var
+  lChildClipRect: TNXRect;
+  lControl: TNXControl;
+  lHitRect: TNXRect;
+  lLocalPoint: TNXPoint;
+  lPathCount: Integer;
+begin
+  if not Assigned(APath) then
+    Exit;
+
+  APath.Clear;
+
+  if Self is TNXControl then
+  begin
+    lControl := TNXControl(Self);
+    if (not lControl.Visible) or
+      (not NXRectContainsPoint(lControl.AbsEffectiveHitRect, AX, AY)) then
+      Exit;
+
+    APath.Add(lControl);
+    lPathCount := APath.Count;
+    if HitTestChildren then
+    begin
+      lHitRect := lControl.AbsEffectiveHitRect;
+      lChildClipRect := NXRectIntersect(lHitRect, AbsChildClipRect);
+      HitTestChildrenScreen(AX, AY, lChildClipRect, APath);
+    end;
+
+    if APath.Count > lPathCount then
+      Exit;
+
+    lLocalPoint := lControl.ScreenToLocal(AX, AY);
+    if lControl.HitTestSelf(lLocalPoint.x, lLocalPoint.y) then
+      Exit;
+
+    APath.Clear;
+    Exit;
+  end;
+
+  if HitTestChildren then
+    HitTestChildrenScreen(AX, AY, AbsChildClipRect, APath);
+end;
+
+procedure TNXControlHost.DispatchMouseDownScreen(AX, AY: Integer;
+  AButton: TNXMouseButton);
+var
+  lCapturedControl: TNXControl;
+  lFocusControl: TNXControl;
+  lPath: TList;
+  lPoint: TNXPoint;
+begin
+  if AButton = mbNone then
+    Exit;
+
+  lCapturedControl := NXCapturedMouseControl;
+  if Assigned(lCapturedControl) then
+  begin
+    FPressedControls[AButton] := lCapturedControl;
+    lPoint := lCapturedControl.ScreenToLocal(AX, AY);
+    lCapturedControl.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+    Exit;
+  end;
+
+  lPath := TList.Create;
+  try
+    BuildHitPathScreen(AX, AY, lPath);
+    lFocusControl := FocusableControlFromPath(lPath);
+    if Assigned(lFocusControl) then
+      lFocusControl.Focus
+    else
+      ClearChildFocus;
+
+    if lPath.Count = 0 then
+      Exit;
+
+    FPressedControls[AButton] := TNXControl(lPath[lPath.Count - 1]);
+    StorePressedPath(AButton, lPath);
+    DeliverMouseDownPath(lPath, AX, AY, AButton);
+  finally
+    lPath.Free;
+  end;
+end;
+
+procedure TNXControlHost.DispatchMouseMotionScreen(AX, AY: Integer;
+  AButtonState: TNXMouseButtons);
+var
+  lCapturedControl: TNXControl;
+  lPath: TList;
+  lPoint: TNXPoint;
+begin
+  lCapturedControl := NXCapturedMouseControl;
+  if Assigned(lCapturedControl) then
+  begin
+    lPoint := lCapturedControl.ScreenToLocal(AX, AY);
+    lCapturedControl.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+    Exit;
+  end;
+
+  lPath := TList.Create;
+  try
+    BuildHitPathScreen(AX, AY, lPath);
+    SetHoverPath(lPath);
+
+    if lPath.Count = 0 then
+      Exit;
+
+    DeliverMouseMotionPath(lPath, AX, AY, AButtonState);
+  finally
+    lPath.Free;
+  end;
+end;
+
+procedure TNXControlHost.DispatchMouseUpScreen(AX, AY: Integer;
+  AButton: TNXMouseButton);
+var
+  lCapturedControl: TNXControl;
+  lPath: TList;
+  lPoint: TNXPoint;
+  lPressedPath: TList;
+  lTarget: TNXControl;
+begin
+  if AButton = mbNone then
+    Exit;
+
+  lCapturedControl := NXCapturedMouseControl;
+  if Assigned(lCapturedControl) then
+  begin
+    lPoint := lCapturedControl.ScreenToLocal(AX, AY);
+    lCapturedControl.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    ClearPressedPath(AButton);
+    Exit;
+  end;
+
+  lTarget := FPressedControls[AButton];
+  lPressedPath := FPressedPaths[AButton];
+  if Assigned(lTarget) then
+  begin
+    if Assigned(lPressedPath) and (lPressedPath.Count > 0) then
+      DeliverMouseUpPath(lPressedPath, AX, AY, AButton)
+    else
+    begin
+      lPoint := lTarget.ScreenToLocal(AX, AY);
+      lTarget.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    end;
+    ClearPressedPath(AButton);
+    Exit;
+  end;
+
+  lPath := TList.Create;
+  try
+    BuildHitPathScreen(AX, AY, lPath);
+    if lPath.Count > 0 then
+      DeliverMouseUpPath(lPath, AX, AY, AButton);
+  finally
+    lPath.Free;
+  end;
+end;
+
+procedure TNXControlHost.DispatchMouseWheelScreen(AX, AY, ADeltaX,
+  ADeltaY: Integer);
+var
+  lPath: TList;
+begin
+  lPath := TList.Create;
+  try
+    BuildHitPathScreen(AX, AY, lPath);
+    DeliverMouseWheelPath(lPath, AX, AY, ADeltaX, ADeltaY);
+  finally
+    lPath.Free;
+  end;
 end;
 
 procedure TNXControlHost.FocusChild(AChild: TNXControl);
@@ -384,6 +849,11 @@ begin
     Exit;
 
   Children.Delete(lIndex);
+end;
+
+function TNXControlHost.HasPressedControl(AButton: TNXMouseButton): Boolean;
+begin
+  Result := Assigned(FPressedControls[AButton]);
 end;
 
 function TNXControlHost.GetCanvas: TNXCanvas;
@@ -414,6 +884,79 @@ end;
 function TNXControlHost.GetChildren: TNXControlList;
 begin
   Result := FChildren;
+end;
+
+function TNXControlHost.HitTestChildren: Boolean;
+begin
+  Result := True;
+end;
+
+function TNXControlHost.HitTestChildrenScreen(AX, AY: Integer;
+  const AClipRect: TNXRect; APath: TList): TNXControl;
+var
+  lChild: TNXControl;
+  lChildClipRect: TNXRect;
+  lHitRect: TNXRect;
+  lIndex: Integer;
+  lLocalPoint: TNXPoint;
+  lPathCount: Integer;
+begin
+  Result := nil;
+  if NXRectIsEmpty(AClipRect) or
+    (not NXRectContainsPoint(AClipRect, AX, AY)) then
+    Exit;
+
+  for lIndex := Children.Count - 1 downto 0 do
+  begin
+    lChild := Children[lIndex];
+    if (not Assigned(lChild)) or (not lChild.Visible) then
+      Continue;
+
+    lHitRect := NXRectIntersect(AClipRect, lChild.AbsHitRect);
+    if not NXRectContainsPoint(lHitRect, AX, AY) then
+      Continue;
+
+    lPathCount := APath.Count;
+    APath.Add(lChild);
+
+    if lChild.HitTestChildren then
+    begin
+      lChildClipRect := NXRectIntersect(lHitRect, lChild.AbsChildClipRect);
+      Result := lChild.HitTestChildrenScreen(AX, AY, lChildClipRect, APath);
+      if Assigned(Result) then
+        Exit;
+    end;
+
+    lLocalPoint := lChild.ScreenToLocal(AX, AY);
+    if lChild.HitTestSelf(lLocalPoint.x, lLocalPoint.y) then
+    begin
+      Result := lChild;
+      Exit;
+    end;
+
+    while APath.Count > lPathCount do
+      APath.Delete(APath.Count - 1);
+  end;
+end;
+
+function TNXControlHost.HitTestScreen(AX, AY: Integer): TNXControl;
+var
+  lPath: TList;
+begin
+  Result := nil;
+  lPath := TList.Create;
+  try
+    BuildHitPathScreen(AX, AY, lPath);
+    if lPath.Count > 0 then
+      Result := TNXControl(lPath[lPath.Count - 1]);
+  finally
+    lPath.Free;
+  end;
+end;
+
+function TNXControlHost.HitTestSelf(AX, AY: Integer): Boolean;
+begin
+  Result := False;
 end;
 
 function TNXControlHost.LocalToScreen(AX, AY: Integer): TNXPoint;
@@ -696,6 +1239,8 @@ end;
 
 procedure TNXControl.ChildDestroying(AChild: TNXControl);
 begin
+  inherited ChildDestroying(AChild);
+
   if Assigned(Parent) then
     Parent.ChildDestroying(AChild);
 end;
@@ -795,6 +1340,13 @@ end;
 function TNXControl.GetAbsBoundsRect: TNXRect;
 begin
   Result := MakeNXRect(AbsLeft, AbsTop, Max(0, Width), Max(0, Height));
+end;
+
+function TNXControl.GetAbsEffectiveHitRect: TNXRect;
+begin
+  Result := AbsHitRect;
+  if Assigned(Parent) then
+    Result := NXRectIntersect(Result, Parent.GetAbsChildClipRect);
 end;
 
 function TNXControl.GetAbsContentRect: TNXRect;
@@ -1051,6 +1603,11 @@ procedure TNXControl.RenderClient;
 begin
 end;
 
+function TNXControl.HitTestSelf(AX, AY: Integer): Boolean;
+begin
+  Result := ContainsLocalPoint(AX, AY);
+end;
+
 procedure TNXControl.ctrl_FontChanged;
 begin
 end;
@@ -1081,61 +1638,28 @@ begin
 
 end;
 
-function TNXControl.InControl(AX, AY: Integer): Boolean;
-var
-  lIndex: Integer;
-  lChild: TNXControl;
-  lLocalX: Integer;
-  lLocalY: Integer;
-begin
-  Result := (AX >= Left) and (AX < Left + Width) and
-    (AY >= Top) and (AY < Top + Height);
-
-  if not Result then
-    Exit;
-
-  lLocalX := AX - Left;
-  lLocalY := AY - Top;
-
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      lLocalX - GetChildOriginX(lChild),
-      lLocalY - GetChildOriginY(lChild)
-    ) then
-    begin
-      Result := True;
-      Exit;
-    end;
-  end;
-end;
-
 function TNXControl.FindFocusableControlAt(X, Y: Integer): TNXControl;
 var
-  lChild: TNXControl;
+  lPath: TList;
   lIndex: Integer;
-  lLocalX: Integer;
-  lLocalY: Integer;
+  lPoint: TNXPoint;
 begin
   Result := nil;
-  if (not Visible) or (not InControl(X + Left, Y + Top)) then
+  if not Visible then
     Exit;
 
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if not lChild.Visible then
-      Continue;
-
-    lLocalX := X - GetChildOriginX(lChild) - lChild.Left;
-    lLocalY := Y - GetChildOriginY(lChild) - lChild.Top;
-    if lChild.InControl(lLocalX + lChild.Left, lLocalY + lChild.Top) then
+  lPoint := LocalToScreen(X, Y);
+  lPath := TList.Create;
+  try
+    BuildHitPathScreen(lPoint.x, lPoint.y, lPath);
+    for lIndex := lPath.Count - 1 downto 0 do
     begin
-      Result := lChild.FindFocusableControlAt(lLocalX, lLocalY);
-      if Assigned(Result) then
+      Result := TNXControl(lPath[lIndex]);
+      if Result.Visible and Result.Enabled and Result.CanFocus then
         Exit;
     end;
+  finally
+    lPath.Free;
   end;
 
   if Enabled and CanFocus then
@@ -1143,126 +1667,40 @@ begin
 end;
 
 procedure TNXControl.ProcessMouseEnter;
-var
-  lIndex: Integer;
 begin
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].MouseEntered then
-      Children[lIndex].ProcessMouseExit;
-
-  if Assigned(Parent) then
-    for lIndex := 0 to Parent.Children.Count - 1 do
-      if Parent.Children[lIndex].MouseEntered then
-        Parent.Children[lIndex].ProcessMouseExit;
-
   FMouseEntered := True;
   DoMouseEnter;
 end;
 
 procedure TNXControl.ProcessMouseExit;
-var
-  lIndex: Integer;
 begin
   FMouseEntered := False;
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].MouseEntered then
-      Children[lIndex].ProcessMouseExit;
-
-  ButtonStates := [];
-
   DoMouseExit;
 end;
 
 procedure TNXControl.ProcessMouseDown(X, Y: integer; Button: TNXMouseButton);
-var
-  lIndex: Integer;
-  lChild: TNXControl;
-  lPassed: Boolean;
 begin
   if Button = mbNone then
     Exit;
 
-  lPassed := False;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    if lPassed then
-      Break;
-
-    lChild := Children[lIndex];
-    if lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) and lChild.Visible then
-    begin
-      lPassed := True;
-      lChild.ProcessMouseDown(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        Button
-      );
-    end;
-  end;
-
-  if (not lPassed) or ReceiveAllEvents then
-  begin
-    Include(ButtonStates, Button);
-    DoMouseDown(X, Y, Button);
-  end;
+  Include(ButtonStates, Button);
+  DoMouseDown(X, Y, Button);
 end;
 
 procedure TNXControl.ProcessMouseUp(X, Y: integer; Button: TNXMouseButton);
-var
-  lIndex: Integer;
-  lChild: TNXControl;
-  lPassed: Boolean;
-  lPoint: TNXPoint;
 begin
   if Button = mbNone then
     Exit;
 
-  if (Parent = nil) and Assigned(GCapturedMouseControl) and
-    (GCapturedMouseControl <> Self) then
+  if Button in ButtonStates then
   begin
-    lPoint := LocalToScreen(X, Y);
-    lPoint := GCapturedMouseControl.ScreenToLocal(lPoint.x, lPoint.y);
-    GCapturedMouseControl.ProcessMouseUp(
-      lPoint.x,
-      lPoint.y,
-      Button
-    );
-    Exit;
-  end;
-
-  lPassed := False;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    if lPassed then
-      Break;
-
-    lChild := Children[lIndex];
-    if lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) and lChild.Visible then
-    begin
-      lPassed := True;
-      lChild.ProcessMouseUp(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        Button
-      );
-    end;
-  end;
-
-  if (not lPassed) or ReceiveAllEvents then
-    if Button in ButtonStates then
-    begin
-      DoMouseUp(X, Y, Button);
+    DoMouseUp(X, Y, Button);
+    if HitTestSelf(X, Y) then
       ProcessMouseClick(X, Y, Button);
-      Exclude(ButtonStates, Button);
-    end
-    else
-      DoMouseUp(X, Y, Button);
+    Exclude(ButtonStates, Button);
+  end
+  else
+    DoMouseUp(X, Y, Button);
 end;
 
 procedure TNXControl.ProcessMouseClick(X, Y: integer; Button: TNXMouseButton);
@@ -1293,87 +1731,13 @@ begin
 end;
 
 procedure TNXControl.ProcessMouseMotion(X, Y: integer; ButtonState: TNXMouseButtons);
-var
-  lIndex: Integer;
-  lChild: TNXControl;
-  lPassed: Boolean;
-  lPoint: TNXPoint;
 begin
-  if (Parent = nil) and Assigned(GCapturedMouseControl) and
-    (GCapturedMouseControl <> Self) then
-  begin
-    lPoint := LocalToScreen(X, Y);
-    lPoint := GCapturedMouseControl.ScreenToLocal(lPoint.x, lPoint.y);
-    GCapturedMouseControl.ProcessMouseMotion(
-      lPoint.x,
-      lPoint.y,
-      ButtonState
-    );
-    Exit;
-  end;
-
-  lPassed := False;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    if lPassed then
-      Break;
-
-    lChild := Children[lIndex];
-    if lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) and lChild.Visible then
-    begin
-      lPassed := True;
-      if not lChild.MouseEntered then
-        lChild.ProcessMouseEnter;
-      lChild.ProcessMouseMotion(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        ButtonState
-      );
-    end
-    else
-    begin
-      if lChild.MouseEntered then
-        lChild.ProcessMouseExit;
-    end;
-
-  end;
-  if not lPassed then
-    DoMouseMotion(X, Y, ButtonState);
+  DoMouseMotion(X, Y, ButtonState);
 end;
 
 procedure TNXControl.ProcessMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
-var
-  lIndex: Integer;
-  lChild: TNXControl;
-  lPassed: Boolean;
 begin
-  lPassed := False;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    if lPassed then
-      Break;
-
-    lChild := Children[lIndex];
-    if lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) and lChild.Visible then
-    begin
-      lPassed := True;
-      lChild.ProcessMouseWheel(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        ADeltaX,
-        ADeltaY
-      );
-    end;
-  end;
-
-  if (not lPassed) or ReceiveAllEvents then
-    DoMouseWheel(X, Y, ADeltaX, ADeltaY);
+  DoMouseWheel(X, Y, ADeltaX, ADeltaY);
 end;
 
 procedure TNXControl.ProcessTextInput(const AText: string);

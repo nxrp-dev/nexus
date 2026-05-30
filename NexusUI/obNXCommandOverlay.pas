@@ -68,6 +68,7 @@ type
     procedure SetShowBorders(AValue: Boolean);
     procedure SetSpacing(AValue: Integer);
   protected
+    function HitTestSelf(AX, AY: Integer): Boolean; override;
     procedure RenderClient; override;
   public
     constructor Create(const AParent: INXControlParent); overload; override;
@@ -81,7 +82,6 @@ type
     procedure BringOverlayToFront;
     procedure ChildDestroying(AChild: TNXControl); override;
     procedure LayoutChildren; override;
-    function InControl(AX, AY: Integer): Boolean; override;
     function GetControlEdge(AControl: TNXControl): TNXCommandOverlayEdge;
     function IsInCommandBand(AX, AY: Integer): Boolean;
     function LocalEdgeRect(AEdge: TNXCommandOverlayEdge): TNXRect;
@@ -482,35 +482,9 @@ begin
   ArrangeRightEdge;
 end;
 
-function TNXCommandOverlay.InControl(AX, AY: Integer): Boolean;
-var
-  lChild: TNXControl;
-  lIndex: Integer;
-  lLocalX: Integer;
-  lLocalY: Integer;
+function TNXCommandOverlay.HitTestSelf(AX, AY: Integer): Boolean;
 begin
-  Result := False;
-  if (not Visible) or (AX < Left) or (AX >= Left + Width) or
-    (AY < Top) or (AY >= Top + Height) then
-    Exit;
-
-  lLocalX := AX - Left;
-  lLocalY := AY - Top;
-
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      lLocalX - GetChildOriginX(lChild),
-      lLocalY - GetChildOriginY(lChild)
-    ) then
-    begin
-      Result := True;
-      Exit;
-    end;
-  end;
-
-  Result := IsInCommandBand(lLocalX, lLocalY);
+  Result := IsInCommandBand(AX, AY);
 end;
 
 function TNXCommandOverlay.GetControlEdge(AControl: TNXControl): TNXCommandOverlayEdge;

@@ -33,6 +33,7 @@ type
     constructor Create(const AParent: INXControlParent; AOwner: TNXControl); reintroduce; virtual;
     destructor Destroy; override;
     procedure ChildDestroying(AChild: TNXControl); override;
+    procedure ClearChildFocus; override;
     procedure Close; virtual;
     procedure FocusChild(AChild: TNXControl); override;
     procedure FocusNextControl(AReverse: Boolean); virtual;
@@ -213,6 +214,11 @@ begin
   inherited ChildDestroying(AChild);
 end;
 
+procedure TNXPopup.ClearChildFocus;
+begin
+  ClearFocus;
+end;
+
 procedure TNXPopup.Close;
 begin
   if Assigned(FManager) then
@@ -308,126 +314,26 @@ begin
 end;
 
 procedure TNXPopup.ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton);
-var
-  lChild: TNXControl;
-  lFocusControl: TNXControl;
-  lIndex: Integer;
 begin
   if Button = mbNone then
     Exit;
 
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lFocusControl := lChild.FindFocusableControlAt(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top
-      );
-      SetFocusedControl(lFocusControl);
-      lChild.ProcessMouseDown(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        Button
-      );
-      Exit;
-    end;
-  end;
-
   ClearFocus;
+  inherited ProcessMouseDown(X, Y, Button);
 end;
 
 procedure TNXPopup.ProcessMouseMotion(X, Y: Integer;
   ButtonState: TNXMouseButtons);
-var
-  lCapturedControl: TNXControl;
-  lChild: TNXControl;
-  lIndex: Integer;
-  lPassed: Boolean;
-  lPoint: TNXPoint;
 begin
-  lCapturedControl := NXCapturedMouseControl;
-  if Assigned(lCapturedControl) then
-  begin
-    lPoint := LocalToScreen(X, Y);
-    lPoint := lCapturedControl.ScreenToLocal(lPoint.x, lPoint.y);
-    lCapturedControl.ProcessMouseMotion(
-      lPoint.x,
-      lPoint.y,
-      ButtonState
-    );
-    Exit;
-  end;
-
-  lPassed := False;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lPassed := True;
-      if not lChild.MouseEntered then
-        lChild.ProcessMouseEnter;
-      lChild.ProcessMouseMotion(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        ButtonState
-      );
-    end
-    else if lChild.MouseEntered then
-      lChild.ProcessMouseExit;
-
-    if lPassed then
-      Break;
-  end;
+  inherited ProcessMouseMotion(X, Y, ButtonState);
 end;
 
 procedure TNXPopup.ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton);
-var
-  lCapturedControl: TNXControl;
-  lChild: TNXControl;
-  lIndex: Integer;
-  lPoint: TNXPoint;
 begin
   if Button = mbNone then
     Exit;
 
-  lCapturedControl := NXCapturedMouseControl;
-  if Assigned(lCapturedControl) then
-  begin
-    lPoint := LocalToScreen(X, Y);
-    lPoint := lCapturedControl.ScreenToLocal(lPoint.x, lPoint.y);
-    lCapturedControl.ProcessMouseUp(
-      lPoint.x,
-      lPoint.y,
-      Button
-    );
-    Exit;
-  end;
-
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lChild.ProcessMouseUp(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        Button
-      );
-      Exit;
-    end;
-  end;
+  inherited ProcessMouseUp(X, Y, Button);
 end;
 
 procedure TNXPopup.ProcessTextInput(const AText: string);
@@ -549,8 +455,6 @@ end;
 
 function TNXPopupManager.ProcessMouseDown(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
-var
-  lPoint: TNXPoint;
 begin
   Result := False;
   if AButton = mbNone then
@@ -561,8 +465,7 @@ begin
 
   if PointInElement(FActivePopup, AX, AY) then
   begin
-    lPoint := FActivePopup.ScreenToLocal(AX, AY);
-    FActivePopup.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+    FActivePopup.DispatchMouseDownScreen(AX, AY, AButton);
     Result := True;
     Exit;
   end;
@@ -575,8 +478,6 @@ end;
 
 function TNXPopupManager.ProcessMouseMotion(AX, AY: Integer;
   AButtonState: TNXMouseButtons): Boolean;
-var
-  lPoint: TNXPoint;
 begin
   Result := Assigned(FActivePopup) and FActivePopup.Visible;
   if not Result then
@@ -584,33 +485,27 @@ begin
 
   if PointInElement(FActivePopup, AX, AY) then
   begin
-    if not FActivePopup.MouseEntered then
-      FActivePopup.ProcessMouseEnter;
-
-    lPoint := FActivePopup.ScreenToLocal(AX, AY);
-    FActivePopup.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+    FActivePopup.DispatchMouseMotionScreen(AX, AY, AButtonState);
     Exit;
   end;
 
-  if FActivePopup.MouseEntered then
-    FActivePopup.ProcessMouseExit;
+  FActivePopup.ClearMouseHover;
 
   Result := False;
 end;
 
 function TNXPopupManager.ProcessMouseUp(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
-var
-  lPoint: TNXPoint;
 begin
   Result := Assigned(FActivePopup) and FActivePopup.Visible;
   if not Result then
     Exit;
 
-  if PointInElement(FActivePopup, AX, AY) then
+  if PointInElement(FActivePopup, AX, AY) or
+    FActivePopup.HasPressedControl(AButton) then
   begin
-    lPoint := FActivePopup.ScreenToLocal(AX, AY);
-    FActivePopup.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    FActivePopup.DispatchMouseUpScreen(AX, AY, AButton);
+    Result := True;
     Exit;
   end;
 
@@ -619,8 +514,6 @@ end;
 
 function TNXPopupManager.ProcessMouseWheel(AX, AY, ADeltaX,
   ADeltaY: Integer): Boolean;
-var
-  lPoint: TNXPoint;
 begin
   Result := Assigned(FActivePopup) and FActivePopup.Visible;
   if not Result then
@@ -628,8 +521,7 @@ begin
 
   if PointInElement(FActivePopup, AX, AY) then
   begin
-    lPoint := FActivePopup.ScreenToLocal(AX, AY);
-    FActivePopup.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
+    FActivePopup.DispatchMouseWheelScreen(AX, AY, ADeltaX, ADeltaY);
     Exit;
   end;
 

@@ -166,7 +166,7 @@ begin
 
         if not FWindows.ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.ButtonState) then
-          FRootWindow.ProcessMouseMotion(AEvent.Mouse.X, AEvent.Mouse.Y,
+          FRootWindow.DispatchMouseMotionScreen(AEvent.Mouse.X, AEvent.Mouse.Y,
             AEvent.Mouse.ButtonState);
       end;
 
@@ -180,7 +180,7 @@ begin
         if not FWindows.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.Button) then
         begin
-          FRootWindow.ProcessMouseDown(AEvent.Mouse.X, AEvent.Mouse.Y,
+          FRootWindow.DispatchMouseDownScreen(AEvent.Mouse.X, AEvent.Mouse.Y,
             AEvent.Mouse.Button);
           FPopups.BringActiveToFront;
         end;
@@ -195,7 +195,7 @@ begin
 
         if not FWindows.ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.Button) then
-          FRootWindow.ProcessMouseUp(AEvent.Mouse.X, AEvent.Mouse.Y,
+          FRootWindow.DispatchMouseUpScreen(AEvent.Mouse.X, AEvent.Mouse.Y,
             AEvent.Mouse.Button);
       end;
 
@@ -208,7 +208,7 @@ begin
 
         if not FWindows.ProcessMouseWheel(AEvent.Mouse.X, AEvent.Mouse.Y,
           AEvent.Mouse.WheelDeltaX, AEvent.Mouse.WheelDeltaY) then
-          FRootWindow.ProcessMouseWheel(AEvent.Mouse.X, AEvent.Mouse.Y,
+          FRootWindow.DispatchMouseWheelScreen(AEvent.Mouse.X, AEvent.Mouse.Y,
             AEvent.Mouse.WheelDeltaX, AEvent.Mouse.WheelDeltaY);
       end;
 

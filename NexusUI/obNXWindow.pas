@@ -92,8 +92,9 @@ type
     procedure AddChild(AChild: TNXControl); override;
     procedure BringWindowToFront; virtual;
     procedure ChildDestroying(AChild: TNXControl); override;
+    procedure ClearChildFocus; override;
     procedure ClearFocus; virtual;
-    procedure ClearMouseHover; virtual;
+    procedure ClearMouseHover; override;
     procedure Close; virtual;
     function GetAbsLeft: Integer; override;
     function GetAbsTop: Integer; override;
@@ -274,8 +275,15 @@ end;
 
 procedure TNXWindow.ChildDestroying(AChild: TNXControl);
 begin
+  inherited ChildDestroying(AChild);
+
   if FFocusedControl = AChild then
     FFocusedControl := nil;
+end;
+
+procedure TNXWindow.ClearChildFocus;
+begin
+  ClearFocus;
 end;
 
 procedure TNXWindow.ClearFocus;
@@ -284,12 +292,8 @@ begin
 end;
 
 procedure TNXWindow.ClearMouseHover;
-var
-  lIndex: Integer;
 begin
-  for lIndex := 0 to Children.Count - 1 do
-    if Children[lIndex].MouseEntered then
-      Children[lIndex].ProcessMouseExit;
+  inherited ClearMouseHover;
 end;
 
 procedure TNXWindow.FocusChild(AChild: TNXControl);
@@ -623,151 +627,26 @@ begin
 end;
 
 procedure TNXWindow.ProcessMouseDown(X, Y: Integer; Button: TNXMouseButton);
-var
-  lFocusControl: TNXControl;
-  lChild: TNXControl;
-  lIndex: Integer;
 begin
   if Button = mbNone then
     Exit;
-
-  lFocusControl := nil;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lFocusControl := lChild.FindFocusableControlAt(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top
-      );
-      SetFocusedControl(lFocusControl);
-      lChild.ProcessMouseDown(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        Button
-      );
-      Exit;
-    end;
-  end;
 
   ClearFocus;
 end;
 
 procedure TNXWindow.ProcessMouseMotion(X, Y: Integer;
   ButtonState: TNXMouseButtons);
-var
-  lCapturedControl: TNXControl;
-  lChild: TNXControl;
-  lIndex: Integer;
-  lPassed: Boolean;
-  lPoint: TNXPoint;
 begin
-  lCapturedControl := NXCapturedMouseControl;
-  if Assigned(lCapturedControl) then
-  begin
-    lPoint := LocalToScreen(X, Y);
-    lPoint := lCapturedControl.ScreenToLocal(lPoint.x, lPoint.y);
-    lCapturedControl.ProcessMouseMotion(
-      lPoint.x,
-      lPoint.y,
-      ButtonState
-    );
-    Exit;
-  end;
-
-  lPassed := False;
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lPassed := True;
-      if not lChild.MouseEntered then
-        lChild.ProcessMouseEnter;
-      lChild.ProcessMouseMotion(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        ButtonState
-      );
-    end
-    else if lChild.MouseEntered then
-      lChild.ProcessMouseExit;
-
-    if lPassed then
-      Break;
-  end;
 end;
 
 procedure TNXWindow.ProcessMouseUp(X, Y: Integer; Button: TNXMouseButton);
-var
-  lCapturedControl: TNXControl;
-  lChild: TNXControl;
-  lIndex: Integer;
-  lPoint: TNXPoint;
 begin
   if Button = mbNone then
     Exit;
-
-  lCapturedControl := NXCapturedMouseControl;
-  if Assigned(lCapturedControl) then
-  begin
-    lPoint := LocalToScreen(X, Y);
-    lPoint := lCapturedControl.ScreenToLocal(lPoint.x, lPoint.y);
-    lCapturedControl.ProcessMouseUp(
-      lPoint.x,
-      lPoint.y,
-      Button
-    );
-    Exit;
-  end;
-
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lChild.ProcessMouseUp(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        Button
-      );
-      Exit;
-    end;
-  end;
 end;
 
 procedure TNXWindow.ProcessMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
-var
-  lChild: TNXControl;
-  lIndex: Integer;
 begin
-  for lIndex := Children.Count - 1 downto 0 do
-  begin
-    lChild := Children[lIndex];
-    if lChild.Visible and lChild.InControl(
-      X - GetChildOriginX(lChild),
-      Y - GetChildOriginY(lChild)
-    ) then
-    begin
-      lChild.ProcessMouseWheel(
-        X - GetChildOriginX(lChild) - lChild.Left,
-        Y - GetChildOriginY(lChild) - lChild.Top,
-        ADeltaX,
-        ADeltaY
-      );
-      Exit;
-    end;
-  end;
 end;
 
 procedure TNXWindow.ProcessTextInput(const AText: string);
@@ -1131,7 +1010,6 @@ function TNXWindowManager.ProcessMouseDown(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
 var
   lIndex: Integer;
-  lPoint: TNXPoint;
   lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
@@ -1140,8 +1018,7 @@ begin
     if FModalWindow.InWindow(AX, AY) then
     begin
       SetActiveWindow(FModalWindow);
-      lPoint := FModalWindow.ScreenToLocal(AX, AY);
-      FModalWindow.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+      FModalWindow.DispatchMouseDownScreen(AX, AY, AButton);
     end
     else
       BringToFront(FModalWindow);
@@ -1154,8 +1031,7 @@ begin
     if lWindow.InWindow(AX, AY) then
     begin
       SetActiveWindow(lWindow);
-      lPoint := lWindow.ScreenToLocal(AX, AY);
-      lWindow.ProcessMouseDown(lPoint.x, lPoint.y, AButton);
+      lWindow.DispatchMouseDownScreen(AX, AY, AButton);
       Result := True;
       Exit;
     end;
@@ -1166,7 +1042,6 @@ function TNXWindowManager.ProcessMouseMotion(AX, AY: Integer;
   AButtonState: TNXMouseButtons): Boolean;
 var
   lIndex: Integer;
-  lPoint: TNXPoint;
   lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
@@ -1176,8 +1051,7 @@ begin
       FHoverWindow.ClearMouseHover;
     FHoverWindow := FModalWindow;
 
-    lPoint := FModalWindow.ScreenToLocal(AX, AY);
-    FModalWindow.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+    FModalWindow.DispatchMouseMotionScreen(AX, AY, AButtonState);
     Exit;
   end;
 
@@ -1190,8 +1064,7 @@ begin
         FHoverWindow.ClearMouseHover;
       FHoverWindow := lWindow;
 
-      lPoint := lWindow.ScreenToLocal(AX, AY);
-      lWindow.ProcessMouseMotion(lPoint.x, lPoint.y, AButtonState);
+      lWindow.DispatchMouseMotionScreen(AX, AY, AButtonState);
       Result := True;
       Exit;
     end;
@@ -1206,21 +1079,17 @@ end;
 
 function TNXWindowManager.ProcessMouseUp(AX, AY: Integer;
   AButton: TNXMouseButton): Boolean;
-var
-  lPoint: TNXPoint;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
   if Result then
   begin
-    lPoint := FModalWindow.ScreenToLocal(AX, AY);
-    FModalWindow.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    FModalWindow.DispatchMouseUpScreen(AX, AY, AButton);
     Exit;
   end;
 
   if Assigned(FActiveWindow) and FActiveWindow.Visible then
   begin
-    lPoint := FActiveWindow.ScreenToLocal(AX, AY);
-    FActiveWindow.ProcessMouseUp(lPoint.x, lPoint.y, AButton);
+    FActiveWindow.DispatchMouseUpScreen(AX, AY, AButton);
     Result := True;
   end;
 end;
@@ -1229,7 +1098,6 @@ function TNXWindowManager.ProcessMouseWheel(AX, AY, ADeltaX,
   ADeltaY: Integer): Boolean;
 var
   lIndex: Integer;
-  lPoint: TNXPoint;
   lWindow: TNXWindow;
 begin
   Result := Assigned(FModalWindow) and FModalWindow.Visible;
@@ -1237,8 +1105,7 @@ begin
   begin
     if FModalWindow.InWindow(AX, AY) then
     begin
-      lPoint := FModalWindow.ScreenToLocal(AX, AY);
-      FModalWindow.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
+      FModalWindow.DispatchMouseWheelScreen(AX, AY, ADeltaX, ADeltaY);
     end;
     Exit;
   end;
@@ -1248,8 +1115,7 @@ begin
     lWindow := Windows[lIndex];
     if lWindow.InWindow(AX, AY) then
     begin
-      lPoint := lWindow.ScreenToLocal(AX, AY);
-      lWindow.ProcessMouseWheel(lPoint.x, lPoint.y, ADeltaX, ADeltaY);
+      lWindow.DispatchMouseWheelScreen(AX, AY, ADeltaX, ADeltaY);
       Result := True;
       Exit;
     end;
