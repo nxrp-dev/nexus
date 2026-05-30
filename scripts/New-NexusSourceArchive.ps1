@@ -20,43 +20,139 @@ $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $OutputPath = Join-Path $OutputDirectory $ArchiveName
 $StagePath = Join-Path $env:TEMP ('nexus-source-chatgpt-{0}' -f ([guid]::NewGuid().ToString('N')))
 $ArchiveFileNamePattern = '^nexus-source-chatgpt-\d{8}-\d{6}\.zip$'
+$ExternalNexusPascalRoot = 'C:\gitdev\tools\nexus-pascal'
 
-$SourceDirectories = @(
-  'NexusLib',
-  'NexusUI',
-  'NexusTest',
-  'NexusLS'
+$SourceRoots = @(
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLib'); ArchivePath = 'NexusLib' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusUI'); ArchivePath = 'NexusUI' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusTest'); ArchivePath = 'NexusTest' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLS'); ArchivePath = 'NexusLS' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusSchema'); ArchivePath = 'NexusSchema' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot '.ai'); ArchivePath = '.ai' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'scripts'); ArchivePath = 'scripts' },
+  [pscustomobject]@{ SourcePath = $ExternalNexusPascalRoot; ArchivePath = 'tools\nexus-pascal' }
+)
+
+$SourceFiles = @(
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'AGENTS.md'); ArchivePath = 'AGENTS.md' }
 )
 
 $SourceExtensions = @(
+  '.bat',
+  '.cmd',
+  '.csv',
+  '.css',
+  '.gif',
+  '.inc',
+  '.js',
+  '.json',
+  '.lfm',
+  '.lpi',
+  '.lpr',
+  '.md',
+  '.mustache',
+  '.nxs',
   '.pas',
   '.pp',
-  '.inc',
-  '.lpr',
-  '.lpi',
-  '.lfm',
-  '.json',
-  '.md',
+  '.ps1',
+  '.png',
+  '.svg',
   '.txt',
-  '.yml',
-  '.yaml',
-  '.xml',
+  '.tmlanguage',
   '.ts',
-  '.js',
-  '.css'
+  '.xml',
+  '.yml',
+  '.yaml'
 )
 
-function Copy-SourceFile {
+$SourceFileNames = @(
+  '.gitignore',
+  '.vscodeignore',
+  'AGENTS.md'
+)
+
+$ExcludedDirectoryNames = @(
+  '.git',
+  'bin',
+  'dist',
+  'node_modules',
+  'out',
+  'output',
+  'output_compare'
+)
+
+function Copy-ArchiveFile {
   param(
-    [System.IO.FileInfo]$SourceFile
+    [System.IO.FileInfo]$SourceFile,
+    [string]$ArchiveRelativePath
   )
 
-  $RelativePath = $SourceFile.FullName.Substring($RepositoryRoot.Length + 1)
-  $DestinationPath = Join-Path $StagePath $RelativePath
+  $DestinationPath = Join-Path $StagePath $ArchiveRelativePath
   $DestinationDirectory = Split-Path -Parent $DestinationPath
 
   New-Item -ItemType Directory -Force -Path $DestinationDirectory | Out-Null
   Copy-Item -LiteralPath $SourceFile.FullName -Destination $DestinationPath -Force
+}
+
+function Get-RelativePath {
+  param(
+    [string]$BasePath,
+    [string]$ChildPath
+  )
+
+  $lBasePath = [System.IO.Path]::GetFullPath($BasePath)
+  $lChildPath = [System.IO.Path]::GetFullPath($ChildPath)
+
+  return $lChildPath.Substring($lBasePath.Length).TrimStart(
+    [System.IO.Path]::DirectorySeparatorChar,
+    [System.IO.Path]::AltDirectorySeparatorChar
+  )
+}
+
+function Test-SourceFileIncluded {
+  param(
+    [System.IO.FileInfo]$SourceFile
+  )
+
+  return ($SourceExtensions -contains $SourceFile.Extension.ToLowerInvariant()) -or
+    ($SourceFileNames -contains $SourceFile.Name)
+}
+
+function Test-SourceFileExcluded {
+  param(
+    [System.IO.FileInfo]$SourceFile,
+    [string]$SourceRoot
+  )
+
+  $lRelativePath = Get-RelativePath -BasePath $SourceRoot -ChildPath $SourceFile.FullName
+  $lParentPath = Split-Path -Parent $lRelativePath
+
+  if ([string]::IsNullOrWhiteSpace($lParentPath)) {
+    return $False
+  }
+
+  $lDirectoryNames = $lParentPath -split '[\\/]'
+  foreach ($lDirectoryName in $lDirectoryNames) {
+    if ($ExcludedDirectoryNames -contains $lDirectoryName.ToLowerInvariant()) {
+      return $True
+    }
+  }
+
+  return $False
+}
+
+function Copy-SourceFile {
+  param(
+    [System.IO.FileInfo]$SourceFile,
+    [string]$SourceRoot,
+    [string]$ArchiveRoot
+  )
+
+  $lRelativePath = Get-RelativePath -BasePath $SourceRoot -ChildPath $SourceFile.FullName
+  $lArchiveRelativePath = Join-Path $ArchiveRoot $lRelativePath
+
+  Copy-ArchiveFile -SourceFile $SourceFile -ArchiveRelativePath $lArchiveRelativePath
 }
 
 function Remove-OldArchives {
@@ -89,19 +185,31 @@ New-Item -ItemType Directory -Force -Path $StagePath | Out-Null
 $FileCount = 0
 
 try {
-  foreach ($SourceDirectory in $SourceDirectories) {
-    $SourceRoot = Join-Path $RepositoryRoot $SourceDirectory
+  foreach ($SourceRoot in $SourceRoots) {
+    $SourceRootPath = [System.IO.Path]::GetFullPath($SourceRoot.SourcePath)
 
-    if (-not (Test-Path -LiteralPath $SourceRoot)) {
-      throw "Missing source directory: $SourceRoot"
+    if (-not (Test-Path -LiteralPath $SourceRootPath -PathType Container)) {
+      throw "Missing source directory: $SourceRootPath"
     }
 
-    Get-ChildItem -LiteralPath $SourceRoot -Recurse -File | Where-Object {
-      $SourceExtensions -contains $_.Extension.ToLowerInvariant()
+    Get-ChildItem -LiteralPath $SourceRootPath -Recurse -File | Where-Object {
+      (Test-SourceFileIncluded -SourceFile $_) -and
+        (-not (Test-SourceFileExcluded -SourceFile $_ -SourceRoot $SourceRootPath))
     } | ForEach-Object {
-      Copy-SourceFile -SourceFile $_
+      Copy-SourceFile -SourceFile $_ -SourceRoot $SourceRootPath -ArchiveRoot $SourceRoot.ArchivePath
       $script:FileCount++
     }
+  }
+
+  foreach ($SourceFile in $SourceFiles) {
+    $SourceFilePath = [System.IO.Path]::GetFullPath($SourceFile.SourcePath)
+
+    if (-not (Test-Path -LiteralPath $SourceFilePath -PathType Leaf)) {
+      throw "Missing source file: $SourceFilePath"
+    }
+
+    Copy-ArchiveFile -SourceFile (Get-Item -LiteralPath $SourceFilePath) -ArchiveRelativePath $SourceFile.ArchivePath
+    $script:FileCount++
   }
 
   if (Test-Path -LiteralPath $OutputPath) {
