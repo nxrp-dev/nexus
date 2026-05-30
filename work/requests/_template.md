@@ -32,6 +32,8 @@ Implementation-sounding design language is acceptable here when it describes the
 
 List the files, classes, methods, or behavior Codex should inspect before proposing changes.
 
+Inspection is authorized for plan creation. Code edits, builds, tests, program launches, archives, commits, and repository operations are not authorized by this file.
+
 ## Work Plan Requirements
 
 The work plan should explain:
@@ -49,6 +51,8 @@ The work plan should explain:
 No code edits are authorized by this file.
 
 Do not expand scope beyond this request.
+
+Do not include implementation authorization language in this request. The human owner authorizes implementation directly after reviewing the work plan.
 
 ## Acceptance Criteria
 

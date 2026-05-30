@@ -14,11 +14,23 @@
 
 ## Target Contract
 
+- Owner:
+- Responsibilities:
+- State flow:
+- Rendering/input/persistence behavior:
+
 ## Scope
 
 ## Out Of Scope
 
 ## Staged Implementation Plan
+
+## Sub-Agent Delegation
+
+- Proposed roles:
+- Ownership boundaries:
+- Main Codex responsibilities:
+- Coordination risks:
 
 ## Verification Plan
 

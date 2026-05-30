@@ -38,6 +38,13 @@ Explain the root design problem.
 
 Describe the intended final-state architecture.
 
+Include the concrete ownership contract where relevant:
+
+- Owner:
+- Responsibilities:
+- State flow:
+- Rendering/input/persistence behavior:
+
 ## Scope
 
 List files/areas expected to change.
@@ -49,6 +56,19 @@ List what must not change.
 ## Staged Implementation Plan
 
 Describe the implementation stages.
+
+## Sub-Agent Delegation
+
+Describe whether approved implementation should be delegated.
+
+Include:
+
+- proposed named role or roles
+- assigned folders or file ownership
+- tasks that remain with main Codex
+- coordination and overlap risks
+
+State when delegation is not useful.
 
 ## Verification Plan
 
@@ -72,3 +92,6 @@ State that no implementation begins until the human owner explicitly authorizes 
 - Do not hide uncertainty.
 - Do not expand scope beyond the request.
 - If the request is ambiguous, identify the ambiguity in the plan.
+- Include a sub-agent delegation recommendation when implementation could be safely split.
+- Include compile, focused grep, and manual verification expectations.
+- State any questions that must be answered before implementation.

@@ -1,47 +1,15 @@
-# Codex Task: <short title>
+# Architecture Request Template
 
-## Summary
+This file has been retired as the source of truth.
 
-Brief statement of what Codex is being asked to do.
+Use:
 
-## Background
+```text
+work/requests/_template.md
+```
 
-Clean explanation of the discussion that led here:
-- what bug/architecture issue was found
-- what was already fixed
-- what architectural rule emerged
-- why this new work is necessary
+The official request protocol is documented in:
 
-## Current Architecture Rule
-
-The principle Codex must preserve.
-
-## Task
-
-Specific work request.
-
-## Constraints
-
-What not to change.
-
-## Required Investigation
-
-What to inspect before editing.
-
-## Implementation Plan / Requested Plan
-
-Whether Codex should:
-- return a plan only, or
-- proceed with approved implementation
-
-When a plan is requested, Codex should return a Markdown work plan using `ARCH_WORK_PLAN_TEMPLATE.md` as the default structure.
-
-For substantial architecture work, Codex should save the work plan as a Markdown file, preferably under `workplans/`, and provide a clickable link instead of pasting the full plan inline.
-
-## Acceptance Criteria
-
-What must be true when done.
-
-## Compile/Test Requirements
-
-Exact build/test commands and manual checks.
+```text
+.ai/protocols/architecture-change.md
+```

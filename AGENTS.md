@@ -20,10 +20,15 @@ These rules apply to the whole repository.
 
 This repository is an Object Pascal / Free Pascal project. Treat the codebase as a deliberately simple, low-dependency framework-style project. 
 
+## Standards
+
+- For Object Pascal / Free Pascal code, follow `.ai/standards/pascal.md`.
+- Folder-level `AGENTS.md` files should explicitly reference the standards that apply to that folder.
+
 ## Project Direction
 
 - The project includes the NexusUI style GUI framework built in Object Pascal.
-- For architecture-level corrections, follow the process in `ARCHITECTURE_PROCESS.md`.
+- For architecture-level corrections, follow the process in `.ai/protocols/architecture-change.md`.
 - Do not introduce large abstractions before they are needed.
 - Prefer correct design over preserving existing code shape. Existing code and generated code have no special authority just because they already exist.
 - Code does not exist for its own sake. It exists to serve the current design and purpose; when that purpose changes, adjust, reshape, or remove the code to match the new goal.
@@ -39,70 +44,6 @@ This repository is an Object Pascal / Free Pascal project. Treat the codebase as
 - Do not preserve generated implementation details when they conflict with the project direction.
 - Treat feedback prefixed with `gpt:` as external review input only. Verify claims against the codebase before acting on them.  Analyze, push back if needed and discuss.  Do not act on these statements until directed to do so.
 - Use external AI review as a second-pass critique, not as a replacement for local compile/run verification or architectural judgment.
-
-## Persistence and Object Model Rules
-
-- For structured framework data, design the correct Object Pascal object graph first, then persist that graph.
-- RTTI and published properties are intentional modeling tools in this project, not reluctant fallbacks.
-- Persisted lists that may contain descendants must preserve per-item class/type identity and reconstruct the correct descendant.
-- Persistence aliases may be used for clean external names, but the default identity is the real Pascal class name.
-
-## Language and Compatibility Rules
-
-- This is Object Pascal / Free Pascal code.
-- Respect Pascal visibility and type rules.
-- Do not use clever workarounds to bypass language constraints.
-- Do not use casts to bypass design or type problems unless explicitly approved.
-- Do not add or keep compatibility APIs, overloads, aliases, convenience wrappers, or legacy shims unless explicitly requested or justified by a verified current integration requirement.
-- Do not introduce dependencies or frameworks unless explicitly requested.
-
-## Unit Naming Rules
-
-Use the project's intent-based unit prefixes:
-
-- `ob` for object/class definitions.
-- `ui` for GUI/forms/user-interface units.
-- `ut` for utility/helper functions grouped by theme.
-- `tp` for types and constants.
-
-Do not invent new naming conventions unless explicitly asked.
-
-## Shared Definition Ownership Rules
-
-- Do not use type aliases as convenience wrappers or compatibility shims.
-- Shared definitions must have one real source of truth.
-- If shared definitions are type declarations, constants, enums, records, or other pure type-level data, move the real definitions into an appropriate `tp...` unit and have each consumer use that unit directly.
-- If shared definitions are object/class implementations, move the real definitions into an appropriate `ob...` unit and have each consumer use that unit directly.
-- Do not re-export enum values, constants, type names, or classes from another unit to avoid updating `uses` clauses.
-
-## Identifier Naming Rules
-
-- Function and procedure arguments must use the `A` prefix.
-  - Example: `AName`, `AValue`, `AOwner`, `ARect`.
-- Local variables must use the lowercase `l` prefix, with no exceptions.
-  - Example: `lIndex`, `lEvent`, `lWindow`.
-- Class fields should use the `F` prefix.
-  - Example: `FRunning`, `FMainWindow`, `FRenderer`.
-- Constants should use the `c` prefix where practical.
-  - Example: `cDefaultWidth`, `cDefaultHeight`.
-
-## Class Structure Rules
-
-- Fields belong in `private`.
-- Behavior getters and setters belong in `protected`.
-- Properties used by other objects belong in `public`.
-- Persisted RTTI-visible properties belong in `published` when they are part of the serialized object model.
-- Trivial getters and setters should be replaced by direct field-backed properties.
-- Use properties to expose state intentionally.
-- Do not expose fields directly.
-- Keep constructors and destructors simple.
-- Avoid lifecycle magic hidden in unrelated methods.
-- Use protected getters/setters only when behavior is actually needed.
-
-## Function Return Rules
-
-- Use `Result` for function return values.
-- Do not assign return values to the function name.
 
 ## Code Change Rules
 
@@ -135,6 +76,14 @@ Do not invent new naming conventions unless explicitly asked.
 - If information is uncertain, say so plainly instead of guessing.
 - Do not guess.  Verify.  Confirm.  Do not guess.
 - When the user asks a question, answer from verified knowledge. The user usually has a working hypothesis and is asking for confirmation or correction, not speculation.
+
+## Sub-Agent Rules
+
+- For approved architecture implementation work, follow `.ai/protocols/subagents.md`.
+- Sub-agents are helpers, not authorities. Main Codex remains responsible for orchestration, integration, verification, and final reporting.
+- Prefer persistent expertise roles with bounded live agent lifetimes.
+- Keep sub-agents in their assigned folder or subsystem ownership.
+- Close and replace unreliable, stale, or scope-drifting sub-agents instead of preserving flawed context.
 
 ## Review Rules
 
