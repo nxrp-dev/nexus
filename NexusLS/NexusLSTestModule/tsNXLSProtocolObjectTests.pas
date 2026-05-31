@@ -259,8 +259,7 @@ begin
 
     lEdit := TNXLSTextDocumentEdit(lRequest.params.edit.documentChanges.AddObject(TNXLSTextDocumentEdit));
     lEdit.textDocument.uri.Value := 'file:///tmp/unit.pas';
-    lEdit.textDocument.version.Free;
-    lEdit.textDocument.version := TNXJSONNull.Create;
+    lEdit.textDocument.version.SetNull;
 
     lTextEdit := TNXLSTextEdit(lEdit.edits.AddObject(TNXLSTextEdit));
     NXLSSetRange(lTextEdit.range, 1, 2, 3, 4);

@@ -81,6 +81,7 @@ type
     function ToJSONData: TJSONData; override;
     procedure FromJSONData(AData: TJSONData); override;
     function AsString: string; override;
+    procedure SetNull;
     procedure SetValue(const AValue: string);
     property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
     property IsNull: Boolean read FIsNull;
@@ -99,6 +100,7 @@ type
     procedure FromJSONData(AData: TJSONData); override;
     function AsInteger: Integer; override;
     function AsInt64: Int64; override;
+    procedure SetNull;
     procedure SetValue(const AValue: Int64);
     property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
     property IsNull: Boolean read FIsNull;
@@ -556,6 +558,17 @@ begin
   Result := FValue;
 end;
 
+procedure TNXJSONString.SetNull;
+begin
+  if not FAcceptsNull then
+    raise ENXJSON.Create('JSON string does not accept null.');
+
+  FValue := '';
+  FIsNull := True;
+  FAssigned := True;
+  FJSONType := nxjtString;
+end;
+
 procedure TNXJSONString.SetValue(const AValue: string);
 begin
   FValue := AValue;
@@ -618,6 +631,17 @@ end;
 function TNXJSONInteger.AsInt64: Int64;
 begin
   Result := FValue;
+end;
+
+procedure TNXJSONInteger.SetNull;
+begin
+  if not FAcceptsNull then
+    raise ENXJSON.Create('JSON integer does not accept null.');
+
+  FValue := 0;
+  FIsNull := True;
+  FAssigned := True;
+  FJSONType := nxjtInteger;
 end;
 
 procedure TNXJSONInteger.SetValue(const AValue: Int64);

@@ -52,8 +52,7 @@ begin
   Result := TNXLSTextDocumentEdit(AEdit.documentChanges.AddObject(
     TNXLSTextDocumentEdit));
   Result.textDocument.uri.Value := AURI;
-  Result.textDocument.version.Free;
-  Result.textDocument.version := TNXJSONNull.Create;
+  Result.textDocument.version.SetNull;
   Result.edits.Assigned := True;
   Result.Assigned := True;
 end;

@@ -42,9 +42,11 @@ type
 
   TNXLSOptionalVersionedTextDocumentIdentifier = class(TNXLSTextDocumentIdentifier)
   private
-    Fversion: TNXJSONValue;
+    Fversion: TNXJSONInteger;
+  public
+    constructor Create; override;
   published
-    property version: TNXJSONValue read Fversion write Fversion;
+    property version: TNXJSONInteger read Fversion write Fversion;
   end;
 
   TNXLSTextDocumentItem = class(TNXJSONObject)
@@ -79,5 +81,11 @@ type
   end;
 
 implementation
+
+constructor TNXLSOptionalVersionedTextDocumentIdentifier.Create;
+begin
+  inherited Create;
+  version.AcceptsNull := True;
+end;
 
 end.

@@ -519,13 +519,15 @@ type
   TNXLSWorkspaceDocumentDiagnosticReport = class(TNXJSONObject)
   private
     Furi: TNXJSONString;
-    Fversion: TNXJSONValue;
+    Fversion: TNXJSONInteger;
     Fkind: TNXJSONString;
     FresultId: TNXJSONString;
     Fitems: TNXLSDiagnosticArray;
+  public
+    constructor Create; override;
   published
     property uri: TNXJSONString read Furi write Furi;
-    property version: TNXJSONValue read Fversion write Fversion;
+    property version: TNXJSONInteger read Fversion write Fversion;
     property kind: TNXJSONString read Fkind write Fkind;
     property resultId: TNXJSONString read FresultId write FresultId;
     property items: TNXLSDiagnosticArray read Fitems write Fitems;
@@ -565,6 +567,12 @@ type
   end;
 
 implementation
+
+constructor TNXLSWorkspaceDocumentDiagnosticReport.Create;
+begin
+  inherited Create;
+  version.AcceptsNull := True;
+end;
 
 class function TNXLSProjectFieldArray.ItemClass: TNXJSONValueClass;
 begin
