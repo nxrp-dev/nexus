@@ -5,7 +5,6 @@ unit obNXLSLifecycleService;
 interface
 
 uses
-  obNXJSONValues,
   obNXLSProtocolParams,
   obNXLSProtocolObjects,
   obNXLSServiceContext;
@@ -25,19 +24,36 @@ implementation
 
 procedure TNXLSLifecycleService.FillInitializeResult(AParams: TNXLSInitializeParams;
   AResult: TNXLSInitializeResultValue);
-var
-  lValue: TNXJSONValue;
 begin
   Model.BeginInitialize(AParams);
   if AResult = nil then
     Exit;
 
-  lValue := TNXLSInitializeResult.CreateValue;
-  try
-    AResult.Assign(lValue);
-  finally
-    lValue.Free;
-  end;
+  AResult.capabilities.textDocumentSync.openClose.Value := True;
+  AResult.capabilities.textDocumentSync.change.Value := 1;
+  AResult.capabilities.textDocumentSync.save.Value := True;
+
+  AResult.capabilities.workspace.workspaceFolders.supported.Value := True;
+  AResult.capabilities.workspace.workspaceFolders.changeNotifications.Value := True;
+
+  AResult.capabilities.completionProvider.triggerCharacters.AddString('.');
+  AResult.capabilities.completionProvider.triggerCharacters.AddString('^');
+
+  AResult.capabilities.signatureHelpProvider.triggerCharacters.AddString('(');
+  AResult.capabilities.signatureHelpProvider.triggerCharacters.AddString(')');
+  AResult.capabilities.signatureHelpProvider.triggerCharacters.AddString(',');
+
+  AResult.capabilities.renameProvider.prepareProvider.Value := True;
+
+  AResult.capabilities.hoverProvider.Value := True;
+  AResult.capabilities.declarationProvider.Value := True;
+  AResult.capabilities.definitionProvider.Value := True;
+  AResult.capabilities.implementationProvider.Value := True;
+  AResult.capabilities.referencesProvider.Value := True;
+  AResult.capabilities.documentHighlightProvider.Value := True;
+  AResult.capabilities.documentSymbolProvider.Value := True;
+  AResult.capabilities.workspaceSymbolProvider.Value := True;
+  AResult.capabilities.codeActionProvider.Value := True;
 end;
 
 procedure TNXLSLifecycleService.Initialized(AParams: TNXLSInitializedParams);

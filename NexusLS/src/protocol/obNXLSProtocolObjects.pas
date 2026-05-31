@@ -10,16 +10,6 @@ uses
   obNXLSProtocolParams;
 
 type
-  TNXLSProtocolResult = class(TObject)
-  public
-    class function CreateValue: TNXJSONValue; virtual;
-  end;
-
-  TNXLSNullResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
   TNXLSTextDocumentSyncOptions = class(TNXJSONObject)
   private
     FopenClose: TNXJSONBoolean;
@@ -35,6 +25,43 @@ type
     property save: TNXJSONBoolean read Fsave write Fsave;
   end;
 
+  TNXLSWorkspaceFoldersServerCapabilities = class(TNXJSONObject)
+  private
+    Fsupported: TNXJSONBoolean;
+    FchangeNotifications: TNXJSONBoolean;
+  published
+    property supported: TNXJSONBoolean read Fsupported write Fsupported;
+    property changeNotifications: TNXJSONBoolean read FchangeNotifications write FchangeNotifications;
+  end;
+
+  TNXLSWorkspaceServerCapabilities = class(TNXJSONObject)
+  private
+    FworkspaceFolders: TNXLSWorkspaceFoldersServerCapabilities;
+  published
+    property workspaceFolders: TNXLSWorkspaceFoldersServerCapabilities read FworkspaceFolders write FworkspaceFolders;
+  end;
+
+  TNXLSCompletionOptions = class(TNXJSONObject)
+  private
+    FtriggerCharacters: TNXJSONStringArray;
+  published
+    property triggerCharacters: TNXJSONStringArray read FtriggerCharacters write FtriggerCharacters;
+  end;
+
+  TNXLSSignatureHelpOptions = class(TNXJSONObject)
+  private
+    FtriggerCharacters: TNXJSONStringArray;
+  published
+    property triggerCharacters: TNXJSONStringArray read FtriggerCharacters write FtriggerCharacters;
+  end;
+
+  TNXLSRenameOptions = class(TNXJSONObject)
+  private
+    FprepareProvider: TNXJSONBoolean;
+  published
+    property prepareProvider: TNXJSONBoolean read FprepareProvider write FprepareProvider;
+  end;
+
   TNXLSServerInfo = class(TNXJSONObject)
   private
     Fname: TNXJSONString;
@@ -47,8 +74,8 @@ type
   TNXLSServerCapabilities = class(TNXJSONObject)
   private
     FtextDocumentSync: TNXLSTextDocumentSyncOptions;
-    Fworkspace: TNXJSONValue;
-    FcompletionProvider: TNXJSONValue;
+    Fworkspace: TNXLSWorkspaceServerCapabilities;
+    FcompletionProvider: TNXLSCompletionOptions;
     FhoverProvider: TNXJSONBoolean;
     FdeclarationProvider: TNXJSONBoolean;
     FdefinitionProvider: TNXJSONBoolean;
@@ -57,14 +84,14 @@ type
     FdocumentHighlightProvider: TNXJSONBoolean;
     FdocumentSymbolProvider: TNXJSONBoolean;
     FworkspaceSymbolProvider: TNXJSONBoolean;
-    FsignatureHelpProvider: TNXJSONValue;
+    FsignatureHelpProvider: TNXLSSignatureHelpOptions;
     FcodeActionProvider: TNXJSONBoolean;
-    FrenameProvider: TNXJSONValue;
+    FrenameProvider: TNXLSRenameOptions;
     Fexperimental: TNXJSONValue;
   published
     property textDocumentSync: TNXLSTextDocumentSyncOptions read FtextDocumentSync write FtextDocumentSync;
-    property workspace: TNXJSONValue read Fworkspace write Fworkspace;
-    property completionProvider: TNXJSONValue read FcompletionProvider write FcompletionProvider;
+    property workspace: TNXLSWorkspaceServerCapabilities read Fworkspace write Fworkspace;
+    property completionProvider: TNXLSCompletionOptions read FcompletionProvider write FcompletionProvider;
     property hoverProvider: TNXJSONBoolean read FhoverProvider write FhoverProvider;
     property declarationProvider: TNXJSONBoolean read FdeclarationProvider write FdeclarationProvider;
     property definitionProvider: TNXJSONBoolean read FdefinitionProvider write FdefinitionProvider;
@@ -73,9 +100,9 @@ type
     property documentHighlightProvider: TNXJSONBoolean read FdocumentHighlightProvider write FdocumentHighlightProvider;
     property documentSymbolProvider: TNXJSONBoolean read FdocumentSymbolProvider write FdocumentSymbolProvider;
     property workspaceSymbolProvider: TNXJSONBoolean read FworkspaceSymbolProvider write FworkspaceSymbolProvider;
-    property signatureHelpProvider: TNXJSONValue read FsignatureHelpProvider write FsignatureHelpProvider;
+    property signatureHelpProvider: TNXLSSignatureHelpOptions read FsignatureHelpProvider write FsignatureHelpProvider;
     property codeActionProvider: TNXJSONBoolean read FcodeActionProvider write FcodeActionProvider;
-    property renameProvider: TNXJSONValue read FrenameProvider write FrenameProvider;
+    property renameProvider: TNXLSRenameOptions read FrenameProvider write FrenameProvider;
     property experimental: TNXJSONValue read Fexperimental write Fexperimental;
   end;
 
@@ -86,11 +113,6 @@ type
   published
     property capabilities: TNXLSServerCapabilities read Fcapabilities write Fcapabilities;
     property serverInfo: TNXLSServerInfo read FserverInfo write FserverInfo;
-  end;
-
-  TNXLSInitializeResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
   end;
 
   TNXLSProjectField = class(TNXJSONObject)
@@ -226,21 +248,6 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSTextEditArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSLocationResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSLocationArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
   TNXLSCallHierarchyItemArray = class(TNXJSONArray)
   public
     class function ItemClass: TNXJSONValueClass; override;
@@ -277,26 +284,6 @@ type
   TNXLSTypeHierarchyItemArray = class(TNXJSONArray)
   public
     class function ItemClass: TNXJSONValueClass; override;
-  end;
-
-  TNXLSCallHierarchyItemArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCallHierarchyIncomingCallArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCallHierarchyOutgoingCallArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSTypeHierarchyItemArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
   end;
 
   TNXLSDocumentHighlight = class(TNXJSONObject)
@@ -576,264 +563,7 @@ type
     property success: TNXJSONBoolean read Fsuccess write Fsuccess;
   end;
 
-  TNXLSDocumentHighlightArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSDocumentLinkArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSDocumentLinkResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSHoverResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCodeLensArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCodeLensResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSFoldingRangeArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSSelectionRangeArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSDocumentSymbolArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSSemanticTokensResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSSemanticTokensDeltaResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSInlineValueArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSInlayHintArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSInlayHintResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSMonikerArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCompletionResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCompletionItemResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSSignatureHelpResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCodeActionArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSCodeActionResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSColorInformationArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSColorPresentationArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSPrepareRenameResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSLinkedEditingRangesResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSDocumentDiagnosticReportResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSWorkspaceDiagnosticReportResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSWorkspaceSymbolArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSWorkspaceSymbolResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSConfigurationArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSWorkspaceFolderArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSApplyWorkspaceEditResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSMessageActionItemResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSShowDocumentResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
 implementation
-
-uses
-  fpjson;
-
-procedure MarkAssigned(AValue: TNXJSONValue);
-begin
-  if AValue <> nil then
-    AValue.Assigned := True;
-end;
-
-procedure LoadRawJSON(AValue: TNXJSONValue; AData: TJSONData);
-begin
-  try
-    AValue.FromJSONData(AData);
-  finally
-    AData.Free;
-  end;
-end;
-
-function StringArrayJSON(const AValues: array of string): TJSONArray;
-var
-  lIdx: Integer;
-begin
-  Result := TJSONArray.Create;
-  for lIdx := Low(AValues) to High(AValues) do
-    Result.Add(AValues[lIdx]);
-end;
-
-function EmptyArray(AClass: TNXJSONValueClass): TNXJSONValue;
-begin
-  Result := AClass.Create;
-  Result.Assigned := True;
-end;
-
-class function TNXLSProtocolResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSNullResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSInitializeResult.CreateValue: TNXJSONValue;
-var
-  lResult: TNXLSInitializeResultValue;
-  lWorkspace: TJSONObject;
-  lWorkspaceFolders: TJSONObject;
-  lCompletionProvider: TJSONObject;
-  lSignatureHelpProvider: TJSONObject;
-  lRenameProvider: TJSONObject;
-begin
-  lResult := TNXLSInitializeResultValue.Create;
-  lResult.capabilities.textDocumentSync.openClose.Value := True;
-  lResult.capabilities.textDocumentSync.change.Value := 1;
-  lResult.capabilities.textDocumentSync.save.Value := True;
-  MarkAssigned(lResult.capabilities.textDocumentSync);
-
-  lWorkspaceFolders := TJSONObject.Create;
-  lWorkspaceFolders.Add('supported', True);
-  lWorkspaceFolders.Add('changeNotifications', True);
-  lWorkspace := TJSONObject.Create;
-  lWorkspace.Add('workspaceFolders', lWorkspaceFolders);
-  LoadRawJSON(lResult.capabilities.workspace, lWorkspace);
-
-  lCompletionProvider := TJSONObject.Create;
-  lCompletionProvider.Add('triggerCharacters', StringArrayJSON(['.', '^']));
-  LoadRawJSON(lResult.capabilities.completionProvider, lCompletionProvider);
-
-  lSignatureHelpProvider := TJSONObject.Create;
-  lSignatureHelpProvider.Add('triggerCharacters', StringArrayJSON(['(', ')', ',']));
-  LoadRawJSON(lResult.capabilities.signatureHelpProvider, lSignatureHelpProvider);
-
-  lRenameProvider := TJSONObject.Create;
-  lRenameProvider.Add('prepareProvider', True);
-  LoadRawJSON(lResult.capabilities.renameProvider, lRenameProvider);
-
-  lResult.capabilities.hoverProvider.Value := True;
-  lResult.capabilities.declarationProvider.Value := True;
-  lResult.capabilities.definitionProvider.Value := True;
-  lResult.capabilities.implementationProvider.Value := True;
-  lResult.capabilities.referencesProvider.Value := True;
-  lResult.capabilities.documentHighlightProvider.Value := True;
-  lResult.capabilities.documentSymbolProvider.Value := True;
-  lResult.capabilities.workspaceSymbolProvider.Value := True;
-  lResult.capabilities.codeActionProvider.Value := True;
-
-  MarkAssigned(lResult.capabilities);
-  MarkAssigned(lResult);
-  Result := lResult;
-end;
 
 class function TNXLSProjectFieldArray.ItemClass: TNXJSONValueClass;
 begin
@@ -938,233 +668,6 @@ end;
 class function TNXLSWorkspaceDocumentDiagnosticReportArray.ItemClass: TNXJSONValueClass;
 begin
   Result := TNXLSWorkspaceDocumentDiagnosticReport;
-end;
-
-class function TNXLSTextEditArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSTextEditArray);
-end;
-
-class function TNXLSLocationResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSLocationArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSLocationArray);
-end;
-
-class function TNXLSCallHierarchyItemArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSCallHierarchyItemArray);
-end;
-
-class function TNXLSCallHierarchyIncomingCallArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSCallHierarchyIncomingCallArray);
-end;
-
-class function TNXLSCallHierarchyOutgoingCallArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSCallHierarchyOutgoingCallArray);
-end;
-
-class function TNXLSTypeHierarchyItemArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSTypeHierarchyItemArray);
-end;
-
-class function TNXLSDocumentHighlightArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSDocumentHighlightArray);
-end;
-
-class function TNXLSDocumentLinkArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSDocumentLinkArray);
-end;
-
-class function TNXLSDocumentLinkResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXLSDocumentLink.Create;
-  MarkAssigned(Result);
-end;
-
-class function TNXLSHoverResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSCodeLensArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSCodeLensArray);
-end;
-
-class function TNXLSCodeLensResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXLSCodeLens.Create;
-  MarkAssigned(Result);
-end;
-
-class function TNXLSFoldingRangeArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSFoldingRangeArray);
-end;
-
-class function TNXLSSelectionRangeArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSSelectionRangeArray);
-end;
-
-class function TNXLSDocumentSymbolArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXJSONArray);
-end;
-
-class function TNXLSSemanticTokensResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSSemanticTokensDeltaResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSInlineValueArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSInlineValueArray);
-end;
-
-class function TNXLSInlayHintArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSInlayHintArray);
-end;
-
-class function TNXLSInlayHintResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXLSInlayHint.Create;
-  MarkAssigned(Result);
-end;
-
-class function TNXLSMonikerArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSMonikerArray);
-end;
-
-class function TNXLSCompletionResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSCompletionItemArray);
-end;
-
-class function TNXLSCompletionItemResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXLSCompletionItem.Create;
-  MarkAssigned(Result);
-end;
-
-class function TNXLSSignatureHelpResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSCodeActionArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSCodeActionArray);
-end;
-
-class function TNXLSCodeActionResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXLSCodeAction.Create;
-  MarkAssigned(Result);
-end;
-
-class function TNXLSColorInformationArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSColorInformationArray);
-end;
-
-class function TNXLSColorPresentationArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSColorPresentationArray);
-end;
-
-class function TNXLSPrepareRenameResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSLinkedEditingRangesResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSDocumentDiagnosticReportResult.CreateValue: TNXJSONValue;
-var
-  lResult: TNXLSFullDocumentDiagnosticReport;
-begin
-  lResult := TNXLSFullDocumentDiagnosticReport.Create;
-  lResult.kind.Value := 'full';
-  lResult.items.Assigned := True;
-  MarkAssigned(lResult);
-  Result := lResult;
-end;
-
-class function TNXLSWorkspaceDiagnosticReportResult.CreateValue: TNXJSONValue;
-var
-  lResult: TNXLSWorkspaceDiagnosticReport;
-begin
-  lResult := TNXLSWorkspaceDiagnosticReport.Create;
-  lResult.items.Assigned := True;
-  MarkAssigned(lResult);
-  Result := lResult;
-end;
-
-class function TNXLSWorkspaceSymbolArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXJSONArray);
-end;
-
-class function TNXLSWorkspaceSymbolResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXLSWorkspaceSymbol.Create;
-  MarkAssigned(Result);
-end;
-
-class function TNXLSConfigurationArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSConfigurationArray);
-end;
-
-class function TNXLSWorkspaceFolderArrayResult.CreateValue: TNXJSONValue;
-begin
-  Result := EmptyArray(TNXLSWorkspaceFolderArray);
-end;
-
-class function TNXLSApplyWorkspaceEditResult.CreateValue: TNXJSONValue;
-var
-  lResult: TNXLSApplyWorkspaceEditResultValue;
-begin
-  lResult := TNXLSApplyWorkspaceEditResultValue.Create;
-  lResult.applied.Value := False;
-  MarkAssigned(lResult);
-  Result := lResult;
-end;
-
-class function TNXLSMessageActionItemResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
-end;
-
-class function TNXLSShowDocumentResult.CreateValue: TNXJSONValue;
-var
-  lResult: TNXLSShowDocumentResultValue;
-begin
-  lResult := TNXLSShowDocumentResultValue.Create;
-  lResult.success.Value := False;
-  MarkAssigned(lResult);
-  Result := lResult;
 end;
 
 end.
