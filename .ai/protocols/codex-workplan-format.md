@@ -71,8 +71,11 @@ Include:
 - assigned folders or file ownership
 - tasks that remain with main Codex
 - coordination and overlap risks
+- whether one worker should receive the whole approved plan or the work should be split by ownership
 
-State when delegation is not useful.
+If delegation was requested, the default plan is that workers perform implementation edits and Main Codex coordinates, reviews, integrates, verifies, and reports.
+
+State any concrete reason not to delegate. Do not use vague caution as the reason.
 
 ## Verification Plan
 
@@ -98,6 +101,7 @@ State that no implementation begins until the human owner explicitly authorizes 
 - Do not hide uncertainty.
 - Do not expand scope beyond the request.
 - If the request is ambiguous, identify the ambiguity in the plan.
-- Include a sub-agent delegation recommendation when implementation could be safely split.
+- Include a sub-agent delegation recommendation when implementation could be safely assigned.
+- If delegation was requested, make worker implementation the default unless a concrete integration-seam reason prevents it.
 - Include compile, focused grep, and manual verification expectations.
 - State any questions that must be answered before implementation.

@@ -46,7 +46,7 @@ Codex:
 - may inspect the codebase while preparing a work plan
 - returns exactly one work plan under `work/plans/`, named the same as the request file
 - commits and pushes the work-plan artifact after creating it
-- may propose sub-agent delegation in the work plan when the approved work can be safely split
+- includes a sub-agent delegation plan when delegation has been requested or when implementation can be clearly assigned
 - does not edit code, build, run tests, launch programs, create archives, or perform implementation repository operations until the human owner directly authorizes implementation
 - implements approved work after direct human authorization
 - compiles/tests according to the approved plan
@@ -71,8 +71,8 @@ The workflow does not rely on tiny proof-of-concept changes for safety when arch
 4. Codex commits and pushes the work-plan artifact.
 5. The human owner reviews the work plan, optionally with the isolated reviewer.
 6. The human owner directly authorizes Codex when implementation is desired.
-7. Codex assigns approved implementation slices to sub-agents when delegation is useful and safe.
-8. Codex implements and integrates the approved plan.
+7. If delegation was requested, Codex assigns approved implementation edits to a named sub-agent by default unless it states a concrete integration-seam reason not to.
+8. Codex coordinates, reviews, integrates, and verifies the approved implementation.
 9. The implementation result is reviewed.
 10. The human owner commits, rejects, or requests correction.
 
@@ -82,7 +82,9 @@ When implementation is directly authorized:
 
 - Follow the approved plan and constraints.
 - Keep the scope narrow.
-- Use sub-agents according to `.ai/protocols/subagents.md` when the approved work can be split by clear ownership.
+- Use sub-agents according to `.ai/protocols/subagents.md`.
+- When delegation was requested, sub-agents perform implementation edits by default. Main Codex coordinates, reviews, integrates, verifies, and reports.
+- Keep implementation local only when there is a concrete reason such as unclear ownership, unsafe write overlap, high integration-seam risk, or immediate critical-path inspection.
 - Do not expand into deferred cleanup unless explicitly approved.
 - Prefer correcting ownership over layering patches.
 - Centralize shared behavior when duplicated local behavior is the problem.
