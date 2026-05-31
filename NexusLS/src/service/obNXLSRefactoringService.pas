@@ -5,7 +5,6 @@ unit obNXLSRefactoringService;
 interface
 
 uses
-  obNXJSONValues,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSProtocolObjects,
@@ -14,7 +13,8 @@ uses
 type
   TNXLSRefactoringService = class(TNXLSLSPService)
   public
-    function Rename(AParams: TNXLSRenameParams): TNXJSONValue; virtual;
+    function FillRename(AParams: TNXLSRenameParams;
+      AResult: TNXLSWorkspaceEdit): Boolean; virtual;
     function FillPrepareRename(AParams: TNXLSTextDocumentPositionParams;
       AResult: TNXLSPrepareRenamePlaceholder): Boolean; virtual;
   end;
@@ -30,7 +30,6 @@ uses
   CodeToolManager,
   CTUnitGraph,
   FileUtil,
-  fpjson,
   utNXLSServiceHelpers;
 
 procedure NXLSAddRenameFileList(AFiles: TStrings; const AStartFile: string);
@@ -46,68 +45,40 @@ begin
     FindAllFiles(AFiles, lDir, '*.pas;*.pp;*.p;*.lpr;*.inc', True);
 end;
 
-function NXLSCreateTextDocumentEdit(const AURI: string): TJSONObject;
-var
-  lTextDocument: TJSONObject;
+function NXLSAddTextDocumentEdit(AEdit: TNXLSWorkspaceEdit;
+  const AURI: string): TNXLSTextDocumentEdit;
 begin
-  Result := TJSONObject.Create;
-  try
-    lTextDocument := TJSONObject.Create;
-    lTextDocument.Add('uri', AURI);
-    lTextDocument.Add('version', 0);
-    Result.Add('textDocument', lTextDocument);
-    Result.Add('edits', TJSONArray.Create);
-  except
-    Result.Free;
-    raise;
-  end;
+  Result := TNXLSTextDocumentEdit(AEdit.documentChanges.AddObject(
+    TNXLSTextDocumentEdit));
+  Result.textDocument.uri.Value := AURI;
+  Result.textDocument.version.Value := 0;
+  Result.edits.Assigned := True;
+  Result.Assigned := True;
 end;
 
-procedure NXLSAddRenameEdit(AEdits: TJSONArray; ACodePos: PCodeXYPosition;
+procedure NXLSAssignPosition(APosition: TNXLSPosition; ALine, ACharacter: Integer);
+begin
+  APosition.line.Value := ALine;
+  APosition.character.Value := ACharacter;
+  APosition.Assigned := True;
+end;
+
+procedure NXLSAddRenameEdit(AEdits: TNXLSTextEditArray; ACodePos: PCodeXYPosition;
   const AIdentifier, ANewName: string);
 var
-  lEdit: TJSONObject;
-  lRange: TJSONObject;
-  lStart: TJSONObject;
-  lEnd: TJSONObject;
+  lEdit: TNXLSTextEdit;
 begin
-  lEdit := TJSONObject.Create;
-  try
-    lRange := TJSONObject.Create;
-    lStart := TJSONObject.Create;
-    lEnd := TJSONObject.Create;
-
-    lStart.Add('line', ACodePos^.Y - 1);
-    lStart.Add('character', ACodePos^.X - 1);
-    lEnd.Add('line', ACodePos^.Y - 1);
-    lEnd.Add('character', ACodePos^.X - 1 + Length(AIdentifier));
-    lRange.Add('start', lStart);
-    lRange.Add('end', lEnd);
-
-    lEdit.Add('range', lRange);
-    lEdit.Add('newText', ANewName);
-    AEdits.Add(lEdit);
-  except
-    lEdit.Free;
-    raise;
-  end;
+  lEdit := TNXLSTextEdit(AEdits.AddObject(TNXLSTextEdit));
+  NXLSAssignPosition(lEdit.range.start, ACodePos^.Y - 1, ACodePos^.X - 1);
+  NXLSAssignPosition(lEdit.range.&end, ACodePos^.Y - 1,
+    ACodePos^.X - 1 + Length(AIdentifier));
+  lEdit.range.Assigned := True;
+  lEdit.newText.Value := ANewName;
+  lEdit.Assigned := True;
 end;
 
-procedure NXLSAddDocumentChange(AEdit: TNXLSWorkspaceEdit; AData: TJSONData);
-var
-  lValue: TNXJSONValue;
-begin
-  lValue := TNXJSONValue.Create;
-  try
-    lValue.FromJSONData(AData);
-    AEdit.documentChanges.Add(lValue);
-    lValue := nil;
-  finally
-    lValue.Free;
-  end;
-end;
-
-function TNXLSRefactoringService.Rename(AParams: TNXLSRenameParams): TNXJSONValue;
+function TNXLSRefactoringService.FillRename(AParams: TNXLSRenameParams;
+  AResult: TNXLSWorkspaceEdit): Boolean;
 var
   lDocument: TNXLSDocument;
   lStartCode: TCodeBuffer;
@@ -124,26 +95,13 @@ var
   lDeclY: Integer;
   lDeclTopLine: Integer;
   lIdentifier: string;
-  lWorkspaceEdit: TNXLSWorkspaceEdit;
   lCurrentURI: string;
-  lCurrentEdit: TJSONObject;
-
-  procedure FlushCurrentEdit;
-  begin
-    if lCurrentEdit = nil then
-      Exit;
-
-    NXLSAddDocumentChange(lWorkspaceEdit, lCurrentEdit);
-    FreeAndNil(lCurrentEdit);
-  end;
-
-  function CurrentEdits: TJSONArray;
-  begin
-    Result := TJSONArray(lCurrentEdit.Find('edits'));
-  end;
+  lCurrentEdit: TNXLSTextDocumentEdit;
 
 begin
-  Result := TNXLSWorkspaceEditResult.CreateValue;
+  Result := False;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) or (AParams.newName.Value = '') then
     Exit;
@@ -196,12 +154,8 @@ begin
     if (lTree = nil) or (lTree.Count = 0) then
       Exit;
 
-    Result.Free;
-    lWorkspaceEdit := TNXLSWorkspaceEdit.Create;
-    lWorkspaceEdit.documentChanges.Assigned := True;
-    lWorkspaceEdit.Assigned := True;
-    Result := lWorkspaceEdit;
-
+    AResult.documentChanges.Assigned := True;
+    AResult.Assigned := True;
     lCurrentURI := '';
     lNode := TAVLTreeNode(lTree.FindLowest);
     while lNode <> nil do
@@ -209,18 +163,16 @@ begin
       lCodePos := PCodeXYPosition(lNode.Data);
       if NXLSPathToFileURI(lCodePos^.Code.Filename) <> lCurrentURI then
       begin
-        FlushCurrentEdit;
         lCurrentURI := NXLSPathToFileURI(lCodePos^.Code.Filename);
-        lCurrentEdit := NXLSCreateTextDocumentEdit(lCurrentURI);
+        lCurrentEdit := NXLSAddTextDocumentEdit(AResult, lCurrentURI);
       end;
 
-      NXLSAddRenameEdit(CurrentEdits, lCodePos, lIdentifier,
+      NXLSAddRenameEdit(lCurrentEdit.edits, lCodePos, lIdentifier,
         AParams.newName.Value);
       lNode := TAVLTreeNode(lTree.FindSuccessor(lNode));
     end;
-    FlushCurrentEdit;
+    Result := True;
   finally
-    lCurrentEdit.Free;
     lFiles.Free;
     CodeToolBoss.FreeListOfPCodeXYPosition(lList);
     CodeToolBoss.FreeTreeOfPCodeXYPosition(lTree);

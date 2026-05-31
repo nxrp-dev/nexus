@@ -13,6 +13,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -53,9 +55,29 @@ begin
   Result := TNXLSRenameParams;
 end;
 
-function TNXLSTextDocumentRenameRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentRenameRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Refactoring.Rename(TNXLSRenameParams(params));
+  Result := TNXLSWorkspaceEditResult;
+end;
+
+class function TNXLSTextDocumentRenameRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
+function TNXLSTextDocumentRenameRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSWorkspaceEditResult;
+begin
+  lResult := TNXLSWorkspaceEditResult(PrepareResult);
+  if TNXLSLSPModel.Current.Refactoring.FillRename(TNXLSRenameParams(params),
+    lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentPrepareRenameRequest.GetFactoryName: string;

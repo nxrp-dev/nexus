@@ -28,20 +28,10 @@ implementation
 
 uses
   SysUtils,
-  fpjson,
   BasicCodeTools,
   CodeCache,
   CodeToolManager,
   utNXLSServiceHelpers;
-
-procedure NXLSSetHoverJSONString(AValue: TNXJSONValue; AData: TJSONData);
-begin
-  try
-    AValue.FromJSONData(AData);
-  finally
-    AData.Free;
-  end;
-end;
 
 function NXLSFindDeclarationLine(ACode: TCodeBuffer; const AIdentifier: string): string;
 var
@@ -131,7 +121,6 @@ var
   lTopLine: Integer;
   lBlockTopLine: Integer;
   lBlockBottomLine: Integer;
-  lMarkup: TJSONObject;
   lHover: TNXLSHover;
   lIdentifier: string;
   lUsedDeclCode: TCodeBuffer;
@@ -204,10 +193,10 @@ begin
 
   lHover := AResult;
 
-  lMarkup := TJSONObject.Create;
-  lMarkup.Add('kind', 'markdown');
-  lMarkup.Add('value', '```pascal' + LineEnding + lHint + LineEnding + '```');
-  NXLSSetHoverJSONString(lHover.contents, lMarkup);
+  lHover.contents.kind.Value := 'markdown';
+  lHover.contents.value.Value := '```pascal' + LineEnding + lHint +
+    LineEnding + '```';
+  lHover.contents.Assigned := True;
 
   if (AParams.position.line.Value >= 0) and
     (AParams.position.line.Value < lCode.LineCount) then

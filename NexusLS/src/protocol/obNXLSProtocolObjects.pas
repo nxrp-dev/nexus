@@ -329,10 +329,10 @@ type
 
   TNXLSHover = class(TNXJSONObject)
   private
-    Fcontents: TNXJSONValue;
+    Fcontents: TNXLSMarkupContent;
     Frange: TNXLSRange;
   published
-    property contents: TNXJSONValue read Fcontents write Fcontents;
+    property contents: TNXLSMarkupContent read Fcontents write Fcontents;
     property range: TNXLSRange read Frange write Frange;
   end;
 
@@ -682,11 +682,6 @@ type
   end;
 
   TNXLSColorPresentationArrayResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
-  TNXLSWorkspaceEditResult = class(TNXLSProtocolResult)
   public
     class function CreateValue: TNXJSONValue; override;
   end;
@@ -1093,11 +1088,6 @@ end;
 class function TNXLSColorPresentationArrayResult.CreateValue: TNXJSONValue;
 begin
   Result := EmptyArray(TNXLSColorPresentationArray);
-end;
-
-class function TNXLSWorkspaceEditResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSPrepareRenameResult.CreateValue: TNXJSONValue;

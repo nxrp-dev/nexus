@@ -939,15 +939,32 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
+  TNXLSTextDocumentEdit = class(TNXJSONObject)
+  private
+    FtextDocument: TNXLSVersionedTextDocumentIdentifier;
+    Fedits: TNXLSTextEditArray;
+  published
+    property textDocument: TNXLSVersionedTextDocumentIdentifier read FtextDocument write FtextDocument;
+    property edits: TNXLSTextEditArray read Fedits write Fedits;
+  end;
+
+  TNXLSTextDocumentEditArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
   TNXLSWorkspaceEdit = class(TNXJSONObject)
   private
     Fchanges: TNXJSONObject;
-    FdocumentChanges: TNXJSONArray;
+    FdocumentChanges: TNXLSTextDocumentEditArray;
     FchangeAnnotations: TNXJSONObject;
   published
     property changes: TNXJSONObject read Fchanges write Fchanges;
-    property documentChanges: TNXJSONArray read FdocumentChanges write FdocumentChanges;
+    property documentChanges: TNXLSTextDocumentEditArray read FdocumentChanges write FdocumentChanges;
     property changeAnnotations: TNXJSONObject read FchangeAnnotations write FchangeAnnotations;
+  end;
+
+  TNXLSWorkspaceEditResult = class(TNXLSWorkspaceEdit)
   end;
 
   TNXLSMessageParams = class(TNXJSONObject)
@@ -1236,6 +1253,11 @@ end;
 class function TNXLSTextEditArray.ItemClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextEdit;
+end;
+
+class function TNXLSTextDocumentEditArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTextDocumentEdit;
 end;
 
 class function TNXLSMessageActionItemArray.ItemClass: TNXJSONValueClass;
