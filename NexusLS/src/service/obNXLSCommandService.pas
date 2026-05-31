@@ -7,6 +7,7 @@ interface
 uses
   Classes,
   obNXJSONValues,
+  obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSServiceContext;
 
@@ -16,12 +17,11 @@ type
     procedure ApplyTextEdit(const AURI, ANewText: string;
       AStartLine, AStartCharacter, AEndLine, AEndCharacter: Integer);
     procedure ApplyFullDocumentEdit(const AURI, ANewText: string);
-    procedure ExecuteCompleteCode(AParams: TNXLSExecuteCommandParams);
-    procedure ExecuteInvertAssignment(AParams: TNXLSExecuteCommandParams);
-    procedure ExecuteRemoveEmptyMethods(AParams: TNXLSExecuteCommandParams);
-    procedure ExecuteRemoveUnusedUnits(AParams: TNXLSExecuteCommandParams);
   public
-    function ExecuteCommand(AParams: TNXLSExecuteCommandParams): TNXJSONValue; virtual;
+    procedure CompleteCode(AParams: TNXLSCompleteCodeParams); virtual;
+    procedure InvertAssignment(AParams: TNXLSInvertAssignmentParams); virtual;
+    procedure RemoveEmptyMethods(AParams: TNXLSRemoveEmptyMethodsParams); virtual;
+    procedure RemoveUnusedUnits(AParams: TNXLSRemoveUnusedUnitsParams); virtual;
   end;
 
 implementation
@@ -35,10 +35,7 @@ uses
   CodeToolsStructs,
   FindDeclarationTool,
   PascalParserTool,
-  SourceChanger,
-  obNXLSProjectService,
-  obNXLSProtocolObjects,
-  utNXLSCommandNames;
+  SourceChanger;
 
 type
   TNXLSInvertAssignOption = (iaoSpaceBefore, iaoSpaceAfter, iaoAlign);
@@ -60,45 +57,23 @@ type
     property Options: TNXLSInvertAssignOptions read FOptions write FOptions;
   end;
 
-function NXLSArgument(AParams: TNXLSExecuteCommandParams; AIndex: Integer): TNXJSONValue;
+function NXLSRequiredString(AValue: TNXJSONString; const AName: string): string;
 begin
-  if (AParams = nil) or (AParams.arguments = nil) or
-    (AIndex < 0) or (AIndex >= AParams.arguments.Count) then
-    raise Exception.CreateFmt('Command argument %d is required.', [AIndex]);
-
-  Result := AParams.arguments[AIndex];
-end;
-
-function NXLSArgumentString(AParams: TNXLSExecuteCommandParams; AIndex: Integer): string;
-begin
-  Result := NXLSArgument(AParams, AIndex).AsString;
+  if AValue <> nil then
+    Result := AValue.Value
+  else
+    Result := '';
   if Result = '' then
-    raise Exception.CreateFmt('Command argument %d must be a non-empty string.', [AIndex]);
+    raise Exception.CreateFmt('%s is required.', [AName]);
 end;
 
-procedure NXLSArgumentPosition(AParams: TNXLSExecuteCommandParams; AIndex: Integer;
+procedure NXLSRequiredPosition(AValue: TNXLSPosition; const AName: string;
   out ALine, ACharacter: Integer);
-var
-  lData: TJSONData;
-  lValue: TJSONData;
 begin
-  lData := NXLSArgument(AParams, AIndex).ToJSONData;
-  try
-    if (lData = nil) or (lData.JSONType <> jtObject) then
-      raise Exception.CreateFmt('Command argument %d must be a position object.', [AIndex]);
-
-    lValue := TJSONObject(lData).Find('line');
-    if (lValue = nil) or (lValue.JSONType <> jtNumber) then
-      raise Exception.CreateFmt('Command argument %d position.line is required.', [AIndex]);
-    ALine := lValue.AsInteger;
-
-    lValue := TJSONObject(lData).Find('character');
-    if (lValue = nil) or (lValue.JSONType <> jtNumber) then
-      raise Exception.CreateFmt('Command argument %d position.character is required.', [AIndex]);
-    ACharacter := lValue.AsInteger;
-  finally
-    lData.Free;
-  end;
+  if AValue = nil then
+    raise Exception.CreateFmt('%s is required.', [AName]);
+  ALine := AValue.line.Value;
+  ACharacter := AValue.character.Value;
 end;
 
 procedure NXLSAddPosition(AObject: TJSONObject; const AName: string; ALine,
@@ -382,7 +357,7 @@ begin
     NXLSWholeDocumentEndCharacter(lCode));
 end;
 
-procedure TNXLSCommandService.ExecuteCompleteCode(AParams: TNXLSExecuteCommandParams);
+procedure TNXLSCommandService.CompleteCode(AParams: TNXLSCompleteCodeParams);
 var
   lURI: string;
   lDocument: TNXLSDocument;
@@ -396,8 +371,11 @@ var
   lBlockTopLine: Integer;
   lBlockBottomLine: Integer;
 begin
-  lURI := NXLSArgumentString(AParams, 0);
-  NXLSArgumentPosition(AParams, 1, lLine, lCharacter);
+  if AParams = nil then
+    raise Exception.Create('CompleteCode params are required.');
+
+  lURI := NXLSRequiredString(AParams.uri, 'uri');
+  NXLSRequiredPosition(AParams.position, 'position', lLine, lCharacter);
   lDocument := Model.RequireDocument(lURI);
   lCode := lDocument.CodeBuffer;
 
@@ -416,7 +394,7 @@ begin
   ApplyFullDocumentEdit(lURI, lCode.Source);
 end;
 
-procedure TNXLSCommandService.ExecuteInvertAssignment(AParams: TNXLSExecuteCommandParams);
+procedure TNXLSCommandService.InvertAssignment(AParams: TNXLSInvertAssignmentParams);
 var
   lURI: string;
   lDocument: TNXLSDocument;
@@ -429,9 +407,12 @@ var
   lLineText: string;
   lInverter: TNXLSInvertAssignment;
 begin
-  lURI := NXLSArgumentString(AParams, 0);
-  NXLSArgumentPosition(AParams, 1, lStartLine, lStartCharacter);
-  NXLSArgumentPosition(AParams, 2, lEndLine, lEndCharacter);
+  if AParams = nil then
+    raise Exception.Create('InvertAssignment params are required.');
+
+  lURI := NXLSRequiredString(AParams.uri, 'uri');
+  NXLSRequiredPosition(AParams.start, 'start', lStartLine, lStartCharacter);
+  NXLSRequiredPosition(AParams.&end, 'end', lEndLine, lEndCharacter);
   lDocument := Model.RequireDocument(lURI);
   lCode := lDocument.CodeBuffer;
   if lCode = nil then
@@ -461,7 +442,7 @@ begin
   end;
 end;
 
-procedure TNXLSCommandService.ExecuteRemoveEmptyMethods(AParams: TNXLSExecuteCommandParams);
+procedure TNXLSCommandService.RemoveEmptyMethods(AParams: TNXLSRemoveEmptyMethodsParams);
 const
   cAttributes =
     [phpAddClassName, phpDoNotAddSemicolon, phpWithoutParamList,
@@ -476,8 +457,11 @@ var
   lList: TFPList;
   lRemovedProcHeads: TStrings;
 begin
-  lURI := NXLSArgumentString(AParams, 0);
-  NXLSArgumentPosition(AParams, 1, lLine, lCharacter);
+  if AParams = nil then
+    raise Exception.Create('RemoveEmptyMethods params are required.');
+
+  lURI := NXLSRequiredString(AParams.uri, 'uri');
+  NXLSRequiredPosition(AParams.position, 'position', lLine, lCharacter);
   lDocument := Model.RequireDocument(lURI);
   lCode := lDocument.CodeBuffer;
 
@@ -500,7 +484,7 @@ begin
   end;
 end;
 
-procedure TNXLSCommandService.ExecuteRemoveUnusedUnits(AParams: TNXLSExecuteCommandParams);
+procedure TNXLSCommandService.RemoveUnusedUnits(AParams: TNXLSRemoveUnusedUnitsParams);
 var
   lURI: string;
   lDocument: TNXLSDocument;
@@ -509,7 +493,10 @@ var
   lIdx: Integer;
   lRemovedCount: Integer;
 begin
-  lURI := NXLSArgumentString(AParams, 0);
+  if AParams = nil then
+    raise Exception.Create('RemoveUnusedUnits params are required.');
+
+  lURI := NXLSRequiredString(AParams.uri, 'uri');
   lDocument := Model.RequireDocument(lURI);
   lCode := lDocument.CodeBuffer;
 
@@ -529,49 +516,6 @@ begin
   finally
     lUnits.Free;
   end;
-end;
-
-function TNXLSCommandService.ExecuteCommand(AParams: TNXLSExecuteCommandParams): TNXJSONValue;
-var
-  lCommand: string;
-  lData: TJSONData;
-begin
-  if (AParams <> nil) and (AParams.command <> nil) then
-  begin
-    lCommand := AParams.command.Value;
-    if SameText(lCommand, cNXLSCommandCompleteCode) then
-      ExecuteCompleteCode(AParams)
-    else if SameText(lCommand, cNXLSCommandInvertAssignment) then
-      ExecuteInvertAssignment(AParams)
-    else if SameText(lCommand, cNXLSCommandRemoveEmptyMethods) then
-      ExecuteRemoveEmptyMethods(AParams)
-    else if SameText(lCommand, cNXLSCommandRemoveUnusedUnits) then
-      ExecuteRemoveUnusedUnits(AParams)
-    else if SameText(lCommand, cNXLSCommandNexusProjectCreateWizard) then
-      Exit(TNXLSProjectService.CreateNexusProjectWizard(NXLSArgumentString(AParams, 0)))
-    else if SameText(lCommand, cNXLSCommandNexusProjectPlanCreate) then
-    begin
-      lData := NXLSArgument(AParams, 0).ToJSONData;
-      try
-        Exit(TNXLSProjectService.PlanNexusProjectCreate(lData));
-      finally
-        lData.Free;
-      end;
-    end
-    else if SameText(lCommand, cNXLSCommandNexusProjectCreate) then
-    begin
-      lData := NXLSArgument(AParams, 0).ToJSONData;
-      try
-        Exit(TNXLSProjectService.CreateNexusProject(lData));
-      finally
-        lData.Free;
-      end;
-    end
-    else
-      raise Exception.CreateFmt('Unsupported command: %s', [lCommand]);
-  end;
-
-  Result := TNXLSCommandResult.CreateValue;
 end;
 
 end.

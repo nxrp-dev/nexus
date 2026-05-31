@@ -14,12 +14,14 @@ uses
 type
   TNXLSNavigationService = class(TNXLSLSPService)
   public
-    function Declaration(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function Definition(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
-    function ImplementationLocation(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
+    function FillDeclaration(AParams: TNXLSTextDocumentPositionParams;
+      AResult: TNXLSLocation): Boolean; virtual;
+    function FillDefinition(AParams: TNXLSTextDocumentPositionParams;
+      AResult: TNXLSLocation): Boolean; virtual;
+    function FillImplementationLocation(AParams: TNXLSTextDocumentPositionParams;
+      AResult: TNXLSLocation): Boolean; virtual;
     procedure FillReferences(AParams: TNXLSReferenceParams;
       AResult: TNXLSLocationArray); virtual;
-    function References(AParams: TNXLSReferenceParams): TNXJSONValue; virtual;
   end;
 
 implementation
@@ -35,17 +37,17 @@ uses
   FileUtil,
   utNXLSServiceHelpers;
 
-function NXLSCreateLocation(ACode: TCodeBuffer; AX, AY: Integer): TNXLSLocation;
+function NXLSFillLocation(AResult: TNXLSLocation; ACode: TCodeBuffer;
+  AX, AY: Integer): Boolean;
 begin
-  Result := TNXLSLocation.Create;
-  try
-    Result.uri.Value := NXLSPathToFileURI(ACode.Filename);
-    NXLSSetIdentifierRange(Result, ACode, AX, AY - 1);
-    Result.Assigned := True;
-  except
-    Result.Free;
-    raise;
-  end;
+  Result := False;
+  if AResult = nil then
+    Exit;
+
+  AResult.uri.Value := NXLSPathToFileURI(ACode.Filename);
+  NXLSSetIdentifierRange(AResult, ACode, AX, AY - 1);
+  AResult.Assigned := True;
+  Result := True;
 end;
 
 procedure NXLSAddReferenceLocation(ATarget: TNXJSONArray; ACode: TCodeBuffer;
@@ -93,7 +95,8 @@ begin
   end;
 end;
 
-function TNXLSNavigationService.Declaration(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+function TNXLSNavigationService.FillDeclaration(
+  AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -105,7 +108,9 @@ var
   lBlockBottomLine: Integer;
   lIdentifier: string;
 begin
-  Result := TNXLSLocationResult.CreateValue;
+  Result := False;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or (AParams.position = nil) then
     Exit;
 
@@ -124,12 +129,12 @@ begin
       CodeToolBoss.FindDeclarationInInterface(lNewCode, lIdentifier, lNewCode,
         lNewX, lNewY, lNewTopLine, lBlockTopLine, lBlockBottomLine);
 
-    Result.Free;
-    Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
+    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
   end;
 end;
 
-function TNXLSNavigationService.Definition(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+function TNXLSNavigationService.FillDefinition(
+  AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -142,7 +147,9 @@ var
   lIdentifier: string;
   lDeclCode: TCodeBuffer;
 begin
-  Result := TNXLSLocationResult.CreateValue;
+  Result := False;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or (AParams.position = nil) then
     Exit;
 
@@ -154,8 +161,7 @@ begin
   if CodeToolBoss.FindMainDeclaration(lCode, AParams.position.character.Value + 1,
     AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine) then
   begin
-    Result.Free;
-    Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
+    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
     Exit;
   end;
 
@@ -163,8 +169,7 @@ begin
     AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
     lBlockTopLine, lBlockBottomLine) then
   begin
-    Result.Free;
-    Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
+    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
     Exit;
   end;
 
@@ -172,20 +177,17 @@ begin
     AParams.position.line.Value);
   if NXLSFindTypeDeclaration(lCode, lIdentifier, lNewX, lNewY) then
   begin
-    Result.Free;
-    Result := NXLSCreateLocation(lCode, lNewX, lNewY);
+    Result := NXLSFillLocation(AResult, lCode, lNewX, lNewY);
     Exit;
   end;
 
   if NXLSFindRoutineDeclarationInUses(lCode, lIdentifier, lDeclCode, lNewX,
     lNewY) then
-  begin
-    Result.Free;
-    Result := NXLSCreateLocation(lDeclCode, lNewX, lNewY);
-  end;
+    Result := NXLSFillLocation(AResult, lDeclCode, lNewX, lNewY);
 end;
 
-function TNXLSNavigationService.ImplementationLocation(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+function TNXLSNavigationService.FillImplementationLocation(
+  AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -197,7 +199,9 @@ var
   lBlockBottomLine: Integer;
   lRevertableJump: Boolean;
 begin
-  Result := TNXLSLocationResult.CreateValue;
+  Result := False;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) then
     Exit;
@@ -210,10 +214,7 @@ begin
   if CodeToolBoss.JumpToMethod(lCode, AParams.position.character.Value + 1,
     AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
     lBlockTopLine, lBlockBottomLine, lRevertableJump) then
-  begin
-    Result.Free;
-    Result := NXLSCreateLocation(lNewCode, lNewX, lNewY);
-  end;
+    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
 end;
 
 procedure TNXLSNavigationService.FillReferences(AParams: TNXLSReferenceParams;
@@ -334,12 +335,6 @@ begin
     CodeToolBoss.FreeTreeOfPCodeXYPosition(lTree);
     lCache.Free;
   end;
-end;
-
-function TNXLSNavigationService.References(AParams: TNXLSReferenceParams): TNXJSONValue;
-begin
-  Result := TNXLSLocationArrayResult.CreateValue;
-  FillReferences(AParams, TNXLSLocationArray(Result));
 end;
 
 end.

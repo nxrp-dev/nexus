@@ -15,7 +15,6 @@ type
   public
     procedure FillInitializeResult(AParams: TNXLSInitializeParams;
       AResult: TNXLSInitializeResultValue); virtual;
-    function Initialize(AParams: TNXLSInitializeParams): TNXJSONValue; virtual;
     procedure Initialized(AParams: TNXLSInitializedParams); virtual;
     procedure Shutdown; virtual;
     procedure ExitServer; virtual;
@@ -39,12 +38,6 @@ begin
   finally
     lValue.Free;
   end;
-end;
-
-function TNXLSLifecycleService.Initialize(AParams: TNXLSInitializeParams): TNXJSONValue;
-begin
-  Model.BeginInitialize(AParams);
-  Result := TNXLSInitializeResult.CreateValue;
 end;
 
 procedure TNXLSLifecycleService.Initialized(AParams: TNXLSInitializedParams);

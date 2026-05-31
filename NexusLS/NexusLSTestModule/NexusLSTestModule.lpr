@@ -10,7 +10,7 @@ uses
   obNXTestRPCRequests,
   tsNXLSCoreTests,
   tsNXLSProtocolObjectTests,
-  tsNXLSLegacySymbolTests,
+  tsNXLSSymbolTests,
   tsNXLSNavigationTests,
   tsNXLSIntelligenceTests,
   tsNXLSDiagnosticsTests,
@@ -23,7 +23,7 @@ procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXLSCoreTests(ARegistry);
   RegisterNXLSProtocolObjectTests(ARegistry);
-  RegisterNXLSLegacySymbolTests(ARegistry);
+  RegisterNXLSSymbolTests(ARegistry);
   RegisterNXLSNavigationTests(ARegistry);
   RegisterNXLSIntelligenceTests(ARegistry);
   RegisterNXLSDiagnosticsTests(ARegistry);

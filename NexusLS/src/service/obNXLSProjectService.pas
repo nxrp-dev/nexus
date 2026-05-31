@@ -5,44 +5,26 @@ unit obNXLSProjectService;
 interface
 
 uses
-  fpjson,
-  obNXJSONValues;
+  obNXLSProtocolObjects,
+  obNXLSProtocolParams;
 
 type
   TNXLSProjectService = class
   public
-    class function CreateNexusProjectWizard(const AWorkspaceRoot: string): TNXJSONValue;
-    class function PlanNexusProjectCreate(ARequest: TJSONData): TNXJSONValue;
-    class function CreateNexusProject(ARequest: TJSONData): TNXJSONValue;
+    class procedure FillCreateNexusProjectWizard(
+      AParams: TNXLSProjectCreateWizardParams;
+      AResult: TNXLSProjectCreateWizardResult);
+    class procedure FillPlanNexusProjectCreate(AParams: TNXLSProjectCreateParams;
+      AResult: TNXLSProjectPlanCreateResult);
+    class procedure FillCreateNexusProject(AParams: TNXLSProjectCreateParams;
+      AResult: TNXLSProjectCreateResult);
   end;
 
 implementation
 
 uses
+  obNXPascalProject,
   SysUtils;
-
-function NXLSWrapJSON(AData: TJSONData): TNXJSONValue;
-begin
-  Result := TNXJSONValue.Create;
-  try
-    Result.FromJSONData(AData);
-  finally
-    AData.Free;
-  end;
-end;
-
-function NXLSObjectString(AObject: TJSONObject; const AName, ADefault: string): string;
-var
-  lValue: TJSONData;
-begin
-  Result := ADefault;
-  if AObject = nil then
-    Exit;
-
-  lValue := AObject.Find(AName);
-  if (lValue <> nil) and (lValue.JSONType = jtString) then
-    Result := lValue.AsString;
-end;
 
 function NXLSCleanProjectName(const AName: string): string;
 begin
@@ -68,190 +50,193 @@ begin
     AProjectName + '.nxp';
 end;
 
-procedure NXLSAddField(AFields: TJSONArray; const AId, ALabel, AType,
+procedure NXLSAddField(AFields: TNXLSProjectFieldArray; const AId, ALabel, AType,
   AValue: string; ARequired: Boolean; const ADescription: string = '';
   const ABrowseLabel: string = '');
 var
-  lField: TJSONObject;
+  lField: TNXLSProjectField;
 begin
-  lField := TJSONObject.Create;
-  lField.Add('id', AId);
-  lField.Add('label', ALabel);
-  lField.Add('type', AType);
-  lField.Add('value', AValue);
-  lField.Add('required', ARequired);
+  lField := TNXLSProjectField(AFields.AddObject(TNXLSProjectField));
+  lField.id.Value := AId;
+  lField.&label.Value := ALabel;
+  lField.&type.Value := AType;
+  lField.value.Value := AValue;
+  lField.required.Value := ARequired;
   if ADescription <> '' then
-    lField.Add('description', ADescription);
+    lField.description.Value := ADescription;
   if ABrowseLabel <> '' then
-    lField.Add('browseLabel', ABrowseLabel);
-  AFields.Add(lField);
+    lField.browseLabel.Value := ABrowseLabel;
+  lField.Assigned := True;
 end;
 
-function NXLSNexusProjectFields(const AProjectName, ATargetDir: string): TJSONArray;
+procedure NXLSFillNexusProjectFields(AFields: TNXLSProjectFieldArray;
+  const AProjectName, ATargetDir: string);
 begin
-  Result := TJSONArray.Create;
-  NXLSAddField(Result, 'projectName', 'Project Name', 'text', AProjectName,
+  if AFields = nil then
+    Exit;
+  NXLSAddField(AFields, 'projectName', 'Project Name', 'text', AProjectName,
     True, 'Used for the .nxp file name in this first project-service pass.');
-  NXLSAddField(Result, 'targetDir', 'Destination Folder', 'folder',
+  NXLSAddField(AFields, 'targetDir', 'Destination Folder', 'folder',
     ATargetDir, True, '', 'Select Project Folder');
+  AFields.Assigned := True;
 end;
 
-procedure NXLSAddMessage(AMessages: TJSONArray; const ASeverity, AText: string);
+procedure NXLSAddMessage(AMessages: TNXLSProjectMessageArray;
+  const ASeverity, AText: string);
 var
-  lMessage: TJSONObject;
+  lMessage: TNXLSProjectMessage;
 begin
-  lMessage := TJSONObject.Create;
-  lMessage.Add('severity', ASeverity);
-  lMessage.Add('text', AText);
-  AMessages.Add(lMessage);
+  lMessage := TNXLSProjectMessage(AMessages.AddObject(TNXLSProjectMessage));
+  lMessage.severity.Value := ASeverity;
+  lMessage.text.Value := AText;
+  lMessage.Assigned := True;
 end;
 
-procedure NXLSAddDetail(ADetails: TJSONArray; const ALabel, AValue: string);
+procedure NXLSAddDetail(ADetails: TNXLSProjectDetailArray;
+  const ALabel, AValue: string);
 var
-  lDetail: TJSONObject;
+  lDetail: TNXLSProjectDetail;
 begin
-  lDetail := TJSONObject.Create;
-  lDetail.Add('label', ALabel);
-  lDetail.Add('value', AValue);
-  ADetails.Add(lDetail);
+  lDetail := TNXLSProjectDetail(ADetails.AddObject(TNXLSProjectDetail));
+  lDetail.&label.Value := ALabel;
+  lDetail.value.Value := AValue;
+  lDetail.Assigned := True;
 end;
 
-procedure NXLSAddOutput(AOutputs: TJSONArray; const ALabel, APath: string);
+procedure NXLSAddOutput(AOutputs: TNXLSProjectOutputArray;
+  const ALabel, APath: string);
 var
-  lOutput: TJSONObject;
+  lOutput: TNXLSProjectOutput;
 begin
-  lOutput := TJSONObject.Create;
-  lOutput.Add('label', ALabel);
-  lOutput.Add('path', APath);
-  AOutputs.Add(lOutput);
+  lOutput := TNXLSProjectOutput(AOutputs.AddObject(TNXLSProjectOutput));
+  lOutput.&label.Value := ALabel;
+  lOutput.path.Value := APath;
+  lOutput.Assigned := True;
 end;
 
-function NXLSMinimalNexusProjectJSON(const AProjectName, ATargetDir: string): string;
+function NXLSNexusProjectJSON(const AProjectName, ATargetDir: string): string;
 var
-  lProject: TJSONObject;
+  lProject: TNXPascalProject;
 begin
-  lProject := TJSONObject.Create;
+  lProject := TNXPascalProject.Create;
   try
-    lProject.Add('class', 'TNXPascalProject');
-    lProject.Add('name', AProjectName);
-    lProject.Add('projectRoot', ExpandFileName(ATargetDir));
-    Result := lProject.AsJSON + LineEnding;
+    lProject.Name := AProjectName;
+    lProject.ProjectRoot := ExpandFileName(ATargetDir);
+    lProject.ProjectFileName := NXLSProjectFileName(AProjectName, ATargetDir);
+    Result := lProject.JSON;
   finally
     lProject.Free;
   end;
 end;
 
-procedure NXLSReadNexusProjectRequest(ARequest: TJSONData; out AProjectName,
-  ATargetDir: string);
-var
-  lRequest: TJSONObject;
+procedure NXLSReadNexusProjectParams(AParams: TNXLSProjectCreateParams;
+  out AProjectName, ATargetDir: string);
 begin
-  lRequest := nil;
-  if (ARequest <> nil) and (ARequest.JSONType = jtObject) then
-    lRequest := TJSONObject(ARequest);
-
-  AProjectName := NXLSCleanProjectName(NXLSObjectString(lRequest,
-    'projectName', 'newproject'));
-  ATargetDir := Trim(NXLSObjectString(lRequest, 'targetDir', GetCurrentDir));
+  AProjectName := 'newproject';
+  ATargetDir := GetCurrentDir;
+  if AParams <> nil then
+  begin
+    AProjectName := NXLSCleanProjectName(AParams.projectName.Value);
+    ATargetDir := Trim(AParams.targetDir.Value);
+  end;
+  if AProjectName = '' then
+    AProjectName := 'newproject';
   if ATargetDir = '' then
     ATargetDir := GetCurrentDir;
 end;
 
-class function TNXLSProjectService.CreateNexusProjectWizard(
-  const AWorkspaceRoot: string): TNXJSONValue;
+class procedure TNXLSProjectService.FillCreateNexusProjectWizard(
+  AParams: TNXLSProjectCreateWizardParams;
+  AResult: TNXLSProjectCreateWizardResult);
 var
-  lRoot: TJSONObject;
-  lRequest: TJSONObject;
+  lWorkspaceRoot: string;
 begin
-  lRequest := TJSONObject.Create;
-  lRequest.Add('projectName', 'newproject');
-  lRequest.Add('targetDir', ExpandFileName(AWorkspaceRoot));
+  if AResult = nil then
+    Exit;
 
-  lRoot := TJSONObject.Create;
-  lRoot.Add('title', 'New Nexus Project');
-  lRoot.Add('request', lRequest);
-  lRoot.Add('fields', NXLSNexusProjectFields('newproject',
-    ExpandFileName(AWorkspaceRoot)));
-  Result := NXLSWrapJSON(lRoot);
+  lWorkspaceRoot := GetCurrentDir;
+  if (AParams <> nil) and (AParams.workspaceRoot.Value <> '') then
+    lWorkspaceRoot := AParams.workspaceRoot.Value;
+
+  AResult.title.Value := 'New Nexus Project';
+  AResult.request.projectName.Value := 'newproject';
+  AResult.request.targetDir.Value := ExpandFileName(lWorkspaceRoot);
+  AResult.request.Assigned := True;
+  NXLSFillNexusProjectFields(AResult.fields, 'newproject',
+    ExpandFileName(lWorkspaceRoot));
+  AResult.Assigned := True;
 end;
 
-class function TNXLSProjectService.PlanNexusProjectCreate(
-  ARequest: TJSONData): TNXJSONValue;
+class procedure TNXLSProjectService.FillPlanNexusProjectCreate(
+  AParams: TNXLSProjectCreateParams; AResult: TNXLSProjectPlanCreateResult);
 var
   lProjectName: string;
   lTargetDir: string;
   lProjectFile: string;
-  lRoot: TJSONObject;
-  lMessages: TJSONArray;
-  lOutputs: TJSONArray;
-  lDetails: TJSONArray;
   lCanExecute: Boolean;
 begin
-  NXLSReadNexusProjectRequest(ARequest, lProjectName, lTargetDir);
+  if AResult = nil then
+    Exit;
+
+  NXLSReadNexusProjectParams(AParams, lProjectName, lTargetDir);
   lProjectFile := NXLSProjectFileName(lProjectName, lTargetDir);
 
-  lMessages := TJSONArray.Create;
-  lOutputs := TJSONArray.Create;
-  lDetails := TJSONArray.Create;
   lCanExecute := True;
 
   if not NXLSIsValidProjectName(lProjectName) then
   begin
-    NXLSAddMessage(lMessages, 'error',
+    NXLSAddMessage(AResult.messages, 'error',
       'Project name is required and may only contain letters, digits, underscore, or dash.');
     lCanExecute := False;
   end;
 
   if Trim(lTargetDir) = '' then
   begin
-    NXLSAddMessage(lMessages, 'error', 'Destination folder is required.');
+    NXLSAddMessage(AResult.messages, 'error', 'Destination folder is required.');
     lCanExecute := False;
   end;
 
-  NXLSAddOutput(lOutputs, 'Nexus project', lProjectFile);
-  NXLSAddDetail(lDetails, 'Project type', 'Nexus Project');
-  NXLSAddDetail(lDetails, 'Project name', lProjectName);
-  NXLSAddDetail(lDetails, 'Destination', ExpandFileName(lTargetDir));
+  NXLSAddOutput(AResult.outputs, 'Nexus project', lProjectFile);
+  NXLSAddDetail(AResult.details, 'Project type', 'Nexus Project');
+  NXLSAddDetail(AResult.details, 'Project name', lProjectName);
+  NXLSAddDetail(AResult.details, 'Destination', ExpandFileName(lTargetDir));
 
-  lRoot := TJSONObject.Create;
-  lRoot.Add('title', 'New Nexus Project');
-  lRoot.Add('summary', 'Create Nexus project "' + lProjectName + '" in ' +
-    ExpandFileName(lTargetDir));
-  lRoot.Add('canExecute', lCanExecute);
-  lRoot.Add('messages', lMessages);
-  lRoot.Add('outputs', lOutputs);
-  lRoot.Add('details', lDetails);
-  lRoot.Add('fields', NXLSNexusProjectFields(lProjectName, ExpandFileName(lTargetDir)));
-  Result := NXLSWrapJSON(lRoot);
+  AResult.title.Value := 'New Nexus Project';
+  AResult.summary.Value := 'Create Nexus project "' + lProjectName + '" in ' +
+    ExpandFileName(lTargetDir);
+  AResult.canExecute.Value := lCanExecute;
+  AResult.messages.Assigned := True;
+  AResult.outputs.Assigned := True;
+  AResult.details.Assigned := True;
+  NXLSFillNexusProjectFields(AResult.fields, lProjectName, ExpandFileName(lTargetDir));
+  AResult.Assigned := True;
 end;
 
-class function TNXLSProjectService.CreateNexusProject(
-  ARequest: TJSONData): TNXJSONValue;
+class procedure TNXLSProjectService.FillCreateNexusProject(
+  AParams: TNXLSProjectCreateParams; AResult: TNXLSProjectCreateResult);
 var
   lProjectName: string;
   lTargetDir: string;
   lProjectFile: string;
-  lRoot: TJSONObject;
-  lFiles: TJSONArray;
-  lFile: TJSONObject;
+  lFile: TNXLSProjectFile;
 begin
-  NXLSReadNexusProjectRequest(ARequest, lProjectName, lTargetDir);
+  if AResult = nil then
+    Exit;
+
+  NXLSReadNexusProjectParams(AParams, lProjectName, lTargetDir);
   if not NXLSIsValidProjectName(lProjectName) then
     raise Exception.Create('Project name is invalid.');
 
   lProjectFile := NXLSProjectFileName(lProjectName, lTargetDir);
 
-  lFile := TJSONObject.Create;
-  lFile.Add('path', lProjectFile);
-  lFile.Add('content', NXLSMinimalNexusProjectJSON(lProjectName, lTargetDir));
+  lFile := TNXLSProjectFile(AResult.files.AddObject(TNXLSProjectFile));
+  lFile.path.Value := lProjectFile;
+  lFile.content.Value := NXLSNexusProjectJSON(lProjectName, lTargetDir);
+  lFile.Assigned := True;
 
-  lFiles := TJSONArray.Create;
-  lFiles.Add(lFile);
-
-  lRoot := TJSONObject.Create;
-  lRoot.Add('message', 'Nexus project created: ' + lProjectName);
-  lRoot.Add('files', lFiles);
-  Result := NXLSWrapJSON(lRoot);
+  AResult.message.Value := 'Nexus project created: ' + lProjectName;
+  AResult.files.Assigned := True;
+  AResult.Assigned := True;
 end;
 
 end.

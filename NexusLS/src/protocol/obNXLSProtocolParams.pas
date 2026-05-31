@@ -651,13 +651,56 @@ type
     property changes: TNXLSFileEventArray read Fchanges write Fchanges;
   end;
 
-  TNXLSExecuteCommandParams = class(TNXJSONObject)
+  TNXLSCompleteCodeParams = class(TNXJSONObject)
   private
-    Fcommand: TNXJSONString;
-    Farguments: TNXJSONArray;
+    Furi: TNXJSONString;
+    Fposition: TNXLSPosition;
   published
-    property command: TNXJSONString read Fcommand write Fcommand;
-    property arguments: TNXJSONArray read Farguments write Farguments;
+    property uri: TNXJSONString read Furi write Furi;
+    property position: TNXLSPosition read Fposition write Fposition;
+  end;
+
+  TNXLSInvertAssignmentParams = class(TNXJSONObject)
+  private
+    Furi: TNXJSONString;
+    Fstart: TNXLSPosition;
+    Fend: TNXLSPosition;
+  published
+    property uri: TNXJSONString read Furi write Furi;
+    property start: TNXLSPosition read Fstart write Fstart;
+    property &end: TNXLSPosition read Fend write Fend;
+  end;
+
+  TNXLSRemoveEmptyMethodsParams = class(TNXJSONObject)
+  private
+    Furi: TNXJSONString;
+    Fposition: TNXLSPosition;
+  published
+    property uri: TNXJSONString read Furi write Furi;
+    property position: TNXLSPosition read Fposition write Fposition;
+  end;
+
+  TNXLSRemoveUnusedUnitsParams = class(TNXJSONObject)
+  private
+    Furi: TNXJSONString;
+  published
+    property uri: TNXJSONString read Furi write Furi;
+  end;
+
+  TNXLSProjectCreateWizardParams = class(TNXJSONObject)
+  private
+    FworkspaceRoot: TNXJSONString;
+  published
+    property workspaceRoot: TNXJSONString read FworkspaceRoot write FworkspaceRoot;
+  end;
+
+  TNXLSProjectCreateParams = class(TNXJSONObject)
+  private
+    FprojectName: TNXJSONString;
+    FtargetDir: TNXJSONString;
+  published
+    property projectName: TNXJSONString read FprojectName write FprojectName;
+    property targetDir: TNXJSONString read FtargetDir write FtargetDir;
   end;
 
   TNXLSInlayHintParams = class(TNXJSONObject)

@@ -133,8 +133,18 @@ begin
 end;
 
 function TNXLSTextDocumentHoverRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSHover;
 begin
-  Result := TNXLSLSPModel.Current.Editor.Hover(TNXLSTextDocumentPositionParams(params));
+  lResult := TNXLSHover(PrepareResult);
+  if TNXLSLSPModel.Current.Editor.FillHover(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentCodeLensRequest.GetFactoryName: string;

@@ -8,13 +8,15 @@ uses
   obNXJSONValues,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
+  obNXLSProtocolObjects,
   obNXLSServiceContext;
 
 type
   TNXLSRefactoringService = class(TNXLSLSPService)
   public
     function Rename(AParams: TNXLSRenameParams): TNXJSONValue; virtual;
-    function PrepareRename(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
+    function FillPrepareRename(AParams: TNXLSTextDocumentPositionParams;
+      AResult: TNXLSPrepareRenamePlaceholder): Boolean; virtual;
   end;
 
 implementation
@@ -29,7 +31,6 @@ uses
   CTUnitGraph,
   FileUtil,
   fpjson,
-  obNXLSProtocolObjects,
   utNXLSServiceHelpers;
 
 procedure NXLSAddRenameFileList(AFiles: TStrings; const AStartFile: string);
@@ -227,7 +228,9 @@ begin
   end;
 end;
 
-function TNXLSRefactoringService.PrepareRename(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+function TNXLSRefactoringService.FillPrepareRename(
+  AParams: TNXLSTextDocumentPositionParams;
+  AResult: TNXLSPrepareRenamePlaceholder): Boolean;
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -236,9 +239,10 @@ var
   lDeclY: Integer;
   lDeclTopLine: Integer;
   lIdentifier: string;
-  lResult: TNXLSPrepareRenamePlaceholder;
 begin
-  Result := TNXLSPrepareRenameResult.CreateValue;
+  Result := False;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) then
     Exit;
@@ -260,13 +264,11 @@ begin
   if lIdentifier = '' then
     Exit;
 
-  Result.Free;
-  lResult := TNXLSPrepareRenamePlaceholder.Create;
-  NXLSSetIdentifierRange(lResult.range, lCode,
+  NXLSSetIdentifierRange(AResult.range, lCode,
     AParams.position.character.Value + 1, AParams.position.line.Value);
-  lResult.placeholder.Value := lIdentifier;
-  lResult.Assigned := True;
-  Result := lResult;
+  AResult.placeholder.Value := lIdentifier;
+  AResult.Assigned := True;
+  Result := True;
 end;
 
 end.

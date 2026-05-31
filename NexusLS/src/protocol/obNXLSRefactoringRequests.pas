@@ -79,8 +79,18 @@ begin
 end;
 
 function TNXLSTextDocumentPrepareRenameRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSPrepareRenamePlaceholder;
 begin
-  Result := TNXLSLSPModel.Current.Refactoring.PrepareRename(TNXLSTextDocumentPositionParams(params));
+  lResult := TNXLSPrepareRenamePlaceholder(PrepareResult);
+  if TNXLSLSPModel.Current.Refactoring.FillPrepareRename(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentLinkedEditingRangeRequest.GetFactoryName: string;

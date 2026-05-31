@@ -160,7 +160,7 @@ procedure RegisterNXLSProtocolObjectTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
-  lSuite := ARegistry.AddSuite('NexusLS.Legacy.ProtocolObjects');
+  lSuite := ARegistry.AddSuite('NexusLS.ProtocolObjects');
   lSuite.AddTest('RangeAutoCreatesPositions', @TestRangeAutoCreatesPositions);
   lSuite.AddTest('RangeAssign', @TestRangeAssign);
   lSuite.AddTest('RangeFromJSONData', @TestRangeFromJSONData);

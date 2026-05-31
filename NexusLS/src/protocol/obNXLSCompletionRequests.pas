@@ -81,8 +81,18 @@ begin
 end;
 
 function TNXLSTextDocumentSignatureHelpRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSSignatureHelp;
 begin
-  Result := TNXLSLSPModel.Current.Completion.SignatureHelp(TNXLSSignatureHelpParams(params));
+  lResult := TNXLSSignatureHelp(PrepareResult);
+  if TNXLSLSPModel.Current.Completion.FillSignatureHelp(
+    TNXLSSignatureHelpParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 initialization

@@ -59,7 +59,6 @@ type
     FworkspaceSymbolProvider: TNXJSONBoolean;
     FsignatureHelpProvider: TNXJSONValue;
     FcodeActionProvider: TNXJSONBoolean;
-    FexecuteCommandProvider: TNXJSONValue;
     FrenameProvider: TNXJSONValue;
     Fexperimental: TNXJSONValue;
   published
@@ -76,7 +75,6 @@ type
     property workspaceSymbolProvider: TNXJSONBoolean read FworkspaceSymbolProvider write FworkspaceSymbolProvider;
     property signatureHelpProvider: TNXJSONValue read FsignatureHelpProvider write FsignatureHelpProvider;
     property codeActionProvider: TNXJSONBoolean read FcodeActionProvider write FcodeActionProvider;
-    property executeCommandProvider: TNXJSONValue read FexecuteCommandProvider write FexecuteCommandProvider;
     property renameProvider: TNXJSONValue read FrenameProvider write FrenameProvider;
     property experimental: TNXJSONValue read Fexperimental write Fexperimental;
   end;
@@ -93,6 +91,134 @@ type
   TNXLSInitializeResult = class(TNXLSProtocolResult)
   public
     class function CreateValue: TNXJSONValue; override;
+  end;
+
+  TNXLSProjectField = class(TNXJSONObject)
+  private
+    Fid: TNXJSONString;
+    Flabel: TNXJSONString;
+    Ftype: TNXJSONString;
+    Fvalue: TNXJSONString;
+    Frequired: TNXJSONBoolean;
+    Fdescription: TNXJSONString;
+    FbrowseLabel: TNXJSONString;
+  published
+    property id: TNXJSONString read Fid write Fid;
+    property &label: TNXJSONString read Flabel write Flabel;
+    property &type: TNXJSONString read Ftype write Ftype;
+    property value: TNXJSONString read Fvalue write Fvalue;
+    property required: TNXJSONBoolean read Frequired write Frequired;
+    property description: TNXJSONString read Fdescription write Fdescription;
+    property browseLabel: TNXJSONString read FbrowseLabel write FbrowseLabel;
+  end;
+
+  TNXLSProjectFieldArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXLSProjectRequestValue = class(TNXJSONObject)
+  private
+    FprojectName: TNXJSONString;
+    FtargetDir: TNXJSONString;
+  published
+    property projectName: TNXJSONString read FprojectName write FprojectName;
+    property targetDir: TNXJSONString read FtargetDir write FtargetDir;
+  end;
+
+  TNXLSProjectMessage = class(TNXJSONObject)
+  private
+    Fseverity: TNXJSONString;
+    Ftext: TNXJSONString;
+  published
+    property severity: TNXJSONString read Fseverity write Fseverity;
+    property text: TNXJSONString read Ftext write Ftext;
+  end;
+
+  TNXLSProjectMessageArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXLSProjectOutput = class(TNXJSONObject)
+  private
+    Flabel: TNXJSONString;
+    Fpath: TNXJSONString;
+  published
+    property &label: TNXJSONString read Flabel write Flabel;
+    property path: TNXJSONString read Fpath write Fpath;
+  end;
+
+  TNXLSProjectOutputArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXLSProjectDetail = class(TNXJSONObject)
+  private
+    Flabel: TNXJSONString;
+    Fvalue: TNXJSONString;
+  published
+    property &label: TNXJSONString read Flabel write Flabel;
+    property value: TNXJSONString read Fvalue write Fvalue;
+  end;
+
+  TNXLSProjectDetailArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXLSProjectFile = class(TNXJSONObject)
+  private
+    Fpath: TNXJSONString;
+    Fcontent: TNXJSONString;
+  published
+    property path: TNXJSONString read Fpath write Fpath;
+    property content: TNXJSONString read Fcontent write Fcontent;
+  end;
+
+  TNXLSProjectFileArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXLSProjectCreateWizardResult = class(TNXJSONObject)
+  private
+    Ftitle: TNXJSONString;
+    Frequest: TNXLSProjectRequestValue;
+    Ffields: TNXLSProjectFieldArray;
+  published
+    property title: TNXJSONString read Ftitle write Ftitle;
+    property request: TNXLSProjectRequestValue read Frequest write Frequest;
+    property fields: TNXLSProjectFieldArray read Ffields write Ffields;
+  end;
+
+  TNXLSProjectPlanCreateResult = class(TNXJSONObject)
+  private
+    Ftitle: TNXJSONString;
+    Fsummary: TNXJSONString;
+    FcanExecute: TNXJSONBoolean;
+    Fmessages: TNXLSProjectMessageArray;
+    Foutputs: TNXLSProjectOutputArray;
+    Fdetails: TNXLSProjectDetailArray;
+    Ffields: TNXLSProjectFieldArray;
+  published
+    property title: TNXJSONString read Ftitle write Ftitle;
+    property summary: TNXJSONString read Fsummary write Fsummary;
+    property canExecute: TNXJSONBoolean read FcanExecute write FcanExecute;
+    property messages: TNXLSProjectMessageArray read Fmessages write Fmessages;
+    property outputs: TNXLSProjectOutputArray read Foutputs write Foutputs;
+    property details: TNXLSProjectDetailArray read Fdetails write Fdetails;
+    property fields: TNXLSProjectFieldArray read Ffields write Ffields;
+  end;
+
+  TNXLSProjectCreateResult = class(TNXJSONObject)
+  private
+    Fmessage: TNXJSONString;
+    Ffiles: TNXLSProjectFileArray;
+  published
+    property message: TNXJSONString read Fmessage write Fmessage;
+    property files: TNXLSProjectFileArray read Ffiles write Ffiles;
   end;
 
   TNXLSLocationArray = class(TNXJSONArray)
@@ -605,11 +731,6 @@ type
     class function CreateValue: TNXJSONValue; override;
   end;
 
-  TNXLSCommandResult = class(TNXLSProtocolResult)
-  public
-    class function CreateValue: TNXJSONValue; override;
-  end;
-
   TNXLSApplyWorkspaceEditResult = class(TNXLSProtocolResult)
   public
     class function CreateValue: TNXJSONValue; override;
@@ -628,8 +749,7 @@ type
 implementation
 
 uses
-  fpjson,
-  utNXLSCommandNames;
+  fpjson;
 
 procedure MarkAssigned(AValue: TNXJSONValue);
 begin
@@ -678,7 +798,6 @@ var
   lWorkspaceFolders: TJSONObject;
   lCompletionProvider: TJSONObject;
   lSignatureHelpProvider: TJSONObject;
-  lExecuteCommandProvider: TJSONObject;
   lRenameProvider: TJSONObject;
 begin
   lResult := TNXLSInitializeResultValue.Create;
@@ -706,18 +825,6 @@ begin
   lRenameProvider.Add('prepareProvider', True);
   LoadRawJSON(lResult.capabilities.renameProvider, lRenameProvider);
 
-  lExecuteCommandProvider := TJSONObject.Create;
-  lExecuteCommandProvider.Add('commands', StringArrayJSON([
-    cNXLSCommandCompleteCode,
-    cNXLSCommandInvertAssignment,
-    cNXLSCommandRemoveEmptyMethods,
-    cNXLSCommandRemoveUnusedUnits,
-    cNXLSCommandNexusProjectCreateWizard,
-    cNXLSCommandNexusProjectPlanCreate,
-    cNXLSCommandNexusProjectCreate
-  ]));
-  LoadRawJSON(lResult.capabilities.executeCommandProvider, lExecuteCommandProvider);
-
   lResult.capabilities.hoverProvider.Value := True;
   lResult.capabilities.declarationProvider.Value := True;
   lResult.capabilities.definitionProvider.Value := True;
@@ -731,6 +838,31 @@ begin
   MarkAssigned(lResult.capabilities);
   MarkAssigned(lResult);
   Result := lResult;
+end;
+
+class function TNXLSProjectFieldArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXLSProjectField;
+end;
+
+class function TNXLSProjectMessageArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXLSProjectMessage;
+end;
+
+class function TNXLSProjectOutputArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXLSProjectOutput;
+end;
+
+class function TNXLSProjectDetailArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXLSProjectDetail;
+end;
+
+class function TNXLSProjectFileArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXLSProjectFile;
 end;
 
 class function TNXLSLocationArray.ItemClass: TNXJSONValueClass;
@@ -1018,11 +1150,6 @@ end;
 class function TNXLSWorkspaceFolderArrayResult.CreateValue: TNXJSONValue;
 begin
   Result := EmptyArray(TNXLSWorkspaceFolderArray);
-end;
-
-class function TNXLSCommandResult.CreateValue: TNXJSONValue;
-begin
-  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSApplyWorkspaceEditResult.CreateValue: TNXJSONValue;

@@ -18,6 +18,7 @@ uses
   obNXJSONValues,
   obNXLSLSPModel,
   obNXLSProtocolBase,
+  obNXLSProtocolObjects,
   obNXLSProtocolParams,
   obNXLSServiceContext,
   obNXTestContext,
@@ -162,7 +163,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSCompletionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSCompletionItemArray;
   lArray: TJSONArray;
 begin
   NXLSCreateIntelligenceModel(lModel, lFileName, lURI);
@@ -172,8 +173,9 @@ begin
       lParams.textDocument.uri.Value := lURI;
       lParams.position.line.Value := 10;
       lParams.position.character.Value := 2;
-      lValue := lModel.Completion.Completion(lParams);
+      lValue := TNXLSCompletionItemArray.Create;
       try
+        lModel.Completion.FillCompletionItems(lParams, lValue);
         lArray := NXLSArrayFromValue(lValue);
         try
           AContext.AssertTrue(lArray <> nil, 'Completion should return an array.');
@@ -199,7 +201,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSCompletionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSCompletionItemArray;
   lArray: TJSONArray;
 begin
   NXLSCreateIntelligenceModel(lModel, lFileName, lURI);
@@ -209,8 +211,9 @@ begin
       lParams.textDocument.uri.Value := lURI;
       lParams.position.line.Value := 10;
       lParams.position.character.Value := 5;
-      lValue := lModel.Completion.Completion(lParams);
+      lValue := TNXLSCompletionItemArray.Create;
       try
+        lModel.Completion.FillCompletionItems(lParams, lValue);
         lArray := NXLSArrayFromValue(lValue);
         try
           AContext.AssertTrue(lArray <> nil, 'Completion should return an array.');
@@ -268,7 +271,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSReferenceParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocationArray;
   lArray: TJSONArray;
 begin
   NXLSCreateIntelligenceModel(lModel, lFileName, lURI);
@@ -279,8 +282,9 @@ begin
       lParams.position.line.Value := 11;
       lParams.position.character.Value := 2;
       lParams.context.includeDeclaration.Value := True;
-      lValue := lModel.Navigation.References(lParams);
+      lValue := TNXLSLocationArray.Create;
       try
+        lModel.Navigation.FillReferences(lParams, lValue);
         lArray := NXLSArrayFromValue(lValue);
         try
           AContext.AssertTrue(lArray <> nil, 'References should return an array.');
@@ -306,7 +310,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSHover;
   lJSON: TJSONData;
 begin
   NXLSCreateIntelligenceModel(lModel, lFileName, lURI);
@@ -316,8 +320,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       lParams.position.line.Value := 11;
       lParams.position.character.Value := 2;
-      lValue := lModel.Editor.Hover(lParams);
+      lValue := TNXLSHover.Create;
       try
+        AContext.AssertTrue(lModel.Editor.FillHover(lParams, lValue),
+          'Hover should be available.');
         lJSON := lValue.ToJSONData;
         try
           AContext.AssertTrue(lJSON is TJSONObject, 'Hover should return an object. Actual: ' + lJSON.AsJSON);
@@ -343,7 +349,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSSignatureHelpParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSSignatureHelp;
   lJSON: TJSONData;
 begin
   NXLSCreateIntelligenceModel(lModel, lFileName, lURI);
@@ -353,8 +359,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       lParams.position.line.Value := 11;
       lParams.position.character.Value := 14;
-      lValue := lModel.Completion.SignatureHelp(lParams);
+      lValue := TNXLSSignatureHelp.Create;
       try
+        AContext.AssertTrue(lModel.Completion.FillSignatureHelp(lParams, lValue),
+          'SignatureHelp should be available.');
         lJSON := lValue.ToJSONData;
         try
           AContext.AssertTrue(lJSON is TJSONObject,

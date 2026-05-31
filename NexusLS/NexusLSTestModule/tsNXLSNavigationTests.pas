@@ -290,7 +290,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocation;
 begin
   NXLSCreateNavigationModel(cNavigationUnit, lModel, lFileName, lURI);
   try
@@ -299,8 +299,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       NXLSSetPositionAtText(lParams, cNavigationUnit, 'property Item',
         'TTargetType');
-      lValue := lModel.Navigation.Definition(lParams);
+      lValue := TNXLSLocation.Create;
       try
+        AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lValue),
+          'Definition should resolve property type references.');
         NXLSAssertLocation(AContext, lValue,
           'Definition should resolve property type references.');
         AContext.AssertEquals(4, NXLSLocationLine(lValue),
@@ -322,7 +324,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocation;
 begin
   NXLSCreateNavigationModel(cNavigationUnit, lModel, lFileName, lURI);
   try
@@ -331,8 +333,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       NXLSSetPositionAtText(lParams, cNavigationUnit, 'procedure Accept',
         'TTargetType');
-      lValue := lModel.Navigation.Definition(lParams);
+      lValue := TNXLSLocation.Create;
       try
+        AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lValue),
+          'Definition should resolve argument type references.');
         NXLSAssertLocation(AContext, lValue,
           'Definition should resolve argument type references.');
         AContext.AssertEquals(4, NXLSLocationLine(lValue),
@@ -354,7 +358,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocation;
 begin
   NXLSCreateNavigationModel(cNavigationUnit, lModel, lFileName, lURI);
   try
@@ -363,8 +367,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       NXLSSetPositionAtText(lParams, cNavigationUnit, 'function CreateItem',
         'TTargetType');
-      lValue := lModel.Navigation.Definition(lParams);
+      lValue := TNXLSLocation.Create;
       try
+        AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lValue),
+          'Definition should resolve result type references.');
         NXLSAssertLocation(AContext, lValue,
           'Definition should resolve result type references.');
         AContext.AssertEquals(4, NXLSLocationLine(lValue),
@@ -386,7 +392,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocation;
 begin
   NXLSCreateNavigationModel(cNavigationUnit, lModel, lFileName, lURI);
   try
@@ -395,8 +401,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       NXLSSetPositionAtText(lParams, cNavigationUnit, '  TargetProc;',
         'TargetProc');
-      lValue := lModel.Navigation.Declaration(lParams);
+      lValue := TNXLSLocation.Create;
       try
+        AContext.AssertTrue(lModel.Navigation.FillDeclaration(lParams, lValue),
+          'Declaration should return a location.');
         NXLSAssertLocation(AContext, lValue, 'Declaration should return a location.');
         AContext.AssertEquals(14, NXLSLocationLine(lValue),
           'Declaration should resolve to the interface declaration.');
@@ -417,7 +425,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocation;
 begin
   NXLSCreateNavigationModel(cNavigationUnit, lModel, lFileName, lURI);
   try
@@ -426,8 +434,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       NXLSSetPositionAtText(lParams, cNavigationUnit, '  TargetProc;',
         'TargetProc');
-      lValue := lModel.Navigation.Definition(lParams);
+      lValue := TNXLSLocation.Create;
       try
+        AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lValue),
+          'Definition should return a location.');
         NXLSAssertLocation(AContext, lValue, 'Definition should return a location.');
         AContext.AssertEquals(23, NXLSLocationLine(lValue),
           'Definition should resolve to the implementation declaration.');
@@ -448,7 +458,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSTextDocumentPositionParams;
-  lValue: TNXJSONValue;
+  lValue: TNXLSLocation;
 begin
   NXLSCreateNavigationModelWithUsedUnit(lModel, lFileName, lURI);
   try
@@ -457,8 +467,10 @@ begin
       lParams.textDocument.uri.Value := lURI;
       NXLSSetPositionAtText(lParams, cUsedConsumerUnit, 'MakeUsedRect',
         'MakeUsedRect');
-      lValue := lModel.Navigation.Definition(lParams);
+      lValue := TNXLSLocation.Create;
       try
+        AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lValue),
+          'Definition should resolve routines declared in used units.');
         NXLSAssertLocation(AContext, lValue,
           'Definition should resolve routines declared in used units.');
         AContext.AssertEquals(6, NXLSLocationLine(lValue),

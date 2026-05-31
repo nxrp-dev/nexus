@@ -1,4 +1,4 @@
-unit tsNXLSLegacySymbolTests;
+unit tsNXLSSymbolTests;
 
 {$mode objfpc}{$H+}
 
@@ -7,7 +7,7 @@ interface
 uses
   obNXTestRegistry;
 
-procedure RegisterNXLSLegacySymbolTests(ARegistry: TNXTestRegistry);
+procedure RegisterNXLSSymbolTests(ARegistry: TNXTestRegistry);
 
 implementation
 
@@ -160,7 +160,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSDocumentSymbolParams;
-  lValue: TNXJSONValue;
+  lValue: TNXJSONArray;
   lJSON: TJSONData;
 begin
   Result := nil;
@@ -169,8 +169,9 @@ begin
     lParams := TNXLSDocumentSymbolParams.Create;
     try
       lParams.textDocument.uri.Value := lURI;
-      lValue := lModel.Symbols.DocumentSymbol(lParams);
+      lValue := TNXJSONArray.Create;
       try
+        lModel.Symbols.FillDocumentSymbols(lParams, lValue);
         lJSON := lValue.ToJSONData;
         if lJSON is TJSONArray then
           Result := TJSONArray(lJSON)
@@ -195,7 +196,7 @@ var
   lFileName: string;
   lURI: string;
   lParams: TNXLSWorkspaceSymbolParams;
-  lValue: TNXJSONValue;
+  lValue: TNXJSONArray;
   lJSON: TJSONData;
 begin
   Result := nil;
@@ -204,8 +205,9 @@ begin
     lParams := TNXLSWorkspaceSymbolParams.Create;
     try
       lParams.query.Value := AQuery;
-      lValue := lModel.Symbols.WorkspaceSymbol(lParams);
+      lValue := TNXJSONArray.Create;
       try
+        lModel.Symbols.FillWorkspaceSymbols(lParams, lValue);
         lJSON := lValue.ToJSONData;
         if lJSON is TJSONArray then
           Result := TJSONArray(lJSON)
@@ -325,7 +327,7 @@ begin
   try
     lJSON := lSymbols.AsJSON;
     AContext.AssertFalse(Pos('"children"', lJSON) > 0,
-      'Legacy flat output should not contain children fields.');
+      'Flat output should not contain children fields.');
   finally
     lSymbols.Free;
   end;
@@ -588,7 +590,7 @@ var
   lURI: string;
   lDoc: TNXLSDocument;
   lParams: TNXLSWorkspaceSymbolParams;
-  lValue: TNXJSONValue;
+  lValue: TNXJSONArray;
   lJSON: TJSONData;
   lSymbols: TJSONArray;
 begin
@@ -600,8 +602,9 @@ begin
     lParams := TNXLSWorkspaceSymbolParams.Create;
     try
       lParams.query.Value := 'AddedProc';
-      lValue := lModel.Symbols.WorkspaceSymbol(lParams);
+      lValue := TNXJSONArray.Create;
       try
+        lModel.Symbols.FillWorkspaceSymbols(lParams, lValue);
         lJSON := lValue.ToJSONData;
         try
           AContext.AssertTrue(lJSON is TJSONArray, 'WorkspaceSymbol should return an array.');
@@ -632,7 +635,7 @@ var
   lInitParams: TNXLSInitializeParams;
   lWorkspaceParams: TNXLSWorkspaceSymbolParams;
   lObject: TJSONObject;
-  lValue: TNXJSONValue;
+  lValue: TNXJSONArray;
   lJSON: TJSONData;
   lSymbols: TJSONArray;
 begin
@@ -662,8 +665,9 @@ begin
     lWorkspaceParams := TNXLSWorkspaceSymbolParams.Create;
     try
       lWorkspaceParams.query.Value := 'TScannedClass';
-      lValue := lModel.Symbols.WorkspaceSymbol(lWorkspaceParams);
+      lValue := TNXJSONArray.Create;
       try
+        lModel.Symbols.FillWorkspaceSymbols(lWorkspaceParams, lValue);
         lJSON := lValue.ToJSONData;
         try
           AContext.AssertTrue(lJSON is TJSONArray, 'WorkspaceSymbol should return an array.');
@@ -686,11 +690,11 @@ begin
   end;
 end;
 
-procedure RegisterNXLSLegacySymbolTests(ARegistry: TNXTestRegistry);
+procedure RegisterNXLSSymbolTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
-  lSuite := ARegistry.AddSuite('NexusLS.Legacy.DocumentSymbol');
+  lSuite := ARegistry.AddSuite('NexusLS.Symbol.Document');
   lSuite.AddTest('SymbolExtractionHierarchical', @TestDocumentSymbolExtractionHierarchical);
   lSuite.AddTest('SymbolExtractionFlat', @TestDocumentSymbolExtractionFlat);
   lSuite.AddTest('ForwardDeclarationSkipped', @TestForwardDeclarationSkipped);
@@ -702,7 +706,7 @@ begin
   lSuite.AddTest('GlobalVarSymbolsHierarchical', @TestGlobalVarSymbolsHierarchical);
   lSuite.AddTest('ProgramFileSymbols', @TestProgramFileSymbols);
 
-  lSuite := ARegistry.AddSuite('NexusLS.Legacy.WorkspaceSymbol');
+  lSuite := ARegistry.AddSuite('NexusLS.Symbol.Workspace');
   lSuite.AddTest('ReturnsSymbolInformationFormat', @TestWorkspaceReturnsSymbolInformationFormat);
   lSuite.AddTest('HasLocationField', @TestWorkspaceHasLocationField);
   lSuite.AddTest('NoChildrenField', @TestWorkspaceNoChildrenField);
@@ -711,11 +715,11 @@ begin
   lSuite.AddTest('QueryFilterCaseInsensitive', @TestWorkspaceQueryFilterCaseInsensitive);
   lSuite.AddTest('EmptyQueryReturnsAll', @TestWorkspaceEmptyQueryReturnsAll);
 
-  lSuite := ARegistry.AddSuite('NexusLS.Legacy.SymbolPersistence');
+  lSuite := ARegistry.AddSuite('NexusLS.Symbol.Persistence');
   lSuite.AddTest('ReindexDocument', @TestSymbolPersistenceReindexDocument);
   lSuite.AddTest('ModifiedDocumentUpdatesIndex', @TestSymbolPersistenceModifiedDocument);
 
-  lSuite := ARegistry.AddSuite('NexusLS.Legacy.ScanExamples');
+  lSuite := ARegistry.AddSuite('NexusLS.Symbol.ScanExamples');
   lSuite.AddTest('ScanAllFiles', @TestScanAllFiles);
 end;
 

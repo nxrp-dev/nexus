@@ -83,8 +83,18 @@ begin
 end;
 
 function TNXLSTextDocumentDeclarationRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSLocation;
 begin
-  Result := TNXLSLSPModel.Current.Navigation.Declaration(TNXLSTextDocumentPositionParams(params));
+  lResult := TNXLSLocation(PrepareResult);
+  if TNXLSLSPModel.Current.Navigation.FillDeclaration(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentDefinitionRequest.GetFactoryName: string;
@@ -108,8 +118,18 @@ begin
 end;
 
 function TNXLSTextDocumentDefinitionRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSLocation;
 begin
-  Result := TNXLSLSPModel.Current.Navigation.Definition(TNXLSTextDocumentPositionParams(params));
+  lResult := TNXLSLocation(PrepareResult);
+  if TNXLSLSPModel.Current.Navigation.FillDefinition(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentTypeDefinitionRequest.GetFactoryName: string;
@@ -159,8 +179,18 @@ begin
 end;
 
 function TNXLSTextDocumentImplementationRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSLocation;
 begin
-  Result := TNXLSLSPModel.Current.Navigation.ImplementationLocation(TNXLSTextDocumentPositionParams(params));
+  lResult := TNXLSLocation(PrepareResult);
+  if TNXLSLSPModel.Current.Navigation.FillImplementationLocation(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentReferencesRequest.GetFactoryName: string;

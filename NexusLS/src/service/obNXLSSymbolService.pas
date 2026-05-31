@@ -70,10 +70,8 @@ type
 
     procedure FillDocumentSymbols(AParams: TNXLSDocumentSymbolParams;
       AResult: TNXJSONArray); virtual;
-    function DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue; virtual;
     procedure FillWorkspaceSymbols(AParams: TNXLSWorkspaceSymbolParams;
       AResult: TNXJSONArray); virtual;
-    function WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue; virtual;
     procedure SetWorkspaceFolders(AParams: TNXLSInitializeParams);
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
@@ -632,12 +630,6 @@ begin
   NXLSScanFallbackSymbols(lDocument.CodeBuffer, AResult, '', nil);
 end;
 
-function TNXLSSymbolService.DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue;
-begin
-  Result := TNXLSDocumentSymbolArrayResult.CreateValue;
-  FillDocumentSymbols(AParams, TNXJSONArray(Result));
-end;
-
 procedure TNXLSSymbolService.FillWorkspaceSymbols(AParams: TNXLSWorkspaceSymbolParams;
   AResult: TNXJSONArray);
 var
@@ -687,12 +679,6 @@ begin
 
     lSymbol.Assigned := True;
   end;
-end;
-
-function TNXLSSymbolService.WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue;
-begin
-  Result := TNXLSWorkspaceSymbolArrayResult.CreateValue;
-  FillWorkspaceSymbols(AParams, TNXJSONArray(Result));
 end;
 
 procedure TNXLSSymbolService.ClearWorkspaceFolders;

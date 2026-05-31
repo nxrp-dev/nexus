@@ -15,8 +15,8 @@ type
   public
     procedure FillCompletionItems(AParams: TNXLSCompletionParams;
       AResult: TNXLSCompletionItemArray); virtual;
-    function Completion(AParams: TNXLSCompletionParams): TNXJSONValue; virtual;
-    function SignatureHelp(AParams: TNXLSSignatureHelpParams): TNXJSONValue; virtual;
+    function FillSignatureHelp(AParams: TNXLSSignatureHelpParams;
+      AResult: TNXLSSignatureHelp): Boolean; virtual;
   end;
 
 implementation
@@ -296,38 +296,29 @@ begin
   end;
 end;
 
-function NXLSCreateFallbackSignatureHelp(ACode: TCodeBuffer; AX, AY: Integer): TNXJSONValue;
+function NXLSFillFallbackSignatureHelp(ACode: TCodeBuffer; AX, AY: Integer;
+  AResult: TNXLSSignatureHelp): Boolean;
 var
   lIdentifier: string;
   lHead: string;
   lActiveParameter: Integer;
 begin
-  Result := TNXJSONNull.Create;
+  Result := False;
+  if AResult = nil then
+    Exit;
+
   lIdentifier := NXLSCallIdentifierNear(ACode, AX, AY);
   lHead := NXLSFindDeclarationHead(ACode, lIdentifier);
   if lHead = '' then
     Exit;
 
   lActiveParameter := NXLSActiveParameterAt(ACode, AX, AY);
-  Result.Free;
-  Result := TNXLSSignatureHelp.Create;
-  TNXLSSignatureHelp(Result).activeSignature.Value := 0;
-  TNXLSSignatureHelp(Result).activeParameter.Value := lActiveParameter;
-  NXLSAddSignatureFromHead(TNXLSSignatureHelp(Result), lHead, lActiveParameter);
-  TNXLSSignatureHelp(Result).signatures.Assigned :=
-    TNXLSSignatureHelp(Result).signatures.Count > 0;
-  Result.Assigned := TNXLSSignatureHelp(Result).signatures.Count > 0;
-  if not Result.Assigned then
-  begin
-    Result.Free;
-    Result := TNXJSONNull.Create;
-  end;
-end;
-
-function TNXLSCompletionService.Completion(AParams: TNXLSCompletionParams): TNXJSONValue;
-begin
-  Result := TNXLSCompletionResult.CreateValue;
-  FillCompletionItems(AParams, TNXLSCompletionItemArray(Result));
+  AResult.activeSignature.Value := 0;
+  AResult.activeParameter.Value := lActiveParameter;
+  NXLSAddSignatureFromHead(AResult, lHead, lActiveParameter);
+  AResult.signatures.Assigned := AResult.signatures.Count > 0;
+  AResult.Assigned := AResult.signatures.Count > 0;
+  Result := AResult.Assigned;
 end;
 
 procedure TNXLSCompletionService.FillCompletionItems(AParams: TNXLSCompletionParams;
@@ -389,7 +380,8 @@ begin
   end;
 end;
 
-function TNXLSCompletionService.SignatureHelp(AParams: TNXLSSignatureHelpParams): TNXJSONValue;
+function TNXLSCompletionService.FillSignatureHelp(
+  AParams: TNXLSSignatureHelpParams; AResult: TNXLSSignatureHelp): Boolean;
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -410,7 +402,9 @@ var
   lDeclY: Integer;
   lTopLine: Integer;
 begin
-  Result := TNXJSONNull.Create;
+  Result := False;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) then
     Exit;
@@ -432,36 +426,24 @@ begin
       AParams.position.character.Value + 1, AParams.position.line.Value + 1,
       lDeclCode, lDeclX, lDeclY, lTopLine) then
     begin
-      Result.Free;
-      Result := TNXLSSignatureHelp.Create;
-      TNXLSSignatureHelp(Result).activeSignature.Value := 0;
-      TNXLSSignatureHelp(Result).activeParameter.Value := 0;
-      NXLSAddSignatureFromHead(TNXLSSignatureHelp(Result),
+      AResult.activeSignature.Value := 0;
+      AResult.activeParameter.Value := 0;
+      NXLSAddSignatureFromHead(AResult,
         Trim(lDeclCode.GetLine(lDeclY - 1)), 0);
-      TNXLSSignatureHelp(Result).signatures.Assigned :=
-        TNXLSSignatureHelp(Result).signatures.Count > 0;
-      Result.Assigned := TNXLSSignatureHelp(Result).signatures.Count > 0;
-      if not Result.Assigned then
-      begin
-        Result.Free;
-        Result := TNXJSONNull.Create;
-      end;
+      AResult.signatures.Assigned := AResult.signatures.Count > 0;
+      AResult.Assigned := AResult.signatures.Count > 0;
+      Result := AResult.Assigned;
     end;
-    if (not (Result is TNXLSSignatureHelp)) or
-      (TNXLSSignatureHelp(Result).signatures.Count = 0) then
-    begin
-      Result.Free;
-      Result := NXLSCreateFallbackSignatureHelp(lCode,
-        AParams.position.character.Value + 1, AParams.position.line.Value);
-    end;
+    if not Result then
+      Result := NXLSFillFallbackSignatureHelp(lCode,
+        AParams.position.character.Value + 1, AParams.position.line.Value,
+        AResult);
     Exit;
   end;
 
   try
-    Result.Free;
-    Result := TNXLSSignatureHelp.Create;
-    TNXLSSignatureHelp(Result).activeSignature.Value := 0;
-    TNXLSSignatureHelp(Result).activeParameter.Value := lContext.ParameterIndex - 1;
+    AResult.activeSignature.Value := 0;
+    AResult.activeParameter.Value := lContext.ParameterIndex - 1;
 
     for lContextIdx := 0 to lContext.Count - 1 do
     begin
@@ -486,7 +468,7 @@ begin
          phpWithVarModifiers, phpWithParameterNames, phpWithDefaultValues]);
 
       lSignature := TNXLSSignatureInformation(
-        TNXLSSignatureHelp(Result).signatures.AddObject(TNXLSSignatureInformation));
+        AResult.signatures.AddObject(TNXLSSignatureInformation));
       if lParams <> '' then
         lSignature.&label.Value := lContext.ProcName + '(' + lParams + ')' + lResultType
       else
@@ -510,16 +492,13 @@ begin
       lSignature.Assigned := True;
     end;
 
-    TNXLSSignatureHelp(Result).signatures.Assigned :=
-      TNXLSSignatureHelp(Result).signatures.Count > 0;
-    Result.Assigned := TNXLSSignatureHelp(Result).signatures.Count > 0;
-    if (not (Result is TNXLSSignatureHelp)) or
-      (TNXLSSignatureHelp(Result).signatures.Count = 0) then
-    begin
-      Result.Free;
-      Result := NXLSCreateFallbackSignatureHelp(lCode,
-        AParams.position.character.Value + 1, AParams.position.line.Value);
-    end;
+    AResult.signatures.Assigned := AResult.signatures.Count > 0;
+    AResult.Assigned := AResult.signatures.Count > 0;
+    Result := AResult.Assigned;
+    if not Result then
+      Result := NXLSFillFallbackSignatureHelp(lCode,
+        AParams.position.character.Value + 1, AParams.position.line.Value,
+        AResult);
   finally
     lContext.Free;
   end;
