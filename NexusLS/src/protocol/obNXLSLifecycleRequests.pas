@@ -138,7 +138,8 @@ end;
 
 function TNXLSShutdownRequest.Execute: TNXJSONValue;
 begin
-  Result := TNXLSLSPModel.Current.Lifecycle.Shutdown;
+  TNXLSLSPModel.Current.Lifecycle.Shutdown;
+  Result := PrepareResult;
 end;
 
 class function TNXLSExitRequest.GetFactoryName: string;

@@ -5,4 +5,5 @@ output/
 *.exe
 *.o
 *.ppu
+*.zip
 lib/

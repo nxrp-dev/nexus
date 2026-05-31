@@ -17,7 +17,7 @@ type
       AResult: TNXLSInitializeResultValue); virtual;
     function Initialize(AParams: TNXLSInitializeParams): TNXJSONValue; virtual;
     procedure Initialized(AParams: TNXLSInitializedParams); virtual;
-    function Shutdown: TNXJSONValue; virtual;
+    procedure Shutdown; virtual;
     procedure ExitServer; virtual;
     procedure CancelRequest(AParams: TNXLSCancelParams); virtual;
   end;
@@ -52,10 +52,9 @@ begin
   Model.MarkInitialized;
 end;
 
-function TNXLSLifecycleService.Shutdown: TNXJSONValue;
+procedure TNXLSLifecycleService.Shutdown;
 begin
   Model.RequestShutdown;
-  Result := TNXLSNullResult.CreateValue;
 end;
 
 procedure TNXLSLifecycleService.ExitServer;
