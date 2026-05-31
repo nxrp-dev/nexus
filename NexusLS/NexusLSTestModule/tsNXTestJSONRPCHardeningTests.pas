@@ -68,17 +68,21 @@ type
   TNXTestResultValue = class(TNXJSONObject)
   end;
 
-  TNXTestDefaultResultClassRequest = class(TNXJSONRPCRequest)
+  TNXTestDefaultResultPropertyRequest = class(TNXJSONRPCRequest)
   public
     function Execute: TNXJSONValue; override;
     function PublicPrepareResult: TNXJSONValue;
   end;
 
   TNXTestDeclaredResultRequest = class(TNXJSONRPCRequest)
+  private
+    function GetResult: TNXTestResultValue;
+    procedure SetResult(AValue: TNXTestResultValue);
   public
-    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
     function PublicPrepareResult: TNXJSONValue;
+  published
+    property result: TNXTestResultValue read GetResult write SetResult;
   end;
 
   TNXTestNoResultKindRequest = class(TNXJSONRPCRequest)
@@ -101,10 +105,14 @@ type
   end;
 
   TNXTestWrongResultDispatchRequest = class(TNXJSONRPCRequest)
+  private
+    function GetResult: TNXTestResultValue;
+    procedure SetResult(AValue: TNXTestResultValue);
   public
     class function GetFactoryName: string; override;
-    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property result: TNXTestResultValue read GetResult write SetResult;
   end;
 
   TNXTestNullResultDispatchRequest = class(TNXJSONRPCRequest)
@@ -138,19 +146,24 @@ begin
   Result := TNXJSONNull.Create;
 end;
 
-function TNXTestDefaultResultClassRequest.Execute: TNXJSONValue;
+function TNXTestDefaultResultPropertyRequest.Execute: TNXJSONValue;
 begin
   Result := nil;
 end;
 
-function TNXTestDefaultResultClassRequest.PublicPrepareResult: TNXJSONValue;
+function TNXTestDefaultResultPropertyRequest.PublicPrepareResult: TNXJSONValue;
 begin
   Result := PrepareResult;
 end;
 
-class function TNXTestDeclaredResultRequest.GetResultClass: TNXJSONValueClass;
+function TNXTestDeclaredResultRequest.GetResult: TNXTestResultValue;
 begin
-  Result := TNXTestResultValue;
+  Result := TNXTestResultValue(inherited result);
+end;
+
+procedure TNXTestDeclaredResultRequest.SetResult(AValue: TNXTestResultValue);
+begin
+  inherited result := AValue;
 end;
 
 function TNXTestDeclaredResultRequest.Execute: TNXJSONValue;
@@ -203,9 +216,14 @@ begin
   Result := 'test/resultWrong';
 end;
 
-class function TNXTestWrongResultDispatchRequest.GetResultClass: TNXJSONValueClass;
+function TNXTestWrongResultDispatchRequest.GetResult: TNXTestResultValue;
 begin
-  Result := TNXTestResultValue;
+  Result := TNXTestResultValue(inherited result);
+end;
+
+procedure TNXTestWrongResultDispatchRequest.SetResult(AValue: TNXTestResultValue);
+begin
+  inherited result := AValue;
 end;
 
 function TNXTestWrongResultDispatchRequest.Execute: TNXJSONValue;
@@ -797,16 +815,23 @@ begin
   end;
 end;
 
-procedure TestResultClassDefaultsToNil(AContext: TNXTestContext);
+procedure TestResultPropertyDefaultsToRawValue(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDefaultResultPropertyRequest;
 begin
-  AContext.AssertTrue(TNXTestDefaultResultClassRequest.GetResultClass = nil,
-    'JSON-RPC requests should not declare a result class by default.');
+  lRequest := TNXTestDefaultResultPropertyRequest.Create;
+  try
+    AContext.AssertTrue(lRequest.result.ClassType = TNXJSONValue,
+      'Base JSON-RPC requests should use the generic result property by default.');
+  finally
+    lRequest.Free;
+  end;
 end;
 
 procedure TestResultKindDefaultsToConcreteResult(AContext: TNXTestContext);
 begin
   AContext.AssertEquals(Integer(rkConcreteResult),
-    Integer(TNXTestDefaultResultClassRequest.GetResultKind),
+    Integer(TNXTestDefaultResultPropertyRequest.GetResultKind),
     'JSON-RPC requests should require concrete results by default.');
 end;
 
@@ -825,11 +850,11 @@ end;
 
 procedure TestNotificationNilRequiresExplicitNoResultKind(AContext: TNXTestContext);
 var
-  lRequest: TNXTestDefaultResultClassRequest;
+  lRequest: TNXTestDefaultResultPropertyRequest;
   lRaised: Boolean;
 begin
   lRaised := False;
-  lRequest := TNXTestDefaultResultClassRequest.Create;
+  lRequest := TNXTestDefaultResultPropertyRequest.Create;
   try
     lRequest.method.Value := 'test/notification';
     try
@@ -888,13 +913,13 @@ begin
     'rkNullResult should reject non-null concrete results.');
 end;
 
-procedure TestPrepareResultRequiresResultClass(AContext: TNXTestContext);
+procedure TestPrepareResultRejectsRawResultProperty(AContext: TNXTestContext);
 var
-  lRequest: TNXTestDefaultResultClassRequest;
+  lRequest: TNXTestDefaultResultPropertyRequest;
   lRaised: Boolean;
 begin
   lRaised := False;
-  lRequest := TNXTestDefaultResultClassRequest.Create;
+  lRequest := TNXTestDefaultResultPropertyRequest.Create;
   try
     try
       lRequest.PublicPrepareResult.Free;
@@ -907,7 +932,7 @@ begin
   end;
 
   AContext.AssertTrue(lRaised,
-    'PrepareResult should reject requests without a declared result class.');
+    'PrepareResult should reject requests without a typed result property.');
 end;
 
 procedure TestConcreteResultKindRejectsNil(AContext: TNXTestContext);
@@ -964,7 +989,7 @@ begin
   lResult := lRequest.PublicPrepareResult;
   try
     AContext.AssertTrue(lResult is TNXTestResultValue,
-      'rkConcreteResult PrepareResult should create the declared result class.');
+    'rkConcreteResult PrepareResult should use the declared result property.');
     lRequest.ValidateResult(lResult);
   finally
     lResult.Free;
@@ -998,7 +1023,7 @@ begin
   lResult := lRequest.PublicPrepareResult;
   try
     AContext.AssertTrue(lResult is TNXTestResultValue,
-      'rkNullableConcreteResult PrepareResult should create the declared result class.');
+      'rkNullableConcreteResult PrepareResult should use the declared result property.');
     lRequest.ValidateResult(lResult);
   finally
     lResult.Free;
@@ -1033,11 +1058,11 @@ end;
 
 procedure TestValidateResultRejectsNilResult(AContext: TNXTestContext);
 var
-  lRequest: TNXTestDefaultResultClassRequest;
+  lRequest: TNXTestDefaultResultPropertyRequest;
   lRaised: Boolean;
 begin
   lRaised := False;
-  lRequest := TNXTestDefaultResultClassRequest.Create;
+  lRequest := TNXTestDefaultResultPropertyRequest.Create;
   try
     try
       lRequest.ValidateResult(nil);
@@ -1055,12 +1080,12 @@ end;
 
 procedure TestValidateResultRejectsDefaultNullResult(AContext: TNXTestContext);
 var
-  lRequest: TNXTestDefaultResultClassRequest;
+  lRequest: TNXTestDefaultResultPropertyRequest;
   lResult: TNXJSONValue;
   lRaised: Boolean;
 begin
   lRaised := False;
-  lRequest := TNXTestDefaultResultClassRequest.Create;
+  lRequest := TNXTestDefaultResultPropertyRequest.Create;
   lResult := TNXJSONNull.Create;
   try
     try
@@ -1078,7 +1103,7 @@ begin
     'ValidateResult should reject null unless the request allows null results.');
 end;
 
-procedure TestValidateResultRejectsWrongDeclaredResultClass(AContext: TNXTestContext);
+procedure TestValidateResultRejectsWrongDeclaredResultProperty(AContext: TNXTestContext);
 var
   lRequest: TNXTestDeclaredResultRequest;
   lResult: TNXJSONValue;
@@ -1100,10 +1125,10 @@ begin
   end;
 
   AContext.AssertTrue(lRaised,
-    'ValidateResult should reject results outside the declared result class.');
+    'ValidateResult should reject results outside the declared result property type.');
 end;
 
-procedure TestValidateResultAcceptsDeclaredResultClass(AContext: TNXTestContext);
+procedure TestValidateResultAcceptsDeclaredResultProperty(AContext: TNXTestContext);
 var
   lRequest: TNXTestDeclaredResultRequest;
   lResult: TNXJSONValue;
@@ -1113,7 +1138,7 @@ begin
   try
     lRequest.ValidateResult(lResult);
     AContext.AssertTrue(True,
-      'ValidateResult should accept a matching declared result class.');
+      'ValidateResult should accept a matching declared result property type.');
   finally
     lResult.Free;
     lRequest.Free;
@@ -1323,7 +1348,8 @@ begin
   lSuite.AddTest('RoundTripNumericID', @TestRoundTripNumericID);
   lSuite.AddTest('NestedAssignedObjectSerializesParent',
     @TestNestedAssignedObjectSerializesParent);
-  lSuite.AddTest('ResultClassDefaultsToNil', @TestResultClassDefaultsToNil);
+  lSuite.AddTest('ResultPropertyDefaultsToRawValue',
+    @TestResultPropertyDefaultsToRawValue);
   lSuite.AddTest('ResultKindDefaultsToConcreteResult',
     @TestResultKindDefaultsToConcreteResult);
   lSuite.AddTest('NoResultKindAcceptsNil', @TestNoResultKindAcceptsNil);
@@ -1332,8 +1358,8 @@ begin
   lSuite.AddTest('NullResultKindAcceptsNull', @TestNullResultKindAcceptsNull);
   lSuite.AddTest('NullResultKindRejectsConcreteResult',
     @TestNullResultKindRejectsConcreteResult);
-  lSuite.AddTest('PrepareResultRequiresResultClass',
-    @TestPrepareResultRequiresResultClass);
+  lSuite.AddTest('PrepareResultRejectsRawResultProperty',
+    @TestPrepareResultRejectsRawResultProperty);
   lSuite.AddTest('ConcreteResultKindRejectsNil',
     @TestConcreteResultKindRejectsNil);
   lSuite.AddTest('ConcreteResultKindRejectsNull',
@@ -1350,10 +1376,10 @@ begin
     @TestValidateResultRejectsNilResult);
   lSuite.AddTest('ValidateResultRejectsDefaultNullResult',
     @TestValidateResultRejectsDefaultNullResult);
-  lSuite.AddTest('ValidateResultRejectsWrongDeclaredResultClass',
-    @TestValidateResultRejectsWrongDeclaredResultClass);
-  lSuite.AddTest('ValidateResultAcceptsDeclaredResultClass',
-    @TestValidateResultAcceptsDeclaredResultClass);
+  lSuite.AddTest('ValidateResultRejectsWrongDeclaredResultProperty',
+    @TestValidateResultRejectsWrongDeclaredResultProperty);
+  lSuite.AddTest('ValidateResultAcceptsDeclaredResultProperty',
+    @TestValidateResultAcceptsDeclaredResultProperty);
   lSuite.AddTest('DispatcherValidatesResultAfterExecute',
     @TestDispatcherValidatesResultAfterExecute);
   lSuite.AddTest('DispatcherRejectsNullResultByDefault',

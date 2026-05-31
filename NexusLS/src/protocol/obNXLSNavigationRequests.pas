@@ -15,65 +15,75 @@ uses
 type
   TNXLSTextDocumentDeclarationRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSLocation;
+    procedure SetResult(AValue: TNXLSLocation);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDefinitionRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSLocation;
+    procedure SetResult(AValue: TNXLSLocation);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentTypeDefinitionRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSLocation;
+    procedure SetResult(AValue: TNXLSLocation);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentImplementationRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSLocation;
+    procedure SetResult(AValue: TNXLSLocation);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentReferencesRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSLocationArray;
+    procedure SetResult(AValue: TNXLSLocationArray);
     function GetParams: TNXLSReferenceParams;
     procedure SetParams(AValue: TNXLSReferenceParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSLocationArray read GetResult write SetResult;
     property params: TNXLSReferenceParams read GetParams write SetParams;
   end;
 
@@ -87,11 +97,6 @@ uses
 class function TNXLSTextDocumentDeclarationRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/declaration';
-end;
-
-class function TNXLSTextDocumentDeclarationRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLocation;
 end;
 
 class function TNXLSTextDocumentDeclarationRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -119,11 +124,6 @@ begin
   Result := 'textDocument/definition';
 end;
 
-class function TNXLSTextDocumentDefinitionRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLocation;
-end;
-
 class function TNXLSTextDocumentDefinitionRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullableConcreteResult;
@@ -149,11 +149,6 @@ begin
   Result := 'textDocument/typeDefinition';
 end;
 
-class function TNXLSTextDocumentTypeDefinitionRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLocation;
-end;
-
 class function TNXLSTextDocumentTypeDefinitionRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullableConcreteResult;
@@ -169,11 +164,6 @@ end;
 class function TNXLSTextDocumentImplementationRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/implementation';
-end;
-
-class function TNXLSTextDocumentImplementationRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLocation;
 end;
 
 class function TNXLSTextDocumentImplementationRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -199,11 +189,6 @@ end;
 class function TNXLSTextDocumentReferencesRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/references';
-end;
-
-class function TNXLSTextDocumentReferencesRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLocationArray;
 end;
 
 function TNXLSTextDocumentReferencesRequest.Execute: TNXJSONValue;
@@ -264,6 +249,56 @@ end;
 procedure TNXLSTextDocumentDefinitionRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDeclarationRequest.GetResult: TNXLSLocation;
+begin
+  Result := TNXLSLocation(inherited result);
+end;
+
+procedure TNXLSTextDocumentDeclarationRequest.SetResult(AValue: TNXLSLocation);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentDefinitionRequest.GetResult: TNXLSLocation;
+begin
+  Result := TNXLSLocation(inherited result);
+end;
+
+procedure TNXLSTextDocumentDefinitionRequest.SetResult(AValue: TNXLSLocation);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentTypeDefinitionRequest.GetResult: TNXLSLocation;
+begin
+  Result := TNXLSLocation(inherited result);
+end;
+
+procedure TNXLSTextDocumentTypeDefinitionRequest.SetResult(AValue: TNXLSLocation);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentImplementationRequest.GetResult: TNXLSLocation;
+begin
+  Result := TNXLSLocation(inherited result);
+end;
+
+procedure TNXLSTextDocumentImplementationRequest.SetResult(AValue: TNXLSLocation);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentReferencesRequest.GetResult: TNXLSLocationArray;
+begin
+  Result := TNXLSLocationArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentReferencesRequest.SetResult(AValue: TNXLSLocationArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

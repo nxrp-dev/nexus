@@ -51,13 +51,15 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 
   TNXLSTextDocumentWillSaveWaitUntilRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTextEditArray;
+    procedure SetResult(AValue: TNXLSTextEditArray);
     function GetParams: TNXLSWillSaveTextDocumentParams;
     procedure SetParams(AValue: TNXLSWillSaveTextDocumentParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSWillSaveTextDocumentParams read GetParams write SetParams;
   end;
 
@@ -144,11 +146,6 @@ end;
 class function TNXLSTextDocumentWillSaveWaitUntilRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/willSaveWaitUntil';
-end;
-
-class function TNXLSTextDocumentWillSaveWaitUntilRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextEditArray;
 end;
 
 function TNXLSTextDocumentWillSaveWaitUntilRequest.Execute: TNXJSONValue;
@@ -247,6 +244,16 @@ end;
 procedure TNXLSTextDocumentDidCloseRequest.SetParams(AValue: TNXLSDidCloseTextDocumentParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentWillSaveWaitUntilRequest.GetResult: TNXLSTextEditArray;
+begin
+  Result := TNXLSTextEditArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentWillSaveWaitUntilRequest.SetResult(AValue: TNXLSTextEditArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

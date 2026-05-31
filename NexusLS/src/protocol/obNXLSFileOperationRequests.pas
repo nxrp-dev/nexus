@@ -15,14 +15,16 @@ uses
 type
   TNXLSWorkspaceWillCreateFilesRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSWorkspaceEdit;
+    procedure SetResult(AValue: TNXLSWorkspaceEdit);
     function GetParams: TNXLSCreateFilesParams;
     procedure SetParams(AValue: TNXLSCreateFilesParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSWorkspaceEdit read GetResult write SetResult;
     property params: TNXLSCreateFilesParams read GetParams write SetParams;
   end;
 
@@ -40,14 +42,16 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 
   TNXLSWorkspaceWillRenameFilesRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSWorkspaceEdit;
+    procedure SetResult(AValue: TNXLSWorkspaceEdit);
     function GetParams: TNXLSRenameFilesParams;
     procedure SetParams(AValue: TNXLSRenameFilesParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSWorkspaceEdit read GetResult write SetResult;
     property params: TNXLSRenameFilesParams read GetParams write SetParams;
   end;
 
@@ -65,14 +69,16 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 
   TNXLSWorkspaceWillDeleteFilesRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSWorkspaceEdit;
+    procedure SetResult(AValue: TNXLSWorkspaceEdit);
     function GetParams: TNXLSDeleteFilesParams;
     procedure SetParams(AValue: TNXLSDeleteFilesParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSWorkspaceEdit read GetResult write SetResult;
     property params: TNXLSDeleteFilesParams read GetParams write SetParams;
   end;
 
@@ -97,11 +103,6 @@ uses
 class function TNXLSWorkspaceWillCreateFilesRequest.GetFactoryName: string;
 begin
   Result := 'workspace/willCreateFiles';
-end;
-
-class function TNXLSWorkspaceWillCreateFilesRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceEdit;
 end;
 
 class function TNXLSWorkspaceWillCreateFilesRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -138,11 +139,6 @@ begin
   Result := 'workspace/willRenameFiles';
 end;
 
-class function TNXLSWorkspaceWillRenameFilesRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceEdit;
-end;
-
 class function TNXLSWorkspaceWillRenameFilesRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullableConcreteResult;
@@ -175,11 +171,6 @@ end;
 class function TNXLSWorkspaceWillDeleteFilesRequest.GetFactoryName: string;
 begin
   Result := 'workspace/willDeleteFiles';
-end;
-
-class function TNXLSWorkspaceWillDeleteFilesRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceEdit;
 end;
 
 class function TNXLSWorkspaceWillDeleteFilesRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -269,6 +260,36 @@ end;
 procedure TNXLSWorkspaceDidCreateFilesRequest.SetParams(AValue: TNXLSCreateFilesParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSWorkspaceWillCreateFilesRequest.GetResult: TNXLSWorkspaceEdit;
+begin
+  Result := TNXLSWorkspaceEdit(inherited result);
+end;
+
+procedure TNXLSWorkspaceWillCreateFilesRequest.SetResult(AValue: TNXLSWorkspaceEdit);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSWorkspaceWillRenameFilesRequest.GetResult: TNXLSWorkspaceEdit;
+begin
+  Result := TNXLSWorkspaceEdit(inherited result);
+end;
+
+procedure TNXLSWorkspaceWillRenameFilesRequest.SetResult(AValue: TNXLSWorkspaceEdit);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSWorkspaceWillDeleteFilesRequest.GetResult: TNXLSWorkspaceEdit;
+begin
+  Result := TNXLSWorkspaceEdit(inherited result);
+end;
+
+procedure TNXLSWorkspaceWillDeleteFilesRequest.SetResult(AValue: TNXLSWorkspaceEdit);
+begin
+  inherited result := AValue;
 end;
 
 initialization

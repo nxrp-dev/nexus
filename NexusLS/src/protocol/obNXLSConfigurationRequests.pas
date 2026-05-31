@@ -15,13 +15,15 @@ uses
 type
   TNXLSWorkspaceConfigurationRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSConfigurationArray;
+    procedure SetResult(AValue: TNXLSConfigurationArray);
     function GetParams: TNXLSConfigurationParams;
     procedure SetParams(AValue: TNXLSConfigurationParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSConfigurationArray read GetResult write SetResult;
     property params: TNXLSConfigurationParams read GetParams write SetParams;
   end;
 
@@ -47,11 +49,6 @@ uses
 class function TNXLSWorkspaceConfigurationRequest.GetFactoryName: string;
 begin
   Result := 'workspace/configuration';
-end;
-
-class function TNXLSWorkspaceConfigurationRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSConfigurationArray;
 end;
 
 function TNXLSWorkspaceConfigurationRequest.Execute: TNXJSONValue;
@@ -94,6 +91,16 @@ end;
 procedure TNXLSWorkspaceConfigurationRequest.SetParams(AValue: TNXLSConfigurationParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSWorkspaceConfigurationRequest.GetResult: TNXLSConfigurationArray;
+begin
+  Result := TNXLSConfigurationArray(inherited result);
+end;
+
+procedure TNXLSWorkspaceConfigurationRequest.SetResult(AValue: TNXLSConfigurationArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

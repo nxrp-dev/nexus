@@ -15,13 +15,15 @@ uses
 type
   TNXLSInitializeRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSInitializeResultValue;
+    procedure SetResult(AValue: TNXLSInitializeResultValue);
     function GetParams: TNXLSInitializeParams;
     procedure SetParams(AValue: TNXLSInitializeParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSInitializeResultValue read GetResult write SetResult;
     property params: TNXLSInitializeParams read GetParams write SetParams;
   end;
 
@@ -109,11 +111,6 @@ uses
 class function TNXLSInitializeRequest.GetFactoryName: string;
 begin
   Result := 'initialize';
-end;
-
-class function TNXLSInitializeRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInitializeResultValue;
 end;
 
 function TNXLSInitializeRequest.Execute: TNXJSONValue;
@@ -299,6 +296,16 @@ end;
 procedure TNXLSDollarlogTraceRequest.SetParams(AValue: TNXLSLogTraceParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSInitializeRequest.GetResult: TNXLSInitializeResultValue;
+begin
+  Result := TNXLSInitializeResultValue(inherited result);
+end;
+
+procedure TNXLSInitializeRequest.SetResult(AValue: TNXLSInitializeResultValue);
+begin
+  inherited result := AValue;
 end;
 
 initialization

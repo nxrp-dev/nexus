@@ -15,74 +15,86 @@ uses
 type
   TNXLSTextDocumentDocumentHighlightRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSDocumentHighlightArray;
+    procedure SetResult(AValue: TNXLSDocumentHighlightArray);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSDocumentHighlightArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDocumentLinkRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSDocumentLinkArray;
+    procedure SetResult(AValue: TNXLSDocumentLinkArray);
     function GetParams: TNXLSDocumentLinkParams;
     procedure SetParams(AValue: TNXLSDocumentLinkParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSDocumentLinkArray read GetResult write SetResult;
     property params: TNXLSDocumentLinkParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentHoverRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSHover;
+    procedure SetResult(AValue: TNXLSHover);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSHover read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentCodeLensRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSCodeLensArray;
+    procedure SetResult(AValue: TNXLSCodeLensArray);
     function GetParams: TNXLSCodeLensParams;
     procedure SetParams(AValue: TNXLSCodeLensParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSCodeLensArray read GetResult write SetResult;
     property params: TNXLSCodeLensParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentFoldingRangeRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSFoldingRangeArray;
+    procedure SetResult(AValue: TNXLSFoldingRangeArray);
     function GetParams: TNXLSFoldingRangeParams;
     procedure SetParams(AValue: TNXLSFoldingRangeParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSFoldingRangeArray read GetResult write SetResult;
     property params: TNXLSFoldingRangeParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentSelectionRangeRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSSelectionRangeArray;
+    procedure SetResult(AValue: TNXLSSelectionRangeArray);
     function GetParams: TNXLSSelectionRangeParams;
     procedure SetParams(AValue: TNXLSSelectionRangeParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSSelectionRangeArray read GetResult write SetResult;
     property params: TNXLSSelectionRangeParams read GetParams write SetParams;
   end;
 
@@ -96,11 +108,6 @@ uses
 class function TNXLSTextDocumentDocumentHighlightRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/documentHighlight';
-end;
-
-class function TNXLSTextDocumentDocumentHighlightRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentHighlightArray;
 end;
 
 function TNXLSTextDocumentDocumentHighlightRequest.Execute: TNXJSONValue;
@@ -118,11 +125,6 @@ begin
   Result := 'textDocument/documentLink';
 end;
 
-class function TNXLSTextDocumentDocumentLinkRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentLinkArray;
-end;
-
 function TNXLSTextDocumentDocumentLinkRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -132,11 +134,6 @@ end;
 class function TNXLSTextDocumentHoverRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/hover';
-end;
-
-class function TNXLSTextDocumentHoverRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSHover;
 end;
 
 class function TNXLSTextDocumentHoverRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -164,11 +161,6 @@ begin
   Result := 'textDocument/codeLens';
 end;
 
-class function TNXLSTextDocumentCodeLensRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCodeLensArray;
-end;
-
 function TNXLSTextDocumentCodeLensRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -180,11 +172,6 @@ begin
   Result := 'textDocument/foldingRange';
 end;
 
-class function TNXLSTextDocumentFoldingRangeRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSFoldingRangeArray;
-end;
-
 function TNXLSTextDocumentFoldingRangeRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -194,11 +181,6 @@ end;
 class function TNXLSTextDocumentSelectionRangeRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/selectionRange';
-end;
-
-class function TNXLSTextDocumentSelectionRangeRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSelectionRangeArray;
 end;
 
 function TNXLSTextDocumentSelectionRangeRequest.Execute: TNXJSONValue;
@@ -265,6 +247,66 @@ end;
 procedure TNXLSTextDocumentSelectionRangeRequest.SetParams(AValue: TNXLSSelectionRangeParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDocumentHighlightRequest.GetResult: TNXLSDocumentHighlightArray;
+begin
+  Result := TNXLSDocumentHighlightArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentDocumentHighlightRequest.SetResult(AValue: TNXLSDocumentHighlightArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentDocumentLinkRequest.GetResult: TNXLSDocumentLinkArray;
+begin
+  Result := TNXLSDocumentLinkArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentDocumentLinkRequest.SetResult(AValue: TNXLSDocumentLinkArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentHoverRequest.GetResult: TNXLSHover;
+begin
+  Result := TNXLSHover(inherited result);
+end;
+
+procedure TNXLSTextDocumentHoverRequest.SetResult(AValue: TNXLSHover);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentCodeLensRequest.GetResult: TNXLSCodeLensArray;
+begin
+  Result := TNXLSCodeLensArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentCodeLensRequest.SetResult(AValue: TNXLSCodeLensArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentFoldingRangeRequest.GetResult: TNXLSFoldingRangeArray;
+begin
+  Result := TNXLSFoldingRangeArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentFoldingRangeRequest.SetResult(AValue: TNXLSFoldingRangeArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentSelectionRangeRequest.GetResult: TNXLSSelectionRangeArray;
+begin
+  Result := TNXLSSelectionRangeArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentSelectionRangeRequest.SetResult(AValue: TNXLSSelectionRangeArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

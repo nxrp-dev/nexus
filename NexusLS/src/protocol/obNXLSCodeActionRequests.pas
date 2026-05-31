@@ -15,13 +15,15 @@ uses
 type
   TNXLSTextDocumentCodeActionRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSCodeActionArray;
+    procedure SetResult(AValue: TNXLSCodeActionArray);
     function GetParams: TNXLSCodeActionParams;
     procedure SetParams(AValue: TNXLSCodeActionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSCodeActionArray read GetResult write SetResult;
     property params: TNXLSCodeActionParams read GetParams write SetParams;
   end;
 
@@ -34,11 +36,6 @@ uses
 class function TNXLSTextDocumentCodeActionRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/codeAction';
-end;
-
-class function TNXLSTextDocumentCodeActionRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCodeActionArray;
 end;
 
 function TNXLSTextDocumentCodeActionRequest.Execute: TNXJSONValue;
@@ -59,6 +56,16 @@ end;
 procedure TNXLSTextDocumentCodeActionRequest.SetParams(AValue: TNXLSCodeActionParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentCodeActionRequest.GetResult: TNXLSCodeActionArray;
+begin
+  Result := TNXLSCodeActionArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentCodeActionRequest.SetResult(AValue: TNXLSCodeActionArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

@@ -15,25 +15,29 @@ uses
 type
   TNXLSTextDocumentDocumentColorRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSColorInformationArray;
+    procedure SetResult(AValue: TNXLSColorInformationArray);
     function GetParams: TNXLSDocumentColorParams;
     procedure SetParams(AValue: TNXLSDocumentColorParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSColorInformationArray read GetResult write SetResult;
     property params: TNXLSDocumentColorParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentColorPresentationRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSColorPresentationArray;
+    procedure SetResult(AValue: TNXLSColorPresentationArray);
     function GetParams: TNXLSColorPresentationParams;
     procedure SetParams(AValue: TNXLSColorPresentationParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSColorPresentationArray read GetResult write SetResult;
     property params: TNXLSColorPresentationParams read GetParams write SetParams;
   end;
 
@@ -48,11 +52,6 @@ begin
   Result := 'textDocument/documentColor';
 end;
 
-class function TNXLSTextDocumentDocumentColorRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSColorInformationArray;
-end;
-
 function TNXLSTextDocumentDocumentColorRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -62,11 +61,6 @@ end;
 class function TNXLSTextDocumentColorPresentationRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/colorPresentation';
-end;
-
-class function TNXLSTextDocumentColorPresentationRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSColorPresentationArray;
 end;
 
 function TNXLSTextDocumentColorPresentationRequest.Execute: TNXJSONValue;
@@ -93,6 +87,26 @@ end;
 procedure TNXLSTextDocumentDocumentColorRequest.SetParams(AValue: TNXLSDocumentColorParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDocumentColorRequest.GetResult: TNXLSColorInformationArray;
+begin
+  Result := TNXLSColorInformationArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentDocumentColorRequest.SetResult(AValue: TNXLSColorInformationArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentColorPresentationRequest.GetResult: TNXLSColorPresentationArray;
+begin
+  Result := TNXLSColorPresentationArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentColorPresentationRequest.SetResult(AValue: TNXLSColorPresentationArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

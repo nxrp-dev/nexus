@@ -15,13 +15,15 @@ uses
 type
   TNXLSTextDocumentInlayHintRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSInlayHintArray;
+    procedure SetResult(AValue: TNXLSInlayHintArray);
     function GetParams: TNXLSInlayHintParams;
     procedure SetParams(AValue: TNXLSInlayHintParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSInlayHintArray read GetResult write SetResult;
     property params: TNXLSInlayHintParams read GetParams write SetParams;
   end;
 
@@ -34,11 +36,6 @@ uses
 class function TNXLSTextDocumentInlayHintRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/inlayHint';
-end;
-
-class function TNXLSTextDocumentInlayHintRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInlayHintArray;
 end;
 
 function TNXLSTextDocumentInlayHintRequest.Execute: TNXJSONValue;
@@ -59,6 +56,16 @@ end;
 procedure TNXLSTextDocumentInlayHintRequest.SetParams(AValue: TNXLSInlayHintParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentInlayHintRequest.GetResult: TNXLSInlayHintArray;
+begin
+  Result := TNXLSInlayHintArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentInlayHintRequest.SetResult(AValue: TNXLSInlayHintArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

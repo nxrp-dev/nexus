@@ -14,10 +14,14 @@ uses
 
 type
   TNXLSWorkspaceWorkspaceFoldersRequest = class(TNXJSONRPCRequest)
+  private
+    function GetResult: TNXLSWorkspaceFolderArray;
+    procedure SetResult(AValue: TNXLSWorkspaceFolderArray);
   public
     class function GetFactoryName: string; override;
-    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property result: TNXLSWorkspaceFolderArray read GetResult write SetResult;
   end;
 
   TNXLSWorkspaceDidChangeWorkspaceFoldersRequest = class(TNXJSONRPCRequest)
@@ -42,11 +46,6 @@ uses
 class function TNXLSWorkspaceWorkspaceFoldersRequest.GetFactoryName: string;
 begin
   Result := 'workspace/workspaceFolders';
-end;
-
-class function TNXLSWorkspaceWorkspaceFoldersRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceFolderArray;
 end;
 
 function TNXLSWorkspaceWorkspaceFoldersRequest.Execute: TNXJSONValue;
@@ -79,6 +78,16 @@ end;
 procedure TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.SetParams(AValue: TNXLSDidChangeWorkspaceFoldersParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSWorkspaceWorkspaceFoldersRequest.GetResult: TNXLSWorkspaceFolderArray;
+begin
+  Result := TNXLSWorkspaceFolderArray(inherited result);
+end;
+
+procedure TNXLSWorkspaceWorkspaceFoldersRequest.SetResult(AValue: TNXLSWorkspaceFolderArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

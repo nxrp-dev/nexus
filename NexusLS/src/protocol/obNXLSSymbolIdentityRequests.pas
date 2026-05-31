@@ -15,13 +15,15 @@ uses
 type
   TNXLSTextDocumentMonikerRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSMonikerArray;
+    procedure SetResult(AValue: TNXLSMonikerArray);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSMonikerArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
@@ -34,11 +36,6 @@ uses
 class function TNXLSTextDocumentMonikerRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/moniker';
-end;
-
-class function TNXLSTextDocumentMonikerRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSMonikerArray;
 end;
 
 function TNXLSTextDocumentMonikerRequest.Execute: TNXJSONValue;
@@ -55,6 +52,16 @@ end;
 procedure TNXLSTextDocumentMonikerRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentMonikerRequest.GetResult: TNXLSMonikerArray;
+begin
+  Result := TNXLSMonikerArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentMonikerRequest.SetResult(AValue: TNXLSMonikerArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

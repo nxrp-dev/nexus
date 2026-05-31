@@ -12,22 +12,27 @@ type
 
   TNXTestCase = class
   private
+    FCategory: string;
     FName: string;
     FTestId: string;
     FTestProcedure: TNXTestProcedure;
   public
-    constructor Create(const AName, ATestId: string; ATestProcedure: TNXTestProcedure);
+    constructor Create(const AName, ATestId: string;
+      ATestProcedure: TNXTestProcedure; const ACategory: string = '');
     function Execute(const ASuiteName: string): TNXTestResult;
 
+    property Category: string read FCategory;
     property Name: string read FName;
     property TestId: string read FTestId;
   end;
 
 implementation
 
-constructor TNXTestCase.Create(const AName, ATestId: string; ATestProcedure: TNXTestProcedure);
+constructor TNXTestCase.Create(const AName, ATestId: string;
+  ATestProcedure: TNXTestProcedure; const ACategory: string);
 begin
   inherited Create;
+  FCategory := ACategory;
   FName := AName;
   FTestId := ATestId;
   FTestProcedure := ATestProcedure;

@@ -61,9 +61,11 @@ type
 
   TNXTestCaseInfoValue = class(TNXJSONObject)
   private
+    Fcategory: TNXJSONString;
     Fname: TNXJSONString;
     Fid: TNXJSONString;
   published
+    property category: TNXJSONString read Fcategory write Fcategory;
     property name: TNXJSONString read Fname write Fname;
     property id: TNXJSONString read Fid write Fid;
   end;
@@ -174,6 +176,7 @@ end;
 function TNXTestCaseInfoArray.AddCase(ATest: TNXTestCase): TNXTestCaseInfoValue;
 begin
   Result := TNXTestCaseInfoValue(Add(TNXTestCaseInfoValue.Create));
+  Result.category.Value := ATest.Category;
   Result.name.Value := ATest.Name;
   Result.id.Value := ATest.TestId;
 end;

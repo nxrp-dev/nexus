@@ -15,25 +15,29 @@ uses
 type
   TNXLSTextDocumentDocumentSymbolRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXJSONArray;
+    procedure SetResult(AValue: TNXJSONArray);
     function GetParams: TNXLSDocumentSymbolParams;
     procedure SetParams(AValue: TNXLSDocumentSymbolParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXJSONArray read GetResult write SetResult;
     property params: TNXLSDocumentSymbolParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceSymbolRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXJSONArray;
+    procedure SetResult(AValue: TNXJSONArray);
     function GetParams: TNXLSWorkspaceSymbolParams;
     procedure SetParams(AValue: TNXLSWorkspaceSymbolParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXJSONArray read GetResult write SetResult;
     property params: TNXLSWorkspaceSymbolParams read GetParams write SetParams;
   end;
 
@@ -46,11 +50,6 @@ uses
 class function TNXLSTextDocumentDocumentSymbolRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/documentSymbol';
-end;
-
-class function TNXLSTextDocumentDocumentSymbolRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXJSONArray;
 end;
 
 function TNXLSTextDocumentDocumentSymbolRequest.Execute: TNXJSONValue;
@@ -66,11 +65,6 @@ end;
 class function TNXLSWorkspaceSymbolRequest.GetFactoryName: string;
 begin
   Result := 'workspace/symbol';
-end;
-
-class function TNXLSWorkspaceSymbolRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXJSONArray;
 end;
 
 function TNXLSWorkspaceSymbolRequest.Execute: TNXJSONValue;
@@ -101,6 +95,26 @@ end;
 procedure TNXLSTextDocumentDocumentSymbolRequest.SetParams(AValue: TNXLSDocumentSymbolParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDocumentSymbolRequest.GetResult: TNXJSONArray;
+begin
+  Result := TNXJSONArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentDocumentSymbolRequest.SetResult(AValue: TNXJSONArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSWorkspaceSymbolRequest.GetResult: TNXJSONArray;
+begin
+  Result := TNXJSONArray(inherited result);
+end;
+
+procedure TNXLSWorkspaceSymbolRequest.SetResult(AValue: TNXJSONArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

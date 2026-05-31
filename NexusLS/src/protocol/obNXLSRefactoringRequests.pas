@@ -15,40 +15,46 @@ uses
 type
   TNXLSTextDocumentRenameRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSWorkspaceEditResult;
+    procedure SetResult(AValue: TNXLSWorkspaceEditResult);
     function GetParams: TNXLSRenameParams;
     procedure SetParams(AValue: TNXLSRenameParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSWorkspaceEditResult read GetResult write SetResult;
     property params: TNXLSRenameParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentPrepareRenameRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSPrepareRenamePlaceholder;
+    procedure SetResult(AValue: TNXLSPrepareRenamePlaceholder);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSPrepareRenamePlaceholder read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentLinkedEditingRangeRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSLinkedEditingRanges;
+    procedure SetResult(AValue: TNXLSLinkedEditingRanges);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSLinkedEditingRanges read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
@@ -62,11 +68,6 @@ uses
 class function TNXLSTextDocumentRenameRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/rename';
-end;
-
-class function TNXLSTextDocumentRenameRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceEditResult;
 end;
 
 class function TNXLSTextDocumentRenameRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -94,11 +95,6 @@ begin
   Result := 'textDocument/prepareRename';
 end;
 
-class function TNXLSTextDocumentPrepareRenameRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSPrepareRenamePlaceholder;
-end;
-
 class function TNXLSTextDocumentPrepareRenameRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullableConcreteResult;
@@ -122,11 +118,6 @@ end;
 class function TNXLSTextDocumentLinkedEditingRangeRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/linkedEditingRange';
-end;
-
-class function TNXLSTextDocumentLinkedEditingRangeRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLinkedEditingRanges;
 end;
 
 class function TNXLSTextDocumentLinkedEditingRangeRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -169,6 +160,36 @@ end;
 procedure TNXLSTextDocumentPrepareRenameRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentRenameRequest.GetResult: TNXLSWorkspaceEditResult;
+begin
+  Result := TNXLSWorkspaceEditResult(inherited result);
+end;
+
+procedure TNXLSTextDocumentRenameRequest.SetResult(AValue: TNXLSWorkspaceEditResult);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentPrepareRenameRequest.GetResult: TNXLSPrepareRenamePlaceholder;
+begin
+  Result := TNXLSPrepareRenamePlaceholder(inherited result);
+end;
+
+procedure TNXLSTextDocumentPrepareRenameRequest.SetResult(AValue: TNXLSPrepareRenamePlaceholder);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentLinkedEditingRangeRequest.GetResult: TNXLSLinkedEditingRanges;
+begin
+  Result := TNXLSLinkedEditingRanges(inherited result);
+end;
+
+procedure TNXLSTextDocumentLinkedEditingRangeRequest.SetResult(AValue: TNXLSLinkedEditingRanges);
+begin
+  inherited result := AValue;
 end;
 
 initialization

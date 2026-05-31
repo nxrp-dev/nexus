@@ -47,6 +47,7 @@ nav:
       - Overview: nexus-test/index.md
   - NexusLib:
       - Overview: nexus-lib/index.md
+      - JSON-RPC Protocol Modeling: nexus-lib/json-rpc.md
   - Guides:
       - Building a Pascal Application in VS Code: guides/building-pascal-in-vscode.md
       - Building a Nexus UI Application: guides/building-nexus-ui-application.md

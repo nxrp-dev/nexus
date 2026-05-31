@@ -15,13 +15,15 @@ uses
 type
   TNXLSTextDocumentInlineValueRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSInlineValueArray;
+    procedure SetResult(AValue: TNXLSInlineValueArray);
     function GetParams: TNXLSInlineValueParams;
     procedure SetParams(AValue: TNXLSInlineValueParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSInlineValueArray read GetResult write SetResult;
     property params: TNXLSInlineValueParams read GetParams write SetParams;
   end;
 
@@ -34,11 +36,6 @@ uses
 class function TNXLSTextDocumentInlineValueRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/inlineValue';
-end;
-
-class function TNXLSTextDocumentInlineValueRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInlineValueArray;
 end;
 
 function TNXLSTextDocumentInlineValueRequest.Execute: TNXJSONValue;
@@ -55,6 +52,16 @@ end;
 procedure TNXLSTextDocumentInlineValueRequest.SetParams(AValue: TNXLSInlineValueParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentInlineValueRequest.GetResult: TNXLSInlineValueArray;
+begin
+  Result := TNXLSInlineValueArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentInlineValueRequest.SetResult(AValue: TNXLSInlineValueArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

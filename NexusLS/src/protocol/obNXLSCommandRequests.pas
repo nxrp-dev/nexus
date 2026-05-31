@@ -63,37 +63,43 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 
   TNXLSProjectCreateWizardRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSProjectCreateWizardResult;
+    procedure SetResult(AValue: TNXLSProjectCreateWizardResult);
     function GetParams: TNXLSProjectCreateWizardParams;
     procedure SetParams(AValue: TNXLSProjectCreateWizardParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSProjectCreateWizardResult read GetResult write SetResult;
     property params: TNXLSProjectCreateWizardParams read GetParams write SetParams;
   end;
 
   TNXLSProjectPlanCreateRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSProjectPlanCreateResult;
+    procedure SetResult(AValue: TNXLSProjectPlanCreateResult);
     function GetParams: TNXLSProjectCreateParams;
     procedure SetParams(AValue: TNXLSProjectCreateParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSProjectPlanCreateResult read GetResult write SetResult;
     property params: TNXLSProjectCreateParams read GetParams write SetParams;
   end;
 
   TNXLSProjectCreateRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSProjectCreateResult;
+    procedure SetResult(AValue: TNXLSProjectCreateResult);
     function GetParams: TNXLSProjectCreateParams;
     procedure SetParams(AValue: TNXLSProjectCreateParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSProjectCreateResult read GetResult write SetResult;
     property params: TNXLSProjectCreateParams read GetParams write SetParams;
   end;
 
@@ -177,11 +183,6 @@ begin
   Result := cNXLSCommandNexusProjectCreateWizard;
 end;
 
-class function TNXLSProjectCreateWizardRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProjectCreateWizardResult;
-end;
-
 function TNXLSProjectCreateWizardRequest.Execute: TNXJSONValue;
 var
   lResult: TNXLSProjectCreateWizardResult;
@@ -197,11 +198,6 @@ begin
   Result := cNXLSCommandNexusProjectPlanCreate;
 end;
 
-class function TNXLSProjectPlanCreateRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProjectPlanCreateResult;
-end;
-
 function TNXLSProjectPlanCreateRequest.Execute: TNXJSONValue;
 var
   lResult: TNXLSProjectPlanCreateResult;
@@ -215,11 +211,6 @@ end;
 class function TNXLSProjectCreateRequest.GetFactoryName: string;
 begin
   Result := cNXLSCommandNexusProjectCreate;
-end;
-
-class function TNXLSProjectCreateRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProjectCreateResult;
 end;
 
 function TNXLSProjectCreateRequest.Execute: TNXJSONValue;
@@ -300,6 +291,36 @@ end;
 procedure TNXLSProjectCreateRequest.SetParams(AValue: TNXLSProjectCreateParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSProjectCreateWizardRequest.GetResult: TNXLSProjectCreateWizardResult;
+begin
+  Result := TNXLSProjectCreateWizardResult(inherited result);
+end;
+
+procedure TNXLSProjectCreateWizardRequest.SetResult(AValue: TNXLSProjectCreateWizardResult);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSProjectPlanCreateRequest.GetResult: TNXLSProjectPlanCreateResult;
+begin
+  Result := TNXLSProjectPlanCreateResult(inherited result);
+end;
+
+procedure TNXLSProjectPlanCreateRequest.SetResult(AValue: TNXLSProjectPlanCreateResult);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSProjectCreateRequest.GetResult: TNXLSProjectCreateResult;
+begin
+  Result := TNXLSProjectCreateResult(inherited result);
+end;
+
+procedure TNXLSProjectCreateRequest.SetResult(AValue: TNXLSProjectCreateResult);
+begin
+  inherited result := AValue;
 end;
 
 initialization

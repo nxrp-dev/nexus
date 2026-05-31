@@ -15,37 +15,43 @@ uses
 type
   TNXLSTextDocumentFormattingRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTextEditArray;
+    procedure SetResult(AValue: TNXLSTextEditArray);
     function GetParams: TNXLSDocumentFormattingParams;
     procedure SetParams(AValue: TNXLSDocumentFormattingParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSDocumentFormattingParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentRangeFormattingRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTextEditArray;
+    procedure SetResult(AValue: TNXLSTextEditArray);
     function GetParams: TNXLSDocumentRangeFormattingParams;
     procedure SetParams(AValue: TNXLSDocumentRangeFormattingParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSDocumentRangeFormattingParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentOnTypeFormattingRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTextEditArray;
+    procedure SetResult(AValue: TNXLSTextEditArray);
     function GetParams: TNXLSDocumentOnTypeFormattingParams;
     procedure SetParams(AValue: TNXLSDocumentOnTypeFormattingParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSDocumentOnTypeFormattingParams read GetParams write SetParams;
   end;
 
@@ -60,11 +66,6 @@ begin
   Result := 'textDocument/formatting';
 end;
 
-class function TNXLSTextDocumentFormattingRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextEditArray;
-end;
-
 function TNXLSTextDocumentFormattingRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -76,11 +77,6 @@ begin
   Result := 'textDocument/rangeFormatting';
 end;
 
-class function TNXLSTextDocumentRangeFormattingRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextEditArray;
-end;
-
 function TNXLSTextDocumentRangeFormattingRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -90,11 +86,6 @@ end;
 class function TNXLSTextDocumentOnTypeFormattingRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/onTypeFormatting';
-end;
-
-class function TNXLSTextDocumentOnTypeFormattingRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextEditArray;
 end;
 
 function TNXLSTextDocumentOnTypeFormattingRequest.Execute: TNXJSONValue;
@@ -131,6 +122,36 @@ end;
 procedure TNXLSTextDocumentOnTypeFormattingRequest.SetParams(AValue: TNXLSDocumentOnTypeFormattingParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentFormattingRequest.GetResult: TNXLSTextEditArray;
+begin
+  Result := TNXLSTextEditArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentFormattingRequest.SetResult(AValue: TNXLSTextEditArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentRangeFormattingRequest.GetResult: TNXLSTextEditArray;
+begin
+  Result := TNXLSTextEditArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentRangeFormattingRequest.SetResult(AValue: TNXLSTextEditArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTextDocumentOnTypeFormattingRequest.GetResult: TNXLSTextEditArray;
+begin
+  Result := TNXLSTextEditArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentOnTypeFormattingRequest.SetResult(AValue: TNXLSTextEditArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

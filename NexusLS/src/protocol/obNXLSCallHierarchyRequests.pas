@@ -15,37 +15,43 @@ uses
 type
   TNXLSTextDocumentPrepareCallHierarchyRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSCallHierarchyItemArray;
+    procedure SetResult(AValue: TNXLSCallHierarchyItemArray);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSCallHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSCallHierarchyIncomingCallsRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSCallHierarchyIncomingCallArray;
+    procedure SetResult(AValue: TNXLSCallHierarchyIncomingCallArray);
     function GetParams: TNXLSCallHierarchyIncomingCallsParams;
     procedure SetParams(AValue: TNXLSCallHierarchyIncomingCallsParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSCallHierarchyIncomingCallArray read GetResult write SetResult;
     property params: TNXLSCallHierarchyIncomingCallsParams read GetParams write SetParams;
   end;
 
   TNXLSCallHierarchyOutgoingCallsRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSCallHierarchyOutgoingCallArray;
+    procedure SetResult(AValue: TNXLSCallHierarchyOutgoingCallArray);
     function GetParams: TNXLSCallHierarchyOutgoingCallsParams;
     procedure SetParams(AValue: TNXLSCallHierarchyOutgoingCallsParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSCallHierarchyOutgoingCallArray read GetResult write SetResult;
     property params: TNXLSCallHierarchyOutgoingCallsParams read GetParams write SetParams;
   end;
 
@@ -60,11 +66,6 @@ begin
   Result := 'textDocument/prepareCallHierarchy';
 end;
 
-class function TNXLSTextDocumentPrepareCallHierarchyRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCallHierarchyItemArray;
-end;
-
 function TNXLSTextDocumentPrepareCallHierarchyRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -76,11 +77,6 @@ begin
   Result := 'callHierarchy/incomingCalls';
 end;
 
-class function TNXLSCallHierarchyIncomingCallsRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCallHierarchyIncomingCallArray;
-end;
-
 function TNXLSCallHierarchyIncomingCallsRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -90,11 +86,6 @@ end;
 class function TNXLSCallHierarchyOutgoingCallsRequest.GetFactoryName: string;
 begin
   Result := 'callHierarchy/outgoingCalls';
-end;
-
-class function TNXLSCallHierarchyOutgoingCallsRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCallHierarchyOutgoingCallArray;
 end;
 
 function TNXLSCallHierarchyOutgoingCallsRequest.Execute: TNXJSONValue;
@@ -131,6 +122,36 @@ end;
 procedure TNXLSCallHierarchyIncomingCallsRequest.SetParams(AValue: TNXLSCallHierarchyIncomingCallsParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentPrepareCallHierarchyRequest.GetResult: TNXLSCallHierarchyItemArray;
+begin
+  Result := TNXLSCallHierarchyItemArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentPrepareCallHierarchyRequest.SetResult(AValue: TNXLSCallHierarchyItemArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSCallHierarchyIncomingCallsRequest.GetResult: TNXLSCallHierarchyIncomingCallArray;
+begin
+  Result := TNXLSCallHierarchyIncomingCallArray(inherited result);
+end;
+
+procedure TNXLSCallHierarchyIncomingCallsRequest.SetResult(AValue: TNXLSCallHierarchyIncomingCallArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSCallHierarchyOutgoingCallsRequest.GetResult: TNXLSCallHierarchyOutgoingCallArray;
+begin
+  Result := TNXLSCallHierarchyOutgoingCallArray(inherited result);
+end;
+
+procedure TNXLSCallHierarchyOutgoingCallsRequest.SetResult(AValue: TNXLSCallHierarchyOutgoingCallArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

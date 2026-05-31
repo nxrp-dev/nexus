@@ -27,25 +27,29 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 
   TNXLSTextDocumentDiagnosticRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSFullDocumentDiagnosticReport;
+    procedure SetResult(AValue: TNXLSFullDocumentDiagnosticReport);
     function GetParams: TNXLSDocumentDiagnosticParams;
     procedure SetParams(AValue: TNXLSDocumentDiagnosticParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSFullDocumentDiagnosticReport read GetResult write SetResult;
     property params: TNXLSDocumentDiagnosticParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDiagnosticRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSWorkspaceDiagnosticReport;
+    procedure SetResult(AValue: TNXLSWorkspaceDiagnosticReport);
     function GetParams: TNXLSWorkspaceDiagnosticParams;
     procedure SetParams(AValue: TNXLSWorkspaceDiagnosticParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSWorkspaceDiagnosticReport read GetResult write SetResult;
     property params: TNXLSWorkspaceDiagnosticParams read GetParams write SetParams;
   end;
 
@@ -84,11 +88,6 @@ begin
   Result := 'textDocument/diagnostic';
 end;
 
-class function TNXLSTextDocumentDiagnosticRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSFullDocumentDiagnosticReport;
-end;
-
 function TNXLSTextDocumentDiagnosticRequest.Execute: TNXJSONValue;
 var
   lResult: TNXLSFullDocumentDiagnosticReport;
@@ -103,11 +102,6 @@ end;
 class function TNXLSWorkspaceDiagnosticRequest.GetFactoryName: string;
 begin
   Result := 'workspace/diagnostic';
-end;
-
-class function TNXLSWorkspaceDiagnosticRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceDiagnosticReport;
 end;
 
 function TNXLSWorkspaceDiagnosticRequest.Execute: TNXJSONValue;
@@ -165,6 +159,26 @@ end;
 procedure TNXLSWorkspaceDiagnosticRequest.SetParams(AValue: TNXLSWorkspaceDiagnosticParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDiagnosticRequest.GetResult: TNXLSFullDocumentDiagnosticReport;
+begin
+  Result := TNXLSFullDocumentDiagnosticReport(inherited result);
+end;
+
+procedure TNXLSTextDocumentDiagnosticRequest.SetResult(AValue: TNXLSFullDocumentDiagnosticReport);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSWorkspaceDiagnosticRequest.GetResult: TNXLSWorkspaceDiagnosticReport;
+begin
+  Result := TNXLSWorkspaceDiagnosticReport(inherited result);
+end;
+
+procedure TNXLSWorkspaceDiagnosticRequest.SetResult(AValue: TNXLSWorkspaceDiagnosticReport);
+begin
+  inherited result := AValue;
 end;
 
 initialization

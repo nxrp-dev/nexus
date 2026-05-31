@@ -15,37 +15,43 @@ uses
 type
   TNXLSTextDocumentPrepareTypeHierarchyRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTypeHierarchyItemArray;
+    procedure SetResult(AValue: TNXLSTypeHierarchyItemArray);
     function GetParams: TNXLSTextDocumentPositionParams;
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTypeHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTypeHierarchySupertypesRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTypeHierarchyItemArray;
+    procedure SetResult(AValue: TNXLSTypeHierarchyItemArray);
     function GetParams: TNXLSTypeHierarchySupertypesParams;
     procedure SetParams(AValue: TNXLSTypeHierarchySupertypesParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTypeHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTypeHierarchySupertypesParams read GetParams write SetParams;
   end;
 
   TNXLSTypeHierarchySubtypesRequest = class(TNXJSONRPCRequest)
     private
+    function GetResult: TNXLSTypeHierarchyItemArray;
+    procedure SetResult(AValue: TNXLSTypeHierarchyItemArray);
     function GetParams: TNXLSTypeHierarchySubtypesParams;
     procedure SetParams(AValue: TNXLSTypeHierarchySubtypesParams);
 public
     class function GetFactoryName: string; override;
-class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   published
+    property result: TNXLSTypeHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTypeHierarchySubtypesParams read GetParams write SetParams;
   end;
 
@@ -60,11 +66,6 @@ begin
   Result := 'textDocument/prepareTypeHierarchy';
 end;
 
-class function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTypeHierarchyItemArray;
-end;
-
 function TNXLSTextDocumentPrepareTypeHierarchyRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -76,11 +77,6 @@ begin
   Result := 'typeHierarchy/supertypes';
 end;
 
-class function TNXLSTypeHierarchySupertypesRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTypeHierarchyItemArray;
-end;
-
 function TNXLSTypeHierarchySupertypesRequest.Execute: TNXJSONValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -90,11 +86,6 @@ end;
 class function TNXLSTypeHierarchySubtypesRequest.GetFactoryName: string;
 begin
   Result := 'typeHierarchy/subtypes';
-end;
-
-class function TNXLSTypeHierarchySubtypesRequest.GetResultClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTypeHierarchyItemArray;
 end;
 
 function TNXLSTypeHierarchySubtypesRequest.Execute: TNXJSONValue;
@@ -131,6 +122,36 @@ end;
 procedure TNXLSTypeHierarchySupertypesRequest.SetParams(AValue: TNXLSTypeHierarchySupertypesParams);
 begin
   inherited params := AValue;
+end;
+
+function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetResult: TNXLSTypeHierarchyItemArray;
+begin
+  Result := TNXLSTypeHierarchyItemArray(inherited result);
+end;
+
+procedure TNXLSTextDocumentPrepareTypeHierarchyRequest.SetResult(AValue: TNXLSTypeHierarchyItemArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTypeHierarchySupertypesRequest.GetResult: TNXLSTypeHierarchyItemArray;
+begin
+  Result := TNXLSTypeHierarchyItemArray(inherited result);
+end;
+
+procedure TNXLSTypeHierarchySupertypesRequest.SetResult(AValue: TNXLSTypeHierarchyItemArray);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSTypeHierarchySubtypesRequest.GetResult: TNXLSTypeHierarchyItemArray;
+begin
+  Result := TNXLSTypeHierarchyItemArray(inherited result);
+end;
+
+procedure TNXLSTypeHierarchySubtypesRequest.SetResult(AValue: TNXLSTypeHierarchyItemArray);
+begin
+  inherited result := AValue;
 end;
 
 initialization

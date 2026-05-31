@@ -17,7 +17,8 @@ type
     constructor Create(const AName: string);
     destructor Destroy; override;
 
-    function AddTest(const AName: string; ATestProcedure: TNXTestProcedure): TNXTestCase;
+    function AddTest(const AName: string; ATestProcedure: TNXTestProcedure;
+      const ACategory: string = ''): TNXTestCase;
     function FindTest(const ANameOrId: string): TNXTestCase;
     function TestCount: Integer;
 
@@ -49,9 +50,11 @@ begin
   Result := TNXTestCase(FTests[AIndex]);
 end;
 
-function TNXTestSuite.AddTest(const AName: string; ATestProcedure: TNXTestProcedure): TNXTestCase;
+function TNXTestSuite.AddTest(const AName: string;
+  ATestProcedure: TNXTestProcedure; const ACategory: string): TNXTestCase;
 begin
-  Result := TNXTestCase.Create(AName, FName + '.' + AName, ATestProcedure);
+  Result := TNXTestCase.Create(AName, FName + '.' + AName, ATestProcedure,
+    ACategory);
   FTests.Add(Result);
 end;
 

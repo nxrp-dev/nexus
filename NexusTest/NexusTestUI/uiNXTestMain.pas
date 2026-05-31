@@ -36,19 +36,23 @@ type
   TNXTestUINodeKind = (
     nkRoot,
     nkSuite,
+    nkCategory,
     nkTest
   );
 
   TNXTestUINodeRef = class
   private
     FKind: TNXTestUINodeKind;
+    FCategoryPath: string;
     FSuiteName: string;
     FTestId: string;
     FTestName: string;
   public
     constructor Create(AKind: TNXTestUINodeKind; const ASuiteName: string;
-      const ATestName: string = ''; const ATestId: string = '');
+      const ATestName: string = ''; const ATestId: string = '';
+      const ACategoryPath: string = '');
 
+    property CategoryPath: string read FCategoryPath;
     property Kind: TNXTestUINodeKind read FKind;
     property SuiteName: string read FSuiteName;
     property TestId: string read FTestId;
@@ -75,10 +79,16 @@ type
     FTree: TNXTreeView;
 
     function AddNodeRef(AKind: TNXTestUINodeKind; const ASuiteName: string;
-      const ATestName: string = ''; const ATestId: string = ''): TNXTestUINodeRef;
+      const ATestName: string = ''; const ATestId: string = '';
+      const ACategoryPath: string = ''): TNXTestUINodeRef;
+    function AddCategoryPath(ASuiteNode: TNXTreeViewNode;
+      const ASuiteName: string; const ACategory: string): TNXTreeViewNode;
     procedure BrowseButtonClick(Sender: TObject; X, Y: Integer;
       Button: TNXMouseButton);
     procedure ClearNodeRefs;
+    function CountTestNodes(ANode: TNXTreeViewNode): Integer;
+    function FindCategoryChild(AParentNode: TNXTreeViewNode;
+      const AName: string): TNXTreeViewNode;
     function FindNodeByTestId(ANode: TNXTreeViewNode;
       const ATestId: string): TNXTreeViewNode;
     procedure LoadButtonClick(Sender: TObject; X, Y: Integer;
@@ -93,6 +103,7 @@ type
       Button: TNXMouseButton);
     procedure RunSelectedButtonClick(Sender: TObject; X, Y: Integer;
       Button: TNXMouseButton);
+    procedure RunTestsUnderNode(ANode: TNXTreeViewNode);
     procedure SetNodeStatus(ANode: TNXTreeViewNode; const AStatus: string;
       ADurationMs: Int64 = 0; const AMessage: string = '');
     procedure TreeChange(Sender: TObject; ANode: TNXTreeViewNode);
@@ -111,10 +122,12 @@ function BrowseForModuleFile(const AInitialFileName: string;
   out AFileName: string): Boolean; forward;
 
 constructor TNXTestUINodeRef.Create(AKind: TNXTestUINodeKind;
-  const ASuiteName: string; const ATestName: string; const ATestId: string);
+  const ASuiteName: string; const ATestName: string; const ATestId: string;
+  const ACategoryPath: string);
 begin
   inherited Create;
   FKind := AKind;
+  FCategoryPath := ACategoryPath;
   FSuiteName := ASuiteName;
   FTestName := ATestName;
   FTestId := ATestId;
@@ -139,10 +152,62 @@ end;
 
 function TNXTestUIController.AddNodeRef(AKind: TNXTestUINodeKind;
   const ASuiteName: string; const ATestName: string;
-  const ATestId: string): TNXTestUINodeRef;
+  const ATestId: string; const ACategoryPath: string): TNXTestUINodeRef;
 begin
-  Result := TNXTestUINodeRef.Create(AKind, ASuiteName, ATestName, ATestId);
+  Result := TNXTestUINodeRef.Create(AKind, ASuiteName, ATestName, ATestId,
+    ACategoryPath);
   FNodeRefs.Add(Result);
+end;
+
+function TNXTestUIController.AddCategoryPath(ASuiteNode: TNXTreeViewNode;
+  const ASuiteName: string; const ACategory: string): TNXTreeViewNode;
+var
+  lCategory: string;
+  lCategoryNode: TNXTreeViewNode;
+  lCategoryPath: string;
+  lDelimiterIndex: Integer;
+  lParentNode: TNXTreeViewNode;
+  lSegment: string;
+begin
+  Result := ASuiteNode;
+  lParentNode := ASuiteNode;
+  lCategory := ACategory;
+  lCategoryPath := '';
+
+  while lCategory <> '' do
+  begin
+    lDelimiterIndex := Pos('\', lCategory);
+    if lDelimiterIndex > 0 then
+    begin
+      lSegment := Copy(lCategory, 1, lDelimiterIndex - 1);
+      Delete(lCategory, 1, lDelimiterIndex);
+    end
+    else
+    begin
+      lSegment := lCategory;
+      lCategory := '';
+    end;
+
+    lSegment := Trim(lSegment);
+    if lSegment = '' then
+      Continue;
+
+    if lCategoryPath <> '' then
+      lCategoryPath := lCategoryPath + '\' + lSegment
+    else
+      lCategoryPath := lSegment;
+
+    lCategoryNode := FindCategoryChild(lParentNode, lSegment);
+    if not Assigned(lCategoryNode) then
+    begin
+      lCategoryNode := FTree.AddChildNode(lParentNode, lSegment,
+        AddNodeRef(nkCategory, ASuiteName, '', '', lCategoryPath));
+      SetNodeStatus(lCategoryNode, cNXTestStatusNotRun);
+    end;
+
+    lParentNode := lCategoryNode;
+    Result := lParentNode;
+  end;
 end;
 
 procedure TNXTestUIController.BuildUI;
@@ -234,6 +299,42 @@ begin
   FNodeRefs.Clear;
 end;
 
+function TNXTestUIController.CountTestNodes(ANode: TNXTreeViewNode): Integer;
+var
+  lIndex: Integer;
+  lRef: TNXTestUINodeRef;
+begin
+  Result := 0;
+  if not Assigned(ANode) then
+    Exit;
+
+  lRef := NodeRef(ANode);
+  if Assigned(lRef) and (lRef.Kind = nkTest) then
+    Exit(1);
+
+  for lIndex := 0 to ANode.ChildCount - 1 do
+    Inc(Result, CountTestNodes(ANode.Child[lIndex]));
+end;
+
+function TNXTestUIController.FindCategoryChild(AParentNode: TNXTreeViewNode;
+  const AName: string): TNXTreeViewNode;
+var
+  lIndex: Integer;
+  lRef: TNXTestUINodeRef;
+begin
+  Result := nil;
+  if not Assigned(AParentNode) then
+    Exit;
+
+  for lIndex := 0 to AParentNode.ChildCount - 1 do
+  begin
+    lRef := NodeRef(AParentNode.Child[lIndex]);
+    if Assigned(lRef) and (lRef.Kind = nkCategory) and
+      SameText(AParentNode.Child[lIndex].Text, AName) then
+      Exit(AParentNode.Child[lIndex]);
+  end;
+end;
+
 function TNXTestUIController.FindNodeByTestId(ANode: TNXTreeViewNode;
   const ATestId: string): TNXTreeViewNode;
 var
@@ -304,6 +405,7 @@ var
   lSuiteNode: TNXTreeViewNode;
   lTest: TNXTestCaseInfoValue;
   lTestNode: TNXTreeViewNode;
+  lTestParentNode: TNXTreeViewNode;
 begin
   if not Assigned(FTree) then
     Exit;
@@ -346,9 +448,11 @@ begin
       for lTestIndex := 0 to lSuite.tests.Count - 1 do
       begin
         lTest := TNXTestCaseInfoValue(lSuite.tests[lTestIndex]);
-        lTestNode := FTree.AddChildNode(lSuiteNode, lTest.name.Value,
+        lTestParentNode := AddCategoryPath(lSuiteNode, lSuite.name.Value,
+          lTest.category.Value);
+        lTestNode := FTree.AddChildNode(lTestParentNode, lTest.name.Value,
           AddNodeRef(nkTest, lSuite.name.Value, lTest.name.Value,
-          lTest.id.Value));
+          lTest.id.Value, lTest.category.Value));
         SetNodeStatus(lTestNode, cNXTestStatusNotRun);
       end;
     end;
@@ -490,6 +594,14 @@ begin
       end;
     end;
 
+    nkCategory:
+    begin
+      SetNodeStatus(lNode, cNXTestStatusRunning);
+      Application.Render;
+      RunTestsUnderNode(lNode);
+      UpdateParentStatuses(FRootNode);
+    end;
+
     nkTest:
     begin
       SetNodeStatus(lNode, cNXTestStatusRunning);
@@ -510,6 +622,38 @@ begin
   end;
 
   UpdateDetails(FTree.SelectedNode);
+end;
+
+procedure TNXTestUIController.RunTestsUnderNode(ANode: TNXTreeViewNode);
+var
+  lIndex: Integer;
+  lRef: TNXTestUINodeRef;
+  lResult: TNXTestResultValue;
+begin
+  if not Assigned(ANode) then
+    Exit;
+
+  lRef := NodeRef(ANode);
+  if Assigned(lRef) and (lRef.Kind = nkTest) then
+  begin
+    SetNodeStatus(ANode, cNXTestStatusRunning);
+    Application.Render;
+    try
+      lResult := FClient.RunTest(lRef.TestId);
+      try
+        UpdateResult(lResult);
+      finally
+        lResult.Free;
+      end;
+    except
+      on E: Exception do
+        SetNodeStatus(ANode, cNXTestStatusError, 0, E.Message);
+    end;
+    Exit;
+  end;
+
+  for lIndex := 0 to ANode.ChildCount - 1 do
+    RunTestsUnderNode(ANode.Child[lIndex]);
 end;
 
 procedure TNXTestUIController.SetNodeStatus(ANode: TNXTreeViewNode;
@@ -597,12 +741,20 @@ begin
     nkSuite:
     begin
       FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
-      FDetailsMemo.AddLine('Tests: ' + IntToStr(ANode.ChildCount));
+      FDetailsMemo.AddLine('Tests: ' + IntToStr(CountTestNodes(ANode)));
+    end;
+    nkCategory:
+    begin
+      FDetailsMemo.AddLine('Category: ' + lRef.CategoryPath);
+      FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
+      FDetailsMemo.AddLine('Tests: ' + IntToStr(CountTestNodes(ANode)));
     end;
     nkTest:
     begin
       FDetailsMemo.AddLine('Test: ' + lRef.TestName);
       FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
+      if lRef.CategoryPath <> '' then
+        FDetailsMemo.AddLine('Category: ' + lRef.CategoryPath);
       FDetailsMemo.AddLine('ID: ' + lRef.TestId);
     end;
   end;

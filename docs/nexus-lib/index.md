@@ -10,6 +10,10 @@ NexusLib is the shared Pascal support layer used by other Nexus modules. It is i
 - `obNXJSONRPCMessages.pas` provides JSON-RPC 2.0 message parsing, validation, request base classes, and success/error response construction.
 - `obNXPersist.pas` provides JSON-backed persistent objects, binary payload support, and persistent lists.
 
+## References
+
+- [JSON-RPC Protocol Modeling](json-rpc.md) explains how to model a JSON-RPC protocol with the current NexusLib object model.
+
 ## Used by
 
 `NexusLS` uses NexusLib for command-line parsing, class-factory dispatch, typed JSON DTOs, and JSON-RPC message handling.
