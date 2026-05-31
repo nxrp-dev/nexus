@@ -4,10 +4,13 @@ unit obNXLSDispatcher;
 
 interface
 
+uses
+  obNXJSONRPCMessages;
+
 type
   TNXLSDispatcher = class
   public
-    class function DispatchMessage(const AMessage: string; out AResponse: string): Boolean; static;
+    class function DispatchMessage(AMessage: TNXJSONRPCMessage; out AResponse: string): Boolean; static;
   end;
 
 implementation
@@ -15,44 +18,10 @@ implementation
 uses
   SysUtils,
   fpjson,
-  jsonparser,
   obNXClassFactory,
-  obNXJSONRPCMessages,
   obNXJSONValues,
   obNXLSLogger,
   obNXLSAllRequests;
-
-function ExtractErrorID(const AMessage: string): TJSONData;
-var
-  lJSON: TJSONData;
-  lID: TJSONData;
-begin
-  Result := nil;
-  lJSON := nil;
-  try
-    try
-      lJSON := GetJSON(AMessage);
-      if not (lJSON is TJSONObject) then
-        Exit;
-
-      lID := TJSONObject(lJSON).Find('id');
-      if lID = nil then
-        Exit;
-
-      if not (lID.JSONType in [jtNull, jtString, jtNumber]) then
-        Exit;
-
-      if (lID.JSONType = jtNumber) and (Pos('.', lID.AsJSON) > 0) then
-        Exit;
-
-      Result := lID.Clone;
-    except
-      FreeAndNil(Result);
-    end;
-  finally
-    lJSON.Free;
-  end;
-end;
 
 function CreateErrorResponse(const AID: TJSONData; const ACode: Integer; const AMessage: string): string;
 var
@@ -66,21 +35,18 @@ begin
   end;
 end;
 
-class function TNXLSDispatcher.DispatchMessage(const AMessage: string; out AResponse: string): Boolean;
+class function TNXLSDispatcher.DispatchMessage(AMessage: TNXJSONRPCMessage; out AResponse: string): Boolean;
 var
-  lMessage: TNXJSONRPCMessage;
   lCommandMessage: TNXJSONRPCCommandMessage;
   lRequest: TNXJSONRPCRequest;
   lID: TJSONData;
   lMethod: string;
-  lRequestClass: TNXJSONRPCRequestClass;
   lResult: TNXJSONValue;
   lResponse: TJSONObject;
   lIsRequest: Boolean;
 begin
   AResponse := '';
   Result := False;
-  lMessage := nil;
   lRequest := nil;
   lID := nil;
   lResult := nil;
@@ -89,33 +55,20 @@ begin
 
   try
     try
-      try
-        lMessage := TNXJSONRPC.ParseMessage(AMessage);
-      except
-        on E: ENXJSONRPC do
-        begin
-          lID := ExtractErrorID(AMessage);
-          AResponse := CreateErrorResponse(lID, E.Code, E.Message);
-          Exit(True);
-        end;
-        on E: Exception do
-        begin
-          AResponse := CreateErrorResponse(nil, TNXJSONRPC.ParseError, E.Message);
-          Exit(True);
-        end;
-      end;
-
-      lIsRequest := lMessage.Kind = rpcRequest;
-      if not (lMessage.Kind in [rpcRequest, rpcNotification]) then
+      if AMessage = nil then
         Exit(False);
 
-      lCommandMessage := TNXJSONRPCCommandMessage(lMessage);
+      lIsRequest := AMessage.MessageType = rpcmtRequest;
+      if not (AMessage.MessageType in [rpcmtRequest, rpcmtNotification]) then
+        Exit(False);
+
+      lCommandMessage := TNXJSONRPCCommandMessage(AMessage);
       lMethod := lCommandMessage.method.Value;
       if not TNXClassFactory.Registered(lMethod) then
       begin
         if lIsRequest then
         begin
-          lID := lMessage.IDJSON;
+          lID := AMessage.IDJSON;
           AResponse := CreateErrorResponse(lID, TNXJSONRPC.MethodNotFound, 'Method not found: ' + lMethod);
           Exit(True);
         end;
@@ -123,35 +76,14 @@ begin
         Exit(False);
       end;
 
-      lRequestClass := TNXJSONRPCRequestClass(TNXClassFactory.FindClass(lMethod));
       if lIsRequest then
-        lID := lMessage.IDJSON;
+        lID := AMessage.IDJSON;
 
-      try
-        FreeAndNil(lMessage);
-        lRequest := TNXJSONRPCRequest(TNXJSONRPC.ParseMessage(AMessage, lRequestClass));
-      except
-        on E: ENXJSONRPC do
-        begin
-          if lIsRequest then
-          begin
-            AResponse := CreateErrorResponse(lID, E.Code, E.Message);
-            Exit(True);
-          end;
+      if not (AMessage is TNXJSONRPCRequest) then
+        raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
+          'JSON-RPC method is not an inbound request: ' + lMethod);
 
-          Exit(False);
-        end;
-        on E: Exception do
-        begin
-          if lIsRequest then
-          begin
-            AResponse := CreateErrorResponse(lID, TNXJSONRPC.InvalidParams, E.Message);
-            Exit(True);
-          end;
-
-          Exit(False);
-        end;
-      end;
+      lRequest := TNXJSONRPCRequest(AMessage);
 
       lResult := lRequest.Execute;
       lRequest.ValidateResult(lResult);
@@ -169,13 +101,31 @@ begin
         end;
       end;
     except
+      on E: ENXJSONRPC do
+      begin
+        if lIsRequest then
+        begin
+          FreeAndNil(lID);
+          if lRequest <> nil then
+            lID := lRequest.IDJSON
+          else
+            lID := AMessage.IDJSON;
+          AResponse := CreateErrorResponse(lID, E.Code, E.Message);
+          Exit(True);
+        end;
+
+        TNXLSLogger.Error('Notification "' + lMethod + '" failed: ' + E.Message);
+        Exit(False);
+      end;
       on E: Exception do
       begin
         if lIsRequest then
         begin
           FreeAndNil(lID);
           if lRequest <> nil then
-            lID := lRequest.IDJSON;
+            lID := lRequest.IDJSON
+          else
+            lID := AMessage.IDJSON;
           AResponse := CreateErrorResponse(lID, TNXJSONRPC.InternalError, E.Message);
           Exit(True);
         end;
@@ -187,8 +137,6 @@ begin
   finally
     lResult.Free;
     lID.Free;
-    lRequest.Free;
-    lMessage.Free;
   end;
 end;
 

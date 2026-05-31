@@ -34,6 +34,14 @@ type
     rkNullableConcreteResult
   );
 
+  TNXJSONRPCMessageType = (
+    rpcmtInvalid,
+    rpcmtRequest,
+    rpcmtNotification,
+    rpcmtSuccessResponse,
+    rpcmtErrorResponse
+  );
+
   TNXJSONRPCMessage = class;
   TNXJSONRPCMessageClass = class of TNXJSONRPCMessage;
   TNXJSONRPCCommandMessage = class;
@@ -50,26 +58,35 @@ type
   private
     Fjsonrpc: TNXJSONString;
     Fid: TNXJSONValue;
+    FMessageType: TNXJSONRPCMessageType;
+    function GetMessageType: TNXJSONRPCMessageType;
+    procedure SetID(AValue: TNXJSONValue);
+  protected
+    procedure UpdateMessageType; virtual;
   public
     function Kind: TNXJSONRPCMessageKind;
 
     function HasID: Boolean;
     function IDJSON: TJSONData;
+    property MessageType: TNXJSONRPCMessageType read GetMessageType;
 
   published
     property jsonrpc: TNXJSONString read Fjsonrpc write Fjsonrpc;
-    property id: TNXJSONValue read Fid write Fid;
+    property id: TNXJSONValue read Fid write SetID;
   end;
 
   TNXJSONRPCCommandMessage = class(TNXJSONRPCMessage)
   private
     Fmethod: TNXJSONString;
     Fparams: TNXJSONObjectParams;
+    procedure SetMethod(AValue: TNXJSONString);
+  protected
+    procedure UpdateMessageType; override;
   public
     function HasParams: Boolean;
     function ParamsObject: TNXJSONObject;
   published
-    property method: TNXJSONString read Fmethod write Fmethod;
+    property method: TNXJSONString read Fmethod write SetMethod;
     property params: TNXJSONObjectParams read Fparams write Fparams;
   end;
 
@@ -80,9 +97,13 @@ type
   private
     Fresult: TNXJSONValue;
     Ferror: TNXJSONValue;
+    procedure SetError(AValue: TNXJSONValue);
+    procedure SetResult(AValue: TNXJSONValue);
+  protected
+    procedure UpdateMessageType; override;
   published
-    property result: TNXJSONValue read Fresult write Fresult;
-    property error: TNXJSONValue read Ferror write Ferror;
+    property result: TNXJSONValue read Fresult write SetResult;
+    property error: TNXJSONValue read Ferror write SetError;
   end;
 
   TNXJSONRPCError = class(TNXJSONObject)
@@ -146,7 +167,8 @@ type
 implementation
 
 uses
-  jsonparser;
+  jsonparser,
+  obNXClassFactory;
 
 constructor ENXJSONRPC.CreateCode(const ACode: Integer; const AMessage: string);
 begin
@@ -154,25 +176,37 @@ begin
   FCode := ACode;
 end;
 
+function TNXJSONRPCMessage.GetMessageType: TNXJSONRPCMessageType;
+begin
+  UpdateMessageType;
+  Result := FMessageType;
+end;
+
 function TNXJSONRPCMessage.Kind: TNXJSONRPCMessageKind;
 begin
-  if Self is TNXJSONRPCCommandMessage then
-  begin
-    if HasID then
-      Result := rpcRequest
-    else
+  case MessageType of
+    rpcmtRequest:
+      Result := rpcRequest;
+    rpcmtNotification:
       Result := rpcNotification;
-  end
-  else if (Self is TNXJSONRPCResponse) and
-    (TNXJSONRPCResponse(Self).result <> nil) and
-    TNXJSONRPCResponse(Self).result.Assigned then
-    Result := rpcSuccessResponse
-  else if (Self is TNXJSONRPCResponse) and
-    (TNXJSONRPCResponse(Self).error <> nil) and
-    TNXJSONRPCResponse(Self).error.Assigned then
-    Result := rpcErrorResponse
+    rpcmtSuccessResponse:
+      Result := rpcSuccessResponse;
+    rpcmtErrorResponse:
+      Result := rpcErrorResponse;
   else
     Result := rpcUnknown;
+  end;
+end;
+
+procedure TNXJSONRPCMessage.SetID(AValue: TNXJSONValue);
+begin
+  Fid := AValue;
+  UpdateMessageType;
+end;
+
+procedure TNXJSONRPCMessage.UpdateMessageType;
+begin
+  FMessageType := rpcmtInvalid;
 end;
 
 function TNXJSONRPCMessage.HasID: Boolean;
@@ -199,6 +233,53 @@ begin
     Result := TNXJSONObject(params)
   else
     Result := nil;
+end;
+
+procedure TNXJSONRPCCommandMessage.SetMethod(AValue: TNXJSONString);
+begin
+  Fmethod := AValue;
+  UpdateMessageType;
+end;
+
+procedure TNXJSONRPCCommandMessage.UpdateMessageType;
+begin
+  if (method <> nil) and method.Assigned and (method.Value <> '') then
+  begin
+    if HasID then
+      FMessageType := rpcmtRequest
+    else
+      FMessageType := rpcmtNotification;
+  end
+  else
+    FMessageType := rpcmtInvalid;
+end;
+
+procedure TNXJSONRPCResponse.SetError(AValue: TNXJSONValue);
+begin
+  Ferror := AValue;
+  UpdateMessageType;
+end;
+
+procedure TNXJSONRPCResponse.SetResult(AValue: TNXJSONValue);
+begin
+  Fresult := AValue;
+  UpdateMessageType;
+end;
+
+procedure TNXJSONRPCResponse.UpdateMessageType;
+var
+  lHasError: Boolean;
+  lHasResult: Boolean;
+begin
+  lHasResult := (result <> nil) and result.Assigned;
+  lHasError := (error <> nil) and error.Assigned;
+
+  if lHasResult and (not lHasError) then
+    FMessageType := rpcmtSuccessResponse
+  else if lHasError and (not lHasResult) then
+    FMessageType := rpcmtErrorResponse
+  else
+    FMessageType := rpcmtInvalid;
 end;
 
 class function TNXJSONRPCRequest.GetParamClass: TNXJSONValueClass;
@@ -435,6 +516,7 @@ end;
 class function TNXJSONRPC.ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
 var
   lJSON: TJSONData;
+  lMethodJSON: TJSONData;
   lObject: TJSONObject;
 begin
   lJSON := nil;
@@ -457,7 +539,12 @@ begin
       lObject := TJSONObject(lJSON);
       if lObject.Find('method') <> nil then
       begin
-        if lObject.Find('id') = nil then
+        lMethodJSON := lObject.Find('method');
+        if (lMethodJSON.JSONType = jtString) and
+          (lMethodJSON.AsString <> '') and
+          TNXClassFactory.Registered(lMethodJSON.AsString) then
+          AMessageClass := TNXJSONRPCMessageClass(TNXClassFactory.FindClass(lMethodJSON.AsString))
+        else if lObject.Find('id') = nil then
           AMessageClass := TNXJSONRPCNotification
         else
           AMessageClass := TNXJSONRPCCommandMessage;
