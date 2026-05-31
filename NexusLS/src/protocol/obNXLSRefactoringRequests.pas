@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -22,7 +23,7 @@ type
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceEditResult read GetResult write SetResult;
     property params: TNXLSRenameParams read GetParams write SetParams;
@@ -37,7 +38,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSPrepareRenamePlaceholder read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -52,7 +53,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSLinkedEditingRanges read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -75,7 +76,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentRenameRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentRenameRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSWorkspaceEditResult;
 begin
@@ -100,7 +101,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentPrepareRenameRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentPrepareRenameRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSPrepareRenamePlaceholder;
 begin
@@ -125,7 +126,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentLinkedEditingRangeRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentLinkedEditingRangeRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: textDocument/linkedEditingRange; required: Optional; original server: No; category: refactoring; result: TNXLSLinkedEditingRangesResult.
   NXLSRaiseNotImplemented(GetFactoryName);

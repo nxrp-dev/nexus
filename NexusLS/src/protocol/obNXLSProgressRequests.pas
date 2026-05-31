@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -20,7 +21,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSWorkDoneProgressCreateParams read GetParams write SetParams;
   end;
@@ -32,7 +33,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSWorkDoneProgressCancelParams read GetParams write SetParams;
   end;
@@ -53,7 +54,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSWindowWorkDoneProgressCreateRequest.Execute: TNXJSONValue;
+function TNXLSWindowWorkDoneProgressCreateRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: window/workDoneProgress/create; required: Client-side; original server: No; category: progress; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -70,7 +71,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWindowWorkDoneProgressCancelRequest.Execute: TNXJSONValue;
+function TNXLSWindowWorkDoneProgressCancelRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: window/workDoneProgress/cancel; required: Client-side; original server: No; category: progress; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);

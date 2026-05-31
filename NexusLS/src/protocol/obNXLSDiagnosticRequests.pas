@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -20,7 +21,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSPublishDiagnosticsParams read GetParams write SetParams;
   end;
@@ -33,7 +34,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
     procedure SetParams(AValue: TNXLSDocumentDiagnosticParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSFullDocumentDiagnosticReport read GetResult write SetResult;
     property params: TNXLSDocumentDiagnosticParams read GetParams write SetParams;
@@ -47,7 +48,7 @@ public
     procedure SetParams(AValue: TNXLSWorkspaceDiagnosticParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceDiagnosticReport read GetResult write SetResult;
     property params: TNXLSWorkspaceDiagnosticParams read GetParams write SetParams;
@@ -57,7 +58,7 @@ public
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
 implementation
@@ -76,7 +77,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSTextDocumentPublishDiagnosticsRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentPublishDiagnosticsRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: textDocument/publishDiagnostics; required: Client-side; original server: No; category: diagnostics; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -88,7 +89,7 @@ begin
   Result := 'textDocument/diagnostic';
 end;
 
-function TNXLSTextDocumentDiagnosticRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDiagnosticRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSFullDocumentDiagnosticReport;
 begin
@@ -104,7 +105,7 @@ begin
   Result := 'workspace/diagnostic';
 end;
 
-function TNXLSWorkspaceDiagnosticRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDiagnosticRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSWorkspaceDiagnosticReport;
 begin
@@ -124,7 +125,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSWorkspaceDiagnosticRefreshRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDiagnosticRefreshRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/diagnostic/refresh; required: Client-side; original server: No; category: diagnostics; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);

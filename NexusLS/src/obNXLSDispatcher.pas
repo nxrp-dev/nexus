@@ -20,6 +20,7 @@ uses
   fpjson,
   obNXClassFactory,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSLogger,
   obNXLSAllRequests;
 
@@ -41,7 +42,7 @@ var
   lRequest: TNXJSONRPCRequest;
   lID: TJSONData;
   lMethod: string;
-  lResult: TNXJSONValue;
+  lResult: TNXJSONRPCValue;
   lResponse: TJSONObject;
   lIsRequest: Boolean;
 begin

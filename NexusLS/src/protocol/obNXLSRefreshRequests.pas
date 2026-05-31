@@ -6,35 +6,36 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXJSONRPCObjects;
 
 type
   TNXLSWorkspaceCodeLensRefreshRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXLSWorkspaceSemanticTokensRefreshRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXLSWorkspaceInlineValueRefreshRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXLSWorkspaceInlayHintRefreshRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
 implementation
@@ -53,7 +54,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSWorkspaceCodeLensRefreshRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceCodeLensRefreshRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/codeLens/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -70,7 +71,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSWorkspaceSemanticTokensRefreshRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceSemanticTokensRefreshRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/semanticTokens/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -87,7 +88,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSWorkspaceInlineValueRefreshRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceInlineValueRefreshRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/inlineValue/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -104,7 +105,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSWorkspaceInlayHintRefreshRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceInlayHintRefreshRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/inlayHint/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);

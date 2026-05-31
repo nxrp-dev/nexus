@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSDocumentLink);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSDocumentLink read GetResult write SetResult;
     property params: TNXLSDocumentLink read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSCodeLens);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCodeLens read GetResult write SetResult;
     property params: TNXLSCodeLens read GetParams write SetParams;
@@ -49,7 +50,7 @@ public
     procedure SetParams(AValue: TNXLSInlayHint);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSInlayHint read GetResult write SetResult;
     property params: TNXLSInlayHint read GetParams write SetParams;
@@ -63,7 +64,7 @@ public
     procedure SetParams(AValue: TNXLSCompletionItem);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCompletionItem read GetResult write SetResult;
     property params: TNXLSCompletionItem read GetParams write SetParams;
@@ -77,7 +78,7 @@ public
     procedure SetParams(AValue: TNXLSCodeAction);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCodeAction read GetResult write SetResult;
     property params: TNXLSCodeAction read GetParams write SetParams;
@@ -91,7 +92,7 @@ public
     procedure SetParams(AValue: TNXLSWorkspaceSymbol);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceSymbol read GetResult write SetResult;
     property params: TNXLSWorkspaceSymbol read GetParams write SetParams;
@@ -108,7 +109,7 @@ begin
   Result := 'documentLink/resolve';
 end;
 
-function TNXLSDocumentLinkResolveRequest.Execute: TNXJSONValue;
+function TNXLSDocumentLinkResolveRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -119,7 +120,7 @@ begin
   Result := 'codeLens/resolve';
 end;
 
-function TNXLSCodeLensResolveRequest.Execute: TNXJSONValue;
+function TNXLSCodeLensResolveRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -130,7 +131,7 @@ begin
   Result := 'inlayHint/resolve';
 end;
 
-function TNXLSInlayHintResolveRequest.Execute: TNXJSONValue;
+function TNXLSInlayHintResolveRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -141,7 +142,7 @@ begin
   Result := 'completionItem/resolve';
 end;
 
-function TNXLSCompletionItemResolveRequest.Execute: TNXJSONValue;
+function TNXLSCompletionItemResolveRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -152,7 +153,7 @@ begin
   Result := 'codeAction/resolve';
 end;
 
-function TNXLSCodeActionResolveRequest.Execute: TNXJSONValue;
+function TNXLSCodeActionResolveRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -163,7 +164,7 @@ begin
   Result := 'workspaceSymbol/resolve';
 end;
 
-function TNXLSWorkspaceSymbolResolveRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceSymbolResolveRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

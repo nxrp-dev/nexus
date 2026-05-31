@@ -35,11 +35,15 @@ type
   TNXJSONValue = class(TNXFactoryObject)
   private
     FAssigned: Boolean;
+    FAcceptsNull: Boolean;
+    FIsNull: Boolean;
     FJSONType: TNXJSONType;
     FRaw: TJSONData;
   protected
+    function HandleNullFromJSONData(AData: TJSONData): Boolean;
     procedure SetAssigned(const AValue: Boolean);
     procedure SetJSONType(const AValue: TNXJSONType);
+    procedure SetNotNull;
     procedure SetRaw(AValue: TJSONData);
   public
     constructor Create; override;
@@ -58,8 +62,11 @@ type
     function AsFloat: Double; virtual;
     function AsBoolean: Boolean; virtual;
     function AsObject: TNXJSONObject; virtual;
+    procedure SetNull;
 
     property Assigned: Boolean read FAssigned write SetAssigned;
+    property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
+    property IsNull: Boolean read FIsNull;
     property JSONType: TNXJSONType read FJSONType;
   end;
 
@@ -72,8 +79,6 @@ type
 
   TNXJSONString = class(TNXJSONValue)
   private
-    FAcceptsNull: Boolean;
-    FIsNull: Boolean;
     FValue: string;
   public
     constructor Create; override;
@@ -81,17 +86,12 @@ type
     function ToJSONData: TJSONData; override;
     procedure FromJSONData(AData: TJSONData); override;
     function AsString: string; override;
-    procedure SetNull;
     procedure SetValue(const AValue: string);
-    property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
-    property IsNull: Boolean read FIsNull;
     property Value: string read FValue write SetValue;
   end;
 
   TNXJSONInteger = class(TNXJSONValue)
   private
-    FAcceptsNull: Boolean;
-    FIsNull: Boolean;
     FValue: Int64;
   public
     constructor Create; override;
@@ -100,10 +100,7 @@ type
     procedure FromJSONData(AData: TJSONData); override;
     function AsInteger: Integer; override;
     function AsInt64: Int64; override;
-    procedure SetNull;
     procedure SetValue(const AValue: Int64);
-    property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
-    property IsNull: Boolean read FIsNull;
     property Value: Int64 read FValue write SetValue;
   end;
 
@@ -161,22 +158,6 @@ type
     property Items[const AIndex: Integer]: TNXJSONValue read GetItem; default;
   end;
 
-  TNXJSONArrayParams = class(TNXJSONArray)
-  end;
-
-  TNXJSONPositionalParams = class(TNXJSONArray)
-  protected
-    procedure AutoCreateJSONProperties; virtual;
-    procedure ClearJSONProperties; virtual;
-    procedure FreeJSONProperties; virtual;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-    procedure Clear; override;
-    function ToJSONData: TJSONData; override;
-    procedure FromJSONData(AData: TJSONData); override;
-  end;
-
   TNXJSONObject = class(TNXJSONValue)
   private
     function GetJSONProperty(const AName: string): TNXJSONValue;
@@ -196,9 +177,6 @@ type
 
     function HasValue(const AName: string): Boolean;
     function ValueByName(const AName: string): TNXJSONValue;
-  end;
-
-  TNXJSONObjectParams = class(TNXJSONObject)
   end;
 
 implementation
@@ -381,6 +359,7 @@ end;
 procedure TNXJSONValue.Clear;
 begin
   FreeAndNil(FRaw);
+  FIsNull := False;
   FAssigned := False;
   FJSONType := nxjtUnassigned;
 end;
@@ -430,7 +409,9 @@ end;
 
 function TNXJSONValue.ToJSONData: TJSONData;
 begin
-  if FRaw <> nil then
+  if FIsNull then
+    Result := TJSONNull.Create
+  else if FRaw <> nil then
     Result := FRaw.Clone
   else
     Result := TJSONNull.Create;
@@ -438,10 +419,16 @@ end;
 
 procedure TNXJSONValue.FromJSONData(AData: TJSONData);
 begin
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
   if AData = nil then
     SetRaw(nil)
   else
+  begin
+    SetNotNull;
     SetRaw(AData.Clone);
+  end;
 end;
 
 function TNXJSONValue.AsString: string;
@@ -486,6 +473,31 @@ begin
   Result := nil;
 end;
 
+function TNXJSONValue.HandleNullFromJSONData(AData: TJSONData): Boolean;
+begin
+  Result := (AData = nil) or (AData.JSONType = jtNull);
+  if not Result then
+    Exit;
+
+  SetNull;
+end;
+
+procedure TNXJSONValue.SetNotNull;
+begin
+  FIsNull := False;
+end;
+
+procedure TNXJSONValue.SetNull;
+begin
+  if not FAcceptsNull then
+    raise ENXJSON.Create('JSON null is not allowed here.');
+
+  Clear;
+  FIsNull := True;
+  FAssigned := True;
+  FJSONType := nxjtNull;
+end;
+
 constructor TNXJSONNull.Create;
 begin
   inherited Create;
@@ -517,13 +529,12 @@ procedure TNXJSONString.Clear;
 begin
   inherited Clear;
   FJSONType := nxjtString;
-  FIsNull := False;
   FValue := '';
 end;
 
 function TNXJSONString.ToJSONData: TJSONData;
 begin
-  if FIsNull then
+  if IsNull then
     Result := TJSONNull.Create
   else
     Result := TJSONString.Create(FValue);
@@ -531,24 +542,14 @@ end;
 
 procedure TNXJSONString.FromJSONData(AData: TJSONData);
 begin
-  if (AData <> nil) and (AData.JSONType <> jtString) and (AData.JSONType <> jtNull) then
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
+  if AData.JSONType <> jtString then
     raise ENXJSON.Create('Expected JSON string.');
 
-  if (AData = nil) or (AData.JSONType = jtNull) then
-  begin
-    if not FAcceptsNull then
-      raise ENXJSON.Create('JSON string does not accept null.');
-
-    FValue := ''
-  end
-  else
-  begin
-    FIsNull := False;
-    FValue := AData.AsString;
-  end;
-
-  FIsNull := (AData = nil) or (AData.JSONType = jtNull);
-
+  SetNotNull;
+  FValue := AData.AsString;
   FAssigned := True;
   FJSONType := nxjtString;
 end;
@@ -558,21 +559,10 @@ begin
   Result := FValue;
 end;
 
-procedure TNXJSONString.SetNull;
-begin
-  if not FAcceptsNull then
-    raise ENXJSON.Create('JSON string does not accept null.');
-
-  FValue := '';
-  FIsNull := True;
-  FAssigned := True;
-  FJSONType := nxjtString;
-end;
-
 procedure TNXJSONString.SetValue(const AValue: string);
 begin
   FValue := AValue;
-  FIsNull := False;
+  SetNotNull;
   FAssigned := True;
   FJSONType := nxjtString;
 end;
@@ -587,13 +577,12 @@ procedure TNXJSONInteger.Clear;
 begin
   inherited Clear;
   FJSONType := nxjtInteger;
-  FIsNull := False;
   FValue := 0;
 end;
 
 function TNXJSONInteger.ToJSONData: TJSONData;
 begin
-  if FIsNull then
+  if IsNull then
     Result := TJSONNull.Create
   else
     Result := TJSONIntegerNumber.Create(FValue);
@@ -601,24 +590,14 @@ end;
 
 procedure TNXJSONInteger.FromJSONData(AData: TJSONData);
 begin
-  if (AData <> nil) and (AData.JSONType <> jtNumber) and (AData.JSONType <> jtNull) then
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
+  if AData.JSONType <> jtNumber then
     raise ENXJSON.Create('Expected JSON integer.');
 
-  if (AData = nil) or (AData.JSONType = jtNull) then
-  begin
-    if not FAcceptsNull then
-      raise ENXJSON.Create('JSON integer does not accept null.');
-
-    FValue := 0
-  end
-  else
-  begin
-    FIsNull := False;
-    FValue := AData.AsInteger;
-  end;
-
-  FIsNull := (AData = nil) or (AData.JSONType = jtNull);
-
+  SetNotNull;
+  FValue := AData.AsInteger;
   FAssigned := True;
   FJSONType := nxjtInteger;
 end;
@@ -633,21 +612,10 @@ begin
   Result := FValue;
 end;
 
-procedure TNXJSONInteger.SetNull;
-begin
-  if not FAcceptsNull then
-    raise ENXJSON.Create('JSON integer does not accept null.');
-
-  FValue := 0;
-  FIsNull := True;
-  FAssigned := True;
-  FJSONType := nxjtInteger;
-end;
-
 procedure TNXJSONInteger.SetValue(const AValue: Int64);
 begin
   FValue := AValue;
-  FIsNull := False;
+  SetNotNull;
   FAssigned := True;
   FJSONType := nxjtInteger;
 end;
@@ -667,19 +635,22 @@ end;
 
 function TNXJSONFloat.ToJSONData: TJSONData;
 begin
-  Result := TJSONFloatNumber.Create(FValue);
+  if IsNull then
+    Result := TJSONNull.Create
+  else
+    Result := TJSONFloatNumber.Create(FValue);
 end;
 
 procedure TNXJSONFloat.FromJSONData(AData: TJSONData);
 begin
-  if (AData <> nil) and (AData.JSONType <> jtNumber) and (AData.JSONType <> jtNull) then
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
+  if AData.JSONType <> jtNumber then
     raise ENXJSON.Create('Expected JSON float.');
 
-  if (AData = nil) or (AData.JSONType = jtNull) then
-    FValue := 0
-  else
-    FValue := AData.AsFloat;
-
+  SetNotNull;
+  FValue := AData.AsFloat;
   FAssigned := True;
   FJSONType := nxjtFloat;
 end;
@@ -692,6 +663,7 @@ end;
 procedure TNXJSONFloat.SetValue(const AValue: Double);
 begin
   FValue := AValue;
+  SetNotNull;
   FAssigned := True;
   FJSONType := nxjtFloat;
 end;
@@ -711,19 +683,22 @@ end;
 
 function TNXJSONBoolean.ToJSONData: TJSONData;
 begin
-  Result := TJSONBoolean.Create(FValue);
+  if IsNull then
+    Result := TJSONNull.Create
+  else
+    Result := TJSONBoolean.Create(FValue);
 end;
 
 procedure TNXJSONBoolean.FromJSONData(AData: TJSONData);
 begin
-  if (AData <> nil) and (AData.JSONType <> jtBoolean) and (AData.JSONType <> jtNull) then
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
+  if AData.JSONType <> jtBoolean then
     raise ENXJSON.Create('Expected JSON boolean.');
 
-  if (AData = nil) or (AData.JSONType = jtNull) then
-    FValue := False
-  else
-    FValue := AData.AsBoolean;
-
+  SetNotNull;
+  FValue := AData.AsBoolean;
   FAssigned := True;
   FJSONType := nxjtBoolean;
 end;
@@ -736,6 +711,7 @@ end;
 procedure TNXJSONBoolean.SetValue(const AValue: Boolean);
 begin
   FValue := AValue;
+  SetNotNull;
   FAssigned := True;
   FJSONType := nxjtBoolean;
 end;
@@ -755,6 +731,7 @@ end;
 
 procedure TNXJSONArray.Clear;
 begin
+  inherited Clear;
   FItems.Clear;
   FAssigned := False;
   FJSONType := nxjtArray;
@@ -836,6 +813,9 @@ var
   lArray: TJSONArray;
   lIdx: Integer;
 begin
+  if IsNull then
+    Exit(TJSONNull.Create);
+
   lArray := TJSONArray.Create;
   try
     for lIdx := 0 to FItems.Count - 1 do
@@ -853,134 +833,18 @@ var
   lArray: TJSONArray;
   lIdx: Integer;
 begin
-  if (AData <> nil) and (AData.JSONType <> jtArray) and (AData.JSONType <> jtNull) then
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
+  if AData.JSONType <> jtArray then
     raise ENXJSON.Create('Expected JSON array.');
 
   Clear;
 
-  if (AData <> nil) and (AData.JSONType = jtArray) then
-  begin
-    lArray := TJSONArray(AData);
-    for lIdx := 0 to lArray.Count - 1 do
-      Add(CreateItemForJSON(lArray.Items[lIdx]));
-  end;
-
-  FAssigned := True;
-  FJSONType := nxjtArray;
-end;
-
-constructor TNXJSONPositionalParams.Create;
-begin
-  inherited Create;
-  AutoCreateJSONProperties;
-end;
-
-destructor TNXJSONPositionalParams.Destroy;
-begin
-  FreeJSONProperties;
-  inherited Destroy;
-end;
-
-procedure TNXJSONPositionalParams.AutoCreateJSONProperties;
-begin
-  obNXJSONValues.AutoCreateJSONProperties(Self);
-end;
-
-procedure TNXJSONPositionalParams.ClearJSONProperties;
-begin
-  obNXJSONValues.ClearJSONProperties(Self);
-end;
-
-procedure TNXJSONPositionalParams.FreeJSONProperties;
-begin
-  obNXJSONValues.FreeJSONProperties(Self);
-end;
-
-procedure TNXJSONPositionalParams.Clear;
-begin
-  inherited Clear;
-  ClearJSONProperties;
-end;
-
-function TNXJSONPositionalParams.ToJSONData: TJSONData;
-var
-  lArray: TJSONArray;
-  lList: PPropList;
-  lCount: Integer;
-  lIdx: Integer;
-  lValue: TObject;
-  lJSONValue: TNXJSONValue;
-begin
-  lArray := TJSONArray.Create;
-  try
-    lCount := GetPropList(PTypeInfo(Self.ClassInfo), [tkClass], nil);
-    if lCount > 0 then
-    begin
-      GetMem(lList, lCount * SizeOf(Pointer));
-      try
-        GetPropList(PTypeInfo(Self.ClassInfo), [tkClass], lList);
-        for lIdx := 0 to lCount - 1 do
-        begin
-          lValue := GetObjectProp(Self, lList^[lIdx]);
-          if not (lValue is TNXJSONValue) then
-            Continue;
-
-          lJSONValue := TNXJSONValue(lValue);
-          if lJSONValue.Assigned then
-            lArray.Add(lJSONValue.ToJSONData)
-          else
-            lArray.Add(TJSONNull.Create);
-        end;
-      finally
-        FreeMem(lList);
-      end;
-    end;
-
-    Result := lArray;
-  except
-    lArray.Free;
-    raise;
-  end;
-end;
-
-procedure TNXJSONPositionalParams.FromJSONData(AData: TJSONData);
-var
-  lArray: TJSONArray;
-  lList: PPropList;
-  lCount: Integer;
-  lIdx: Integer;
-  lValue: TObject;
-begin
-  if (AData <> nil) and (AData.JSONType <> jtArray) and (AData.JSONType <> jtNull) then
-    raise ENXJSON.Create('Expected JSON positional params array.');
-
-  Clear;
-
-  if (AData <> nil) and (AData.JSONType = jtArray) then
-  begin
-    lArray := TJSONArray(AData);
-    lCount := GetPropList(PTypeInfo(Self.ClassInfo), [tkClass], nil);
-    if lCount > 0 then
-    begin
-      GetMem(lList, lCount * SizeOf(Pointer));
-      try
-        GetPropList(PTypeInfo(Self.ClassInfo), [tkClass], lList);
-        if lArray.Count > lCount then
-          raise ENXJSON.CreateFmt('Too many positional params for %s.', [ClassName]);
-
-        for lIdx := 0 to lArray.Count - 1 do
-        begin
-          lValue := GetObjectProp(Self, lList^[lIdx]);
-          if lValue is TNXJSONValue then
-            TNXJSONValue(lValue).FromJSONData(lArray.Items[lIdx]);
-        end;
-      finally
-        FreeMem(lList);
-      end;
-    end
-    else if lArray.Count > 0 then
-      raise ENXJSON.CreateFmt('No positional params are defined for %s.', [ClassName]);
-  end;
+  SetNotNull;
+  lArray := TJSONArray(AData);
+  for lIdx := 0 to lArray.Count - 1 do
+    Add(CreateItemForJSON(lArray.Items[lIdx]));
 
   FAssigned := True;
   FJSONType := nxjtArray;
@@ -1001,6 +865,7 @@ end;
 
 procedure TNXJSONObject.Clear;
 begin
+  inherited Clear;
   ClearJSONProperties;
   FAssigned := False;
   FJSONType := nxjtObject;
@@ -1072,6 +937,9 @@ var
   lValue: TObject;
   lJSONValue: TNXJSONValue;
 begin
+  if IsNull then
+    Exit(TJSONNull.Create);
+
   lObject := TJSONObject.Create;
   try
     lCount := GetPropList(PTypeInfo(Self.ClassInfo), [tkClass], nil);
@@ -1118,53 +986,54 @@ var
   lClass: TClass;
   lTypeInfo: PTypeInfo;
 begin
-  if (AData <> nil) and (AData.JSONType <> jtObject) and (AData.JSONType <> jtNull) then
+  if HandleNullFromJSONData(AData) then
+    Exit;
+
+  if AData.JSONType <> jtObject then
     raise ENXJSON.Create('Expected JSON object.');
 
   Clear;
 
-  if (AData <> nil) and (AData.JSONType = jtObject) then
+  SetNotNull;
+  lSource := TJSONObject(AData);
+  for lIdx := 0 to lSource.Count - 1 do
   begin
-    lSource := TJSONObject(AData);
-    for lIdx := 0 to lSource.Count - 1 do
-    begin
-      lName := lSource.Names[lIdx];
-      lPropValue := GetJSONProperty(lName);
+    lName := lSource.Names[lIdx];
+    lPropValue := GetJSONProperty(lName);
 
-      if lPropValue = nil then
+    if lPropValue = nil then
+    begin
+      lPropInfo := GetPropInfo(Self, lName);
+      if lPropInfo <> nil then
+      begin
+        lTypeInfo := GetPropInfoType(lPropInfo);
+        if lTypeInfo <> nil then
+        begin
+          lClass := GetTypeData(lTypeInfo)^.ClassType;
+          if IsJSONValueClass(lClass) then
+          begin
+            lPropValue := TNXJSONValueClass(lClass).Create;
+            SetObjectProp(Self, lPropInfo, lPropValue);
+          end;
+        end;
+      end;
+    end;
+
+    if lPropValue <> nil then
+    begin
+      if lPropValue.ClassType = TNXJSONValue then
       begin
         lPropInfo := GetPropInfo(Self, lName);
         if lPropInfo <> nil then
         begin
-          lTypeInfo := GetPropInfoType(lPropInfo);
-          if lTypeInfo <> nil then
-          begin
-            lClass := GetTypeData(lTypeInfo)^.ClassType;
-            if IsJSONValueClass(lClass) then
-            begin
-              lPropValue := TNXJSONValueClass(lClass).Create;
-              SetObjectProp(Self, lPropInfo, lPropValue);
-            end;
-          end;
+          SetObjectProp(Self, lPropInfo, nil);
+          lPropValue.Free;
+          lPropValue := JSONValueClassForData(lSource.Items[lIdx]).Create;
+          SetObjectProp(Self, lPropInfo, lPropValue);
         end;
       end;
 
-      if lPropValue <> nil then
-      begin
-        if lPropValue.ClassType = TNXJSONValue then
-        begin
-          lPropInfo := GetPropInfo(Self, lName);
-          if lPropInfo <> nil then
-          begin
-            SetObjectProp(Self, lPropInfo, nil);
-            lPropValue.Free;
-            lPropValue := JSONValueClassForData(lSource.Items[lIdx]).Create;
-            SetObjectProp(Self, lPropInfo, lPropValue);
-          end;
-        end;
-
-        lPropValue.FromJSONData(lSource.Items[lIdx]);
-      end;
+      lPropValue.FromJSONData(lSource.Items[lIdx]);
     end;
   end;
 

@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -20,7 +21,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSMessageParams read GetParams write SetParams;
   end;
@@ -34,7 +35,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSMessageActionItem read GetResult write SetResult;
     property params: TNXLSShowMessageRequestParams read GetParams write SetParams;
@@ -47,7 +48,7 @@ public
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSMessageParams read GetParams write SetParams;
   end;
@@ -60,7 +61,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
     procedure SetParams(AValue: TNXLSShowDocumentParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSShowDocumentResultValue read GetResult write SetResult;
     property params: TNXLSShowDocumentParams read GetParams write SetParams;
@@ -82,7 +83,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWindowShowMessageActionRequest.Execute: TNXJSONValue;
+function TNXLSWindowShowMessageActionRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: window/showMessage; required: Client-side; original server: No; category: window; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -99,7 +100,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSWindowShowMessageRequest.Execute: TNXJSONValue;
+function TNXLSWindowShowMessageRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: window/showMessageRequest; required: Client-side; original server: No; category: window; result: TNXLSMessageActionItemResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -116,7 +117,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWindowLogMessageRequest.Execute: TNXJSONValue;
+function TNXLSWindowLogMessageRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: window/logMessage; required: Client-side; original server: No; category: window; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -128,7 +129,7 @@ begin
   Result := 'window/showDocument';
 end;
 
-function TNXLSWindowShowDocumentRequest.Execute: TNXJSONValue;
+function TNXLSWindowShowDocumentRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

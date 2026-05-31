@@ -5,7 +5,8 @@ unit obNXLSProtocolBase;
 interface
 
 uses
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXJSONRPCObjects;
 
 type
   TNXLSPosition = class(TNXJSONObject)
@@ -71,7 +72,7 @@ type
     property range: TNXLSRange read Frange write Frange;
   end;
 
-  TNXLSTextDocumentPositionParams = class(TNXJSONObjectParams)
+  TNXLSTextDocumentPositionParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Fposition: TNXLSPosition;

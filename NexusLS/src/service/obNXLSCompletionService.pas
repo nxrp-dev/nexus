@@ -6,6 +6,7 @@ interface
 
 uses
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolParams,
   obNXLSProtocolObjects,
   obNXLSServiceContext;
@@ -127,7 +128,7 @@ begin
   end;
 end;
 
-procedure NXLSSetJSONString(AValue: TNXJSONValue; const AText: string);
+procedure NXLSSetJSONString(AValue: TNXJSONRPCValue; const AText: string);
 var
   lJSON: TJSONData;
 begin

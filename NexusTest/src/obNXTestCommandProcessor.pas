@@ -33,6 +33,7 @@ uses
   obNXClassFactory,
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXTestRPCValues;
 
 function ExtractErrorID(const AMessage: string): TJSONData;
@@ -69,7 +70,7 @@ end;
 
 function CreateErrorResponse(const AID: TJSONData; const ACode: Integer; const AMessage: string; const ANXTestCode: Integer = 0): string;
 var
-  lData: TNXJSONValue;
+  lData: TNXJSONRPCValue;
   lResponse: TJSONObject;
 begin
   lData := nil;
@@ -107,7 +108,7 @@ var
   lID: TJSONData;
   lMethod: string;
   lRequestClass: TNXJSONRPCRequestClass;
-  lResult: TNXJSONValue;
+  lResult: TNXJSONRPCValue;
   lResponse: TJSONObject;
   lIsRequest: Boolean;
 begin

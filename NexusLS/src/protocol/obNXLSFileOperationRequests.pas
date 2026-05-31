@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -22,7 +23,7 @@ type
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceEdit read GetResult write SetResult;
     property params: TNXLSCreateFilesParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSCreateFilesParams read GetParams write SetParams;
   end;
@@ -49,7 +50,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceEdit read GetResult write SetResult;
     property params: TNXLSRenameFilesParams read GetParams write SetParams;
@@ -62,7 +63,7 @@ public
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSRenameFilesParams read GetParams write SetParams;
   end;
@@ -76,7 +77,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceEdit read GetResult write SetResult;
     property params: TNXLSDeleteFilesParams read GetParams write SetParams;
@@ -89,7 +90,7 @@ public
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDeleteFilesParams read GetParams write SetParams;
   end;
@@ -110,7 +111,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSWorkspaceWillCreateFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceWillCreateFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/willCreateFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -127,7 +128,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWorkspaceDidCreateFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDidCreateFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/didCreateFiles; required: Optional; original server: No; category: file operations; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -144,7 +145,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSWorkspaceWillRenameFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceWillRenameFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/willRenameFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -161,7 +162,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWorkspaceDidRenameFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDidRenameFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/didRenameFiles; required: Optional; original server: No; category: file operations; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -178,7 +179,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSWorkspaceWillDeleteFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceWillDeleteFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/willDeleteFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -195,7 +196,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWorkspaceDidDeleteFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDidDeleteFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/didDeleteFiles; required: Optional; original server: No; category: file operations; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);

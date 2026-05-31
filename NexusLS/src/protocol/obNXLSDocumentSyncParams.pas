@@ -6,6 +6,7 @@ interface
 
 uses
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase;
 
 type
@@ -22,17 +23,17 @@ type
 
   TNXLSContentChangeArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSDidOpenTextDocumentParams = class(TNXJSONObjectParams)
+  TNXLSDidOpenTextDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentItem;
   published
     property textDocument: TNXLSTextDocumentItem read FtextDocument write FtextDocument;
   end;
 
-  TNXLSDidChangeTextDocumentParams = class(TNXJSONObjectParams)
+  TNXLSDidChangeTextDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSVersionedTextDocumentIdentifier;
     FcontentChanges: TNXLSContentChangeArray;
@@ -41,7 +42,7 @@ type
     property contentChanges: TNXLSContentChangeArray read FcontentChanges write FcontentChanges;
   end;
 
-  TNXLSWillSaveTextDocumentParams = class(TNXJSONObjectParams)
+  TNXLSWillSaveTextDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Freason: TNXJSONInteger;
@@ -50,7 +51,7 @@ type
     property reason: TNXJSONInteger read Freason write Freason;
   end;
 
-  TNXLSDidSaveTextDocumentParams = class(TNXJSONObjectParams)
+  TNXLSDidSaveTextDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Ftext: TNXJSONString;
@@ -59,7 +60,7 @@ type
     property text: TNXJSONString read Ftext write Ftext;
   end;
 
-  TNXLSDidCloseTextDocumentParams = class(TNXJSONObjectParams)
+  TNXLSDidCloseTextDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
   published
@@ -68,7 +69,7 @@ type
 
 implementation
 
-class function TNXLSContentChangeArray.ItemClass: TNXJSONValueClass;
+class function TNXLSContentChangeArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSContentChange;
 end;

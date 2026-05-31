@@ -7,7 +7,8 @@ interface
 uses
   Classes,
   fpjson,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXJSONRPCObjects;
 
 type
   TNXLSSettings = class
@@ -29,7 +30,7 @@ type
     destructor Destroy; override;
 
     procedure Clear;
-    procedure LoadFromInitializationOptions(AOptions: TNXJSONValue);
+    procedure LoadFromInitializationOptions(AOptions: TNXJSONRPCValue);
     procedure ExpandMacros(const ARootPath, ATempPath: string);
 
     property ProgramFile: string read FProgramFile write FProgramFile;
@@ -139,7 +140,7 @@ begin
     ATarget := lData.AsBoolean;
 end;
 
-procedure TNXLSSettings.LoadFromInitializationOptions(AOptions: TNXJSONValue);
+procedure TNXLSSettings.LoadFromInitializationOptions(AOptions: TNXJSONRPCValue);
 var
   lData: TJSONData;
   lObject: TJSONObject;

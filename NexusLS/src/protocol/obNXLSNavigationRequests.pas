@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -22,7 +23,7 @@ type
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -37,7 +38,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -52,7 +53,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -67,7 +68,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSLocation read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -81,7 +82,7 @@ public
     procedure SetParams(AValue: TNXLSReferenceParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSLocationArray read GetResult write SetResult;
     property params: TNXLSReferenceParams read GetParams write SetParams;
@@ -104,7 +105,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentDeclarationRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDeclarationRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSLocation;
 begin
@@ -129,7 +130,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentDefinitionRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDefinitionRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSLocation;
 begin
@@ -154,7 +155,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentTypeDefinitionRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentTypeDefinitionRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: textDocument/typeDefinition; required: Optional; original server: No; category: navigation; result: TNXLSLocationResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -171,7 +172,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentImplementationRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentImplementationRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSLocation;
 begin
@@ -191,7 +192,7 @@ begin
   Result := 'textDocument/references';
 end;
 
-function TNXLSTextDocumentReferencesRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentReferencesRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSLocationArray;
 begin

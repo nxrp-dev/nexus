@@ -7,7 +7,8 @@ interface
 uses
   SysUtils,
   fpjson,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXJSONRPCObjects;
 
 type
   ENXJSONRPC = class(Exception)
@@ -47,7 +48,8 @@ type
   TNXJSONRPCCommandMessage = class;
   TNXJSONRPCNotification = class;
   TNXJSONRPCResponse = class;
-  TNXJSONCommandResult = class;
+  TNXJSONRPCError = class;
+  TNXJSONRPCCommandResult = class;
   TNXJSONRPCRequest = class;
   TNXJSONRPCRequestClass = class of TNXJSONRPCRequest;
   TNXJSONRPCOutboundCommand = class;
@@ -56,10 +58,10 @@ type
   TNXJSONRPCMessage = class(TNXJSONObject)
   private
     Fjsonrpc: TNXJSONString;
-    Fid: TNXJSONValue;
+    Fid: TNXJSONRPCID;
     FMessageType: TNXJSONRPCMessageType;
     function GetMessageType: TNXJSONRPCMessageType;
-    procedure SetID(AValue: TNXJSONValue);
+    procedure SetID(AValue: TNXJSONRPCID);
   protected
     procedure UpdateMessageType; virtual;
   public
@@ -71,15 +73,15 @@ type
 
   published
     property jsonrpc: TNXJSONString read Fjsonrpc write Fjsonrpc;
-    property id: TNXJSONValue read Fid write SetID;
+    property id: TNXJSONRPCID read Fid write SetID;
   end;
 
   TNXJSONRPCCommandMessage = class(TNXJSONRPCMessage)
   private
     Fmethod: TNXJSONString;
-    Fparams: TNXJSONObjectParams;
+    Fparams: TNXJSONRPCObjectParams;
     procedure SetMethod(AValue: TNXJSONString);
-    procedure SetParams(AValue: TNXJSONObjectParams);
+    procedure SetParams(AValue: TNXJSONRPCObjectParams);
   protected
     procedure UpdateMessageType; override;
   public
@@ -87,7 +89,7 @@ type
     function ParamsObject: TNXJSONObject;
   published
     property method: TNXJSONString read Fmethod write SetMethod;
-    property params: TNXJSONObjectParams read Fparams write SetParams;
+    property params: TNXJSONRPCObjectParams read Fparams write SetParams;
   end;
 
   TNXJSONRPCNotification = class(TNXJSONRPCCommandMessage)
@@ -95,53 +97,53 @@ type
 
   TNXJSONRPCResponse = class(TNXJSONRPCMessage)
   private
-    Fresult: TNXJSONValue;
-    Ferror: TNXJSONValue;
-    procedure SetError(AValue: TNXJSONValue);
-    procedure SetResult(AValue: TNXJSONValue);
+    Fresult: TNXJSONRPCValue;
+    Ferror: TNXJSONRPCError;
+    procedure SetError(AValue: TNXJSONRPCError);
+    procedure SetResult(AValue: TNXJSONRPCValue);
   protected
     procedure UpdateMessageType; override;
   published
-    property result: TNXJSONValue read Fresult write SetResult;
-    property error: TNXJSONValue read Ferror write SetError;
+    property result: TNXJSONRPCValue read Fresult write SetResult;
+    property error: TNXJSONRPCError read Ferror write SetError;
   end;
 
   TNXJSONRPCError = class(TNXJSONObject)
   private
     Fcode: TNXJSONInteger;
     Fmessage: TNXJSONString;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property code: TNXJSONInteger read Fcode write Fcode;
     property message: TNXJSONString read Fmessage write Fmessage;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
-  TNXJSONCommandResult = class(TNXJSONObject)
+  TNXJSONRPCCommandResult = class(TNXJSONObject)
   end;
 
   TNXJSONRPCRequest = class(TNXJSONRPCCommandMessage)
   private
-    FResult: TNXJSONValue;
-    function GetResult: TNXJSONValue;
-    procedure SetResult(AValue: TNXJSONValue);
+    FResult: TNXJSONRPCValue;
+    function GetResult: TNXJSONRPCValue;
+    procedure SetResult(AValue: TNXJSONRPCValue);
   protected
-    function PrepareResult: TNXJSONValue; virtual;
+    function PrepareResult: TNXJSONRPCValue; virtual;
   public
     destructor Destroy; override;
     class function GetResultKind: TNXJSONRPCResultKind; virtual;
-    function Execute: TNXJSONValue; virtual; abstract;
-    procedure ValidateResult(AResult: TNXJSONValue); virtual;
+    function Execute: TNXJSONRPCValue; virtual; abstract;
+    procedure ValidateResult(AResult: TNXJSONRPCValue); virtual;
   published
-    property result: TNXJSONValue read GetResult write SetResult;
+    property result: TNXJSONRPCValue read GetResult write SetResult;
   end;
 
   TNXJSONRPCOutboundCommand = class(TNXJSONRPCCommandMessage)
   private
-    FCommandResult: TNXJSONCommandResult;
+    FCommandResult: TNXJSONRPCCommandResult;
     FCommandError: TNXJSONRPCError;
-    function GetResult: TNXJSONCommandResult;
-    procedure SetResult(AValue: TNXJSONCommandResult);
+    function GetResult: TNXJSONRPCCommandResult;
+    procedure SetResult(AValue: TNXJSONRPCCommandResult);
   public
     destructor Destroy; override;
     class function GetResultKind: TNXJSONRPCResultKind; virtual;
@@ -149,10 +151,10 @@ type
     procedure ProcessOutboundResult; virtual;
     procedure ProcessOutboundError; virtual;
     procedure ProcessOutboundTimeout; virtual;
-    procedure ValidateResult(AResult: TNXJSONValue); virtual;
+    procedure ValidateResult(AResult: TNXJSONRPCValue); virtual;
     property CommandError: TNXJSONRPCError read FCommandError;
   published
-    property result: TNXJSONCommandResult read GetResult write SetResult;
+    property result: TNXJSONRPCCommandResult read GetResult write SetResult;
   end;
 
   TNXJSONRPC = class
@@ -167,8 +169,8 @@ type
     class function ParseMessage(const AJSON: string): TNXJSONRPCMessage; overload; static;
     class function ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage; overload; static;
     class procedure ValidateMessage(AMessage: TNXJSONRPCMessage); static;
-    class function CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONValue): TJSONObject; static;
-    class function CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONValue = nil): TJSONObject; static;
+    class function CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONRPCValue): TJSONObject; static;
+    class function CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONRPCValue = nil): TJSONObject; static;
   end;
 
 implementation
@@ -205,7 +207,7 @@ begin
   end;
 end;
 
-procedure TNXJSONRPCMessage.SetID(AValue: TNXJSONValue);
+procedure TNXJSONRPCMessage.SetID(AValue: TNXJSONRPCID);
 begin
   Fid := AValue;
   UpdateMessageType;
@@ -248,7 +250,7 @@ begin
   UpdateMessageType;
 end;
 
-procedure TNXJSONRPCCommandMessage.SetParams(AValue: TNXJSONObjectParams);
+procedure TNXJSONRPCCommandMessage.SetParams(AValue: TNXJSONRPCObjectParams);
 begin
   Fparams := AValue;
 end;
@@ -266,13 +268,13 @@ begin
     FMessageType := rpcmtInvalid;
 end;
 
-procedure TNXJSONRPCResponse.SetError(AValue: TNXJSONValue);
+procedure TNXJSONRPCResponse.SetError(AValue: TNXJSONRPCError);
 begin
   Ferror := AValue;
   UpdateMessageType;
 end;
 
-procedure TNXJSONRPCResponse.SetResult(AValue: TNXJSONValue);
+procedure TNXJSONRPCResponse.SetResult(AValue: TNXJSONRPCValue);
 begin
   Fresult := AValue;
   UpdateMessageType;
@@ -299,10 +301,10 @@ begin
   Result := rkConcreteResult;
 end;
 
-function TNXJSONRPCRequest.PrepareResult: TNXJSONValue;
+function TNXJSONRPCRequest.PrepareResult: TNXJSONRPCValue;
 var
   lResultKind: TNXJSONRPCResultKind;
-  lResult: TNXJSONValue;
+  lResult: TNXJSONRPCValue;
 begin
   lResultKind := GetResultKind;
   if lResultKind = rkNoResult then
@@ -315,11 +317,11 @@ begin
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.result property is not assigned.');
 
-  if lResult.ClassType = TNXJSONValue then
+  if lResult.ClassType = TNXJSONRPCValue then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + '.result property uses raw TNXJSONValue. This should never happen.');
+      ClassName + '.result property uses raw TNXJSONRPCValue. This should never happen.');
 
-  Result := TNXJSONValueClass(lResult.ClassType).Create;
+  Result := TNXJSONRPCValueClass(lResult.ClassType).Create;
   try
     ValidateResult(Result);
   except
@@ -334,20 +336,20 @@ begin
   inherited Destroy;
 end;
 
-function TNXJSONRPCRequest.GetResult: TNXJSONValue;
+function TNXJSONRPCRequest.GetResult: TNXJSONRPCValue;
 begin
   Result := FResult;
 end;
 
-procedure TNXJSONRPCRequest.SetResult(AValue: TNXJSONValue);
+procedure TNXJSONRPCRequest.SetResult(AValue: TNXJSONRPCValue);
 begin
   FResult := AValue;
 end;
 
-procedure TNXJSONRPCRequest.ValidateResult(AResult: TNXJSONValue);
+procedure TNXJSONRPCRequest.ValidateResult(AResult: TNXJSONRPCValue);
 var
   lResultKind: TNXJSONRPCResultKind;
-  lResult: TNXJSONValue;
+  lResult: TNXJSONRPCValue;
 begin
   lResultKind := GetResultKind;
 
@@ -360,9 +362,9 @@ begin
       ClassName + '.Execute returned nil result.');
   end;
 
-  if AResult.ClassType = TNXJSONValue then
+  if AResult.ClassType = TNXJSONRPCValue then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + '.Execute returned raw TNXJSONValue result. This should never happen.');
+      ClassName + '.Execute returned raw TNXJSONRPCValue result. This should never happen.');
 
   if AResult is TNXJSONNull then
   begin
@@ -383,9 +385,9 @@ begin
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.result property is not assigned.');
 
-  if lResult.ClassType = TNXJSONValue then
+  if lResult.ClassType = TNXJSONRPCValue then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + '.result property uses raw TNXJSONValue. This should never happen.');
+      ClassName + '.result property uses raw TNXJSONRPCValue. This should never happen.');
 
   if not AResult.InheritsFrom(lResult.ClassType) then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
@@ -400,7 +402,7 @@ begin
   inherited Destroy;
 end;
 
-function TNXJSONRPCOutboundCommand.GetResult: TNXJSONCommandResult;
+function TNXJSONRPCOutboundCommand.GetResult: TNXJSONRPCCommandResult;
 begin
   Result := FCommandResult;
 end;
@@ -410,15 +412,15 @@ begin
   Result := rkConcreteResult;
 end;
 
-procedure TNXJSONRPCOutboundCommand.SetResult(AValue: TNXJSONCommandResult);
+procedure TNXJSONRPCOutboundCommand.SetResult(AValue: TNXJSONRPCCommandResult);
 begin
   FCommandResult := AValue;
 end;
 
-procedure TNXJSONRPCOutboundCommand.ValidateResult(AResult: TNXJSONValue);
+procedure TNXJSONRPCOutboundCommand.ValidateResult(AResult: TNXJSONRPCValue);
 var
   lResultKind: TNXJSONRPCResultKind;
-  lResult: TNXJSONCommandResult;
+  lResult: TNXJSONRPCCommandResult;
 begin
   lResultKind := GetResultKind;
 
@@ -431,9 +433,9 @@ begin
       ClassName + ' received nil result.');
   end;
 
-  if AResult.ClassType = TNXJSONValue then
+  if AResult.ClassType = TNXJSONRPCValue then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + ' received raw TNXJSONValue result. This should never happen.');
+      ClassName + ' received raw TNXJSONRPCValue result. This should never happen.');
 
   if AResult is TNXJSONNull then
   begin
@@ -454,9 +456,9 @@ begin
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.result property is not assigned.');
 
-  if lResult.ClassType = TNXJSONCommandResult then
+  if lResult.ClassType = TNXJSONRPCCommandResult then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + '.result property uses raw TNXJSONCommandResult. This should never happen.');
+      ClassName + '.result property uses raw TNXJSONRPCCommandResult. This should never happen.');
 
   if not AResult.InheritsFrom(lResult.ClassType) then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
@@ -695,7 +697,7 @@ begin
   end;
 end;
 
-class function TNXJSONRPC.CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONValue): TJSONObject;
+class function TNXJSONRPC.CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONRPCValue): TJSONObject;
 begin
   Result := TJSONObject.Create;
   try
@@ -716,7 +718,7 @@ begin
   end;
 end;
 
-class function TNXJSONRPC.CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONValue): TJSONObject;
+class function TNXJSONRPC.CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONRPCValue): TJSONObject;
 var
   lError: TNXJSONRPCError;
 begin

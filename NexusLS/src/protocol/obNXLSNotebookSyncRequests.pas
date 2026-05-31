@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -20,7 +21,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDidOpenNotebookDocumentParams read GetParams write SetParams;
   end;
@@ -32,7 +33,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDidChangeNotebookDocumentParams read GetParams write SetParams;
   end;
@@ -44,7 +45,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSNotebookDocumentParams read GetParams write SetParams;
   end;
@@ -56,7 +57,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDidCloseNotebookDocumentParams read GetParams write SetParams;
   end;
@@ -77,7 +78,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSNotebookDocumentDidOpenRequest.Execute: TNXJSONValue;
+function TNXLSNotebookDocumentDidOpenRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: notebookDocument/didOpen; required: Optional; original server: No; category: notebook sync; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -94,7 +95,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSNotebookDocumentDidChangeRequest.Execute: TNXJSONValue;
+function TNXLSNotebookDocumentDidChangeRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: notebookDocument/didChange; required: Optional; original server: No; category: notebook sync; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -111,7 +112,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSNotebookDocumentDidSaveRequest.Execute: TNXJSONValue;
+function TNXLSNotebookDocumentDidSaveRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: notebookDocument/didSave; required: Optional; original server: No; category: notebook sync; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -128,7 +129,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSNotebookDocumentDidCloseRequest.Execute: TNXJSONValue;
+function TNXLSNotebookDocumentDidCloseRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: notebookDocument/didClose; required: Optional; original server: No; category: notebook sync; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);

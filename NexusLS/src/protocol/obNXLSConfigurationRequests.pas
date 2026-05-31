@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSConfigurationParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSConfigurationArray read GetResult write SetResult;
     property params: TNXLSConfigurationParams read GetParams write SetParams;
@@ -34,7 +35,7 @@ public
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDidChangeConfigurationParams read GetParams write SetParams;
   end;
@@ -51,7 +52,7 @@ begin
   Result := 'workspace/configuration';
 end;
 
-function TNXLSWorkspaceConfigurationRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceConfigurationRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -67,7 +68,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWorkspaceDidChangeConfigurationRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDidChangeConfigurationRequest.Execute: TNXJSONRPCValue;
 begin
   TNXLSLSPModel.Current.Workspace.DidChangeConfiguration(TNXLSDidChangeConfigurationParams(params));
   Result := nil;

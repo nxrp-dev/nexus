@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -22,7 +23,7 @@ type
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSSemanticTokens read GetResult write SetResult;
     property params: TNXLSSemanticTokensParams read GetParams write SetParams;
@@ -37,7 +38,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSSemanticTokensDelta read GetResult write SetResult;
     property params: TNXLSSemanticTokensDeltaParams read GetParams write SetParams;
@@ -52,7 +53,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSSemanticTokens read GetResult write SetResult;
     property params: TNXLSSemanticTokensRangeParams read GetParams write SetParams;
@@ -74,7 +75,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentSemanticTokensFullRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentSemanticTokensFullRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: textDocument/semanticTokens/full; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -91,7 +92,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentSemanticTokensFullDeltaRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentSemanticTokensFullDeltaRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: textDocument/semanticTokens/full/delta; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensDeltaResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -108,7 +109,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentSemanticTokensRangeRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentSemanticTokensRangeRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: textDocument/semanticTokens/range; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensResult.
   NXLSRaiseNotImplemented(GetFactoryName);

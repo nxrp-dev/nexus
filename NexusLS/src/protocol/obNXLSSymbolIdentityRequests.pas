@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSMonikerArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -38,7 +39,7 @@ begin
   Result := 'textDocument/moniker';
 end;
 
-function TNXLSTextDocumentMonikerRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentMonikerRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

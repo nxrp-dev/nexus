@@ -6,14 +6,15 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXJSONRPCObjects;
 
 type
   TNXLSTelemetryEventRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
 implementation
@@ -31,7 +32,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSTelemetryEventRequest.Execute: TNXJSONValue;
+function TNXLSTelemetryEventRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: telemetry/event; required: Client-side; original server: No; category: telemetry; result: nil.
   Result := nil;

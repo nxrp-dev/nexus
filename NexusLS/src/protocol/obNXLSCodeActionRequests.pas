@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSCodeActionParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCodeActionArray read GetResult write SetResult;
     property params: TNXLSCodeActionParams read GetParams write SetParams;
@@ -38,7 +39,7 @@ begin
   Result := 'textDocument/codeAction';
 end;
 
-function TNXLSTextDocumentCodeActionRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentCodeActionRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSCodeActionArray;
 begin

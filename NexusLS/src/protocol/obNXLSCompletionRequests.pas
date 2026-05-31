@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSCompletionParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCompletionItemArray read GetResult write SetResult;
     property params: TNXLSCompletionParams read GetParams write SetParams;
@@ -36,7 +37,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSSignatureHelp read GetResult write SetResult;
     property params: TNXLSSignatureHelpParams read GetParams write SetParams;
@@ -53,7 +54,7 @@ begin
   Result := 'textDocument/completion';
 end;
 
-function TNXLSTextDocumentCompletionRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentCompletionRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSCompletionItemArray;
 begin
@@ -73,7 +74,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentSignatureHelpRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentSignatureHelpRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSSignatureHelp;
 begin

@@ -8,6 +8,7 @@ uses
   SysUtils,
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXTestCase,
   obNXTestRegistry,
   obNXTestResult,
@@ -29,14 +30,14 @@ type
     property nxtestCode: TNXJSONInteger read FnxtestCode write FnxtestCode;
   end;
 
-  TNXTestRunSuiteParams = class(TNXJSONObjectParams)
+  TNXTestRunSuiteParams = class(TNXJSONRPCObjectParams)
   private
     Fsuite: TNXJSONString;
   published
     property suite: TNXJSONString read Fsuite write Fsuite;
   end;
 
-  TNXTestRunTestParams = class(TNXJSONObjectParams)
+  TNXTestRunTestParams = class(TNXJSONRPCObjectParams)
   private
     Ftest: TNXJSONString;
   published
@@ -45,7 +46,7 @@ type
 
   TNXTestMethodArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXTestCapabilitiesValue = class(TNXJSONObject)
@@ -72,7 +73,7 @@ type
 
   TNXTestCaseInfoArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
     function AddCase(ATest: TNXTestCase): TNXTestCaseInfoValue;
   end;
 
@@ -87,7 +88,7 @@ type
 
   TNXTestSuiteInfoArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
     function AddSuite(ASuite: TNXTestSuite): TNXTestSuiteInfoValue;
   end;
 
@@ -125,7 +126,7 @@ type
 
   TNXTestResultArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
     function AddResult(AResult: TNXTestResult): TNXTestResultValue;
   end;
 
@@ -163,12 +164,12 @@ begin
   FNXTestCode := ANXTestCode;
 end;
 
-class function TNXTestMethodArray.ItemClass: TNXJSONValueClass;
+class function TNXTestMethodArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXJSONString;
 end;
 
-class function TNXTestCaseInfoArray.ItemClass: TNXJSONValueClass;
+class function TNXTestCaseInfoArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXTestCaseInfoValue;
 end;
@@ -181,7 +182,7 @@ begin
   Result.id.Value := ATest.TestId;
 end;
 
-class function TNXTestSuiteInfoArray.ItemClass: TNXJSONValueClass;
+class function TNXTestSuiteInfoArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXTestSuiteInfoValue;
 end;
@@ -198,7 +199,7 @@ begin
     Result.tests.AddCase(ASuite.Tests[lIndex]);
 end;
 
-class function TNXTestResultArray.ItemClass: TNXJSONValueClass;
+class function TNXTestResultArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXTestResultValue;
 end;

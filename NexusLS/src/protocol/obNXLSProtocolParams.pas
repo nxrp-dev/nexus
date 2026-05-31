@@ -5,11 +5,50 @@ unit obNXLSProtocolParams;
 interface
 
 uses
+  fpjson,
   obNXJSONValues,
   obNXJSONRPCObjects,
   obNXLSProtocolBase;
 
 type
+  TNXLSMarkupContent = class(TNXJSONObject)
+  private
+    Fkind: TNXJSONString;
+    Fvalue: TNXJSONString;
+  published
+    property kind: TNXJSONString read Fkind write Fkind;
+    property value: TNXJSONString read Fvalue write Fvalue;
+  end;
+
+  TNXLSMarkupContentValue = class(TNXJSONRPCVariant)
+  protected
+    class function SupportedValueClasses: TNXJSONRPCValueClassArray; override;
+  end;
+
+  TNXLSParameterInformationLabelValue = class(TNXJSONRPCVariant)
+  protected
+    class function ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass; override;
+    class function SupportedValueClasses: TNXJSONRPCValueClassArray; override;
+  end;
+
+  TNXLSInlayHintLabelValue = class(TNXJSONRPCVariant)
+  protected
+    class function ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass; override;
+    class function SupportedValueClasses: TNXJSONRPCValueClassArray; override;
+  end;
+
+  TNXLSCompletionItemTextEditValue = class(TNXJSONRPCVariant)
+  protected
+    class function ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass; override;
+    class function SupportedValueClasses: TNXJSONRPCValueClassArray; override;
+  end;
+
+  TNXLSWorkspaceSymbolLocationValue = class(TNXJSONRPCVariant)
+  protected
+    class function ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass; override;
+    class function SupportedValueClasses: TNXJSONRPCValueClassArray; override;
+  end;
+
   TNXLSRequestIDValue = class(TNXJSONRPCVariant)
   end;
 
@@ -23,33 +62,37 @@ type
   TNXLSSignatureHelpContext = class;
   TNXLSInlineValueContext = class;
   TNXLSWorkspaceEdit = class;
+  TNXLSInlayHintLabelPart = class;
   TNXLSMessageActionItemArray = class;
   TNXLSCompletionItemLabelDetails = class;
   TNXLSCodeActionDisabled = class;
+  TNXLSTextEdit = class;
+  TNXLSInsertReplaceEdit = class;
+  TNXLSWorkspaceSymbolLocation = class;
 
   TNXJSONStringArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXJSONIntegerArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSPositionArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSTextDocumentItemArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSTextDocumentIdentifierArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSClientInfo = class(TNXJSONObject)
@@ -72,7 +115,7 @@ type
 
   TNXLSWorkspaceFolderArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSClientCapabilities = class(TNXJSONObject)
@@ -82,24 +125,24 @@ type
     FnotebookDocument: TNXJSONObject;
     Fwindow: TNXJSONObject;
     Fgeneral: TNXJSONObject;
-    Fexperimental: TNXJSONValue;
+    Fexperimental: TNXJSONRPCUnknown;
   published
     property workspace: TNXJSONObject read Fworkspace write Fworkspace;
     property textDocument: TNXJSONObject read FtextDocument write FtextDocument;
     property notebookDocument: TNXJSONObject read FnotebookDocument write FnotebookDocument;
     property window: TNXJSONObject read Fwindow write Fwindow;
     property general: TNXJSONObject read Fgeneral write Fgeneral;
-    property experimental: TNXJSONValue read Fexperimental write Fexperimental;
+    property experimental: TNXJSONRPCUnknown read Fexperimental write Fexperimental;
   end;
 
-  TNXLSInitializeParams = class(TNXJSONObjectParams)
+  TNXLSInitializeParams = class(TNXJSONRPCObjectParams)
   private
     FprocessId: TNXJSONInteger;
     FclientInfo: TNXLSClientInfo;
     Flocale: TNXJSONString;
     FrootPath: TNXJSONString;
     FrootUri: TNXJSONString;
-    FinitializationOptions: TNXJSONValue;
+    FinitializationOptions: TNXJSONRPCUnknown;
     Fcapabilities: TNXLSClientCapabilities;
     Ftrace: TNXJSONString;
     FworkspaceFolders: TNXLSWorkspaceFolderArray;
@@ -111,39 +154,39 @@ type
     property locale: TNXJSONString read Flocale write Flocale;
     property rootPath: TNXJSONString read FrootPath write FrootPath;
     property rootUri: TNXJSONString read FrootUri write FrootUri;
-    property initializationOptions: TNXJSONValue read FinitializationOptions write FinitializationOptions;
+    property initializationOptions: TNXJSONRPCUnknown read FinitializationOptions write FinitializationOptions;
     property capabilities: TNXLSClientCapabilities read Fcapabilities write Fcapabilities;
     property trace: TNXJSONString read Ftrace write Ftrace;
     property workspaceFolders: TNXLSWorkspaceFolderArray read FworkspaceFolders write FworkspaceFolders;
   end;
 
-  TNXLSInitializedParams = class(TNXJSONObjectParams)
+  TNXLSInitializedParams = class(TNXJSONRPCObjectParams)
   end;
 
-  TNXLSCancelParams = class(TNXJSONObjectParams)
+  TNXLSCancelParams = class(TNXJSONRPCObjectParams)
   private
     Fid: TNXLSRequestIDValue;
   published
     property id: TNXLSRequestIDValue read Fid write Fid;
   end;
 
-  TNXLSProgressParams = class(TNXJSONObjectParams)
+  TNXLSProgressParams = class(TNXJSONRPCObjectParams)
   private
     Ftoken: TNXLSProgressToken;
-    Fvalue: TNXJSONValue;
+    Fvalue: TNXJSONRPCUnknown;
   published
     property token: TNXLSProgressToken read Ftoken write Ftoken;
-    property value: TNXJSONValue read Fvalue write Fvalue;
+    property value: TNXJSONRPCUnknown read Fvalue write Fvalue;
   end;
 
-  TNXLSSetTraceParams = class(TNXJSONObjectParams)
+  TNXLSSetTraceParams = class(TNXJSONRPCObjectParams)
   private
     Fvalue: TNXJSONString;
   published
     property value: TNXJSONString read Fvalue write Fvalue;
   end;
 
-  TNXLSLogTraceParams = class(TNXJSONObjectParams)
+  TNXLSLogTraceParams = class(TNXJSONRPCObjectParams)
   private
     Fmessage: TNXJSONString;
     Fverbose: TNXJSONString;
@@ -167,7 +210,7 @@ type
     property trimFinalNewlines: TNXJSONBoolean read FtrimFinalNewlines write FtrimFinalNewlines;
   end;
 
-  TNXLSDocumentFormattingParams = class(TNXJSONObjectParams)
+  TNXLSDocumentFormattingParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Foptions: TNXLSFormattingOptions;
@@ -226,7 +269,7 @@ type
     Furi: TNXJSONString;
     Frange: TNXLSRange;
     FselectionRange: TNXLSRange;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property name: TNXJSONString read Fname write Fname;
     property kind: TNXJSONInteger read Fkind write Fkind;
@@ -235,7 +278,7 @@ type
     property uri: TNXJSONString read Furi write Furi;
     property range: TNXLSRange read Frange write Frange;
     property selectionRange: TNXLSRange read FselectionRange write FselectionRange;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
   TNXLSTypeHierarchyItem = class(TNXJSONObject)
@@ -247,7 +290,7 @@ type
     Furi: TNXJSONString;
     Frange: TNXLSRange;
     FselectionRange: TNXLSRange;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property name: TNXJSONString read Fname write Fname;
     property kind: TNXJSONInteger read Fkind write Fkind;
@@ -256,38 +299,38 @@ type
     property uri: TNXJSONString read Furi write Furi;
     property range: TNXLSRange read Frange write Frange;
     property selectionRange: TNXLSRange read FselectionRange write FselectionRange;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
-  TNXLSCallHierarchyIncomingCallsParams = class(TNXJSONObjectParams)
+  TNXLSCallHierarchyIncomingCallsParams = class(TNXJSONRPCObjectParams)
   private
     Fitem: TNXLSCallHierarchyItem;
   published
     property item: TNXLSCallHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSCallHierarchyOutgoingCallsParams = class(TNXJSONObjectParams)
+  TNXLSCallHierarchyOutgoingCallsParams = class(TNXJSONRPCObjectParams)
   private
     Fitem: TNXLSCallHierarchyItem;
   published
     property item: TNXLSCallHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSTypeHierarchySupertypesParams = class(TNXJSONObjectParams)
+  TNXLSTypeHierarchySupertypesParams = class(TNXJSONRPCObjectParams)
   private
     Fitem: TNXLSTypeHierarchyItem;
   published
     property item: TNXLSTypeHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSTypeHierarchySubtypesParams = class(TNXJSONObjectParams)
+  TNXLSTypeHierarchySubtypesParams = class(TNXJSONRPCObjectParams)
   private
     Fitem: TNXLSTypeHierarchyItem;
   published
     property item: TNXLSTypeHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSDocumentLinkParams = class(TNXJSONObjectParams)
+  TNXLSDocumentLinkParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
   published
@@ -345,7 +388,7 @@ type
 
   TNXLSDiagnosticRelatedInformationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSDiagnostic = class(TNXJSONObject)
@@ -358,7 +401,7 @@ type
     Fmessage: TNXJSONString;
     Ftags: TNXJSONIntegerArray;
     FrelatedInformation: TNXLSDiagnosticRelatedInformationArray;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property range: TNXLSRange read Frange write Frange;
     property severity: TNXJSONInteger read Fseverity write Fseverity;
@@ -368,12 +411,12 @@ type
     property message: TNXJSONString read Fmessage write Fmessage;
     property tags: TNXJSONIntegerArray read Ftags write Ftags;
     property relatedInformation: TNXLSDiagnosticRelatedInformationArray read FrelatedInformation write FrelatedInformation;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
   TNXLSDiagnosticArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSCodeActionContext = class(TNXJSONObject)
@@ -387,7 +430,7 @@ type
     property triggerKind: TNXJSONInteger read FtriggerKind write FtriggerKind;
   end;
 
-  TNXLSCodeActionParams = class(TNXJSONObjectParams)
+  TNXLSCodeActionParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Frange: TNXLSRange;
@@ -414,7 +457,7 @@ type
     property alpha: TNXJSONFloat read Falpha write Falpha;
   end;
 
-  TNXLSColorPresentationParams = class(TNXJSONObjectParams)
+  TNXLSColorPresentationParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Fcolor: TNXLSColor;
@@ -443,34 +486,34 @@ type
 
   TNXLSParameterInformation = class(TNXJSONObject)
   private
-    FLabel: TNXJSONValue;
-    Fdocumentation: TNXJSONValue;
+    FLabel: TNXLSParameterInformationLabelValue;
+    Fdocumentation: TNXLSMarkupContentValue;
   published
-    property &label: TNXJSONValue read FLabel write FLabel;
-    property documentation: TNXJSONValue read Fdocumentation write Fdocumentation;
+    property &label: TNXLSParameterInformationLabelValue read FLabel write FLabel;
+    property documentation: TNXLSMarkupContentValue read Fdocumentation write Fdocumentation;
   end;
 
   TNXLSParameterInformationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSSignatureInformation = class(TNXJSONObject)
   private
     FLabel: TNXJSONString;
-    Fdocumentation: TNXJSONValue;
+    Fdocumentation: TNXLSMarkupContentValue;
     Fparameters: TNXLSParameterInformationArray;
     FactiveParameter: TNXJSONInteger;
   published
     property &label: TNXJSONString read FLabel write FLabel;
-    property documentation: TNXJSONValue read Fdocumentation write Fdocumentation;
+    property documentation: TNXLSMarkupContentValue read Fdocumentation write Fdocumentation;
     property parameters: TNXLSParameterInformationArray read Fparameters write Fparameters;
     property activeParameter: TNXJSONInteger read FactiveParameter write FactiveParameter;
   end;
 
   TNXLSSignatureInformationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSSignatureHelp = class(TNXJSONObject)
@@ -504,7 +547,7 @@ type
     property context: TNXLSSignatureHelpContext read Fcontext write Fcontext;
   end;
 
-  TNXLSWorkspaceSymbolParams = class(TNXJSONObjectParams)
+  TNXLSWorkspaceSymbolParams = class(TNXJSONRPCObjectParams)
   private
     Fquery: TNXJSONString;
   published
@@ -522,40 +565,40 @@ type
 
   TNXLSConfigurationItemArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSConfigurationParams = class(TNXJSONObjectParams)
+  TNXLSConfigurationParams = class(TNXJSONRPCObjectParams)
   private
     Fitems: TNXLSConfigurationItemArray;
   published
     property items: TNXLSConfigurationItemArray read Fitems write Fitems;
   end;
 
-  TNXLSDidChangeConfigurationParams = class(TNXJSONObjectParams)
+  TNXLSDidChangeConfigurationParams = class(TNXJSONRPCObjectParams)
   private
-    Fsettings: TNXJSONValue;
+    Fsettings: TNXJSONRPCUnknown;
   published
-    property settings: TNXJSONValue read Fsettings write Fsettings;
+    property settings: TNXJSONRPCUnknown read Fsettings write Fsettings;
   end;
 
   TNXLSRegistration = class(TNXJSONObject)
   private
     Fid: TNXJSONString;
     Fmethod: TNXJSONString;
-    FregisterOptions: TNXJSONValue;
+    FregisterOptions: TNXJSONRPCUnknown;
   published
     property id: TNXJSONString read Fid write Fid;
     property method: TNXJSONString read Fmethod write Fmethod;
-    property registerOptions: TNXJSONValue read FregisterOptions write FregisterOptions;
+    property registerOptions: TNXJSONRPCUnknown read FregisterOptions write FregisterOptions;
   end;
 
   TNXLSRegistrationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSRegistrationParams = class(TNXJSONObjectParams)
+  TNXLSRegistrationParams = class(TNXJSONRPCObjectParams)
   private
     Fregistrations: TNXLSRegistrationArray;
   published
@@ -573,10 +616,10 @@ type
 
   TNXLSUnregistrationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSUnregistrationParams = class(TNXJSONObjectParams)
+  TNXLSUnregistrationParams = class(TNXJSONRPCObjectParams)
   private
     Funregisterations: TNXLSUnregistrationArray;
   published
@@ -592,10 +635,10 @@ type
 
   TNXLSFileCreateArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSCreateFilesParams = class(TNXJSONObjectParams)
+  TNXLSCreateFilesParams = class(TNXJSONRPCObjectParams)
   private
     Ffiles: TNXLSFileCreateArray;
   published
@@ -613,10 +656,10 @@ type
 
   TNXLSFileRenameArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSRenameFilesParams = class(TNXJSONObjectParams)
+  TNXLSRenameFilesParams = class(TNXJSONRPCObjectParams)
   private
     Ffiles: TNXLSFileRenameArray;
   published
@@ -632,10 +675,10 @@ type
 
   TNXLSFileDeleteArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSDeleteFilesParams = class(TNXJSONObjectParams)
+  TNXLSDeleteFilesParams = class(TNXJSONRPCObjectParams)
   private
     Ffiles: TNXLSFileDeleteArray;
   published
@@ -653,17 +696,17 @@ type
 
   TNXLSFileEventArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSDidChangeWatchedFilesParams = class(TNXJSONObjectParams)
+  TNXLSDidChangeWatchedFilesParams = class(TNXJSONRPCObjectParams)
   private
     Fchanges: TNXLSFileEventArray;
   published
     property changes: TNXLSFileEventArray read Fchanges write Fchanges;
   end;
 
-  TNXLSCompleteCodeParams = class(TNXJSONObjectParams)
+  TNXLSCompleteCodeParams = class(TNXJSONRPCObjectParams)
   private
     Furi: TNXJSONString;
     Fposition: TNXLSPosition;
@@ -672,7 +715,7 @@ type
     property position: TNXLSPosition read Fposition write Fposition;
   end;
 
-  TNXLSInvertAssignmentParams = class(TNXJSONObjectParams)
+  TNXLSInvertAssignmentParams = class(TNXJSONRPCObjectParams)
   private
     Furi: TNXJSONString;
     Fstart: TNXLSPosition;
@@ -683,7 +726,7 @@ type
     property &end: TNXLSPosition read Fend write Fend;
   end;
 
-  TNXLSRemoveEmptyMethodsParams = class(TNXJSONObjectParams)
+  TNXLSRemoveEmptyMethodsParams = class(TNXJSONRPCObjectParams)
   private
     Furi: TNXJSONString;
     Fposition: TNXLSPosition;
@@ -692,21 +735,21 @@ type
     property position: TNXLSPosition read Fposition write Fposition;
   end;
 
-  TNXLSRemoveUnusedUnitsParams = class(TNXJSONObjectParams)
+  TNXLSRemoveUnusedUnitsParams = class(TNXJSONRPCObjectParams)
   private
     Furi: TNXJSONString;
   published
     property uri: TNXJSONString read Furi write Furi;
   end;
 
-  TNXLSProjectCreateWizardParams = class(TNXJSONObjectParams)
+  TNXLSProjectCreateWizardParams = class(TNXJSONRPCObjectParams)
   private
     FworkspaceRoot: TNXJSONString;
   published
     property workspaceRoot: TNXJSONString read FworkspaceRoot write FworkspaceRoot;
   end;
 
-  TNXLSProjectCreateParams = class(TNXJSONObjectParams)
+  TNXLSProjectCreateParams = class(TNXJSONRPCObjectParams)
   private
     FprojectName: TNXJSONString;
     FtargetDir: TNXJSONString;
@@ -715,7 +758,7 @@ type
     property targetDir: TNXJSONString read FtargetDir write FtargetDir;
   end;
 
-  TNXLSInlayHintParams = class(TNXJSONObjectParams)
+  TNXLSInlayHintParams = class(TNXJSONRPCObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Frange: TNXLSRange;
@@ -760,18 +803,18 @@ type
   private
     Fkind: TNXJSONInteger;
     Fdocument: TNXJSONString;
-    Fmetadata: TNXJSONValue;
+    Fmetadata: TNXJSONRPCUnknown;
     FexecutionSummary: TNXLSNotebookCellExecutionSummary;
   published
     property kind: TNXJSONInteger read Fkind write Fkind;
     property document: TNXJSONString read Fdocument write Fdocument;
-    property metadata: TNXJSONValue read Fmetadata write Fmetadata;
+    property metadata: TNXJSONRPCUnknown read Fmetadata write Fmetadata;
     property executionSummary: TNXLSNotebookCellExecutionSummary read FexecutionSummary write FexecutionSummary;
   end;
 
   TNXLSNotebookCellArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSNotebookDocument = class(TNXJSONObject)
@@ -779,13 +822,13 @@ type
     Furi: TNXJSONString;
     FnotebookType: TNXJSONString;
     Fversion: TNXJSONInteger;
-    Fmetadata: TNXJSONValue;
+    Fmetadata: TNXJSONRPCUnknown;
     Fcells: TNXLSNotebookCellArray;
   published
     property uri: TNXJSONString read Furi write Furi;
     property notebookType: TNXJSONString read FnotebookType write FnotebookType;
     property version: TNXJSONInteger read Fversion write Fversion;
-    property metadata: TNXJSONValue read Fmetadata write Fmetadata;
+    property metadata: TNXJSONRPCUnknown read Fmetadata write Fmetadata;
     property cells: TNXLSNotebookCellArray read Fcells write Fcells;
   end;
 
@@ -796,14 +839,14 @@ type
     property version: TNXJSONInteger read Fversion write Fversion;
   end;
 
-  TNXLSNotebookDocumentParams = class(TNXJSONObjectParams)
+  TNXLSNotebookDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FnotebookDocument: TNXLSNotebookDocumentIdentifier;
   published
     property notebookDocument: TNXLSNotebookDocumentIdentifier read FnotebookDocument write FnotebookDocument;
   end;
 
-  TNXLSDidOpenNotebookDocumentParams = class(TNXJSONObjectParams)
+  TNXLSDidOpenNotebookDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FnotebookDocument: TNXLSNotebookDocument;
     FcellTextDocuments: TNXLSTextDocumentItemArray;
@@ -814,14 +857,14 @@ type
 
   TNXLSNotebookDocumentChangeEvent = class(TNXJSONObject)
   private
-    Fmetadata: TNXJSONValue;
+    Fmetadata: TNXJSONRPCUnknown;
     Fcells: TNXJSONObject;
   published
-    property metadata: TNXJSONValue read Fmetadata write Fmetadata;
+    property metadata: TNXJSONRPCUnknown read Fmetadata write Fmetadata;
     property cells: TNXJSONObject read Fcells write Fcells;
   end;
 
-  TNXLSDidChangeNotebookDocumentParams = class(TNXJSONObjectParams)
+  TNXLSDidChangeNotebookDocumentParams = class(TNXJSONRPCObjectParams)
   private
     FnotebookDocument: TNXLSVersionedNotebookDocumentIdentifier;
     Fchange: TNXLSNotebookDocumentChangeEvent;
@@ -837,14 +880,14 @@ type
     property cellTextDocuments: TNXLSTextDocumentIdentifierArray read FcellTextDocuments write FcellTextDocuments;
   end;
 
-  TNXLSWorkDoneProgressCreateParams = class(TNXJSONObjectParams)
+  TNXLSWorkDoneProgressCreateParams = class(TNXJSONRPCObjectParams)
   private
     Ftoken: TNXLSProgressToken;
   published
     property token: TNXLSProgressToken read Ftoken write Ftoken;
   end;
 
-  TNXLSWorkDoneProgressCancelParams = class(TNXJSONObjectParams)
+  TNXLSWorkDoneProgressCancelParams = class(TNXJSONRPCObjectParams)
   private
     Ftoken: TNXLSProgressToken;
   published
@@ -878,10 +921,10 @@ type
 
   TNXLSDiagnosticPreviousResultIdArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSWorkspaceDiagnosticParams = class(TNXJSONObjectParams)
+  TNXLSWorkspaceDiagnosticParams = class(TNXJSONRPCObjectParams)
   private
     Fidentifier: TNXJSONString;
     FpreviousResultIds: TNXLSDiagnosticPreviousResultIdArray;
@@ -890,7 +933,7 @@ type
     property previousResultIds: TNXLSDiagnosticPreviousResultIdArray read FpreviousResultIds write FpreviousResultIds;
   end;
 
-  TNXLSPublishDiagnosticsParams = class(TNXJSONObjectParams)
+  TNXLSPublishDiagnosticsParams = class(TNXJSONRPCObjectParams)
   private
     Furi: TNXJSONString;
     Fversion: TNXJSONInteger;
@@ -912,14 +955,14 @@ type
     property removed: TNXLSWorkspaceFolderArray read Fremoved write Fremoved;
   end;
 
-  TNXLSDidChangeWorkspaceFoldersParams = class(TNXJSONObjectParams)
+  TNXLSDidChangeWorkspaceFoldersParams = class(TNXJSONRPCObjectParams)
   private
     Fevent: TNXLSWorkspaceFoldersChangeEvent;
   published
     property event: TNXLSWorkspaceFoldersChangeEvent read Fevent write Fevent;
   end;
 
-  TNXLSApplyWorkspaceEditParams = class(TNXJSONObjectParams)
+  TNXLSApplyWorkspaceEditParams = class(TNXJSONRPCObjectParams)
   private
     FLabel: TNXJSONString;
     Fedit: TNXLSWorkspaceEdit;
@@ -948,9 +991,20 @@ type
     property newText: TNXJSONString read FnewText write FnewText;
   end;
 
+  TNXLSInsertReplaceEdit = class(TNXJSONObject)
+  private
+    FnewText: TNXJSONString;
+    Finsert: TNXLSRange;
+    Freplace: TNXLSRange;
+  published
+    property newText: TNXJSONString read FnewText write FnewText;
+    property insert: TNXLSRange read Finsert write Finsert;
+    property replace: TNXLSRange read Freplace write Freplace;
+  end;
+
   TNXLSTextEditArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSTextDocumentEdit = class(TNXJSONObject)
@@ -964,7 +1018,7 @@ type
 
   TNXLSTextDocumentEditArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSWorkspaceEdit = class(TNXJSONObject)
@@ -981,7 +1035,7 @@ type
   TNXLSWorkspaceEditResult = class(TNXLSWorkspaceEdit)
   end;
 
-  TNXLSMessageParams = class(TNXJSONObjectParams)
+  TNXLSMessageParams = class(TNXJSONRPCObjectParams)
   private
     FType: TNXJSONInteger;
     Fmessage: TNXJSONString;
@@ -1006,10 +1060,10 @@ type
 
   TNXLSMessageActionItemArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
-  TNXLSShowDocumentParams = class(TNXJSONObjectParams)
+  TNXLSShowDocumentParams = class(TNXJSONRPCObjectParams)
   private
     Furi: TNXJSONString;
     Fexternal: TNXJSONBoolean;
@@ -1022,62 +1076,80 @@ type
     property selection: TNXLSRange read Fselection write Fselection;
   end;
 
-  TNXLSTelemetryEventParams = class(TNXJSONValue)
+  TNXLSTelemetryEventParams = class(TNXJSONRPCUnknown)
   end;
 
-  TNXLSDocumentLink = class(TNXJSONObjectParams)
+  TNXLSInlayHintLabelPart = class(TNXJSONObject)
+  private
+    Fvalue: TNXJSONString;
+    Ftooltip: TNXLSMarkupContentValue;
+    Flocation: TNXLSLocation;
+    Fcommand: TNXLSCommand;
+  published
+    property value: TNXJSONString read Fvalue write Fvalue;
+    property tooltip: TNXLSMarkupContentValue read Ftooltip write Ftooltip;
+    property location: TNXLSLocation read Flocation write Flocation;
+    property command: TNXLSCommand read Fcommand write Fcommand;
+  end;
+
+  TNXLSInlayHintLabelPartArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONRPCValueClass; override;
+  end;
+
+  TNXLSDocumentLink = class(TNXJSONRPCObjectParams)
   private
     Frange: TNXLSRange;
     Ftarget: TNXJSONString;
     Ftooltip: TNXJSONString;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property range: TNXLSRange read Frange write Frange;
     property target: TNXJSONString read Ftarget write Ftarget;
     property tooltip: TNXJSONString read Ftooltip write Ftooltip;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
-  TNXLSCodeLens = class(TNXJSONObjectParams)
+  TNXLSCodeLens = class(TNXJSONRPCObjectParams)
   private
     Frange: TNXLSRange;
     Fcommand: TNXLSCommand;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property range: TNXLSRange read Frange write Frange;
     property command: TNXLSCommand read Fcommand write Fcommand;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
-  TNXLSInlayHint = class(TNXJSONObjectParams)
+  TNXLSInlayHint = class(TNXJSONRPCObjectParams)
   private
     Fposition: TNXLSPosition;
-    FLabel: TNXJSONValue;
+    FLabel: TNXLSInlayHintLabelValue;
     Fkind: TNXJSONInteger;
     FtextEdits: TNXLSTextEditArray;
-    Ftooltip: TNXJSONValue;
+    Ftooltip: TNXLSMarkupContentValue;
     FpaddingLeft: TNXJSONBoolean;
     FpaddingRight: TNXJSONBoolean;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property position: TNXLSPosition read Fposition write Fposition;
-    property &label: TNXJSONValue read FLabel write FLabel;
+    property &label: TNXLSInlayHintLabelValue read FLabel write FLabel;
     property kind: TNXJSONInteger read Fkind write Fkind;
     property textEdits: TNXLSTextEditArray read FtextEdits write FtextEdits;
-    property tooltip: TNXJSONValue read Ftooltip write Ftooltip;
+    property tooltip: TNXLSMarkupContentValue read Ftooltip write Ftooltip;
     property paddingLeft: TNXJSONBoolean read FpaddingLeft write FpaddingLeft;
     property paddingRight: TNXJSONBoolean read FpaddingRight write FpaddingRight;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
-  TNXLSCompletionItem = class(TNXJSONObjectParams)
+  TNXLSCompletionItem = class(TNXJSONRPCObjectParams)
   private
     FLabel: TNXJSONString;
     FLabelDetails: TNXLSCompletionItemLabelDetails;
     Fkind: TNXJSONInteger;
     Ftags: TNXJSONIntegerArray;
     Fdetail: TNXJSONString;
-    Fdocumentation: TNXJSONValue;
+    Fdocumentation: TNXLSMarkupContentValue;
     Fdeprecated: TNXJSONBoolean;
     Fpreselect: TNXJSONBoolean;
     FsortText: TNXJSONString;
@@ -1085,19 +1157,19 @@ type
     FinsertText: TNXJSONString;
     FinsertTextFormat: TNXJSONInteger;
     FinsertTextMode: TNXJSONInteger;
-    FtextEdit: TNXJSONValue;
+    FtextEdit: TNXLSCompletionItemTextEditValue;
     FtextEditText: TNXJSONString;
     FadditionalTextEdits: TNXLSTextEditArray;
     FcommitCharacters: TNXJSONStringArray;
     Fcommand: TNXLSCommand;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property &label: TNXJSONString read FLabel write FLabel;
     property labelDetails: TNXLSCompletionItemLabelDetails read FLabelDetails write FLabelDetails;
     property kind: TNXJSONInteger read Fkind write Fkind;
     property tags: TNXJSONIntegerArray read Ftags write Ftags;
     property detail: TNXJSONString read Fdetail write Fdetail;
-    property documentation: TNXJSONValue read Fdocumentation write Fdocumentation;
+    property documentation: TNXLSMarkupContentValue read Fdocumentation write Fdocumentation;
     property deprecated: TNXJSONBoolean read Fdeprecated write Fdeprecated;
     property preselect: TNXJSONBoolean read Fpreselect write Fpreselect;
     property sortText: TNXJSONString read FsortText write FsortText;
@@ -1105,12 +1177,12 @@ type
     property insertText: TNXJSONString read FinsertText write FinsertText;
     property insertTextFormat: TNXJSONInteger read FinsertTextFormat write FinsertTextFormat;
     property insertTextMode: TNXJSONInteger read FinsertTextMode write FinsertTextMode;
-    property textEdit: TNXJSONValue read FtextEdit write FtextEdit;
+    property textEdit: TNXLSCompletionItemTextEditValue read FtextEdit write FtextEdit;
     property textEditText: TNXJSONString read FtextEditText write FtextEditText;
     property additionalTextEdits: TNXLSTextEditArray read FadditionalTextEdits write FadditionalTextEdits;
     property commitCharacters: TNXJSONStringArray read FcommitCharacters write FcommitCharacters;
     property command: TNXLSCommand read Fcommand write Fcommand;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
   TNXLSCompletionItemLabelDetails = class(TNXJSONObject)
@@ -1122,7 +1194,7 @@ type
     property description: TNXJSONString read Fdescription write Fdescription;
   end;
 
-  TNXLSCodeAction = class(TNXJSONObjectParams)
+  TNXLSCodeAction = class(TNXJSONRPCObjectParams)
   private
     Ftitle: TNXJSONString;
     Fkind: TNXJSONString;
@@ -1131,7 +1203,7 @@ type
     Fdisabled: TNXLSCodeActionDisabled;
     Fedit: TNXLSWorkspaceEdit;
     Fcommand: TNXLSCommand;
-    Fdata: TNXJSONValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property title: TNXJSONString read Ftitle write Ftitle;
     property kind: TNXJSONString read Fkind write Fkind;
@@ -1140,7 +1212,7 @@ type
     property disabled: TNXLSCodeActionDisabled read Fdisabled write Fdisabled;
     property edit: TNXLSWorkspaceEdit read Fedit write Fedit;
     property command: TNXLSCommand read Fcommand write Fcommand;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
   TNXLSCodeActionDisabled = class(TNXJSONObject)
@@ -1150,24 +1222,109 @@ type
     property reason: TNXJSONString read Freason write Freason;
   end;
 
-  TNXLSWorkspaceSymbol = class(TNXJSONObjectParams)
+  TNXLSWorkspaceSymbolLocation = class(TNXJSONObject)
+  private
+    Furi: TNXJSONString;
+  published
+    property uri: TNXJSONString read Furi write Furi;
+  end;
+
+  TNXLSWorkspaceSymbol = class(TNXJSONRPCObjectParams)
   private
     Fname: TNXJSONString;
     Fkind: TNXJSONInteger;
     Ftags: TNXJSONIntegerArray;
     FcontainerName: TNXJSONString;
-    Flocation: TNXJSONValue;
-    Fdata: TNXJSONValue;
+    Flocation: TNXLSWorkspaceSymbolLocationValue;
+    Fdata: TNXJSONRPCUnknown;
   published
     property name: TNXJSONString read Fname write Fname;
     property kind: TNXJSONInteger read Fkind write Fkind;
     property tags: TNXJSONIntegerArray read Ftags write Ftags;
     property containerName: TNXJSONString read FcontainerName write FcontainerName;
-    property location: TNXJSONValue read Flocation write Flocation;
-    property data: TNXJSONValue read Fdata write Fdata;
+    property location: TNXLSWorkspaceSymbolLocationValue read Flocation write Flocation;
+    property data: TNXJSONRPCUnknown read Fdata write Fdata;
   end;
 
 implementation
+
+class function TNXLSMarkupContentValue.SupportedValueClasses: TNXJSONRPCValueClassArray;
+begin
+  Result := nil;
+  SetLength(Result, 2);
+  Result[0] := TNXJSONString;
+  Result[1] := TNXLSMarkupContent;
+end;
+
+class function TNXLSParameterInformationLabelValue.SupportedValueClasses: TNXJSONRPCValueClassArray;
+begin
+  Result := nil;
+  SetLength(Result, 2);
+  Result[0] := TNXJSONString;
+  Result[1] := TNXJSONIntegerArray;
+end;
+
+class function TNXLSParameterInformationLabelValue.ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass;
+begin
+  if (AData <> nil) and (AData.JSONType = jtArray) then
+    Result := TNXJSONIntegerArray
+  else
+    Result := inherited ValueClassForJSON(AData);
+end;
+
+class function TNXLSInlayHintLabelValue.SupportedValueClasses: TNXJSONRPCValueClassArray;
+begin
+  Result := nil;
+  SetLength(Result, 2);
+  Result[0] := TNXJSONString;
+  Result[1] := TNXLSInlayHintLabelPartArray;
+end;
+
+class function TNXLSInlayHintLabelValue.ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass;
+begin
+  if (AData <> nil) and (AData.JSONType = jtArray) then
+    Result := TNXLSInlayHintLabelPartArray
+  else
+    Result := inherited ValueClassForJSON(AData);
+end;
+
+class function TNXLSCompletionItemTextEditValue.ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass;
+begin
+  if (AData is TJSONObject) and
+    ((TJSONObject(AData).Find('insert') <> nil) or
+     (TJSONObject(AData).Find('replace') <> nil)) then
+    Result := TNXLSInsertReplaceEdit
+  else if AData is TJSONObject then
+    Result := TNXLSTextEdit
+  else
+    Result := inherited ValueClassForJSON(AData);
+end;
+
+class function TNXLSCompletionItemTextEditValue.SupportedValueClasses: TNXJSONRPCValueClassArray;
+begin
+  Result := nil;
+  SetLength(Result, 2);
+  Result[0] := TNXLSTextEdit;
+  Result[1] := TNXLSInsertReplaceEdit;
+end;
+
+class function TNXLSWorkspaceSymbolLocationValue.ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass;
+begin
+  if (AData is TJSONObject) and (TJSONObject(AData).Find('range') <> nil) then
+    Result := TNXLSLocation
+  else if AData is TJSONObject then
+    Result := TNXLSWorkspaceSymbolLocation
+  else
+    Result := inherited ValueClassForJSON(AData);
+end;
+
+class function TNXLSWorkspaceSymbolLocationValue.SupportedValueClasses: TNXJSONRPCValueClassArray;
+begin
+  Result := nil;
+  SetLength(Result, 2);
+  Result[0] := TNXLSLocation;
+  Result[1] := TNXLSWorkspaceSymbolLocation;
+end;
 
 constructor TNXLSInitializeParams.Create;
 begin
@@ -1183,112 +1340,117 @@ begin
   version.AcceptsNull := True;
 end;
 
-class function TNXJSONStringArray.ItemClass: TNXJSONValueClass;
+class function TNXJSONStringArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXJSONString;
 end;
 
-class function TNXJSONIntegerArray.ItemClass: TNXJSONValueClass;
+class function TNXJSONIntegerArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXJSONInteger;
 end;
 
-class function TNXLSPositionArray.ItemClass: TNXJSONValueClass;
+class function TNXLSPositionArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSPosition;
 end;
 
-class function TNXLSTextDocumentItemArray.ItemClass: TNXJSONValueClass;
+class function TNXLSTextDocumentItemArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSTextDocumentItem;
 end;
 
-class function TNXLSTextDocumentIdentifierArray.ItemClass: TNXJSONValueClass;
+class function TNXLSTextDocumentIdentifierArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSTextDocumentIdentifier;
 end;
 
-class function TNXLSWorkspaceFolderArray.ItemClass: TNXJSONValueClass;
+class function TNXLSWorkspaceFolderArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSWorkspaceFolder;
 end;
 
-class function TNXLSDiagnosticRelatedInformationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSDiagnosticRelatedInformationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSDiagnosticRelatedInformation;
 end;
 
-class function TNXLSDiagnosticArray.ItemClass: TNXJSONValueClass;
+class function TNXLSDiagnosticArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSDiagnostic;
 end;
 
-class function TNXLSParameterInformationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSParameterInformationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSParameterInformation;
 end;
 
-class function TNXLSSignatureInformationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSSignatureInformationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSSignatureInformation;
 end;
 
-class function TNXLSConfigurationItemArray.ItemClass: TNXJSONValueClass;
+class function TNXLSConfigurationItemArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSConfigurationItem;
 end;
 
-class function TNXLSRegistrationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSRegistrationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSRegistration;
 end;
 
-class function TNXLSUnregistrationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSUnregistrationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSUnregistration;
 end;
 
-class function TNXLSFileCreateArray.ItemClass: TNXJSONValueClass;
+class function TNXLSFileCreateArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSFileCreate;
 end;
 
-class function TNXLSFileRenameArray.ItemClass: TNXJSONValueClass;
+class function TNXLSFileRenameArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSFileRename;
 end;
 
-class function TNXLSFileDeleteArray.ItemClass: TNXJSONValueClass;
+class function TNXLSFileDeleteArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSFileDelete;
 end;
 
-class function TNXLSFileEventArray.ItemClass: TNXJSONValueClass;
+class function TNXLSFileEventArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSFileEvent;
 end;
 
-class function TNXLSNotebookCellArray.ItemClass: TNXJSONValueClass;
+class function TNXLSNotebookCellArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSNotebookCell;
 end;
 
-class function TNXLSDiagnosticPreviousResultIdArray.ItemClass: TNXJSONValueClass;
+class function TNXLSInlayHintLabelPartArray.ItemClass: TNXJSONRPCValueClass;
+begin
+  Result := TNXLSInlayHintLabelPart;
+end;
+
+class function TNXLSDiagnosticPreviousResultIdArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSDiagnosticPreviousResultId;
 end;
 
-class function TNXLSTextEditArray.ItemClass: TNXJSONValueClass;
+class function TNXLSTextEditArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSTextEdit;
 end;
 
-class function TNXLSTextDocumentEditArray.ItemClass: TNXJSONValueClass;
+class function TNXLSTextDocumentEditArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSTextDocumentEdit;
 end;
 
-class function TNXLSMessageActionItemArray.ItemClass: TNXJSONValueClass;
+class function TNXLSMessageActionItemArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSMessageActionItem;
 end;

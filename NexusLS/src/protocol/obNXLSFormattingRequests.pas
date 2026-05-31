@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSDocumentFormattingParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSDocumentFormattingParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSDocumentRangeFormattingParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSDocumentRangeFormattingParams read GetParams write SetParams;
@@ -49,7 +50,7 @@ public
     procedure SetParams(AValue: TNXLSDocumentOnTypeFormattingParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSTextEditArray read GetResult write SetResult;
     property params: TNXLSDocumentOnTypeFormattingParams read GetParams write SetParams;
@@ -66,7 +67,7 @@ begin
   Result := 'textDocument/formatting';
 end;
 
-function TNXLSTextDocumentFormattingRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentFormattingRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -77,7 +78,7 @@ begin
   Result := 'textDocument/rangeFormatting';
 end;
 
-function TNXLSTextDocumentRangeFormattingRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentRangeFormattingRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -88,7 +89,7 @@ begin
   Result := 'textDocument/onTypeFormatting';
 end;
 
-function TNXLSTextDocumentOnTypeFormattingRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentOnTypeFormattingRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

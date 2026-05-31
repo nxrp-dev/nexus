@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams;
 
@@ -88,7 +89,7 @@ type
     FsignatureHelpProvider: TNXLSSignatureHelpOptions;
     FcodeActionProvider: TNXJSONBoolean;
     FrenameProvider: TNXLSRenameOptions;
-    Fexperimental: TNXJSONValue;
+    Fexperimental: TNXJSONRPCUnknown;
   published
     property textDocumentSync: TNXLSTextDocumentSyncOptions read FtextDocumentSync write FtextDocumentSync;
     property workspace: TNXLSWorkspaceServerCapabilities read Fworkspace write Fworkspace;
@@ -104,7 +105,7 @@ type
     property signatureHelpProvider: TNXLSSignatureHelpOptions read FsignatureHelpProvider write FsignatureHelpProvider;
     property codeActionProvider: TNXJSONBoolean read FcodeActionProvider write FcodeActionProvider;
     property renameProvider: TNXLSRenameOptions read FrenameProvider write FrenameProvider;
-    property experimental: TNXJSONValue read Fexperimental write Fexperimental;
+    property experimental: TNXJSONRPCUnknown read Fexperimental write Fexperimental;
   end;
 
   TNXLSInitializeResultValue = class(TNXJSONObject)
@@ -137,7 +138,7 @@ type
 
   TNXLSProjectFieldArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSProjectRequestValue = class(TNXJSONObject)
@@ -160,7 +161,7 @@ type
 
   TNXLSProjectMessageArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSProjectOutput = class(TNXJSONObject)
@@ -174,7 +175,7 @@ type
 
   TNXLSProjectOutputArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSProjectDetail = class(TNXJSONObject)
@@ -188,7 +189,7 @@ type
 
   TNXLSProjectDetailArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSProjectFile = class(TNXJSONObject)
@@ -202,7 +203,7 @@ type
 
   TNXLSProjectFileArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSProjectCreateWizardResult = class(TNXJSONObject)
@@ -246,12 +247,12 @@ type
 
   TNXLSLocationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSCallHierarchyItemArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSCallHierarchyIncomingCall = class(TNXJSONObject)
@@ -265,7 +266,7 @@ type
 
   TNXLSCallHierarchyIncomingCallArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSCallHierarchyOutgoingCall = class(TNXJSONObject)
@@ -279,12 +280,12 @@ type
 
   TNXLSCallHierarchyOutgoingCallArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSTypeHierarchyItemArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSDocumentHighlight = class(TNXJSONObject)
@@ -298,21 +299,12 @@ type
 
   TNXLSDocumentHighlightArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSDocumentLinkArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
-  end;
-
-  TNXLSMarkupContent = class(TNXJSONObject)
-  private
-    Fkind: TNXJSONString;
-    Fvalue: TNXJSONString;
-  published
-    property kind: TNXJSONString read Fkind write Fkind;
-    property value: TNXJSONString read Fvalue write Fvalue;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSHover = class(TNXJSONObject)
@@ -326,7 +318,7 @@ type
 
   TNXLSCodeLensArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSFoldingRange = class(TNXJSONObject)
@@ -348,14 +340,14 @@ type
 
   TNXLSFoldingRangeArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSSelectionRange = class;
 
   TNXLSSelectionRangeArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSSelectionRange = class(TNXJSONObject)
@@ -428,7 +420,7 @@ type
 
   TNXLSInlayHintArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSMoniker = class(TNXJSONObject)
@@ -446,12 +438,12 @@ type
 
   TNXLSMonikerArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSCompletionItemArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSCodeActionArray = class(TNXJSONArray)
@@ -468,7 +460,7 @@ type
 
   TNXLSColorInformationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSColorPresentation = class(TNXJSONObject)
@@ -484,7 +476,7 @@ type
 
   TNXLSColorPresentationArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSPrepareRenamePlaceholder = class(TNXJSONObject)
@@ -535,7 +527,7 @@ type
 
   TNXLSWorkspaceDocumentDiagnosticReportArray = class(TNXJSONArray)
   public
-    class function ItemClass: TNXJSONValueClass; override;
+    class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
   TNXLSWorkspaceDiagnosticReport = class(TNXJSONObject)
@@ -548,7 +540,7 @@ type
   TNXLSConfigurationArray = class(TNXJSONArray)
   end;
 
-  TNXLSApplyWorkspaceEditResultValue = class(TNXJSONCommandResult)
+  TNXLSApplyWorkspaceEditResultValue = class(TNXJSONRPCCommandResult)
   private
     Fapplied: TNXJSONBoolean;
     FfailureReason: TNXJSONString;
@@ -574,107 +566,107 @@ begin
   version.AcceptsNull := True;
 end;
 
-class function TNXLSProjectFieldArray.ItemClass: TNXJSONValueClass;
+class function TNXLSProjectFieldArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSProjectField;
 end;
 
-class function TNXLSProjectMessageArray.ItemClass: TNXJSONValueClass;
+class function TNXLSProjectMessageArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSProjectMessage;
 end;
 
-class function TNXLSProjectOutputArray.ItemClass: TNXJSONValueClass;
+class function TNXLSProjectOutputArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSProjectOutput;
 end;
 
-class function TNXLSProjectDetailArray.ItemClass: TNXJSONValueClass;
+class function TNXLSProjectDetailArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSProjectDetail;
 end;
 
-class function TNXLSProjectFileArray.ItemClass: TNXJSONValueClass;
+class function TNXLSProjectFileArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSProjectFile;
 end;
 
-class function TNXLSLocationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSLocationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSLocation;
 end;
 
-class function TNXLSCallHierarchyItemArray.ItemClass: TNXJSONValueClass;
+class function TNXLSCallHierarchyItemArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSCallHierarchyItem;
 end;
 
-class function TNXLSCallHierarchyIncomingCallArray.ItemClass: TNXJSONValueClass;
+class function TNXLSCallHierarchyIncomingCallArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSCallHierarchyIncomingCall;
 end;
 
-class function TNXLSCallHierarchyOutgoingCallArray.ItemClass: TNXJSONValueClass;
+class function TNXLSCallHierarchyOutgoingCallArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSCallHierarchyOutgoingCall;
 end;
 
-class function TNXLSTypeHierarchyItemArray.ItemClass: TNXJSONValueClass;
+class function TNXLSTypeHierarchyItemArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSTypeHierarchyItem;
 end;
 
-class function TNXLSDocumentHighlightArray.ItemClass: TNXJSONValueClass;
+class function TNXLSDocumentHighlightArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSDocumentHighlight;
 end;
 
-class function TNXLSDocumentLinkArray.ItemClass: TNXJSONValueClass;
+class function TNXLSDocumentLinkArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSDocumentLink;
 end;
 
-class function TNXLSCodeLensArray.ItemClass: TNXJSONValueClass;
+class function TNXLSCodeLensArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSCodeLens;
 end;
 
-class function TNXLSFoldingRangeArray.ItemClass: TNXJSONValueClass;
+class function TNXLSFoldingRangeArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSFoldingRange;
 end;
 
-class function TNXLSSelectionRangeArray.ItemClass: TNXJSONValueClass;
+class function TNXLSSelectionRangeArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSSelectionRange;
 end;
 
-class function TNXLSInlayHintArray.ItemClass: TNXJSONValueClass;
+class function TNXLSInlayHintArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSInlayHint;
 end;
 
-class function TNXLSMonikerArray.ItemClass: TNXJSONValueClass;
+class function TNXLSMonikerArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSMoniker;
 end;
 
-class function TNXLSCompletionItemArray.ItemClass: TNXJSONValueClass;
+class function TNXLSCompletionItemArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSCompletionItem;
 end;
 
-class function TNXLSColorInformationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSColorInformationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSColorInformation;
 end;
 
-class function TNXLSColorPresentationArray.ItemClass: TNXJSONValueClass;
+class function TNXLSColorPresentationArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSColorPresentation;
 end;
 
-class function TNXLSWorkspaceDocumentDiagnosticReportArray.ItemClass: TNXJSONValueClass;
+class function TNXLSWorkspaceDocumentDiagnosticReportArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSWorkspaceDocumentDiagnosticReport;
 end;

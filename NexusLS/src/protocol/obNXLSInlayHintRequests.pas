@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSInlayHintParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSInlayHintArray read GetResult write SetResult;
     property params: TNXLSInlayHintParams read GetParams write SetParams;
@@ -38,7 +39,7 @@ begin
   Result := 'textDocument/inlayHint';
 end;
 
-function TNXLSTextDocumentInlayHintRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentInlayHintRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSInlayHintArray;
 begin

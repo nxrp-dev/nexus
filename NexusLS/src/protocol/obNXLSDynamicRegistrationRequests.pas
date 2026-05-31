@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -20,7 +21,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSRegistrationParams read GetParams write SetParams;
   end;
@@ -32,7 +33,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSUnregistrationParams read GetParams write SetParams;
   end;
@@ -53,7 +54,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSClientRegisterCapabilityRequest.Execute: TNXJSONValue;
+function TNXLSClientRegisterCapabilityRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: client/registerCapability; required: Client-side; original server: No; category: dynamic registration; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -70,7 +71,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSClientUnregisterCapabilityRequest.Execute: TNXJSONValue;
+function TNXLSClientUnregisterCapabilityRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: client/unregisterCapability; required: Client-side; original server: No; category: dynamic registration; result: TNXLSNullResult.
   NXLSRaiseNotImplemented(GetFactoryName);

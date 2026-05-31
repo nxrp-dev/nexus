@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -20,7 +21,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDidChangeWatchedFilesParams read GetParams write SetParams;
   end;
@@ -41,7 +42,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWorkspaceDidChangeWatchedFilesRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDidChangeWatchedFilesRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: workspace/didChangeWatchedFiles; required: Optional; original server: No; category: file watching; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);

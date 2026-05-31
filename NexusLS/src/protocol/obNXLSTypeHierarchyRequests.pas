@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSTypeHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSTypeHierarchySupertypesParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSTypeHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTypeHierarchySupertypesParams read GetParams write SetParams;
@@ -49,7 +50,7 @@ public
     procedure SetParams(AValue: TNXLSTypeHierarchySubtypesParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSTypeHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTypeHierarchySubtypesParams read GetParams write SetParams;
@@ -66,7 +67,7 @@ begin
   Result := 'textDocument/prepareTypeHierarchy';
 end;
 
-function TNXLSTextDocumentPrepareTypeHierarchyRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentPrepareTypeHierarchyRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -77,7 +78,7 @@ begin
   Result := 'typeHierarchy/supertypes';
 end;
 
-function TNXLSTypeHierarchySupertypesRequest.Execute: TNXJSONValue;
+function TNXLSTypeHierarchySupertypesRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -88,7 +89,7 @@ begin
   Result := 'typeHierarchy/subtypes';
 end;
 
-function TNXLSTypeHierarchySubtypesRequest.Execute: TNXJSONValue;
+function TNXLSTypeHierarchySubtypesRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -19,7 +20,7 @@ type
     procedure SetResult(AValue: TNXLSWorkspaceFolderArray);
   public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSWorkspaceFolderArray read GetResult write SetResult;
   end;
@@ -31,7 +32,7 @@ type
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSDidChangeWorkspaceFoldersParams read GetParams write SetParams;
   end;
@@ -48,7 +49,7 @@ begin
   Result := 'workspace/workspaceFolders';
 end;
 
-function TNXLSWorkspaceWorkspaceFoldersRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceWorkspaceFoldersRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -64,7 +65,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.Execute: TNXJSONRPCValue;
 begin
   TNXLSLSPModel.Current.Workspace.DidChangeWorkspaceFolders(TNXLSDidChangeWorkspaceFoldersParams(params));
   Result := nil;

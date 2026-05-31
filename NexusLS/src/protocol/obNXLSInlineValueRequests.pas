@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSInlineValueParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSInlineValueArray read GetResult write SetResult;
     property params: TNXLSInlineValueParams read GetParams write SetParams;
@@ -38,7 +39,7 @@ begin
   Result := 'textDocument/inlineValue';
 end;
 
-function TNXLSTextDocumentInlineValueRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentInlineValueRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

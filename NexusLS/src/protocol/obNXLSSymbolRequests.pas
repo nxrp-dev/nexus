@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSDocumentSymbolParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXJSONArray read GetResult write SetResult;
     property params: TNXLSDocumentSymbolParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSWorkspaceSymbolParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXJSONArray read GetResult write SetResult;
     property params: TNXLSWorkspaceSymbolParams read GetParams write SetParams;
@@ -52,7 +53,7 @@ begin
   Result := 'textDocument/documentSymbol';
 end;
 
-function TNXLSTextDocumentDocumentSymbolRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDocumentSymbolRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXJSONArray;
 begin
@@ -67,7 +68,7 @@ begin
   Result := 'workspace/symbol';
 end;
 
-function TNXLSWorkspaceSymbolRequest.Execute: TNXJSONValue;
+function TNXLSWorkspaceSymbolRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXJSONArray;
 begin

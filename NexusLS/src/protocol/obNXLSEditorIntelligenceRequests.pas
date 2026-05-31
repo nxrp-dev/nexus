@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSDocumentHighlightArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSDocumentLinkParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSDocumentLinkArray read GetResult write SetResult;
     property params: TNXLSDocumentLinkParams read GetParams write SetParams;
@@ -50,7 +51,7 @@ public
 public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSHover read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -64,7 +65,7 @@ public
     procedure SetParams(AValue: TNXLSCodeLensParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCodeLensArray read GetResult write SetResult;
     property params: TNXLSCodeLensParams read GetParams write SetParams;
@@ -78,7 +79,7 @@ public
     procedure SetParams(AValue: TNXLSFoldingRangeParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSFoldingRangeArray read GetResult write SetResult;
     property params: TNXLSFoldingRangeParams read GetParams write SetParams;
@@ -92,7 +93,7 @@ public
     procedure SetParams(AValue: TNXLSSelectionRangeParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSSelectionRangeArray read GetResult write SetResult;
     property params: TNXLSSelectionRangeParams read GetParams write SetParams;
@@ -110,7 +111,7 @@ begin
   Result := 'textDocument/documentHighlight';
 end;
 
-function TNXLSTextDocumentDocumentHighlightRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDocumentHighlightRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSDocumentHighlightArray;
 begin
@@ -125,7 +126,7 @@ begin
   Result := 'textDocument/documentLink';
 end;
 
-function TNXLSTextDocumentDocumentLinkRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDocumentLinkRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -141,7 +142,7 @@ begin
   Result := rkNullableConcreteResult;
 end;
 
-function TNXLSTextDocumentHoverRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentHoverRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSHover;
 begin
@@ -161,7 +162,7 @@ begin
   Result := 'textDocument/codeLens';
 end;
 
-function TNXLSTextDocumentCodeLensRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentCodeLensRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -172,7 +173,7 @@ begin
   Result := 'textDocument/foldingRange';
 end;
 
-function TNXLSTextDocumentFoldingRangeRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentFoldingRangeRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -183,7 +184,7 @@ begin
   Result := 'textDocument/selectionRange';
 end;
 
-function TNXLSTextDocumentSelectionRangeRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentSelectionRangeRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

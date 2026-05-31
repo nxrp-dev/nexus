@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSInitializeParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSInitializeResultValue read GetResult write SetResult;
     property params: TNXLSInitializeParams read GetParams write SetParams;
@@ -34,7 +35,7 @@ public
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSInitializedParams read GetParams write SetParams;
   end;
@@ -43,14 +44,14 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXLSExitRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXLSDollarcancelRequest = class(TNXJSONRPCRequest)
@@ -60,7 +61,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSCancelParams read GetParams write SetParams;
   end;
@@ -72,7 +73,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSProgressParams read GetParams write SetParams;
   end;
@@ -84,7 +85,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSSetTraceParams read GetParams write SetParams;
   end;
@@ -96,7 +97,7 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 public
     class function GetFactoryName: string; override;
 class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSLogTraceParams read GetParams write SetParams;
   end;
@@ -113,7 +114,7 @@ begin
   Result := 'initialize';
 end;
 
-function TNXLSInitializeRequest.Execute: TNXJSONValue;
+function TNXLSInitializeRequest.Execute: TNXJSONRPCValue;
 var
   lResult: TNXLSInitializeResultValue;
 begin
@@ -133,7 +134,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSInitializedRequest.Execute: TNXJSONValue;
+function TNXLSInitializedRequest.Execute: TNXJSONRPCValue;
 begin
   TNXLSLSPModel.Current.Lifecycle.Initialized(TNXLSInitializedParams(params));
   Result := nil;
@@ -149,7 +150,7 @@ begin
   Result := rkNullResult;
 end;
 
-function TNXLSShutdownRequest.Execute: TNXJSONValue;
+function TNXLSShutdownRequest.Execute: TNXJSONRPCValue;
 begin
   TNXLSLSPModel.Current.Lifecycle.Shutdown;
   Result := PrepareResult;
@@ -165,7 +166,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSExitRequest.Execute: TNXJSONValue;
+function TNXLSExitRequest.Execute: TNXJSONRPCValue;
 begin
   TNXLSLSPModel.Current.Lifecycle.ExitServer;
   Result := nil;
@@ -181,7 +182,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSDollarcancelRequest.Execute: TNXJSONValue;
+function TNXLSDollarcancelRequest.Execute: TNXJSONRPCValue;
 begin
   TNXLSLSPModel.Current.Lifecycle.CancelRequest(TNXLSCancelParams(params));
   Result := nil;
@@ -197,7 +198,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSDollarprogressRequest.Execute: TNXJSONValue;
+function TNXLSDollarprogressRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: $/progress; required: Optional; original server: No; category: lifecycle; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -214,7 +215,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSDollarsetTraceRequest.Execute: TNXJSONValue;
+function TNXLSDollarsetTraceRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: $/setTrace; required: Optional; original server: No; category: lifecycle; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);
@@ -231,7 +232,7 @@ begin
   Result := rkNoResult;
 end;
 
-function TNXLSDollarlogTraceRequest.Execute: TNXJSONValue;
+function TNXLSDollarlogTraceRequest.Execute: TNXJSONRPCValue;
 begin
   // Method: $/logTrace; required: Client-side; original server: No; category: lifecycle; result: nil.
   NXLSRaiseNotImplemented(GetFactoryName);

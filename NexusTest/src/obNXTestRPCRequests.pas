@@ -7,25 +7,26 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXTestRPCValues;
 
 type
   TNXTestGetCapabilitiesRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXTestListTestsRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXTestRunAllRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   end;
 
   TNXTestRunSuiteRequest = class(TNXJSONRPCRequest)
@@ -34,7 +35,7 @@ type
     procedure SetParams(AValue: TNXTestRunSuiteParams);
 public
     class function GetFactoryName: string; override;
-function Execute: TNXJSONValue; override;
+function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXTestRunSuiteParams read GetParams write SetParams;
   end;
@@ -45,7 +46,7 @@ function Execute: TNXJSONValue; override;
     procedure SetParams(AValue: TNXTestRunTestParams);
 public
     class function GetFactoryName: string; override;
-function Execute: TNXJSONValue; override;
+function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXTestRunTestParams read GetParams write SetParams;
   end;
@@ -67,7 +68,7 @@ begin
   Result := cNXTestMethodGetCapabilities;
 end;
 
-function TNXTestGetCapabilitiesRequest.Execute: TNXJSONValue;
+function TNXTestGetCapabilitiesRequest.Execute: TNXJSONRPCValue;
 begin
   Result := NXTestCapabilitiesValue;
 end;
@@ -77,7 +78,7 @@ begin
   Result := cNXTestMethodListTests;
 end;
 
-function TNXTestListTestsRequest.Execute: TNXJSONValue;
+function TNXTestListTestsRequest.Execute: TNXJSONRPCValue;
 begin
   Result := NXTestRegistryValue(CurrentModule.Registry);
 end;
@@ -87,7 +88,7 @@ begin
   Result := cNXTestMethodRunAll;
 end;
 
-function TNXTestRunAllRequest.Execute: TNXJSONValue;
+function TNXTestRunAllRequest.Execute: TNXJSONRPCValue;
 begin
   Result := NXTestRunAllResultValue(CurrentModule.Runner.RunAll);
 end;
@@ -97,7 +98,7 @@ begin
   Result := cNXTestMethodRunSuite;
 end;
 
-function TNXTestRunSuiteRequest.Execute: TNXJSONValue;
+function TNXTestRunSuiteRequest.Execute: TNXJSONRPCValue;
 var
   lParams: TNXTestRunSuiteParams;
   lSuiteName: string;
@@ -121,7 +122,7 @@ begin
   Result := cNXTestMethodRunTest;
 end;
 
-function TNXTestRunTestRequest.Execute: TNXJSONValue;
+function TNXTestRunTestRequest.Execute: TNXJSONRPCValue;
 var
   lParams: TNXTestRunTestParams;
   lTestId: string;

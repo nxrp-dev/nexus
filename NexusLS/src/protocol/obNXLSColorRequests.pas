@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSDocumentColorParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSColorInformationArray read GetResult write SetResult;
     property params: TNXLSDocumentColorParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSColorPresentationParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSColorPresentationArray read GetResult write SetResult;
     property params: TNXLSColorPresentationParams read GetParams write SetParams;
@@ -52,7 +53,7 @@ begin
   Result := 'textDocument/documentColor';
 end;
 
-function TNXLSTextDocumentDocumentColorRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentDocumentColorRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -63,7 +64,7 @@ begin
   Result := 'textDocument/colorPresentation';
 end;
 
-function TNXLSTextDocumentColorPresentationRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentColorPresentationRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;

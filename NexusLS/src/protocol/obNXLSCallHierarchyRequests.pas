@@ -7,6 +7,7 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -21,7 +22,7 @@ type
     procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCallHierarchyItemArray read GetResult write SetResult;
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
@@ -35,7 +36,7 @@ public
     procedure SetParams(AValue: TNXLSCallHierarchyIncomingCallsParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCallHierarchyIncomingCallArray read GetResult write SetResult;
     property params: TNXLSCallHierarchyIncomingCallsParams read GetParams write SetParams;
@@ -49,7 +50,7 @@ public
     procedure SetParams(AValue: TNXLSCallHierarchyOutgoingCallsParams);
 public
     class function GetFactoryName: string; override;
-    function Execute: TNXJSONValue; override;
+    function Execute: TNXJSONRPCValue; override;
   published
     property result: TNXLSCallHierarchyOutgoingCallArray read GetResult write SetResult;
     property params: TNXLSCallHierarchyOutgoingCallsParams read GetParams write SetParams;
@@ -66,7 +67,7 @@ begin
   Result := 'textDocument/prepareCallHierarchy';
 end;
 
-function TNXLSTextDocumentPrepareCallHierarchyRequest.Execute: TNXJSONValue;
+function TNXLSTextDocumentPrepareCallHierarchyRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -77,7 +78,7 @@ begin
   Result := 'callHierarchy/incomingCalls';
 end;
 
-function TNXLSCallHierarchyIncomingCallsRequest.Execute: TNXJSONValue;
+function TNXLSCallHierarchyIncomingCallsRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
@@ -88,7 +89,7 @@ begin
   Result := 'callHierarchy/outgoingCalls';
 end;
 
-function TNXLSCallHierarchyOutgoingCallsRequest.Execute: TNXJSONValue;
+function TNXLSCallHierarchyOutgoingCallsRequest.Execute: TNXJSONRPCValue;
 begin
   NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
