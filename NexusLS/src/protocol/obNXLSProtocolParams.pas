@@ -6,9 +6,19 @@ interface
 
 uses
   obNXJSONValues,
+  obNXJSONRPCObjects,
   obNXLSProtocolBase;
 
 type
+  TNXLSRequestIDValue = class(TNXJSONRPCVariant)
+  end;
+
+  TNXLSProgressToken = class(TNXJSONRPCVariant)
+  end;
+
+  TNXLSDiagnosticCodeValue = class(TNXJSONRPCVariant)
+  end;
+
   TNXLSCompletionContext = class;
   TNXLSSignatureHelpContext = class;
   TNXLSInlineValueContext = class;
@@ -112,17 +122,17 @@ type
 
   TNXLSCancelParams = class(TNXJSONObjectParams)
   private
-    Fid: TNXJSONValue;
+    Fid: TNXLSRequestIDValue;
   published
-    property id: TNXJSONValue read Fid write Fid;
+    property id: TNXLSRequestIDValue read Fid write Fid;
   end;
 
   TNXLSProgressParams = class(TNXJSONObjectParams)
   private
-    Ftoken: TNXJSONValue;
+    Ftoken: TNXLSProgressToken;
     Fvalue: TNXJSONValue;
   published
-    property token: TNXJSONValue read Ftoken write Ftoken;
+    property token: TNXLSProgressToken read Ftoken write Ftoken;
     property value: TNXJSONValue read Fvalue write Fvalue;
   end;
 
@@ -342,7 +352,7 @@ type
   private
     Frange: TNXLSRange;
     Fseverity: TNXJSONInteger;
-    Fcode: TNXJSONValue;
+    Fcode: TNXLSDiagnosticCodeValue;
     FcodeDescription: TNXLSDiagnosticCodeDescription;
     Fsource: TNXJSONString;
     Fmessage: TNXJSONString;
@@ -352,7 +362,7 @@ type
   published
     property range: TNXLSRange read Frange write Frange;
     property severity: TNXJSONInteger read Fseverity write Fseverity;
-    property code: TNXJSONValue read Fcode write Fcode;
+    property code: TNXLSDiagnosticCodeValue read Fcode write Fcode;
     property codeDescription: TNXLSDiagnosticCodeDescription read FcodeDescription write FcodeDescription;
     property source: TNXJSONString read Fsource write Fsource;
     property message: TNXJSONString read Fmessage write Fmessage;
@@ -829,16 +839,16 @@ type
 
   TNXLSWorkDoneProgressCreateParams = class(TNXJSONObjectParams)
   private
-    Ftoken: TNXJSONValue;
+    Ftoken: TNXLSProgressToken;
   published
-    property token: TNXJSONValue read Ftoken write Ftoken;
+    property token: TNXLSProgressToken read Ftoken write Ftoken;
   end;
 
   TNXLSWorkDoneProgressCancelParams = class(TNXJSONObjectParams)
   private
-    Ftoken: TNXJSONValue;
+    Ftoken: TNXLSProgressToken;
   published
-    property token: TNXJSONValue read Ftoken write Ftoken;
+    property token: TNXLSProgressToken read Ftoken write Ftoken;
   end;
 
   TNXLSRenameParams = class(TNXLSTextDocumentPositionParams)
@@ -883,11 +893,13 @@ type
   TNXLSPublishDiagnosticsParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
-    Fversion: TNXJSONValue;
+    Fversion: TNXJSONInteger;
     Fdiagnostics: TNXLSDiagnosticArray;
+  public
+    constructor Create; override;
   published
     property uri: TNXJSONString read Furi write Furi;
-    property version: TNXJSONValue read Fversion write Fversion;
+    property version: TNXJSONInteger read Fversion write Fversion;
     property diagnostics: TNXLSDiagnosticArray read Fdiagnostics write Fdiagnostics;
   end;
 
@@ -1163,6 +1175,12 @@ begin
   processId.AcceptsNull := True;
   rootPath.AcceptsNull := True;
   rootUri.AcceptsNull := True;
+end;
+
+constructor TNXLSPublishDiagnosticsParams.Create;
+begin
+  inherited Create;
+  version.AcceptsNull := True;
 end;
 
 class function TNXJSONStringArray.ItemClass: TNXJSONValueClass;
