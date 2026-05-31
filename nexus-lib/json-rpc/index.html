@@ -1,0 +1,2678 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Nexus Pascal tooling and framework documentation">
+      
+      
+      
+        <link rel="canonical" href="https://nxrp-dev.github.io/nexus/nexus-lib/json-rpc/">
+      
+      
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../../guides/building-pascal-in-vscode/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>JSON-RPC Protocol Modeling - Nexus</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#json-rpc-protocol-modeling" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Nexus" class="md-header__button md-logo" aria-label="Nexus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Nexus
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              JSON-RPC Protocol Modeling
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/nxrp-dev/nexus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../.." class="md-tabs__link">
+          
+  
+  
+    
+  
+  Home
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/system-boundaries/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../nexus-pascal/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Nexus Pascal
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../nexus-ui/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NexusUI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../nexus-schema/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NexusSchema
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../nexus-ls/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NexusLS
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../nexus-test/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NexusTest
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  NexusLib
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/building-pascal-in-vscode/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Nexus" class="md-nav__button md-logo" aria-label="Nexus" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Nexus
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/nxrp-dev/nexus" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_1" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../.." class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_1" id="__nav_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Home
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../ecosystem/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The Nexus Ecosystem
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../project-status/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Status
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../naq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../support/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Support
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../attribution/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Attribution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../license/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/system-boundaries/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Boundaries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/dependencies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Dependencies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/naming-ownership/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Naming and Ownership
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../nexus-pascal/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nexus Pascal
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Nexus Pascal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../nexus-ui/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NexusUI
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NexusUI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/controls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Controls
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/styling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Styling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/data-binding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Binding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-ui/cross-platform/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cross Platform
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../nexus-schema/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NexusSchema
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NexusSchema
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/philosophy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Philosophy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/metadata-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Metadata Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/schema-language/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Syntax
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/templates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Templates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/database-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Database Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/code-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/command-line/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../nexus-schema/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../nexus-ls/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NexusLS
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NexusLS
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../nexus-test/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NexusTest
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NexusTest
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NexusLib
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    NexusLib
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON-RPC Protocol Modeling
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    JSON-RPC Protocol Modeling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-object-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Object Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#published-properties-are-the-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Published Properties Are the Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requests-and-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requests and Notifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dispatch-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch Shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outbound-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ownership-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership and Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/building-pascal-in-vscode/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Pascal Application in VS Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/building-nexus-ui-application/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Building a Nexus UI Application
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/creating-schema-driven-project/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Creating a Schema-Driven Project
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/maintaining-legacy-pascal-code/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintaining Legacy Pascal Code
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/ai-assisted-pascal-development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI-Assisted Pascal Development
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#core-object-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Object Model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#published-properties-are-the-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Published Properties Are the Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#requests-and-notifications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Requests and Notifications
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dispatch-shape" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dispatch Shape
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outbound-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Outbound Commands
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ownership-and-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ownership and Lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Boundaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="json-rpc-protocol-modeling">JSON-RPC Protocol Modeling</h1>
+<p>NexusLib models JSON-RPC protocols as typed Object Pascal object graphs. The JSON wire format is still JSON-RPC 2.0, but application code works with <code>TNXJSONValue</code> descendants, request classes, response classes, and published properties instead of hand-walking <code>TJSONObject</code> trees.</p>
+<p>The current system is used by NexusLS for Language Server Protocol messages and by NexusTest for its test-module command protocol.</p>
+<h2 id="core-object-model">Core Object Model</h2>
+<p>The JSON-RPC support lives in <code>NexusLib/src/obNXJSONRPCMessages.pas</code> and builds on <code>NexusLib/src/obNXJSONValues.pas</code>.</p>
+<p>The base message lineage is:</p>
+<div class="highlight"><pre><span></span><code><span class="n">TNXJSONValue</span>
+<span class="w">  </span><span class="n">TNXJSONObject</span>
+<span class="w">    </span><span class="n">TNXJSONRPCMessage</span>
+<span class="w">      </span><span class="n">TNXJSONRPCCommandMessage</span>
+<span class="w">        </span><span class="n">TNXJSONRPCNotification</span>
+<span class="w">        </span><span class="n">TNXJSONRPCRequest</span>
+<span class="w">        </span><span class="n">TNXJSONRPCOutboundCommand</span>
+<span class="w">      </span><span class="n">TNXJSONRPCResponse</span>
+<span class="w">    </span><span class="n">TNXJSONRPCError</span>
+<span class="w">    </span><span class="n">TNXJSONCommandResult</span>
+</code></pre></div>
+<p><code>TNXJSONRPCMessage</code> owns the shared JSON-RPC envelope:</p>
+<ul>
+<li><code>jsonrpc: TNXJSONString</code></li>
+<li><code>id: TNXJSONValue</code></li>
+<li><code>MessageType</code>, computed from the populated envelope fields</li>
+<li><code>Kind</code>, a higher-level classification of request, notification, success response, or error response</li>
+</ul>
+<p><code>TNXJSONRPCCommandMessage</code> adds:</p>
+<ul>
+<li><code>method: TNXJSONString</code></li>
+<li><code>params: TNXJSONObjectParams</code></li>
+<li><code>HasParams</code></li>
+<li><code>ParamsObject</code></li>
+</ul>
+<p><code>TNXJSONRPCResponse</code> adds:</p>
+<ul>
+<li><code>result: TNXJSONValue</code></li>
+<li><code>error: TNXJSONValue</code></li>
+</ul>
+<p>A response is valid only when it has exactly one of <code>result</code> or <code>error</code>, and it must carry an <code>id</code>.</p>
+<p><code>TNXJSONRPCError</code> models the JSON-RPC error object:</p>
+<ul>
+<li><code>code: TNXJSONInteger</code></li>
+<li><code>message: TNXJSONString</code></li>
+<li><code>data: TNXJSONValue</code></li>
+</ul>
+<h2 id="published-properties-are-the-contract">Published Properties Are the Contract</h2>
+<p>Nexus JSON DTOs are regular Pascal classes whose <code>published</code> properties define the JSON contract.</p>
+<p>For example, an LSP position is modeled as:</p>
+<div class="highlight"><pre><span></span><code><span class="n">TNXLSPosition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TNXJSONObject</span><span class="p">)</span>
+<span class="kp">private</span>
+<span class="w">  </span><span class="n">Fline</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONInteger</span><span class="o">;</span>
+<span class="w">  </span><span class="n">Fcharacter</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONInteger</span><span class="o">;</span>
+<span class="kp">published</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">line</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONInteger</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">Fline</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">Fline</span><span class="o">;</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">character</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONInteger</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">Fcharacter</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">Fcharacter</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p><code>TNXJSONObject</code> uses RTTI over class-type published properties. On construction it auto-creates <code>TNXJSONValue</code> properties, on serialization it emits assigned JSON values, and on destruction it frees those property objects. Unknown incoming JSON object properties are ignored unless a matching published property exists.</p>
+<p>Arrays are modeled with <code>TNXJSONArray</code> descendants. Override <code>ItemClass</code> when an array has a known element type:</p>
+<div class="highlight"><pre><span></span><code><span class="n">TNXLSCompletionItemArray</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TNXJSONArray</span><span class="p">)</span>
+<span class="kp">public</span>
+<span class="w">  </span><span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nf">ItemClass</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONValueClass</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+
+<span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nc">TNXLSCompletionItemArray</span><span class="o">.</span><span class="nf">ItemClass</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONValueClass</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TNXLSCompletionItem</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>Primitive values use <code>TNXJSONString</code>, <code>TNXJSONInteger</code>, <code>TNXJSONFloat</code>, <code>TNXJSONBoolean</code>, and <code>TNXJSONNull</code>. Untyped or mixed fields use <code>TNXJSONValue</code>.</p>
+<h2 id="requests-and-notifications">Requests and Notifications</h2>
+<p>Inbound methods are modeled as <code>TNXJSONRPCRequest</code> descendants. The class factory key is the JSON-RPC method name, supplied by overriding <code>GetFactoryName</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">TNXLSTextDocumentCompletionRequest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TNXJSONRPCRequest</span><span class="p">)</span>
+<span class="kp">private</span>
+<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="nf">GetResult</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="o">;</span>
+<span class="w">  </span><span class="k">procedure</span><span class="w"> </span><span class="nf">SetResult</span><span class="p">(</span><span class="n">AValue</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="p">)</span><span class="o">;</span>
+<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="nf">GetParams</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionParams</span><span class="o">;</span>
+<span class="w">  </span><span class="k">procedure</span><span class="w"> </span><span class="nf">SetParams</span><span class="p">(</span><span class="n">AValue</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionParams</span><span class="p">)</span><span class="o">;</span>
+<span class="kp">public</span>
+<span class="w">  </span><span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nf">GetFactoryName</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="nf">Execute</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONValue</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<span class="kp">published</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="bp">result</span><span class="o">:</span><span class="w"> </span><span class="py">TNXLSCompletionItemArray</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">GetResult</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">SetResult</span><span class="o">;</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">params</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionParams</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">GetParams</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">SetParams</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>The implementation pattern is:</p>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nc">TNXLSTextDocumentCompletionRequest</span><span class="o">.</span><span class="nf">GetFactoryName</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="s">&#39;textDocument/completion&#39;</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+
+<span class="k">function</span><span class="w"> </span><span class="nc">TNXLSTextDocumentCompletionRequest</span><span class="o">.</span><span class="nf">GetParams</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionParams</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TNXLSCompletionParams</span><span class="p">(</span><span class="k">inherited</span><span class="w"> </span><span class="n">params</span><span class="p">)</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+
+<span class="k">procedure</span><span class="w"> </span><span class="nc">TNXLSTextDocumentCompletionRequest</span><span class="o">.</span><span class="nf">SetParams</span><span class="p">(</span><span class="n">AValue</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionParams</span><span class="p">)</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="k">inherited</span><span class="w"> </span><span class="n">params</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">AValue</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+
+<span class="k">function</span><span class="w"> </span><span class="nc">TNXLSTextDocumentCompletionRequest</span><span class="o">.</span><span class="nf">GetResult</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="p">(</span><span class="k">inherited</span><span class="w"> </span><span class="bp">result</span><span class="p">)</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+
+<span class="k">procedure</span><span class="w"> </span><span class="nc">TNXLSTextDocumentCompletionRequest</span><span class="o">.</span><span class="nf">SetResult</span><span class="p">(</span><span class="n">AValue</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="p">)</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="k">inherited</span><span class="w"> </span><span class="bp">result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">AValue</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>The typed <code>params</code> and <code>result</code> properties deliberately redeclare the base properties. The base classes store the value, while the descendant exposes the protocol-specific type to RTTI and to Pascal callers. This redeclaration is how the JSON layer knows which concrete class to create for <code>params</code> and which result class is expected.</p>
+<p>Register request classes during unit initialization:</p>
+<div class="highlight"><pre><span></span><code><span class="k">initialization</span>
+<span class="w">  </span><span class="n">TNXClassFactory</span><span class="o">.</span><span class="n">RegisterClass</span><span class="p">(</span><span class="n">TNXLSTextDocumentCompletionRequest</span><span class="p">)</span><span class="o">;</span>
+</code></pre></div>
+<p>When <code>TNXJSONRPC.ParseMessage</code> sees a JSON object with a registered <code>method</code>, it creates the registered class and loads the message through its published properties.</p>
+<p>The current command model uses object-shaped params through <code>TNXJSONObjectParams</code> descendants. <code>TNXJSONArrayParams</code> and <code>TNXJSONPositionalParams</code> exist in the JSON value layer, but <code>TNXJSONRPCCommandMessage.params</code> is currently typed as <code>TNXJSONObjectParams</code>, so normal JSON-RPC protocol classes should model params as objects unless the message layer is changed.</p>
+<p>Notifications use the same command shape as requests, but have no <code>id</code>. A parsed message with a method and no <code>id</code> is classified as <code>rpcNotification</code>. Dispatchers execute it without returning a response.</p>
+<h2 id="result-handling">Result Handling</h2>
+<p><code>TNXJSONRPCRequest.Execute</code> returns a <code>TNXJSONValue</code>. The base request class provides result validation and a helper for constructing the typed result.</p>
+<p>The default result policy is <code>rkConcreteResult</code>. Override <code>GetResultKind</code> when a method has different result semantics:</p>
+<ul>
+<li><code>rkNoResult</code>: <code>Execute</code> must return <code>nil</code>. This is used for notifications or commands that should not produce a JSON-RPC result.</li>
+<li><code>rkNullResult</code>: <code>Execute</code> should return <code>PrepareResult</code>, which creates <code>TNXJSONNull</code>.</li>
+<li><code>rkConcreteResult</code>: <code>Execute</code> must return an instance of the typed <code>result</code> property class.</li>
+<li><code>rkNullableConcreteResult</code>: <code>Execute</code> may return either the typed result class or <code>TNXJSONNull</code>.</li>
+</ul>
+<p>For concrete results, call <code>PrepareResult</code> when the request should populate a typed result object:</p>
+<div class="highlight"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="nc">TNXLSTextDocumentCompletionRequest</span><span class="o">.</span><span class="nf">Execute</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONValue</span><span class="o">;</span>
+<span class="k">var</span>
+<span class="w">  </span><span class="n">lResult</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="n">lResult</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TNXLSCompletionItemArray</span><span class="p">(</span><span class="n">PrepareResult</span><span class="p">)</span><span class="o">;</span>
+<span class="w">  </span><span class="n">TNXLSLSPModel</span><span class="o">.</span><span class="n">Current</span><span class="o">.</span><span class="n">Completion</span><span class="o">.</span><span class="n">FillCompletionItems</span><span class="p">(</span>
+<span class="w">    </span><span class="n">TNXLSCompletionParams</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="o">,</span><span class="w"> </span><span class="n">lResult</span><span class="p">)</span><span class="o">;</span>
+<span class="w">  </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">lResult</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>For nullable concrete results, return <code>TNXJSONNull</code> when the protocol result is explicitly null:</p>
+<div class="highlight"><pre><span></span><code><span class="k">function</span><span class="w"> </span><span class="nc">TNXLSTextDocumentSignatureHelpRequest</span><span class="o">.</span><span class="nf">Execute</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONValue</span><span class="o">;</span>
+<span class="k">var</span>
+<span class="w">  </span><span class="n">lResult</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSSignatureHelp</span><span class="o">;</span>
+<span class="k">begin</span>
+<span class="w">  </span><span class="n">lResult</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TNXLSSignatureHelp</span><span class="p">(</span><span class="n">PrepareResult</span><span class="p">)</span><span class="o">;</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">TNXLSLSPModel</span><span class="o">.</span><span class="n">Current</span><span class="o">.</span><span class="n">Completion</span><span class="o">.</span><span class="n">FillSignatureHelp</span><span class="p">(</span>
+<span class="w">    </span><span class="n">TNXLSSignatureHelpParams</span><span class="p">(</span><span class="n">params</span><span class="p">)</span><span class="o">,</span><span class="w"> </span><span class="n">lResult</span><span class="p">)</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">lResult</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">  </span><span class="k">begin</span>
+<span class="w">    </span><span class="n">lResult</span><span class="o">.</span><span class="n">Free</span><span class="o">;</span>
+<span class="w">    </span><span class="bp">Result</span><span class="w"> </span><span class="o">:=</span><span class="w"> </span><span class="n">TNXJSONNull</span><span class="o">.</span><span class="n">Create</span><span class="o">;</span>
+<span class="w">  </span><span class="k">end</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>The dispatcher owns the returned result after <code>Execute</code> returns and frees it after building the response.</p>
+<h2 id="error-handling">Error Handling</h2>
+<p>JSON-RPC failures use <code>ENXJSONRPC</code>, which carries the JSON-RPC error code.</p>
+<p><code>TNXJSONRPC</code> defines the standard codes:</p>
+<ul>
+<li><code>ParseError = -32700</code></li>
+<li><code>InvalidRequest = -32600</code></li>
+<li><code>MethodNotFound = -32601</code></li>
+<li><code>InvalidParams = -32602</code></li>
+<li><code>InternalError = -32603</code></li>
+</ul>
+<p><code>TNXJSONRPC.CreateErrorResponse</code> builds the response envelope and serializes a <code>TNXJSONRPCError</code>. Optional structured error data is passed as a <code>TNXJSONValue</code>.</p>
+<p>NexusTest extends this pattern with <code>ENXTestRPC</code>, adding a NexusTest-specific error code that is serialized under <code>error.data</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">raise</span><span class="w"> </span><span class="n">ENXTestRPC</span><span class="o">.</span><span class="n">CreateCode</span><span class="p">(</span>
+<span class="w">  </span><span class="n">TNXJSONRPC</span><span class="o">.</span><span class="n">InvalidParams</span><span class="o">,</span>
+<span class="w">  </span><span class="n">cNXTestErrorUnknownTest</span><span class="o">,</span>
+<span class="w">  </span><span class="s">&#39;Unknown test.&#39;</span><span class="p">)</span><span class="o">;</span>
+</code></pre></div>
+<p>Dispatchers catch <code>ENXJSONRPC</code> and use its <code>Code</code>. Other exceptions are treated as <code>InternalError</code> for requests. Notifications do not receive error responses; NexusLS logs notification failures and returns no response.</p>
+<h2 id="dispatch-shape">Dispatch Shape</h2>
+<p>NexusLib parses and validates messages, but each application owns its dispatch policy.</p>
+<p>The common inbound dispatch shape is:</p>
+<ol>
+<li>Parse the raw JSON with <code>TNXJSONRPC.ParseMessage</code>.</li>
+<li>Reject anything that is not a request or notification for inbound command dispatch.</li>
+<li>Look up the <code>method</code> in <code>TNXClassFactory</code>.</li>
+<li>If needed, parse again using the registered request class so typed <code>params</code> are materialized.</li>
+<li>Execute the typed request.</li>
+<li>Validate the result against <code>GetResultKind</code> and the typed <code>result</code> property.</li>
+<li>For requests, create a success or error response.</li>
+<li>For notifications, return no response.</li>
+</ol>
+<p>NexusLS performs this in <code>TNXLSDispatcher.DispatchMessage</code>. <code>TNXLSServer.Execute</code> routes parsed success and error responses to <code>TNXLSLSPModel.ReceiveClientResponse</code> instead of inbound request dispatch.</p>
+<p>NexusTest follows the same broad shape in <code>TNXTestCommandProcessor.ExecuteCommand</code>, with extra handling for NexusTest-specific error data.</p>
+<h2 id="outbound-commands">Outbound Commands</h2>
+<p>Outbound requests are modeled with <code>TNXJSONRPCOutboundCommand</code>. This is for commands the server sends to a peer and later matches with a response.</p>
+<p>An outbound command redeclares typed <code>params</code> and typed <code>result</code>, just like an inbound request:</p>
+<div class="highlight"><pre><span></span><code><span class="n">TNXLSWorkspaceApplyEditRequest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TNXJSONRPCOutboundCommand</span><span class="p">)</span>
+<span class="kp">private</span>
+<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="nf">GetParams</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSApplyWorkspaceEditParams</span><span class="o">;</span>
+<span class="w">  </span><span class="k">function</span><span class="w"> </span><span class="nf">GetResult</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSApplyWorkspaceEditResultValue</span><span class="o">;</span>
+<span class="w">  </span><span class="k">procedure</span><span class="w"> </span><span class="nf">SetParams</span><span class="p">(</span><span class="n">AValue</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSApplyWorkspaceEditParams</span><span class="p">)</span><span class="o">;</span>
+<span class="w">  </span><span class="k">procedure</span><span class="w"> </span><span class="nf">SetResult</span><span class="p">(</span><span class="n">AValue</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSApplyWorkspaceEditResultValue</span><span class="p">)</span><span class="o">;</span>
+<span class="kp">public</span>
+<span class="w">  </span><span class="k">class</span><span class="w"> </span><span class="k">function</span><span class="w"> </span><span class="nf">GetFactoryName</span><span class="o">:</span><span class="w"> </span><span class="k">string</span><span class="o">;</span><span class="w"> </span><span class="kp">override</span><span class="o">;</span>
+<span class="kp">published</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">params</span><span class="o">:</span><span class="w"> </span><span class="n">TNXLSApplyWorkspaceEditParams</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">GetParams</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">SetParams</span><span class="o">;</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="bp">result</span><span class="o">:</span><span class="w"> </span><span class="py">TNXLSApplyWorkspaceEditResultValue</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">GetResult</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">SetResult</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p>Outbound results must descend from <code>TNXJSONCommandResult</code>. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="n">TNXLSApplyWorkspaceEditResultValue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">class</span><span class="p">(</span><span class="n">TNXJSONCommandResult</span><span class="p">)</span>
+<span class="kp">private</span>
+<span class="w">  </span><span class="n">Fapplied</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONBoolean</span><span class="o">;</span>
+<span class="w">  </span><span class="n">FfailureReason</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONString</span><span class="o">;</span>
+<span class="w">  </span><span class="n">FfailedChange</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONInteger</span><span class="o">;</span>
+<span class="kp">published</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">applied</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONBoolean</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">Fapplied</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">Fapplied</span><span class="o">;</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">failureReason</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONString</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FfailureReason</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">FfailureReason</span><span class="o">;</span>
+<span class="w">  </span><span class="k">property</span><span class="w"> </span><span class="py">failedChange</span><span class="o">:</span><span class="w"> </span><span class="n">TNXJSONInteger</span><span class="w"> </span><span class="kp">read</span><span class="w"> </span><span class="nf">FfailedChange</span><span class="w"> </span><span class="kp">write</span><span class="w"> </span><span class="nf">FfailedChange</span><span class="o">;</span>
+<span class="k">end</span><span class="o">;</span>
+</code></pre></div>
+<p><code>TNXLSOutboundDispatcher.SendRequest</code> owns the lifecycle once a command is sent:</p>
+<ul>
+<li>sets <code>jsonrpc</code> to <code>2.0</code></li>
+<li>sets <code>method</code> from <code>GetFactoryName</code></li>
+<li>allocates a numeric <code>id</code></li>
+<li>serializes the request to the transport</li>
+<li>stores the original command object in a pending-request list</li>
+</ul>
+<p>When a matching response arrives, <code>ReceiveResponse</code> calls <code>LoadOutboundResponse</code>. Success responses are loaded into the typed <code>result</code> property and then <code>ProcessOutboundResult</code> is called. Error responses are loaded into <code>CommandError</code> and then <code>ProcessOutboundError</code> is called. Clearing pending requests calls <code>ProcessOutboundTimeout</code>.</p>
+<p>Override these processing hooks in command descendants when local state must be updated after the peer responds.</p>
+<h2 id="ownership-and-lifecycle">Ownership and Lifecycle</h2>
+<p>The current ownership rules are simple and important:</p>
+<ul>
+<li><code>TNXJSONObject</code> owns and frees its auto-created published <code>TNXJSONValue</code> properties.</li>
+<li><code>TNXJSONArray</code> owns items added to it.</li>
+<li><code>PrepareResult</code> returns a new <code>TNXJSONValue</code>; it does not attach that value to the request object.</li>
+<li>Dispatchers take responsibility for freeing the <code>TNXJSONValue</code> returned by <code>Execute</code>.</li>
+<li><code>TNXJSONRPCRequest</code> frees its published <code>result</code> field only when that property has been assigned on the request object.</li>
+<li>If <code>Execute</code> creates a temporary result and decides to return <code>TNXJSONNull</code> instead, it must free the temporary result first.</li>
+<li><code>TNXJSONRPC.CreateSuccessResponse</code> and <code>CreateErrorResponse</code> return <code>TJSONObject</code>; the caller owns and frees that object.</li>
+<li><code>IDJSON</code> returns a new <code>TJSONData</code> value; the caller owns and frees it.</li>
+<li><code>TNXLSOutboundDispatcher.SendRequest</code> takes ownership of a successfully sent outbound command by storing it in the pending list. If the command cannot be sent, it frees the request before returning.</li>
+<li>Pending outbound commands are freed when their response is processed or when pending requests are cleared.</li>
+</ul>
+<p>For new protocol classes, keep the object graph explicit: model params, results, nested objects, and arrays as <code>TNXJSONValue</code> descendants with published properties. Avoid side maps or manual JSON field extraction unless the protocol genuinely has an untyped extension point.</p>
+<h2 id="current-boundaries">Current Boundaries</h2>
+<p>The current parser accepts one JSON object at a time. Although <code>TNXJSONRPCMessageKind</code> includes <code>rpcBatch</code>, batch JSON-RPC arrays are not currently parsed or dispatched.</p>
+<p>NexusLib does not own server policy, transport policy, method implementation, logging, or protocol-specific errors. It provides the typed JSON model, message parsing and validation, response construction, result validation, and outbound response loading. Applications such as NexusLS and NexusTest decide how to route messages, where behavior lives, and how failures are reported.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.indexes", "navigation.top", "content.code.copy", "search.highlight", "search.suggest"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
