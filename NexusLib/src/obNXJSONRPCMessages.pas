@@ -72,6 +72,7 @@ type
   protected
     function PrepareResult: TNXJSONValue; virtual;
   public
+    class function AllowsNullResult: Boolean; virtual;
     class function GetParamClass: TNXJSONValueClass; virtual;
     class function GetResultClass: TNXJSONValueClass; virtual;
     function Execute: TNXJSONValue; virtual; abstract;
@@ -149,6 +150,11 @@ begin
     Result := nil;
 end;
 
+class function TNXJSONRPCRequest.AllowsNullResult: Boolean;
+begin
+  Result := False;
+end;
+
 class function TNXJSONRPCRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := nil;
@@ -185,11 +191,20 @@ begin
 
   if AResult = nil then
   begin
-    if lResultClass = nil then
+    if Kind = rpcNotification then
       Exit;
 
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.Execute returned nil result.');
+  end;
+
+  if AResult is TNXJSONNull then
+  begin
+    if AllowsNullResult then
+      Exit;
+
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.Execute returned null but null is not allowed for this result.');
   end;
 
   if AResult.ClassType = TNXJSONValue then
