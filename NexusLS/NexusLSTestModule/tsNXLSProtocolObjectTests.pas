@@ -96,7 +96,7 @@ end;
 procedure TNXLSTestApplyEditRequest.ProcessOutboundResult;
 begin
   Processed := True;
-  Applied := TNXLSApplyWorkspaceEditResultValue(CommandResult).applied.Value;
+  Applied := result.applied.Value;
   URI := TNXLSTextDocumentEdit(params.edit.documentChanges[0]).textDocument.uri.Value;
 end;
 

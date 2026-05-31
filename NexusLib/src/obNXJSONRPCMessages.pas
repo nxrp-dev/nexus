@@ -6,6 +6,7 @@ interface
 
 uses
   SysUtils,
+  TypInfo,
   fpjson,
   obNXJSONValues;
 
@@ -135,9 +136,11 @@ type
   private
     FCommandResult: TNXJSONCommandResult;
     FCommandError: TNXJSONRPCError;
+    function GetResult: TNXJSONCommandResult;
+    function ResultClass: TNXJSONValueClass;
+    procedure SetResult(AValue: TNXJSONCommandResult);
   public
     destructor Destroy; override;
-    class function GetResultClass: TNXJSONCommandResultClass; virtual;
     class function GetResultKind: TNXJSONRPCResultKind; virtual;
     procedure LoadOutboundResponse(AResponse: TNXJSONRPCResponse); virtual;
     procedure ProcessOutboundResult; virtual;
@@ -145,7 +148,8 @@ type
     procedure ProcessOutboundTimeout; virtual;
     procedure ValidateResult(AResult: TNXJSONValue); virtual;
     property CommandError: TNXJSONRPCError read FCommandError;
-    property CommandResult: TNXJSONCommandResult read FCommandResult;
+  published
+    property result: TNXJSONCommandResult read GetResult write SetResult;
   end;
 
   TNXJSONRPC = class
@@ -374,9 +378,9 @@ begin
   inherited Destroy;
 end;
 
-class function TNXJSONRPCOutboundCommand.GetResultClass: TNXJSONCommandResultClass;
+function TNXJSONRPCOutboundCommand.GetResult: TNXJSONCommandResult;
 begin
-  Result := nil;
+  Result := FCommandResult;
 end;
 
 class function TNXJSONRPCOutboundCommand.GetResultKind: TNXJSONRPCResultKind;
@@ -384,9 +388,34 @@ begin
   Result := rkConcreteResult;
 end;
 
+function TNXJSONRPCOutboundCommand.ResultClass: TNXJSONValueClass;
+var
+  lPropInfo: PPropInfo;
+  lTypeInfo: PTypeInfo;
+  lClass: TClass;
+begin
+  Result := nil;
+  lPropInfo := GetPropInfo(Self, 'result');
+  if lPropInfo = nil then
+    Exit;
+
+  lTypeInfo := lPropInfo^.PropType;
+  if lTypeInfo = nil then
+    Exit;
+
+  lClass := GetTypeData(lTypeInfo)^.ClassType;
+  if (lClass <> nil) and lClass.InheritsFrom(TNXJSONValue) then
+    Result := TNXJSONValueClass(lClass);
+end;
+
+procedure TNXJSONRPCOutboundCommand.SetResult(AValue: TNXJSONCommandResult);
+begin
+  FCommandResult := AValue;
+end;
+
 procedure TNXJSONRPCOutboundCommand.ValidateResult(AResult: TNXJSONValue);
 var
-  lResultClass: TNXJSONCommandResultClass;
+  lResultClass: TNXJSONValueClass;
   lResultKind: TNXJSONRPCResultKind;
 begin
   lResultKind := GetResultKind;
@@ -418,10 +447,10 @@ begin
       ClassName + ' received ' + AResult.ClassName +
       ' but this result kind does not allow a concrete result.');
 
-  lResultClass := GetResultClass;
+  lResultClass := ResultClass;
   if lResultClass = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + '.GetResultClass returned nil.');
+      ClassName + '.result property type is not a JSON value class.');
 
   if not AResult.InheritsFrom(lResultClass) then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
@@ -433,7 +462,7 @@ procedure TNXJSONRPCOutboundCommand.LoadOutboundResponse(AResponse: TNXJSONRPCRe
 var
   lJSON: TJSONData;
   lNullResult: TNXJSONNull;
-  lResultClass: TNXJSONCommandResultClass;
+  lResultClass: TNXJSONValueClass;
 begin
   if AResponse = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
@@ -456,13 +485,17 @@ begin
       Exit;
     end;
 
-    lResultClass := GetResultClass;
+    lResultClass := ResultClass;
     if lResultClass = nil then
       raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-        ClassName + '.GetResultClass returned nil.');
+        ClassName + '.result property type is not a JSON value class.');
+
+    if not lResultClass.InheritsFrom(TNXJSONCommandResult) then
+      raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+        ClassName + '.result property type is not a command result class.');
 
     FreeAndNil(FCommandResult);
-    FCommandResult := lResultClass.Create;
+    FCommandResult := TNXJSONCommandResultClass(lResultClass).Create;
 
     lJSON := AResponse.result.ToJSONData;
     try
