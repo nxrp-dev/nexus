@@ -25,14 +25,14 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSDidOpenTextDocumentParams = class(TNXJSONObject)
+  TNXLSDidOpenTextDocumentParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentItem;
   published
     property textDocument: TNXLSTextDocumentItem read FtextDocument write FtextDocument;
   end;
 
-  TNXLSDidChangeTextDocumentParams = class(TNXJSONObject)
+  TNXLSDidChangeTextDocumentParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSVersionedTextDocumentIdentifier;
     FcontentChanges: TNXLSContentChangeArray;
@@ -41,7 +41,7 @@ type
     property contentChanges: TNXLSContentChangeArray read FcontentChanges write FcontentChanges;
   end;
 
-  TNXLSWillSaveTextDocumentParams = class(TNXJSONObject)
+  TNXLSWillSaveTextDocumentParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Freason: TNXJSONInteger;
@@ -50,7 +50,7 @@ type
     property reason: TNXJSONInteger read Freason write Freason;
   end;
 
-  TNXLSDidSaveTextDocumentParams = class(TNXJSONObject)
+  TNXLSDidSaveTextDocumentParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Ftext: TNXJSONString;
@@ -59,7 +59,7 @@ type
     property text: TNXJSONString read Ftext write Ftext;
   end;
 
-  TNXLSDidCloseTextDocumentParams = class(TNXJSONObject)
+  TNXLSDidCloseTextDocumentParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
   published

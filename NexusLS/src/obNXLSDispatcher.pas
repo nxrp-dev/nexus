@@ -69,6 +69,7 @@ end;
 class function TNXLSDispatcher.DispatchMessage(const AMessage: string; out AResponse: string): Boolean;
 var
   lMessage: TNXJSONRPCMessage;
+  lCommandMessage: TNXJSONRPCCommandMessage;
   lRequest: TNXJSONRPCRequest;
   lID: TJSONData;
   lMethod: string;
@@ -108,7 +109,8 @@ begin
       if not (lMessage.Kind in [rpcRequest, rpcNotification]) then
         Exit(False);
 
-      lMethod := lMessage.method.Value;
+      lCommandMessage := TNXJSONRPCCommandMessage(lMessage);
+      lMethod := lCommandMessage.method.Value;
       if not TNXClassFactory.Registered(lMethod) then
       begin
         if lIsRequest then

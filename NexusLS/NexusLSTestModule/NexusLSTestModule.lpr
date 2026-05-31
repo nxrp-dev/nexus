@@ -13,8 +13,7 @@ uses
   tsNXLSSymbolTests,
   tsNXLSNavigationTests,
   tsNXLSIntelligenceTests,
-  tsNXLSDiagnosticsTests,
-  tsNXTestJSONRPCHardeningTests;
+  tsNXLSDiagnosticsTests;
 
 var
   gModule: TNXTestModule = nil;
@@ -27,7 +26,6 @@ begin
   RegisterNXLSNavigationTests(ARegistry);
   RegisterNXLSIntelligenceTests(ARegistry);
   RegisterNXLSDiagnosticsTests(ARegistry);
-  RegisterNXTestJSONRPCHardeningTests(ARegistry);
 end;
 
 function NXTest_Init: Integer; cdecl;

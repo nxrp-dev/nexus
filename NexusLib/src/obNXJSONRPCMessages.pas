@@ -36,6 +36,9 @@ type
 
   TNXJSONRPCMessage = class;
   TNXJSONRPCMessageClass = class of TNXJSONRPCMessage;
+  TNXJSONRPCCommandMessage = class;
+  TNXJSONRPCNotification = class;
+  TNXJSONRPCResponse = class;
   TNXJSONCommandResult = class;
   TNXJSONCommandResultClass = class of TNXJSONCommandResult;
   TNXJSONRPCRequest = class;
@@ -47,23 +50,37 @@ type
   private
     Fjsonrpc: TNXJSONString;
     Fid: TNXJSONValue;
-    Fmethod: TNXJSONString;
-    Fparams: TNXJSONValue;
-    Fresult: TNXJSONValue;
-    Ferror: TNXJSONValue;
   public
     function Kind: TNXJSONRPCMessageKind;
 
     function HasID: Boolean;
-    function HasParams: Boolean;
     function IDJSON: TJSONData;
-    function ParamsObject: TNXJSONObject;
 
   published
     property jsonrpc: TNXJSONString read Fjsonrpc write Fjsonrpc;
     property id: TNXJSONValue read Fid write Fid;
+  end;
+
+  TNXJSONRPCCommandMessage = class(TNXJSONRPCMessage)
+  private
+    Fmethod: TNXJSONString;
+    Fparams: TNXJSONObjectParams;
+  public
+    function HasParams: Boolean;
+    function ParamsObject: TNXJSONObject;
+  published
     property method: TNXJSONString read Fmethod write Fmethod;
-    property params: TNXJSONValue read Fparams write Fparams;
+    property params: TNXJSONObjectParams read Fparams write Fparams;
+  end;
+
+  TNXJSONRPCNotification = class(TNXJSONRPCCommandMessage)
+  end;
+
+  TNXJSONRPCResponse = class(TNXJSONRPCMessage)
+  private
+    Fresult: TNXJSONValue;
+    Ferror: TNXJSONValue;
+  published
     property result: TNXJSONValue read Fresult write Fresult;
     property error: TNXJSONValue read Ferror write Ferror;
   end;
@@ -82,7 +99,7 @@ type
   TNXJSONCommandResult = class(TNXJSONObject)
   end;
 
-  TNXJSONRPCRequest = class(TNXJSONRPCMessage)
+  TNXJSONRPCRequest = class(TNXJSONRPCCommandMessage)
   protected
     function PrepareResult: TNXJSONValue; virtual;
   public
@@ -91,21 +108,22 @@ type
     class function GetResultKind: TNXJSONRPCResultKind; virtual;
     function Execute: TNXJSONValue; virtual; abstract;
     procedure ValidateResult(AResult: TNXJSONValue); virtual;
-    procedure FromJSONData(AData: TJSONData); override;
   end;
 
-  TNXJSONRPCOutboundCommand = class(TNXJSONRPCMessage)
+  TNXJSONRPCOutboundCommand = class(TNXJSONRPCCommandMessage)
   private
     FCommandResult: TNXJSONCommandResult;
+    FCommandError: TNXJSONRPCError;
   public
     destructor Destroy; override;
     class function GetResultClass: TNXJSONCommandResultClass; virtual;
     class function GetResultKind: TNXJSONRPCResultKind; virtual;
-    procedure LoadOutboundResponse(AResponse: TNXJSONRPCMessage); virtual;
+    procedure LoadOutboundResponse(AResponse: TNXJSONRPCResponse); virtual;
     procedure ProcessOutboundResult; virtual;
     procedure ProcessOutboundError; virtual;
     procedure ProcessOutboundTimeout; virtual;
     procedure ValidateResult(AResult: TNXJSONValue); virtual;
+    property CommandError: TNXJSONRPCError read FCommandError;
     property CommandResult: TNXJSONCommandResult read FCommandResult;
   end;
 
@@ -138,16 +156,20 @@ end;
 
 function TNXJSONRPCMessage.Kind: TNXJSONRPCMessageKind;
 begin
-  if (Self.method <> nil) and Self.method.Assigned then
+  if Self is TNXJSONRPCCommandMessage then
   begin
     if HasID then
       Result := rpcRequest
     else
       Result := rpcNotification;
   end
-  else if (Self.result <> nil) and Self.result.Assigned then
+  else if (Self is TNXJSONRPCResponse) and
+    (TNXJSONRPCResponse(Self).result <> nil) and
+    TNXJSONRPCResponse(Self).result.Assigned then
     Result := rpcSuccessResponse
-  else if (Self.error <> nil) and Self.error.Assigned then
+  else if (Self is TNXJSONRPCResponse) and
+    (TNXJSONRPCResponse(Self).error <> nil) and
+    TNXJSONRPCResponse(Self).error.Assigned then
     Result := rpcErrorResponse
   else
     Result := rpcUnknown;
@@ -158,7 +180,7 @@ begin
   Result := (id <> nil) and id.Assigned;
 end;
 
-function TNXJSONRPCMessage.HasParams: Boolean;
+function TNXJSONRPCCommandMessage.HasParams: Boolean;
 begin
   Result := (params <> nil) and params.Assigned;
 end;
@@ -171,7 +193,7 @@ begin
     Result := TJSONNull.Create;
 end;
 
-function TNXJSONRPCMessage.ParamsObject: TNXJSONObject;
+function TNXJSONRPCCommandMessage.ParamsObject: TNXJSONObject;
 begin
   if (params <> nil) and (params is TNXJSONObject) then
     Result := TNXJSONObject(params)
@@ -266,6 +288,7 @@ end;
 
 destructor TNXJSONRPCOutboundCommand.Destroy;
 begin
+  FreeAndNil(FCommandError);
   FreeAndNil(FCommandResult);
   inherited Destroy;
 end;
@@ -325,7 +348,7 @@ begin
       ' but expected ' + lResultClass.ClassName + '.');
 end;
 
-procedure TNXJSONRPCOutboundCommand.LoadOutboundResponse(AResponse: TNXJSONRPCMessage);
+procedure TNXJSONRPCOutboundCommand.LoadOutboundResponse(AResponse: TNXJSONRPCResponse);
 var
   lJSON: TJSONData;
   lNullResult: TNXJSONNull;
@@ -377,11 +400,11 @@ begin
       raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
         'JSON-RPC error response is missing error.');
 
-    FreeAndNil(Ferror);
+    FreeAndNil(FCommandError);
     lJSON := AResponse.error.ToJSONData;
     try
-      Ferror := TNXJSONRPCError.Create;
-      Ferror.FromJSONData(lJSON);
+      FCommandError := TNXJSONRPCError.Create;
+      FCommandError.FromJSONData(lJSON);
     finally
       lJSON.Free;
     end;
@@ -404,36 +427,6 @@ procedure TNXJSONRPCOutboundCommand.ProcessOutboundTimeout;
 begin
 end;
 
-procedure TNXJSONRPCRequest.FromJSONData(AData: TJSONData);
-var
-  lObject: TJSONObject;
-  lParamsJSON: TJSONData;
-  lParams: TNXJSONValue;
-  lParamClass: TNXJSONValueClass;
-begin
-  inherited FromJSONData(AData);
-
-  lParamClass := GetParamClass;
-  if (AData = nil) or (AData.JSONType <> jtObject) then
-    Exit;
-
-  lObject := TJSONObject(AData);
-  lParamsJSON := lObject.Find('params');
-  if lParamsJSON = nil then
-    Exit;
-
-  if lParamClass = nil then
-    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidParams, 'JSON-RPC method does not accept params.');
-
-  lParams := ValueByName('params');
-  if (lParams <> nil) and lParams.InheritsFrom(lParamClass) then
-    Exit;
-
-  FreeAndNil(Fparams);
-  Fparams := lParamClass.Create;
-  Fparams.FromJSONData(lParamsJSON);
-end;
-
 class function TNXJSONRPC.ParseMessage(const AJSON: string): TNXJSONRPCMessage;
 begin
   Result := ParseMessage(AJSON, TNXJSONRPCMessage);
@@ -442,10 +435,8 @@ end;
 class function TNXJSONRPC.ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
 var
   lJSON: TJSONData;
+  lObject: TJSONObject;
 begin
-  if AMessageClass = nil then
-    AMessageClass := TNXJSONRPCMessage;
-
   lJSON := nil;
   try
     try
@@ -457,6 +448,23 @@ begin
 
     if not (lJSON is TJSONObject) then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC message must be a JSON object.');
+
+    if AMessageClass = nil then
+      AMessageClass := TNXJSONRPCMessage;
+
+    if AMessageClass = TNXJSONRPCMessage then
+    begin
+      lObject := TJSONObject(lJSON);
+      if lObject.Find('method') <> nil then
+      begin
+        if lObject.Find('id') = nil then
+          AMessageClass := TNXJSONRPCNotification
+        else
+          AMessageClass := TNXJSONRPCCommandMessage;
+      end
+      else if (lObject.Find('result') <> nil) or (lObject.Find('error') <> nil) then
+        AMessageClass := TNXJSONRPCResponse;
+    end;
 
     Result := AMessageClass.Create;
     try
@@ -478,6 +486,8 @@ var
   lErrorJSON: TJSONData;
   lErrorObject: TJSONObject;
   lKind: TNXJSONRPCMessageKind;
+  lCommandMessage: TNXJSONRPCCommandMessage;
+  lResponse: TNXJSONRPCResponse;
 begin
   if AMessage = nil then
     raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC message cannot be nil.');
@@ -491,18 +501,16 @@ begin
 
   if lKind in [rpcRequest, rpcNotification] then
   begin
-    if (AMessage.method = nil) or (not AMessage.method.Assigned) or (AMessage.method.Value = '') then
+    if not (AMessage is TNXJSONRPCCommandMessage) then
+      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC request must be a command message.');
+
+    lCommandMessage := TNXJSONRPCCommandMessage(AMessage);
+    if (lCommandMessage.method = nil) or (not lCommandMessage.method.Assigned) or (lCommandMessage.method.Value = '') then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC request must contain a non-empty method string.');
 
-    if (AMessage.result <> nil) and AMessage.result.Assigned then
-      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC request cannot contain result.');
-
-    if (AMessage.error <> nil) and AMessage.error.Assigned then
-      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC request cannot contain error.');
-
-    if AMessage.HasParams then
+    if lCommandMessage.HasParams then
     begin
-      lParamsJSON := AMessage.params.ToJSONData;
+      lParamsJSON := lCommandMessage.params.ToJSONData;
       try
         if not (lParamsJSON.JSONType in [jtArray, jtObject]) then
           raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC params must be an object or array.');
@@ -513,11 +521,10 @@ begin
   end
   else
   begin
-    if (AMessage.method <> nil) and AMessage.method.Assigned then
-      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response cannot contain method.');
+    if not (AMessage is TNXJSONRPCResponse) then
+      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response must be a response message.');
 
-    if (AMessage.params <> nil) and AMessage.params.Assigned then
-      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response cannot contain params.');
+    lResponse := TNXJSONRPCResponse(AMessage);
 
     if not AMessage.HasID then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response must contain id.');
@@ -525,16 +532,18 @@ begin
 
   if lKind = rpcSuccessResponse then
   begin
-    if (AMessage.error <> nil) and AMessage.error.Assigned then
+    lResponse := TNXJSONRPCResponse(AMessage);
+    if (lResponse.error <> nil) and lResponse.error.Assigned then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response cannot contain both result and error.');
   end;
 
   if lKind = rpcErrorResponse then
   begin
-    if (AMessage.result <> nil) and AMessage.result.Assigned then
+    lResponse := TNXJSONRPCResponse(AMessage);
+    if (lResponse.result <> nil) and lResponse.result.Assigned then
       raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC response cannot contain both result and error.');
 
-    lErrorJSON := AMessage.error.ToJSONData;
+    lErrorJSON := lResponse.error.ToJSONData;
     try
       if not (lErrorJSON is TJSONObject) then
         raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC error must be an object.');

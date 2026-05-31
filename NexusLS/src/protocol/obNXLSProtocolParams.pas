@@ -82,7 +82,7 @@ type
     property experimental: TNXJSONValue read Fexperimental write Fexperimental;
   end;
 
-  TNXLSInitializeParams = class(TNXJSONObject)
+  TNXLSInitializeParams = class(TNXJSONObjectParams)
   private
     FprocessId: TNXJSONValue;
     FclientInfo: TNXLSClientInfo;
@@ -105,17 +105,17 @@ type
     property workspaceFolders: TNXLSWorkspaceFolderArray read FworkspaceFolders write FworkspaceFolders;
   end;
 
-  TNXLSInitializedParams = class(TNXJSONObject)
+  TNXLSInitializedParams = class(TNXJSONObjectParams)
   end;
 
-  TNXLSCancelParams = class(TNXJSONObject)
+  TNXLSCancelParams = class(TNXJSONObjectParams)
   private
     Fid: TNXJSONValue;
   published
     property id: TNXJSONValue read Fid write Fid;
   end;
 
-  TNXLSProgressParams = class(TNXJSONObject)
+  TNXLSProgressParams = class(TNXJSONObjectParams)
   private
     Ftoken: TNXJSONValue;
     Fvalue: TNXJSONValue;
@@ -124,14 +124,14 @@ type
     property value: TNXJSONValue read Fvalue write Fvalue;
   end;
 
-  TNXLSSetTraceParams = class(TNXJSONObject)
+  TNXLSSetTraceParams = class(TNXJSONObjectParams)
   private
     Fvalue: TNXJSONString;
   published
     property value: TNXJSONString read Fvalue write Fvalue;
   end;
 
-  TNXLSLogTraceParams = class(TNXJSONObject)
+  TNXLSLogTraceParams = class(TNXJSONObjectParams)
   private
     Fmessage: TNXJSONString;
     Fverbose: TNXJSONString;
@@ -155,7 +155,7 @@ type
     property trimFinalNewlines: TNXJSONBoolean read FtrimFinalNewlines write FtrimFinalNewlines;
   end;
 
-  TNXLSDocumentFormattingParams = class(TNXJSONObject)
+  TNXLSDocumentFormattingParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Foptions: TNXLSFormattingOptions;
@@ -247,35 +247,35 @@ type
     property data: TNXJSONValue read Fdata write Fdata;
   end;
 
-  TNXLSCallHierarchyIncomingCallsParams = class(TNXJSONObject)
+  TNXLSCallHierarchyIncomingCallsParams = class(TNXJSONObjectParams)
   private
     Fitem: TNXLSCallHierarchyItem;
   published
     property item: TNXLSCallHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSCallHierarchyOutgoingCallsParams = class(TNXJSONObject)
+  TNXLSCallHierarchyOutgoingCallsParams = class(TNXJSONObjectParams)
   private
     Fitem: TNXLSCallHierarchyItem;
   published
     property item: TNXLSCallHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSTypeHierarchySupertypesParams = class(TNXJSONObject)
+  TNXLSTypeHierarchySupertypesParams = class(TNXJSONObjectParams)
   private
     Fitem: TNXLSTypeHierarchyItem;
   published
     property item: TNXLSTypeHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSTypeHierarchySubtypesParams = class(TNXJSONObject)
+  TNXLSTypeHierarchySubtypesParams = class(TNXJSONObjectParams)
   private
     Fitem: TNXLSTypeHierarchyItem;
   published
     property item: TNXLSTypeHierarchyItem read Fitem write Fitem;
   end;
 
-  TNXLSDocumentLinkParams = class(TNXJSONObject)
+  TNXLSDocumentLinkParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
   published
@@ -375,7 +375,7 @@ type
     property triggerKind: TNXJSONInteger read FtriggerKind write FtriggerKind;
   end;
 
-  TNXLSCodeActionParams = class(TNXJSONObject)
+  TNXLSCodeActionParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Frange: TNXLSRange;
@@ -402,7 +402,7 @@ type
     property alpha: TNXJSONFloat read Falpha write Falpha;
   end;
 
-  TNXLSColorPresentationParams = class(TNXJSONObject)
+  TNXLSColorPresentationParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Fcolor: TNXLSColor;
@@ -492,7 +492,7 @@ type
     property context: TNXLSSignatureHelpContext read Fcontext write Fcontext;
   end;
 
-  TNXLSWorkspaceSymbolParams = class(TNXJSONObject)
+  TNXLSWorkspaceSymbolParams = class(TNXJSONObjectParams)
   private
     Fquery: TNXJSONString;
   published
@@ -513,14 +513,14 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSConfigurationParams = class(TNXJSONObject)
+  TNXLSConfigurationParams = class(TNXJSONObjectParams)
   private
     Fitems: TNXLSConfigurationItemArray;
   published
     property items: TNXLSConfigurationItemArray read Fitems write Fitems;
   end;
 
-  TNXLSDidChangeConfigurationParams = class(TNXJSONObject)
+  TNXLSDidChangeConfigurationParams = class(TNXJSONObjectParams)
   private
     Fsettings: TNXJSONValue;
   published
@@ -543,7 +543,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSRegistrationParams = class(TNXJSONObject)
+  TNXLSRegistrationParams = class(TNXJSONObjectParams)
   private
     Fregistrations: TNXLSRegistrationArray;
   published
@@ -564,7 +564,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSUnregistrationParams = class(TNXJSONObject)
+  TNXLSUnregistrationParams = class(TNXJSONObjectParams)
   private
     Funregisterations: TNXLSUnregistrationArray;
   published
@@ -583,7 +583,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSCreateFilesParams = class(TNXJSONObject)
+  TNXLSCreateFilesParams = class(TNXJSONObjectParams)
   private
     Ffiles: TNXLSFileCreateArray;
   published
@@ -604,7 +604,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSRenameFilesParams = class(TNXJSONObject)
+  TNXLSRenameFilesParams = class(TNXJSONObjectParams)
   private
     Ffiles: TNXLSFileRenameArray;
   published
@@ -623,7 +623,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSDeleteFilesParams = class(TNXJSONObject)
+  TNXLSDeleteFilesParams = class(TNXJSONObjectParams)
   private
     Ffiles: TNXLSFileDeleteArray;
   published
@@ -644,14 +644,14 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSDidChangeWatchedFilesParams = class(TNXJSONObject)
+  TNXLSDidChangeWatchedFilesParams = class(TNXJSONObjectParams)
   private
     Fchanges: TNXLSFileEventArray;
   published
     property changes: TNXLSFileEventArray read Fchanges write Fchanges;
   end;
 
-  TNXLSCompleteCodeParams = class(TNXJSONObject)
+  TNXLSCompleteCodeParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
     Fposition: TNXLSPosition;
@@ -660,7 +660,7 @@ type
     property position: TNXLSPosition read Fposition write Fposition;
   end;
 
-  TNXLSInvertAssignmentParams = class(TNXJSONObject)
+  TNXLSInvertAssignmentParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
     Fstart: TNXLSPosition;
@@ -671,7 +671,7 @@ type
     property &end: TNXLSPosition read Fend write Fend;
   end;
 
-  TNXLSRemoveEmptyMethodsParams = class(TNXJSONObject)
+  TNXLSRemoveEmptyMethodsParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
     Fposition: TNXLSPosition;
@@ -680,21 +680,21 @@ type
     property position: TNXLSPosition read Fposition write Fposition;
   end;
 
-  TNXLSRemoveUnusedUnitsParams = class(TNXJSONObject)
+  TNXLSRemoveUnusedUnitsParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
   published
     property uri: TNXJSONString read Furi write Furi;
   end;
 
-  TNXLSProjectCreateWizardParams = class(TNXJSONObject)
+  TNXLSProjectCreateWizardParams = class(TNXJSONObjectParams)
   private
     FworkspaceRoot: TNXJSONString;
   published
     property workspaceRoot: TNXJSONString read FworkspaceRoot write FworkspaceRoot;
   end;
 
-  TNXLSProjectCreateParams = class(TNXJSONObject)
+  TNXLSProjectCreateParams = class(TNXJSONObjectParams)
   private
     FprojectName: TNXJSONString;
     FtargetDir: TNXJSONString;
@@ -703,7 +703,7 @@ type
     property targetDir: TNXJSONString read FtargetDir write FtargetDir;
   end;
 
-  TNXLSInlayHintParams = class(TNXJSONObject)
+  TNXLSInlayHintParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Frange: TNXLSRange;
@@ -784,14 +784,14 @@ type
     property version: TNXJSONInteger read Fversion write Fversion;
   end;
 
-  TNXLSNotebookDocumentParams = class(TNXJSONObject)
+  TNXLSNotebookDocumentParams = class(TNXJSONObjectParams)
   private
     FnotebookDocument: TNXLSNotebookDocumentIdentifier;
   published
     property notebookDocument: TNXLSNotebookDocumentIdentifier read FnotebookDocument write FnotebookDocument;
   end;
 
-  TNXLSDidOpenNotebookDocumentParams = class(TNXJSONObject)
+  TNXLSDidOpenNotebookDocumentParams = class(TNXJSONObjectParams)
   private
     FnotebookDocument: TNXLSNotebookDocument;
     FcellTextDocuments: TNXLSTextDocumentItemArray;
@@ -809,7 +809,7 @@ type
     property cells: TNXJSONObject read Fcells write Fcells;
   end;
 
-  TNXLSDidChangeNotebookDocumentParams = class(TNXJSONObject)
+  TNXLSDidChangeNotebookDocumentParams = class(TNXJSONObjectParams)
   private
     FnotebookDocument: TNXLSVersionedNotebookDocumentIdentifier;
     Fchange: TNXLSNotebookDocumentChangeEvent;
@@ -825,14 +825,14 @@ type
     property cellTextDocuments: TNXLSTextDocumentIdentifierArray read FcellTextDocuments write FcellTextDocuments;
   end;
 
-  TNXLSWorkDoneProgressCreateParams = class(TNXJSONObject)
+  TNXLSWorkDoneProgressCreateParams = class(TNXJSONObjectParams)
   private
     Ftoken: TNXJSONValue;
   published
     property token: TNXJSONValue read Ftoken write Ftoken;
   end;
 
-  TNXLSWorkDoneProgressCancelParams = class(TNXJSONObject)
+  TNXLSWorkDoneProgressCancelParams = class(TNXJSONObjectParams)
   private
     Ftoken: TNXJSONValue;
   published
@@ -869,7 +869,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSWorkspaceDiagnosticParams = class(TNXJSONObject)
+  TNXLSWorkspaceDiagnosticParams = class(TNXJSONObjectParams)
   private
     Fidentifier: TNXJSONString;
     FpreviousResultIds: TNXLSDiagnosticPreviousResultIdArray;
@@ -878,7 +878,7 @@ type
     property previousResultIds: TNXLSDiagnosticPreviousResultIdArray read FpreviousResultIds write FpreviousResultIds;
   end;
 
-  TNXLSPublishDiagnosticsParams = class(TNXJSONObject)
+  TNXLSPublishDiagnosticsParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
     Fversion: TNXJSONValue;
@@ -898,14 +898,14 @@ type
     property removed: TNXLSWorkspaceFolderArray read Fremoved write Fremoved;
   end;
 
-  TNXLSDidChangeWorkspaceFoldersParams = class(TNXJSONObject)
+  TNXLSDidChangeWorkspaceFoldersParams = class(TNXJSONObjectParams)
   private
     Fevent: TNXLSWorkspaceFoldersChangeEvent;
   published
     property event: TNXLSWorkspaceFoldersChangeEvent read Fevent write Fevent;
   end;
 
-  TNXLSApplyWorkspaceEditParams = class(TNXJSONObject)
+  TNXLSApplyWorkspaceEditParams = class(TNXJSONObjectParams)
   private
     FLabel: TNXJSONString;
     Fedit: TNXLSWorkspaceEdit;
@@ -967,7 +967,7 @@ type
   TNXLSWorkspaceEditResult = class(TNXLSWorkspaceEdit)
   end;
 
-  TNXLSMessageParams = class(TNXJSONObject)
+  TNXLSMessageParams = class(TNXJSONObjectParams)
   private
     FType: TNXJSONInteger;
     Fmessage: TNXJSONString;
@@ -995,7 +995,7 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXLSShowDocumentParams = class(TNXJSONObject)
+  TNXLSShowDocumentParams = class(TNXJSONObjectParams)
   private
     Furi: TNXJSONString;
     Fexternal: TNXJSONBoolean;

@@ -69,7 +69,7 @@ type
     property range: TNXLSRange read Frange write Frange;
   end;
 
-  TNXLSTextDocumentPositionParams = class(TNXJSONObject)
+  TNXLSTextDocumentPositionParams = class(TNXJSONObjectParams)
   private
     FtextDocument: TNXLSTextDocumentIdentifier;
     Fposition: TNXLSPosition;

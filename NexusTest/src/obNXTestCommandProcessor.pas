@@ -102,6 +102,7 @@ end;
 function TNXTestCommandProcessor.ExecuteCommand(const ARequest: string): string;
 var
   lMessage: TNXJSONRPCMessage;
+  lCommandMessage: TNXJSONRPCCommandMessage;
   lRequest: TNXJSONRPCRequest;
   lID: TJSONData;
   lMethod: string;
@@ -139,7 +140,8 @@ begin
         Exit(CreateErrorResponse(lID, TNXJSONRPC.InvalidRequest, 'Expected JSON-RPC request.', 0));
       end;
 
-      lMethod := lMessage.method.Value;
+      lCommandMessage := TNXJSONRPCCommandMessage(lMessage);
+      lMethod := lCommandMessage.method.Value;
       if not TNXClassFactory.Registered(lMethod) then
       begin
         if lIsRequest then

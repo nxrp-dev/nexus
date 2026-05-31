@@ -171,7 +171,7 @@ begin
 
   lPendingRequest := TNXLSClientRequest(FPendingRequests[lIdx]);
   try
-    lPendingRequest.Request.LoadOutboundResponse(AMessage);
+    lPendingRequest.Request.LoadOutboundResponse(TNXJSONRPCResponse(AMessage));
     if AMessage.Kind = rpcSuccessResponse then
       lPendingRequest.Request.ProcessOutboundResult
     else
