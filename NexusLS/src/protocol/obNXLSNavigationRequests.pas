@@ -41,6 +41,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -124,9 +125,19 @@ begin
   Result := TNXLSReferenceParams;
 end;
 
-function TNXLSTextDocumentReferencesRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentReferencesRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Navigation.References(TNXLSReferenceParams(params));
+  Result := TNXLSLocationArray;
+end;
+
+function TNXLSTextDocumentReferencesRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSLocationArray;
+begin
+  lResult := TNXLSLocationArray(PrepareResult);
+  TNXLSLSPModel.Current.Navigation.FillReferences(TNXLSReferenceParams(params),
+    lResult);
+  Result := lResult;
 end;
 
 initialization

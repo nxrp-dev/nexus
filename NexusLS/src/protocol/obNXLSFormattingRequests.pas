@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +29,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -48,10 +51,14 @@ begin
   Result := TNXLSDocumentFormattingParams;
 end;
 
+class function TNXLSTextDocumentFormattingRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTextEditArray;
+end;
+
 function TNXLSTextDocumentFormattingRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/formatting; required: Optional; original server: No; category: formatting; result: TNXLSTextEditArrayResult.
-  Result := TNXLSTextEditArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentRangeFormattingRequest.GetFactoryName: string;
@@ -64,10 +71,14 @@ begin
   Result := TNXLSDocumentRangeFormattingParams;
 end;
 
+class function TNXLSTextDocumentRangeFormattingRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTextEditArray;
+end;
+
 function TNXLSTextDocumentRangeFormattingRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/rangeFormatting; required: Optional; original server: No; category: formatting; result: TNXLSTextEditArrayResult.
-  Result := TNXLSTextEditArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentOnTypeFormattingRequest.GetFactoryName: string;
@@ -80,10 +91,14 @@ begin
   Result := TNXLSDocumentOnTypeFormattingParams;
 end;
 
+class function TNXLSTextDocumentOnTypeFormattingRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTextEditArray;
+end;
+
 function TNXLSTextDocumentOnTypeFormattingRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/onTypeFormatting; required: Optional; original server: No; category: formatting; result: TNXLSTextEditArrayResult.
-  Result := TNXLSTextEditArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

@@ -20,6 +20,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +28,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -70,10 +72,20 @@ begin
   Result := TNXLSDocumentDiagnosticParams;
 end;
 
-function TNXLSTextDocumentDiagnosticRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentDiagnosticRequest.GetResultClass: TNXJSONValueClass;
 begin
-  // Method: textDocument/diagnostic; required: Optional; original server: No; category: diagnostics; result: TNXLSDocumentDiagnosticReportResult.
-  Result := TNXLSDocumentDiagnosticReportResult.CreateValue;
+  Result := TNXLSFullDocumentDiagnosticReport;
+end;
+
+function TNXLSTextDocumentDiagnosticRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSFullDocumentDiagnosticReport;
+begin
+  lResult := TNXLSFullDocumentDiagnosticReport(PrepareResult);
+  lResult.kind.Value := 'full';
+  lResult.items.Assigned := True;
+  lResult.Assigned := True;
+  Result := lResult;
 end;
 
 class function TNXLSWorkspaceDiagnosticRequest.GetFactoryName: string;
@@ -86,10 +98,19 @@ begin
   Result := TNXLSWorkspaceDiagnosticParams;
 end;
 
-function TNXLSWorkspaceDiagnosticRequest.Execute: TNXJSONValue;
+class function TNXLSWorkspaceDiagnosticRequest.GetResultClass: TNXJSONValueClass;
 begin
-  // Method: workspace/diagnostic; required: Optional; original server: No; category: diagnostics; result: TNXLSWorkspaceDiagnosticReportResult.
-  Result := TNXLSWorkspaceDiagnosticReportResult.CreateValue;
+  Result := TNXLSWorkspaceDiagnosticReport;
+end;
+
+function TNXLSWorkspaceDiagnosticRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSWorkspaceDiagnosticReport;
+begin
+  lResult := TNXLSWorkspaceDiagnosticReport(PrepareResult);
+  lResult.items.Assigned := True;
+  lResult.Assigned := True;
+  Result := lResult;
 end;
 
 class function TNXLSWorkspaceDiagnosticRefreshRequest.GetFactoryName: string;

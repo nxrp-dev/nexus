@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -35,9 +36,19 @@ begin
   Result := TNXLSInlayHintParams;
 end;
 
-function TNXLSTextDocumentInlayHintRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentInlayHintRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Editor.InlayHint(TNXLSInlayHintParams(params));
+  Result := TNXLSInlayHintArray;
+end;
+
+function TNXLSTextDocumentInlayHintRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSInlayHintArray;
+begin
+  lResult := TNXLSInlayHintArray(PrepareResult);
+  TNXLSLSPModel.Current.Editor.FillInlayHints(TNXLSInlayHintParams(params),
+    lResult);
+  Result := lResult;
 end;
 
 initialization

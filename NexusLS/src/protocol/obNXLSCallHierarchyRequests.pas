@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +29,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -48,10 +51,14 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentPrepareCallHierarchyRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCallHierarchyItemArray;
+end;
+
 function TNXLSTextDocumentPrepareCallHierarchyRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/prepareCallHierarchy; required: Optional; original server: No; category: call hierarchy; result: TNXLSCallHierarchyItemArrayResult.
-  Result := TNXLSCallHierarchyItemArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSCallHierarchyIncomingCallsRequest.GetFactoryName: string;
@@ -64,10 +71,14 @@ begin
   Result := TNXLSCallHierarchyIncomingCallsParams;
 end;
 
+class function TNXLSCallHierarchyIncomingCallsRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCallHierarchyIncomingCallArray;
+end;
+
 function TNXLSCallHierarchyIncomingCallsRequest.Execute: TNXJSONValue;
 begin
-  // Method: callHierarchy/incomingCalls; required: Optional; original server: No; category: call hierarchy; result: TNXLSCallHierarchyIncomingCallArrayResult.
-  Result := TNXLSCallHierarchyIncomingCallArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSCallHierarchyOutgoingCallsRequest.GetFactoryName: string;
@@ -80,10 +91,14 @@ begin
   Result := TNXLSCallHierarchyOutgoingCallsParams;
 end;
 
+class function TNXLSCallHierarchyOutgoingCallsRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCallHierarchyOutgoingCallArray;
+end;
+
 function TNXLSCallHierarchyOutgoingCallsRequest.Execute: TNXJSONValue;
 begin
-  // Method: callHierarchy/outgoingCalls; required: Optional; original server: No; category: call hierarchy; result: TNXLSCallHierarchyOutgoingCallArrayResult.
-  Result := TNXLSCallHierarchyOutgoingCallArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

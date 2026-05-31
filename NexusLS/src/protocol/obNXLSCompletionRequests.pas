@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -42,9 +43,19 @@ begin
   Result := TNXLSCompletionParams;
 end;
 
-function TNXLSTextDocumentCompletionRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentCompletionRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Completion.Completion(TNXLSCompletionParams(params));
+  Result := TNXLSCompletionItemArray;
+end;
+
+function TNXLSTextDocumentCompletionRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSCompletionItemArray;
+begin
+  lResult := TNXLSCompletionItemArray(PrepareResult);
+  TNXLSLSPModel.Current.Completion.FillCompletionItems(
+    TNXLSCompletionParams(params), lResult);
+  Result := lResult;
 end;
 
 class function TNXLSTextDocumentSignatureHelpRequest.GetFactoryName: string;

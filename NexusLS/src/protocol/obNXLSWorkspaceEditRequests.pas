@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,10 +35,19 @@ begin
   Result := TNXLSApplyWorkspaceEditParams;
 end;
 
-function TNXLSWorkspaceApplyEditRequest.Execute: TNXJSONValue;
+class function TNXLSWorkspaceApplyEditRequest.GetResultClass: TNXJSONValueClass;
 begin
-  // Method: workspace/applyEdit; required: Client-side; original server: No; category: workspace edit; result: TNXLSApplyWorkspaceEditResult.
-  Result := TNXLSApplyWorkspaceEditResult.CreateValue;
+  Result := TNXLSApplyWorkspaceEditResultValue;
+end;
+
+function TNXLSWorkspaceApplyEditRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSApplyWorkspaceEditResultValue;
+begin
+  lResult := TNXLSApplyWorkspaceEditResultValue(PrepareResult);
+  lResult.applied.Value := False;
+  lResult.Assigned := True;
+  Result := lResult;
 end;
 
 initialization

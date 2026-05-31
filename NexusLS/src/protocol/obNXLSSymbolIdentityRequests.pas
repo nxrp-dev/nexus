@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,10 +35,14 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentMonikerRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSMonikerArray;
+end;
+
 function TNXLSTextDocumentMonikerRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/moniker; required: Optional; original server: No; category: symbol identity; result: TNXLSMonikerArrayResult.
-  Result := TNXLSMonikerArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

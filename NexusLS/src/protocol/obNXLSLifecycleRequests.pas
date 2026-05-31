@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -82,9 +83,19 @@ begin
   Result := TNXLSInitializeParams;
 end;
 
-function TNXLSInitializeRequest.Execute: TNXJSONValue;
+class function TNXLSInitializeRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Lifecycle.Initialize(TNXLSInitializeParams(params));
+  Result := TNXLSInitializeResultValue;
+end;
+
+function TNXLSInitializeRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSInitializeResultValue;
+begin
+  lResult := TNXLSInitializeResultValue(PrepareResult);
+  TNXLSLSPModel.Current.Lifecycle.FillInitializeResult(TNXLSInitializeParams(params),
+    lResult);
+  Result := lResult;
 end;
 
 class function TNXLSInitializedRequest.GetFactoryName: string;

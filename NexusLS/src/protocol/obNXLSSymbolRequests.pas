@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -42,9 +44,19 @@ begin
   Result := TNXLSDocumentSymbolParams;
 end;
 
-function TNXLSTextDocumentDocumentSymbolRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentDocumentSymbolRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Symbols.DocumentSymbol(TNXLSDocumentSymbolParams(params));
+  Result := TNXJSONArray;
+end;
+
+function TNXLSTextDocumentDocumentSymbolRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXJSONArray;
+begin
+  lResult := TNXJSONArray(PrepareResult);
+  TNXLSLSPModel.Current.Symbols.FillDocumentSymbols(
+    TNXLSDocumentSymbolParams(params), lResult);
+  Result := lResult;
 end;
 
 class function TNXLSWorkspaceSymbolRequest.GetFactoryName: string;
@@ -57,9 +69,19 @@ begin
   Result := TNXLSWorkspaceSymbolParams;
 end;
 
-function TNXLSWorkspaceSymbolRequest.Execute: TNXJSONValue;
+class function TNXLSWorkspaceSymbolRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Symbols.WorkspaceSymbol(TNXLSWorkspaceSymbolParams(params));
+  Result := TNXJSONArray;
+end;
+
+function TNXLSWorkspaceSymbolRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXJSONArray;
+begin
+  lResult := TNXJSONArray(PrepareResult);
+  TNXLSLSPModel.Current.Symbols.FillWorkspaceSymbols(
+    TNXLSWorkspaceSymbolParams(params), lResult);
+  Result := lResult;
 end;
 
 initialization

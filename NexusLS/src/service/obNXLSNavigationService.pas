@@ -8,6 +8,7 @@ uses
   obNXJSONValues,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
+  obNXLSProtocolObjects,
   obNXLSServiceContext;
 
 type
@@ -16,6 +17,8 @@ type
     function Declaration(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
     function Definition(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
     function ImplementationLocation(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
+    procedure FillReferences(AParams: TNXLSReferenceParams;
+      AResult: TNXLSLocationArray); virtual;
     function References(AParams: TNXLSReferenceParams): TNXJSONValue; virtual;
   end;
 
@@ -30,7 +33,6 @@ uses
   CodeToolManager,
   CTUnitGraph,
   FileUtil,
-  obNXLSProtocolObjects,
   utNXLSServiceHelpers;
 
 function NXLSCreateLocation(ACode: TCodeBuffer; AX, AY: Integer): TNXLSLocation;
@@ -214,7 +216,8 @@ begin
   end;
 end;
 
-function TNXLSNavigationService.References(AParams: TNXLSReferenceParams): TNXJSONValue;
+procedure TNXLSNavigationService.FillReferences(AParams: TNXLSReferenceParams;
+  AResult: TNXLSLocationArray);
 var
   lDocument: TNXLSDocument;
   lStartCode: TCodeBuffer;
@@ -234,7 +237,8 @@ var
   lIdentifier: string;
   lHasDeclaration: Boolean;
 begin
-  Result := TNXLSLocationArrayResult.CreateValue;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) then
     Exit;
@@ -311,7 +315,7 @@ begin
             (CompareText(lCodePos^.Code.Filename, lDeclCode.Filename) <> 0) or
             (lCodePos^.X <> lDeclX) or (lCodePos^.Y <> lDeclY) then
           begin
-            NXLSAddReferenceLocation(TNXJSONArray(Result), lCodePos^.Code,
+            NXLSAddReferenceLocation(AResult, lCodePos^.Code,
               lCodePos^.X, lCodePos^.Y);
           end;
           lNode := TAVLTreeNode(lTree.FindSuccessor(lNode));
@@ -319,10 +323,10 @@ begin
       end;
     end;
 
-    if TNXJSONArray(Result).Count < 2 then
+    if AResult.Count < 2 then
     begin
-      TNXJSONArray(Result).Clear;
-      NXLSAddTextScanReferences(TNXJSONArray(Result), lFiles, lIdentifier);
+      AResult.Clear;
+      NXLSAddTextScanReferences(AResult, lFiles, lIdentifier);
     end;
   finally
     lFiles.Free;
@@ -330,6 +334,12 @@ begin
     CodeToolBoss.FreeTreeOfPCodeXYPosition(lTree);
     lCache.Free;
   end;
+end;
+
+function TNXLSNavigationService.References(AParams: TNXLSReferenceParams): TNXJSONValue;
+begin
+  Result := TNXLSLocationArrayResult.CreateValue;
+  FillReferences(AParams, TNXLSLocationArray(Result));
 end;
 
 end.

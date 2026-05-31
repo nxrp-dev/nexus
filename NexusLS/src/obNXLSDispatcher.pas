@@ -152,6 +152,7 @@ begin
       end;
 
       lResult := lRequest.Execute;
+      lRequest.ValidateResult(lResult);
 
       if lIsRequest then
       begin

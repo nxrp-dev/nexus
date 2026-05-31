@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +29,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,6 +37,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -41,6 +45,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -48,6 +53,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -69,10 +75,14 @@ begin
   Result := TNXLSDocumentLink;
 end;
 
+class function TNXLSDocumentLinkResolveRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSDocumentLink;
+end;
+
 function TNXLSDocumentLinkResolveRequest.Execute: TNXJSONValue;
 begin
-  // Method: documentLink/resolve; required: Optional; original server: No; category: resolve; result: TNXLSDocumentLinkResult.
-  Result := TNXLSDocumentLinkResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSCodeLensResolveRequest.GetFactoryName: string;
@@ -85,10 +95,14 @@ begin
   Result := TNXLSCodeLens;
 end;
 
+class function TNXLSCodeLensResolveRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCodeLens;
+end;
+
 function TNXLSCodeLensResolveRequest.Execute: TNXJSONValue;
 begin
-  // Method: codeLens/resolve; required: Optional; original server: No; category: resolve; result: TNXLSCodeLensResult.
-  Result := TNXLSCodeLensResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSInlayHintResolveRequest.GetFactoryName: string;
@@ -101,10 +115,14 @@ begin
   Result := TNXLSInlayHint;
 end;
 
+class function TNXLSInlayHintResolveRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSInlayHint;
+end;
+
 function TNXLSInlayHintResolveRequest.Execute: TNXJSONValue;
 begin
-  // Method: inlayHint/resolve; required: Optional; original server: No; category: resolve; result: TNXLSInlayHintResult.
-  Result := TNXLSInlayHintResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSCompletionItemResolveRequest.GetFactoryName: string;
@@ -117,10 +135,14 @@ begin
   Result := TNXLSCompletionItem;
 end;
 
+class function TNXLSCompletionItemResolveRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCompletionItem;
+end;
+
 function TNXLSCompletionItemResolveRequest.Execute: TNXJSONValue;
 begin
-  // Method: completionItem/resolve; required: Optional; original server: No; category: resolve; result: TNXLSCompletionItemResult.
-  Result := TNXLSCompletionItemResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSCodeActionResolveRequest.GetFactoryName: string;
@@ -133,10 +155,14 @@ begin
   Result := TNXLSCodeAction;
 end;
 
+class function TNXLSCodeActionResolveRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCodeAction;
+end;
+
 function TNXLSCodeActionResolveRequest.Execute: TNXJSONValue;
 begin
-  // Method: codeAction/resolve; required: Optional; original server: No; category: resolve; result: TNXLSCodeActionResult.
-  Result := TNXLSCodeActionResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSWorkspaceSymbolResolveRequest.GetFactoryName: string;
@@ -149,10 +175,14 @@ begin
   Result := TNXLSWorkspaceSymbol;
 end;
 
+class function TNXLSWorkspaceSymbolResolveRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSWorkspaceSymbol;
+end;
+
 function TNXLSWorkspaceSymbolResolveRequest.Execute: TNXJSONValue;
 begin
-  // Method: workspaceSymbol/resolve; required: Optional; original server: No; category: resolve; result: TNXLSWorkspaceSymbolResult.
-  Result := TNXLSWorkspaceSymbolResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

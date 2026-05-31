@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -35,9 +36,19 @@ begin
   Result := TNXLSCodeActionParams;
 end;
 
-function TNXLSTextDocumentCodeActionRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentCodeActionRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Editor.CodeAction(TNXLSCodeActionParams(params));
+  Result := TNXLSCodeActionArray;
+end;
+
+function TNXLSTextDocumentCodeActionRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSCodeActionArray;
+begin
+  lResult := TNXLSCodeActionArray(PrepareResult);
+  TNXLSLSPModel.Current.Editor.FillCodeActions(TNXLSCodeActionParams(params),
+    lResult);
+  Result := lResult;
 end;
 
 initialization

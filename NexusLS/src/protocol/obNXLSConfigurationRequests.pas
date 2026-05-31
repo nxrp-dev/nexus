@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -42,10 +43,14 @@ begin
   Result := TNXLSConfigurationParams;
 end;
 
+class function TNXLSWorkspaceConfigurationRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSConfigurationArray;
+end;
+
 function TNXLSWorkspaceConfigurationRequest.Execute: TNXJSONValue;
 begin
-  // Method: workspace/configuration; required: Client-side; original server: No; category: configuration; result: TNXLSConfigurationArrayResult.
-  Result := TNXLSConfigurationArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSWorkspaceDidChangeConfigurationRequest.GetFactoryName: string;

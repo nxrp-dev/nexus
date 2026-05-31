@@ -7,11 +7,14 @@ interface
 uses
   obNXJSONValues,
   obNXLSProtocolParams,
+  obNXLSProtocolObjects,
   obNXLSServiceContext;
 
 type
   TNXLSLifecycleService = class(TNXLSLSPService)
   public
+    procedure FillInitializeResult(AParams: TNXLSInitializeParams;
+      AResult: TNXLSInitializeResultValue); virtual;
     function Initialize(AParams: TNXLSInitializeParams): TNXJSONValue; virtual;
     procedure Initialized(AParams: TNXLSInitializedParams); virtual;
     function Shutdown: TNXJSONValue; virtual;
@@ -21,8 +24,22 @@ type
 
 implementation
 
-uses
-  obNXLSProtocolObjects;
+procedure TNXLSLifecycleService.FillInitializeResult(AParams: TNXLSInitializeParams;
+  AResult: TNXLSInitializeResultValue);
+var
+  lValue: TNXJSONValue;
+begin
+  Model.BeginInitialize(AParams);
+  if AResult = nil then
+    Exit;
+
+  lValue := TNXLSInitializeResult.CreateValue;
+  try
+    AResult.Assign(lValue);
+  finally
+    lValue.Free;
+  end;
+end;
 
 function TNXLSLifecycleService.Initialize(AParams: TNXLSInitializeParams): TNXJSONValue;
 begin

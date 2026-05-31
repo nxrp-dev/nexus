@@ -69,9 +69,13 @@ type
   end;
 
   TNXJSONRPCRequest = class(TNXJSONRPCMessage)
+  protected
+    function PrepareResult: TNXJSONValue; virtual;
   public
     class function GetParamClass: TNXJSONValueClass; virtual;
+    class function GetResultClass: TNXJSONValueClass; virtual;
     function Execute: TNXJSONValue; virtual; abstract;
+    procedure ValidateResult(AResult: TNXJSONValue); virtual;
     procedure FromJSONData(AData: TJSONData); override;
   end;
 
@@ -148,6 +152,54 @@ end;
 class function TNXJSONRPCRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := nil;
+end;
+
+class function TNXJSONRPCRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := nil;
+end;
+
+function TNXJSONRPCRequest.PrepareResult: TNXJSONValue;
+var
+  lResultClass: TNXJSONValueClass;
+begin
+  lResultClass := GetResultClass;
+  if lResultClass = nil then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.GetResultClass returned nil.');
+
+  Result := lResultClass.Create;
+  try
+    ValidateResult(Result);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
+procedure TNXJSONRPCRequest.ValidateResult(AResult: TNXJSONValue);
+var
+  lResultClass: TNXJSONValueClass;
+begin
+  lResultClass := GetResultClass;
+
+  if AResult = nil then
+  begin
+    if lResultClass = nil then
+      Exit;
+
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.Execute returned nil result.');
+  end;
+
+  if AResult.ClassType = TNXJSONValue then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.Execute returned raw TNXJSONValue result. This should never happen.');
+
+  if (lResultClass <> nil) and (not AResult.InheritsFrom(lResultClass)) then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.Execute returned ' + AResult.ClassName +
+      ' but expected ' + lResultClass.ClassName + '.');
 end;
 
 procedure TNXJSONRPCRequest.FromJSONData(AData: TJSONData);

@@ -34,6 +34,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -103,10 +104,19 @@ begin
   Result := TNXLSShowDocumentParams;
 end;
 
-function TNXLSWindowShowDocumentRequest.Execute: TNXJSONValue;
+class function TNXLSWindowShowDocumentRequest.GetResultClass: TNXJSONValueClass;
 begin
-  // Method: window/showDocument; required: Client-side; original server: No; category: window; result: TNXLSShowDocumentResult.
-  Result := TNXLSShowDocumentResult.CreateValue;
+  Result := TNXLSShowDocumentResultValue;
+end;
+
+function TNXLSWindowShowDocumentRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSShowDocumentResultValue;
+begin
+  lResult := TNXLSShowDocumentResultValue(PrepareResult);
+  lResult.success.Value := False;
+  lResult.Assigned := True;
+  Result := lResult;
 end;
 
 initialization

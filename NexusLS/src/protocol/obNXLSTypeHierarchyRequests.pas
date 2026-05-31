@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +29,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -48,10 +51,14 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTypeHierarchyItemArray;
+end;
+
 function TNXLSTextDocumentPrepareTypeHierarchyRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/prepareTypeHierarchy; required: Optional; original server: No; category: type hierarchy; result: TNXLSTypeHierarchyItemArrayResult.
-  Result := TNXLSTypeHierarchyItemArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTypeHierarchySupertypesRequest.GetFactoryName: string;
@@ -64,10 +71,14 @@ begin
   Result := TNXLSTypeHierarchySupertypesParams;
 end;
 
+class function TNXLSTypeHierarchySupertypesRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTypeHierarchyItemArray;
+end;
+
 function TNXLSTypeHierarchySupertypesRequest.Execute: TNXJSONValue;
 begin
-  // Method: typeHierarchy/supertypes; required: Optional; original server: No; category: type hierarchy; result: TNXLSTypeHierarchyItemArrayResult.
-  Result := TNXLSTypeHierarchyItemArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTypeHierarchySubtypesRequest.GetFactoryName: string;
@@ -80,10 +91,14 @@ begin
   Result := TNXLSTypeHierarchySubtypesParams;
 end;
 
+class function TNXLSTypeHierarchySubtypesRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTypeHierarchyItemArray;
+end;
+
 function TNXLSTypeHierarchySubtypesRequest.Execute: TNXJSONValue;
 begin
-  // Method: typeHierarchy/subtypes; required: Optional; original server: No; category: type hierarchy; result: TNXLSTypeHierarchyItemArrayResult.
-  Result := TNXLSTypeHierarchyItemArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

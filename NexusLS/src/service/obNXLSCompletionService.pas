@@ -7,11 +7,14 @@ interface
 uses
   obNXJSONValues,
   obNXLSProtocolParams,
+  obNXLSProtocolObjects,
   obNXLSServiceContext;
 
 type
   TNXLSCompletionService = class(TNXLSLSPService)
   public
+    procedure FillCompletionItems(AParams: TNXLSCompletionParams;
+      AResult: TNXLSCompletionItemArray); virtual;
     function Completion(AParams: TNXLSCompletionParams): TNXJSONValue; virtual;
     function SignatureHelp(AParams: TNXLSSignatureHelpParams): TNXJSONValue; virtual;
   end;
@@ -30,7 +33,6 @@ uses
   IdentCompletionTool,
   PascalParserTool,
   obNXLSProtocolBase,
-  obNXLSProtocolObjects,
   utNXLSServiceHelpers;
 
 function NXLSCompletionKind(AIdentifier: TIdentifierListItem): Integer;
@@ -323,6 +325,13 @@ begin
 end;
 
 function TNXLSCompletionService.Completion(AParams: TNXLSCompletionParams): TNXJSONValue;
+begin
+  Result := TNXLSCompletionResult.CreateValue;
+  FillCompletionItems(AParams, TNXLSCompletionItemArray(Result));
+end;
+
+procedure TNXLSCompletionService.FillCompletionItems(AParams: TNXLSCompletionParams;
+  AResult: TNXLSCompletionItemArray);
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -335,7 +344,8 @@ var
   lSeen: TStringList;
   lPrefix: string;
 begin
-  Result := TNXLSCompletionResult.CreateValue;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) then
     Exit;
@@ -368,12 +378,12 @@ begin
         if (lIdentifier = nil) or (lIdentifier.Identifier = '') then
           Continue;
 
-        NXLSAddCompletionItem(TNXJSONArray(Result), lSeen, lIdentifier.Identifier,
+        NXLSAddCompletionItem(AResult, lSeen, lIdentifier.Identifier,
           NXLSCompletionKind(lIdentifier), '');
       end;
     end;
 
-    NXLSAddSourceCompletions(TNXJSONArray(Result), lSeen, lCode, lPrefix);
+    NXLSAddSourceCompletions(AResult, lSeen, lCode, lPrefix);
   finally
     lSeen.Free;
   end;

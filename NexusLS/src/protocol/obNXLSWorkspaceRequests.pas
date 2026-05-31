@@ -12,6 +12,7 @@ type
   TNXLSWorkspaceWorkspaceFoldersRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -36,10 +37,14 @@ begin
   Result := 'workspace/workspaceFolders';
 end;
 
+class function TNXLSWorkspaceWorkspaceFoldersRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSWorkspaceFolderArray;
+end;
+
 function TNXLSWorkspaceWorkspaceFoldersRequest.Execute: TNXJSONValue;
 begin
-  // Method: workspace/workspaceFolders; required: Client-side; original server: No; category: workspace; result: TNXLSWorkspaceFolderArrayResult.
-  Result := TNXLSWorkspaceFolderArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetFactoryName: string;

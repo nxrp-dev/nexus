@@ -10,6 +10,7 @@ uses
   Contnrs,
   obNXJSONValues,
   obNXLSProtocolParams,
+  obNXLSProtocolObjects,
   obNXLSServiceContext,
   obNXLSSymbolCache;
 
@@ -67,7 +68,11 @@ type
     constructor Create(AModel: TNXLSLSPContext); override;
     destructor Destroy; override;
 
+    procedure FillDocumentSymbols(AParams: TNXLSDocumentSymbolParams;
+      AResult: TNXJSONArray); virtual;
     function DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue; virtual;
+    procedure FillWorkspaceSymbols(AParams: TNXLSWorkspaceSymbolParams;
+      AResult: TNXJSONArray); virtual;
     function WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue; virtual;
     procedure SetWorkspaceFolders(AParams: TNXLSInitializeParams);
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
@@ -85,8 +90,7 @@ uses
   CodeTree,
   CodeToolManager,
   PascalParserTool,
-  obNXLSProtocolBase,
-  obNXLSProtocolObjects;
+  obNXLSProtocolBase;
 
 const
   cNXLSKindClass = 5;
@@ -601,15 +605,17 @@ begin
   inherited Destroy;
 end;
 
-function TNXLSSymbolService.DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue;
+procedure TNXLSSymbolService.FillDocumentSymbols(AParams: TNXLSDocumentSymbolParams;
+  AResult: TNXJSONArray);
 var
   lDocument: TNXLSDocument;
   lTool: TCodeTool;
 begin
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) then
     raise Exception.Create('Document symbol params require a text document.');
 
-  Result := TNXLSDocumentSymbolArrayResult.CreateValue;
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
   if lDocument.CodeBuffer = nil then
     Exit;
@@ -618,15 +624,22 @@ begin
   if (not CodeToolBoss.Explore(lDocument.CodeBuffer, lTool, False)) or
     (lTool = nil) or (lTool.Tree = nil) or (lTool.Tree.Root = nil) then
   begin
-    NXLSScanFallbackSymbols(lDocument.CodeBuffer, TNXJSONArray(Result), '', nil);
+    NXLSScanFallbackSymbols(lDocument.CodeBuffer, AResult, '', nil);
     Exit;
   end;
 
-  NXLSAddDocumentSymbols(lTool, lTool.Tree.Root.FirstChild, TNXJSONArray(Result));
-  NXLSScanFallbackSymbols(lDocument.CodeBuffer, TNXJSONArray(Result), '', nil);
+  NXLSAddDocumentSymbols(lTool, lTool.Tree.Root.FirstChild, AResult);
+  NXLSScanFallbackSymbols(lDocument.CodeBuffer, AResult, '', nil);
 end;
 
-function TNXLSSymbolService.WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue;
+function TNXLSSymbolService.DocumentSymbol(AParams: TNXLSDocumentSymbolParams): TNXJSONValue;
+begin
+  Result := TNXLSDocumentSymbolArrayResult.CreateValue;
+  FillDocumentSymbols(AParams, TNXJSONArray(Result));
+end;
+
+procedure TNXLSSymbolService.FillWorkspaceSymbols(AParams: TNXLSWorkspaceSymbolParams;
+  AResult: TNXJSONArray);
 var
   lQuery: string;
   lIdx: Integer;
@@ -635,7 +648,8 @@ var
   lLocation: TNXLSLocation;
   lJSON: TJSONData;
 begin
-  Result := TNXLSWorkspaceSymbolArrayResult.CreateValue;
+  if AResult = nil then
+    Exit;
   if AParams = nil then
     Exit;
 
@@ -647,7 +661,7 @@ begin
     if (lQuery <> '') and (Pos(lQuery, LowerCase(lIndexedSymbol.Name)) = 0) then
       Continue;
 
-    lSymbol := TNXLSWorkspaceSymbol(TNXJSONArray(Result).AddObject(TNXLSWorkspaceSymbol));
+    lSymbol := TNXLSWorkspaceSymbol(AResult.AddObject(TNXLSWorkspaceSymbol));
     lSymbol.name.Value := lIndexedSymbol.Name;
     lSymbol.kind.Value := lIndexedSymbol.Kind;
     if lIndexedSymbol.ContainerName <> '' then
@@ -673,6 +687,12 @@ begin
 
     lSymbol.Assigned := True;
   end;
+end;
+
+function TNXLSSymbolService.WorkspaceSymbol(AParams: TNXLSWorkspaceSymbolParams): TNXJSONValue;
+begin
+  Result := TNXLSWorkspaceSymbolArrayResult.CreateValue;
+  FillWorkspaceSymbols(AParams, TNXJSONArray(Result));
 end;
 
 procedure TNXLSSymbolService.ClearWorkspaceFolders;

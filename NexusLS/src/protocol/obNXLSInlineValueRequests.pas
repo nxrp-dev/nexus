@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,10 +35,14 @@ begin
   Result := TNXLSInlineValueParams;
 end;
 
+class function TNXLSTextDocumentInlineValueRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSInlineValueArray;
+end;
+
 function TNXLSTextDocumentInlineValueRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/inlineValue; required: Optional; original server: No; category: inline values; result: TNXLSInlineValueArrayResult.
-  Result := TNXLSInlineValueArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

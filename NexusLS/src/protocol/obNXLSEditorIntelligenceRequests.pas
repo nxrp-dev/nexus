@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,6 +36,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -41,6 +44,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -48,6 +52,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -70,9 +75,19 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
-function TNXLSTextDocumentDocumentHighlightRequest.Execute: TNXJSONValue;
+class function TNXLSTextDocumentDocumentHighlightRequest.GetResultClass: TNXJSONValueClass;
 begin
-  Result := TNXLSLSPModel.Current.Editor.DocumentHighlight(TNXLSTextDocumentPositionParams(params));
+  Result := TNXLSDocumentHighlightArray;
+end;
+
+function TNXLSTextDocumentDocumentHighlightRequest.Execute: TNXJSONValue;
+var
+  lResult: TNXLSDocumentHighlightArray;
+begin
+  lResult := TNXLSDocumentHighlightArray(PrepareResult);
+  TNXLSLSPModel.Current.Editor.FillDocumentHighlights(
+    TNXLSTextDocumentPositionParams(params), lResult);
+  Result := lResult;
 end;
 
 class function TNXLSTextDocumentDocumentLinkRequest.GetFactoryName: string;
@@ -85,10 +100,14 @@ begin
   Result := TNXLSDocumentLinkParams;
 end;
 
+class function TNXLSTextDocumentDocumentLinkRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSDocumentLinkArray;
+end;
+
 function TNXLSTextDocumentDocumentLinkRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/documentLink; required: Optional; original server: No; category: editor intelligence; result: TNXLSDocumentLinkArrayResult.
-  Result := TNXLSDocumentLinkArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentHoverRequest.GetFactoryName: string;
@@ -116,10 +135,14 @@ begin
   Result := TNXLSCodeLensParams;
 end;
 
+class function TNXLSTextDocumentCodeLensRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSCodeLensArray;
+end;
+
 function TNXLSTextDocumentCodeLensRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/codeLens; required: Optional; original server: No; category: editor intelligence; result: TNXLSCodeLensArrayResult.
-  Result := TNXLSCodeLensArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentFoldingRangeRequest.GetFactoryName: string;
@@ -132,10 +155,14 @@ begin
   Result := TNXLSFoldingRangeParams;
 end;
 
+class function TNXLSTextDocumentFoldingRangeRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSFoldingRangeArray;
+end;
+
 function TNXLSTextDocumentFoldingRangeRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/foldingRange; required: Optional; original server: No; category: editor intelligence; result: TNXLSFoldingRangeArrayResult.
-  Result := TNXLSFoldingRangeArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentSelectionRangeRequest.GetFactoryName: string;
@@ -148,10 +175,14 @@ begin
   Result := TNXLSSelectionRangeParams;
 end;
 
+class function TNXLSTextDocumentSelectionRangeRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSSelectionRangeArray;
+end;
+
 function TNXLSTextDocumentSelectionRangeRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/selectionRange; required: Optional; original server: No; category: editor intelligence; result: TNXLSSelectionRangeArrayResult.
-  Result := TNXLSSelectionRangeArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

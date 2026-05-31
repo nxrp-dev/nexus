@@ -35,6 +35,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -117,10 +118,14 @@ begin
   Result := TNXLSWillSaveTextDocumentParams;
 end;
 
+class function TNXLSTextDocumentWillSaveWaitUntilRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSTextEditArray;
+end;
+
 function TNXLSTextDocumentWillSaveWaitUntilRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/willSaveWaitUntil; required: Optional; original server: No; category: document sync; result: TNXLSTextEditArrayResult.
-  Result := TNXLSTextEditArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentDidSaveRequest.GetFactoryName: string;

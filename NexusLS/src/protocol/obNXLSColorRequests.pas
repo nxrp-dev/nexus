@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -41,10 +43,14 @@ begin
   Result := TNXLSDocumentColorParams;
 end;
 
+class function TNXLSTextDocumentDocumentColorRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSColorInformationArray;
+end;
+
 function TNXLSTextDocumentDocumentColorRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/documentColor; required: Optional; original server: No; category: color; result: TNXLSColorInformationArrayResult.
-  Result := TNXLSColorInformationArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSTextDocumentColorPresentationRequest.GetFactoryName: string;
@@ -57,10 +63,14 @@ begin
   Result := TNXLSColorPresentationParams;
 end;
 
+class function TNXLSTextDocumentColorPresentationRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSColorPresentationArray;
+end;
+
 function TNXLSTextDocumentColorPresentationRequest.Execute: TNXJSONValue;
 begin
-  // Method: textDocument/colorPresentation; required: Optional; original server: No; category: color; result: TNXLSColorPresentationArrayResult.
-  Result := TNXLSColorPresentationArrayResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

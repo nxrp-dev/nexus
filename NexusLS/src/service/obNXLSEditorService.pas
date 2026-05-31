@@ -8,14 +8,21 @@ uses
   obNXJSONValues,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
+  obNXLSProtocolObjects,
   obNXLSServiceContext;
 
 type
   TNXLSEditorService = class(TNXLSLSPService)
   public
+    procedure FillCodeActions(AParams: TNXLSCodeActionParams;
+      AResult: TNXLSCodeActionArray); virtual;
     function CodeAction(AParams: TNXLSCodeActionParams): TNXJSONValue; virtual;
+    procedure FillDocumentHighlights(AParams: TNXLSTextDocumentPositionParams;
+      AResult: TNXLSDocumentHighlightArray); virtual;
     function DocumentHighlight(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
     function Hover(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue; virtual;
+    procedure FillInlayHints(AParams: TNXLSInlayHintParams;
+      AResult: TNXLSInlayHintArray); virtual;
     function InlayHint(AParams: TNXLSInlayHintParams): TNXJSONValue; virtual;
   end;
 
@@ -27,7 +34,6 @@ uses
   BasicCodeTools,
   CodeCache,
   CodeToolManager,
-  obNXLSProtocolObjects,
   utNXLSServiceHelpers;
 
 procedure NXLSSetHoverJSONString(AValue: TNXJSONValue; AData: TJSONData);
@@ -60,12 +66,19 @@ begin
   end;
 end;
 
+procedure TNXLSEditorService.FillCodeActions(AParams: TNXLSCodeActionParams;
+  AResult: TNXLSCodeActionArray);
+begin
+end;
+
 function TNXLSEditorService.CodeAction(AParams: TNXLSCodeActionParams): TNXJSONValue;
 begin
   Result := TNXLSCodeActionArrayResult.CreateValue;
+  FillCodeActions(AParams, TNXLSCodeActionArray(Result));
 end;
 
-function TNXLSEditorService.DocumentHighlight(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+procedure TNXLSEditorService.FillDocumentHighlights(
+  AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSDocumentHighlightArray);
 var
   lDocument: TNXLSDocument;
   lCode: TCodeBuffer;
@@ -75,7 +88,8 @@ var
   lNewTopLine: Integer;
   lHighlight: TNXLSDocumentHighlight;
 begin
-  Result := TNXLSDocumentHighlightArrayResult.CreateValue;
+  if AResult = nil then
+    Exit;
   if (AParams = nil) or (AParams.textDocument = nil) or
     (AParams.position = nil) then
     Exit;
@@ -95,19 +109,26 @@ begin
     if lNewY - (AParams.position.line.Value + 1) <> 0 then
     begin
       lHighlight := TNXLSDocumentHighlight(
-        TNXJSONArray(Result).AddObject(TNXLSDocumentHighlight));
+        AResult.AddObject(TNXLSDocumentHighlight));
       lHighlight.kind.Value := 1;
       NXLSSetIdentifierRange(lHighlight.range, lNewCode, lNewX, lNewY - 1);
       lHighlight.Assigned := True;
 
       lHighlight := TNXLSDocumentHighlight(
-        TNXJSONArray(Result).AddObject(TNXLSDocumentHighlight));
+        AResult.AddObject(TNXLSDocumentHighlight));
       lHighlight.kind.Value := 1;
       NXLSSetIdentifierRange(lHighlight.range, lCode,
         AParams.position.character.Value + 1, AParams.position.line.Value);
       lHighlight.Assigned := True;
     end;
   end;
+end;
+
+function TNXLSEditorService.DocumentHighlight(
+  AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
+begin
+  Result := TNXLSDocumentHighlightArrayResult.CreateValue;
+  FillDocumentHighlights(AParams, TNXLSDocumentHighlightArray(Result));
 end;
 
 function TNXLSEditorService.Hover(AParams: TNXLSTextDocumentPositionParams): TNXJSONValue;
@@ -214,9 +235,15 @@ begin
   lHover.Assigned := True;
 end;
 
+procedure TNXLSEditorService.FillInlayHints(AParams: TNXLSInlayHintParams;
+  AResult: TNXLSInlayHintArray);
+begin
+end;
+
 function TNXLSEditorService.InlayHint(AParams: TNXLSInlayHintParams): TNXJSONValue;
 begin
   Result := TNXLSInlayHintArrayResult.CreateValue;
+  FillInlayHints(AParams, TNXLSInlayHintArray(Result));
 end;
 
 end.
