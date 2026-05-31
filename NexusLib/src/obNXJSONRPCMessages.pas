@@ -6,6 +6,7 @@ interface
 
 uses
   SysUtils,
+  Contnrs,
   fpjson,
   obNXJSONValues,
   obNXJSONRPCObjects;
@@ -54,6 +55,9 @@ type
   TNXJSONRPCRequestClass = class of TNXJSONRPCRequest;
   TNXJSONRPCOutboundCommand = class;
   TNXJSONRPCOutboundCommandClass = class of TNXJSONRPCOutboundCommand;
+  TNXJSONRPCOutboundNotification = class;
+  TNXJSONRPCOutboundNotificationClass = class of TNXJSONRPCOutboundNotification;
+  TNXJSONRPCMessages = class;
 
   TNXJSONRPCMessage = class(TNXJSONObject)
   private
@@ -157,6 +161,24 @@ type
     property result: TNXJSONRPCCommandResult read GetResult write SetResult;
   end;
 
+  TNXJSONRPCOutboundNotification = class(TNXJSONRPCCommandMessage)
+  end;
+
+  TNXJSONRPCMessages = class
+  private
+    FItems: TObjectList;
+    function GetCount: Integer;
+    function GetPrimary: TNXJSONRPCMessage;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(AMessage: TNXJSONRPCMessage);
+    function GetItem(AIndex: Integer): TNXJSONRPCMessage;
+    property Count: Integer read GetCount;
+    property Items[AIndex: Integer]: TNXJSONRPCMessage read GetItem; default;
+    property Primary: TNXJSONRPCMessage read GetPrimary;
+  end;
+
   TNXJSONRPC = class
   public
     const Version = '2.0';
@@ -168,6 +190,7 @@ type
 
     class function ParseMessage(const AJSON: string): TNXJSONRPCMessage; overload; static;
     class function ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage; overload; static;
+    class function ParseMessages(const AJSON: string): TNXJSONRPCMessages; static;
     class procedure ValidateMessage(AMessage: TNXJSONRPCMessage); static;
     class function CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONRPCValue): TJSONObject; static;
     class function CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONRPCValue = nil): TJSONObject; static;
@@ -179,10 +202,97 @@ uses
   jsonparser,
   obNXClassFactory;
 
+function NXJSONRPCMessageClassForObject(AObject: TJSONObject;
+  AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessageClass;
+var
+  lMethodJSON: TJSONData;
+begin
+  Result := AMessageClass;
+  if Result = nil then
+    Result := TNXJSONRPCMessage;
+
+  if Result <> TNXJSONRPCMessage then
+    Exit;
+
+  if AObject.Find('method') <> nil then
+  begin
+    lMethodJSON := AObject.Find('method');
+    if (lMethodJSON.JSONType = jtString) and
+      (lMethodJSON.AsString <> '') and
+      TNXClassFactory.Registered(lMethodJSON.AsString) then
+      Result := TNXJSONRPCMessageClass(TNXClassFactory.FindClass(lMethodJSON.AsString))
+    else if AObject.Find('id') = nil then
+      Result := TNXJSONRPCNotification
+    else
+      Result := TNXJSONRPCCommandMessage;
+  end
+  else if (AObject.Find('result') <> nil) or (AObject.Find('error') <> nil) then
+    Result := TNXJSONRPCResponse;
+end;
+
+function NXJSONRPCParseMessageData(AData: TJSONData;
+  AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
+var
+  lMessageClass: TNXJSONRPCMessageClass;
+begin
+  if not (AData is TJSONObject) then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
+      'JSON-RPC message must be a JSON object.');
+
+  lMessageClass := NXJSONRPCMessageClassForObject(TJSONObject(AData), AMessageClass);
+  Result := lMessageClass.Create;
+  try
+    Result.FromJSONData(AData);
+    TNXJSONRPC.ValidateMessage(Result);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
+
 constructor ENXJSONRPC.CreateCode(const ACode: Integer; const AMessage: string);
 begin
   inherited Create(AMessage);
   FCode := ACode;
+end;
+
+constructor TNXJSONRPCMessages.Create;
+begin
+  inherited Create;
+  FItems := TObjectList.Create(True);
+end;
+
+destructor TNXJSONRPCMessages.Destroy;
+begin
+  FreeAndNil(FItems);
+  inherited Destroy;
+end;
+
+procedure TNXJSONRPCMessages.Add(AMessage: TNXJSONRPCMessage);
+begin
+  if AMessage = nil then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      'JSON-RPC message collection cannot add nil.');
+
+  FItems.Add(AMessage);
+end;
+
+function TNXJSONRPCMessages.GetCount: Integer;
+begin
+  Result := FItems.Count;
+end;
+
+function TNXJSONRPCMessages.GetItem(AIndex: Integer): TNXJSONRPCMessage;
+begin
+  Result := TNXJSONRPCMessage(FItems[AIndex]);
+end;
+
+function TNXJSONRPCMessages.GetPrimary: TNXJSONRPCMessage;
+begin
+  if Count = 0 then
+    Result := nil
+  else
+    Result := GetItem(0);
 end;
 
 function TNXJSONRPCMessage.GetMessageType: TNXJSONRPCMessageType;
@@ -549,8 +659,6 @@ end;
 class function TNXJSONRPC.ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
 var
   lJSON: TJSONData;
-  lMethodJSON: TJSONData;
-  lObject: TJSONObject;
 begin
   lJSON := nil;
   try
@@ -561,41 +669,64 @@ begin
         raise ENXJSONRPC.CreateCode(ParseError, E.Message);
     end;
 
-    if not (lJSON is TJSONObject) then
-      raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC message must be a JSON object.');
-
-    if AMessageClass = nil then
-      AMessageClass := TNXJSONRPCMessage;
-
-    if AMessageClass = TNXJSONRPCMessage then
-    begin
-      lObject := TJSONObject(lJSON);
-      if lObject.Find('method') <> nil then
-      begin
-        lMethodJSON := lObject.Find('method');
-        if (lMethodJSON.JSONType = jtString) and
-          (lMethodJSON.AsString <> '') and
-          TNXClassFactory.Registered(lMethodJSON.AsString) then
-          AMessageClass := TNXJSONRPCMessageClass(TNXClassFactory.FindClass(lMethodJSON.AsString))
-        else if lObject.Find('id') = nil then
-          AMessageClass := TNXJSONRPCNotification
-        else
-          AMessageClass := TNXJSONRPCCommandMessage;
-      end
-      else if (lObject.Find('result') <> nil) or (lObject.Find('error') <> nil) then
-        AMessageClass := TNXJSONRPCResponse;
-    end;
-
-    Result := AMessageClass.Create;
-    try
-      Result.FromJSONData(lJSON);
-      ValidateMessage(Result);
-    except
-      Result.Free;
-      raise;
-    end;
+    Result := NXJSONRPCParseMessageData(lJSON, AMessageClass);
   finally
     lJSON.Free;
+  end;
+end;
+
+class function TNXJSONRPC.ParseMessages(const AJSON: string): TNXJSONRPCMessages;
+var
+  lJSON: TJSONData;
+  lArray: TJSONArray;
+  lIdx: Integer;
+  lMessage: TNXJSONRPCMessage;
+begin
+  lJSON := nil;
+  Result := TNXJSONRPCMessages.Create;
+  try
+    try
+      try
+        lJSON := GetJSON(AJSON);
+      except
+        on E: Exception do
+          raise ENXJSONRPC.CreateCode(ParseError, E.Message);
+      end;
+
+      if lJSON is TJSONArray then
+      begin
+        lArray := TJSONArray(lJSON);
+        if lArray.Count = 0 then
+          raise ENXJSONRPC.CreateCode(InvalidRequest,
+            'JSON-RPC batch must contain at least one message.');
+
+        for lIdx := 0 to lArray.Count - 1 do
+        begin
+          lMessage := NXJSONRPCParseMessageData(lArray.Items[lIdx], TNXJSONRPCMessage);
+          try
+            Result.Add(lMessage);
+            lMessage := nil;
+          finally
+            lMessage.Free;
+          end;
+        end;
+      end
+      else
+      begin
+        lMessage := NXJSONRPCParseMessageData(lJSON, TNXJSONRPCMessage);
+        try
+          Result.Add(lMessage);
+          lMessage := nil;
+        finally
+          lMessage.Free;
+        end;
+      end;
+    finally
+      lJSON.Free;
+    end;
+  except
+    Result.Free;
+    raise;
   end;
 end;
 

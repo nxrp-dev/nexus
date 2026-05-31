@@ -5,6 +5,9 @@ unit obNXLSInactiveRegionService;
 interface
 
 uses
+  obNXJSONValues,
+  obNXJSONRPCMessages,
+  obNXJSONRPCObjects,
   obNXLSServiceContext;
 
 type
@@ -16,26 +19,82 @@ type
 implementation
 
 uses
-  fpjson,
   BasicCodeTools,
   CodeToolManager,
   LinkScanner,
   sourcelog;
 
-const
-  cNXLSInactiveRegionsNotification = 'pasls.inactiveRegions';
+type
+  TNXLSInactiveRegion = class(TNXJSONObject)
+  private
+    FstartLine: TNXJSONInteger;
+    FstartCol: TNXJSONInteger;
+    FendLine: TNXJSONInteger;
+    FendCol: TNXJSONInteger;
+  published
+    property startLine: TNXJSONInteger read FstartLine write FstartLine;
+    property startCol: TNXJSONInteger read FstartCol write FstartCol;
+    property endLine: TNXJSONInteger read FendLine write FendLine;
+    property endCol: TNXJSONInteger read FendCol write FendCol;
+  end;
 
-procedure NXLSAddRegion(ARegions: TJSONArray; AStartLine, AStartCol, AEndLine,
+  TNXLSInactiveRegionArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONRPCValueClass; override;
+  end;
+
+  TNXLSInactiveRegionsParams = class(TNXJSONRPCObjectParams)
+  private
+    Furi: TNXJSONString;
+    FfileVersion: TNXJSONInteger;
+    Fregions: TNXLSInactiveRegionArray;
+  published
+    property uri: TNXJSONString read Furi write Furi;
+    property fileVersion: TNXJSONInteger read FfileVersion write FfileVersion;
+    property regions: TNXLSInactiveRegionArray read Fregions write Fregions;
+  end;
+
+  TNXLSInactiveRegionsNotification = class(TNXJSONRPCOutboundNotification)
+  private
+    function GetParams: TNXLSInactiveRegionsParams;
+    procedure SetParams(AValue: TNXLSInactiveRegionsParams);
+  public
+    class function GetFactoryName: string; override;
+  published
+    property params: TNXLSInactiveRegionsParams read GetParams write SetParams;
+  end;
+
+class function TNXLSInactiveRegionArray.ItemClass: TNXJSONRPCValueClass;
+begin
+  Result := TNXLSInactiveRegion;
+end;
+
+class function TNXLSInactiveRegionsNotification.GetFactoryName: string;
+begin
+  Result := 'pasls.inactiveRegions';
+end;
+
+function TNXLSInactiveRegionsNotification.GetParams: TNXLSInactiveRegionsParams;
+begin
+  Result := TNXLSInactiveRegionsParams(inherited params);
+end;
+
+procedure TNXLSInactiveRegionsNotification.SetParams(AValue: TNXLSInactiveRegionsParams);
+begin
+  inherited params := AValue;
+end;
+
+procedure NXLSAddRegion(ARegions: TNXLSInactiveRegionArray; AStartLine, AStartCol, AEndLine,
   AEndCol: Integer);
 var
-  lRegion: TJSONObject;
+  lRegion: TNXLSInactiveRegion;
 begin
-  lRegion := TJSONObject.Create;
-  lRegion.Add('startLine', AStartLine);
-  lRegion.Add('startCol', AStartCol);
-  lRegion.Add('endLine', AEndLine);
-  lRegion.Add('endCol', AEndCol);
-  ARegions.Add(lRegion);
+  lRegion := TNXLSInactiveRegion(ARegions.AddObject(TNXLSInactiveRegion));
+  lRegion.startLine.Value := AStartLine;
+  lRegion.startCol.Value := AStartCol;
+  lRegion.endLine.Value := AEndLine;
+  lRegion.endCol.Value := AEndCol;
+  lRegion.Assigned := True;
 end;
 
 procedure NXLSDirectivePos(AScanner: TLinkScanner; ADirective: PLSDirective;
@@ -50,8 +109,7 @@ end;
 
 procedure TNXLSInactiveRegionService.CheckDocument(ADocument: TNXLSDocument);
 var
-  lParams: TJSONObject;
-  lRegions: TJSONArray;
+  lNotification: TNXLSInactiveRegionsNotification;
   lScanner: TLinkScanner;
   lDirective: PLSDirective;
   lIdx: Integer;
@@ -65,12 +123,11 @@ begin
   if (ADocument = nil) or (ADocument.CodeBuffer = nil) then
     Exit;
 
-  lParams := TJSONObject.Create;
+  lNotification := TNXLSInactiveRegionsNotification.Create;
   try
-    lRegions := TJSONArray.Create;
-    lParams.Add('uri', ADocument.URI);
-    lParams.Add('fileVersion', ADocument.Version);
-    lParams.Add('regions', lRegions);
+    lNotification.params.uri.Value := ADocument.URI;
+    lNotification.params.fileVersion.Value := ADocument.Version;
+    lNotification.params.regions.Assigned := True;
 
     if CodeToolBoss.ExploreUnitDirectives(ADocument.CodeBuffer, lScanner) then
     begin
@@ -99,19 +156,21 @@ begin
           lsdsActive:
             if lHasOpenRegion then
             begin
-              NXLSAddRegion(lRegions, lStartLine, lStartCol, lLine, lCol);
+              NXLSAddRegion(lNotification.params.regions, lStartLine, lStartCol, lLine, lCol);
               lHasOpenRegion := False;
             end;
         end;
       end;
 
       if lHasOpenRegion then
-        NXLSAddRegion(lRegions, lStartLine, lStartCol, 999999, 0);
+        NXLSAddRegion(lNotification.params.regions, lStartLine, lStartCol, 999999, 0);
     end;
 
-    Model.SendNotification(cNXLSInactiveRegionsNotification, lParams);
+    lNotification.params.Assigned := True;
+    Model.SendClientNotification(lNotification);
+    lNotification := nil;
   finally
-    lParams.Free;
+    lNotification.Free;
   end;
 end;
 

@@ -14,14 +14,12 @@ uses
   obNXLSProtocolObjects;
 
 type
-  TNXLSWindowShowMessageActionRequest = class(TNXJSONRPCRequest)
-    private
+  TNXLSWindowShowMessageNotification = class(TNXJSONRPCOutboundNotification)
+  private
     function GetParams: TNXLSMessageParams;
     procedure SetParams(AValue: TNXLSMessageParams);
-public
+  public
     class function GetFactoryName: string; override;
-class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSMessageParams read GetParams write SetParams;
   end;
@@ -73,21 +71,9 @@ uses
   obNXClassFactory,
   tpNXLS;
 
-class function TNXLSWindowShowMessageActionRequest.GetFactoryName: string;
+class function TNXLSWindowShowMessageNotification.GetFactoryName: string;
 begin
   Result := 'window/showMessage';
-end;
-
-class function TNXLSWindowShowMessageActionRequest.GetResultKind: TNXJSONRPCResultKind;
-begin
-  Result := rkNoResult;
-end;
-
-function TNXLSWindowShowMessageActionRequest.Execute: TNXJSONRPCValue;
-begin
-  // Method: window/showMessage; required: Client-side; original server: No; category: window; result: nil.
-  NXLSRaiseNotImplemented(GetFactoryName);
-  Result := nil;
 end;
 
 class function TNXLSWindowShowMessageRequest.GetFactoryName: string;
@@ -165,12 +151,12 @@ begin
   inherited params := AValue;
 end;
 
-function TNXLSWindowShowMessageActionRequest.GetParams: TNXLSMessageParams;
+function TNXLSWindowShowMessageNotification.GetParams: TNXLSMessageParams;
 begin
   Result := TNXLSMessageParams(inherited params);
 end;
 
-procedure TNXLSWindowShowMessageActionRequest.SetParams(AValue: TNXLSMessageParams);
+procedure TNXLSWindowShowMessageNotification.SetParams(AValue: TNXLSMessageParams);
 begin
   inherited params := AValue;
 end;
@@ -196,7 +182,6 @@ begin
 end;
 
 initialization
-  TNXClassFactory.RegisterClass(TNXLSWindowShowMessageActionRequest);
   TNXClassFactory.RegisterClass(TNXLSWindowShowMessageRequest);
   TNXClassFactory.RegisterClass(TNXLSWindowLogMessageRequest);
   TNXClassFactory.RegisterClass(TNXLSWindowShowDocumentRequest);

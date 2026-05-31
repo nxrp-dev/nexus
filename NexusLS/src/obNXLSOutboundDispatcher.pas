@@ -37,6 +37,7 @@ type
     destructor Destroy; override;
 
     function SendRequest(ARequest: TNXJSONRPCOutboundCommand): Int64;
+    procedure SendNotification(ANotification: TNXJSONRPCOutboundNotification);
     function ReceiveResponse(AMessage: TNXJSONRPCMessage): Boolean;
     procedure ClearPendingRequests;
 
@@ -140,6 +141,36 @@ begin
     lRequest := nil;
   finally
     lRequest.Free;
+  end;
+end;
+
+procedure TNXLSOutboundDispatcher.SendNotification(
+  ANotification: TNXJSONRPCOutboundNotification);
+var
+  lMessage: TJSONObject;
+  lNotification: TNXJSONRPCOutboundNotification;
+begin
+  lNotification := ANotification;
+  if ANotification = nil then
+    raise Exception.Create('Client notification is required.');
+
+  try
+    if FTransport = nil then
+      Exit;
+
+    ANotification.jsonrpc.Value := TNXJSONRPC.Version;
+    ANotification.method.Value := ANotification.GetFactoryName;
+
+    lMessage := TJSONObject(ANotification.ToJSONData);
+    try
+      FTransport.WriteMessage(lMessage.AsJSON);
+    finally
+      lMessage.Free;
+    end;
+
+    lNotification := nil;
+  finally
+    lNotification.Free;
   end;
 end;
 

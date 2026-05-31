@@ -7,7 +7,6 @@ interface
 uses
   Classes,
   Contnrs,
-  fpjson,
   CodeToolsConfig,
   obNXJSONRPCMessages,
   obNXLSTransport,
@@ -90,7 +89,7 @@ type
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RebuildWorkspaceIndex; override;
-    procedure SendNotification(const AMethod: string; AParams: TJSONData); override;
+    procedure SendClientNotification(ANotification: TNXJSONRPCOutboundNotification); override;
     function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; override;
     function ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean; virtual;
 
@@ -408,26 +407,11 @@ begin
   FSymbols.RebuildWorkspaceIndex;
 end;
 
-procedure TNXLSLSPModel.SendNotification(const AMethod: string; AParams: TJSONData);
-var
-  lNotification: TJSONObject;
+procedure TNXLSLSPModel.SendClientNotification(
+  ANotification: TNXJSONRPCOutboundNotification);
 begin
-  if FTransport = nil then
-    Exit;
-
-  lNotification := TJSONObject.Create;
-  try
-    lNotification.Add('jsonrpc', '2.0');
-    lNotification.Add('method', AMethod);
-    if AParams = nil then
-      lNotification.Add('params', TJSONObject.Create)
-    else
-      lNotification.Add('params', AParams.Clone);
-
-    FTransport.WriteMessage(lNotification.AsJSON);
-  finally
-    lNotification.Free;
-  end;
+  FOutboundDispatcher.Transport := FTransport;
+  FOutboundDispatcher.SendNotification(ANotification);
 end;
 
 function TNXLSLSPModel.SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64;

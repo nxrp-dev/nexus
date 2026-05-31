@@ -7,7 +7,6 @@ interface
 uses
   Classes,
   CodeCache,
-  fpjson,
   obNXJSONValues,
   obNXJSONRPCMessages,
   obNXLSProtocolBase,
@@ -65,7 +64,7 @@ type
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;
     procedure RebuildWorkspaceIndex; virtual; abstract;
 
-    procedure SendNotification(const AMethod: string; AParams: TJSONData); virtual; abstract;
+    procedure SendClientNotification(ANotification: TNXJSONRPCOutboundNotification); virtual; abstract;
     function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; virtual; abstract;
   end;
 

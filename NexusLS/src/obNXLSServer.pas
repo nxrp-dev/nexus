@@ -97,7 +97,11 @@ var
   lID: TJSONData;
   lMessage: string;
   lResponse: string;
+  lRPCMessages: TNXJSONRPCMessages;
   lRPCMessage: TNXJSONRPCMessage;
+  lBatchResponses: TJSONArray;
+  lResponseJSON: TJSONData;
+  lIdx: Integer;
 begin
   if FTransport = nil then
     raise Exception.Create('Transport has not been assigned.');
@@ -108,10 +112,10 @@ begin
 
     while FTransport.ReadMessage(lMessage) do
     begin
-      lRPCMessage := nil;
+      lRPCMessages := nil;
       try
         try
-          lRPCMessage := TNXJSONRPC.ParseMessage(lMessage);
+          lRPCMessages := TNXJSONRPC.ParseMessages(lMessage);
         except
           on E: ENXJSONRPC do
           begin
@@ -130,19 +134,47 @@ begin
           end;
         end;
 
-        case lRPCMessage.MessageType of
-          rpcmtRequest,
-          rpcmtNotification:
-            if TNXLSDispatcher.DispatchMessage(lRPCMessage, lResponse) and
-              (lResponse <> '') then
-              FTransport.WriteMessage(lResponse);
+        lBatchResponses := nil;
+        try
+          if lRPCMessages.Count > 1 then
+            lBatchResponses := TJSONArray.Create;
 
-          rpcmtSuccessResponse,
-          rpcmtErrorResponse:
-            FModel.ReceiveClientResponse(lRPCMessage);
+          for lIdx := 0 to lRPCMessages.Count - 1 do
+          begin
+            lRPCMessage := lRPCMessages.GetItem(lIdx);
+            case lRPCMessage.MessageType of
+              rpcmtRequest,
+              rpcmtNotification:
+                if TNXLSDispatcher.DispatchMessage(lRPCMessage, lResponse) and
+                  (lResponse <> '') then
+                begin
+                  if lBatchResponses = nil then
+                    FTransport.WriteMessage(lResponse)
+                  else
+                  begin
+                    lResponseJSON := GetJSON(lResponse);
+                    try
+                      lBatchResponses.Add(lResponseJSON);
+                      lResponseJSON := nil;
+                    finally
+                      lResponseJSON.Free;
+                    end;
+                  end;
+                end;
+
+              rpcmtSuccessResponse,
+              rpcmtErrorResponse:
+                FModel.ReceiveClientResponse(lRPCMessage);
+            end;
+          end;
+
+          if (lBatchResponses <> nil) and (lBatchResponses.Count > 0) then
+            FTransport.WriteMessage(lBatchResponses.AsJSON);
+        finally
+          lBatchResponses.Free;
         end;
       finally
-        lRPCMessage.Free;
+        lRPCMessages.Free;
       end;
     end;
   finally

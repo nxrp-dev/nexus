@@ -5,8 +5,6 @@ unit obNXLSCompletionService;
 interface
 
 uses
-  obNXJSONValues,
-  obNXJSONRPCObjects,
   obNXLSProtocolParams,
   obNXLSProtocolObjects,
   obNXLSServiceContext;
@@ -25,7 +23,6 @@ implementation
 uses
   Classes,
   SysUtils,
-  fpjson,
   BasicCodeTools,
   CodeCache,
   CodeToolManager,
@@ -128,24 +125,12 @@ begin
   end;
 end;
 
-procedure NXLSSetJSONString(AValue: TNXJSONRPCValue; const AText: string);
-var
-  lJSON: TJSONData;
-begin
-  lJSON := TJSONString.Create(AText);
-  try
-    AValue.FromJSONData(lJSON);
-  finally
-    lJSON.Free;
-  end;
-end;
-
 function NXLSWordMatchesPrefix(const AWord, APrefix: string): Boolean;
 begin
   Result := (APrefix = '') or (Pos(LowerCase(APrefix), LowerCase(AWord)) = 1);
 end;
 
-procedure NXLSAddCompletionItem(ATarget: TNXJSONArray; ASeen: TStrings;
+procedure NXLSAddCompletionItem(ATarget: TNXLSCompletionItemArray; ASeen: TStrings;
   const ALabel: string; AKind: Integer; const ADetail: string);
 var
   lItem: TNXLSCompletionItem;
@@ -163,7 +148,7 @@ begin
   lItem.Assigned := True;
 end;
 
-procedure NXLSAddSourceCompletions(ATarget: TNXJSONArray; ASeen: TStrings;
+procedure NXLSAddSourceCompletions(ATarget: TNXLSCompletionItemArray; ASeen: TStrings;
   ACode: TCodeBuffer; const APrefix: string);
 var
   lIdx: Integer;
@@ -210,7 +195,7 @@ begin
     begin
       lParameter := TNXLSParameterInformation(
         lSignature.parameters.AddObject(TNXLSParameterInformation));
-      NXLSSetJSONString(lParameter.&label, lParamList[lParamIdx]);
+      lParameter.&label.StringValue := lParamList[lParamIdx];
       lParameter.Assigned := True;
     end;
   finally
@@ -482,7 +467,7 @@ begin
         begin
           lParameter := TNXLSParameterInformation(
             lSignature.parameters.AddObject(TNXLSParameterInformation));
-          NXLSSetJSONString(lParameter.&label, lParamList[lParamIdx]);
+          lParameter.&label.StringValue := lParamList[lParamIdx];
           lParameter.Assigned := True;
         end;
       finally

@@ -14,14 +14,12 @@ uses
   obNXLSProtocolObjects;
 
 type
-  TNXLSTextDocumentPublishDiagnosticsRequest = class(TNXJSONRPCRequest)
-    private
+  TNXLSTextDocumentPublishDiagnosticsNotification = class(TNXJSONRPCOutboundNotification)
+  private
     function GetParams: TNXLSPublishDiagnosticsParams;
     procedure SetParams(AValue: TNXLSPublishDiagnosticsParams);
-public
+  public
     class function GetFactoryName: string; override;
-class function GetResultKind: TNXJSONRPCResultKind; override;
-    function Execute: TNXJSONRPCValue; override;
   published
     property params: TNXLSPublishDiagnosticsParams read GetParams write SetParams;
   end;
@@ -67,21 +65,9 @@ uses
   obNXClassFactory,
   tpNXLS;
 
-class function TNXLSTextDocumentPublishDiagnosticsRequest.GetFactoryName: string;
+class function TNXLSTextDocumentPublishDiagnosticsNotification.GetFactoryName: string;
 begin
   Result := 'textDocument/publishDiagnostics';
-end;
-
-class function TNXLSTextDocumentPublishDiagnosticsRequest.GetResultKind: TNXJSONRPCResultKind;
-begin
-  Result := rkNoResult;
-end;
-
-function TNXLSTextDocumentPublishDiagnosticsRequest.Execute: TNXJSONRPCValue;
-begin
-  // Method: textDocument/publishDiagnostics; required: Client-side; original server: No; category: diagnostics; result: nil.
-  NXLSRaiseNotImplemented(GetFactoryName);
-  Result := nil;
 end;
 
 class function TNXLSTextDocumentDiagnosticRequest.GetFactoryName: string;
@@ -142,12 +128,12 @@ begin
   inherited params := AValue;
 end;
 
-function TNXLSTextDocumentPublishDiagnosticsRequest.GetParams: TNXLSPublishDiagnosticsParams;
+function TNXLSTextDocumentPublishDiagnosticsNotification.GetParams: TNXLSPublishDiagnosticsParams;
 begin
   Result := TNXLSPublishDiagnosticsParams(inherited params);
 end;
 
-procedure TNXLSTextDocumentPublishDiagnosticsRequest.SetParams(AValue: TNXLSPublishDiagnosticsParams);
+procedure TNXLSTextDocumentPublishDiagnosticsNotification.SetParams(AValue: TNXLSPublishDiagnosticsParams);
 begin
   inherited params := AValue;
 end;
@@ -183,7 +169,6 @@ begin
 end;
 
 initialization
-  TNXClassFactory.RegisterClass(TNXLSTextDocumentPublishDiagnosticsRequest);
   TNXClassFactory.RegisterClass(TNXLSTextDocumentDiagnosticRequest);
   TNXClassFactory.RegisterClass(TNXLSWorkspaceDiagnosticRequest);
   TNXClassFactory.RegisterClass(TNXLSWorkspaceDiagnosticRefreshRequest);

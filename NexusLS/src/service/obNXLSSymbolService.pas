@@ -84,7 +84,6 @@ implementation
 
 uses
   SysUtils,
-  fpjson,
   CodeTree,
   CodeToolManager,
   PascalParserTool,
@@ -638,7 +637,6 @@ var
   lIndexedSymbol: TNXLSIndexedSymbol;
   lSymbol: TNXLSWorkspaceSymbol;
   lLocation: TNXLSLocation;
-  lJSON: TJSONData;
 begin
   if AResult = nil then
     Exit;
@@ -666,13 +664,8 @@ begin
       NXLSSetPosition(lLocation.range.&end, lIndexedSymbol.RangeEndLine, lIndexedSymbol.RangeEndCharacter);
       lLocation.range.Assigned := True;
       lLocation.Assigned := True;
-
-      lJSON := lLocation.ToJSONData;
-      try
-        lSymbol.location.FromJSONData(lJSON);
-      finally
-        lJSON.Free;
-      end;
+      lSymbol.location.Value := lLocation;
+      lLocation := nil;
     finally
       lLocation.Free;
     end;

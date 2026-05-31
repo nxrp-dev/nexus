@@ -5,21 +5,20 @@ unit obNXLSDiagnosticsService;
 interface
 
 uses
-  fpjson,
+  obNXLSProtocolParams,
   obNXLSServiceContext;
 
 type
   TNXLSDiagnosticsService = class(TNXLSLSPService)
   private
-    procedure AddDiagnostic(ADiagnostics: TJSONArray; const AMessage: string;
+    procedure AddDiagnostic(ADiagnostics: TNXLSDiagnosticArray; const AMessage: string;
       ALine, AColumn: Integer);
-    procedure PublishDiagnostics(ADocument: TNXLSDocument;
-      ADiagnostics: TJSONArray);
+    procedure PublishDiagnostics(var AParams: TNXLSPublishDiagnosticsParams);
     procedure ShowSyntaxError(const AMessage: string);
     function CodeToolsCheckSyntax(ADocument: TNXLSDocument;
-      ADiagnostics: TJSONArray): Boolean;
+      ADiagnostics: TNXLSDiagnosticArray): Boolean;
     function StrictSyntaxCheck(ADocument: TNXLSDocument;
-      ADiagnostics: TJSONArray): Boolean;
+      ADiagnostics: TNXLSDiagnosticArray): Boolean;
   public
     procedure CheckDocument(ADocument: TNXLSDocument); virtual;
   end;
@@ -32,6 +31,8 @@ uses
   Types,
   CodeCache,
   CodeToolManager,
+  obNXLSDiagnosticRequests,
+  obNXLSWindowRequests,
   PParser,
   PScanner,
   PasTree;
@@ -73,8 +74,6 @@ type
   end;
 
 const
-  cPublishDiagnosticsMethod = 'textDocument/publishDiagnostics';
-  cShowMessageMethod = 'window/showMessage';
   cDiagnosticSource = 'nexusls';
 
 function TNXLSPasTreeEngine.CreateElement(AClass: TPTreeElement;
@@ -278,13 +277,10 @@ begin
   end;
 end;
 
-procedure TNXLSDiagnosticsService.AddDiagnostic(ADiagnostics: TJSONArray;
+procedure TNXLSDiagnosticsService.AddDiagnostic(ADiagnostics: TNXLSDiagnosticArray;
   const AMessage: string; ALine, AColumn: Integer);
 var
-  lDiagnostic: TJSONObject;
-  lRange: TJSONObject;
-  lStart: TJSONObject;
-  lEnd: TJSONObject;
+  lDiagnostic: TNXLSDiagnostic;
 begin
   if ADiagnostics = nil then
     Exit;
@@ -294,68 +290,56 @@ begin
   if AColumn < 0 then
     AColumn := 0;
 
-  lDiagnostic := TJSONObject.Create;
-  ADiagnostics.Add(lDiagnostic);
-
-  lRange := TJSONObject.Create;
-  lDiagnostic.Add('range', lRange);
-
-  lStart := TJSONObject.Create;
-  lStart.Add('line', ALine);
-  lStart.Add('character', AColumn);
-  lRange.Add('start', lStart);
-
-  lEnd := TJSONObject.Create;
-  lEnd.Add('line', ALine);
-  lEnd.Add('character', AColumn + 1);
-  lRange.Add('end', lEnd);
-
-  lDiagnostic.Add('severity', 1);
-  lDiagnostic.Add('source', cDiagnosticSource);
-  lDiagnostic.Add('message', AMessage);
+  lDiagnostic := TNXLSDiagnostic(ADiagnostics.AddObject(TNXLSDiagnostic));
+  NXLSSetPosition(lDiagnostic.range.start, ALine, AColumn);
+  NXLSSetPosition(lDiagnostic.range.&end, ALine, AColumn + 1);
+  lDiagnostic.range.Assigned := True;
+  lDiagnostic.severity.Value := 1;
+  lDiagnostic.source.Value := cDiagnosticSource;
+  lDiagnostic.message.Value := AMessage;
+  lDiagnostic.Assigned := True;
 end;
 
-procedure TNXLSDiagnosticsService.PublishDiagnostics(ADocument: TNXLSDocument;
-  ADiagnostics: TJSONArray);
+procedure TNXLSDiagnosticsService.PublishDiagnostics(
+  var AParams: TNXLSPublishDiagnosticsParams);
 var
-  lParams: TJSONObject;
+  lNotification: TNXLSTextDocumentPublishDiagnosticsNotification;
 begin
-  if (ADocument = nil) or (not Model.PublishDiagnosticsEnabled) then
+  if (AParams = nil) or (not Model.PublishDiagnosticsEnabled) then
     Exit;
 
-  lParams := TJSONObject.Create;
+  lNotification := TNXLSTextDocumentPublishDiagnosticsNotification.Create;
   try
-    lParams.Add('uri', ADocument.URI);
-    if ADiagnostics = nil then
-      lParams.Add('diagnostics', TJSONArray.Create)
-    else
-      lParams.Add('diagnostics', ADiagnostics.Clone);
-
-    Model.SendNotification(cPublishDiagnosticsMethod, lParams);
+    lNotification.params := AParams;
+    AParams := nil;
+    Model.SendClientNotification(lNotification);
+    lNotification := nil;
   finally
-    lParams.Free;
+    lNotification.Free;
   end;
 end;
 
 procedure TNXLSDiagnosticsService.ShowSyntaxError(const AMessage: string);
 var
-  lParams: TJSONObject;
+  lNotification: TNXLSWindowShowMessageNotification;
 begin
   if (AMessage = '') or (not Model.ShowSyntaxErrorsEnabled) then
     Exit;
 
-  lParams := TJSONObject.Create;
+  lNotification := TNXLSWindowShowMessageNotification.Create;
   try
-    lParams.Add('type', 1);
-    lParams.Add('message', AMessage);
-    Model.SendNotification(cShowMessageMethod, lParams);
+    lNotification.params.&type.Value := 1;
+    lNotification.params.message.Value := AMessage;
+    lNotification.params.Assigned := True;
+    Model.SendClientNotification(lNotification);
+    lNotification := nil;
   finally
-    lParams.Free;
+    lNotification.Free;
   end;
 end;
 
 function TNXLSDiagnosticsService.CodeToolsCheckSyntax(ADocument: TNXLSDocument;
-  ADiagnostics: TJSONArray): Boolean;
+  ADiagnostics: TNXLSDiagnosticArray): Boolean;
 var
   lTool: TCodeTool;
   lLine: Integer;
@@ -380,7 +364,7 @@ begin
 end;
 
 function TNXLSDiagnosticsService.StrictSyntaxCheck(ADocument: TNXLSDocument;
-  ADiagnostics: TJSONArray): Boolean;
+  ADiagnostics: TNXLSDiagnosticArray): Boolean;
 var
   lParser: TNXLSSyntaxParser;
   lArgs: TStringDynArray;
@@ -419,7 +403,7 @@ end;
 
 procedure TNXLSDiagnosticsService.CheckDocument(ADocument: TNXLSDocument);
 var
-  lDiagnostics: TJSONArray;
+  lParams: TNXLSPublishDiagnosticsParams;
   lCodeOK: Boolean;
 begin
   if (ADocument = nil) or (ADocument.CodeBuffer = nil) then
@@ -432,27 +416,27 @@ begin
     (not Model.ShowSyntaxErrorsEnabled) then
     Exit;
 
-  lDiagnostics := TJSONArray.Create;
+  lParams := TNXLSPublishDiagnosticsParams.Create;
   try
-    try
-      lCodeOK := CodeToolsCheckSyntax(ADocument, lDiagnostics);
-      if lCodeOK then
-        lCodeOK := StrictSyntaxCheck(ADocument, lDiagnostics);
+    lParams.uri.Value := ADocument.URI;
+    lParams.version.Value := ADocument.Version;
+    lParams.diagnostics.Assigned := True;
 
+    try
+      lCodeOK := CodeToolsCheckSyntax(ADocument, lParams.diagnostics);
       if lCodeOK then
-        PublishDiagnostics(ADocument, nil)
-      else
-        PublishDiagnostics(ADocument, lDiagnostics);
+        lCodeOK := StrictSyntaxCheck(ADocument, lParams.diagnostics);
     except
       on E: Exception do
       begin
-        AddDiagnostic(lDiagnostics, E.Message, 0, 0);
+        AddDiagnostic(lParams.diagnostics, E.Message, 0, 0);
         ShowSyntaxError(E.Message);
-        PublishDiagnostics(ADocument, lDiagnostics);
       end;
     end;
+
+    PublishDiagnostics(lParams);
   finally
-    lDiagnostics.Free;
+    lParams.Free;
   end;
 end;
 
