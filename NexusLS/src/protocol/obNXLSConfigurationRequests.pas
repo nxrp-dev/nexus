@@ -21,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -61,6 +62,11 @@ end;
 class function TNXLSWorkspaceDidChangeConfigurationRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDidChangeConfigurationParams;
+end;
+
+class function TNXLSWorkspaceDidChangeConfigurationRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWorkspaceDidChangeConfigurationRequest.Execute: TNXJSONValue;

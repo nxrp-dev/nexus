@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -35,6 +36,7 @@ type
   TNXLSWorkspaceDiagnosticRefreshRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -54,6 +56,11 @@ end;
 class function TNXLSTextDocumentPublishDiagnosticsRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSPublishDiagnosticsParams;
+end;
+
+class function TNXLSTextDocumentPublishDiagnosticsRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSTextDocumentPublishDiagnosticsRequest.Execute: TNXJSONValue;
@@ -118,10 +125,15 @@ begin
   Result := 'workspace/diagnostic/refresh';
 end;
 
+class function TNXLSWorkspaceDiagnosticRefreshRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullResult;
+end;
+
 function TNXLSWorkspaceDiagnosticRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/diagnostic/refresh; required: Client-side; original server: No; category: diagnostics; result: TNXLSNullResult.
-  Result := TNXLSNullResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 initialization

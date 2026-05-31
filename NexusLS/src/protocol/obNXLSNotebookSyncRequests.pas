@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +29,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,6 +37,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -55,6 +59,11 @@ begin
   Result := TNXLSDidOpenNotebookDocumentParams;
 end;
 
+class function TNXLSNotebookDocumentDidOpenRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSNotebookDocumentDidOpenRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didOpen; required: Optional; original server: No; category: notebook sync; result: nil.
@@ -69,6 +78,11 @@ end;
 class function TNXLSNotebookDocumentDidChangeRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDidChangeNotebookDocumentParams;
+end;
+
+class function TNXLSNotebookDocumentDidChangeRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSNotebookDocumentDidChangeRequest.Execute: TNXJSONValue;
@@ -87,6 +101,11 @@ begin
   Result := TNXLSNotebookDocumentParams;
 end;
 
+class function TNXLSNotebookDocumentDidSaveRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSNotebookDocumentDidSaveRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didSave; required: Optional; original server: No; category: notebook sync; result: nil.
@@ -101,6 +120,11 @@ end;
 class function TNXLSNotebookDocumentDidCloseRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDidCloseNotebookDocumentParams;
+end;
+
+class function TNXLSNotebookDocumentDidCloseRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSNotebookDocumentDidCloseRequest.Execute: TNXJSONValue;

@@ -21,6 +21,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -66,6 +68,16 @@ end;
 class function TNXLSTextDocumentSignatureHelpRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSSignatureHelpParams;
+end;
+
+class function TNXLSTextDocumentSignatureHelpRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSSignatureHelp;
+end;
+
+class function TNXLSTextDocumentSignatureHelpRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
 end;
 
 function TNXLSTextDocumentSignatureHelpRequest.Execute: TNXJSONValue;

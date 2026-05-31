@@ -29,6 +29,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -118,6 +120,16 @@ end;
 class function TNXLSTextDocumentHoverRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextDocumentPositionParams;
+end;
+
+class function TNXLSTextDocumentHoverRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSHover;
+end;
+
+class function TNXLSTextDocumentHoverRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
 end;
 
 function TNXLSTextDocumentHoverRequest.Execute: TNXJSONValue;

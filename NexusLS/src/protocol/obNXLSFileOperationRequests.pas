@@ -13,6 +13,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +22,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +30,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,6 +39,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -41,6 +47,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -48,6 +56,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -56,8 +65,7 @@ implementation
 uses
   obNXClassFactory,
   obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSProtocolParams;
 
 class function TNXLSWorkspaceWillCreateFilesRequest.GetFactoryName: string;
 begin
@@ -69,10 +77,20 @@ begin
   Result := TNXLSCreateFilesParams;
 end;
 
+class function TNXLSWorkspaceWillCreateFilesRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSWorkspaceEdit;
+end;
+
+class function TNXLSWorkspaceWillCreateFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSWorkspaceWillCreateFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/willCreateFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
-  Result := TNXLSWorkspaceEditResult.CreateValue;
+  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSWorkspaceDidCreateFilesRequest.GetFactoryName: string;
@@ -83,6 +101,11 @@ end;
 class function TNXLSWorkspaceDidCreateFilesRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSCreateFilesParams;
+end;
+
+class function TNXLSWorkspaceDidCreateFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWorkspaceDidCreateFilesRequest.Execute: TNXJSONValue;
@@ -101,10 +124,20 @@ begin
   Result := TNXLSRenameFilesParams;
 end;
 
+class function TNXLSWorkspaceWillRenameFilesRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSWorkspaceEdit;
+end;
+
+class function TNXLSWorkspaceWillRenameFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSWorkspaceWillRenameFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/willRenameFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
-  Result := TNXLSWorkspaceEditResult.CreateValue;
+  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSWorkspaceDidRenameFilesRequest.GetFactoryName: string;
@@ -115,6 +148,11 @@ end;
 class function TNXLSWorkspaceDidRenameFilesRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSRenameFilesParams;
+end;
+
+class function TNXLSWorkspaceDidRenameFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWorkspaceDidRenameFilesRequest.Execute: TNXJSONValue;
@@ -133,10 +171,20 @@ begin
   Result := TNXLSDeleteFilesParams;
 end;
 
+class function TNXLSWorkspaceWillDeleteFilesRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSWorkspaceEdit;
+end;
+
+class function TNXLSWorkspaceWillDeleteFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSWorkspaceWillDeleteFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/willDeleteFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
-  Result := TNXLSWorkspaceEditResult.CreateValue;
+  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSWorkspaceDidDeleteFilesRequest.GetFactoryName: string;
@@ -147,6 +195,11 @@ end;
 class function TNXLSWorkspaceDidDeleteFilesRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDeleteFilesParams;
+end;
+
+class function TNXLSWorkspaceDidDeleteFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWorkspaceDidDeleteFilesRequest.Execute: TNXJSONValue;

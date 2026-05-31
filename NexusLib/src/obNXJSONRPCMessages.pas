@@ -27,6 +27,13 @@ type
     rpcBatch
   );
 
+  TNXJSONRPCResultKind = (
+    rkNoResult,
+    rkNullResult,
+    rkConcreteResult,
+    rkNullableConcreteResult
+  );
+
   TNXJSONRPCMessage = class;
   TNXJSONRPCMessageClass = class of TNXJSONRPCMessage;
   TNXJSONRPCRequest = class;
@@ -72,9 +79,9 @@ type
   protected
     function PrepareResult: TNXJSONValue; virtual;
   public
-    class function AllowsNullResult: Boolean; virtual;
     class function GetParamClass: TNXJSONValueClass; virtual;
     class function GetResultClass: TNXJSONValueClass; virtual;
+    class function GetResultKind: TNXJSONRPCResultKind; virtual;
     function Execute: TNXJSONValue; virtual; abstract;
     procedure ValidateResult(AResult: TNXJSONValue); virtual;
     procedure FromJSONData(AData: TJSONData); override;
@@ -150,11 +157,6 @@ begin
     Result := nil;
 end;
 
-class function TNXJSONRPCRequest.AllowsNullResult: Boolean;
-begin
-  Result := False;
-end;
-
 class function TNXJSONRPCRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := nil;
@@ -165,10 +167,22 @@ begin
   Result := nil;
 end;
 
+class function TNXJSONRPCRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkConcreteResult;
+end;
+
 function TNXJSONRPCRequest.PrepareResult: TNXJSONValue;
 var
   lResultClass: TNXJSONValueClass;
+  lResultKind: TNXJSONRPCResultKind;
 begin
+  lResultKind := GetResultKind;
+  if lResultKind = rkNoResult then
+    Exit(nil);
+  if lResultKind = rkNullResult then
+    Exit(TNXJSONNull.Create);
+
   lResultClass := GetResultClass;
   if lResultClass = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
@@ -186,32 +200,43 @@ end;
 procedure TNXJSONRPCRequest.ValidateResult(AResult: TNXJSONValue);
 var
   lResultClass: TNXJSONValueClass;
+  lResultKind: TNXJSONRPCResultKind;
 begin
-  lResultClass := GetResultClass;
+  lResultKind := GetResultKind;
 
   if AResult = nil then
   begin
-    if Kind = rpcNotification then
+    if lResultKind = rkNoResult then
       Exit;
 
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.Execute returned nil result.');
   end;
 
+  if AResult.ClassType = TNXJSONValue then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.Execute returned raw TNXJSONValue result. This should never happen.');
+
   if AResult is TNXJSONNull then
   begin
-    if AllowsNullResult then
+    if lResultKind in [rkNullResult, rkNullableConcreteResult] then
       Exit;
 
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.Execute returned null but null is not allowed for this result.');
   end;
 
-  if AResult.ClassType = TNXJSONValue then
+  if not (lResultKind in [rkConcreteResult, rkNullableConcreteResult]) then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
-      ClassName + '.Execute returned raw TNXJSONValue result. This should never happen.');
+      ClassName + '.Execute returned ' + AResult.ClassName +
+      ' but this result kind does not allow a concrete result.');
 
-  if (lResultClass <> nil) and (not AResult.InheritsFrom(lResultClass)) then
+  lResultClass := GetResultClass;
+  if lResultClass = nil then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.GetResultClass returned nil.');
+
+  if not AResult.InheritsFrom(lResultClass) then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.Execute returned ' + AResult.ClassName +
       ' but expected ' + lResultClass.ClassName + '.');

@@ -20,6 +20,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +29,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -64,6 +68,16 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentPrepareRenameRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSPrepareRenamePlaceholder;
+end;
+
+class function TNXLSTextDocumentPrepareRenameRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSTextDocumentPrepareRenameRequest.Execute: TNXJSONValue;
 begin
   Result := TNXLSLSPModel.Current.Refactoring.PrepareRename(TNXLSTextDocumentPositionParams(params));
@@ -79,10 +93,20 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentLinkedEditingRangeRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSLinkedEditingRanges;
+end;
+
+class function TNXLSTextDocumentLinkedEditingRangeRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSTextDocumentLinkedEditingRangeRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/linkedEditingRange; required: Optional; original server: No; category: refactoring; result: TNXLSLinkedEditingRangesResult.
-  Result := TNXLSLinkedEditingRangesResult.CreateValue;
+  Result := TNXJSONNull.Create;
 end;
 
 initialization

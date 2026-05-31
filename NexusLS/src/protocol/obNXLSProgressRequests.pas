@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -28,8 +30,7 @@ implementation
 uses
   obNXClassFactory,
   obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSProtocolParams;
 
 class function TNXLSWindowWorkDoneProgressCreateRequest.GetFactoryName: string;
 begin
@@ -41,10 +42,15 @@ begin
   Result := TNXLSWorkDoneProgressCreateParams;
 end;
 
+class function TNXLSWindowWorkDoneProgressCreateRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullResult;
+end;
+
 function TNXLSWindowWorkDoneProgressCreateRequest.Execute: TNXJSONValue;
 begin
   // Method: window/workDoneProgress/create; required: Client-side; original server: No; category: progress; result: TNXLSNullResult.
-  Result := TNXLSNullResult.CreateValue;
+  Result := PrepareResult;
 end;
 
 class function TNXLSWindowWorkDoneProgressCancelRequest.GetFactoryName: string;
@@ -55,6 +61,11 @@ end;
 class function TNXLSWindowWorkDoneProgressCancelRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSWorkDoneProgressCancelParams;
+end;
+
+class function TNXLSWindowWorkDoneProgressCancelRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWindowWorkDoneProgressCancelRequest.Execute: TNXJSONValue;

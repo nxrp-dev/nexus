@@ -20,6 +20,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -55,6 +56,11 @@ end;
 class function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDidChangeWorkspaceFoldersParams;
+end;
+
+class function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.Execute: TNXJSONValue;

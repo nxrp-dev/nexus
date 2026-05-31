@@ -81,10 +81,23 @@ type
     function PublicPrepareResult: TNXJSONValue;
   end;
 
-  TNXTestNullAllowedResultRequest = class(TNXJSONRPCRequest)
+  TNXTestNoResultKindRequest = class(TNXJSONRPCRequest)
   public
-    class function AllowsNullResult: Boolean; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+    function PublicPrepareResult: TNXJSONValue;
+  end;
+
+  TNXTestNullResultKindRequest = class(TNXJSONRPCRequest)
+  public
+    class function GetResultKind: TNXJSONRPCResultKind; override;
+    function Execute: TNXJSONValue; override;
+    function PublicPrepareResult: TNXJSONValue;
+  end;
+
+  TNXTestNullableConcreteResultKindRequest = class(TNXTestDeclaredResultRequest)
+  public
+    class function GetResultKind: TNXJSONRPCResultKind; override;
   end;
 
   TNXTestWrongResultDispatchRequest = class(TNXJSONRPCRequest)
@@ -150,14 +163,39 @@ begin
   Result := PrepareResult;
 end;
 
-class function TNXTestNullAllowedResultRequest.AllowsNullResult: Boolean;
+class function TNXTestNoResultKindRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
-  Result := True;
+  Result := rkNoResult;
 end;
 
-function TNXTestNullAllowedResultRequest.Execute: TNXJSONValue;
+function TNXTestNoResultKindRequest.Execute: TNXJSONValue;
+begin
+  Result := nil;
+end;
+
+function TNXTestNoResultKindRequest.PublicPrepareResult: TNXJSONValue;
+begin
+  Result := PrepareResult;
+end;
+
+class function TNXTestNullResultKindRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullResult;
+end;
+
+function TNXTestNullResultKindRequest.Execute: TNXJSONValue;
 begin
   Result := TNXJSONNull.Create;
+end;
+
+function TNXTestNullResultKindRequest.PublicPrepareResult: TNXJSONValue;
+begin
+  Result := PrepareResult;
+end;
+
+class function TNXTestNullableConcreteResultKindRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
 end;
 
 class function TNXTestWrongResultDispatchRequest.GetFactoryName: string;
@@ -765,10 +803,89 @@ begin
     'JSON-RPC requests should not declare a result class by default.');
 end;
 
-procedure TestAllowsNullResultDefaultsToFalse(AContext: TNXTestContext);
+procedure TestResultKindDefaultsToConcreteResult(AContext: TNXTestContext);
 begin
-  AContext.AssertFalse(TNXTestDefaultResultClassRequest.AllowsNullResult,
-    'JSON-RPC requests should not allow null results by default.');
+  AContext.AssertEquals(Integer(rkConcreteResult),
+    Integer(TNXTestDefaultResultClassRequest.GetResultKind),
+    'JSON-RPC requests should require concrete results by default.');
+end;
+
+procedure TestNoResultKindAcceptsNil(AContext: TNXTestContext);
+var
+  lRequest: TNXTestNoResultKindRequest;
+begin
+  lRequest := TNXTestNoResultKindRequest.Create;
+  try
+    lRequest.ValidateResult(nil);
+    AContext.AssertTrue(True, 'rkNoResult should accept nil.');
+  finally
+    lRequest.Free;
+  end;
+end;
+
+procedure TestNotificationNilRequiresExplicitNoResultKind(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDefaultResultClassRequest;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDefaultResultClassRequest.Create;
+  try
+    lRequest.method.Value := 'test/notification';
+    try
+      lRequest.ValidateResult(nil);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised,
+    'Notification/no-response nil must require explicit rkNoResult.');
+end;
+
+procedure TestNullResultKindAcceptsNull(AContext: TNXTestContext);
+var
+  lRequest: TNXTestNullResultKindRequest;
+  lResult: TNXJSONValue;
+begin
+  lRequest := TNXTestNullResultKindRequest.Create;
+  lResult := lRequest.PublicPrepareResult;
+  try
+    AContext.AssertTrue(lResult is TNXJSONNull,
+      'rkNullResult PrepareResult should construct TNXJSONNull.');
+    lRequest.ValidateResult(lResult);
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+end;
+
+procedure TestNullResultKindRejectsConcreteResult(AContext: TNXTestContext);
+var
+  lRequest: TNXTestNullResultKindRequest;
+  lResult: TNXJSONValue;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestNullResultKindRequest.Create;
+  lResult := TNXTestResultValue.Create;
+  try
+    try
+      lRequest.ValidateResult(lResult);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised,
+    'rkNullResult should reject non-null concrete results.');
 end;
 
 procedure TestPrepareResultRequiresResultClass(AContext: TNXTestContext);
@@ -791,6 +908,127 @@ begin
 
   AContext.AssertTrue(lRaised,
     'PrepareResult should reject requests without a declared result class.');
+end;
+
+procedure TestConcreteResultKindRejectsNil(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  try
+    try
+      lRequest.ValidateResult(nil);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised, 'rkConcreteResult should reject nil.');
+end;
+
+procedure TestConcreteResultKindRejectsNull(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lResult: TNXJSONValue;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  lResult := TNXJSONNull.Create;
+  try
+    try
+      lRequest.ValidateResult(lResult);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised, 'rkConcreteResult should reject TNXJSONNull.');
+end;
+
+procedure TestConcreteResultKindAcceptsDeclaredClass(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lResult: TNXJSONValue;
+begin
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  lResult := lRequest.PublicPrepareResult;
+  try
+    AContext.AssertTrue(lResult is TNXTestResultValue,
+      'rkConcreteResult PrepareResult should create the declared result class.');
+    lRequest.ValidateResult(lResult);
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+end;
+
+procedure TestNullableConcreteResultKindAcceptsNull(AContext: TNXTestContext);
+var
+  lRequest: TNXTestNullableConcreteResultKindRequest;
+  lResult: TNXJSONValue;
+begin
+  lRequest := TNXTestNullableConcreteResultKindRequest.Create;
+  lResult := TNXJSONNull.Create;
+  try
+    lRequest.ValidateResult(lResult);
+    AContext.AssertTrue(True,
+      'rkNullableConcreteResult should accept TNXJSONNull.');
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+end;
+
+procedure TestNullableConcreteResultKindAcceptsDeclaredClass(AContext: TNXTestContext);
+var
+  lRequest: TNXTestNullableConcreteResultKindRequest;
+  lResult: TNXJSONValue;
+begin
+  lRequest := TNXTestNullableConcreteResultKindRequest.Create;
+  lResult := lRequest.PublicPrepareResult;
+  try
+    AContext.AssertTrue(lResult is TNXTestResultValue,
+      'rkNullableConcreteResult PrepareResult should create the declared result class.');
+    lRequest.ValidateResult(lResult);
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+end;
+
+procedure TestRawJSONValueResultRejected(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lResult: TNXJSONValue;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  lResult := TNXJSONValue.Create;
+  try
+    try
+      lRequest.ValidateResult(lResult);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised,
+    'ValidateResult should reject raw TNXJSONValue results.');
 end;
 
 procedure TestValidateResultRejectsNilResult(AContext: TNXTestContext);
@@ -838,23 +1076,6 @@ begin
 
   AContext.AssertTrue(lRaised,
     'ValidateResult should reject null unless the request allows null results.');
-end;
-
-procedure TestValidateResultAcceptsAllowedNullResult(AContext: TNXTestContext);
-var
-  lRequest: TNXTestNullAllowedResultRequest;
-  lResult: TNXJSONValue;
-begin
-  lRequest := TNXTestNullAllowedResultRequest.Create;
-  lResult := TNXJSONNull.Create;
-  try
-    lRequest.ValidateResult(lResult);
-    AContext.AssertTrue(True,
-      'ValidateResult should accept null when the request allows null results.');
-  finally
-    lResult.Free;
-    lRequest.Free;
-  end;
 end;
 
 procedure TestValidateResultRejectsWrongDeclaredResultClass(AContext: TNXTestContext);
@@ -1103,16 +1324,32 @@ begin
   lSuite.AddTest('NestedAssignedObjectSerializesParent',
     @TestNestedAssignedObjectSerializesParent);
   lSuite.AddTest('ResultClassDefaultsToNil', @TestResultClassDefaultsToNil);
-  lSuite.AddTest('AllowsNullResultDefaultsToFalse',
-    @TestAllowsNullResultDefaultsToFalse);
+  lSuite.AddTest('ResultKindDefaultsToConcreteResult',
+    @TestResultKindDefaultsToConcreteResult);
+  lSuite.AddTest('NoResultKindAcceptsNil', @TestNoResultKindAcceptsNil);
+  lSuite.AddTest('NotificationNilRequiresExplicitNoResultKind',
+    @TestNotificationNilRequiresExplicitNoResultKind);
+  lSuite.AddTest('NullResultKindAcceptsNull', @TestNullResultKindAcceptsNull);
+  lSuite.AddTest('NullResultKindRejectsConcreteResult',
+    @TestNullResultKindRejectsConcreteResult);
   lSuite.AddTest('PrepareResultRequiresResultClass',
     @TestPrepareResultRequiresResultClass);
+  lSuite.AddTest('ConcreteResultKindRejectsNil',
+    @TestConcreteResultKindRejectsNil);
+  lSuite.AddTest('ConcreteResultKindRejectsNull',
+    @TestConcreteResultKindRejectsNull);
+  lSuite.AddTest('ConcreteResultKindAcceptsDeclaredClass',
+    @TestConcreteResultKindAcceptsDeclaredClass);
+  lSuite.AddTest('NullableConcreteResultKindAcceptsNull',
+    @TestNullableConcreteResultKindAcceptsNull);
+  lSuite.AddTest('NullableConcreteResultKindAcceptsDeclaredClass',
+    @TestNullableConcreteResultKindAcceptsDeclaredClass);
+  lSuite.AddTest('RawJSONValueResultRejected',
+    @TestRawJSONValueResultRejected);
   lSuite.AddTest('ValidateResultRejectsNilResult',
     @TestValidateResultRejectsNilResult);
   lSuite.AddTest('ValidateResultRejectsDefaultNullResult',
     @TestValidateResultRejectsDefaultNullResult);
-  lSuite.AddTest('ValidateResultAcceptsAllowedNullResult',
-    @TestValidateResultAcceptsAllowedNullResult);
   lSuite.AddTest('ValidateResultRejectsWrongDeclaredResultClass',
     @TestValidateResultRejectsWrongDeclaredResultClass);
   lSuite.AddTest('ValidateResultAcceptsDeclaredResultClass',

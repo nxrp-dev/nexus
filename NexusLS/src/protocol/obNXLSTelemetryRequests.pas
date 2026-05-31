@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -32,6 +33,11 @@ end;
 class function TNXLSTelemetryEventRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSTelemetryEventParams;
+end;
+
+class function TNXLSTelemetryEventRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSTelemetryEventRequest.Execute: TNXJSONValue;

@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -32,6 +33,11 @@ end;
 class function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDidChangeWatchedFilesParams;
+end;
+
+class function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWorkspaceDidChangeWatchedFilesRequest.Execute: TNXJSONValue;

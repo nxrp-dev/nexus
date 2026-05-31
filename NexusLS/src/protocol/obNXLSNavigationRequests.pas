@@ -13,6 +13,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +22,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +31,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -34,6 +40,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -64,6 +72,16 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentDeclarationRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSLocation;
+end;
+
+class function TNXLSTextDocumentDeclarationRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSTextDocumentDeclarationRequest.Execute: TNXJSONValue;
 begin
   Result := TNXLSLSPModel.Current.Navigation.Declaration(TNXLSTextDocumentPositionParams(params));
@@ -77,6 +95,16 @@ end;
 class function TNXLSTextDocumentDefinitionRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextDocumentPositionParams;
+end;
+
+class function TNXLSTextDocumentDefinitionRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSLocation;
+end;
+
+class function TNXLSTextDocumentDefinitionRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
 end;
 
 function TNXLSTextDocumentDefinitionRequest.Execute: TNXJSONValue;
@@ -94,10 +122,20 @@ begin
   Result := TNXLSTextDocumentPositionParams;
 end;
 
+class function TNXLSTextDocumentTypeDefinitionRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSLocation;
+end;
+
+class function TNXLSTextDocumentTypeDefinitionRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSTextDocumentTypeDefinitionRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/typeDefinition; required: Optional; original server: No; category: navigation; result: TNXLSLocationResult.
-  Result := TNXLSLocationResult.CreateValue;
+  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSTextDocumentImplementationRequest.GetFactoryName: string;
@@ -108,6 +146,16 @@ end;
 class function TNXLSTextDocumentImplementationRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextDocumentPositionParams;
+end;
+
+class function TNXLSTextDocumentImplementationRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSLocation;
+end;
+
+class function TNXLSTextDocumentImplementationRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
 end;
 
 function TNXLSTextDocumentImplementationRequest.Execute: TNXJSONValue;

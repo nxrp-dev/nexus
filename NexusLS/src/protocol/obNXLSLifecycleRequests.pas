@@ -21,18 +21,21 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
   TNXLSShutdownRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
   TNXLSExitRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -40,6 +43,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -47,6 +51,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -54,6 +59,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -61,6 +67,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -108,6 +115,11 @@ begin
   Result := TNXLSInitializedParams;
 end;
 
+class function TNXLSInitializedRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSInitializedRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Lifecycle.Initialized(TNXLSInitializedParams(params));
@@ -119,6 +131,11 @@ begin
   Result := 'shutdown';
 end;
 
+class function TNXLSShutdownRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullResult;
+end;
+
 function TNXLSShutdownRequest.Execute: TNXJSONValue;
 begin
   Result := TNXLSLSPModel.Current.Lifecycle.Shutdown;
@@ -127,6 +144,11 @@ end;
 class function TNXLSExitRequest.GetFactoryName: string;
 begin
   Result := 'exit';
+end;
+
+class function TNXLSExitRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSExitRequest.Execute: TNXJSONValue;
@@ -145,6 +167,11 @@ begin
   Result := TNXLSCancelParams;
 end;
 
+class function TNXLSDollarcancelRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSDollarcancelRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Lifecycle.CancelRequest(TNXLSCancelParams(params));
@@ -159,6 +186,11 @@ end;
 class function TNXLSDollarprogressRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSProgressParams;
+end;
+
+class function TNXLSDollarprogressRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSDollarprogressRequest.Execute: TNXJSONValue;
@@ -177,6 +209,11 @@ begin
   Result := TNXLSSetTraceParams;
 end;
 
+class function TNXLSDollarsetTraceRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSDollarsetTraceRequest.Execute: TNXJSONValue;
 begin
   // Method: $/setTrace; required: Optional; original server: No; category: lifecycle; result: nil.
@@ -191,6 +228,11 @@ end;
 class function TNXLSDollarlogTraceRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSLogTraceParams;
+end;
+
+class function TNXLSDollarlogTraceRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSDollarlogTraceRequest.Execute: TNXJSONValue;

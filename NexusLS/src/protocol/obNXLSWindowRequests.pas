@@ -13,6 +13,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -20,6 +21,8 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -27,6 +30,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -56,6 +60,11 @@ begin
   Result := TNXLSMessageParams;
 end;
 
+class function TNXLSWindowShowMessageActionRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSWindowShowMessageActionRequest.Execute: TNXJSONValue;
 begin
   // Method: window/showMessage; required: Client-side; original server: No; category: window; result: nil.
@@ -72,10 +81,20 @@ begin
   Result := TNXLSShowMessageRequestParams;
 end;
 
+class function TNXLSWindowShowMessageRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXLSMessageActionItem;
+end;
+
+class function TNXLSWindowShowMessageRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
 function TNXLSWindowShowMessageRequest.Execute: TNXJSONValue;
 begin
   // Method: window/showMessageRequest; required: Client-side; original server: No; category: window; result: TNXLSMessageActionItemResult.
-  Result := TNXLSMessageActionItemResult.CreateValue;
+  Result := TNXJSONNull.Create;
 end;
 
 class function TNXLSWindowLogMessageRequest.GetFactoryName: string;
@@ -86,6 +105,11 @@ end;
 class function TNXLSWindowLogMessageRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSMessageParams;
+end;
+
+class function TNXLSWindowLogMessageRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSWindowLogMessageRequest.Execute: TNXJSONValue;

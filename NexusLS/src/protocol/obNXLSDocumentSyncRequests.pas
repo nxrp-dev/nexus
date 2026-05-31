@@ -14,6 +14,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -21,6 +22,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -28,6 +30,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -43,6 +46,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -50,6 +54,7 @@ type
   public
     class function GetFactoryName: string; override;
     class function GetParamClass: TNXJSONValueClass; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
 
@@ -71,6 +76,11 @@ begin
   Result := TNXLSDidOpenTextDocumentParams;
 end;
 
+class function TNXLSTextDocumentDidOpenRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSTextDocumentDidOpenRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Documents.DidOpen(TNXLSDidOpenTextDocumentParams(params));
@@ -87,6 +97,11 @@ begin
   Result := TNXLSDidChangeTextDocumentParams;
 end;
 
+class function TNXLSTextDocumentDidChangeRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSTextDocumentDidChangeRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Documents.DidChange(TNXLSDidChangeTextDocumentParams(params));
@@ -101,6 +116,11 @@ end;
 class function TNXLSTextDocumentWillSaveRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSWillSaveTextDocumentParams;
+end;
+
+class function TNXLSTextDocumentWillSaveRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSTextDocumentWillSaveRequest.Execute: TNXJSONValue;
@@ -139,6 +159,11 @@ begin
   Result := TNXLSDidSaveTextDocumentParams;
 end;
 
+class function TNXLSTextDocumentDidSaveRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
+end;
+
 function TNXLSTextDocumentDidSaveRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Documents.DidSave(TNXLSDidSaveTextDocumentParams(params));
@@ -153,6 +178,11 @@ end;
 class function TNXLSTextDocumentDidCloseRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXLSDidCloseTextDocumentParams;
+end;
+
+class function TNXLSTextDocumentDidCloseRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNoResult;
 end;
 
 function TNXLSTextDocumentDidCloseRequest.Execute: TNXJSONValue;
