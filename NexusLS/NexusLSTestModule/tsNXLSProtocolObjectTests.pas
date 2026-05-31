@@ -15,11 +15,90 @@ uses
   SysUtils,
   fpjson,
   jsonparser,
+  obNXLSTransport,
   obNXJSONValues,
+  obNXJSONRPCMessages,
+  obNXLSOutboundDispatcher,
   obNXLSProtocolBase,
+  obNXLSProtocolObjects,
   obNXLSProtocolParams,
+  obNXLSWorkspaceEditRequests,
   obNXTestContext,
   obNXTestSuite;
+
+type
+  TNXLSProtocolTestTransport = class(TNXLSTransport)
+  private
+    FOpen: Boolean;
+    FOutput: string;
+  protected
+    function ReadLine(out ALine: string): Boolean; override;
+    function ReadContent(const ALength: Integer; out AContent: string): Boolean; override;
+    procedure WriteContent(const AContent: string); override;
+  public
+    procedure Open; override;
+    procedure Close; override;
+    function IsOpen: Boolean; override;
+    function LastPayload: string;
+  end;
+
+  TNXLSTestApplyEditRequest = class(TNXLSWorkspaceApplyEditRequest)
+  public
+    class var Processed: Boolean;
+    class var Applied: Boolean;
+    class var URI: string;
+    procedure ProcessOutboundResult; override;
+  end;
+
+function TNXLSProtocolTestTransport.ReadLine(out ALine: string): Boolean;
+begin
+  ALine := '';
+  Result := False;
+end;
+
+function TNXLSProtocolTestTransport.ReadContent(const ALength: Integer;
+  out AContent: string): Boolean;
+begin
+  AContent := '';
+  Result := False;
+end;
+
+procedure TNXLSProtocolTestTransport.WriteContent(const AContent: string);
+begin
+  FOutput := FOutput + AContent;
+end;
+
+procedure TNXLSProtocolTestTransport.Open;
+begin
+  FOpen := True;
+end;
+
+procedure TNXLSProtocolTestTransport.Close;
+begin
+  FOpen := False;
+end;
+
+function TNXLSProtocolTestTransport.IsOpen: Boolean;
+begin
+  Result := FOpen;
+end;
+
+function TNXLSProtocolTestTransport.LastPayload: string;
+var
+  lPos: Integer;
+begin
+  Result := '';
+  lPos := Pos(#13#10#13#10, FOutput);
+  if lPos > 0 then
+    Result := Copy(FOutput, lPos + 4, MaxInt);
+end;
+
+procedure TNXLSTestApplyEditRequest.ProcessOutboundResult;
+begin
+  Processed := True;
+  Applied := TNXLSApplyWorkspaceEditResultValue(CommandResult).applied.Value;
+  URI := TNXLSTextDocumentEdit(params.edit.documentChanges[0]).textDocument.uri.Value;
+end;
 
 procedure NXLSSetPosition(APosition: TNXLSPosition; const ALine,
   ACharacter: Integer);
@@ -156,6 +235,125 @@ begin
   end;
 end;
 
+procedure TestOutboundApplyEditSerializesTypedRequest(AContext: TNXTestContext);
+var
+  lDispatcher: TNXLSOutboundDispatcher;
+  lTransport: TNXLSProtocolTestTransport;
+  lRequest: TNXLSWorkspaceApplyEditRequest;
+  lRequestToSend: TNXLSWorkspaceApplyEditRequest;
+  lEdit: TNXLSTextDocumentEdit;
+  lTextEdit: TNXLSTextEdit;
+  lJSON: TJSONData;
+  lMessage: TJSONObject;
+  lDocumentChanges: TJSONArray;
+  lTextEdits: TJSONArray;
+begin
+  lDispatcher := TNXLSOutboundDispatcher.Create;
+  lTransport := TNXLSProtocolTestTransport.Create;
+  lRequest := TNXLSWorkspaceApplyEditRequest.Create;
+  try
+    lTransport.Open;
+    lDispatcher.Transport := lTransport;
+
+    lRequest.params.edit.documentChanges.Assigned := True;
+
+    lEdit := TNXLSTextDocumentEdit(lRequest.params.edit.documentChanges.AddObject(TNXLSTextDocumentEdit));
+    lEdit.textDocument.uri.Value := 'file:///tmp/unit.pas';
+    lEdit.textDocument.version.Free;
+    lEdit.textDocument.version := TNXJSONNull.Create;
+
+    lTextEdit := TNXLSTextEdit(lEdit.edits.AddObject(TNXLSTextEdit));
+    NXLSSetRange(lTextEdit.range, 1, 2, 3, 4);
+    lTextEdit.newText.Value := 'replacement';
+
+    lRequestToSend := lRequest;
+    lRequest := nil;
+    AContext.AssertEquals(1, lDispatcher.SendRequest(lRequestToSend),
+      'First outbound request should receive ID 1.');
+
+    lJSON := GetJSON(lTransport.LastPayload);
+    try
+      AContext.AssertTrue(lJSON is TJSONObject,
+        'Outbound payload should be a JSON object.');
+      lMessage := TJSONObject(lJSON);
+      AContext.AssertEquals(TNXJSONRPC.Version, lMessage.Strings['jsonrpc'],
+        'Outbound request should include JSON-RPC version.');
+      AContext.AssertEquals(1, lMessage.Integers['id'],
+        'Outbound request should include generated ID.');
+      AContext.AssertEquals('workspace/applyEdit', lMessage.Strings['method'],
+        'Outbound request should use request factory name.');
+
+      lDocumentChanges := lMessage.Objects['params'].Objects['edit'].Arrays['documentChanges'];
+      AContext.AssertEquals('file:///tmp/unit.pas',
+        lDocumentChanges.Objects[0].Objects['textDocument'].Strings['uri'],
+        'Text document edit should include document URI.');
+      AContext.AssertTrue(lDocumentChanges.Objects[0].Objects['textDocument'].Find('version').JSONType = jtNull,
+        'Text document edit should include a null optional version.');
+
+      lTextEdits := lDocumentChanges.Objects[0].Arrays['edits'];
+      AContext.AssertEquals('replacement', lTextEdits.Objects[0].Strings['newText'],
+        'Text edit should include replacement text.');
+      AContext.AssertEquals(1, lTextEdits.Objects[0].Objects['range'].Objects['start'].Integers['line'],
+        'Text edit should include typed start position.');
+    finally
+      lJSON.Free;
+    end;
+  finally
+    lRequest.Free;
+    lTransport.Free;
+    lDispatcher.Free;
+  end;
+end;
+
+procedure TestOutboundApplyEditProcessesResponseOnOriginalRequest(AContext: TNXTestContext);
+var
+  lDispatcher: TNXLSOutboundDispatcher;
+  lTransport: TNXLSProtocolTestTransport;
+  lRequest: TNXLSTestApplyEditRequest;
+  lRequestToSend: TNXLSTestApplyEditRequest;
+  lEdit: TNXLSTextDocumentEdit;
+  lResponse: TNXJSONRPCMessage;
+begin
+  lDispatcher := TNXLSOutboundDispatcher.Create;
+  lTransport := TNXLSProtocolTestTransport.Create;
+  lRequest := TNXLSTestApplyEditRequest.Create;
+  lResponse := nil;
+  try
+    TNXLSTestApplyEditRequest.Processed := False;
+    TNXLSTestApplyEditRequest.Applied := False;
+    TNXLSTestApplyEditRequest.URI := '';
+
+    lTransport.Open;
+    lDispatcher.Transport := lTransport;
+
+    lRequest.params.edit.documentChanges.Assigned := True;
+    lEdit := TNXLSTextDocumentEdit(lRequest.params.edit.documentChanges.AddObject(TNXLSTextDocumentEdit));
+    lEdit.textDocument.uri.Value := 'file:///tmp/original.pas';
+
+    lRequestToSend := lRequest;
+    lRequest := nil;
+    AContext.AssertEquals(1, lDispatcher.SendRequest(lRequestToSend),
+      'Outbound request should receive ID 1.');
+
+    lResponse := TNXJSONRPC.ParseMessage(
+      '{"jsonrpc":"2.0","id":1,"result":{"applied":true}}');
+    AContext.AssertTrue(lDispatcher.ReceiveResponse(lResponse),
+      'Dispatcher should consume the matching response.');
+    AContext.AssertTrue(TNXLSTestApplyEditRequest.Processed,
+      'Original request should process the outbound result.');
+    AContext.AssertTrue(TNXLSTestApplyEditRequest.Applied,
+      'Original request should receive the typed result.');
+    AContext.AssertEquals('file:///tmp/original.pas',
+      TNXLSTestApplyEditRequest.URI,
+      'Original request should keep its local request context.');
+  finally
+    lResponse.Free;
+    lRequest.Free;
+    lTransport.Free;
+    lDispatcher.Free;
+  end;
+end;
+
 procedure RegisterNXLSProtocolObjectTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -167,6 +365,10 @@ begin
   lSuite.AddTest('RangeToJSONData', @TestRangeToJSONData);
   lSuite.AddTest('InitializeParamsIgnoreUnknownProperties',
     @TestInitializeParamsIgnoreUnknownProperties);
+  lSuite.AddTest('OutboundApplyEditSerializesTypedRequest',
+    @TestOutboundApplyEditSerializesTypedRequest);
+  lSuite.AddTest('OutboundApplyEditProcessesResponseOnOriginalRequest',
+    @TestOutboundApplyEditProcessesResponseOnOriginalRequest);
 end;
 
 end.

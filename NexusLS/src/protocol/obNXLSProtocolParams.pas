@@ -941,10 +941,10 @@ type
 
   TNXLSTextDocumentEdit = class(TNXJSONObject)
   private
-    FtextDocument: TNXLSVersionedTextDocumentIdentifier;
+    FtextDocument: TNXLSOptionalVersionedTextDocumentIdentifier;
     Fedits: TNXLSTextEditArray;
   published
-    property textDocument: TNXLSVersionedTextDocumentIdentifier read FtextDocument write FtextDocument;
+    property textDocument: TNXLSOptionalVersionedTextDocumentIdentifier read FtextDocument write FtextDocument;
     property edits: TNXLSTextEditArray read Fedits write Fedits;
   end;
 

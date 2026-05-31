@@ -25,6 +25,7 @@ implementation
 
 uses
   SysUtils,
+  obNXJSONRPCMessages,
   obNXLSDispatcher,
   obNXLSLogger;
 
@@ -49,6 +50,7 @@ procedure TNXLSServer.Execute;
 var
   lMessage: string;
   lResponse: string;
+  lRPCMessage: TNXJSONRPCMessage;
 begin
   if FTransport = nil then
     raise Exception.Create('Transport has not been assigned.');
@@ -60,7 +62,18 @@ begin
     while FTransport.ReadMessage(lMessage) do
     begin
       if TNXLSDispatcher.DispatchMessage(lMessage, lResponse) then
+      begin
         FTransport.WriteMessage(lResponse);
+      end
+      else
+      begin
+        lRPCMessage := TNXJSONRPC.ParseMessage(lMessage);
+        try
+          FModel.ReceiveClientResponse(lRPCMessage);
+        finally
+          lRPCMessage.Free;
+        end;
+      end;
     end;
   finally
     FTransport.Close;

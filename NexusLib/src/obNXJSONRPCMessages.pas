@@ -36,8 +36,12 @@ type
 
   TNXJSONRPCMessage = class;
   TNXJSONRPCMessageClass = class of TNXJSONRPCMessage;
+  TNXJSONCommandResult = class;
+  TNXJSONCommandResultClass = class of TNXJSONCommandResult;
   TNXJSONRPCRequest = class;
   TNXJSONRPCRequestClass = class of TNXJSONRPCRequest;
+  TNXJSONRPCOutboundCommand = class;
+  TNXJSONRPCOutboundCommandClass = class of TNXJSONRPCOutboundCommand;
 
   TNXJSONRPCMessage = class(TNXJSONObject)
   private
@@ -75,6 +79,9 @@ type
     property data: TNXJSONValue read Fdata write Fdata;
   end;
 
+  TNXJSONCommandResult = class(TNXJSONObject)
+  end;
+
   TNXJSONRPCRequest = class(TNXJSONRPCMessage)
   protected
     function PrepareResult: TNXJSONValue; virtual;
@@ -85,6 +92,21 @@ type
     function Execute: TNXJSONValue; virtual; abstract;
     procedure ValidateResult(AResult: TNXJSONValue); virtual;
     procedure FromJSONData(AData: TJSONData); override;
+  end;
+
+  TNXJSONRPCOutboundCommand = class(TNXJSONRPCMessage)
+  private
+    FCommandResult: TNXJSONCommandResult;
+  public
+    destructor Destroy; override;
+    class function GetResultClass: TNXJSONCommandResultClass; virtual;
+    class function GetResultKind: TNXJSONRPCResultKind; virtual;
+    procedure LoadOutboundResponse(AResponse: TNXJSONRPCMessage); virtual;
+    procedure ProcessOutboundResult; virtual;
+    procedure ProcessOutboundError; virtual;
+    procedure ProcessOutboundTimeout; virtual;
+    procedure ValidateResult(AResult: TNXJSONValue); virtual;
+    property CommandResult: TNXJSONCommandResult read FCommandResult;
   end;
 
   TNXJSONRPC = class
@@ -242,10 +264,151 @@ begin
       ' but expected ' + lResultClass.ClassName + '.');
 end;
 
+destructor TNXJSONRPCOutboundCommand.Destroy;
+begin
+  FreeAndNil(FCommandResult);
+  inherited Destroy;
+end;
+
+class function TNXJSONRPCOutboundCommand.GetResultClass: TNXJSONCommandResultClass;
+begin
+  Result := nil;
+end;
+
+class function TNXJSONRPCOutboundCommand.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkConcreteResult;
+end;
+
+procedure TNXJSONRPCOutboundCommand.ValidateResult(AResult: TNXJSONValue);
+var
+  lResultClass: TNXJSONCommandResultClass;
+  lResultKind: TNXJSONRPCResultKind;
+begin
+  lResultKind := GetResultKind;
+
+  if AResult = nil then
+  begin
+    if lResultKind = rkNoResult then
+      Exit;
+
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + ' received nil result.');
+  end;
+
+  if AResult.ClassType = TNXJSONValue then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + ' received raw TNXJSONValue result. This should never happen.');
+
+  if AResult is TNXJSONNull then
+  begin
+    if lResultKind in [rkNullResult, rkNullableConcreteResult] then
+      Exit;
+
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + ' received null but null is not allowed for this result.');
+  end;
+
+  if not (lResultKind in [rkConcreteResult, rkNullableConcreteResult]) then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + ' received ' + AResult.ClassName +
+      ' but this result kind does not allow a concrete result.');
+
+  lResultClass := GetResultClass;
+  if lResultClass = nil then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + '.GetResultClass returned nil.');
+
+  if not AResult.InheritsFrom(lResultClass) then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+      ClassName + ' received ' + AResult.ClassName +
+      ' but expected ' + lResultClass.ClassName + '.');
+end;
+
+procedure TNXJSONRPCOutboundCommand.LoadOutboundResponse(AResponse: TNXJSONRPCMessage);
+var
+  lJSON: TJSONData;
+  lNullResult: TNXJSONNull;
+  lResultClass: TNXJSONCommandResultClass;
+begin
+  if AResponse = nil then
+    raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
+      'JSON-RPC response cannot be nil.');
+
+  if AResponse.Kind = rpcSuccessResponse then
+  begin
+    if (AResponse.result = nil) or (not AResponse.result.Assigned) then
+      raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
+        'JSON-RPC success response is missing result.');
+
+    if AResponse.result is TNXJSONNull then
+    begin
+      lNullResult := TNXJSONNull.Create;
+      try
+        ValidateResult(lNullResult);
+      finally
+        lNullResult.Free;
+      end;
+      Exit;
+    end;
+
+    lResultClass := GetResultClass;
+    if lResultClass = nil then
+      raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
+        ClassName + '.GetResultClass returned nil.');
+
+    FreeAndNil(FCommandResult);
+    FCommandResult := lResultClass.Create;
+
+    lJSON := AResponse.result.ToJSONData;
+    try
+      FCommandResult.FromJSONData(lJSON);
+    finally
+      lJSON.Free;
+    end;
+
+    ValidateResult(FCommandResult);
+    Exit;
+  end;
+
+  if AResponse.Kind = rpcErrorResponse then
+  begin
+    if (AResponse.error = nil) or (not AResponse.error.Assigned) then
+      raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
+        'JSON-RPC error response is missing error.');
+
+    FreeAndNil(Ferror);
+    lJSON := AResponse.error.ToJSONData;
+    try
+      Ferror := TNXJSONRPCError.Create;
+      Ferror.FromJSONData(lJSON);
+    finally
+      lJSON.Free;
+    end;
+    Exit;
+  end;
+
+  raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidRequest,
+    'JSON-RPC message is not a response.');
+end;
+
+procedure TNXJSONRPCOutboundCommand.ProcessOutboundResult;
+begin
+end;
+
+procedure TNXJSONRPCOutboundCommand.ProcessOutboundError;
+begin
+end;
+
+procedure TNXJSONRPCOutboundCommand.ProcessOutboundTimeout;
+begin
+end;
+
 procedure TNXJSONRPCRequest.FromJSONData(AData: TJSONData);
 var
   lObject: TJSONObject;
   lParamsJSON: TJSONData;
+  lParams: TNXJSONValue;
   lParamClass: TNXJSONValueClass;
 begin
   inherited FromJSONData(AData);
@@ -261,6 +424,10 @@ begin
 
   if lParamClass = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InvalidParams, 'JSON-RPC method does not accept params.');
+
+  lParams := ValueByName('params');
+  if (lParams <> nil) and lParams.InheritsFrom(lParamClass) then
+    Exit;
 
   FreeAndNil(Fparams);
   Fparams := lParamClass.Create;

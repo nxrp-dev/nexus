@@ -5,6 +5,7 @@ unit obNXLSProtocolObjects;
 interface
 
 uses
+  obNXJSONRPCMessages,
   obNXJSONValues,
   obNXLSProtocolBase,
   obNXLSProtocolParams;
@@ -545,7 +546,7 @@ type
   TNXLSConfigurationArray = class(TNXJSONArray)
   end;
 
-  TNXLSApplyWorkspaceEditResultValue = class(TNXJSONObject)
+  TNXLSApplyWorkspaceEditResultValue = class(TNXJSONCommandResult)
   private
     Fapplied: TNXJSONBoolean;
     FfailureReason: TNXJSONString;

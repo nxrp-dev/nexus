@@ -30,6 +30,7 @@ uses
   CodeToolManager,
   CTUnitGraph,
   FileUtil,
+  obNXJSONValues,
   utNXLSServiceHelpers;
 
 procedure NXLSAddRenameFileList(AFiles: TStrings; const AStartFile: string);
@@ -51,7 +52,8 @@ begin
   Result := TNXLSTextDocumentEdit(AEdit.documentChanges.AddObject(
     TNXLSTextDocumentEdit));
   Result.textDocument.uri.Value := AURI;
-  Result.textDocument.version.Value := 0;
+  Result.textDocument.version.Free;
+  Result.textDocument.version := TNXJSONNull.Create;
   Result.edits.Assigned := True;
   Result.Assigned := True;
 end;

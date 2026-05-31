@@ -9,6 +9,7 @@ uses
   CodeCache,
   fpjson,
   obNXJSONValues,
+  obNXJSONRPCMessages,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams;
@@ -65,7 +66,7 @@ type
     procedure RebuildWorkspaceIndex; virtual; abstract;
 
     procedure SendNotification(const AMethod: string; AParams: TJSONData); virtual; abstract;
-    function SendClientRequest(const AMethod: string; AParams: TJSONData): Int64; virtual; abstract;
+    function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; virtual; abstract;
   end;
 
   TNXLSLSPService = class

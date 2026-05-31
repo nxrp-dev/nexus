@@ -9,7 +9,9 @@ uses
   Contnrs,
   fpjson,
   CodeToolsConfig,
+  obNXJSONRPCMessages,
   obNXLSTransport,
+  obNXLSOutboundDispatcher,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -40,7 +42,7 @@ type
     FProjectDir: string;
     FEffectiveFPCOptions: TStringList;
     FSettings: TNXLSSettings;
-    FNextClientRequestID: Int64;
+    FOutboundDispatcher: TNXLSOutboundDispatcher;
 
     FLifecycle: TNXLSLifecycleService;
     FDocuments: TNXLSDocumentService;
@@ -89,7 +91,8 @@ type
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RebuildWorkspaceIndex; override;
     procedure SendNotification(const AMethod: string; AParams: TJSONData); override;
-    function SendClientRequest(const AMethod: string; AParams: TJSONData): Int64; override;
+    function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; override;
+    function ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean; virtual;
 
     property InitializeReceived: Boolean read FInitializeReceived;
     property Initialized: Boolean read FInitialized;
@@ -130,6 +133,7 @@ begin
   FDocumentsByURI := TObjectList.Create(True);
   FSettings := TNXLSSettings.Create;
   FEffectiveFPCOptions := TStringList.Create;
+  FOutboundDispatcher := TNXLSOutboundDispatcher.Create;
   FLifecycle := TNXLSLifecycleService.Create(Self);
   FDocuments := TNXLSDocumentService.Create(Self);
   FNavigation := TNXLSNavigationService.Create(Self);
@@ -156,6 +160,7 @@ begin
   FreeAndNil(FNavigation);
   FreeAndNil(FDocuments);
   FreeAndNil(FLifecycle);
+  FreeAndNil(FOutboundDispatcher);
   FreeAndNil(FEffectiveFPCOptions);
   FreeAndNil(FSettings);
   FreeAndNil(FDocumentsByURI);
@@ -237,11 +242,13 @@ end;
 procedure TNXLSLSPModel.RequestShutdown;
 begin
   FShutdownRequested := True;
+  FOutboundDispatcher.ClearPendingRequests;
 end;
 
 procedure TNXLSLSPModel.RequestExit;
 begin
   FExitRequested := True;
+  FOutboundDispatcher.ClearPendingRequests;
 end;
 
 function TNXLSLSPModel.FindDocumentIndex(const AURI: string): Integer;
@@ -423,30 +430,15 @@ begin
   end;
 end;
 
-function TNXLSLSPModel.SendClientRequest(const AMethod: string; AParams: TJSONData): Int64;
-var
-  lRequest: TJSONObject;
+function TNXLSLSPModel.SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64;
 begin
-  if FTransport = nil then
-    Exit(0);
+  FOutboundDispatcher.Transport := FTransport;
+  Result := FOutboundDispatcher.SendRequest(ARequest);
+end;
 
-  Inc(FNextClientRequestID);
-  Result := FNextClientRequestID;
-
-  lRequest := TJSONObject.Create;
-  try
-    lRequest.Add('jsonrpc', '2.0');
-    lRequest.Add('id', TJSONIntegerNumber.Create(Result));
-    lRequest.Add('method', AMethod);
-    if AParams = nil then
-      lRequest.Add('params', TJSONObject.Create)
-    else
-      lRequest.Add('params', AParams.Clone);
-
-    FTransport.WriteMessage(lRequest.AsJSON);
-  finally
-    lRequest.Free;
-  end;
+function TNXLSLSPModel.ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean;
+begin
+  Result := FOutboundDispatcher.ReceiveResponse(AMessage);
 end;
 
 class function TNXLSLSPModel.Current: TNXLSLSPModel;

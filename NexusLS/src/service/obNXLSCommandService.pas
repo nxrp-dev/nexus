@@ -28,12 +28,12 @@ implementation
 
 uses
   SysUtils,
-  fpjson,
   BasicCodeTools,
   CodeCache,
   CodeToolManager,
   CodeToolsStructs,
   FindDeclarationTool,
+  obNXLSWorkspaceEditRequests,
   PascalParserTool,
   SourceChanger;
 
@@ -74,22 +74,6 @@ begin
     raise Exception.CreateFmt('%s is required.', [AName]);
   ALine := AValue.line.Value;
   ACharacter := AValue.character.Value;
-end;
-
-procedure NXLSAddPosition(AObject: TJSONObject; const AName: string; ALine,
-  ACharacter: Integer);
-var
-  lPosition: TJSONObject;
-begin
-  if ALine < 0 then
-    ALine := 0;
-  if ACharacter < 0 then
-    ACharacter := 0;
-
-  lPosition := TJSONObject.Create;
-  lPosition.Add('line', ALine);
-  lPosition.Add('character', ACharacter);
-  AObject.Add(AName, lPosition);
 end;
 
 function NXLSWholeDocumentEndLine(ACode: TCodeBuffer): Integer;
@@ -313,36 +297,30 @@ end;
 procedure TNXLSCommandService.ApplyTextEdit(const AURI, ANewText: string;
   AStartLine, AStartCharacter, AEndLine, AEndCharacter: Integer);
 var
-  lParams: TJSONObject;
-  lEdit: TJSONObject;
-  lChanges: TJSONObject;
-  lEdits: TJSONArray;
-  lTextEdit: TJSONObject;
-  lRange: TJSONObject;
+  lRequest: TNXLSWorkspaceApplyEditRequest;
+  lRequestToSend: TNXLSWorkspaceApplyEditRequest;
+  lEdit: TNXLSTextDocumentEdit;
+  lTextEdit: TNXLSTextEdit;
 begin
-  lParams := TJSONObject.Create;
+  lRequest := TNXLSWorkspaceApplyEditRequest.Create;
   try
-    lEdit := TJSONObject.Create;
-    lChanges := TJSONObject.Create;
-    lEdits := TJSONArray.Create;
-    lTextEdit := TJSONObject.Create;
-    lRange := TJSONObject.Create;
+    lRequest.params.edit.documentChanges.Assigned := True;
 
-    NXLSAddPosition(lRange, 'start', AStartLine, AStartCharacter);
-    NXLSAddPosition(lRange, 'end', AEndLine, AEndCharacter);
-    lTextEdit.Add('range', lRange);
-    lTextEdit.Add('newText', ANewText);
-    lEdits.Add(lTextEdit);
-    lChanges.Add(AURI, lEdits);
-    lEdit.Add('changes', lChanges);
-    lParams.Add('edit', lEdit);
+    lEdit := TNXLSTextDocumentEdit(lRequest.params.edit.documentChanges.AddObject(TNXLSTextDocumentEdit));
+    lEdit.textDocument.uri.Value := AURI;
+    lEdit.textDocument.version.Free;
+    lEdit.textDocument.version := TNXJSONNull.Create;
 
-    Model.SendClientRequest('workspace/applyEdit', lParams);
-    lParams.Free;
-    lParams := nil;
-  except
-    lParams.Free;
-    raise;
+    lTextEdit := TNXLSTextEdit(lEdit.edits.AddObject(TNXLSTextEdit));
+    NXLSSetPosition(lTextEdit.range.start, AStartLine, AStartCharacter);
+    NXLSSetPosition(lTextEdit.range.&end, AEndLine, AEndCharacter);
+    lTextEdit.newText.Value := ANewText;
+
+    lRequestToSend := lRequest;
+    lRequest := nil;
+    Model.SendClientRequest(lRequestToSend);
+  finally
+    lRequest.Free;
   end;
 end;
 
