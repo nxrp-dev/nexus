@@ -72,6 +72,8 @@ type
 
   TNXJSONString = class(TNXJSONValue)
   private
+    FAcceptsNull: Boolean;
+    FIsNull: Boolean;
     FValue: string;
   public
     constructor Create; override;
@@ -80,11 +82,15 @@ type
     procedure FromJSONData(AData: TJSONData); override;
     function AsString: string; override;
     procedure SetValue(const AValue: string);
+    property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
+    property IsNull: Boolean read FIsNull;
     property Value: string read FValue write SetValue;
   end;
 
   TNXJSONInteger = class(TNXJSONValue)
   private
+    FAcceptsNull: Boolean;
+    FIsNull: Boolean;
     FValue: Int64;
   public
     constructor Create; override;
@@ -94,6 +100,8 @@ type
     function AsInteger: Integer; override;
     function AsInt64: Int64; override;
     procedure SetValue(const AValue: Int64);
+    property AcceptsNull: Boolean read FAcceptsNull write FAcceptsNull;
+    property IsNull: Boolean read FIsNull;
     property Value: Int64 read FValue write SetValue;
   end;
 
@@ -507,12 +515,16 @@ procedure TNXJSONString.Clear;
 begin
   inherited Clear;
   FJSONType := nxjtString;
+  FIsNull := False;
   FValue := '';
 end;
 
 function TNXJSONString.ToJSONData: TJSONData;
 begin
-  Result := TJSONString.Create(FValue);
+  if FIsNull then
+    Result := TJSONNull.Create
+  else
+    Result := TJSONString.Create(FValue);
 end;
 
 procedure TNXJSONString.FromJSONData(AData: TJSONData);
@@ -521,9 +533,19 @@ begin
     raise ENXJSON.Create('Expected JSON string.');
 
   if (AData = nil) or (AData.JSONType = jtNull) then
+  begin
+    if not FAcceptsNull then
+      raise ENXJSON.Create('JSON string does not accept null.');
+
     FValue := ''
+  end
   else
+  begin
+    FIsNull := False;
     FValue := AData.AsString;
+  end;
+
+  FIsNull := (AData = nil) or (AData.JSONType = jtNull);
 
   FAssigned := True;
   FJSONType := nxjtString;
@@ -537,6 +559,7 @@ end;
 procedure TNXJSONString.SetValue(const AValue: string);
 begin
   FValue := AValue;
+  FIsNull := False;
   FAssigned := True;
   FJSONType := nxjtString;
 end;
@@ -551,12 +574,16 @@ procedure TNXJSONInteger.Clear;
 begin
   inherited Clear;
   FJSONType := nxjtInteger;
+  FIsNull := False;
   FValue := 0;
 end;
 
 function TNXJSONInteger.ToJSONData: TJSONData;
 begin
-  Result := TJSONIntegerNumber.Create(FValue);
+  if FIsNull then
+    Result := TJSONNull.Create
+  else
+    Result := TJSONIntegerNumber.Create(FValue);
 end;
 
 procedure TNXJSONInteger.FromJSONData(AData: TJSONData);
@@ -565,9 +592,19 @@ begin
     raise ENXJSON.Create('Expected JSON integer.');
 
   if (AData = nil) or (AData.JSONType = jtNull) then
+  begin
+    if not FAcceptsNull then
+      raise ENXJSON.Create('JSON integer does not accept null.');
+
     FValue := 0
+  end
   else
+  begin
+    FIsNull := False;
     FValue := AData.AsInteger;
+  end;
+
+  FIsNull := (AData = nil) or (AData.JSONType = jtNull);
 
   FAssigned := True;
   FJSONType := nxjtInteger;
@@ -586,6 +623,7 @@ end;
 procedure TNXJSONInteger.SetValue(const AValue: Int64);
 begin
   FValue := AValue;
+  FIsNull := False;
   FAssigned := True;
   FJSONType := nxjtInteger;
 end;

@@ -84,21 +84,23 @@ type
 
   TNXLSInitializeParams = class(TNXJSONObjectParams)
   private
-    FprocessId: TNXJSONValue;
+    FprocessId: TNXJSONInteger;
     FclientInfo: TNXLSClientInfo;
     Flocale: TNXJSONString;
-    FrootPath: TNXJSONValue;
-    FrootUri: TNXJSONValue;
+    FrootPath: TNXJSONString;
+    FrootUri: TNXJSONString;
     FinitializationOptions: TNXJSONValue;
     Fcapabilities: TNXLSClientCapabilities;
     Ftrace: TNXJSONString;
     FworkspaceFolders: TNXLSWorkspaceFolderArray;
+  public
+    constructor Create; override;
   published
-    property processId: TNXJSONValue read FprocessId write FprocessId;
+    property processId: TNXJSONInteger read FprocessId write FprocessId;
     property clientInfo: TNXLSClientInfo read FclientInfo write FclientInfo;
     property locale: TNXJSONString read Flocale write Flocale;
-    property rootPath: TNXJSONValue read FrootPath write FrootPath;
-    property rootUri: TNXJSONValue read FrootUri write FrootUri;
+    property rootPath: TNXJSONString read FrootPath write FrootPath;
+    property rootUri: TNXJSONString read FrootUri write FrootUri;
     property initializationOptions: TNXJSONValue read FinitializationOptions write FinitializationOptions;
     property capabilities: TNXLSClientCapabilities read Fcapabilities write Fcapabilities;
     property trace: TNXJSONString read Ftrace write Ftrace;
@@ -1154,6 +1156,14 @@ type
   end;
 
 implementation
+
+constructor TNXLSInitializeParams.Create;
+begin
+  inherited Create;
+  processId.AcceptsNull := True;
+  rootPath.AcceptsNull := True;
+  rootUri.AcceptsNull := True;
+end;
 
 class function TNXJSONStringArray.ItemClass: TNXJSONValueClass;
 begin
