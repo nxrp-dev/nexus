@@ -16,8 +16,10 @@ uses
   SysUtils,
   fpjson,
   jsonparser,
+  obNXClassFactory,
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXLSDispatcher,
   obNXTestContext,
   obNXTestModule,
   obNXTestRPCRequests,
@@ -63,6 +65,29 @@ type
     function Execute: TNXJSONValue; override;
   end;
 
+  TNXTestResultValue = class(TNXJSONObject)
+  end;
+
+  TNXTestDefaultResultClassRequest = class(TNXJSONRPCRequest)
+  public
+    function Execute: TNXJSONValue; override;
+    function PublicPrepareResult: TNXJSONValue;
+  end;
+
+  TNXTestDeclaredResultRequest = class(TNXJSONRPCRequest)
+  public
+    class function GetResultClass: TNXJSONValueClass; override;
+    function Execute: TNXJSONValue; override;
+    function PublicPrepareResult: TNXJSONValue;
+  end;
+
+  TNXTestWrongResultDispatchRequest = class(TNXJSONRPCRequest)
+  public
+    class function GetFactoryName: string; override;
+    class function GetResultClass: TNXJSONValueClass; override;
+    function Execute: TNXJSONValue; override;
+  end;
+
 class function TNXTestObjectParamsRequest.GetParamClass: TNXJSONValueClass;
 begin
   Result := TNXTestNamedParams;
@@ -86,6 +111,46 @@ end;
 function TNXTestNoParamsRequest.Execute: TNXJSONValue;
 begin
   Result := TNXJSONNull.Create;
+end;
+
+function TNXTestDefaultResultClassRequest.Execute: TNXJSONValue;
+begin
+  Result := nil;
+end;
+
+function TNXTestDefaultResultClassRequest.PublicPrepareResult: TNXJSONValue;
+begin
+  Result := PrepareResult;
+end;
+
+class function TNXTestDeclaredResultRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXTestResultValue;
+end;
+
+function TNXTestDeclaredResultRequest.Execute: TNXJSONValue;
+begin
+  Result := TNXTestResultValue.Create;
+end;
+
+function TNXTestDeclaredResultRequest.PublicPrepareResult: TNXJSONValue;
+begin
+  Result := PrepareResult;
+end;
+
+class function TNXTestWrongResultDispatchRequest.GetFactoryName: string;
+begin
+  Result := 'test/resultWrong';
+end;
+
+class function TNXTestWrongResultDispatchRequest.GetResultClass: TNXJSONValueClass;
+begin
+  Result := TNXTestResultValue;
+end;
+
+function TNXTestWrongResultDispatchRequest.Execute: TNXJSONValue;
+begin
+  Result := TNXJSONArray.Create;
 end;
 
 function NXTestParse(const AJSON: string): TNXJSONRPCMessage;
@@ -662,6 +727,130 @@ begin
   end;
 end;
 
+procedure TestResultClassDefaultsToNil(AContext: TNXTestContext);
+begin
+  AContext.AssertTrue(TNXTestDefaultResultClassRequest.GetResultClass = nil,
+    'JSON-RPC requests should not declare a result class by default.');
+end;
+
+procedure TestPrepareResultRequiresResultClass(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDefaultResultClassRequest;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDefaultResultClassRequest.Create;
+  try
+    try
+      lRequest.PublicPrepareResult.Free;
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised,
+    'PrepareResult should reject requests without a declared result class.');
+end;
+
+procedure TestValidateResultRejectsNilDeclaredResult(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  try
+    try
+      lRequest.ValidateResult(nil);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised,
+    'ValidateResult should reject nil when a result class is declared.');
+end;
+
+procedure TestValidateResultRejectsWrongDeclaredResultClass(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lResult: TNXJSONValue;
+  lRaised: Boolean;
+begin
+  lRaised := False;
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  lResult := TNXJSONArray.Create;
+  try
+    try
+      lRequest.ValidateResult(lResult);
+    except
+      on ENXJSONRPC do
+        lRaised := True;
+    end;
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+
+  AContext.AssertTrue(lRaised,
+    'ValidateResult should reject results outside the declared result class.');
+end;
+
+procedure TestValidateResultAcceptsDeclaredResultClass(AContext: TNXTestContext);
+var
+  lRequest: TNXTestDeclaredResultRequest;
+  lResult: TNXJSONValue;
+begin
+  lRequest := TNXTestDeclaredResultRequest.Create;
+  lResult := TNXTestResultValue.Create;
+  try
+    lRequest.ValidateResult(lResult);
+    AContext.AssertTrue(True,
+      'ValidateResult should accept a matching declared result class.');
+  finally
+    lResult.Free;
+    lRequest.Free;
+  end;
+end;
+
+procedure TestDispatcherValidatesResultAfterExecute(AContext: TNXTestContext);
+var
+  lDispatched: Boolean;
+  lResponse: string;
+  lMessage: TNXJSONRPCMessage;
+  lErrorJSON: TJSONData;
+begin
+  if not TNXClassFactory.Registered(TNXTestWrongResultDispatchRequest.GetFactoryName) then
+    TNXClassFactory.RegisterClass(TNXTestWrongResultDispatchRequest);
+
+  lDispatched := TNXLSDispatcher.DispatchMessage(
+    '{"jsonrpc":"2.0","id":1,"method":"test/resultWrong"}', lResponse);
+  AContext.AssertTrue(lDispatched,
+    'Dispatcher should return an error response for invalid request results.');
+
+  lMessage := TNXJSONRPC.ParseMessage(lResponse);
+  try
+    AContext.AssertEquals(Integer(rpcErrorResponse), Integer(lMessage.Kind),
+      'Dispatcher should convert result validation failure to an error response.');
+    lErrorJSON := lMessage.error.ToJSONData;
+    try
+      AContext.AssertEquals(TNXJSONRPC.InternalError,
+        TJSONObject(lErrorJSON).Integers['code'],
+        'Invalid Execute result should be reported as an internal error.');
+    finally
+      lErrorJSON.Free;
+    end;
+  finally
+    lMessage.Free;
+  end;
+end;
+
 procedure NXTestRegisterEmpty(ARegistry: TNXTestRegistry);
 begin
 end;
@@ -801,6 +990,17 @@ begin
   lSuite.AddTest('RoundTripNumericID', @TestRoundTripNumericID);
   lSuite.AddTest('NestedAssignedObjectSerializesParent',
     @TestNestedAssignedObjectSerializesParent);
+  lSuite.AddTest('ResultClassDefaultsToNil', @TestResultClassDefaultsToNil);
+  lSuite.AddTest('PrepareResultRequiresResultClass',
+    @TestPrepareResultRequiresResultClass);
+  lSuite.AddTest('ValidateResultRejectsNilDeclaredResult',
+    @TestValidateResultRejectsNilDeclaredResult);
+  lSuite.AddTest('ValidateResultRejectsWrongDeclaredResultClass',
+    @TestValidateResultRejectsWrongDeclaredResultClass);
+  lSuite.AddTest('ValidateResultAcceptsDeclaredResultClass',
+    @TestValidateResultAcceptsDeclaredResultClass);
+  lSuite.AddTest('DispatcherValidatesResultAfterExecute',
+    @TestDispatcherValidatesResultAfterExecute);
   lSuite.AddTest('BoundaryExactResultSize', @TestBoundaryExactResultSize);
   lSuite.AddTest('BoundaryTooSmallBuffer', @TestBoundaryTooSmallBuffer);
   lSuite.AddTest('BoundarySuccessfulReadConsumesResult',

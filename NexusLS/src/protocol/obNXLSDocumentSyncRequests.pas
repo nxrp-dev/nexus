@@ -58,6 +58,7 @@ implementation
 uses
   obNXClassFactory,
   obNXLSLSPModel,
+  obNXLSProtocolParams,
   obNXLSProtocolObjects;
 
 class function TNXLSTextDocumentDidOpenRequest.GetFactoryName: string;
