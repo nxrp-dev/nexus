@@ -6,53 +6,61 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentRenameRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSRenameParams;
+    procedure SetParams(AValue: TNXLSRenameParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSRenameParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentPrepareRenameRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentLinkedEditingRangeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentRenameRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/rename';
-end;
-
-class function TNXLSTextDocumentRenameRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSRenameParams;
 end;
 
 class function TNXLSTextDocumentRenameRequest.GetResultClass: TNXJSONValueClass;
@@ -85,11 +93,6 @@ begin
   Result := 'textDocument/prepareRename';
 end;
 
-class function TNXLSTextDocumentPrepareRenameRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
-end;
-
 class function TNXLSTextDocumentPrepareRenameRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSPrepareRenamePlaceholder;
@@ -120,11 +123,6 @@ begin
   Result := 'textDocument/linkedEditingRange';
 end;
 
-class function TNXLSTextDocumentLinkedEditingRangeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
-end;
-
 class function TNXLSTextDocumentLinkedEditingRangeRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSLinkedEditingRanges;
@@ -139,6 +137,36 @@ function TNXLSTextDocumentLinkedEditingRangeRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/linkedEditingRange; required: Optional; original server: No; category: refactoring; result: TNXLSLinkedEditingRangesResult.
   Result := TNXJSONNull.Create;
+end;
+
+function TNXLSTextDocumentRenameRequest.GetParams: TNXLSRenameParams;
+begin
+  Result := TNXLSRenameParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentRenameRequest.SetParams(AValue: TNXLSRenameParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentLinkedEditingRangeRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentLinkedEditingRangeRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentPrepareRenameRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentPrepareRenameRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

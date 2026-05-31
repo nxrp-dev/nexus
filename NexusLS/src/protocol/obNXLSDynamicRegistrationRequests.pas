@@ -6,40 +6,45 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSClientRegisterCapabilityRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSRegistrationParams;
+    procedure SetParams(AValue: TNXLSRegistrationParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSRegistrationParams read GetParams write SetParams;
   end;
 
   TNXLSClientUnregisterCapabilityRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSUnregistrationParams;
+    procedure SetParams(AValue: TNXLSUnregistrationParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSUnregistrationParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams;
+  obNXClassFactory;
 
 class function TNXLSClientRegisterCapabilityRequest.GetFactoryName: string;
 begin
   Result := 'client/registerCapability';
-end;
-
-class function TNXLSClientRegisterCapabilityRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSRegistrationParams;
 end;
 
 class function TNXLSClientRegisterCapabilityRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -58,11 +63,6 @@ begin
   Result := 'client/unregisterCapability';
 end;
 
-class function TNXLSClientUnregisterCapabilityRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSUnregistrationParams;
-end;
-
 class function TNXLSClientUnregisterCapabilityRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullResult;
@@ -72,6 +72,26 @@ function TNXLSClientUnregisterCapabilityRequest.Execute: TNXJSONValue;
 begin
   // Method: client/unregisterCapability; required: Client-side; original server: No; category: dynamic registration; result: TNXLSNullResult.
   Result := PrepareResult;
+end;
+
+function TNXLSClientRegisterCapabilityRequest.GetParams: TNXLSRegistrationParams;
+begin
+  Result := TNXLSRegistrationParams(inherited params);
+end;
+
+procedure TNXLSClientRegisterCapabilityRequest.SetParams(AValue: TNXLSRegistrationParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSClientUnregisterCapabilityRequest.GetParams: TNXLSUnregistrationParams;
+begin
+  Result := TNXLSUnregistrationParams(inherited params);
+end;
+
+procedure TNXLSClientUnregisterCapabilityRequest.SetParams(AValue: TNXLSUnregistrationParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

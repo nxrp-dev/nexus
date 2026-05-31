@@ -6,23 +6,35 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSInitializeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSInitializeParams;
+    procedure SetParams(AValue: TNXLSInitializeParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSInitializeParams read GetParams write SetParams;
   end;
 
   TNXLSInitializedRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSInitializedParams;
+    procedure SetParams(AValue: TNXLSInitializedParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSInitializedParams read GetParams write SetParams;
   end;
 
   TNXLSShutdownRequest = class(TNXJSONRPCRequest)
@@ -40,54 +52,62 @@ type
   end;
 
   TNXLSDollarcancelRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCancelParams;
+    procedure SetParams(AValue: TNXLSCancelParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCancelParams read GetParams write SetParams;
   end;
 
   TNXLSDollarprogressRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSProgressParams;
+    procedure SetParams(AValue: TNXLSProgressParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSProgressParams read GetParams write SetParams;
   end;
 
   TNXLSDollarsetTraceRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSSetTraceParams;
+    procedure SetParams(AValue: TNXLSSetTraceParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSSetTraceParams read GetParams write SetParams;
   end;
 
   TNXLSDollarlogTraceRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSLogTraceParams;
+    procedure SetParams(AValue: TNXLSLogTraceParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSLogTraceParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSInitializeRequest.GetFactoryName: string;
 begin
   Result := 'initialize';
-end;
-
-class function TNXLSInitializeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInitializeParams;
 end;
 
 class function TNXLSInitializeRequest.GetResultClass: TNXJSONValueClass;
@@ -108,11 +128,6 @@ end;
 class function TNXLSInitializedRequest.GetFactoryName: string;
 begin
   Result := 'initialized';
-end;
-
-class function TNXLSInitializedRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInitializedParams;
 end;
 
 class function TNXLSInitializedRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -163,11 +178,6 @@ begin
   Result := '$/cancelRequest';
 end;
 
-class function TNXLSDollarcancelRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCancelParams;
-end;
-
 class function TNXLSDollarcancelRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -182,11 +192,6 @@ end;
 class function TNXLSDollarprogressRequest.GetFactoryName: string;
 begin
   Result := '$/progress';
-end;
-
-class function TNXLSDollarprogressRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProgressParams;
 end;
 
 class function TNXLSDollarprogressRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -205,11 +210,6 @@ begin
   Result := '$/setTrace';
 end;
 
-class function TNXLSDollarsetTraceRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSetTraceParams;
-end;
-
 class function TNXLSDollarsetTraceRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -226,11 +226,6 @@ begin
   Result := '$/logTrace';
 end;
 
-class function TNXLSDollarlogTraceRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSLogTraceParams;
-end;
-
 class function TNXLSDollarlogTraceRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -240,6 +235,66 @@ function TNXLSDollarlogTraceRequest.Execute: TNXJSONValue;
 begin
   // Method: $/logTrace; required: Client-side; original server: No; category: lifecycle; result: nil.
   Result := nil;
+end;
+
+function TNXLSInitializeRequest.GetParams: TNXLSInitializeParams;
+begin
+  Result := TNXLSInitializeParams(inherited params);
+end;
+
+procedure TNXLSInitializeRequest.SetParams(AValue: TNXLSInitializeParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSDollarsetTraceRequest.GetParams: TNXLSSetTraceParams;
+begin
+  Result := TNXLSSetTraceParams(inherited params);
+end;
+
+procedure TNXLSDollarsetTraceRequest.SetParams(AValue: TNXLSSetTraceParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSDollarcancelRequest.GetParams: TNXLSCancelParams;
+begin
+  Result := TNXLSCancelParams(inherited params);
+end;
+
+procedure TNXLSDollarcancelRequest.SetParams(AValue: TNXLSCancelParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSDollarprogressRequest.GetParams: TNXLSProgressParams;
+begin
+  Result := TNXLSProgressParams(inherited params);
+end;
+
+procedure TNXLSDollarprogressRequest.SetParams(AValue: TNXLSProgressParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSInitializedRequest.GetParams: TNXLSInitializedParams;
+begin
+  Result := TNXLSInitializedParams(inherited params);
+end;
+
+procedure TNXLSInitializedRequest.SetParams(AValue: TNXLSInitializedParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSDollarlogTraceRequest.GetParams: TNXLSLogTraceParams;
+begin
+  Result := TNXLSLogTraceParams(inherited params);
+end;
+
+procedure TNXLSDollarlogTraceRequest.SetParams(AValue: TNXLSLogTraceParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

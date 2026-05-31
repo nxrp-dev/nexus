@@ -6,7 +6,11 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSWorkspaceWorkspaceFoldersRequest = class(TNXJSONRPCRequest)
@@ -17,21 +21,22 @@ type
   end;
 
   TNXLSWorkspaceDidChangeWorkspaceFoldersRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidChangeWorkspaceFoldersParams;
+    procedure SetParams(AValue: TNXLSDidChangeWorkspaceFoldersParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidChangeWorkspaceFoldersParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSWorkspaceWorkspaceFoldersRequest.GetFactoryName: string;
 begin
@@ -53,11 +58,6 @@ begin
   Result := 'workspace/didChangeWorkspaceFolders';
 end;
 
-class function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidChangeWorkspaceFoldersParams;
-end;
-
 class function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -67,6 +67,16 @@ function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Workspace.DidChangeWorkspaceFolders(TNXLSDidChangeWorkspaceFoldersParams(params));
   Result := nil;
+end;
+
+function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetParams: TNXLSDidChangeWorkspaceFoldersParams;
+begin
+  Result := TNXLSDidChangeWorkspaceFoldersParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.SetParams(AValue: TNXLSDidChangeWorkspaceFoldersParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

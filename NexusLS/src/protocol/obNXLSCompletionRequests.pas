@@ -6,43 +6,47 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentCompletionRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCompletionParams;
+    procedure SetParams(AValue: TNXLSCompletionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCompletionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentSignatureHelpRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSSignatureHelpParams;
+    procedure SetParams(AValue: TNXLSSignatureHelpParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSSignatureHelpParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentCompletionRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/completion';
-end;
-
-class function TNXLSTextDocumentCompletionRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCompletionParams;
 end;
 
 class function TNXLSTextDocumentCompletionRequest.GetResultClass: TNXJSONValueClass;
@@ -63,11 +67,6 @@ end;
 class function TNXLSTextDocumentSignatureHelpRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/signatureHelp';
-end;
-
-class function TNXLSTextDocumentSignatureHelpRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSignatureHelpParams;
 end;
 
 class function TNXLSTextDocumentSignatureHelpRequest.GetResultClass: TNXJSONValueClass;
@@ -93,6 +92,26 @@ begin
     lResult.Free;
     Result := TNXJSONNull.Create;
   end;
+end;
+
+function TNXLSTextDocumentCompletionRequest.GetParams: TNXLSCompletionParams;
+begin
+  Result := TNXLSCompletionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentCompletionRequest.SetParams(AValue: TNXLSCompletionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentSignatureHelpRequest.GetParams: TNXLSSignatureHelpParams;
+begin
+  Result := TNXLSSignatureHelpParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentSignatureHelpRequest.SetParams(AValue: TNXLSSignatureHelpParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

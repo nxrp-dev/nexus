@@ -7,73 +7,93 @@ interface
 uses
   obNXJSONRPCMessages,
   obNXJSONValues,
+  obNXLSProtocolObjects,
+  obNXLSProtocolParams,
+  obNXLSProtocolBase,
   obNXLSDocumentSyncParams;
 
 type
   TNXLSTextDocumentDidOpenRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidOpenTextDocumentParams;
+    procedure SetParams(AValue: TNXLSDidOpenTextDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidOpenTextDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDidChangeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidChangeTextDocumentParams;
+    procedure SetParams(AValue: TNXLSDidChangeTextDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidChangeTextDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentWillSaveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSWillSaveTextDocumentParams;
+    procedure SetParams(AValue: TNXLSWillSaveTextDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSWillSaveTextDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentWillSaveWaitUntilRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSWillSaveTextDocumentParams;
+    procedure SetParams(AValue: TNXLSWillSaveTextDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSWillSaveTextDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDidSaveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidSaveTextDocumentParams;
+    procedure SetParams(AValue: TNXLSDidSaveTextDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidSaveTextDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDidCloseRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidCloseTextDocumentParams;
+    procedure SetParams(AValue: TNXLSDidCloseTextDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidCloseTextDocumentParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentDidOpenRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/didOpen';
-end;
-
-class function TNXLSTextDocumentDidOpenRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidOpenTextDocumentParams;
 end;
 
 class function TNXLSTextDocumentDidOpenRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -92,11 +112,6 @@ begin
   Result := 'textDocument/didChange';
 end;
 
-class function TNXLSTextDocumentDidChangeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidChangeTextDocumentParams;
-end;
-
 class function TNXLSTextDocumentDidChangeRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -111,11 +126,6 @@ end;
 class function TNXLSTextDocumentWillSaveRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/willSave';
-end;
-
-class function TNXLSTextDocumentWillSaveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWillSaveTextDocumentParams;
 end;
 
 class function TNXLSTextDocumentWillSaveRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -134,11 +144,6 @@ begin
   Result := 'textDocument/willSaveWaitUntil';
 end;
 
-class function TNXLSTextDocumentWillSaveWaitUntilRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWillSaveTextDocumentParams;
-end;
-
 class function TNXLSTextDocumentWillSaveWaitUntilRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextEditArray;
@@ -152,11 +157,6 @@ end;
 class function TNXLSTextDocumentDidSaveRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/didSave';
-end;
-
-class function TNXLSTextDocumentDidSaveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidSaveTextDocumentParams;
 end;
 
 class function TNXLSTextDocumentDidSaveRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -175,11 +175,6 @@ begin
   Result := 'textDocument/didClose';
 end;
 
-class function TNXLSTextDocumentDidCloseRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidCloseTextDocumentParams;
-end;
-
 class function TNXLSTextDocumentDidCloseRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -189,6 +184,66 @@ function TNXLSTextDocumentDidCloseRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Documents.DidClose(TNXLSDidCloseTextDocumentParams(params));
   Result := nil;
+end;
+
+function TNXLSTextDocumentDidChangeRequest.GetParams: TNXLSDidChangeTextDocumentParams;
+begin
+  Result := TNXLSDidChangeTextDocumentParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDidChangeRequest.SetParams(AValue: TNXLSDidChangeTextDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentWillSaveWaitUntilRequest.GetParams: TNXLSWillSaveTextDocumentParams;
+begin
+  Result := TNXLSWillSaveTextDocumentParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentWillSaveWaitUntilRequest.SetParams(AValue: TNXLSWillSaveTextDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDidSaveRequest.GetParams: TNXLSDidSaveTextDocumentParams;
+begin
+  Result := TNXLSDidSaveTextDocumentParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDidSaveRequest.SetParams(AValue: TNXLSDidSaveTextDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentWillSaveRequest.GetParams: TNXLSWillSaveTextDocumentParams;
+begin
+  Result := TNXLSWillSaveTextDocumentParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentWillSaveRequest.SetParams(AValue: TNXLSWillSaveTextDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDidOpenRequest.GetParams: TNXLSDidOpenTextDocumentParams;
+begin
+  Result := TNXLSDidOpenTextDocumentParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDidOpenRequest.SetParams(AValue: TNXLSDidOpenTextDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDidCloseRequest.GetParams: TNXLSDidCloseTextDocumentParams;
+begin
+  Result := TNXLSDidCloseTextDocumentParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDidCloseRequest.SetParams(AValue: TNXLSDidCloseTextDocumentParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

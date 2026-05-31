@@ -6,75 +6,95 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentDocumentHighlightRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDocumentLinkRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDocumentLinkParams;
+    procedure SetParams(AValue: TNXLSDocumentLinkParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDocumentLinkParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentHoverRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentCodeLensRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCodeLensParams;
+    procedure SetParams(AValue: TNXLSCodeLensParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCodeLensParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentFoldingRangeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSFoldingRangeParams;
+    procedure SetParams(AValue: TNXLSFoldingRangeParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSFoldingRangeParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentSelectionRangeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSSelectionRangeParams;
+    procedure SetParams(AValue: TNXLSSelectionRangeParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSSelectionRangeParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentDocumentHighlightRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/documentHighlight';
-end;
-
-class function TNXLSTextDocumentDocumentHighlightRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
 end;
 
 class function TNXLSTextDocumentDocumentHighlightRequest.GetResultClass: TNXJSONValueClass;
@@ -97,11 +117,6 @@ begin
   Result := 'textDocument/documentLink';
 end;
 
-class function TNXLSTextDocumentDocumentLinkRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentLinkParams;
-end;
-
 class function TNXLSTextDocumentDocumentLinkRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSDocumentLinkArray;
@@ -115,11 +130,6 @@ end;
 class function TNXLSTextDocumentHoverRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/hover';
-end;
-
-class function TNXLSTextDocumentHoverRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
 end;
 
 class function TNXLSTextDocumentHoverRequest.GetResultClass: TNXJSONValueClass;
@@ -152,11 +162,6 @@ begin
   Result := 'textDocument/codeLens';
 end;
 
-class function TNXLSTextDocumentCodeLensRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCodeLensParams;
-end;
-
 class function TNXLSTextDocumentCodeLensRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSCodeLensArray;
@@ -170,11 +175,6 @@ end;
 class function TNXLSTextDocumentFoldingRangeRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/foldingRange';
-end;
-
-class function TNXLSTextDocumentFoldingRangeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSFoldingRangeParams;
 end;
 
 class function TNXLSTextDocumentFoldingRangeRequest.GetResultClass: TNXJSONValueClass;
@@ -192,11 +192,6 @@ begin
   Result := 'textDocument/selectionRange';
 end;
 
-class function TNXLSTextDocumentSelectionRangeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSelectionRangeParams;
-end;
-
 class function TNXLSTextDocumentSelectionRangeRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSSelectionRangeArray;
@@ -205,6 +200,66 @@ end;
 function TNXLSTextDocumentSelectionRangeRequest.Execute: TNXJSONValue;
 begin
   Result := PrepareResult;
+end;
+
+function TNXLSTextDocumentCodeLensRequest.GetParams: TNXLSCodeLensParams;
+begin
+  Result := TNXLSCodeLensParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentCodeLensRequest.SetParams(AValue: TNXLSCodeLensParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentHoverRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentHoverRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentFoldingRangeRequest.GetParams: TNXLSFoldingRangeParams;
+begin
+  Result := TNXLSFoldingRangeParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentFoldingRangeRequest.SetParams(AValue: TNXLSFoldingRangeParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDocumentLinkRequest.GetParams: TNXLSDocumentLinkParams;
+begin
+  Result := TNXLSDocumentLinkParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDocumentLinkRequest.SetParams(AValue: TNXLSDocumentLinkParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDocumentHighlightRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDocumentHighlightRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentSelectionRangeRequest.GetParams: TNXLSSelectionRangeParams;
+begin
+  Result := TNXLSSelectionRangeParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentSelectionRangeRequest.SetParams(AValue: TNXLSSelectionRangeParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

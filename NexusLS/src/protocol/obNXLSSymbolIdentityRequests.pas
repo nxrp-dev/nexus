@@ -6,33 +6,33 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentMonikerRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTextDocumentMonikerRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/moniker';
-end;
-
-class function TNXLSTextDocumentMonikerRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
 end;
 
 class function TNXLSTextDocumentMonikerRequest.GetResultClass: TNXJSONValueClass;
@@ -43,6 +43,16 @@ end;
 function TNXLSTextDocumentMonikerRequest.Execute: TNXJSONValue;
 begin
   Result := PrepareResult;
+end;
+
+function TNXLSTextDocumentMonikerRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentMonikerRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

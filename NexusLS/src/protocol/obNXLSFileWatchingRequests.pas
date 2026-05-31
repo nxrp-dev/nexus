@@ -6,33 +6,33 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSWorkspaceDidChangeWatchedFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidChangeWatchedFilesParams;
+    procedure SetParams(AValue: TNXLSDidChangeWatchedFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidChangeWatchedFilesParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetFactoryName: string;
 begin
   Result := 'workspace/didChangeWatchedFiles';
-end;
-
-class function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidChangeWatchedFilesParams;
 end;
 
 class function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -44,6 +44,16 @@ function TNXLSWorkspaceDidChangeWatchedFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/didChangeWatchedFiles; required: Optional; original server: No; category: file watching; result: nil.
   Result := nil;
+end;
+
+function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetParams: TNXLSDidChangeWatchedFilesParams;
+begin
+  Result := TNXLSDidChangeWatchedFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDidChangeWatchedFilesRequest.SetParams(AValue: TNXLSDidChangeWatchedFilesParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

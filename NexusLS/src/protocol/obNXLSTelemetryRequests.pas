@@ -12,7 +12,6 @@ type
   TNXLSTelemetryEventRequest = class(TNXJSONRPCRequest)
   public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
   end;
@@ -20,19 +19,11 @@ type
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTelemetryEventRequest.GetFactoryName: string;
 begin
   Result := 'telemetry/event';
-end;
-
-class function TNXLSTelemetryEventRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTelemetryEventParams;
 end;
 
 class function TNXLSTelemetryEventRequest.GetResultKind: TNXJSONRPCResultKind;

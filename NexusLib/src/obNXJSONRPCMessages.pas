@@ -80,6 +80,7 @@ type
     Fmethod: TNXJSONString;
     Fparams: TNXJSONObjectParams;
     procedure SetMethod(AValue: TNXJSONString);
+    procedure SetParams(AValue: TNXJSONObjectParams);
   protected
     procedure UpdateMessageType; override;
   public
@@ -87,7 +88,7 @@ type
     function ParamsObject: TNXJSONObject;
   published
     property method: TNXJSONString read Fmethod write SetMethod;
-    property params: TNXJSONObjectParams read Fparams write Fparams;
+    property params: TNXJSONObjectParams read Fparams write SetParams;
   end;
 
   TNXJSONRPCNotification = class(TNXJSONRPCCommandMessage)
@@ -124,7 +125,6 @@ type
   protected
     function PrepareResult: TNXJSONValue; virtual;
   public
-    class function GetParamClass: TNXJSONValueClass; virtual;
     class function GetResultClass: TNXJSONValueClass; virtual;
     class function GetResultKind: TNXJSONRPCResultKind; virtual;
     function Execute: TNXJSONValue; virtual; abstract;
@@ -241,6 +241,11 @@ begin
   UpdateMessageType;
 end;
 
+procedure TNXJSONRPCCommandMessage.SetParams(AValue: TNXJSONObjectParams);
+begin
+  Fparams := AValue;
+end;
+
 procedure TNXJSONRPCCommandMessage.UpdateMessageType;
 begin
   if (method <> nil) and method.Assigned and (method.Value <> '') then
@@ -280,11 +285,6 @@ begin
     FMessageType := rpcmtErrorResponse
   else
     FMessageType := rpcmtInvalid;
-end;
-
-class function TNXJSONRPCRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := nil;
 end;
 
 class function TNXJSONRPCRequest.GetResultClass: TNXJSONValueClass;

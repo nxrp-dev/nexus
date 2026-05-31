@@ -6,42 +6,46 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSWorkspaceConfigurationRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSConfigurationParams;
+    procedure SetParams(AValue: TNXLSConfigurationParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSConfigurationParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDidChangeConfigurationRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidChangeConfigurationParams;
+    procedure SetParams(AValue: TNXLSDidChangeConfigurationParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidChangeConfigurationParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSWorkspaceConfigurationRequest.GetFactoryName: string;
 begin
   Result := 'workspace/configuration';
-end;
-
-class function TNXLSWorkspaceConfigurationRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSConfigurationParams;
 end;
 
 class function TNXLSWorkspaceConfigurationRequest.GetResultClass: TNXJSONValueClass;
@@ -59,11 +63,6 @@ begin
   Result := 'workspace/didChangeConfiguration';
 end;
 
-class function TNXLSWorkspaceDidChangeConfigurationRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidChangeConfigurationParams;
-end;
-
 class function TNXLSWorkspaceDidChangeConfigurationRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -73,6 +72,26 @@ function TNXLSWorkspaceDidChangeConfigurationRequest.Execute: TNXJSONValue;
 begin
   TNXLSLSPModel.Current.Workspace.DidChangeConfiguration(TNXLSDidChangeConfigurationParams(params));
   Result := nil;
+end;
+
+function TNXLSWorkspaceDidChangeConfigurationRequest.GetParams: TNXLSDidChangeConfigurationParams;
+begin
+  Result := TNXLSDidChangeConfigurationParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDidChangeConfigurationRequest.SetParams(AValue: TNXLSDidChangeConfigurationParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceConfigurationRequest.GetParams: TNXLSConfigurationParams;
+begin
+  Result := TNXLSConfigurationParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceConfigurationRequest.SetParams(AValue: TNXLSConfigurationParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

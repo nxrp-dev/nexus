@@ -6,34 +6,34 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentCodeActionRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCodeActionParams;
+    procedure SetParams(AValue: TNXLSCodeActionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCodeActionParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentCodeActionRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/codeAction';
-end;
-
-class function TNXLSTextDocumentCodeActionRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCodeActionParams;
 end;
 
 class function TNXLSTextDocumentCodeActionRequest.GetResultClass: TNXJSONValueClass;
@@ -49,6 +49,16 @@ begin
   TNXLSLSPModel.Current.Editor.FillCodeActions(TNXLSCodeActionParams(params),
     lResult);
   Result := lResult;
+end;
+
+function TNXLSTextDocumentCodeActionRequest.GetParams: TNXLSCodeActionParams;
+begin
+  Result := TNXLSCodeActionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentCodeActionRequest.SetParams(AValue: TNXLSCodeActionParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

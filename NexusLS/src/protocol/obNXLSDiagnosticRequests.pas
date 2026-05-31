@@ -6,31 +6,47 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentPublishDiagnosticsRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSPublishDiagnosticsParams;
+    procedure SetParams(AValue: TNXLSPublishDiagnosticsParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSPublishDiagnosticsParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDiagnosticRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDocumentDiagnosticParams;
+    procedure SetParams(AValue: TNXLSDocumentDiagnosticParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDocumentDiagnosticParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDiagnosticRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSWorkspaceDiagnosticParams;
+    procedure SetParams(AValue: TNXLSWorkspaceDiagnosticParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSWorkspaceDiagnosticParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDiagnosticRefreshRequest = class(TNXJSONRPCRequest)
@@ -43,19 +59,11 @@ type
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTextDocumentPublishDiagnosticsRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/publishDiagnostics';
-end;
-
-class function TNXLSTextDocumentPublishDiagnosticsRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSPublishDiagnosticsParams;
 end;
 
 class function TNXLSTextDocumentPublishDiagnosticsRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -72,11 +80,6 @@ end;
 class function TNXLSTextDocumentDiagnosticRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/diagnostic';
-end;
-
-class function TNXLSTextDocumentDiagnosticRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentDiagnosticParams;
 end;
 
 class function TNXLSTextDocumentDiagnosticRequest.GetResultClass: TNXJSONValueClass;
@@ -98,11 +101,6 @@ end;
 class function TNXLSWorkspaceDiagnosticRequest.GetFactoryName: string;
 begin
   Result := 'workspace/diagnostic';
-end;
-
-class function TNXLSWorkspaceDiagnosticRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceDiagnosticParams;
 end;
 
 class function TNXLSWorkspaceDiagnosticRequest.GetResultClass: TNXJSONValueClass;
@@ -134,6 +132,36 @@ function TNXLSWorkspaceDiagnosticRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/diagnostic/refresh; required: Client-side; original server: No; category: diagnostics; result: TNXLSNullResult.
   Result := PrepareResult;
+end;
+
+function TNXLSTextDocumentDiagnosticRequest.GetParams: TNXLSDocumentDiagnosticParams;
+begin
+  Result := TNXLSDocumentDiagnosticParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDiagnosticRequest.SetParams(AValue: TNXLSDocumentDiagnosticParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentPublishDiagnosticsRequest.GetParams: TNXLSPublishDiagnosticsParams;
+begin
+  Result := TNXLSPublishDiagnosticsParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentPublishDiagnosticsRequest.SetParams(AValue: TNXLSPublishDiagnosticsParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceDiagnosticRequest.GetParams: TNXLSWorkspaceDiagnosticParams;
+begin
+  Result := TNXLSWorkspaceDiagnosticParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDiagnosticRequest.SetParams(AValue: TNXLSWorkspaceDiagnosticParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

@@ -6,70 +6,86 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentDeclarationRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentDefinitionRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentTypeDefinitionRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentImplementationRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentReferencesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSReferenceParams;
+    procedure SetParams(AValue: TNXLSReferenceParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSReferenceParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentDeclarationRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/declaration';
-end;
-
-class function TNXLSTextDocumentDeclarationRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
 end;
 
 class function TNXLSTextDocumentDeclarationRequest.GetResultClass: TNXJSONValueClass;
@@ -102,11 +118,6 @@ begin
   Result := 'textDocument/definition';
 end;
 
-class function TNXLSTextDocumentDefinitionRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
-end;
-
 class function TNXLSTextDocumentDefinitionRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSLocation;
@@ -137,11 +148,6 @@ begin
   Result := 'textDocument/typeDefinition';
 end;
 
-class function TNXLSTextDocumentTypeDefinitionRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
-end;
-
 class function TNXLSTextDocumentTypeDefinitionRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSLocation;
@@ -161,11 +167,6 @@ end;
 class function TNXLSTextDocumentImplementationRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/implementation';
-end;
-
-class function TNXLSTextDocumentImplementationRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
 end;
 
 class function TNXLSTextDocumentImplementationRequest.GetResultClass: TNXJSONValueClass;
@@ -198,11 +199,6 @@ begin
   Result := 'textDocument/references';
 end;
 
-class function TNXLSTextDocumentReferencesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSReferenceParams;
-end;
-
 class function TNXLSTextDocumentReferencesRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSLocationArray;
@@ -216,6 +212,56 @@ begin
   TNXLSLSPModel.Current.Navigation.FillReferences(TNXLSReferenceParams(params),
     lResult);
   Result := lResult;
+end;
+
+function TNXLSTextDocumentImplementationRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentImplementationRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentTypeDefinitionRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentTypeDefinitionRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentReferencesRequest.GetParams: TNXLSReferenceParams;
+begin
+  Result := TNXLSReferenceParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentReferencesRequest.SetParams(AValue: TNXLSReferenceParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDeclarationRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDeclarationRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentDefinitionRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentDefinitionRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

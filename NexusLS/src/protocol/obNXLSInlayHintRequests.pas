@@ -6,34 +6,34 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentInlayHintRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSInlayHintParams;
+    procedure SetParams(AValue: TNXLSInlayHintParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSInlayHintParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXLSLSPModel;
 
 class function TNXLSTextDocumentInlayHintRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/inlayHint';
-end;
-
-class function TNXLSTextDocumentInlayHintRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInlayHintParams;
 end;
 
 class function TNXLSTextDocumentInlayHintRequest.GetResultClass: TNXJSONValueClass;
@@ -49,6 +49,16 @@ begin
   TNXLSLSPModel.Current.Editor.FillInlayHints(TNXLSInlayHintParams(params),
     lResult);
   Result := lResult;
+end;
+
+function TNXLSTextDocumentInlayHintRequest.GetParams: TNXLSInlayHintParams;
+begin
+  Result := TNXLSInlayHintParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentInlayHintRequest.SetParams(AValue: TNXLSInlayHintParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

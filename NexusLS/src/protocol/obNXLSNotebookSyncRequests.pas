@@ -6,57 +6,69 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSNotebookDocumentDidOpenRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidOpenNotebookDocumentParams;
+    procedure SetParams(AValue: TNXLSDidOpenNotebookDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidOpenNotebookDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSNotebookDocumentDidChangeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidChangeNotebookDocumentParams;
+    procedure SetParams(AValue: TNXLSDidChangeNotebookDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidChangeNotebookDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSNotebookDocumentDidSaveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSNotebookDocumentParams;
+    procedure SetParams(AValue: TNXLSNotebookDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSNotebookDocumentParams read GetParams write SetParams;
   end;
 
   TNXLSNotebookDocumentDidCloseRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDidCloseNotebookDocumentParams;
+    procedure SetParams(AValue: TNXLSDidCloseNotebookDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDidCloseNotebookDocumentParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSNotebookDocumentDidOpenRequest.GetFactoryName: string;
 begin
   Result := 'notebookDocument/didOpen';
-end;
-
-class function TNXLSNotebookDocumentDidOpenRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidOpenNotebookDocumentParams;
 end;
 
 class function TNXLSNotebookDocumentDidOpenRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -75,11 +87,6 @@ begin
   Result := 'notebookDocument/didChange';
 end;
 
-class function TNXLSNotebookDocumentDidChangeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidChangeNotebookDocumentParams;
-end;
-
 class function TNXLSNotebookDocumentDidChangeRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -94,11 +101,6 @@ end;
 class function TNXLSNotebookDocumentDidSaveRequest.GetFactoryName: string;
 begin
   Result := 'notebookDocument/didSave';
-end;
-
-class function TNXLSNotebookDocumentDidSaveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSNotebookDocumentParams;
 end;
 
 class function TNXLSNotebookDocumentDidSaveRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -117,11 +119,6 @@ begin
   Result := 'notebookDocument/didClose';
 end;
 
-class function TNXLSNotebookDocumentDidCloseRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDidCloseNotebookDocumentParams;
-end;
-
 class function TNXLSNotebookDocumentDidCloseRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -131,6 +128,46 @@ function TNXLSNotebookDocumentDidCloseRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didClose; required: Optional; original server: No; category: notebook sync; result: nil.
   Result := nil;
+end;
+
+function TNXLSNotebookDocumentDidChangeRequest.GetParams: TNXLSDidChangeNotebookDocumentParams;
+begin
+  Result := TNXLSDidChangeNotebookDocumentParams(inherited params);
+end;
+
+procedure TNXLSNotebookDocumentDidChangeRequest.SetParams(AValue: TNXLSDidChangeNotebookDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSNotebookDocumentDidOpenRequest.GetParams: TNXLSDidOpenNotebookDocumentParams;
+begin
+  Result := TNXLSDidOpenNotebookDocumentParams(inherited params);
+end;
+
+procedure TNXLSNotebookDocumentDidOpenRequest.SetParams(AValue: TNXLSDidOpenNotebookDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSNotebookDocumentDidSaveRequest.GetParams: TNXLSNotebookDocumentParams;
+begin
+  Result := TNXLSNotebookDocumentParams(inherited params);
+end;
+
+procedure TNXLSNotebookDocumentDidSaveRequest.SetParams(AValue: TNXLSNotebookDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSNotebookDocumentDidCloseRequest.GetParams: TNXLSDidCloseNotebookDocumentParams;
+begin
+  Result := TNXLSDidCloseNotebookDocumentParams(inherited params);
+end;
+
+procedure TNXLSNotebookDocumentDidCloseRequest.SetParams(AValue: TNXLSDidCloseNotebookDocumentParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

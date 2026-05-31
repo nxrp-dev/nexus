@@ -6,49 +6,57 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentFormattingRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDocumentFormattingParams;
+    procedure SetParams(AValue: TNXLSDocumentFormattingParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDocumentFormattingParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentRangeFormattingRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDocumentRangeFormattingParams;
+    procedure SetParams(AValue: TNXLSDocumentRangeFormattingParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDocumentRangeFormattingParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentOnTypeFormattingRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDocumentOnTypeFormattingParams;
+    procedure SetParams(AValue: TNXLSDocumentOnTypeFormattingParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDocumentOnTypeFormattingParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTextDocumentFormattingRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/formatting';
-end;
-
-class function TNXLSTextDocumentFormattingRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentFormattingParams;
 end;
 
 class function TNXLSTextDocumentFormattingRequest.GetResultClass: TNXJSONValueClass;
@@ -66,11 +74,6 @@ begin
   Result := 'textDocument/rangeFormatting';
 end;
 
-class function TNXLSTextDocumentRangeFormattingRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentRangeFormattingParams;
-end;
-
 class function TNXLSTextDocumentRangeFormattingRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextEditArray;
@@ -86,11 +89,6 @@ begin
   Result := 'textDocument/onTypeFormatting';
 end;
 
-class function TNXLSTextDocumentOnTypeFormattingRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentOnTypeFormattingParams;
-end;
-
 class function TNXLSTextDocumentOnTypeFormattingRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSTextEditArray;
@@ -99,6 +97,36 @@ end;
 function TNXLSTextDocumentOnTypeFormattingRequest.Execute: TNXJSONValue;
 begin
   Result := PrepareResult;
+end;
+
+function TNXLSTextDocumentRangeFormattingRequest.GetParams: TNXLSDocumentRangeFormattingParams;
+begin
+  Result := TNXLSDocumentRangeFormattingParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentRangeFormattingRequest.SetParams(AValue: TNXLSDocumentRangeFormattingParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentFormattingRequest.GetParams: TNXLSDocumentFormattingParams;
+begin
+  Result := TNXLSDocumentFormattingParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentFormattingRequest.SetParams(AValue: TNXLSDocumentFormattingParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentOnTypeFormattingRequest.GetParams: TNXLSDocumentOnTypeFormattingParams;
+begin
+  Result := TNXLSDocumentOnTypeFormattingParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentOnTypeFormattingRequest.SetParams(AValue: TNXLSDocumentOnTypeFormattingParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

@@ -6,49 +6,57 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentPrepareTypeHierarchyRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
   TNXLSTypeHierarchySupertypesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTypeHierarchySupertypesParams;
+    procedure SetParams(AValue: TNXLSTypeHierarchySupertypesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTypeHierarchySupertypesParams read GetParams write SetParams;
   end;
 
   TNXLSTypeHierarchySubtypesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSTypeHierarchySubtypesParams;
+    procedure SetParams(AValue: TNXLSTypeHierarchySubtypesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSTypeHierarchySubtypesParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/prepareTypeHierarchy';
-end;
-
-class function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTextDocumentPositionParams;
 end;
 
 class function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetResultClass: TNXJSONValueClass;
@@ -66,11 +74,6 @@ begin
   Result := 'typeHierarchy/supertypes';
 end;
 
-class function TNXLSTypeHierarchySupertypesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTypeHierarchySupertypesParams;
-end;
-
 class function TNXLSTypeHierarchySupertypesRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSTypeHierarchyItemArray;
@@ -86,11 +89,6 @@ begin
   Result := 'typeHierarchy/subtypes';
 end;
 
-class function TNXLSTypeHierarchySubtypesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSTypeHierarchySubtypesParams;
-end;
-
 class function TNXLSTypeHierarchySubtypesRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSTypeHierarchyItemArray;
@@ -99,6 +97,36 @@ end;
 function TNXLSTypeHierarchySubtypesRequest.Execute: TNXJSONValue;
 begin
   Result := PrepareResult;
+end;
+
+function TNXLSTypeHierarchySubtypesRequest.GetParams: TNXLSTypeHierarchySubtypesParams;
+begin
+  Result := TNXLSTypeHierarchySubtypesParams(inherited params);
+end;
+
+procedure TNXLSTypeHierarchySubtypesRequest.SetParams(AValue: TNXLSTypeHierarchySubtypesParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentPrepareTypeHierarchyRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTypeHierarchySupertypesRequest.GetParams: TNXLSTypeHierarchySupertypesParams;
+begin
+  Result := TNXLSTypeHierarchySupertypesParams(inherited params);
+end;
+
+procedure TNXLSTypeHierarchySupertypesRequest.SetParams(AValue: TNXLSTypeHierarchySupertypesParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

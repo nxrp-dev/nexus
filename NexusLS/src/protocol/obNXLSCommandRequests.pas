@@ -6,63 +6,95 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSCompleteCodeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCompleteCodeParams;
+    procedure SetParams(AValue: TNXLSCompleteCodeParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCompleteCodeParams read GetParams write SetParams;
   end;
 
   TNXLSInvertAssignmentRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSInvertAssignmentParams;
+    procedure SetParams(AValue: TNXLSInvertAssignmentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSInvertAssignmentParams read GetParams write SetParams;
   end;
 
   TNXLSRemoveEmptyMethodsRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSRemoveEmptyMethodsParams;
+    procedure SetParams(AValue: TNXLSRemoveEmptyMethodsParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSRemoveEmptyMethodsParams read GetParams write SetParams;
   end;
 
   TNXLSRemoveUnusedUnitsRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSRemoveUnusedUnitsParams;
+    procedure SetParams(AValue: TNXLSRemoveUnusedUnitsParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSRemoveUnusedUnitsParams read GetParams write SetParams;
   end;
 
   TNXLSProjectCreateWizardRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSProjectCreateWizardParams;
+    procedure SetParams(AValue: TNXLSProjectCreateWizardParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSProjectCreateWizardParams read GetParams write SetParams;
   end;
 
   TNXLSProjectPlanCreateRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSProjectCreateParams;
+    procedure SetParams(AValue: TNXLSProjectCreateParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSProjectCreateParams read GetParams write SetParams;
   end;
 
   TNXLSProjectCreateRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSProjectCreateParams;
+    procedure SetParams(AValue: TNXLSProjectCreateParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSProjectCreateParams read GetParams write SetParams;
   end;
 
 implementation
@@ -71,18 +103,11 @@ uses
   obNXClassFactory,
   obNXLSLSPModel,
   obNXLSProjectService,
-  obNXLSProtocolObjects,
-  obNXLSProtocolParams,
   utNXLSCommandNames;
 
 class function TNXLSCompleteCodeRequest.GetFactoryName: string;
 begin
   Result := cNXLSCommandCompleteCode;
-end;
-
-class function TNXLSCompleteCodeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCompleteCodeParams;
 end;
 
 class function TNXLSCompleteCodeRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -99,11 +124,6 @@ end;
 class function TNXLSInvertAssignmentRequest.GetFactoryName: string;
 begin
   Result := cNXLSCommandInvertAssignment;
-end;
-
-class function TNXLSInvertAssignmentRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInvertAssignmentParams;
 end;
 
 class function TNXLSInvertAssignmentRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -123,11 +143,6 @@ begin
   Result := cNXLSCommandRemoveEmptyMethods;
 end;
 
-class function TNXLSRemoveEmptyMethodsRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSRemoveEmptyMethodsParams;
-end;
-
 class function TNXLSRemoveEmptyMethodsRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullResult;
@@ -145,11 +160,6 @@ begin
   Result := cNXLSCommandRemoveUnusedUnits;
 end;
 
-class function TNXLSRemoveUnusedUnitsRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSRemoveUnusedUnitsParams;
-end;
-
 class function TNXLSRemoveUnusedUnitsRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNullResult;
@@ -165,11 +175,6 @@ end;
 class function TNXLSProjectCreateWizardRequest.GetFactoryName: string;
 begin
   Result := cNXLSCommandNexusProjectCreateWizard;
-end;
-
-class function TNXLSProjectCreateWizardRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProjectCreateWizardParams;
 end;
 
 class function TNXLSProjectCreateWizardRequest.GetResultClass: TNXJSONValueClass;
@@ -192,11 +197,6 @@ begin
   Result := cNXLSCommandNexusProjectPlanCreate;
 end;
 
-class function TNXLSProjectPlanCreateRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProjectCreateParams;
-end;
-
 class function TNXLSProjectPlanCreateRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSProjectPlanCreateResult;
@@ -217,11 +217,6 @@ begin
   Result := cNXLSCommandNexusProjectCreate;
 end;
 
-class function TNXLSProjectCreateRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSProjectCreateParams;
-end;
-
 class function TNXLSProjectCreateRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSProjectCreateResult;
@@ -235,6 +230,76 @@ begin
   TNXLSProjectService.FillCreateNexusProject(TNXLSProjectCreateParams(params),
     lResult);
   Result := lResult;
+end;
+
+function TNXLSProjectPlanCreateRequest.GetParams: TNXLSProjectCreateParams;
+begin
+  Result := TNXLSProjectCreateParams(inherited params);
+end;
+
+procedure TNXLSProjectPlanCreateRequest.SetParams(AValue: TNXLSProjectCreateParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSRemoveUnusedUnitsRequest.GetParams: TNXLSRemoveUnusedUnitsParams;
+begin
+  Result := TNXLSRemoveUnusedUnitsParams(inherited params);
+end;
+
+procedure TNXLSRemoveUnusedUnitsRequest.SetParams(AValue: TNXLSRemoveUnusedUnitsParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSCompleteCodeRequest.GetParams: TNXLSCompleteCodeParams;
+begin
+  Result := TNXLSCompleteCodeParams(inherited params);
+end;
+
+procedure TNXLSCompleteCodeRequest.SetParams(AValue: TNXLSCompleteCodeParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSProjectCreateWizardRequest.GetParams: TNXLSProjectCreateWizardParams;
+begin
+  Result := TNXLSProjectCreateWizardParams(inherited params);
+end;
+
+procedure TNXLSProjectCreateWizardRequest.SetParams(AValue: TNXLSProjectCreateWizardParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSInvertAssignmentRequest.GetParams: TNXLSInvertAssignmentParams;
+begin
+  Result := TNXLSInvertAssignmentParams(inherited params);
+end;
+
+procedure TNXLSInvertAssignmentRequest.SetParams(AValue: TNXLSInvertAssignmentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSRemoveEmptyMethodsRequest.GetParams: TNXLSRemoveEmptyMethodsParams;
+begin
+  Result := TNXLSRemoveEmptyMethodsParams(inherited params);
+end;
+
+procedure TNXLSRemoveEmptyMethodsRequest.SetParams(AValue: TNXLSRemoveEmptyMethodsParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSProjectCreateRequest.GetParams: TNXLSProjectCreateParams;
+begin
+  Result := TNXLSProjectCreateParams(inherited params);
+end;
+
+procedure TNXLSProjectCreateRequest.SetParams(AValue: TNXLSProjectCreateParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

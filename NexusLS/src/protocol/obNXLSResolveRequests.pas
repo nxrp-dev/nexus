@@ -6,73 +6,93 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSDocumentLinkResolveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDocumentLink;
+    procedure SetParams(AValue: TNXLSDocumentLink);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDocumentLink read GetParams write SetParams;
   end;
 
   TNXLSCodeLensResolveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCodeLens;
+    procedure SetParams(AValue: TNXLSCodeLens);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCodeLens read GetParams write SetParams;
   end;
 
   TNXLSInlayHintResolveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSInlayHint;
+    procedure SetParams(AValue: TNXLSInlayHint);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSInlayHint read GetParams write SetParams;
   end;
 
   TNXLSCompletionItemResolveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCompletionItem;
+    procedure SetParams(AValue: TNXLSCompletionItem);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCompletionItem read GetParams write SetParams;
   end;
 
   TNXLSCodeActionResolveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCodeAction;
+    procedure SetParams(AValue: TNXLSCodeAction);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCodeAction read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceSymbolResolveRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSWorkspaceSymbol;
+    procedure SetParams(AValue: TNXLSWorkspaceSymbol);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSWorkspaceSymbol read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSDocumentLinkResolveRequest.GetFactoryName: string;
 begin
   Result := 'documentLink/resolve';
-end;
-
-class function TNXLSDocumentLinkResolveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDocumentLink;
 end;
 
 class function TNXLSDocumentLinkResolveRequest.GetResultClass: TNXJSONValueClass;
@@ -90,11 +110,6 @@ begin
   Result := 'codeLens/resolve';
 end;
 
-class function TNXLSCodeLensResolveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCodeLens;
-end;
-
 class function TNXLSCodeLensResolveRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSCodeLens;
@@ -108,11 +123,6 @@ end;
 class function TNXLSInlayHintResolveRequest.GetFactoryName: string;
 begin
   Result := 'inlayHint/resolve';
-end;
-
-class function TNXLSInlayHintResolveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInlayHint;
 end;
 
 class function TNXLSInlayHintResolveRequest.GetResultClass: TNXJSONValueClass;
@@ -130,11 +140,6 @@ begin
   Result := 'completionItem/resolve';
 end;
 
-class function TNXLSCompletionItemResolveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCompletionItem;
-end;
-
 class function TNXLSCompletionItemResolveRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSCompletionItem;
@@ -148,11 +153,6 @@ end;
 class function TNXLSCodeActionResolveRequest.GetFactoryName: string;
 begin
   Result := 'codeAction/resolve';
-end;
-
-class function TNXLSCodeActionResolveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCodeAction;
 end;
 
 class function TNXLSCodeActionResolveRequest.GetResultClass: TNXJSONValueClass;
@@ -170,11 +170,6 @@ begin
   Result := 'workspaceSymbol/resolve';
 end;
 
-class function TNXLSWorkspaceSymbolResolveRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSWorkspaceSymbol;
-end;
-
 class function TNXLSWorkspaceSymbolResolveRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSWorkspaceSymbol;
@@ -183,6 +178,66 @@ end;
 function TNXLSWorkspaceSymbolResolveRequest.Execute: TNXJSONValue;
 begin
   Result := PrepareResult;
+end;
+
+function TNXLSDocumentLinkResolveRequest.GetParams: TNXLSDocumentLink;
+begin
+  Result := TNXLSDocumentLink(inherited params);
+end;
+
+procedure TNXLSDocumentLinkResolveRequest.SetParams(AValue: TNXLSDocumentLink);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSCompletionItemResolveRequest.GetParams: TNXLSCompletionItem;
+begin
+  Result := TNXLSCompletionItem(inherited params);
+end;
+
+procedure TNXLSCompletionItemResolveRequest.SetParams(AValue: TNXLSCompletionItem);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSCodeActionResolveRequest.GetParams: TNXLSCodeAction;
+begin
+  Result := TNXLSCodeAction(inherited params);
+end;
+
+procedure TNXLSCodeActionResolveRequest.SetParams(AValue: TNXLSCodeAction);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSInlayHintResolveRequest.GetParams: TNXLSInlayHint;
+begin
+  Result := TNXLSInlayHint(inherited params);
+end;
+
+procedure TNXLSInlayHintResolveRequest.SetParams(AValue: TNXLSInlayHint);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceSymbolResolveRequest.GetParams: TNXLSWorkspaceSymbol;
+begin
+  Result := TNXLSWorkspaceSymbol(inherited params);
+end;
+
+procedure TNXLSWorkspaceSymbolResolveRequest.SetParams(AValue: TNXLSWorkspaceSymbol);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSCodeLensResolveRequest.GetParams: TNXLSCodeLens;
+begin
+  Result := TNXLSCodeLens(inherited params);
+end;
+
+procedure TNXLSCodeLensResolveRequest.SetParams(AValue: TNXLSCodeLens);
+begin
+  inherited params := AValue;
 end;
 
 initialization

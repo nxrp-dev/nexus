@@ -6,75 +6,96 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSWorkspaceWillCreateFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCreateFilesParams;
+    procedure SetParams(AValue: TNXLSCreateFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCreateFilesParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDidCreateFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSCreateFilesParams;
+    procedure SetParams(AValue: TNXLSCreateFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSCreateFilesParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceWillRenameFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSRenameFilesParams;
+    procedure SetParams(AValue: TNXLSRenameFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSRenameFilesParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDidRenameFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSRenameFilesParams;
+    procedure SetParams(AValue: TNXLSRenameFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSRenameFilesParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceWillDeleteFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDeleteFilesParams;
+    procedure SetParams(AValue: TNXLSDeleteFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDeleteFilesParams read GetParams write SetParams;
   end;
 
   TNXLSWorkspaceDidDeleteFilesRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSDeleteFilesParams;
+    procedure SetParams(AValue: TNXLSDeleteFilesParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSDeleteFilesParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams;
+  obNXClassFactory;
 
 class function TNXLSWorkspaceWillCreateFilesRequest.GetFactoryName: string;
 begin
   Result := 'workspace/willCreateFiles';
-end;
-
-class function TNXLSWorkspaceWillCreateFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCreateFilesParams;
 end;
 
 class function TNXLSWorkspaceWillCreateFilesRequest.GetResultClass: TNXJSONValueClass;
@@ -98,11 +119,6 @@ begin
   Result := 'workspace/didCreateFiles';
 end;
 
-class function TNXLSWorkspaceDidCreateFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSCreateFilesParams;
-end;
-
 class function TNXLSWorkspaceDidCreateFilesRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -117,11 +133,6 @@ end;
 class function TNXLSWorkspaceWillRenameFilesRequest.GetFactoryName: string;
 begin
   Result := 'workspace/willRenameFiles';
-end;
-
-class function TNXLSWorkspaceWillRenameFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSRenameFilesParams;
 end;
 
 class function TNXLSWorkspaceWillRenameFilesRequest.GetResultClass: TNXJSONValueClass;
@@ -145,11 +156,6 @@ begin
   Result := 'workspace/didRenameFiles';
 end;
 
-class function TNXLSWorkspaceDidRenameFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSRenameFilesParams;
-end;
-
 class function TNXLSWorkspaceDidRenameFilesRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -164,11 +170,6 @@ end;
 class function TNXLSWorkspaceWillDeleteFilesRequest.GetFactoryName: string;
 begin
   Result := 'workspace/willDeleteFiles';
-end;
-
-class function TNXLSWorkspaceWillDeleteFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDeleteFilesParams;
 end;
 
 class function TNXLSWorkspaceWillDeleteFilesRequest.GetResultClass: TNXJSONValueClass;
@@ -192,11 +193,6 @@ begin
   Result := 'workspace/didDeleteFiles';
 end;
 
-class function TNXLSWorkspaceDidDeleteFilesRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSDeleteFilesParams;
-end;
-
 class function TNXLSWorkspaceDidDeleteFilesRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -206,6 +202,66 @@ function TNXLSWorkspaceDidDeleteFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/didDeleteFiles; required: Optional; original server: No; category: file operations; result: nil.
   Result := nil;
+end;
+
+function TNXLSWorkspaceDidRenameFilesRequest.GetParams: TNXLSRenameFilesParams;
+begin
+  Result := TNXLSRenameFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDidRenameFilesRequest.SetParams(AValue: TNXLSRenameFilesParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceWillDeleteFilesRequest.GetParams: TNXLSDeleteFilesParams;
+begin
+  Result := TNXLSDeleteFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceWillDeleteFilesRequest.SetParams(AValue: TNXLSDeleteFilesParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceDidDeleteFilesRequest.GetParams: TNXLSDeleteFilesParams;
+begin
+  Result := TNXLSDeleteFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDidDeleteFilesRequest.SetParams(AValue: TNXLSDeleteFilesParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceWillCreateFilesRequest.GetParams: TNXLSCreateFilesParams;
+begin
+  Result := TNXLSCreateFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceWillCreateFilesRequest.SetParams(AValue: TNXLSCreateFilesParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceWillRenameFilesRequest.GetParams: TNXLSRenameFilesParams;
+begin
+  Result := TNXLSRenameFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceWillRenameFilesRequest.SetParams(AValue: TNXLSRenameFilesParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWorkspaceDidCreateFilesRequest.GetParams: TNXLSCreateFilesParams;
+begin
+  Result := TNXLSCreateFilesParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceDidCreateFilesRequest.SetParams(AValue: TNXLSCreateFilesParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

@@ -6,58 +6,70 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSWindowShowMessageActionRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSMessageParams;
+    procedure SetParams(AValue: TNXLSMessageParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSMessageParams read GetParams write SetParams;
   end;
 
   TNXLSWindowShowMessageRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSShowMessageRequestParams;
+    procedure SetParams(AValue: TNXLSShowMessageRequestParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSShowMessageRequestParams read GetParams write SetParams;
   end;
 
   TNXLSWindowLogMessageRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSMessageParams;
+    procedure SetParams(AValue: TNXLSMessageParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultKind: TNXJSONRPCResultKind; override;
+class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSMessageParams read GetParams write SetParams;
   end;
 
   TNXLSWindowShowDocumentRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSShowDocumentParams;
+    procedure SetParams(AValue: TNXLSShowDocumentParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSShowDocumentParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSWindowShowMessageActionRequest.GetFactoryName: string;
 begin
   Result := 'window/showMessage';
-end;
-
-class function TNXLSWindowShowMessageActionRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSMessageParams;
 end;
 
 class function TNXLSWindowShowMessageActionRequest.GetResultKind: TNXJSONRPCResultKind;
@@ -74,11 +86,6 @@ end;
 class function TNXLSWindowShowMessageRequest.GetFactoryName: string;
 begin
   Result := 'window/showMessageRequest';
-end;
-
-class function TNXLSWindowShowMessageRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSShowMessageRequestParams;
 end;
 
 class function TNXLSWindowShowMessageRequest.GetResultClass: TNXJSONValueClass;
@@ -102,11 +109,6 @@ begin
   Result := 'window/logMessage';
 end;
 
-class function TNXLSWindowLogMessageRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSMessageParams;
-end;
-
 class function TNXLSWindowLogMessageRequest.GetResultKind: TNXJSONRPCResultKind;
 begin
   Result := rkNoResult;
@@ -123,11 +125,6 @@ begin
   Result := 'window/showDocument';
 end;
 
-class function TNXLSWindowShowDocumentRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSShowDocumentParams;
-end;
-
 class function TNXLSWindowShowDocumentRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSShowDocumentResultValue;
@@ -141,6 +138,46 @@ begin
   lResult.success.Value := False;
   lResult.Assigned := True;
   Result := lResult;
+end;
+
+function TNXLSWindowShowDocumentRequest.GetParams: TNXLSShowDocumentParams;
+begin
+  Result := TNXLSShowDocumentParams(inherited params);
+end;
+
+procedure TNXLSWindowShowDocumentRequest.SetParams(AValue: TNXLSShowDocumentParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWindowLogMessageRequest.GetParams: TNXLSMessageParams;
+begin
+  Result := TNXLSMessageParams(inherited params);
+end;
+
+procedure TNXLSWindowLogMessageRequest.SetParams(AValue: TNXLSMessageParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWindowShowMessageRequest.GetParams: TNXLSShowMessageRequestParams;
+begin
+  Result := TNXLSShowMessageRequestParams(inherited params);
+end;
+
+procedure TNXLSWindowShowMessageRequest.SetParams(AValue: TNXLSShowMessageRequestParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSWindowShowMessageActionRequest.GetParams: TNXLSMessageParams;
+begin
+  Result := TNXLSMessageParams(inherited params);
+end;
+
+procedure TNXLSWindowShowMessageActionRequest.SetParams(AValue: TNXLSMessageParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

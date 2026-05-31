@@ -6,52 +6,60 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentSemanticTokensFullRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSSemanticTokensParams;
+    procedure SetParams(AValue: TNXLSSemanticTokensParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSSemanticTokensParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentSemanticTokensFullDeltaRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSSemanticTokensDeltaParams;
+    procedure SetParams(AValue: TNXLSSemanticTokensDeltaParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSSemanticTokensDeltaParams read GetParams write SetParams;
   end;
 
   TNXLSTextDocumentSemanticTokensRangeRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSSemanticTokensRangeParams;
+    procedure SetParams(AValue: TNXLSSemanticTokensRangeParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     class function GetResultKind: TNXJSONRPCResultKind; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSSemanticTokensRangeParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTextDocumentSemanticTokensFullRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/semanticTokens/full';
-end;
-
-class function TNXLSTextDocumentSemanticTokensFullRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSemanticTokensParams;
 end;
 
 class function TNXLSTextDocumentSemanticTokensFullRequest.GetResultClass: TNXJSONValueClass;
@@ -75,11 +83,6 @@ begin
   Result := 'textDocument/semanticTokens/full/delta';
 end;
 
-class function TNXLSTextDocumentSemanticTokensFullDeltaRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSemanticTokensDeltaParams;
-end;
-
 class function TNXLSTextDocumentSemanticTokensFullDeltaRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSSemanticTokensDelta;
@@ -101,11 +104,6 @@ begin
   Result := 'textDocument/semanticTokens/range';
 end;
 
-class function TNXLSTextDocumentSemanticTokensRangeRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSSemanticTokensRangeParams;
-end;
-
 class function TNXLSTextDocumentSemanticTokensRangeRequest.GetResultClass: TNXJSONValueClass;
 begin
   Result := TNXLSSemanticTokens;
@@ -120,6 +118,36 @@ function TNXLSTextDocumentSemanticTokensRangeRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/semanticTokens/range; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensResult.
   Result := TNXJSONNull.Create;
+end;
+
+function TNXLSTextDocumentSemanticTokensFullRequest.GetParams: TNXLSSemanticTokensParams;
+begin
+  Result := TNXLSSemanticTokensParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentSemanticTokensFullRequest.SetParams(AValue: TNXLSSemanticTokensParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentSemanticTokensFullDeltaRequest.GetParams: TNXLSSemanticTokensDeltaParams;
+begin
+  Result := TNXLSSemanticTokensDeltaParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentSemanticTokensFullDeltaRequest.SetParams(AValue: TNXLSSemanticTokensDeltaParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSTextDocumentSemanticTokensRangeRequest.GetParams: TNXLSSemanticTokensRangeParams;
+begin
+  Result := TNXLSSemanticTokensRangeParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentSemanticTokensRangeRequest.SetParams(AValue: TNXLSSemanticTokensRangeParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

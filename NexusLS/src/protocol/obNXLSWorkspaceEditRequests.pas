@@ -6,18 +6,22 @@ interface
 
 uses
   obNXJSONRPCMessages,
+  obNXJSONValues,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolBase,
   obNXLSProtocolObjects,
   obNXLSProtocolParams;
 
 type
   TNXLSWorkspaceApplyEditRequest = class(TNXJSONRPCOutboundCommand)
   private
-    Fparams: TNXLSApplyWorkspaceEditParams;
+    function GetParams: TNXLSApplyWorkspaceEditParams;
+    procedure SetParams(AValue: TNXLSApplyWorkspaceEditParams);
   public
     class function GetFactoryName: string; override;
-    class function GetResultClass: TNXJSONCommandResultClass; override;
+class function GetResultClass: TNXJSONCommandResultClass; override;
   published
-    property params: TNXLSApplyWorkspaceEditParams read Fparams write Fparams;
+    property params: TNXLSApplyWorkspaceEditParams read GetParams write SetParams;
   end;
 
 implementation
@@ -33,6 +37,16 @@ end;
 class function TNXLSWorkspaceApplyEditRequest.GetResultClass: TNXJSONCommandResultClass;
 begin
   Result := TNXLSApplyWorkspaceEditResultValue;
+end;
+
+function TNXLSWorkspaceApplyEditRequest.GetParams: TNXLSApplyWorkspaceEditParams;
+begin
+  Result := TNXLSApplyWorkspaceEditParams(inherited params);
+end;
+
+procedure TNXLSWorkspaceApplyEditRequest.SetParams(AValue: TNXLSApplyWorkspaceEditParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

@@ -6,7 +6,8 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXTestRPCValues;
 
 type
   TNXTestGetCapabilitiesRequest = class(TNXJSONRPCRequest)
@@ -28,17 +29,25 @@ type
   end;
 
   TNXTestRunSuiteRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXTestRunSuiteParams;
+    procedure SetParams(AValue: TNXTestRunSuiteParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    function Execute: TNXJSONValue; override;
+function Execute: TNXJSONValue; override;
+  published
+    property params: TNXTestRunSuiteParams read GetParams write SetParams;
   end;
 
   TNXTestRunTestRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXTestRunTestParams;
+    procedure SetParams(AValue: TNXTestRunTestParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    function Execute: TNXJSONValue; override;
+function Execute: TNXJSONValue; override;
+  published
+    property params: TNXTestRunTestParams read GetParams write SetParams;
   end;
 
 implementation
@@ -46,7 +55,6 @@ implementation
 uses
   obNXClassFactory,
   obNXTestModule,
-  obNXTestRPCValues,
   tpNXTest;
 
 function CurrentModule: TNXTestModule;
@@ -89,11 +97,6 @@ begin
   Result := cNXTestMethodRunSuite;
 end;
 
-class function TNXTestRunSuiteRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXTestRunSuiteParams;
-end;
-
 function TNXTestRunSuiteRequest.Execute: TNXJSONValue;
 var
   lParams: TNXTestRunSuiteParams;
@@ -118,11 +121,6 @@ begin
   Result := cNXTestMethodRunTest;
 end;
 
-class function TNXTestRunTestRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXTestRunTestParams;
-end;
-
 function TNXTestRunTestRequest.Execute: TNXJSONValue;
 var
   lParams: TNXTestRunTestParams;
@@ -139,6 +137,26 @@ begin
   Result := CurrentModule.Runner.RunTest(lTestId);
   if Result = nil then
     raise ENXTestRPC.CreateCode(TNXJSONRPC.InvalidParams, cNXTestErrorUnknownTest, 'Unknown test.');
+end;
+
+function TNXTestRunTestRequest.GetParams: TNXTestRunTestParams;
+begin
+  Result := TNXTestRunTestParams(inherited params);
+end;
+
+procedure TNXTestRunTestRequest.SetParams(AValue: TNXTestRunTestParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXTestRunSuiteRequest.GetParams: TNXTestRunSuiteParams;
+begin
+  Result := TNXTestRunSuiteParams(inherited params);
+end;
+
+procedure TNXTestRunSuiteRequest.SetParams(AValue: TNXTestRunSuiteParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

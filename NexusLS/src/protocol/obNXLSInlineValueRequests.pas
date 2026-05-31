@@ -6,33 +6,33 @@ interface
 
 uses
   obNXJSONRPCMessages,
-  obNXJSONValues;
+  obNXJSONValues,
+  obNXLSProtocolBase,
+  obNXLSProtocolParams,
+  obNXLSDocumentSyncParams,
+  obNXLSProtocolObjects;
 
 type
   TNXLSTextDocumentInlineValueRequest = class(TNXJSONRPCRequest)
-  public
+    private
+    function GetParams: TNXLSInlineValueParams;
+    procedure SetParams(AValue: TNXLSInlineValueParams);
+public
     class function GetFactoryName: string; override;
-    class function GetParamClass: TNXJSONValueClass; override;
-    class function GetResultClass: TNXJSONValueClass; override;
+class function GetResultClass: TNXJSONValueClass; override;
     function Execute: TNXJSONValue; override;
+  published
+    property params: TNXLSInlineValueParams read GetParams write SetParams;
   end;
 
 implementation
 
 uses
-  obNXClassFactory,
-  obNXLSProtocolBase,
-  obNXLSProtocolParams,
-  obNXLSProtocolObjects;
+  obNXClassFactory;
 
 class function TNXLSTextDocumentInlineValueRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/inlineValue';
-end;
-
-class function TNXLSTextDocumentInlineValueRequest.GetParamClass: TNXJSONValueClass;
-begin
-  Result := TNXLSInlineValueParams;
 end;
 
 class function TNXLSTextDocumentInlineValueRequest.GetResultClass: TNXJSONValueClass;
@@ -43,6 +43,16 @@ end;
 function TNXLSTextDocumentInlineValueRequest.Execute: TNXJSONValue;
 begin
   Result := PrepareResult;
+end;
+
+function TNXLSTextDocumentInlineValueRequest.GetParams: TNXLSInlineValueParams;
+begin
+  Result := TNXLSInlineValueParams(inherited params);
+end;
+
+procedure TNXLSTextDocumentInlineValueRequest.SetParams(AValue: TNXLSInlineValueParams);
+begin
+  inherited params := AValue;
 end;
 
 initialization

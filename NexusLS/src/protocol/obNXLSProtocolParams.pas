@@ -1011,7 +1011,7 @@ type
   TNXLSTelemetryEventParams = class(TNXJSONValue)
   end;
 
-  TNXLSDocumentLink = class(TNXJSONObject)
+  TNXLSDocumentLink = class(TNXJSONObjectParams)
   private
     Frange: TNXLSRange;
     Ftarget: TNXJSONString;
@@ -1024,7 +1024,7 @@ type
     property data: TNXJSONValue read Fdata write Fdata;
   end;
 
-  TNXLSCodeLens = class(TNXJSONObject)
+  TNXLSCodeLens = class(TNXJSONObjectParams)
   private
     Frange: TNXLSRange;
     Fcommand: TNXLSCommand;
@@ -1035,7 +1035,7 @@ type
     property data: TNXJSONValue read Fdata write Fdata;
   end;
 
-  TNXLSInlayHint = class(TNXJSONObject)
+  TNXLSInlayHint = class(TNXJSONObjectParams)
   private
     Fposition: TNXLSPosition;
     FLabel: TNXJSONValue;
@@ -1056,7 +1056,7 @@ type
     property data: TNXJSONValue read Fdata write Fdata;
   end;
 
-  TNXLSCompletionItem = class(TNXJSONObject)
+  TNXLSCompletionItem = class(TNXJSONObjectParams)
   private
     FLabel: TNXJSONString;
     FLabelDetails: TNXLSCompletionItemLabelDetails;
@@ -1108,7 +1108,7 @@ type
     property description: TNXJSONString read Fdescription write Fdescription;
   end;
 
-  TNXLSCodeAction = class(TNXJSONObject)
+  TNXLSCodeAction = class(TNXJSONObjectParams)
   private
     Ftitle: TNXJSONString;
     Fkind: TNXJSONString;
@@ -1136,7 +1136,7 @@ type
     property reason: TNXJSONString read Freason write Freason;
   end;
 
-  TNXLSWorkspaceSymbol = class(TNXJSONObject)
+  TNXLSWorkspaceSymbol = class(TNXJSONObjectParams)
   private
     Fname: TNXJSONString;
     Fkind: TNXJSONInteger;
