@@ -41,7 +41,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSWorkspaceConfigurationRequest.GetFactoryName: string;
 begin
@@ -55,7 +56,8 @@ end;
 
 function TNXLSWorkspaceConfigurationRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceDidChangeConfigurationRequest.GetFactoryName: string;

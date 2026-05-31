@@ -40,7 +40,8 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSClientRegisterCapabilityRequest.GetFactoryName: string;
 begin
@@ -55,7 +56,8 @@ end;
 function TNXLSClientRegisterCapabilityRequest.Execute: TNXJSONValue;
 begin
   // Method: client/registerCapability; required: Client-side; original server: No; category: dynamic registration; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSClientUnregisterCapabilityRequest.GetFactoryName: string;
@@ -71,7 +73,8 @@ end;
 function TNXLSClientUnregisterCapabilityRequest.Execute: TNXJSONValue;
 begin
   // Method: client/unregisterCapability; required: Client-side; original server: No; category: dynamic registration; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSClientRegisterCapabilityRequest.GetParams: TNXLSRegistrationParams;

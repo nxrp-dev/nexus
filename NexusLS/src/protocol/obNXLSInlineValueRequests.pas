@@ -28,7 +28,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentInlineValueRequest.GetFactoryName: string;
 begin
@@ -42,7 +43,8 @@ end;
 
 function TNXLSTextDocumentInlineValueRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentInlineValueRequest.GetParams: TNXLSInlineValueParams;

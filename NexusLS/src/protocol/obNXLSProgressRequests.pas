@@ -40,7 +40,8 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSWindowWorkDoneProgressCreateRequest.GetFactoryName: string;
 begin
@@ -55,7 +56,8 @@ end;
 function TNXLSWindowWorkDoneProgressCreateRequest.Execute: TNXJSONValue;
 begin
   // Method: window/workDoneProgress/create; required: Client-side; original server: No; category: progress; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWindowWorkDoneProgressCancelRequest.GetFactoryName: string;
@@ -71,6 +73,7 @@ end;
 function TNXLSWindowWorkDoneProgressCancelRequest.Execute: TNXJSONValue;
 begin
   // Method: window/workDoneProgress/cancel; required: Client-side; original server: No; category: progress; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 

@@ -28,7 +28,8 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSWorkspaceDidChangeWatchedFilesRequest.GetFactoryName: string;
 begin
@@ -43,6 +44,7 @@ end;
 function TNXLSWorkspaceDidChangeWatchedFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/didChangeWatchedFiles; required: Optional; original server: No; category: file watching; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 

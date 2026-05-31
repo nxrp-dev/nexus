@@ -90,7 +90,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSTextDocumentDocumentHighlightRequest.GetFactoryName: string;
 begin
@@ -124,7 +125,8 @@ end;
 
 function TNXLSTextDocumentDocumentLinkRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentHoverRequest.GetFactoryName: string;
@@ -169,7 +171,8 @@ end;
 
 function TNXLSTextDocumentCodeLensRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentFoldingRangeRequest.GetFactoryName: string;
@@ -184,7 +187,8 @@ end;
 
 function TNXLSTextDocumentFoldingRangeRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentSelectionRangeRequest.GetFactoryName: string;
@@ -199,7 +203,8 @@ end;
 
 function TNXLSTextDocumentSelectionRangeRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentCodeLensRequest.GetParams: TNXLSCodeLensParams;

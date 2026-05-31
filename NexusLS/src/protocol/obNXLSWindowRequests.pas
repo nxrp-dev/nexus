@@ -65,7 +65,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSWindowShowMessageActionRequest.GetFactoryName: string;
 begin
@@ -80,6 +81,7 @@ end;
 function TNXLSWindowShowMessageActionRequest.Execute: TNXJSONValue;
 begin
   // Method: window/showMessage; required: Client-side; original server: No; category: window; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -101,7 +103,8 @@ end;
 function TNXLSWindowShowMessageRequest.Execute: TNXJSONValue;
 begin
   // Method: window/showMessageRequest; required: Client-side; original server: No; category: window; result: TNXLSMessageActionItemResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWindowLogMessageRequest.GetFactoryName: string;
@@ -117,6 +120,7 @@ end;
 function TNXLSWindowLogMessageRequest.Execute: TNXJSONValue;
 begin
   // Method: window/logMessage; required: Client-side; original server: No; category: window; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -131,13 +135,9 @@ begin
 end;
 
 function TNXLSWindowShowDocumentRequest.Execute: TNXJSONValue;
-var
-  lResult: TNXLSShowDocumentResultValue;
 begin
-  lResult := TNXLSShowDocumentResultValue(PrepareResult);
-  lResult.success.Value := False;
-  lResult.Assigned := True;
-  Result := lResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSWindowShowDocumentRequest.GetParams: TNXLSShowDocumentParams;

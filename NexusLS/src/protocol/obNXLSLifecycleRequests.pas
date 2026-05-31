@@ -103,7 +103,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSInitializeRequest.GetFactoryName: string;
 begin
@@ -202,6 +203,7 @@ end;
 function TNXLSDollarprogressRequest.Execute: TNXJSONValue;
 begin
   // Method: $/progress; required: Optional; original server: No; category: lifecycle; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -218,6 +220,7 @@ end;
 function TNXLSDollarsetTraceRequest.Execute: TNXJSONValue;
 begin
   // Method: $/setTrace; required: Optional; original server: No; category: lifecycle; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -234,6 +237,7 @@ end;
 function TNXLSDollarlogTraceRequest.Execute: TNXJSONValue;
 begin
   // Method: $/logTrace; required: Client-side; original server: No; category: lifecycle; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 

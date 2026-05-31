@@ -81,7 +81,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSTextDocumentDeclarationRequest.GetFactoryName: string;
 begin
@@ -161,7 +162,8 @@ end;
 function TNXLSTextDocumentTypeDefinitionRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/typeDefinition; required: Optional; original server: No; category: navigation; result: TNXLSLocationResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentImplementationRequest.GetFactoryName: string;

@@ -52,7 +52,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentFormattingRequest.GetFactoryName: string;
 begin
@@ -66,7 +67,8 @@ end;
 
 function TNXLSTextDocumentFormattingRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentRangeFormattingRequest.GetFactoryName: string;
@@ -81,7 +83,8 @@ end;
 
 function TNXLSTextDocumentRangeFormattingRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentOnTypeFormattingRequest.GetFactoryName: string;
@@ -96,7 +99,8 @@ end;
 
 function TNXLSTextDocumentOnTypeFormattingRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentRangeFormattingRequest.GetParams: TNXLSDocumentRangeFormattingParams;

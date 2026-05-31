@@ -52,7 +52,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentPrepareCallHierarchyRequest.GetFactoryName: string;
 begin
@@ -66,7 +67,8 @@ end;
 
 function TNXLSTextDocumentPrepareCallHierarchyRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSCallHierarchyIncomingCallsRequest.GetFactoryName: string;
@@ -81,7 +83,8 @@ end;
 
 function TNXLSCallHierarchyIncomingCallsRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSCallHierarchyOutgoingCallsRequest.GetFactoryName: string;
@@ -96,7 +99,8 @@ end;
 
 function TNXLSCallHierarchyOutgoingCallsRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSCallHierarchyOutgoingCallsRequest.GetParams: TNXLSCallHierarchyOutgoingCallsParams;

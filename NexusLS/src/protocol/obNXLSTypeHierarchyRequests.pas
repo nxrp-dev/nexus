@@ -52,7 +52,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentPrepareTypeHierarchyRequest.GetFactoryName: string;
 begin
@@ -66,7 +67,8 @@ end;
 
 function TNXLSTextDocumentPrepareTypeHierarchyRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTypeHierarchySupertypesRequest.GetFactoryName: string;
@@ -81,7 +83,8 @@ end;
 
 function TNXLSTypeHierarchySupertypesRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTypeHierarchySubtypesRequest.GetFactoryName: string;
@@ -96,7 +99,8 @@ end;
 
 function TNXLSTypeHierarchySubtypesRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTypeHierarchySubtypesRequest.GetParams: TNXLSTypeHierarchySubtypesParams;

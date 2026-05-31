@@ -91,7 +91,8 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSWorkspaceWillCreateFilesRequest.GetFactoryName: string;
 begin
@@ -111,7 +112,8 @@ end;
 function TNXLSWorkspaceWillCreateFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/willCreateFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceDidCreateFilesRequest.GetFactoryName: string;
@@ -127,6 +129,7 @@ end;
 function TNXLSWorkspaceDidCreateFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/didCreateFiles; required: Optional; original server: No; category: file operations; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -148,7 +151,8 @@ end;
 function TNXLSWorkspaceWillRenameFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/willRenameFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceDidRenameFilesRequest.GetFactoryName: string;
@@ -164,6 +168,7 @@ end;
 function TNXLSWorkspaceDidRenameFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/didRenameFiles; required: Optional; original server: No; category: file operations; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -185,7 +190,8 @@ end;
 function TNXLSWorkspaceWillDeleteFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/willDeleteFiles; required: Optional; original server: No; category: file operations; result: TNXLSWorkspaceEditResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceDidDeleteFilesRequest.GetFactoryName: string;
@@ -201,6 +207,7 @@ end;
 function TNXLSWorkspaceDidDeleteFilesRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/didDeleteFiles; required: Optional; original server: No; category: file operations; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 

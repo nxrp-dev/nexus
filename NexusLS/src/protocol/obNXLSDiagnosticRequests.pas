@@ -59,7 +59,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentPublishDiagnosticsRequest.GetFactoryName: string;
 begin
@@ -74,6 +75,7 @@ end;
 function TNXLSTextDocumentPublishDiagnosticsRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/publishDiagnostics; required: Client-side; original server: No; category: diagnostics; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -131,7 +133,8 @@ end;
 function TNXLSWorkspaceDiagnosticRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/diagnostic/refresh; required: Client-side; original server: No; category: diagnostics; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentDiagnosticRequest.GetParams: TNXLSDocumentDiagnosticParams;

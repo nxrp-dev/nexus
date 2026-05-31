@@ -56,7 +56,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSTextDocumentRenameRequest.GetFactoryName: string;
 begin
@@ -136,7 +137,8 @@ end;
 function TNXLSTextDocumentLinkedEditingRangeRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/linkedEditingRange; required: Optional; original server: No; category: refactoring; result: TNXLSLinkedEditingRangesResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentRenameRequest.GetParams: TNXLSRenameParams;

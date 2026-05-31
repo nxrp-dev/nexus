@@ -89,7 +89,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSTextDocumentDidOpenRequest.GetFactoryName: string;
 begin
@@ -136,6 +137,7 @@ end;
 function TNXLSTextDocumentWillSaveRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/willSave; required: Optional; original server: No; category: document sync; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -151,7 +153,8 @@ end;
 
 function TNXLSTextDocumentWillSaveWaitUntilRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentDidSaveRequest.GetFactoryName: string;

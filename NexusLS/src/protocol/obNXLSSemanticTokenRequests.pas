@@ -55,7 +55,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentSemanticTokensFullRequest.GetFactoryName: string;
 begin
@@ -75,7 +76,8 @@ end;
 function TNXLSTextDocumentSemanticTokensFullRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/semanticTokens/full; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentSemanticTokensFullDeltaRequest.GetFactoryName: string;
@@ -96,7 +98,8 @@ end;
 function TNXLSTextDocumentSemanticTokensFullDeltaRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/semanticTokens/full/delta; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensDeltaResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentSemanticTokensRangeRequest.GetFactoryName: string;
@@ -117,7 +120,8 @@ end;
 function TNXLSTextDocumentSemanticTokensRangeRequest.Execute: TNXJSONValue;
 begin
   // Method: textDocument/semanticTokens/range; required: Optional; original server: No; category: semantic tokens; result: TNXLSSemanticTokensResult.
-  Result := TNXJSONNull.Create;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentSemanticTokensFullRequest.GetParams: TNXLSSemanticTokensParams;

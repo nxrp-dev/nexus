@@ -40,7 +40,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSTextDocumentDocumentColorRequest.GetFactoryName: string;
 begin
@@ -54,7 +55,8 @@ end;
 
 function TNXLSTextDocumentDocumentColorRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSTextDocumentColorPresentationRequest.GetFactoryName: string;
@@ -69,7 +71,8 @@ end;
 
 function TNXLSTextDocumentColorPresentationRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSTextDocumentColorPresentationRequest.GetParams: TNXLSColorPresentationParams;

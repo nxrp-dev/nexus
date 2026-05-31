@@ -36,7 +36,8 @@ implementation
 
 uses
   obNXClassFactory,
-  obNXLSLSPModel;
+  obNXLSLSPModel,
+  tpNXLS;
 
 class function TNXLSWorkspaceWorkspaceFoldersRequest.GetFactoryName: string;
 begin
@@ -50,7 +51,8 @@ end;
 
 function TNXLSWorkspaceWorkspaceFoldersRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceDidChangeWorkspaceFoldersRequest.GetFactoryName: string;

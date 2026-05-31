@@ -88,7 +88,8 @@ class function GetResultClass: TNXJSONValueClass; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSDocumentLinkResolveRequest.GetFactoryName: string;
 begin
@@ -102,7 +103,8 @@ end;
 
 function TNXLSDocumentLinkResolveRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSCodeLensResolveRequest.GetFactoryName: string;
@@ -117,7 +119,8 @@ end;
 
 function TNXLSCodeLensResolveRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSInlayHintResolveRequest.GetFactoryName: string;
@@ -132,7 +135,8 @@ end;
 
 function TNXLSInlayHintResolveRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSCompletionItemResolveRequest.GetFactoryName: string;
@@ -147,7 +151,8 @@ end;
 
 function TNXLSCompletionItemResolveRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSCodeActionResolveRequest.GetFactoryName: string;
@@ -162,7 +167,8 @@ end;
 
 function TNXLSCodeActionResolveRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceSymbolResolveRequest.GetFactoryName: string;
@@ -177,7 +183,8 @@ end;
 
 function TNXLSWorkspaceSymbolResolveRequest.Execute: TNXJSONValue;
 begin
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 function TNXLSDocumentLinkResolveRequest.GetParams: TNXLSDocumentLink;

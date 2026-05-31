@@ -40,7 +40,8 @@ type
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSWorkspaceCodeLensRefreshRequest.GetFactoryName: string;
 begin
@@ -55,7 +56,8 @@ end;
 function TNXLSWorkspaceCodeLensRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/codeLens/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceSemanticTokensRefreshRequest.GetFactoryName: string;
@@ -71,7 +73,8 @@ end;
 function TNXLSWorkspaceSemanticTokensRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/semanticTokens/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceInlineValueRefreshRequest.GetFactoryName: string;
@@ -87,7 +90,8 @@ end;
 function TNXLSWorkspaceInlineValueRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/inlineValue/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 class function TNXLSWorkspaceInlayHintRefreshRequest.GetFactoryName: string;
@@ -103,7 +107,8 @@ end;
 function TNXLSWorkspaceInlayHintRefreshRequest.Execute: TNXJSONValue;
 begin
   // Method: workspace/inlayHint/refresh; required: Client-side; original server: No; category: refresh; result: TNXLSNullResult.
-  Result := PrepareResult;
+  NXLSRaiseNotImplemented(GetFactoryName);
+  Result := nil;
 end;
 
 initialization

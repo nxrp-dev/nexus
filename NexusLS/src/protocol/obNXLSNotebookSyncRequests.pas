@@ -64,7 +64,8 @@ class function GetResultKind: TNXJSONRPCResultKind; override;
 implementation
 
 uses
-  obNXClassFactory;
+  obNXClassFactory,
+  tpNXLS;
 
 class function TNXLSNotebookDocumentDidOpenRequest.GetFactoryName: string;
 begin
@@ -79,6 +80,7 @@ end;
 function TNXLSNotebookDocumentDidOpenRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didOpen; required: Optional; original server: No; category: notebook sync; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -95,6 +97,7 @@ end;
 function TNXLSNotebookDocumentDidChangeRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didChange; required: Optional; original server: No; category: notebook sync; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -111,6 +114,7 @@ end;
 function TNXLSNotebookDocumentDidSaveRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didSave; required: Optional; original server: No; category: notebook sync; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
@@ -127,6 +131,7 @@ end;
 function TNXLSNotebookDocumentDidCloseRequest.Execute: TNXJSONValue;
 begin
   // Method: notebookDocument/didClose; required: Optional; original server: No; category: notebook sync; result: nil.
+  NXLSRaiseNotImplemented(GetFactoryName);
   Result := nil;
 end;
 
