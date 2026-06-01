@@ -1,39 +1,12 @@
 # Recent Work Summary
 
-## NexusPas Scanner Directive Promotion Pass
+## NexusPas Fast Keyword Lookup Integration
 
-- Promoted a bounded scanner/directive slice from `tcscanner.pas`.
-- Promoted active-adjusted cases: 12.
-- Newly active NexusPas tests added: 1.
-- Active-adjusted inventory mappings now total: 548.
-- Remaining deferred inventory mappings: 1,492.
-- Not-applicable passrc-internal mappings remain: 34.
-- Inventory rows remain: 2,074.
-- Original published test methods remain: 2,073.
-- Full-key duplicate count remains: 0.
-
-## Scanner Test Changes
-
-- Added an adjusted non-comment token walk for `TestTokenSeriesNoComments`.
-- Added directive-token preservation coverage for:
-  - `{$IFDEF ...}`
-  - `{$ELSE}`
-  - `{$ENDIF}`
-  - paren-star directives such as `(*$IFDEF ...*)`
-  - `{$UNDEF ...}`
-  - `{$I ...}`
-  - `{$MODE ...}`
-  - `{$MODESWITCH ...}`
-  - boolean-switch directives such as `{$HINTS OFF }`
-- Kept this pass lexer/directive-token structural only. NexusPas still does not model passrc scanner-side macro expansion, include expansion, conditional expression evaluation, Objective-C mode-specific tokens, or passrc scanner option side effects.
-
-## Inventory
-
-- `tcscanner.pas` active-adjusted mappings increased from 142 to 154.
-- `tcscanner.pas` deferred mappings decreased from 48 to 36.
-- `tcscanner.pas` not-applicable mappings remain 4.
-- Coverage map: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.csv`.
-- Readable report: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.md`.
+- Replaced `TNXPasLexer.IsKeyword`'s long string comparison chain with `TNXPascalKeywordSet.Contains`.
+- Kept keyword matching behavior case-insensitive by passing `LowerCase(AText)` into the lowercase keyword set.
+- Reused the class-owned `TNXPascalKeywordSet` instance from `NexusLib/src/obNXFastParse.pas`; the lexer does not construct a keyword set per lookup.
+- Fixed FPC compilation in `obNXFastParse.pas` by incrementing the metrics backing fields directly, leaving published properties as the RTTI-facing surface.
+- No parser behavior changes were intended.
 
 ## Verification
 
