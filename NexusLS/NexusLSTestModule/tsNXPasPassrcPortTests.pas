@@ -31,6 +31,13 @@ begin
   until Result.Kind <> ptkWhitespace;
 end;
 
+function NXPassrcNextNonComment(ALexer: TNXPasLexer): TNXPasToken;
+begin
+  repeat
+    Result := ALexer.NextToken;
+  until Result.Kind <> ptkComment;
+end;
+
 function NXPassrcParse(const AText: string;
   ADiagnostics: TNXPasDiagnosticList; out ASource: TNXPasSourceFile):
   TNXPasSyntaxTree;
@@ -340,6 +347,7 @@ end;
 procedure TestScannerTokenSeriesAndDirectives(AContext: TNXTestContext);
 var
   lLexer: TNXPasLexer;
+  lToken: TNXPasToken;
 begin
   lLexer := TNXPasLexer.Create('in of then aninteger');
   try
@@ -395,6 +403,42 @@ begin
     lLexer.Free;
   end;
 
+  lLexer := TNXPasLexer.Create('in of {then} aninteger');
+  try
+    lToken := NXPassrcNextNonComment(lLexer);
+    AContext.AssertEquals(Ord(ptkKeyword), Ord(lToken.Kind),
+      'Adjusted skip-comment token series in kind');
+    AContext.AssertEquals('in', lToken.Text,
+      'Adjusted skip-comment token series in text');
+    lToken := NXPassrcNextNonComment(lLexer);
+    AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
+      'Adjusted skip-comment token series whitespace 1 kind');
+    AContext.AssertEquals(' ', lToken.Text,
+      'Adjusted skip-comment token series whitespace 1 text');
+    lToken := NXPassrcNextNonComment(lLexer);
+    AContext.AssertEquals(Ord(ptkKeyword), Ord(lToken.Kind),
+      'Adjusted skip-comment token series of kind');
+    AContext.AssertEquals('of', lToken.Text,
+      'Adjusted skip-comment token series of text');
+    lToken := NXPassrcNextNonComment(lLexer);
+    AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
+      'Adjusted skip-comment token series whitespace 2 kind');
+    AContext.AssertEquals(' ', lToken.Text,
+      'Adjusted skip-comment token series whitespace 2 text');
+    lToken := NXPassrcNextNonComment(lLexer);
+    AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
+      'Adjusted skip-comment token series whitespace 3 kind');
+    AContext.AssertEquals(' ', lToken.Text,
+      'Adjusted skip-comment token series whitespace 3 text');
+    lToken := NXPassrcNextNonComment(lLexer);
+    AContext.AssertEquals(Ord(ptkIdentifier), Ord(lToken.Kind),
+      'Adjusted skip-comment token series identifier kind');
+    AContext.AssertEquals('aninteger', lToken.Text,
+      'Adjusted skip-comment token series identifier text');
+  finally
+    lLexer.Free;
+  end;
+
   lLexer := TNXPasLexer.Create('{$DEFINE NEVER} (*$DEFINE NEVER*) {$IFDEF ALWAYS} of {$ENDIF}');
   try
     NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$DEFINE NEVER}',
@@ -417,6 +461,70 @@ begin
       'Brace DEFINE directive with internal spacing');
     NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$DEFINE NEVER }',
       'Brace DEFINE directive with trailing spacing');
+  finally
+    lLexer.Free;
+  end;
+end;
+
+procedure TestScannerDirectiveStructuralForms(AContext: TNXTestContext);
+var
+  lLexer: TNXPasLexer;
+begin
+  lLexer := TNXPasLexer.Create('{$IFDEF NEVER} of {$ENDIF}');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$IFDEF NEVER}',
+      'IFDEF unknown directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token inside IFDEF directive text remains lexable');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$ENDIF}',
+      'ENDIF directive');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('{$IFDEF ALWAYS comment} of {$ELSE} in {$ENDIF}');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective,
+      '{$IFDEF ALWAYS comment}', 'IFDEF directive with trailing text');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token before ELSE directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$ELSE}',
+      'ELSE directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'in',
+      'Token after ELSE directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$ENDIF}',
+      'ENDIF after ELSE directive');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('(*$IFDEF ALWAYS*)of (*$ENDIF*)');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective,
+      '(*$IFDEF ALWAYS*)', 'Paren-star IFDEF directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token immediately after paren-star directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '(*$ENDIF*)',
+      'Paren-star ENDIF directive');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('{$UNDEF ALWAYS} {$I myinclude.inc} else ' +
+    '{$MODE objfpc} {$MODESWITCH advancedrecords+} {$HINTS OFF }');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$UNDEF ALWAYS}',
+      'UNDEF directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$I myinclude.inc}',
+      'Include directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'else',
+      'Token after include directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$MODE objfpc}',
+      'MODE directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective,
+      '{$MODESWITCH advancedrecords+}', 'MODESWITCH directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$HINTS OFF }',
+      'Boolean switch directive');
   finally
     lLexer.Free;
   end;
@@ -2857,6 +2965,8 @@ begin
     @TestScannerIdentifierSelfAndCharFragments);
   lSuite.AddTest('ScannerTokenSeriesAndDirectives',
     @TestScannerTokenSeriesAndDirectives);
+  lSuite.AddTest('ScannerDirectiveStructuralForms',
+    @TestScannerDirectiveStructuralForms);
   lSuite.AddTest('ScannerBOM', @TestScannerBOM);
   lSuite.AddTest('ScannerUnterminatedDiagnostics',
     @TestScannerUnterminatedDiagnostics);
