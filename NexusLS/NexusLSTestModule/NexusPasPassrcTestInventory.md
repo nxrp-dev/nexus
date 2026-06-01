@@ -27,8 +27,8 @@ The original `SourceUnit + OriginalTestMethod` pair is not unique for all passrc
 | Status | Count |
 | --- | ---: |
 | active NexusPas test | 0 |
-| active NexusPas test with adjusted Nexus expectation | 359 |
-| deferred because NexusPas does not yet support the required feature | 1681 |
+| active NexusPas test with adjusted Nexus expectation | 423 |
+| deferred because NexusPas does not yet support the required feature | 1617 |
 | not applicable because it targets passrc-specific internals | 34 |
 
 Current active mappings are classified as adjusted Nexus expectations because they assert NexusPas lexer/parser/symbol behavior directly rather than preserving passrc object-model expectations.
@@ -44,7 +44,7 @@ Current active mappings are classified as adjusted Nexus expectations because th
 | tcmoduleparser.pas | 26 | 26 | 15 | 11 | 0 |
 | tconstparser.pas | 55 | 55 | 25 | 30 | 0 |
 | tcpassrcutil.pas | 29 | 29 | 0 | 0 | 29 |
-| tcprocfunc.pas | 130 | 130 | 54 | 76 | 0 |
+| tcprocfunc.pas | 130 | 130 | 118 | 12 | 0 |
 | tcresolvegenerics.pas | 129 | 129 | 0 | 129 | 0 |
 | tcresolver.pas | 726 | 726 | 0 | 726 | 0 |
 | tcscanner.pas | 194 | 194 | 142 | 48 | 4 |
@@ -56,8 +56,8 @@ Current active mappings are classified as adjusted Nexus expectations because th
 ## Active NexusPas suite
 
 - Suite: `NexusPas.PassrcPort`
-- Active NexusPas tests currently registered: 43
-- Latest visible summary: 43 passed / 43 total
-- Latest full NexusLSTestModule summary: 202 passed / 202 total
+- Active NexusPas tests currently registered: 44
+- Latest visible summary: 44 passed / 44 total
+- Latest full NexusLSTestModule summary: 203 passed / 203 total
 
 Unsupported resolver, expression evaluator, statement parser, overload resolver, generic resolver, use analyzer, compiler-style unit resolver, and passrc-internal tests remain deferred or not applicable in the CSV until NexusPas owns those features.

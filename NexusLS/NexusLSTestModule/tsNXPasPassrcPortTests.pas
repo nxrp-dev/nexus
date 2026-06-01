@@ -1277,10 +1277,14 @@ begin
       'procedure DoOpen(A: array of Integer; const B: array of string);' +
       LineEnding +
       'function MakeOpen(A: array of Integer): Integer;' + LineEnding +
+      'procedure DoVarOpen(var A: array of Integer);' + LineEnding +
+      'function MakeVarOpen(var A: array of Integer): Integer;' + LineEnding +
       'procedure DoArrayOfConst(A: array of const);' + LineEnding +
       'function MakeArrayOfConst(A: array of const): Integer;' + LineEnding +
       'procedure DoDefaultSet(A: TSet = [One, Two]);' + LineEnding +
       'function MakeDefaultExpr(A: Integer = 1 + 2): Integer;' + LineEnding +
+      'function MakeEnum(B: TSomeEnum = TSomeEnum.False): Integer;' +
+      LineEnding +
       'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
     lExtractor.Extract(lTree, lSymbols);
     lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoConstRef');
@@ -1309,6 +1313,14 @@ begin
     AContext.AssertEquals('array of Integer',
       NXPassrcFindChildSymbol(lFunction, pskParameter, 'A').DeclaredTypeText,
       'Function open array parameter type should be captured.');
+    lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoVarOpen');
+    AContext.AssertEquals('array of Integer',
+      NXPassrcFindChildSymbol(lProcedure, pskParameter, 'A').DeclaredTypeText,
+      'Var open array parameter type should be captured.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeVarOpen');
+    AContext.AssertEquals('array of Integer',
+      NXPassrcFindChildSymbol(lFunction, pskParameter, 'A').DeclaredTypeText,
+      'Function var open array parameter type should be captured.');
     lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoArrayOfConst');
     AContext.AssertEquals('array of const',
       NXPassrcFindChildSymbol(lProcedure, pskParameter, 'A').DeclaredTypeText,
@@ -1323,6 +1335,10 @@ begin
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
       'MakeDefaultExpr') <> nil,
       'Default expression parameter should not corrupt parsing.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeEnum');
+    AContext.AssertEquals('TSomeEnum',
+      NXPassrcFindChildSymbol(lFunction, pskParameter, 'B').DeclaredTypeText,
+      'Explicit enum default parameter type should be captured.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -1391,6 +1407,238 @@ begin
       'DoExternalLib') <> nil, 'external library procedure should parse.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
       'MakeExternalLib') <> nil, 'external library function should parse.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestProcedureAdditionalDirectives(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lFunction: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'procedure DoDeprecated; deprecated;' + LineEnding +
+      'function MakeDeprecated: Integer; deprecated;' + LineEnding +
+      'procedure DoPlatform; platform;' + LineEnding +
+      'function MakePlatform: Integer; platform;' + LineEnding +
+      'procedure DoExperimental; experimental;' + LineEnding +
+      'function MakeExperimental: Integer; experimental;' + LineEnding +
+      'procedure DoUnimplemented; unimplemented;' + LineEnding +
+      'function MakeUnimplemented: Integer; unimplemented;' + LineEnding +
+      'procedure DoCdeclDeprecated; cdecl; deprecated;' + LineEnding +
+      'function MakeCdeclDeprecated: Integer; cdecl; deprecated;' + LineEnding +
+      'procedure DoSafeCall; safecall;' + LineEnding +
+      'function MakeSafeCall: Integer; safecall;' + LineEnding +
+      'procedure DoPascal; pascal;' + LineEnding +
+      'function MakePascal: Integer; pascal;' + LineEnding +
+      'procedure DoOldFpcCall; oldfpccall;' + LineEnding +
+      'function MakeOldFpcCall: Integer; oldfpccall;' + LineEnding +
+      'procedure DoHardFloat; hardfloat;' + LineEnding +
+      'procedure DoMSAbiCDecl; ms_abi_cdecl;' + LineEnding +
+      'procedure DoMSAbiDefault; ms_abi_default;' + LineEnding +
+      'procedure DoMWPascal; mwpascal;' + LineEnding +
+      'procedure DoSysVAbiCDecl; sysv_abi_cdecl;' + LineEnding +
+      'procedure DoSysVAbiDefault; sysv_abi_default;' + LineEnding +
+      'procedure DoVectorCall; vectorcall;' + LineEnding +
+      'procedure DoPublic; public name ''myfunc'';' + LineEnding +
+      'procedure DoPublicIdent; public name exportname;' + LineEnding +
+      'function MakePublic: Integer; public name exportname;' + LineEnding +
+      'procedure DoCdeclPublic; cdecl; public name exportname;' + LineEnding +
+      'function MakeCdeclPublic: Integer; cdecl; public name exportname;' +
+      LineEnding +
+      'procedure DoVarargs; varargs;' + LineEnding +
+      'function MakeVarargs: Integer; varargs;' + LineEnding +
+      'procedure DoCdeclVarargs; cdecl; varargs;' + LineEnding +
+      'function MakeCdeclVarargs: Integer; cdecl; varargs;' + LineEnding +
+      'procedure DoFar; far;' + LineEnding +
+      'function MakeFar: Integer; far;' + LineEnding +
+      'procedure DoCompilerProc; compilerproc;' + LineEnding +
+      'procedure DoNoReturn; noreturn;' + LineEnding +
+      'function MakeCompilerProc: Integer; compilerproc;' + LineEnding +
+      'procedure DoCdeclCompilerProc; cdecl; compilerproc;' + LineEnding +
+      'function MakeCdeclCompilerProc: Integer; cdecl; compilerproc;' +
+      LineEnding +
+      'procedure DoAssembler; assembler;' + LineEnding +
+      'function MakeAssembler: Integer; assembler;' + LineEnding +
+      'procedure DoCdeclAssembler; cdecl; assembler;' + LineEnding +
+      'function MakeCdeclAssembler: Integer; cdecl; assembler;' + LineEnding +
+      'procedure DoExport; export;' + LineEnding +
+      'function MakeExport: Integer; export;' + LineEnding +
+      'procedure DoCdeclExport; cdecl; export;' + LineEnding +
+      'function MakeCdeclExport: Integer; cdecl; export;' + LineEnding +
+      'procedure DoExternalLibNameName; external ''libname'' name ''symbolname'';' +
+      LineEnding +
+      'function MakeExternalLibNameName: Integer; external ''libname'' name ''symbolname'';' +
+      LineEnding +
+      'procedure DoExternalName; external name ''symbolname'';' + LineEnding +
+      'function MakeExternalName: Integer; external name ''symbolname'';' +
+      LineEnding +
+      'procedure DoCdeclExternal; cdecl; external;' + LineEnding +
+      'function MakeCdeclExternal: Integer; cdecl; external;' + LineEnding +
+      'procedure DoCdeclExternalLibName; cdecl; external ''libname'';' +
+      LineEnding +
+      'function MakeCdeclExternalLibName: Integer; cdecl; external ''libname'';' +
+      LineEnding +
+      'procedure DoCdeclExternalLibNameName; cdecl; external ''libname'' name ''symbolname'';' +
+      LineEnding +
+      'function MakeCdeclExternalLibNameName: Integer; cdecl; external ''libname'' name ''symbolname'';' +
+      LineEnding +
+      'procedure DoCdeclExternalName; cdecl; external name ''symbolname'';' +
+      LineEnding +
+      'function MakeCdeclExternalName: Integer; cdecl; external name ''symbolname'';' +
+      LineEnding +
+      'procedure DoAlias; alias: ''myalias'';' + LineEnding +
+      'function MakeAlias: Integer; alias: ''myalias'';' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoDeprecated') <> nil, 'deprecated procedure should parse.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeDeprecated');
+    AContext.AssertEquals('Integer', lFunction.DeclaredTypeText,
+      'deprecated function return type should survive directive skipping.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoPlatform') <> nil, 'platform procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakePlatform') <> nil, 'platform function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoExperimental') <> nil, 'experimental procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeExperimental') <> nil, 'experimental function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoUnimplemented') <> nil, 'unimplemented procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeUnimplemented') <> nil, 'unimplemented function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclDeprecated') <> nil, 'cdecl deprecated procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclDeprecated') <> nil, 'cdecl deprecated function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoSafeCall') <> nil, 'safecall procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeSafeCall') <> nil, 'safecall function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoPascal') <> nil, 'pascal procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakePascal') <> nil, 'pascal function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoOldFpcCall') <> nil, 'oldfpccall procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeOldFpcCall') <> nil, 'oldfpccall function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoHardFloat') <> nil, 'hardfloat procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoMSAbiCDecl') <> nil, 'ms_abi_cdecl procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoMSAbiDefault') <> nil, 'ms_abi_default procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoMWPascal') <> nil, 'mwpascal procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoSysVAbiCDecl') <> nil, 'sysv_abi_cdecl procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoSysVAbiDefault') <> nil, 'sysv_abi_default procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoVectorCall') <> nil, 'vectorcall procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoPublic') <> nil, 'public name procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoPublicIdent') <> nil, 'public name identifier procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakePublic') <> nil, 'public name function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclPublic') <> nil, 'cdecl public procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclPublic') <> nil, 'cdecl public function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoVarargs') <> nil, 'varargs procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeVarargs') <> nil, 'varargs function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclVarargs') <> nil, 'cdecl varargs procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclVarargs') <> nil, 'cdecl varargs function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoFar') <> nil, 'far procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeFar') <> nil, 'far function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCompilerProc') <> nil, 'compilerproc procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoNoReturn') <> nil, 'noreturn procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCompilerProc') <> nil, 'compilerproc function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclCompilerProc') <> nil, 'cdecl compilerproc procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclCompilerProc') <> nil, 'cdecl compilerproc function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoAssembler') <> nil, 'assembler procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeAssembler') <> nil, 'assembler function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclAssembler') <> nil, 'cdecl assembler procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclAssembler') <> nil, 'cdecl assembler function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoExport') <> nil, 'export procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeExport') <> nil, 'export function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclExport') <> nil, 'cdecl export procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclExport') <> nil, 'cdecl export function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoExternalLibNameName') <> nil,
+      'external library/name procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeExternalLibNameName') <> nil,
+      'external library/name function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoExternalName') <> nil, 'external name procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeExternalName') <> nil, 'external name function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclExternal') <> nil, 'cdecl external procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclExternal') <> nil, 'cdecl external function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclExternalLibName') <> nil,
+      'cdecl external library procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclExternalLibName') <> nil,
+      'cdecl external library function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclExternalLibNameName') <> nil,
+      'cdecl external library/name procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclExternalLibNameName') <> nil,
+      'cdecl external library/name function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoCdeclExternalName') <> nil,
+      'cdecl external name procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeCdeclExternalName') <> nil,
+      'cdecl external name function should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoAlias') <> nil, 'alias procedure should parse.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeAlias') <> nil, 'alias function should parse.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -2201,6 +2449,8 @@ begin
     @TestProcedureAdvancedParameterForms);
   lSuite.AddTest('ProcedureModifiersAndDefaults',
     @TestProcedureModifiersAndDefaults);
+  lSuite.AddTest('ProcedureAdditionalDirectives',
+    @TestProcedureAdditionalDirectives);
   lSuite.AddTest('LocalRoutineVarAndConstDeclarations',
     @TestLocalRoutineVarAndConstDeclarations);
   lSuite.AddTest('ConstAndVarDeclarations', @TestConstAndVarDeclarations);

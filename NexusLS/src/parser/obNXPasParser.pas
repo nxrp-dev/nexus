@@ -221,27 +221,39 @@ function TNXPasParser.IsRoutineDirective: Boolean;
 begin
   Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
     (SameText(FStream.Current.Text, 'abstract') or
+    SameText(FStream.Current.Text, 'alias') or
     SameText(FStream.Current.Text, 'assembler') or
     SameText(FStream.Current.Text, 'cdecl') or
+    SameText(FStream.Current.Text, 'compilerproc') or
     SameText(FStream.Current.Text, 'deprecated') or
     SameText(FStream.Current.Text, 'dynamic') or
     SameText(FStream.Current.Text, 'experimental') or
     SameText(FStream.Current.Text, 'export') or
     SameText(FStream.Current.Text, 'external') or
+    SameText(FStream.Current.Text, 'far') or
     SameText(FStream.Current.Text, 'final') or
     SameText(FStream.Current.Text, 'forward') or
+    SameText(FStream.Current.Text, 'hardfloat') or
     SameText(FStream.Current.Text, 'inline') or
     SameText(FStream.Current.Text, 'message') or
+    SameText(FStream.Current.Text, 'ms_abi_cdecl') or
+    SameText(FStream.Current.Text, 'ms_abi_default') or
+    SameText(FStream.Current.Text, 'mwpascal') or
     SameText(FStream.Current.Text, 'noreturn') or
+    SameText(FStream.Current.Text, 'oldfpccall') or
     SameText(FStream.Current.Text, 'overload') or
     SameText(FStream.Current.Text, 'override') or
     SameText(FStream.Current.Text, 'pascal') or
     SameText(FStream.Current.Text, 'platform') or
+    SameText(FStream.Current.Text, 'public') or
     SameText(FStream.Current.Text, 'reintroduce') or
     SameText(FStream.Current.Text, 'safecall') or
     SameText(FStream.Current.Text, 'stdcall') or
+    SameText(FStream.Current.Text, 'sysv_abi_cdecl') or
+    SameText(FStream.Current.Text, 'sysv_abi_default') or
     SameText(FStream.Current.Text, 'unimplemented') or
     SameText(FStream.Current.Text, 'varargs') or
+    SameText(FStream.Current.Text, 'vectorcall') or
     SameText(FStream.Current.Text, 'virtual'));
 end;
 

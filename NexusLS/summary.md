@@ -1,49 +1,50 @@
 # Recent Work Summary
 
-## NexusPas Scanner Coverage Promotion Pass
+## NexusPas Routine Directive Promotion Pass
 
-- Promoted a bounded scanner/lexer slice from `tcscanner.pas`.
-- Promoted active-adjusted cases: 12.
-- Marked passrc-internal scanner/helper cases not applicable: 4.
-- Newly active NexusPas tests added: 2.
-- Active-adjusted inventory mappings now total: 359.
-- Remaining deferred inventory mappings: 1,681.
-- Not-applicable passrc-internal mappings: 34.
+- Promoted a bounded routine declaration slice from `tcprocfunc.pas`.
+- Promoted active-adjusted cases: 64.
+- Newly active NexusPas tests added: 1.
+- Active-adjusted inventory mappings now total: 423.
+- Remaining deferred inventory mappings: 1,617.
+- Not-applicable passrc-internal mappings remain: 34.
 - Inventory rows remain: 2,074.
 - Original published test methods remain: 2,073.
 - Full-key duplicate count remains: 0.
 
-## Lexer Changes
+## Parser Changes
 
-- Added UTF-8 BOM handling at the start of a source file, preserving it as leading whitespace.
-- Added escaped keyword identifier handling for forms such as `&xor`.
-- Kept scanner behavior Nexus-owned; no passrc scanner option model or helper object model was introduced.
+- Extended NexusPas routine directive skipping for additional structural routine tails:
+  `alias`, `compilerproc`, `far`, `hardfloat`, `ms_abi_cdecl`,
+  `ms_abi_default`, `mwpascal`, `oldfpccall`, `public`,
+  `sysv_abi_cdecl`, `sysv_abi_default`, and `vectorcall`.
+- Kept behavior structural only. NexusPas does not model passrc procedure modifier enums, calling convention enums, public-name expressions, alias expressions, or external library expressions in this pass.
 
 ## Active Assertions Added
 
-- Escaped keyword identifiers.
-- `Self` as a NexusPas identifier token.
-- Parenthesis symbol tokens for passrc `TestBraceOpen` / `TestBraceClose`.
-- Raw token-series preservation for keywords, whitespace, comments, and identifiers.
-- Adjusted non-whitespace token walking for token-series behavior without adding scanner switches.
-- Brace and paren-star directive token preservation, including DEFINE spacing variants.
-- UTF-8 BOM preservation before the first real token.
+- Deprecated/platform/experimental/unimplemented routine tails.
+- Additional calling convention tails including safecall, pascal, oldfpccall, hardfloat, MS ABI, MW Pascal, SysV ABI, and vectorcall.
+- Public name, varargs, far, compilerproc, noreturn, assembler, export, external name/library/name, cdecl combinations, and alias routine tails.
+- Explicit enum default parameter type capture.
+- Var open-array parameter type capture for procedures and functions.
+- Function return type preservation across routine-tail skipping.
 
 ## Inventory
 
-- `tcscanner.pas` active-adjusted mappings increased from 130 to 142.
-- `tcscanner.pas` deferred mappings decreased from 64 to 48.
-- `tcscanner.pas` not-applicable mappings increased from 0 to 4.
-- `TTestTokenFinder.TestFind`, `TTestStreamLineReader.TestCreate`, `TTestScanner.TestonComment`, and `TTestScanner.TestOperatorIdentifier` are marked not applicable because they target passrc scanner helpers, callbacks, or option-model behavior rather than NexusPas lexer contracts.
+- `tcprocfunc.pas` active-adjusted mappings increased from 54 to 118.
+- `tcprocfunc.pas` deferred mappings decreased from 76 to 12.
+- `tcprocfunc.pas` not-applicable mappings remain 0.
+- Coverage map: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.csv`.
+- Readable report: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.md`.
 
 ## Verification
 
 - `lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
 - `lazbuild NexusLS\nexusls.lpi` passed.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-suite NexusPas.PassrcPort`
-  - 43 run, 43 passed, 0 failed, 0 skipped.
+  - 44 run, 44 passed, 0 failed, 0 skipped.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-all`
-  - 202 run, 202 passed, 0 failed, 0 skipped.
+  - 203 run, 203 passed, 0 failed, 0 skipped.
 - CodeTools/passrc/FPCUnit dependency scan found no active references in `NexusLS\src` or `NexusLS\NexusLSTestModule`.
 - `git diff --check` found no whitespace errors.
 
