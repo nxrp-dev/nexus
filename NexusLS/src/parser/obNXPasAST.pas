@@ -32,6 +32,7 @@ type
     pnkObjectDecl,
     pnkInterfaceDecl,
     pnkFieldDecl,
+    pnkParameterDecl,
     pnkPropertyDecl,
     pnkVisibilitySection
   );
@@ -39,6 +40,8 @@ type
   TNXPasASTNode = class
   private
     FChildren: TObjectList;
+    FDeclaredTypeRange: TNXPasSourceRange;
+    FDeclaredTypeText: string;
     FKind: TNXPasNodeKind;
     FName: string;
     FRange: TNXPasSourceRange;
@@ -50,6 +53,8 @@ type
     function AddChild(AKind: TNXPasNodeKind; const AName: string = ''): TNXPasASTNode;
     function ChildCount: Integer;
     property Children[AIndex: Integer]: TNXPasASTNode read GetChild;
+    property DeclaredTypeRange: TNXPasSourceRange read FDeclaredTypeRange write FDeclaredTypeRange;
+    property DeclaredTypeText: string read FDeclaredTypeText write FDeclaredTypeText;
     property Kind: TNXPasNodeKind read FKind write FKind;
     property Name: string read FName write FName;
     property Range: TNXPasSourceRange read FRange write FRange;
@@ -168,6 +173,8 @@ begin
       Result := 'InterfaceDecl';
     pnkFieldDecl:
       Result := 'FieldDecl';
+    pnkParameterDecl:
+      Result := 'ParameterDecl';
     pnkPropertyDecl:
       Result := 'PropertyDecl';
     pnkVisibilitySection:

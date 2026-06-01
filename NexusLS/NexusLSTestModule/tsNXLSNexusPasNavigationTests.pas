@@ -325,8 +325,32 @@ begin
   end;
 end;
 
-procedure TestTypeDefinitionReturnsEmptyForVariableIdentifier(
+procedure TestTypeDefinitionReturnsEmptyForRoutineWithoutReturnType(
   AContext: TNXTestContext);
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'DoWork;', 'DoWork');
+
+    AContext.AssertFalse(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Routine without declared return type should not resolve type definition.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionUsesVariableDeclaredType(AContext: TNXTestContext);
 var
   lLocation: TNXLSLocation;
   lModel: TNXLSLSPModel;
@@ -341,8 +365,111 @@ begin
     NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
       cNavigationUnit, 'Local: TSample', 'Local');
 
+    AContext.AssertTrue(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Type definition should use variable declared type.');
+    AContext.AssertEquals(3, lLocation.range.start.line.Value,
+      'Type definition should point to the declared type symbol.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionUsesFieldDeclaredType(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class end;' + LineEnding +
+    '  THolder = class' + LineEnding +
+    '  private' + LineEnding +
+    '    FItem: TSample;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'FItem: TSample', 'FItem');
+
+    AContext.AssertTrue(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Type definition should use field declared type.');
+    AContext.AssertEquals(3, lLocation.range.start.line.Value,
+      'Type definition should point to the declared field type symbol.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionUsesParameterDeclaredType(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'procedure DoWork(AItem: TSample);' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'AItem: TSample', 'AItem');
+
+    AContext.AssertTrue(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Type definition should use parameter declared type.');
+    AContext.AssertEquals(2, lLocation.range.start.line.Value,
+      'Type definition should point to the declared parameter type symbol.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionUnknownDeclaredTypeReturnsEmpty(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'var Value: TMissing;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'Value: TMissing', 'Value');
+
     AContext.AssertFalse(lModel.Navigation.FillTypeDefinition(lParams,
-      lLocation), 'Type definition should not infer variable types yet.');
+      lLocation), 'Unknown declared types should not produce a location.');
   finally
     lLocation.Free;
     lParams.Free;
@@ -772,8 +899,16 @@ begin
     @TestDefinitionReturnsEmptyForUnknownIdentifier);
   lSuite.AddTest('TypeDefinitionFindsTypeIdentifier',
     @TestTypeDefinitionFindsTypeIdentifier);
-  lSuite.AddTest('TypeDefinitionReturnsEmptyForVariableIdentifier',
-    @TestTypeDefinitionReturnsEmptyForVariableIdentifier);
+  lSuite.AddTest('TypeDefinitionReturnsEmptyForRoutineWithoutReturnType',
+    @TestTypeDefinitionReturnsEmptyForRoutineWithoutReturnType);
+  lSuite.AddTest('TypeDefinitionUsesVariableDeclaredType',
+    @TestTypeDefinitionUsesVariableDeclaredType);
+  lSuite.AddTest('TypeDefinitionUsesFieldDeclaredType',
+    @TestTypeDefinitionUsesFieldDeclaredType);
+  lSuite.AddTest('TypeDefinitionUsesParameterDeclaredType',
+    @TestTypeDefinitionUsesParameterDeclaredType);
+  lSuite.AddTest('TypeDefinitionUnknownDeclaredTypeReturnsEmpty',
+    @TestTypeDefinitionUnknownDeclaredTypeReturnsEmpty);
   lSuite.AddTest('TypeDefinitionIgnoresInactiveDeclaration',
     @TestTypeDefinitionIgnoresInactiveDeclaration);
   lSuite.AddTest('InactiveDeclarationIsNotDefinition',

@@ -217,6 +217,13 @@ begin
     end;
   end;
 
+  if AMatch.Symbol.DeclaredTypeText <> '' then
+  begin
+    Result := LowerCase(NXPasSymbolKindName(AMatch.Symbol.Kind)) + ' ' +
+      AMatch.Symbol.Name + ': ' + AMatch.Symbol.DeclaredTypeText;
+    Exit;
+  end;
+
   Result := LowerCase(NXPasSymbolKindName(AMatch.Symbol.Kind)) + ' ' +
     AMatch.Symbol.Name;
 end;

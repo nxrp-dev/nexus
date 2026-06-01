@@ -38,8 +38,11 @@ type
     FTree: TNXPasSyntaxTree;
     function TokenRange(const AToken: TNXPasToken): TNXPasSourceRange;
     function CurrentRange: TNXPasSourceRange;
+    function SourceText(const ARange: TNXPasSourceRange): string;
     procedure SetNodeRange(ANode: TNXPasASTNode; const AStartPos,
       AEndPos: TNXPasSourcePosition);
+    procedure SetDeclaredType(ANode: TNXPasASTNode; const AText: string;
+      const ARange: TNXPasSourceRange);
     function IsRoutineKeyword: Boolean;
     function IsStructuredTypeKeyword: Boolean;
     function IsSectionStart: Boolean;
@@ -68,11 +71,16 @@ type
     procedure ParseConstSection(AParent: TNXPasASTNode);
     procedure ParseVarSection(AParent: TNXPasASTNode);
     procedure ParseRoutineDecl(AParent: TNXPasASTNode);
+    procedure ParseRoutineParameters(AParent: TNXPasASTNode);
+    procedure ParseRoutineBodyDeclarations(AParent: TNXPasASTNode);
     procedure ParseTypeDecl(AParent: TNXPasASTNode);
     procedure ParseStructuredTypeBody(ANode: TNXPasASTNode);
     procedure ParseFieldDecl(AParent: TNXPasASTNode);
     procedure ParsePropertyDecl(AParent: TNXPasASTNode);
     procedure ParseVisibilitySection(AParent: TNXPasASTNode);
+    function CaptureDeclaredType(AStopAtPropertyModifier,
+      AStopAtParameterDelimiter: Boolean; out AText: string;
+      out ARange: TNXPasSourceRange): Boolean;
     procedure SkipToDeclarationEnd(AStopAtRoutineKeyword: Boolean = True);
   public
     destructor Destroy; override;
@@ -114,6 +122,20 @@ begin
   Result.EndPos := AToken.EndPos;
 end;
 
+function TNXPasParser.SourceText(const ARange: TNXPasSourceRange): string;
+begin
+  Result := '';
+  if (FTree = nil) or (FTree.Source = nil) then
+    Exit;
+
+  if (ARange.StartPos.Offset <= 0) or
+    (ARange.EndPos.Offset <= ARange.StartPos.Offset) then
+    Exit;
+
+  Result := Trim(Copy(FTree.Source.Text, ARange.StartPos.Offset,
+    ARange.EndPos.Offset - ARange.StartPos.Offset));
+end;
+
 procedure TNXPasParser.SetNodeRange(ANode: TNXPasASTNode; const AStartPos,
   AEndPos: TNXPasSourcePosition);
 var
@@ -122,6 +144,16 @@ begin
   lRange.StartPos := AStartPos;
   lRange.EndPos := AEndPos;
   ANode.Range := lRange;
+end;
+
+procedure TNXPasParser.SetDeclaredType(ANode: TNXPasASTNode;
+  const AText: string; const ARange: TNXPasSourceRange);
+begin
+  if ANode = nil then
+    Exit;
+
+  ANode.DeclaredTypeText := Trim(AText);
+  ANode.DeclaredTypeRange := ARange;
 end;
 
 function TNXPasParser.IsRoutineKeyword: Boolean;
@@ -593,6 +625,10 @@ end;
 
 procedure TNXPasParser.ParseVarSection(AParent: TNXPasASTNode);
 var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
+  lItems: TObjectList;
+  lIdx: Integer;
   lNameToken: TNXPasToken;
   lItemNode: TNXPasASTNode;
   lNode: TNXPasASTNode;
@@ -600,6 +636,8 @@ begin
   lNode := AParent.AddChild(pnkVarSection, 'var');
   lNode.Range := CurrentRange;
   FStream.Next;
+  lItems := TObjectList.Create(False);
+  try
   while not (FStream.Check(ptkEndOfFile) or IsSectionStart or
     IsDeclarationSectionStart or IsRoutineKeyword or
     FStream.Check(ptkKeyword, 'begin') or FStream.Check(ptkKeyword, 'end')) do
@@ -622,18 +660,31 @@ begin
     end;
     lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
     lItemNode.Range := TokenRange(lNameToken);
+    lItems.Clear;
+    lItems.Add(lItemNode);
     while FStream.MatchSymbol(',') do
       if FStream.ExpectIdentifierToken(lNameToken) then
       begin
         lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
         lItemNode.Range := TokenRange(lNameToken);
+        lItems.Add(lItemNode);
       end;
+    if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+      lDeclaredTypeText, lDeclaredTypeRange) then
+      for lIdx := 0 to lItems.Count - 1 do
+        SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
+          lDeclaredTypeRange);
     SkipToDeclarationEnd;
+  end;
+  finally
+    lItems.Free;
   end;
 end;
 
 procedure TNXPasParser.ParseRoutineDecl(AParent: TNXPasASTNode);
 var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
   lStart: TNXPasSourcePosition;
@@ -652,7 +703,94 @@ begin
     AddExpectedDiagnostic('nxpas.routine.malformed',
       'Expected routine name.');
   end;
+  if FStream.Check(ptkSymbol, '(') then
+    ParseRoutineParameters(lNode);
+  if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+    lDeclaredTypeText, lDeclaredTypeRange) then
+    SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd;
+  if not (AParent.Kind in [pnkClassDecl, pnkObjectDecl, pnkRecordDecl,
+    pnkInterfaceDecl]) then
+    ParseRoutineBodyDeclarations(lNode);
+end;
+
+procedure TNXPasParser.ParseRoutineParameters(AParent: TNXPasASTNode);
+var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
+  lItems: TObjectList;
+  lNameToken: TNXPasToken;
+  lParamNode: TNXPasASTNode;
+  lIdx: Integer;
+begin
+  if not FStream.MatchSymbol('(') then
+    Exit;
+
+  lItems := TObjectList.Create(False);
+  try
+    while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ')')) do
+    begin
+      lItems.Clear;
+      if FStream.Check(ptkKeyword, 'const') or FStream.Check(ptkKeyword, 'var') or
+        FStream.Check(ptkKeyword, 'out') then
+        FStream.Next;
+
+      if not FStream.ExpectIdentifierToken(lNameToken) then
+      begin
+        FStream.Next;
+        Continue;
+      end;
+
+      lParamNode := AParent.AddChild(pnkParameterDecl, lNameToken.Text);
+      lParamNode.Range := TokenRange(lNameToken);
+      lItems.Add(lParamNode);
+      while FStream.MatchSymbol(',') do
+        if FStream.ExpectIdentifierToken(lNameToken) then
+        begin
+          lParamNode := AParent.AddChild(pnkParameterDecl, lNameToken.Text);
+          lParamNode.Range := TokenRange(lNameToken);
+          lItems.Add(lParamNode);
+        end;
+
+      if FStream.MatchSymbol(':') and CaptureDeclaredType(False, True,
+        lDeclaredTypeText, lDeclaredTypeRange) then
+        for lIdx := 0 to lItems.Count - 1 do
+          SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
+            lDeclaredTypeRange);
+
+      if FStream.Check(ptkSymbol, ';') then
+        FStream.Next
+      else if not FStream.Check(ptkSymbol, ')') then
+        FStream.Next;
+    end;
+  finally
+    lItems.Free;
+  end;
+
+  if FStream.Check(ptkSymbol, ')') then
+    FStream.Next;
+end;
+
+procedure TNXPasParser.ParseRoutineBodyDeclarations(AParent: TNXPasASTNode);
+begin
+  while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkKeyword, 'begin') or
+    FStream.Check(ptkKeyword, 'end') or IsSectionStart or IsRoutineKeyword) do
+  begin
+    AdvanceToActiveToken;
+    if FStream.Check(ptkEndOfFile) or FStream.Check(ptkKeyword, 'begin') or
+      FStream.Check(ptkKeyword, 'end') or IsSectionStart or IsRoutineKeyword then
+      Break;
+
+    if FStream.Check(ptkKeyword, 'var') then
+      ParseVarSection(AParent)
+    else if FStream.Check(ptkKeyword, 'const') or
+      FStream.Check(ptkKeyword, 'resourcestring') then
+      ParseConstSection(AParent)
+    else if FStream.Check(ptkKeyword, 'type') then
+      ParseTypeSection(AParent)
+    else
+      FStream.Next;
+  end;
 end;
 
 procedure TNXPasParser.ParseTypeDecl(AParent: TNXPasASTNode);
@@ -780,25 +918,43 @@ end;
 
 procedure TNXPasParser.ParseFieldDecl(AParent: TNXPasASTNode);
 var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
+  lItems: TObjectList;
+  lIdx: Integer;
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
 begin
   if not FStream.ExpectIdentifierToken(lNameToken) then
     Exit;
 
+  lItems := TObjectList.Create(False);
+  try
   lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
   lNode.Range := TokenRange(lNameToken);
+  lItems.Add(lNode);
   while FStream.MatchSymbol(',') do
     if FStream.ExpectIdentifierToken(lNameToken) then
     begin
       lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
       lNode.Range := TokenRange(lNameToken);
+      lItems.Add(lNode);
     end;
+  if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+    lDeclaredTypeText, lDeclaredTypeRange) then
+    for lIdx := 0 to lItems.Count - 1 do
+      SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
+        lDeclaredTypeRange);
   SkipToDeclarationEnd;
+  finally
+    lItems.Free;
+  end;
 end;
 
 procedure TNXPasParser.ParsePropertyDecl(AParent: TNXPasASTNode);
 var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
   lStartPos: TNXPasSourcePosition;
@@ -809,6 +965,9 @@ begin
   begin
     lNode := AParent.AddChild(pnkPropertyDecl, lNameToken.Text);
     SetNodeRange(lNode, lStartPos, lNameToken.EndPos);
+    if FStream.MatchSymbol(':') and CaptureDeclaredType(True, False,
+      lDeclaredTypeText, lDeclaredTypeRange) then
+      SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   end;
   SkipToDeclarationEnd;
 end;
@@ -820,6 +979,78 @@ begin
   lNode := AParent.AddChild(pnkVisibilitySection, FStream.Current.Text);
   lNode.Range := CurrentRange;
   FStream.Next;
+end;
+
+function TNXPasParser.CaptureDeclaredType(AStopAtPropertyModifier,
+  AStopAtParameterDelimiter: Boolean; out AText: string;
+  out ARange: TNXPasSourceRange): Boolean;
+var
+  lAngleDepth: Integer;
+  lBracketDepth: Integer;
+  lEndPos: TNXPasSourcePosition;
+  lParenDepth: Integer;
+  lStartPos: TNXPasSourcePosition;
+begin
+  Result := False;
+  AText := '';
+  lAngleDepth := 0;
+  lBracketDepth := 0;
+  lParenDepth := 0;
+
+  if FStream.Check(ptkEndOfFile) then
+    Exit;
+
+  lStartPos := FStream.Current.StartPos;
+  lEndPos := FStream.Current.EndPos;
+  while not FStream.Check(ptkEndOfFile) do
+  begin
+    if FStream.Check(ptkDirective) then
+      Break;
+
+    if (lParenDepth = 0) and (lBracketDepth = 0) and (lAngleDepth = 0) then
+    begin
+      if FStream.Check(ptkSymbol, ';') or FStream.Check(ptkSymbol, '=') then
+        Break;
+      if AStopAtParameterDelimiter and
+        (FStream.Check(ptkSymbol, ')') or FStream.Check(ptkSymbol, ',')) then
+        Break;
+      if AStopAtPropertyModifier and
+        ((FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+        (SameText(FStream.Current.Text, 'read') or
+        SameText(FStream.Current.Text, 'write') or
+        SameText(FStream.Current.Text, 'index') or
+        SameText(FStream.Current.Text, 'stored') or
+        SameText(FStream.Current.Text, 'default') or
+        SameText(FStream.Current.Text, 'nodefault') or
+        SameText(FStream.Current.Text, 'implements'))) then
+        Break;
+      if IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
+        IsVisibilityKeyword or FStream.Check(ptkKeyword, 'begin') or
+        FStream.Check(ptkKeyword, 'end') then
+        Break;
+    end;
+
+    lEndPos := FStream.Current.EndPos;
+    if FStream.Check(ptkSymbol, '(') then
+      Inc(lParenDepth)
+    else if FStream.Check(ptkSymbol, ')') and (lParenDepth > 0) then
+      Dec(lParenDepth)
+    else if FStream.Check(ptkSymbol, '[') then
+      Inc(lBracketDepth)
+    else if FStream.Check(ptkSymbol, ']') and (lBracketDepth > 0) then
+      Dec(lBracketDepth)
+    else if FStream.Check(ptkSymbol, '<') then
+      Inc(lAngleDepth)
+    else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
+      Dec(lAngleDepth);
+
+    FStream.Next;
+  end;
+
+  ARange.StartPos := lStartPos;
+  ARange.EndPos := lEndPos;
+  AText := SourceText(ARange);
+  Result := AText <> '';
 end;
 
 procedure TNXPasParser.SkipToDeclarationEnd(AStopAtRoutineKeyword: Boolean);

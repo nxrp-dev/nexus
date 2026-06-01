@@ -335,6 +335,8 @@ begin
       Result := 13;
     pskField:
       Result := 8;
+    pskParameter:
+      Result := 13;
     pskProperty:
       Result := 7;
     pskRecord:

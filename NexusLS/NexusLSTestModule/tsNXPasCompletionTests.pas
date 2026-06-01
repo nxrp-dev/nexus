@@ -531,6 +531,100 @@ begin
   end;
 end;
 
+procedure TestCompletionIncludesRoutineParameters(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Test(AValue: Integer);' + LineEnding +
+    'begin' + LineEnding +
+    '  AV' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  AV', 'AV', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'AValue'),
+      'Completion inside a routine should include parser-owned parameters.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionIncludesLocalVariables(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Test;' + LineEnding +
+    'var' + LineEnding +
+    '  LocalValue: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Loc' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Loc', 'Loc', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'LocalValue'),
+      'Completion inside a routine should include local variables.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionFiltersLocalAndParameterPrefixes(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Test(AValue: Integer);' + LineEnding +
+    'var' + LineEnding +
+    '  LocalValue: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  AV' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  AV', 'AV', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'AValue'),
+      'Parameter should match its prefix.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'LocalValue'),
+      'Local variable should be excluded by nonmatching prefix.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure RegisterNXPasCompletionTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -559,6 +653,12 @@ begin
     @TestCompletionAfterDotReturnsEmpty);
   lSuite.AddTest('CompletionAfterDotPrefixReturnsEmpty',
     @TestCompletionAfterDotPrefixReturnsEmpty);
+  lSuite.AddTest('CompletionIncludesRoutineParameters',
+    @TestCompletionIncludesRoutineParameters);
+  lSuite.AddTest('CompletionIncludesLocalVariables',
+    @TestCompletionIncludesLocalVariables);
+  lSuite.AddTest('CompletionFiltersLocalAndParameterPrefixes',
+    @TestCompletionFiltersLocalAndParameterPrefixes);
 end;
 
 end.

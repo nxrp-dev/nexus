@@ -289,6 +289,8 @@ begin
       Result := 6;
     pskField:
       Result := 5;
+    pskParameter:
+      Result := 6;
     pskProperty:
       Result := 10;
   else

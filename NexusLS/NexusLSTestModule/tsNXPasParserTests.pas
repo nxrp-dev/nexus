@@ -118,6 +118,24 @@ begin
   end;
 end;
 
+function NXPasFindChildSymbol(ASymbol: TNXPasSymbol; AKind: TNXPasSymbolKind;
+  const AName: string): TNXPasSymbol;
+var
+  lChild: TNXPasSymbol;
+  lIdx: Integer;
+begin
+  Result := nil;
+  if ASymbol = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbol.ChildCount - 1 do
+  begin
+    lChild := ASymbol.Children[lIdx];
+    if (lChild.Kind = AKind) and (lChild.Name = AName) then
+      Exit(lChild);
+  end;
+end;
+
 function NXPasHasDiagnostic(ADiagnostics: TNXPasDiagnosticList;
   const ACode: string): Boolean;
 var
@@ -961,6 +979,126 @@ begin
   end;
 end;
 
+procedure TestDeclaredTypeReferences(AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lFunctionSymbol: TNXPasSymbol;
+  lParameterSymbol: TNXPasSymbol;
+  lPropertySymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+  lVarSymbol: TNXPasSymbol;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TSample = class' + LineEnding +
+      '  private' + LineEnding +
+      '    FValue: Integer;' + LineEnding +
+      '  public' + LineEnding +
+      '    property Name: string read FValue;' + LineEnding +
+      '  end;' + LineEnding +
+      'var Value: TSample;' + LineEnding +
+      'procedure DoWork(AValue: Integer; const AName: string);' + LineEnding +
+      'function GetValue: Integer;' + LineEnding +
+      'implementation' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lVarSymbol := NXPasFindSymbol(lSymbols, pskVariable, 'Value');
+    AContext.AssertTrue(lVarSymbol <> nil, 'Variable symbol should exist.');
+    AContext.AssertEquals('TSample', lVarSymbol.DeclaredTypeText,
+      'Variable symbol should capture declared type.');
+
+    lClassSymbol := NXPasFindSymbol(lSymbols, pskClass, 'TSample');
+    AContext.AssertTrue(lClassSymbol <> nil, 'Class symbol should exist.');
+    AContext.AssertEquals('Integer',
+      NXPasFindChildSymbol(lClassSymbol, pskField, 'FValue').DeclaredTypeText,
+      'Field symbol should capture declared type.');
+    lPropertySymbol := NXPasFindChildSymbol(lClassSymbol, pskProperty, 'Name');
+    AContext.AssertTrue(lPropertySymbol <> nil, 'Property symbol should exist.');
+    AContext.AssertEquals('string', lPropertySymbol.DeclaredTypeText,
+      'Property symbol should capture declared type.');
+
+    lFunctionSymbol := NXPasFindSymbol(lSymbols, pskRoutine, 'GetValue');
+    AContext.AssertTrue(lFunctionSymbol <> nil, 'Function symbol should exist.');
+    AContext.AssertEquals('Integer', lFunctionSymbol.DeclaredTypeText,
+      'Function symbol should capture return type.');
+
+    lParameterSymbol := NXPasFindChildSymbol(
+      NXPasFindSymbol(lSymbols, pskRoutine, 'DoWork'), pskParameter, 'AValue');
+    AContext.AssertTrue(lParameterSymbol <> nil,
+      'Parameter symbol should be nested under routine.');
+    AContext.AssertEquals('Integer', lParameterSymbol.DeclaredTypeText,
+      'Parameter symbol should capture declared type.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestLocalVariableSymbols(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lLocalSymbol: TNXPasSymbol;
+  lRoutineSymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type TSample = class end;' + LineEnding +
+      'implementation' + LineEnding +
+      'procedure Test;' + LineEnding +
+      'var' + LineEnding +
+      '  Local: TSample;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRoutineSymbol := NXPasFindSymbol(lSymbols, pskRoutine, 'Test');
+    AContext.AssertTrue(lRoutineSymbol <> nil, 'Routine symbol should exist.');
+    lLocalSymbol := NXPasFindChildSymbol(lRoutineSymbol, pskVariable, 'Local');
+    AContext.AssertTrue(lLocalSymbol <> nil,
+      'Local variable should be owned by the routine symbol.');
+    AContext.AssertEquals('TSample', lLocalSymbol.DeclaredTypeText,
+      'Local variable should capture declared type.');
+    AContext.AssertFalse(NXPasHasSymbol(lSymbols, pskVariable, 'Local'),
+      'Local variable should not appear as a top-level symbol.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure RegisterNXPasParserTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -1001,6 +1139,8 @@ begin
   lSuite.AddTest('ConditionalUnitHeaderUsesActiveBranch',
     @TestConditionalUnitHeaderUsesActiveBranch);
   lSuite.AddTest('WorkspaceIndex', @TestWorkspaceIndex);
+  lSuite.AddTest('DeclaredTypeReferences', @TestDeclaredTypeReferences);
+  lSuite.AddTest('LocalVariableSymbols', @TestLocalVariableSymbols);
 end;
 
 end.

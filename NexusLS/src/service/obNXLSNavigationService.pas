@@ -27,6 +27,8 @@ type
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FillLocationFromSymbol(AMatch: TNXPasWorkspaceSymbolMatch;
       AResult: TNXLSLocation): Boolean;
+    function FillLocationFromDeclaredType(AMatch: TNXPasWorkspaceSymbolMatch;
+      AURI: string; AResult: TNXLSLocation): Boolean;
     function ImplementationLine(AFile: TNXPasIndexedFile): Integer;
     function IsImplementationSymbol(AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
@@ -146,11 +148,11 @@ begin
 
   if FindSymbol(lName, lDocument.URI, lMatch) then
   try
-    if not (lMatch.Symbol.Kind in [pskType, pskClass, pskRecord, pskObject,
-      pskInterface]) then
-      Exit;
-
-    Result := FillLocationFromSymbol(lMatch, AResult);
+    if lMatch.Symbol.Kind in [pskType, pskClass, pskRecord, pskObject,
+      pskInterface] then
+      Result := FillLocationFromSymbol(lMatch, AResult)
+    else
+      Result := FillLocationFromDeclaredType(lMatch, lDocument.URI, AResult);
   finally
     lMatch.Free;
   end;
@@ -295,6 +297,27 @@ begin
   SetRange(AResult.range, lRange.StartPos.Line, lRange.StartPos.Column,
     lRange.EndPos.Line, lRange.EndPos.Column);
   AResult.Assigned := True;
+end;
+
+function TNXLSNavigationService.FillLocationFromDeclaredType(
+  AMatch: TNXPasWorkspaceSymbolMatch; AURI: string;
+  AResult: TNXLSLocation): Boolean;
+var
+  lTypeMatch: TNXPasWorkspaceSymbolMatch;
+begin
+  Result := False;
+  if (AMatch = nil) or (AMatch.Symbol = nil) or
+    (AMatch.Symbol.DeclaredTypeText = '') then
+    Exit;
+
+  if FindSymbol(AMatch.Symbol.DeclaredTypeText, AURI, lTypeMatch) then
+  try
+    if lTypeMatch.Symbol.Kind in [pskType, pskClass, pskRecord, pskObject,
+      pskInterface] then
+      Result := FillLocationFromSymbol(lTypeMatch, AResult);
+  finally
+    lTypeMatch.Free;
+  end;
 end;
 
 function TNXLSNavigationService.ImplementationLine(

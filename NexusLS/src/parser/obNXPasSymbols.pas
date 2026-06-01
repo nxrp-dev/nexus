@@ -25,6 +25,7 @@ type
     pskConst,
     pskVariable,
     pskField,
+    pskParameter,
     pskProperty,
     pskVisibility
   );
@@ -32,6 +33,8 @@ type
   TNXPasSymbol = class
   private
     FChildren: TObjectList;
+    FDeclaredTypeRange: TNXPasSourceRange;
+    FDeclaredTypeText: string;
     FKind: TNXPasSymbolKind;
     FName: string;
     FRange: TNXPasSourceRange;
@@ -44,6 +47,8 @@ type
       const ARange: TNXPasSourceRange): TNXPasSymbol;
     function ChildCount: Integer;
     property Children[AIndex: Integer]: TNXPasSymbol read GetChild;
+    property DeclaredTypeRange: TNXPasSourceRange read FDeclaredTypeRange write FDeclaredTypeRange;
+    property DeclaredTypeText: string read FDeclaredTypeText write FDeclaredTypeText;
     property Kind: TNXPasSymbolKind read FKind write FKind;
     property Name: string read FName write FName;
     property Range: TNXPasSourceRange read FRange write FRange;
@@ -152,6 +157,8 @@ begin
       Result := pskVariable;
     pnkFieldDecl:
       Result := pskField;
+    pnkParameterDecl:
+      Result := pskParameter;
     pnkPropertyDecl:
       Result := pskProperty;
     pnkVisibilitySection:
@@ -193,6 +200,8 @@ begin
       lSymbol := AParent.AddChild(lKind, ANode.Name, ANode.Range)
     else
       lSymbol := ASymbols.AddSymbol(lKind, ANode.Name, ANode.Range);
+    lSymbol.DeclaredTypeText := ANode.DeclaredTypeText;
+    lSymbol.DeclaredTypeRange := ANode.DeclaredTypeRange;
   end;
 
   if lSymbol <> nil then
@@ -244,6 +253,8 @@ begin
       Result := 'Variable';
     pskField:
       Result := 'Field';
+    pskParameter:
+      Result := 'Parameter';
     pskProperty:
       Result := 'Property';
     pskVisibility:

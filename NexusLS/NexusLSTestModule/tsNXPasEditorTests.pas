@@ -168,6 +168,106 @@ begin
   end;
 end;
 
+procedure TestHoverVariableIncludesDeclaredType(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lHover: TNXLSHover;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lHover := TNXLSHover.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'Value: TSample', 'Value');
+
+    AContext.AssertTrue(lModel.Editor.FillHover(lParams, lHover),
+      'Hover should resolve a variable symbol.');
+    AContext.AssertEquals('variable Value: TSample',
+      lHover.contents.value.Value, 'Hover should include variable type.');
+  finally
+    lHover.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestHoverFieldIncludesDeclaredType(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type THolder = class' + LineEnding +
+    'private' + LineEnding +
+    '  FValue: Integer;' + LineEnding +
+    'end;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lHover: TNXLSHover;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lHover := TNXLSHover.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'FValue: Integer', 'FValue');
+
+    AContext.AssertTrue(lModel.Editor.FillHover(lParams, lHover),
+      'Hover should resolve a field symbol.');
+    AContext.AssertEquals('field FValue: Integer',
+      lHover.contents.value.Value, 'Hover should include field type.');
+  finally
+    lHover.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestHoverParameterIncludesDeclaredType(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure DoWork(AValue: Integer);' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lHover: TNXLSHover;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lHover := TNXLSHover.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'AValue: Integer', 'AValue');
+
+    AContext.AssertTrue(lModel.Editor.FillHover(lParams, lHover),
+      'Hover should resolve a parameter symbol.');
+    AContext.AssertEquals('parameter AValue: Integer',
+      lHover.contents.value.Value, 'Hover should include parameter type.');
+  finally
+    lHover.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestHoverUnknownReturnsEmpty(AContext: TNXTestContext);
 const
   cSource =
@@ -287,6 +387,12 @@ begin
   lSuite.AddTest('HoverReturnsClassText', @TestHoverReturnsClassText);
   lSuite.AddTest('HoverReturnsRoutineSignature',
     @TestHoverReturnsRoutineSignature);
+  lSuite.AddTest('HoverVariableIncludesDeclaredType',
+    @TestHoverVariableIncludesDeclaredType);
+  lSuite.AddTest('HoverFieldIncludesDeclaredType',
+    @TestHoverFieldIncludesDeclaredType);
+  lSuite.AddTest('HoverParameterIncludesDeclaredType',
+    @TestHoverParameterIncludesDeclaredType);
   lSuite.AddTest('HoverUnknownReturnsEmpty', @TestHoverUnknownReturnsEmpty);
   lSuite.AddTest('HoverIgnoresInactiveDeclaration',
     @TestHoverIgnoresInactiveDeclaration);
