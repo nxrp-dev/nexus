@@ -231,12 +231,12 @@ procedure TestScannerCommentForms(AContext: TNXTestContext);
 var
   lLexer: TNXPasLexer;
 begin
-  lLexer := TNXPasLexer.Create('{brace} (* paren-star *) // slash');
+  lLexer := TNXPasLexer.Create('{brace {nested}} (* paren (* nested *) star *) // slash');
   try
-    NXPassrcAssertToken(AContext, lLexer, ptkComment, '{brace}',
-      'Brace comment');
-    NXPassrcAssertToken(AContext, lLexer, ptkComment, '(* paren-star *)',
-      'Paren-star comment');
+    NXPassrcAssertToken(AContext, lLexer, ptkComment, '{brace {nested}}',
+      'Nested brace comment');
+    NXPassrcAssertToken(AContext, lLexer, ptkComment, '(* paren (* nested *) star *)',
+      'Nested paren-star comment');
     NXPassrcAssertToken(AContext, lLexer, ptkComment, '// slash',
       'Slash comment');
   finally
@@ -248,20 +248,48 @@ procedure TestScannerIdentifierSelfAndCharFragments(AContext: TNXTestContext);
 var
   lLexer: TNXPasLexer;
 begin
-  lLexer := TNXPasLexer.Create('Alpha Self #65 ''A''');
+  lLexer := TNXPasLexer.Create('Alpha Self #65#$0A#13 ''A''');
   try
     NXPassrcAssertToken(AContext, lLexer, ptkIdentifier, 'Alpha',
       'Identifier');
     NXPassrcAssertToken(AContext, lLexer, ptkIdentifier, 'Self',
       'Self pseudo-variable');
-    NXPassrcAssertToken(AContext, lLexer, ptkSymbol, '#',
-      'Character ordinal marker');
-    NXPassrcAssertToken(AContext, lLexer, ptkNumber, '65',
-      'Character ordinal value');
+    NXPassrcAssertToken(AContext, lLexer, ptkString, '#65#$0A#13',
+      'Character literal sequence');
     NXPassrcAssertToken(AContext, lLexer, ptkString, '''A''',
       'String part after character ordinal');
   finally
     lLexer.Free;
+  end;
+end;
+
+procedure TestScannerUnterminatedDiagnostics(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lLexer: TNXPasLexer;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lLexer := TNXPasLexer.Create('{unterminated', lDiagnostics);
+  try
+    NXPassrcNextNonWhitespace(lLexer);
+    AContext.AssertTrue(NXPassrcHasDiagnostic(lDiagnostics,
+      'nxpas.unterminatedBraceComment'),
+      'Unterminated brace comments should produce a NexusPas diagnostic.');
+  finally
+    lLexer.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lLexer := TNXPasLexer.Create('(*unterminated', lDiagnostics);
+  try
+    NXPassrcNextNonWhitespace(lLexer);
+    AContext.AssertTrue(NXPassrcHasDiagnostic(lDiagnostics,
+      'nxpas.unterminatedParenStarComment'),
+      'Unterminated paren-star comments should produce a NexusPas diagnostic.');
+  finally
+    lLexer.Free;
+    lDiagnostics.Free;
   end;
 end;
 
@@ -764,6 +792,70 @@ begin
   end;
 end;
 
+procedure TestStructuredTypeHeritageConstructorsProperties(
+  AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lProperty: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TSample = class(TBase, IRun, IWalk)' + LineEnding +
+      '  private' + LineEnding +
+      '    FName: string;' + LineEnding +
+      '    FCount: Integer;' + LineEnding +
+      '    function GetItem(Index: Integer): string;' + LineEnding +
+      '  public' + LineEnding +
+      '    constructor Create;' + LineEnding +
+      '    destructor Destroy;' + LineEnding +
+      '    property Name: string read FName write FName;' + LineEnding +
+      '    property Count: Integer read FCount;' + LineEnding +
+      '    property Items[Index: Integer]: string read GetItem;' + LineEnding +
+      '    property Indexed: string index 1 read GetItem;' + LineEnding +
+      '    property Enabled: Boolean read FEnabled write FEnabled default True;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TSample');
+    AContext.AssertEquals('TBase, IRun, IWalk', lClass.DeclaredTypeText,
+      'Class heritage text should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Create') <> nil, 'Constructor should be a nested routine symbol.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Destroy') <> nil, 'Destructor should be a nested routine symbol.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Name');
+    AContext.AssertEquals('string', lProperty.DeclaredTypeText,
+      'Property declared type should be captured.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Items');
+    AContext.AssertEquals('string', lProperty.DeclaredTypeText,
+      'Indexed property declared type should be captured.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Indexed');
+    AContext.AssertEquals('string', lProperty.DeclaredTypeText,
+      'Property index modifier should not corrupt declared type capture.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Enabled');
+    AContext.AssertEquals('Boolean', lProperty.DeclaredTypeText,
+      'Property modifiers should not corrupt declared type capture.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestProcedureFunctionDeclarations(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1111,6 +1203,69 @@ begin
   end;
 end;
 
+procedure TestInlineAnonymousTypeDeclarations(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'var' + LineEnding +
+      '  R: record' + LineEnding +
+      '    A: Integer;' + LineEnding +
+      '    B: string;' + LineEnding +
+      '  end;' + LineEnding +
+      '  A: array[0..9] of Integer;' + LineEnding +
+      '  D: array of string;' + LineEnding +
+      '  S: set of Byte;' + LineEnding +
+      '  F: file of Byte;' + LineEnding +
+      '  P: ^Integer;' + LineEnding +
+      '  Callback: procedure(AValue: Integer);' + LineEnding +
+      '  Getter: function(const AName: string): Integer;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    AContext.AssertTrue(Pos('record', NXPassrcFindSymbol(lSymbols,
+      pskVariable, 'R').DeclaredTypeText) = 1,
+      'Inline record type text should be captured structurally.');
+    AContext.AssertEquals('array[0..9] of Integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'A').DeclaredTypeText,
+      'Static array type text should be captured.');
+    AContext.AssertEquals('array of string',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'D').DeclaredTypeText,
+      'Dynamic array type text should be captured.');
+    AContext.AssertEquals('set of Byte',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'S').DeclaredTypeText,
+      'Set type text should be captured.');
+    AContext.AssertEquals('file of Byte',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'F').DeclaredTypeText,
+      'File type text should be captured.');
+    AContext.AssertEquals('^Integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'P').DeclaredTypeText,
+      'Pointer type text should be captured.');
+    AContext.AssertEquals('procedure(AValue: Integer)',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'Callback').DeclaredTypeText,
+      'Procedure variable type text should be captured.');
+    AContext.AssertEquals('function(const AName: string): Integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'Getter').DeclaredTypeText,
+      'Function variable type text should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestGenericDeclaredTypeText(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1185,6 +1340,10 @@ begin
       '  TSetType = set of Byte;' + LineEnding +
       '  TProcType = procedure(A: Integer);' + LineEnding +
       '  TFuncType = function: Integer;' + LineEnding +
+      '  TMethodProc = procedure of object;' + LineEnding +
+      '  TMethodProcArg = procedure(A: Integer) of object;' + LineEnding +
+      '  TMethodFunc = function: Integer of object;' + LineEnding +
+      '  TMethodFuncArg = function(A: Integer): Integer of object;' + LineEnding +
       'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
     lExtractor.Extract(lTree, lSymbols);
     AContext.AssertEquals('Byte',
@@ -1229,6 +1388,18 @@ begin
     AContext.AssertEquals('function: Integer',
       NXPassrcFindSymbol(lSymbols, pskType, 'TFuncType').DeclaredTypeText,
       'Function type declared text should be captured.');
+    AContext.AssertEquals('procedure of object',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TMethodProc').DeclaredTypeText,
+      'Procedure of object type declared text should be captured.');
+    AContext.AssertEquals('procedure(A: Integer) of object',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TMethodProcArg').DeclaredTypeText,
+      'Procedure of object type with arguments should be captured.');
+    AContext.AssertEquals('function: Integer of object',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TMethodFunc').DeclaredTypeText,
+      'Function of object type declared text should be captured.');
+    AContext.AssertEquals('function(A: Integer): Integer of object',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TMethodFuncArg').DeclaredTypeText,
+      'Function of object type with arguments should be captured.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -1419,6 +1590,8 @@ begin
   lSuite.AddTest('ScannerCommentForms', @TestScannerCommentForms);
   lSuite.AddTest('ScannerIdentifierSelfAndCharFragments',
     @TestScannerIdentifierSelfAndCharFragments);
+  lSuite.AddTest('ScannerUnterminatedDiagnostics',
+    @TestScannerUnterminatedDiagnostics);
   lSuite.AddTest('ScannerNumbersAndCompoundSymbols',
     @TestScannerNumbersAndCompoundSymbols);
   lSuite.AddTest('ScannerSingleSymbolTokens', @TestScannerSingleSymbolTokens);
@@ -1442,6 +1615,8 @@ begin
     @TestClassMembersAndPropertySymbols);
   lSuite.AddTest('ObjectRecordInterfaceMemberSymbols',
     @TestObjectRecordInterfaceMemberSymbols);
+  lSuite.AddTest('StructuredTypeHeritageConstructorsProperties',
+    @TestStructuredTypeHeritageConstructorsProperties);
   lSuite.AddTest('ProcedureFunctionDeclarations',
     @TestProcedureFunctionDeclarations);
   lSuite.AddTest('ProcedureParameterModes', @TestProcedureParameterModes);
@@ -1453,6 +1628,8 @@ begin
   lSuite.AddTest('ConstTypedAndLiteralDeclarations',
     @TestConstTypedAndLiteralDeclarations);
   lSuite.AddTest('VarStructuralDeclarations', @TestVarStructuralDeclarations);
+  lSuite.AddTest('InlineAnonymousTypeDeclarations',
+    @TestInlineAnonymousTypeDeclarations);
   lSuite.AddTest('GenericDeclaredTypeText', @TestGenericDeclaredTypeText);
   lSuite.AddTest('TypeAliasStructuralDeclarations',
     @TestTypeAliasStructuralDeclarations);

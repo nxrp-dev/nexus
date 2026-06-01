@@ -88,6 +88,7 @@ type
     procedure SkipRoutineBody(ANode: TNXPasASTNode);
     procedure ParseTypeDecl(AParent: TNXPasASTNode);
     procedure ParseStructuredTypeBody(ANode: TNXPasASTNode);
+    procedure CaptureStructuredTypeHeritage(ANode: TNXPasASTNode);
     procedure ParseFieldDecl(AParent: TNXPasASTNode);
     procedure ParsePropertyDecl(AParent: TNXPasASTNode);
     procedure SkipPropertyParameters;
@@ -1037,6 +1038,7 @@ begin
     lChildNode := lNode.AddChild(pnkClassDecl, lNameToken.Text);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
+    CaptureStructuredTypeHeritage(lChildNode);
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
     Exit;
@@ -1046,6 +1048,7 @@ begin
     lChildNode := lNode.AddChild(pnkObjectDecl, lNameToken.Text);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
+    CaptureStructuredTypeHeritage(lChildNode);
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
     Exit;
@@ -1064,6 +1067,7 @@ begin
     lChildNode := lNode.AddChild(pnkInterfaceDecl, lNameToken.Text);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
+    CaptureStructuredTypeHeritage(lChildNode);
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
     Exit;
@@ -1072,6 +1076,45 @@ begin
   if CaptureDeclaredType(False, False, lDeclaredTypeText, lDeclaredTypeRange) then
     SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd(False);
+end;
+
+procedure TNXPasParser.CaptureStructuredTypeHeritage(ANode: TNXPasASTNode);
+var
+  lEndPos: TNXPasSourcePosition;
+  lRange: TNXPasSourceRange;
+  lStartPos: TNXPasSourcePosition;
+  lDepth: Integer;
+begin
+  if (ANode = nil) or not FStream.Check(ptkSymbol, '(') then
+    Exit;
+
+  FStream.Next;
+  if FStream.Check(ptkEndOfFile) then
+    Exit;
+
+  lStartPos := FStream.Current.StartPos;
+  lEndPos := FStream.Current.EndPos;
+  lDepth := 1;
+  while not FStream.Check(ptkEndOfFile) do
+  begin
+    if FStream.Check(ptkSymbol, '(') then
+      Inc(lDepth)
+    else if FStream.Check(ptkSymbol, ')') then
+    begin
+      Dec(lDepth);
+      if lDepth = 0 then
+      begin
+        lRange.StartPos := lStartPos;
+        lRange.EndPos := lEndPos;
+        SetDeclaredType(ANode, SourceText(lRange), lRange);
+        FStream.Next;
+        Exit;
+      end;
+    end;
+
+    lEndPos := FStream.Current.EndPos;
+    FStream.Next;
+  end;
 end;
 
 procedure TNXPasParser.ParseStructuredTypeBody(ANode: TNXPasASTNode);
@@ -1233,6 +1276,7 @@ var
   lBracketDepth: Integer;
   lEndPos: TNXPasSourcePosition;
   lParenDepth: Integer;
+  lPreviousText: string;
   lStartPos: TNXPasSourcePosition;
   lStructuredDepth: Integer;
 begin
@@ -1241,6 +1285,7 @@ begin
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
+  lPreviousText := '';
   lStructuredDepth := 0;
 
   if FStream.Check(ptkEndOfFile) then
@@ -1290,12 +1335,16 @@ begin
       Inc(lAngleDepth)
     else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
       Dec(lAngleDepth);
-    if FStream.Check(ptkKeyword, 'record') or FStream.Check(ptkKeyword, 'object') or
-      FStream.Check(ptkKeyword, 'class') or FStream.Check(ptkKeyword, 'interface') then
+    if FStream.Check(ptkKeyword, 'record') or
+      (FStream.Check(ptkKeyword, 'object') and
+      (not SameText(lPreviousText, 'of'))) or
+      FStream.Check(ptkKeyword, 'class') or
+      FStream.Check(ptkKeyword, 'interface') then
       Inc(lStructuredDepth)
     else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
       Dec(lStructuredDepth);
 
+    lPreviousText := FStream.Current.Text;
     FStream.Next;
   end;
 
@@ -1310,11 +1359,13 @@ var
   lAngleDepth: Integer;
   lBracketDepth: Integer;
   lParenDepth: Integer;
+  lPreviousText: string;
   lStructuredDepth: Integer;
 begin
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
+  lPreviousText := '';
   lStructuredDepth := 0;
   FLastDeclarationEnd := FStream.Current.EndPos;
 
@@ -1358,12 +1409,16 @@ begin
       Inc(lAngleDepth)
     else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
       Dec(lAngleDepth);
-    if FStream.Check(ptkKeyword, 'record') or FStream.Check(ptkKeyword, 'object') or
-      FStream.Check(ptkKeyword, 'class') or FStream.Check(ptkKeyword, 'interface') then
+    if FStream.Check(ptkKeyword, 'record') or
+      (FStream.Check(ptkKeyword, 'object') and
+      (not SameText(lPreviousText, 'of'))) or
+      FStream.Check(ptkKeyword, 'class') or
+      FStream.Check(ptkKeyword, 'interface') then
       Inc(lStructuredDepth)
     else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
       Dec(lStructuredDepth);
 
+    lPreviousText := FStream.Current.Text;
     FStream.Next;
   end;
   FLastDeclarationEnd := FStream.Current.StartPos;

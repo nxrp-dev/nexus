@@ -32,6 +32,7 @@ type
     function ReadBraceComment(out AToken: TNXPasToken): Boolean;
     function ReadParenComment(out AToken: TNXPasToken): Boolean;
     function ReadSlashComment(out AToken: TNXPasToken): Boolean;
+    function ReadCharLiteral(out AToken: TNXPasToken): Boolean;
     function ReadIdentifier(out AToken: TNXPasToken): Boolean;
     function ReadNumber(out AToken: TNXPasToken): Boolean;
     function ReadString(out AToken: TNXPasToken): Boolean;
@@ -298,6 +299,7 @@ end;
 
 function TNXPasLexer.ReadBraceComment(out AToken: TNXPasToken): Boolean;
 var
+  lDepth: Integer;
   lStart: TNXPasSourcePosition;
   lStartOffset: Integer;
   lKind: TNXPasTokenKind;
@@ -314,13 +316,23 @@ begin
   else
     lKind := ptkComment;
   lTerminated := False;
+  lDepth := 1;
 
   Advance;
-  while (not IsAtEnd) and (CurrentChar <> '}') do
-    Advance;
-  if CurrentChar = '}' then
+  while not IsAtEnd do
   begin
-    lTerminated := True;
+    if CurrentChar = '{' then
+      Inc(lDepth)
+    else if CurrentChar = '}' then
+    begin
+      Dec(lDepth);
+      if lDepth = 0 then
+      begin
+        lTerminated := True;
+        Advance;
+        Break;
+      end;
+    end;
     Advance;
   end;
 
@@ -332,6 +344,7 @@ end;
 
 function TNXPasLexer.ReadParenComment(out AToken: TNXPasToken): Boolean;
 var
+  lDepth: Integer;
   lStart: TNXPasSourcePosition;
   lStartOffset: Integer;
   lKind: TNXPasTokenKind;
@@ -348,17 +361,30 @@ begin
   else
     lKind := ptkComment;
   lTerminated := False;
+  lDepth := 1;
 
   Advance;
   Advance;
   while not IsAtEnd do
   begin
-    if (CurrentChar = '*') and (PeekChar(1) = ')') then
+    if (CurrentChar = '(') and (PeekChar(1) = '*') then
     begin
       Advance;
       Advance;
-      lTerminated := True;
-      Break;
+      Inc(lDepth);
+      Continue;
+    end
+    else if (CurrentChar = '*') and (PeekChar(1) = ')') then
+    begin
+      Advance;
+      Advance;
+      Dec(lDepth);
+      if lDepth = 0 then
+      begin
+        lTerminated := True;
+        Break;
+      end;
+      Continue;
     end;
     Advance;
   end;
@@ -383,6 +409,35 @@ begin
   while (not IsAtEnd) and not (CurrentChar in [#10, #13]) do
     Advance;
   CaptureToken(ptkComment, lStart, lStartOffset, AToken);
+end;
+
+function TNXPasLexer.ReadCharLiteral(out AToken: TNXPasToken): Boolean;
+var
+  lStart: TNXPasSourcePosition;
+  lStartOffset: Integer;
+begin
+  Result := CurrentChar = '#';
+  if not Result then
+    Exit;
+
+  lStart := CurrentPosition;
+  lStartOffset := FOffset;
+
+  while CurrentChar = '#' do
+  begin
+    Advance;
+    if CurrentChar = '$' then
+    begin
+      Advance;
+      while CurrentChar in ['0'..'9', 'A'..'F', 'a'..'f'] do
+        Advance;
+    end
+    else
+      while CurrentChar in ['0'..'9'] do
+        Advance;
+  end;
+
+  CaptureToken(ptkString, lStart, lStartOffset, AToken);
 end;
 
 function TNXPasLexer.ReadSymbol(out AToken: TNXPasToken): Boolean;
@@ -444,6 +499,8 @@ begin
   if ReadNumber(Result) then
     Exit;
   if ReadString(Result) then
+    Exit;
+  if ReadCharLiteral(Result) then
     Exit;
   ReadSymbol(Result);
 end;
