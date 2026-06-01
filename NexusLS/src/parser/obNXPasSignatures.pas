@@ -72,6 +72,17 @@ type
     property Range: TNXPasSourceRange read FRange write FRange;
   end;
 
+  TNXPasCallFrame = class
+  private
+    FActiveParameter: Integer;
+    FName: string;
+    FRange: TNXPasSourceRange;
+  public
+    property ActiveParameter: Integer read FActiveParameter write FActiveParameter;
+    property Name: string read FName write FName;
+    property Range: TNXPasSourceRange read FRange write FRange;
+  end;
+
   TNXPasSignatureHelper = class
   private
     class function FindDeclarationEnd(const AText: string;
@@ -348,9 +359,9 @@ class function TNXPasSignatureHelper.FindCallAtPosition(
   ASource: TNXPasSourceFile; ALine, AColumn: Integer;
   AContext: TNXPasCallContext): Boolean;
 var
-  lActiveParameter: Integer;
-  lBestName: string;
-  lCallDepth: Integer;
+  lCallStack: TObjectList;
+  lBracketDepth: Integer;
+  lFrame: TNXPasCallFrame;
   lLastIdentifier: string;
   lLastIdentifierRange: TNXPasSourceRange;
   lLexer: TNXPasLexer;
@@ -361,55 +372,70 @@ begin
   if (ASource = nil) or (AContext = nil) then
     Exit;
 
-  lActiveParameter := 0;
-  lBestName := '';
-  lCallDepth := 0;
   lLastIdentifier := '';
+  lBracketDepth := 0;
+  lCallStack := TObjectList.Create(True);
   lLexer := TNXPasLexer.Create(ASource.Text);
   try
-    repeat
-      lToken := lLexer.NextToken;
-      lRange := ASource.RangeFromPositions(lToken.StartPos, lToken.EndPos);
-      if (lToken.StartPos.Line > ALine) or
-        ((lToken.StartPos.Line = ALine) and (lToken.StartPos.Column >= AColumn)) then
-        Break;
+    try
+      repeat
+        lToken := lLexer.NextToken;
+        lRange := ASource.RangeFromPositions(lToken.StartPos, lToken.EndPos);
+        if (lToken.StartPos.Line > ALine) or
+          ((lToken.StartPos.Line = ALine) and (lToken.StartPos.Column >= AColumn)) then
+          Break;
 
-      if lToken.Kind = ptkIdentifier then
-      begin
-        lLastIdentifier := lToken.Text;
-        lLastIdentifierRange := lRange;
-      end
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = '(') then
-      begin
-        Inc(lCallDepth);
-        if (lCallDepth = 1) and (lLastIdentifier <> '') then
+        if lToken.Kind = ptkIdentifier then
         begin
-          lBestName := lLastIdentifier;
-          AContext.Range := lLastIdentifierRange;
-          lActiveParameter := 0;
-        end;
-      end
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = ')') then
-      begin
-        if lCallDepth > 0 then
-          Dec(lCallDepth);
-        if lCallDepth = 0 then
-          lBestName := '';
-      end
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = ',') and
-        (lCallDepth = 1) and (lBestName <> '') then
-        Inc(lActiveParameter);
-    until lToken.Kind = ptkEndOfFile;
+          lLastIdentifier := lToken.Text;
+          lLastIdentifierRange := lRange;
+        end
+        else if (lToken.Kind = ptkSymbol) and (lToken.Text = '(') then
+        begin
+          lFrame := TNXPasCallFrame.Create;
+          lFrame.Name := lLastIdentifier;
+          lFrame.Range := lLastIdentifierRange;
+          lFrame.ActiveParameter := 0;
+          lCallStack.Add(lFrame);
+          lLastIdentifier := '';
+        end
+        else if (lToken.Kind = ptkSymbol) and (lToken.Text = ')') then
+        begin
+          if lCallStack.Count > 0 then
+            lCallStack.Delete(lCallStack.Count - 1);
+        end
+        else if (lToken.Kind = ptkSymbol) and (lToken.Text = '[') then
+          Inc(lBracketDepth)
+        else if (lToken.Kind = ptkSymbol) and (lToken.Text = ']') and
+          (lBracketDepth > 0) then
+          Dec(lBracketDepth)
+        else if (lToken.Kind = ptkSymbol) and (lToken.Text = ',') and
+          (lCallStack.Count > 0) and (lBracketDepth = 0) then
+        begin
+          lFrame := TNXPasCallFrame(lCallStack[lCallStack.Count - 1]);
+          lFrame.ActiveParameter := lFrame.ActiveParameter + 1;
+        end
+        else if not (lToken.Kind in [ptkWhitespace, ptkComment, ptkDirective]) then
+          lLastIdentifier := '';
+      until lToken.Kind = ptkEndOfFile;
+
+      if lCallStack.Count = 0 then
+        Exit;
+
+      lFrame := TNXPasCallFrame(lCallStack[lCallStack.Count - 1]);
+      if lFrame.Name = '' then
+        Exit;
+
+      AContext.Name := lFrame.Name;
+      AContext.Range := lFrame.Range;
+      AContext.ActiveParameter := lFrame.ActiveParameter;
+      Result := True;
+    finally
+      lLexer.Free;
+    end;
   finally
-    lLexer.Free;
+    lCallStack.Free;
   end;
-
-  if (lBestName = '') or (lCallDepth = 0) then
-    Exit;
-
-  AContext.Name := lBestName;
-  AContext.ActiveParameter := lActiveParameter;
-  Result := True;
 end;
 
 class function TNXPasSignatureHelper.PositionIsInactive(

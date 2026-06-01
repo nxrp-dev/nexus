@@ -134,6 +134,18 @@ begin
       'Prefix helper should accept cursor at identifier end.');
     AContext.AssertEquals('TSam', lPrefix,
       'Prefix helper should return the identifier prefix.');
+    AContext.AssertTrue(TNXPasCompletionHelper.CompletionPrefixAtPosition(
+      lSource, NXPasLineOf(cSource, 'TSam'),
+      NXPasColumnOf(cSource, 'TSam', 'TSam'), lPrefix),
+      'Prefix helper should accept cursor at identifier start.');
+    AContext.AssertEquals('', lPrefix,
+      'Cursor at identifier start should return an empty prefix.');
+    AContext.AssertTrue(TNXPasCompletionHelper.CompletionPrefixAtPosition(
+      lSource, NXPasLineOf(cSource, 'TSam'),
+      NXPasColumnOf(cSource, 'TSam', 'TSam') + 2, lPrefix),
+      'Prefix helper should accept cursor in the middle of an identifier.');
+    AContext.AssertEquals('TS', lPrefix,
+      'Cursor in the middle of an identifier should return the partial prefix.');
   finally
     lSource.Free;
   end;
@@ -461,6 +473,64 @@ begin
   end;
 end;
 
+procedure TestCompletionAfterDotReturnsEmpty(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Item: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Item.' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Item.', 'Item.', lResult);
+    AContext.AssertEquals(0, lResult.Count,
+      'Member completion after dot is intentionally empty in this milestone.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionAfterDotPrefixReturnsEmpty(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Item: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Item.Fo' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Item.Fo', 'Fo', lResult);
+    AContext.AssertEquals(0, lResult.Count,
+      'Member completion with a typed member prefix is intentionally empty.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure RegisterNXPasCompletionTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -485,6 +555,10 @@ begin
     @TestCompletionInsideCommentReturnsEmpty);
   lSuite.AddTest('DuplicateSymbolsReduced', @TestDuplicateSymbolsReduced);
   lSuite.AddTest('KeywordCompletion', @TestKeywordCompletion);
+  lSuite.AddTest('CompletionAfterDotReturnsEmpty',
+    @TestCompletionAfterDotReturnsEmpty);
+  lSuite.AddTest('CompletionAfterDotPrefixReturnsEmpty',
+    @TestCompletionAfterDotPrefixReturnsEmpty);
 end;
 
 end.

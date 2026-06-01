@@ -284,11 +284,69 @@ begin
   try
     AContext.AssertTrue(TNXPasSignatureHelper.FindCallAtPosition(lSource,
       NXPasLineOf(cSource, 'DoWork'), NXPasColumnOf(cSource, 'DoWork', '2'),
-      lCall), 'Nested call argument should keep outer call context.');
+      lCall), 'Nested call argument should identify the innermost call.');
+    AContext.AssertEquals('Other', lCall.Name,
+      'Nested call should become the active call context.');
+    AContext.AssertEquals(1, lCall.ActiveParameter,
+      'Comma inside the nested call should advance the nested parameter.');
+  finally
+    lSource.Free;
+    lCall.Free;
+  end;
+end;
+
+procedure TestOuterCallParameterAfterNestedCall(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'implementation' + LineEnding +
+    'begin' + LineEnding +
+    '  DoWork(Other(1, 2), 3);' + LineEnding +
+    'end.';
+var
+  lCall: TNXPasCallContext;
+  lSource: TNXPasSourceFile;
+begin
+  lCall := TNXPasCallContext.Create;
+  lSource := TNXPasSourceFile.Create('Sample.pas',
+    'file:///C:/workspace/Sample.pas', cSource);
+  try
+    AContext.AssertTrue(TNXPasSignatureHelper.FindCallAtPosition(lSource,
+      NXPasLineOf(cSource, 'DoWork'), NXPasColumnOf(cSource, 'DoWork', '3'),
+      lCall), 'Cursor after a nested call should return the outer call.');
     AContext.AssertEquals('DoWork', lCall.Name,
-      'Nested call should not replace the outer call name.');
+      'Outer call should be active after nested call closes.');
+    AContext.AssertEquals(1, lCall.ActiveParameter,
+      'Top-level comma should advance the outer active parameter.');
+  finally
+    lSource.Free;
+    lCall.Free;
+  end;
+end;
+
+procedure TestBracketCommasDoNotIncrementParameter(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'implementation' + LineEnding +
+    'begin' + LineEnding +
+    '  DoWork(Values[1, 2], 3);' + LineEnding +
+    'end.';
+var
+  lCall: TNXPasCallContext;
+  lSource: TNXPasSourceFile;
+begin
+  lCall := TNXPasCallContext.Create;
+  lSource := TNXPasSourceFile.Create('Sample.pas',
+    'file:///C:/workspace/Sample.pas', cSource);
+  try
+    AContext.AssertTrue(TNXPasSignatureHelper.FindCallAtPosition(lSource,
+      NXPasLineOf(cSource, 'DoWork'), NXPasColumnOf(cSource, 'DoWork', '2'),
+      lCall), 'Cursor inside index brackets should keep the enclosing call.');
+    AContext.AssertEquals('DoWork', lCall.Name,
+      'Bracket expressions should not create a new call context.');
     AContext.AssertEquals(0, lCall.ActiveParameter,
-      'Comma inside nested parentheses should not advance outer parameter.');
+      'Comma inside brackets should not advance the active parameter.');
   finally
     lSource.Free;
     lCall.Free;
@@ -460,6 +518,10 @@ begin
   lSuite.AddTest('ActiveParameterAfterComma', @TestActiveParameterAfterComma);
   lSuite.AddTest('NestedParenthesesDoNotIncrementParameter',
     @TestNestedParenthesesDoNotIncrementParameter);
+  lSuite.AddTest('OuterCallParameterAfterNestedCall',
+    @TestOuterCallParameterAfterNestedCall);
+  lSuite.AddTest('BracketCommasDoNotIncrementParameter',
+    @TestBracketCommasDoNotIncrementParameter);
   lSuite.AddTest('SignatureHelpSimpleProcedure',
     @TestSignatureHelpSimpleProcedure);
   lSuite.AddTest('SignatureHelpUnknownRoutine',

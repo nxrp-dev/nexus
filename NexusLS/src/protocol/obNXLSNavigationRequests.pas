@@ -156,10 +156,18 @@ begin
 end;
 
 function TNXLSTextDocumentTypeDefinitionRequest.Execute: TNXJSONRPCValue;
+var
+  lResult: TNXLSLocation;
 begin
-  // Method: textDocument/typeDefinition; required: Optional; original server: No; category: navigation; result: TNXLSLocationResult.
-  NXLSRaiseNotImplemented(GetFactoryName);
-  Result := nil;
+  lResult := TNXLSLocation(PrepareResult);
+  if TNXLSLSPModel.Current.Navigation.FillTypeDefinition(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
 end;
 
 class function TNXLSTextDocumentImplementationRequest.GetFactoryName: string;

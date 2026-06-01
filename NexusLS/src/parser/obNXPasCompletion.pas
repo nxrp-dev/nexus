@@ -15,6 +15,8 @@ type
       const ARange: TNXPasSourceRange): Boolean; static;
     class function TokenStartsAfterPosition(ALine, AColumn: Integer;
       const ARange: TNXPasSourceRange): Boolean; static;
+    class function TokenEndsAtOrBeforePosition(ALine, AColumn: Integer;
+      const ARange: TNXPasSourceRange): Boolean; static;
   public
     class function CompletionPrefixAtPosition(ASource: TNXPasSourceFile;
       ALine, AColumn: Integer; out APrefix: string): Boolean; static;
@@ -53,12 +55,20 @@ begin
     ((ARange.StartPos.Line = ALine) and (ARange.StartPos.Column > AColumn));
 end;
 
+class function TNXPasCompletionHelper.TokenEndsAtOrBeforePosition(ALine,
+  AColumn: Integer; const ARange: TNXPasSourceRange): Boolean;
+begin
+  Result := (ARange.EndPos.Line < ALine) or
+    ((ARange.EndPos.Line = ALine) and (ARange.EndPos.Column <= AColumn));
+end;
+
 class function TNXPasCompletionHelper.CompletionPrefixAtPosition(
   ASource: TNXPasSourceFile; ALine, AColumn: Integer;
   out APrefix: string): Boolean;
 var
   lRange: TNXPasSourceRange;
   lLexer: TNXPasLexer;
+  lPrevSignificant: TNXPasToken;
   lToken: TNXPasToken;
 begin
   Result := False;
@@ -71,12 +81,17 @@ begin
 
   lLexer := TNXPasLexer.Create(ASource.Text);
   try
+    lPrevSignificant.Kind := ptkUnknown;
+    lPrevSignificant.Text := '';
     repeat
       lToken := lLexer.NextToken;
       lRange := ASource.RangeFromPositions(lToken.StartPos, lToken.EndPos);
       if (lToken.Kind = ptkIdentifier) and
         PositionInRange(ALine, AColumn, lRange) then
       begin
+        if (lPrevSignificant.Kind = ptkSymbol) and
+          (lPrevSignificant.Text = '.') then
+          Exit;
         APrefix := Copy(lToken.Text, 1, AColumn - lToken.StartPos.Column);
         Exit(True);
       end;
@@ -84,9 +99,19 @@ begin
       if (lToken.Kind = ptkIdentifier) and
         (lToken.EndPos.Line = ALine) and (lToken.EndPos.Column = AColumn) then
       begin
+        if (lPrevSignificant.Kind = ptkSymbol) and
+          (lPrevSignificant.Text = '.') then
+          Exit;
         APrefix := lToken.Text;
         Exit(True);
       end;
+
+      if (lToken.Kind = ptkSymbol) and (lToken.Text = '.') and
+        TokenEndsAtOrBeforePosition(ALine, AColumn, lRange) then
+        lPrevSignificant := lToken
+      else if not (lToken.Kind in [ptkWhitespace, ptkComment, ptkDirective]) and
+        TokenEndsAtOrBeforePosition(ALine, AColumn, lRange) then
+        lPrevSignificant := lToken;
 
       if TokenStartsAfterPosition(ALine, AColumn, lRange) then
         Break;
@@ -94,6 +119,9 @@ begin
   finally
     lLexer.Free;
   end;
+
+  if (lPrevSignificant.Kind = ptkSymbol) and (lPrevSignificant.Text = '.') then
+    Exit;
 
   Result := True;
 end;

@@ -365,6 +365,7 @@ begin
   FSymbols.ReindexDocument(ADocument);
   FNavigation.ReindexDocument(ADocument);
   FCompletion.ReindexDocument(ADocument);
+  FEditor.ReindexDocument(ADocument);
 end;
 
 procedure TNXLSLSPModel.AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
@@ -382,6 +383,7 @@ begin
   FSymbols.RebuildWorkspaceIndex;
   FNavigation.RebuildWorkspaceIndex;
   FCompletion.RebuildWorkspaceIndex;
+  FEditor.RebuildWorkspaceIndex;
 end;
 
 procedure TNXLSLSPModel.SendClientNotification(

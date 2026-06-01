@@ -41,6 +41,8 @@ type
       AResult: TNXLSLocation): Boolean; virtual;
     function FillImplementationLocation(AParams: TNXLSTextDocumentPositionParams;
       AResult: TNXLSLocation): Boolean; virtual;
+    function FillTypeDefinition(AParams: TNXLSTextDocumentPositionParams;
+      AResult: TNXLSLocation): Boolean; virtual;
     procedure FillReferences(AParams: TNXLSReferenceParams;
       AResult: TNXLSLocationArray); virtual;
     procedure RebuildWorkspaceIndex;
@@ -125,6 +127,29 @@ begin
 
   if FindRoutinePair(lName, lDocument.URI, True, lMatch) then
   try
+    Result := FillLocationFromSymbol(lMatch, AResult);
+  finally
+    lMatch.Free;
+  end;
+end;
+
+function TNXLSNavigationService.FillTypeDefinition(
+  AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
+var
+  lDocument: TNXLSDocument;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+  lName: string;
+begin
+  Result := False;
+  if not FindIdentifierAtParams(AParams, lDocument, lName) then
+    Exit;
+
+  if FindSymbol(lName, lDocument.URI, lMatch) then
+  try
+    if not (lMatch.Symbol.Kind in [pskType, pskClass, pskRecord, pskObject,
+      pskInterface]) then
+      Exit;
+
     Result := FillLocationFromSymbol(lMatch, AResult);
   finally
     lMatch.Free;

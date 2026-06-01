@@ -297,6 +297,93 @@ begin
   end;
 end;
 
+procedure TestTypeDefinitionFindsTypeIdentifier(AContext: TNXTestContext);
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'Local: TSample', 'TSample');
+
+    AContext.AssertTrue(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Type definition should resolve a type identifier.');
+    AContext.AssertEquals(3, lLocation.range.start.line.Value,
+      'Type definition should point to the type declaration line.');
+    AContext.AssertEquals(2, lLocation.range.start.character.Value,
+      'Type definition should point to the type identifier column.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionReturnsEmptyForVariableIdentifier(
+  AContext: TNXTestContext);
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'Local: TSample', 'Local');
+
+    AContext.AssertFalse(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Type definition should not infer variable types yet.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionIgnoresInactiveDeclaration(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    'type THidden = class end;' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    'var Value: THidden;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value: THidden', 'THidden');
+
+    AContext.AssertFalse(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Inactive type declarations should not be returned.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestInactiveDeclarationIsNotDefinition(AContext: TNXTestContext);
 const
   cSource =
@@ -683,6 +770,12 @@ begin
     @TestDefinitionFindsSymbolAcrossIndexedDocuments);
   lSuite.AddTest('DefinitionReturnsEmptyForUnknownIdentifier',
     @TestDefinitionReturnsEmptyForUnknownIdentifier);
+  lSuite.AddTest('TypeDefinitionFindsTypeIdentifier',
+    @TestTypeDefinitionFindsTypeIdentifier);
+  lSuite.AddTest('TypeDefinitionReturnsEmptyForVariableIdentifier',
+    @TestTypeDefinitionReturnsEmptyForVariableIdentifier);
+  lSuite.AddTest('TypeDefinitionIgnoresInactiveDeclaration',
+    @TestTypeDefinitionIgnoresInactiveDeclaration);
   lSuite.AddTest('InactiveDeclarationIsNotDefinition',
     @TestInactiveDeclarationIsNotDefinition);
   lSuite.AddTest('ReferencesFindActiveOccurrences',

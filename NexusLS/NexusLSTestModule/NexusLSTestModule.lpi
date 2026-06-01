@@ -18,7 +18,7 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
-    <Units Count="6">
+    <Units Count="7">
       <Unit0>
         <Filename Value="NexusLSTestModule.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -43,6 +43,10 @@
         <Filename Value="tsNXLSDocumentSymbolTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
+      <Unit6>
+        <Filename Value="tsNXPasEditorTests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit6>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

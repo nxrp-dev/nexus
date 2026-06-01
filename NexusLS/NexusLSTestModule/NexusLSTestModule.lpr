@@ -17,7 +17,8 @@ uses
   tsNXPasLexerTests,
   tsNXPasParserTests,
   tsNXPasSignatureTests,
-  tsNXPasCompletionTests;
+  tsNXPasCompletionTests,
+  tsNXPasEditorTests;
 
 var
   gModule: TNXTestModule = nil;
@@ -34,6 +35,7 @@ begin
   RegisterNXPasParserTests(ARegistry);
   RegisterNXPasSignatureTests(ARegistry);
   RegisterNXPasCompletionTests(ARegistry);
+  RegisterNXPasEditorTests(ARegistry);
 end;
 
 function NXTest_Init: Integer; cdecl;
