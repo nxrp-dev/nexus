@@ -749,6 +749,8 @@ end;
 
 procedure TNXPasParser.ParseConstSection(AParent: TNXPasASTNode);
 var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
   lNameToken: TNXPasToken;
   lItemNode: TNXPasASTNode;
   lNode: TNXPasASTNode;
@@ -778,6 +780,9 @@ begin
     end;
     lItemNode := lNode.AddChild(pnkConstDecl, lNameToken.Text);
     lItemNode.Range := TokenRange(lNameToken);
+    if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+      lDeclaredTypeText, lDeclaredTypeRange) then
+      SetDeclaredType(lItemNode, lDeclaredTypeText, lDeclaredTypeRange);
     SkipToDeclarationEnd;
   end;
 end;
@@ -1004,6 +1009,8 @@ end;
 
 procedure TNXPasParser.ParseTypeDecl(AParent: TNXPasASTNode);
 var
+  lDeclaredTypeRange: TNXPasSourceRange;
+  lDeclaredTypeText: string;
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
   lChildNode: TNXPasASTNode;
@@ -1062,6 +1069,8 @@ begin
     Exit;
   end;
 
+  if CaptureDeclaredType(False, False, lDeclaredTypeText, lDeclaredTypeRange) then
+    SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd(False);
 end;
 
@@ -1225,12 +1234,14 @@ var
   lEndPos: TNXPasSourcePosition;
   lParenDepth: Integer;
   lStartPos: TNXPasSourcePosition;
+  lStructuredDepth: Integer;
 begin
   Result := False;
   AText := '';
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
+  lStructuredDepth := 0;
 
   if FStream.Check(ptkEndOfFile) then
     Exit;
@@ -1242,7 +1253,8 @@ begin
     if FStream.Check(ptkDirective) then
       Break;
 
-    if (lParenDepth = 0) and (lBracketDepth = 0) and (lAngleDepth = 0) then
+    if (lParenDepth = 0) and (lBracketDepth = 0) and (lAngleDepth = 0) and
+      (lStructuredDepth = 0) then
     begin
       if FStream.Check(ptkSymbol, ';') or FStream.Check(ptkSymbol, '=') then
         Break;
@@ -1259,8 +1271,8 @@ begin
         SameText(FStream.Current.Text, 'nodefault') or
         SameText(FStream.Current.Text, 'implements'))) then
         Break;
-      if IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
-        IsVisibilityKeyword or FStream.Check(ptkKeyword, 'begin') or
+      if IsSectionStart or IsDeclarationSectionStart or
+        FStream.Check(ptkKeyword, 'begin') or
         FStream.Check(ptkKeyword, 'end') then
         Break;
     end;
@@ -1278,6 +1290,11 @@ begin
       Inc(lAngleDepth)
     else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
       Dec(lAngleDepth);
+    if FStream.Check(ptkKeyword, 'record') or FStream.Check(ptkKeyword, 'object') or
+      FStream.Check(ptkKeyword, 'class') or FStream.Check(ptkKeyword, 'interface') then
+      Inc(lStructuredDepth)
+    else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
+      Dec(lStructuredDepth);
 
     FStream.Next;
   end;
@@ -1293,10 +1310,12 @@ var
   lAngleDepth: Integer;
   lBracketDepth: Integer;
   lParenDepth: Integer;
+  lStructuredDepth: Integer;
 begin
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
+  lStructuredDepth := 0;
   FLastDeclarationEnd := FStream.Current.EndPos;
 
   while not FStream.Check(ptkEndOfFile) do
@@ -1308,7 +1327,7 @@ begin
     end;
 
     if FStream.Check(ptkSymbol, ';') and (lParenDepth = 0) and
-      (lBracketDepth = 0) and (lAngleDepth = 0) then
+      (lBracketDepth = 0) and (lAngleDepth = 0) and (lStructuredDepth = 0) then
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
@@ -1316,6 +1335,7 @@ begin
     end;
 
     if (lParenDepth = 0) and (lBracketDepth = 0) and (lAngleDepth = 0) and
+      (lStructuredDepth = 0) and
       (IsSectionStart or IsDeclarationSectionStart or
       (AStopAtRoutineKeyword and IsRoutineKeyword) or
       IsVisibilityKeyword or FStream.Check(ptkKeyword, 'end')) then
@@ -1338,6 +1358,11 @@ begin
       Inc(lAngleDepth)
     else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
       Dec(lAngleDepth);
+    if FStream.Check(ptkKeyword, 'record') or FStream.Check(ptkKeyword, 'object') or
+      FStream.Check(ptkKeyword, 'class') or FStream.Check(ptkKeyword, 'interface') then
+      Inc(lStructuredDepth)
+    else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
+      Dec(lStructuredDepth);
 
     FStream.Next;
   end;

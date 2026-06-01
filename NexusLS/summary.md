@@ -1,34 +1,44 @@
 # Recent Work Summary
 
-## NexusPas passrc test import
+## NexusPas passrc promotion pass
 
-- Added the `NexusPas.PassrcPort` active test suite with 23 NexusPas tests.
-- Added full passrc-source inventory at `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.csv`.
-- Added readable coverage-map report at `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.md`.
-- Inventory covers 15 source units and 2,073 original published test methods.
-- Current inventory classification:
-  - Active NexusPas test: 0
-  - Active NexusPas test with adjusted Nexus expectation: 50
-  - Deferred because NexusPas does not yet support the required feature: 1,994
-  - Not applicable because it targets passrc-specific internals: 30
-- Fresh archive audit found 0 missing inventory rows and 0 extra inventory rows.
-- Fixed lexer coverage found by imported scanner cases:
-  - `absolute` now lexes as a keyword.
-  - `<>` now lexes as one compound symbol.
-- Test host now writes JSON/TXT summary artifacts into `output/NexusTestHost/test-artifacts`.
-- Archive script now includes those artifacts under `test\artifacts`.
+- Promoted a bounded set of deferred passrc inventory cases into active NexusPas assertions.
+- Source archive units touched by promotions:
+  - `tcscanner.pas`
+  - `tcmoduleparser.pas`
+  - `tcprocfunc.pas`
+  - `tconstparser.pas`
+  - `tcvarparser.pas`
+  - `tctypeparser.pas`
+- Promoted/listed cases attempted: 170
+- Newly active NexusPas tests added: 10
+- Active NexusPas tests currently registered in `NexusPas.PassrcPort`: 33
+- Active-adjusted inventory mappings now total: 204
+- Remaining deferred inventory mappings: 1,840
+- Not-applicable passrc-internal mappings: 30
+
+## Production Fixes
+
+- Added `generic` to NexusPas keyword recognition.
+- Added `**` and `><` compound symbol token handling.
+- Captured declared type text for typed constants.
+- Captured declared type text for simple type aliases.
+- Allowed procedure/function typed declarations and declaration-tail modifiers to be captured structurally without corrupting parser recovery.
 
 ## Verification
 
 - `lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
-- `NexusPas.PassrcPort`: 23 passed / 23 total.
-- Full test run: 182 passed / 182 total.
 - `lazbuild NexusLS\nexusls.lpi` passed.
-- Test host compile passed.
+- `NexusPas.PassrcPort`: 33 passed / 33 total.
+- Full test run: 192 passed / 192 total.
 - CodeTools/passrc dependency scan found no active references in `NexusLS\src` or `NexusLS\NexusLSTestModule`.
-- `git diff --check` had only line-ending warnings.
+
+## Inventory
+
+- Coverage map: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.csv`.
+- Readable report: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.md`.
+- Full uploaded archive inventory remains at 2,073 original published test methods across 15 source units.
 
 ## Archive
 
-- Archive produced: `C:\gitdev\nexus\nexus-source-chatgpt-20260531-213338.zip`.
 - No commit was made.

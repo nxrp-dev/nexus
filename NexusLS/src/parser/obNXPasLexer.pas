@@ -123,7 +123,7 @@ begin
     (lText = 'else') or (lText = 'end') or (lText = 'except') or
     (lText = 'exports') or (lText = 'file') or
     (lText = 'finalization') or (lText = 'finally') or (lText = 'for') or
-    (lText = 'function') or (lText = 'goto') or (lText = 'if') or
+    (lText = 'function') or (lText = 'generic') or (lText = 'goto') or (lText = 'if') or
     (lText = 'implementation') or (lText = 'in') or
     (lText = 'inherited') or (lText = 'initialization') or
     (lText = 'inline') or (lText = 'interface') or (lText = 'is') or
@@ -407,7 +407,7 @@ begin
     '.', '<', '>', '+', '-', '*', '/':
       begin
         Advance;
-        if CurrentChar in ['=', '.', '>'] then
+        if CurrentChar in ['=', '.', '>', '<', '*'] then
           Advance;
       end;
   else
