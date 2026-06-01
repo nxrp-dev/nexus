@@ -1,54 +1,34 @@
 # Recent Work Summary
 
-## Passrc Inventory Identity Repair
+## NexusPas Routine Declaration Promotion Pass
 
-- Added `OriginalTestClass` to `NexusPasPassrcTestInventory.csv`.
-- Inventory identity is now `SourceUnit + OriginalTestClass + OriginalTestMethod`.
+- Promoted a bounded routine-declaration slice from `tcprocfunc.pas`.
+- Promoted cases attempted: 24.
+- Newly active NexusPas tests added: 1.
+- Active-adjusted inventory mappings now total: 272.
+- Remaining deferred inventory mappings: 1,772.
+- Not-applicable passrc-internal mappings: 30.
 - Inventory rows remain: 2,074.
 - Original published test methods remain: 2,073.
-- Full-key duplicate count: 0.
+- Full-key duplicate count remains: 0.
 
-## NexusPas Passrc Promotion Pass
+## Parser Changes
 
-- Promoted a bounded scanner-foundation slice from `tcscanner.pas`.
-- Promoted cases attempted: 24.
-- Newly active NexusPas tests added: 0.
-- Existing NexusPas scanner tests were extended to assert the newly promoted behaviors.
-- Active-adjusted inventory mappings now total: 248.
-- Remaining deferred inventory mappings: 1,796.
-- Not-applicable passrc-internal mappings: 30.
-
-## Parser And Lexer Changes
-
-- Added lexer keyword recognition for additional Pascal scanner tokens:
-  - `bitpacked`
-  - `dispinterface`
-  - `except`
-  - `exports`
-  - `false`
-  - `file`
-  - `finally`
-  - `goto`
-  - `helper`
-  - `is`
-  - `label`
-  - `mod`
-  - `on`
-  - `raise`
-  - `specialize`
-  - `true`
-- Extended scanner tests for:
-  - line-ending whitespace token form
-  - tab whitespace token form
-  - backslash symbol
-  - `<<` / `>>` compound symbols
-  - additional keyword tokens
+- Added structural handling for `constref` routine parameters.
+- Fixed declared-type capture so `array of const` remains one parameter type instead of being cut at `const`.
+- Added active assertions for:
+  - `constref` parameters
+  - untyped `var` / `const` parameters
+  - grouped untyped parameters
+  - open-array parameters
+  - `array of const` parameters
+  - default set and expression parameter syntax as parse-safe structure only
 
 ## Verification
 
 - `lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
-- `NexusPas.PassrcPort`: 36 passed / 36 total.
-- Full test run: 195 passed / 195 total.
+- `NexusPas.PassrcPort`: 37 passed / 37 total.
+- Full test run: 196 passed / 196 total.
 - `lazbuild NexusLS\nexusls.lpi` passed.
 - CodeTools/passrc dependency scan found no active references in `NexusLS\src` or `NexusLS\NexusLSTestModule`.
 

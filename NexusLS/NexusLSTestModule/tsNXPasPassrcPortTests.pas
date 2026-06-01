@@ -978,6 +978,86 @@ begin
   end;
 end;
 
+procedure TestProcedureAdvancedParameterForms(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lFunction: TNXPasSymbol;
+  lProcedure: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'procedure DoConstRef(constref A: Integer);' + LineEnding +
+      'function MakeConstRef(constref A: Integer): Integer;' + LineEnding +
+      'procedure DoUntyped(var A; const B);' + LineEnding +
+      'function MakeUntyped(var A, B): Integer;' + LineEnding +
+      'procedure DoOpen(A: array of Integer; const B: array of string);' +
+      LineEnding +
+      'function MakeOpen(A: array of Integer): Integer;' + LineEnding +
+      'procedure DoArrayOfConst(A: array of const);' + LineEnding +
+      'function MakeArrayOfConst(A: array of const): Integer;' + LineEnding +
+      'procedure DoDefaultSet(A: TSet = [One, Two]);' + LineEnding +
+      'function MakeDefaultExpr(A: Integer = 1 + 2): Integer;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoConstRef');
+    AContext.AssertEquals('Integer',
+      NXPassrcFindChildSymbol(lProcedure, pskParameter, 'A').DeclaredTypeText,
+      'constref procedure parameter type should be captured.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeConstRef');
+    AContext.AssertEquals('Integer', lFunction.DeclaredTypeText,
+      'constref function return type should be captured.');
+    lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoUntyped');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lProcedure, pskParameter,
+      'A') <> nil, 'Untyped var parameter should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lProcedure, pskParameter,
+      'B') <> nil, 'Untyped const parameter should be captured.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeUntyped');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lFunction, pskParameter,
+      'B') <> nil, 'Grouped untyped var parameter should be captured.');
+    lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoOpen');
+    AContext.AssertEquals('array of Integer',
+      NXPassrcFindChildSymbol(lProcedure, pskParameter, 'A').DeclaredTypeText,
+      'Open array parameter type should be captured.');
+    AContext.AssertEquals('array of string',
+      NXPassrcFindChildSymbol(lProcedure, pskParameter, 'B').DeclaredTypeText,
+      'Const open array parameter type should be captured.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeOpen');
+    AContext.AssertEquals('array of Integer',
+      NXPassrcFindChildSymbol(lFunction, pskParameter, 'A').DeclaredTypeText,
+      'Function open array parameter type should be captured.');
+    lProcedure := NXPassrcFindSymbol(lSymbols, pskRoutine, 'DoArrayOfConst');
+    AContext.AssertEquals('array of const',
+      NXPassrcFindChildSymbol(lProcedure, pskParameter, 'A').DeclaredTypeText,
+      'array of const parameter type should be captured structurally.');
+    lFunction := NXPassrcFindSymbol(lSymbols, pskRoutine, 'MakeArrayOfConst');
+    AContext.AssertEquals('array of const',
+      NXPassrcFindChildSymbol(lFunction, pskParameter, 'A').DeclaredTypeText,
+      'Function array of const parameter type should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'DoDefaultSet') <> nil,
+      'Default set parameter expression should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'MakeDefaultExpr') <> nil,
+      'Default expression parameter should not corrupt parsing.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestProcedureModifiersAndDefaults(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1665,6 +1745,8 @@ begin
   lSuite.AddTest('ProcedureFunctionDeclarations',
     @TestProcedureFunctionDeclarations);
   lSuite.AddTest('ProcedureParameterModes', @TestProcedureParameterModes);
+  lSuite.AddTest('ProcedureAdvancedParameterForms',
+    @TestProcedureAdvancedParameterForms);
   lSuite.AddTest('ProcedureModifiersAndDefaults',
     @TestProcedureModifiersAndDefaults);
   lSuite.AddTest('LocalRoutineVarAndConstDeclarations',

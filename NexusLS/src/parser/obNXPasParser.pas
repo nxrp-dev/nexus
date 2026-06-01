@@ -901,8 +901,9 @@ begin
     while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ')')) do
     begin
       lItems.Clear;
-      if FStream.Check(ptkKeyword, 'const') or FStream.Check(ptkKeyword, 'var') or
-        FStream.Check(ptkKeyword, 'out') then
+      if FStream.Check(ptkKeyword, 'const') or
+        FStream.Check(ptkIdentifier, 'constref') or
+        FStream.Check(ptkKeyword, 'var') or FStream.Check(ptkKeyword, 'out') then
         FStream.Next;
 
       if not FStream.ExpectIdentifierToken(lNameToken) then
@@ -1316,7 +1317,10 @@ begin
         SameText(FStream.Current.Text, 'nodefault') or
         SameText(FStream.Current.Text, 'implements'))) then
         Break;
-      if IsSectionStart or IsDeclarationSectionStart or
+      if IsSectionStart or
+        (IsDeclarationSectionStart and
+        not (SameText(FStream.Current.Text, 'const') and
+        SameText(lPreviousText, 'of'))) or
         FStream.Check(ptkKeyword, 'begin') or
         FStream.Check(ptkKeyword, 'end') then
         Break;
