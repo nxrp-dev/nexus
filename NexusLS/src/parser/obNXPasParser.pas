@@ -51,6 +51,8 @@ type
     function IsSectionStart: Boolean;
     function IsDeclarationSectionStart: Boolean;
     function IsVisibilityKeyword: Boolean;
+    function IsRoutineDirective: Boolean;
+    function IsFieldNameToken: Boolean;
     function NormalizeDirectiveText(const AText: string): string;
     function DirectiveCommand(const AText: string): string;
     function DirectiveArgument(const AText: string): string;
@@ -92,11 +94,13 @@ type
     procedure ParseFieldDecl(AParent: TNXPasASTNode);
     procedure ParsePropertyDecl(AParent: TNXPasASTNode);
     procedure SkipPropertyParameters;
+    function ExpectFieldNameToken(out AToken: TNXPasToken): Boolean;
     procedure ParseVisibilitySection(AParent: TNXPasASTNode);
     function CaptureDeclaredType(AStopAtPropertyModifier,
       AStopAtParameterDelimiter: Boolean; out AText: string;
       out ARange: TNXPasSourceRange): Boolean;
     procedure SkipToDeclarationEnd(AStopAtRoutineKeyword: Boolean = True);
+    procedure SkipRoutineDirectives;
   public
     destructor Destroy; override;
     constructor Create(ADiagnostics: TNXPasDiagnosticList);
@@ -207,6 +211,39 @@ begin
   Result := FStream.Check(ptkKeyword, 'private') or
     FStream.Check(ptkKeyword, 'protected') or FStream.Check(ptkKeyword, 'public') or
     FStream.Check(ptkKeyword, 'published');
+end;
+
+function TNXPasParser.IsRoutineDirective: Boolean;
+begin
+  Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+    (SameText(FStream.Current.Text, 'abstract') or
+    SameText(FStream.Current.Text, 'assembler') or
+    SameText(FStream.Current.Text, 'cdecl') or
+    SameText(FStream.Current.Text, 'deprecated') or
+    SameText(FStream.Current.Text, 'dynamic') or
+    SameText(FStream.Current.Text, 'experimental') or
+    SameText(FStream.Current.Text, 'export') or
+    SameText(FStream.Current.Text, 'external') or
+    SameText(FStream.Current.Text, 'final') or
+    SameText(FStream.Current.Text, 'forward') or
+    SameText(FStream.Current.Text, 'inline') or
+    SameText(FStream.Current.Text, 'message') or
+    SameText(FStream.Current.Text, 'noreturn') or
+    SameText(FStream.Current.Text, 'overload') or
+    SameText(FStream.Current.Text, 'override') or
+    SameText(FStream.Current.Text, 'pascal') or
+    SameText(FStream.Current.Text, 'platform') or
+    SameText(FStream.Current.Text, 'reintroduce') or
+    SameText(FStream.Current.Text, 'safecall') or
+    SameText(FStream.Current.Text, 'stdcall') or
+    SameText(FStream.Current.Text, 'unimplemented') or
+    SameText(FStream.Current.Text, 'varargs') or
+    SameText(FStream.Current.Text, 'virtual'));
+end;
+
+function TNXPasParser.IsFieldNameToken: Boolean;
+begin
+  Result := FStream.Check(ptkIdentifier) or FStream.Check(ptkKeyword, 'helper');
 end;
 
 function TNXPasParser.NormalizeDirectiveText(const AText: string): string;
@@ -874,6 +911,7 @@ begin
     lDeclaredTypeText, lDeclaredTypeRange) then
     SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd;
+  SkipRoutineDirectives;
   SetNodeRange(lNode, lStart, FLastDeclarationEnd);
   if not (AParent.Kind in [pnkClassDecl, pnkObjectDecl, pnkRecordDecl,
     pnkInterfaceDecl]) then
@@ -1138,6 +1176,33 @@ begin
       Continue;
     end;
 
+    if FStream.Check(ptkKeyword, 'var') then
+    begin
+      FStream.Next;
+      Continue;
+    end;
+
+    if FStream.Check(ptkKeyword, 'class') then
+    begin
+      FStream.Next;
+      if FStream.Check(ptkKeyword, 'var') then
+      begin
+        FStream.Next;
+        Continue;
+      end;
+      if IsRoutineKeyword then
+      begin
+        ParseRoutineDecl(ANode);
+        Continue;
+      end;
+      if FStream.Check(ptkKeyword, 'property') then
+      begin
+        ParsePropertyDecl(ANode);
+        Continue;
+      end;
+      Continue;
+    end;
+
     if IsSectionStart or IsDeclarationSectionStart then
     begin
       AddExpectedDiagnostic('nxpas.structuredType.missingEnd',
@@ -1165,7 +1230,7 @@ begin
       ParseRoutineDecl(ANode)
     else if FStream.Check(ptkKeyword, 'property') then
       ParsePropertyDecl(ANode)
-    else if FStream.Check(ptkIdentifier) then
+    else if IsFieldNameToken then
       ParseFieldDecl(ANode)
     else
       FStream.Next;
@@ -1187,7 +1252,7 @@ var
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
 begin
-  if not FStream.ExpectIdentifierToken(lNameToken) then
+  if not ExpectFieldNameToken(lNameToken) then
     Exit;
 
   lItems := TObjectList.Create(False);
@@ -1196,7 +1261,7 @@ begin
   lNode.Range := TokenRange(lNameToken);
   lItems.Add(lNode);
   while FStream.MatchSymbol(',') do
-    if FStream.ExpectIdentifierToken(lNameToken) then
+    if ExpectFieldNameToken(lNameToken) then
     begin
       lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
       lNode.Range := TokenRange(lNameToken);
@@ -1233,6 +1298,29 @@ begin
       SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   end;
   SkipToDeclarationEnd;
+  while (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+    (SameText(FStream.Current.Text, 'default') or
+    SameText(FStream.Current.Text, 'nodefault')) do
+    SkipToDeclarationEnd;
+end;
+
+function TNXPasParser.ExpectFieldNameToken(out AToken: TNXPasToken): Boolean;
+begin
+  Result := IsFieldNameToken;
+  if Result then
+  begin
+    AToken := FStream.Current;
+    FStream.Next;
+  end
+  else
+  begin
+    AToken.Kind := ptkUnknown;
+    AToken.Text := '';
+    AToken.StartPos.Offset := 0;
+    AToken.StartPos.Line := 0;
+    AToken.StartPos.Column := 0;
+    AToken.EndPos := AToken.StartPos;
+  end;
 end;
 
 procedure TNXPasParser.SkipPropertyParameters;
@@ -1428,6 +1516,39 @@ begin
   FLastDeclarationEnd := FStream.Current.StartPos;
   AddExpectedDiagnostic('nxpas.declaration.unexpectedEOF',
     'Unexpected EOF inside declaration body.');
+end;
+
+procedure TNXPasParser.SkipRoutineDirectives;
+begin
+  while not FStream.Check(ptkEndOfFile) do
+  begin
+    if FStream.Check(ptkSymbol, ';') then
+    begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
+      FStream.Next;
+      Continue;
+    end;
+
+    if not IsRoutineDirective then
+      Exit;
+
+    while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ';') or
+      IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
+      IsVisibilityKeyword or FStream.Check(ptkKeyword, 'end') or
+      FStream.Check(ptkKeyword, 'property')) do
+    begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
+      FStream.Next;
+    end;
+
+    if FStream.Check(ptkSymbol, ';') then
+    begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
+      FStream.Next;
+    end
+    else
+      Exit;
+  end;
 end;
 
 function TNXPasParser.Parse(ASource: TNXPasSourceFile): TNXPasSyntaxTree;

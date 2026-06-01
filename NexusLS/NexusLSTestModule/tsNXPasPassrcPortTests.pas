@@ -901,6 +901,166 @@ begin
   end;
 end;
 
+procedure TestClassFieldMethodStructuralVariants(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lFunction: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TSample = class' + LineEnding +
+      '  private' + LineEnding +
+      '    A, B: Integer;' + LineEnding +
+      '    helper: string;' + LineEnding +
+      '    var C, D: string;' + LineEnding +
+      '    class var E: TObject;' + LineEnding +
+      '  public' + LineEnding +
+      '    procedure Run;' + LineEnding +
+      '    class procedure ClassRun;' + LineEnding +
+      '    function Build(AValue: Integer): Integer;' + LineEnding +
+      '    class function ClassBuild: string;' + LineEnding +
+      '    procedure VirtualRun; virtual;' + LineEnding +
+      '    procedure AbstractRun; virtual; abstract; final;' + LineEnding +
+      '    procedure OverrideRun; override;' + LineEnding +
+      '    procedure DynamicRun; dynamic;' + LineEnding +
+      '    procedure ReRun; reintroduce;' + LineEnding +
+      '    procedure InlineRun; inline;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TSample');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'A');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Grouped class field declared type should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'helper');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Keyword-shaped helper field should remain a field.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'D');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Class-body var field section should be parsed as fields.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'E');
+    AContext.AssertEquals('TObject', lField.DeclaredTypeText,
+      'Class var field section should be parsed as fields.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Run') <> nil, 'Plain class procedure should be parsed.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'ClassRun') <> nil, 'Class procedure should be parsed.');
+    lFunction := NXPassrcFindChildSymbol(lClass, pskRoutine, 'Build');
+    AContext.AssertEquals('Integer', lFunction.DeclaredTypeText,
+      'Class function return type should be captured.');
+    lFunction := NXPassrcFindChildSymbol(lClass, pskRoutine, 'ClassBuild');
+    AContext.AssertEquals('string', lFunction.DeclaredTypeText,
+      'Class function prefix should not hide the routine declaration.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'AbstractRun') <> nil, 'Routine modifiers should not hide methods.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskField,
+      'virtual') = nil, 'Routine modifiers should not become fields.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskField,
+      'abstract') = nil, 'Routine modifiers should not become fields.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPropertyInterfaceAndRecordStructuralVariants(
+  AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lInterface: TNXPasSymbol;
+  lProperty: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TSample = class' + LineEnding +
+      '  private' + LineEnding +
+      '    FValue: Integer;' + LineEnding +
+      '    function GetItem(Index: Integer): string;' + LineEnding +
+      '  public' + LineEnding +
+      '    property WriteOnly: Integer write FValue;' + LineEnding +
+      '    property NoDefault: Integer read FValue nodefault;' + LineEnding +
+      '    property StoredValue: Integer read FValue stored CheckStored;' + LineEnding +
+      '    property StoredFalse: Boolean read FFlag stored False;' + LineEnding +
+      '    property Qualified: UnitA.TypeB read FQualified;' + LineEnding +
+      '    property ItemsRW[Index: Integer]: string read GetItem write SetItem;' + LineEnding +
+      '    property DefaultItem[Index: Integer]: string read GetItem; default;' + LineEnding +
+      '    property Matrix[ACol: Integer; ARow: Integer]: Integer read GetMatrix;' + LineEnding +
+      '    property Implemented: UnitA.IThing read FThing implements UnitA.IThing;' + LineEnding +
+      '  end;' + LineEnding +
+      '  TRec = record' + LineEnding +
+      '    X, Y: Integer;' + LineEnding +
+      '    constructor Create(AValue: Integer);' + LineEnding +
+      '    property Value: Integer read X;' + LineEnding +
+      '  end;' + LineEnding +
+      '  IRun = interface(IBase)' + LineEnding +
+      '    procedure Execute;' + LineEnding +
+      '    property Value: Integer read GetValue;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TSample');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Qualified');
+    AContext.AssertEquals('UnitA.TypeB', lProperty.DeclaredTypeText,
+      'Fully qualified property type should be captured.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Matrix');
+    AContext.AssertEquals('Integer', lProperty.DeclaredTypeText,
+      'Multi-dimensional indexed property type should be captured.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'ItemsRW');
+    AContext.AssertEquals('string', lProperty.DeclaredTypeText,
+      'Indexed read/write property type should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskField,
+      'default') = nil, 'Default property directive should not become a field.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Implemented');
+    AContext.AssertEquals('UnitA.IThing', lProperty.DeclaredTypeText,
+      'Implements modifier should not corrupt property type capture.');
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord, 'TRec');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lRecord, pskRoutine,
+      'Create') <> nil, 'Record constructor should be parsed structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lRecord, pskProperty,
+      'Value') <> nil, 'Record property should be parsed structurally.');
+    lInterface := NXPassrcFindSymbol(lSymbols, pskInterface, 'IRun');
+    AContext.AssertEquals('IBase', lInterface.DeclaredTypeText,
+      'Interface heritage should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lInterface, pskProperty,
+      'Value') <> nil, 'Interface property should be parsed structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestProcedureFunctionDeclarations(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1742,6 +1902,10 @@ begin
     @TestObjectRecordInterfaceMemberSymbols);
   lSuite.AddTest('StructuredTypeHeritageConstructorsProperties',
     @TestStructuredTypeHeritageConstructorsProperties);
+  lSuite.AddTest('ClassFieldMethodStructuralVariants',
+    @TestClassFieldMethodStructuralVariants);
+  lSuite.AddTest('PropertyInterfaceAndRecordStructuralVariants',
+    @TestPropertyInterfaceAndRecordStructuralVariants);
   lSuite.AddTest('ProcedureFunctionDeclarations',
     @TestProcedureFunctionDeclarations);
   lSuite.AddTest('ProcedureParameterModes', @TestProcedureParameterModes);
