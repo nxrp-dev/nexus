@@ -137,6 +137,17 @@ begin
   AContext.AssertEquals(AText, lToken.Text, AMessage + ' text');
 end;
 
+procedure NXPassrcAssertTypeText(AContext: TNXTestContext;
+  ASymbols: TNXPasSymbolTable; const AName, AText, AMessage: string);
+var
+  lSymbol: TNXPasSymbol;
+begin
+  lSymbol := NXPassrcFindSymbol(ASymbols, pskType, AName);
+  AContext.AssertTrue(lSymbol <> nil, AMessage + ' exists');
+  AContext.AssertEquals(AText, lSymbol.DeclaredTypeText,
+    AMessage + ' declared type text');
+end;
+
 procedure TestScannerEmptyInputEOF(AContext: TNXTestContext);
 var
   lLexer: TNXPasLexer;
@@ -2227,6 +2238,274 @@ begin
   end;
 end;
 
+procedure TestTypeAdditionalStructuralVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TCrossUnitAlias = Other.Unit.TypeName;' + LineEnding +
+      '  TAliasDeprecated = Integer deprecated;' + LineEnding +
+      '  TAliasPlatform = Integer platform;' + LineEnding +
+      '  TByteDeprecated = Byte deprecated;' + LineEnding +
+      '  TBytePlatform = Byte platform;' + LineEnding +
+      '  TBooleanDeprecated = Boolean deprecated;' + LineEnding +
+      '  TBooleanPlatform = Boolean platform;' + LineEnding +
+      '  TCharDeprecated = Char deprecated;' + LineEnding +
+      '  TCharPlatform = Char platform;' + LineEnding +
+      '  TIntegerDeprecated = Integer deprecated;' + LineEnding +
+      '  TIntegerPlatform = Integer platform;' + LineEnding +
+      '  TInt64Deprecated = Int64 deprecated;' + LineEnding +
+      '  TInt64Platform = Int64 platform;' + LineEnding +
+      '  TLongIntDeprecated = LongInt deprecated;' + LineEnding +
+      '  TLongIntPlatform = LongInt platform;' + LineEnding +
+      '  TLongWordDeprecated = LongWord deprecated;' + LineEnding +
+      '  TLongWordPlatform = LongWord platform;' + LineEnding +
+      '  TDoubleDeprecated = Double deprecated;' + LineEnding +
+      '  TDoublePlatform = Double platform;' + LineEnding +
+      '  TShortIntDeprecated = ShortInt deprecated;' + LineEnding +
+      '  TShortIntPlatform = ShortInt platform;' + LineEnding +
+      '  TSmallIntDeprecated = SmallInt deprecated;' + LineEnding +
+      '  TSmallIntPlatform = SmallInt platform;' + LineEnding +
+      '  TStringDeprecated = string deprecated;' + LineEnding +
+      '  TStringPlatform = string platform;' + LineEnding +
+      '  TStringSizedDeprecated = string[20] deprecated;' + LineEnding +
+      '  TStringSizedPlatform = string[20] platform;' + LineEnding +
+      '  TWordDeprecated = Word deprecated;' + LineEnding +
+      '  TWordPlatform = Word platform;' + LineEnding +
+      '  TQWordDeprecated = QWord deprecated;' + LineEnding +
+      '  TQWordPlatform = QWord platform;' + LineEnding +
+      '  TCardinalDeprecated = Cardinal deprecated;' + LineEnding +
+      '  TCardinalPlatform = Cardinal platform;' + LineEnding +
+      '  TWideCharDeprecated = WideChar deprecated;' + LineEnding +
+      '  TWideCharPlatform = WideChar platform;' + LineEnding +
+      '  PIntegerDeprecated = ^Integer deprecated;' + LineEnding +
+      '  PIntegerPlatform = ^Integer platform;' + LineEnding +
+      '  TStaticArrayDeprecated = array[0..3] of Integer deprecated;' +
+      LineEnding +
+      '  TStaticArrayPlatform = array[0..3] of Integer platform;' +
+      LineEnding +
+      '  TStaticArrayTypedIndex = array[Byte] of Integer;' + LineEnding +
+      '  TStaticArrayMethod = array[0..3] of procedure of object;' +
+      LineEnding +
+      '  TStaticArrayProcedure = array[0..3] of procedure(A: Integer);' +
+      LineEnding +
+      '  TDynamicArrayMethod = array of procedure of object;' + LineEnding +
+      '  TDynamicArrayProcedure = array of procedure(A: Integer);' +
+      LineEnding +
+      '  TEnumDeprecated = (One, Two) deprecated;' + LineEnding +
+      '  TEnumPlatform = (One, Two) platform;' + LineEnding +
+      '  TAssignedEnumDeprecated = (First = 1, Second = 2) deprecated;' +
+      LineEnding +
+      '  TAssignedEnumPlatform = (First = 1, Second = 2) platform;' +
+      LineEnding +
+      '  TFileDeprecated = file of Byte deprecated;' + LineEnding +
+      '  TFilePlatform = file of Byte platform;' + LineEnding +
+      '  TRange = 1..4;' + LineEnding +
+      '  TCharRange = #1..#4;' + LineEnding +
+      '  TQuotedCharRange = ''A''..''B'';' + LineEnding +
+      '  TRangeDeprecated = 1..4 deprecated;' + LineEnding +
+      '  TRangePlatform = 1..4 platform;' + LineEnding +
+      '  TIdentifierRange = tkFirst..tkLast;' + LineEnding +
+      '  TIdentifierRangeDeprecated = tkFirst..tkLast deprecated;' +
+      LineEnding +
+      '  TIdentifierRangePlatform = tkFirst..tkLast platform;' + LineEnding +
+      '  TNegativeIdentifierRange = -tkLast..tkLast;' + LineEnding +
+      '  TSimpleSet = set of Byte;' + LineEnding +
+      '  TPackedSet = packed set of Byte;' + LineEnding +
+      '  TSimpleSetDeprecated = set of Byte deprecated;' + LineEnding +
+      '  TSimpleSetPlatform = set of Byte platform;' + LineEnding +
+      '  TComplexSet = set of 1..4;' + LineEnding +
+      '  TComplexSetDeprecated = set of 1..4 deprecated;' + LineEnding +
+      '  TComplexSetPlatform = set of 1..4 platform;' + LineEnding +
+      '  TClassOf = class of TObject;' + LineEnding +
+      '  TClassOfDeprecated = class of TObject deprecated;' + LineEnding +
+      '  TClassOfPlatform = class of TObject platform;' + LineEnding +
+      '  TReferenceAlias = type TAlias;' + LineEnding +
+      '  TReferenceSet = type set of Byte;' + LineEnding +
+      '  TReferenceClassOf = type class of TObject;' + LineEnding +
+      '  TReferenceFile = type file of Byte;' + LineEnding +
+      '  TReferenceArray = type array of Integer;' + LineEnding +
+      '  TReferencePointer = type ^Integer;' + LineEnding +
+      '  TPointerReference = ^type Integer;' + LineEnding +
+      '  TPointerKeyword = ^string;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TCrossUnitAlias',
+      'Other.Unit.TypeName', 'Cross-unit alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TAliasDeprecated',
+      'Integer', 'Deprecated alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TAliasPlatform',
+      'Integer', 'Platform alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TByteDeprecated',
+      'Byte', 'Deprecated byte alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TBytePlatform',
+      'Byte', 'Platform byte alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TBooleanDeprecated',
+      'Boolean', 'Deprecated boolean alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TBooleanPlatform',
+      'Boolean', 'Platform boolean alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TCharDeprecated',
+      'Char', 'Deprecated char alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TCharPlatform',
+      'Char', 'Platform char alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TIntegerDeprecated',
+      'Integer', 'Deprecated integer alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TIntegerPlatform',
+      'Integer', 'Platform integer alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TInt64Deprecated',
+      'Int64', 'Deprecated int64 alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TInt64Platform',
+      'Int64', 'Platform int64 alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TLongIntDeprecated',
+      'LongInt', 'Deprecated longint alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TLongIntPlatform',
+      'LongInt', 'Platform longint alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TLongWordDeprecated',
+      'LongWord', 'Deprecated longword alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TLongWordPlatform',
+      'LongWord', 'Platform longword alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TDoubleDeprecated',
+      'Double', 'Deprecated double alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TDoublePlatform',
+      'Double', 'Platform double alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TShortIntDeprecated',
+      'ShortInt', 'Deprecated shortint alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TShortIntPlatform',
+      'ShortInt', 'Platform shortint alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TSmallIntDeprecated',
+      'SmallInt', 'Deprecated smallint alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TSmallIntPlatform',
+      'SmallInt', 'Platform smallint alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStringDeprecated',
+      'string', 'Deprecated string alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStringPlatform',
+      'string', 'Platform string alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStringSizedDeprecated',
+      'string[20]', 'Deprecated sized string alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStringSizedPlatform',
+      'string[20]', 'Platform sized string alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TWordDeprecated',
+      'Word', 'Deprecated word alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TWordPlatform',
+      'Word', 'Platform word alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TQWordDeprecated',
+      'QWord', 'Deprecated qword alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TQWordPlatform',
+      'QWord', 'Platform qword alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TCardinalDeprecated',
+      'Cardinal', 'Deprecated cardinal alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TCardinalPlatform',
+      'Cardinal', 'Platform cardinal alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TWideCharDeprecated',
+      'WideChar', 'Deprecated widechar alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TWideCharPlatform',
+      'WideChar', 'Platform widechar alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'PIntegerDeprecated',
+      '^Integer', 'Deprecated pointer alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'PIntegerPlatform',
+      '^Integer', 'Platform pointer alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStaticArrayDeprecated',
+      'array[0..3] of Integer', 'Deprecated static array alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStaticArrayPlatform',
+      'array[0..3] of Integer', 'Platform static array alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStaticArrayTypedIndex',
+      'array[Byte] of Integer', 'Typed-index static array alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStaticArrayMethod',
+      'array[0..3] of procedure of object', 'Static array method alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TStaticArrayProcedure',
+      'array[0..3] of procedure(A: Integer)', 'Static array procedure alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TDynamicArrayMethod',
+      'array of procedure of object', 'Dynamic array method alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TDynamicArrayProcedure',
+      'array of procedure(A: Integer)', 'Dynamic array procedure alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TEnumDeprecated',
+      '(One, Two)', 'Deprecated enum alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TEnumPlatform',
+      '(One, Two)', 'Platform enum alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TAssignedEnumDeprecated',
+      '(First = 1, Second = 2)', 'Deprecated assigned enum alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TAssignedEnumPlatform',
+      '(First = 1, Second = 2)', 'Platform assigned enum alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TFileDeprecated',
+      'file of Byte', 'Deprecated file alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TFilePlatform',
+      'file of Byte', 'Platform file alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TRange', '1..4',
+      'Numeric range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TCharRange', '#1..#4',
+      'Ordinal char range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TQuotedCharRange',
+      '''A''..''B''', 'Quoted char range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TRangeDeprecated',
+      '1..4', 'Deprecated range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TRangePlatform',
+      '1..4', 'Platform range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TIdentifierRange',
+      'tkFirst..tkLast', 'Identifier range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TIdentifierRangeDeprecated',
+      'tkFirst..tkLast', 'Deprecated identifier range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TIdentifierRangePlatform',
+      'tkFirst..tkLast', 'Platform identifier range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TNegativeIdentifierRange',
+      '-tkLast..tkLast', 'Negative identifier range alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TSimpleSet',
+      'set of Byte', 'Simple set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TPackedSet',
+      'packed set of Byte', 'Packed set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TSimpleSetDeprecated',
+      'set of Byte', 'Deprecated simple set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TSimpleSetPlatform',
+      'set of Byte', 'Platform simple set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TComplexSet',
+      'set of 1..4', 'Complex set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TComplexSetDeprecated',
+      'set of 1..4', 'Deprecated complex set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TComplexSetPlatform',
+      'set of 1..4', 'Platform complex set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TClassOf',
+      'class of TObject', 'Class-of alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TClassOfDeprecated',
+      'class of TObject', 'Deprecated class-of alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TClassOfPlatform',
+      'class of TObject', 'Platform class-of alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TReferenceAlias',
+      'type TAlias', 'Type reference alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TReferenceSet',
+      'type set of Byte', 'Type reference set alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TReferenceClassOf',
+      'type class of TObject', 'Type reference class-of alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TReferenceFile',
+      'type file of Byte', 'Type reference file alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TReferenceArray',
+      'type array of Integer', 'Type reference array alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TReferencePointer',
+      'type ^Integer', 'Type reference pointer alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TPointerReference',
+      '^type Integer', 'Pointer reference alias');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TPointerKeyword',
+      '^string', 'Pointer keyword alias');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestProcedureTypeDeclarations(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -2466,6 +2745,8 @@ begin
   lSuite.AddTest('GenericDeclaredTypeText', @TestGenericDeclaredTypeText);
   lSuite.AddTest('TypeAliasStructuralDeclarations',
     @TestTypeAliasStructuralDeclarations);
+  lSuite.AddTest('TypeAdditionalStructuralVariants',
+    @TestTypeAdditionalStructuralVariants);
   lSuite.AddTest('ProcedureTypeDeclarations',
     @TestProcedureTypeDeclarations);
   lSuite.AddTest('DiagnosticsRecoveryForMalformedUses',

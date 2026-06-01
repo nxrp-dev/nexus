@@ -1090,6 +1090,7 @@ var
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
   lChildNode: TNXPasASTNode;
+  lTypeToken: TNXPasToken;
 begin
   if not FStream.ExpectIdentifierToken(lNameToken) then
   begin
@@ -1110,9 +1111,22 @@ begin
 
   if FStream.Check(ptkKeyword, 'class') then
   begin
-    lChildNode := lNode.AddChild(pnkClassDecl, lNameToken.Text);
-    SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
+    lTypeToken := FStream.Current;
     FStream.Next;
+    if FStream.Check(ptkKeyword, 'of') then
+    begin
+      if CaptureDeclaredType(False, False, lDeclaredTypeText,
+        lDeclaredTypeRange) then
+      begin
+        lDeclaredTypeRange.StartPos := lTypeToken.StartPos;
+        SetDeclaredType(lNode, 'class ' + lDeclaredTypeText,
+          lDeclaredTypeRange);
+      end;
+      SkipToDeclarationEnd(False);
+      Exit;
+    end;
+    lChildNode := lNode.AddChild(pnkClassDecl, lNameToken.Text);
+    SetNodeRange(lChildNode, lNameToken.StartPos, lTypeToken.EndPos);
     CaptureStructuredTypeHeritage(lChildNode);
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
@@ -1465,6 +1479,7 @@ begin
         Break;
       if IsSectionStart or
         (IsDeclarationSectionStart and
+        not SameText(FStream.Current.Text, 'type') and
         not (SameText(FStream.Current.Text, 'const') and
         SameText(lPreviousText, 'of'))) or
         FStream.Check(ptkKeyword, 'begin') or
@@ -1488,7 +1503,8 @@ begin
     if FStream.Check(ptkKeyword, 'record') or
       (FStream.Check(ptkKeyword, 'object') and
       (not SameText(lPreviousText, 'of'))) or
-      FStream.Check(ptkKeyword, 'class') or
+      (FStream.Check(ptkKeyword, 'class') and
+      (not SameText(lPreviousText, 'type'))) or
       FStream.Check(ptkKeyword, 'interface') then
       Inc(lStructuredDepth)
     else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
