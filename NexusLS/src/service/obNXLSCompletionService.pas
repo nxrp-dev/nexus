@@ -5,363 +5,92 @@ unit obNXLSCompletionService;
 interface
 
 uses
+  Classes,
   obNXLSProtocolParams,
   obNXLSProtocolObjects,
-  obNXLSServiceContext;
+  obNXLSServiceContext,
+  obNXPasSignatures,
+  obNXPasSymbols,
+  obNXPasWorkspaceIndex;
 
 type
   TNXLSCompletionService = class(TNXLSLSPService)
+  private
+    FWorkspaceIndex: TNXPasWorkspaceIndex;
+    procedure AddCompletionItem(AResult: TNXLSCompletionItemArray;
+      const ALabel: string; AKind: Integer; const ADetail: string;
+      ASeen: TStrings);
+    procedure AddSignatureResult(AResult: TNXLSSignatureHelp;
+      ASignature: TNXPasRoutineSignature);
+    procedure FillKeywordCompletions(AResult: TNXLSCompletionItemArray;
+      const APrefix: string; ASeen: TStrings);
+    procedure FillSymbolCompletions(AResult: TNXLSCompletionItemArray;
+      const APrefix: string; ASeen: TStrings);
+    procedure FindSignatureCandidates(const AName, AURI: string;
+      AResults: TNXPasRoutineSignatureList);
+    function SymbolCompletionKind(AKind: TNXPasSymbolKind): Integer;
   public
+    constructor Create(AModel: TNXLSLSPContext); override;
+    destructor Destroy; override;
     procedure FillCompletionItems(AParams: TNXLSCompletionParams;
       AResult: TNXLSCompletionItemArray); virtual;
     function FillSignatureHelp(AParams: TNXLSSignatureHelpParams;
       AResult: TNXLSSignatureHelp): Boolean; virtual;
+    procedure RebuildWorkspaceIndex;
+    procedure ReindexDocument(ADocument: TNXLSDocument);
   end;
 
 implementation
 
 uses
-  Classes,
   SysUtils,
-  BasicCodeTools,
-  CodeCache,
-  CodeToolManager,
-  CodeTree,
-  FindDeclarationTool,
-  IdentCompletionTool,
-  PascalParserTool,
-  obNXLSProtocolBase,
-  utNXLSServiceHelpers;
+  obNXPasCompletion,
+  obNXPasSource;
 
-function NXLSCompletionKind(AIdentifier: TIdentifierListItem): Integer;
-var
-  lDesc: TCodeTreeNodeDesc;
+constructor TNXLSCompletionService.Create(AModel: TNXLSLSPContext);
 begin
-  if AIdentifier.Node = nil then
-    lDesc := AIdentifier.DefaultDesc
-  else
-    lDesc := AIdentifier.Node.Desc;
-
-  case lDesc of
-    ctnUnit, ctnUseUnit, ctnUseUnitClearName, ctnUseUnitNamespace:
-      Result := 9;  // Module
-    ctnClass, ctnObject, ctnObjCClass, ctnObjCCategory, ctnCPPClass,
-    ctnTypeHelper, ctnRecordHelper:
-      Result := 7;  // Class
-    ctnRecordType:
-      Result := 22; // Struct
-    ctnClassInterface, ctnDispinterface, ctnObjCProtocol:
-      Result := 8;  // Interface
-    ctnProcedure:
-      Result := 3;  // Function
-    ctnTypeDefinition, ctnGenericType, ctnGenericParameter:
-      Result := 25; // TypeParameter
-    ctnProperty, ctnGlobalProperty:
-      Result := 10; // Property
-    ctnVarDefinition:
-      Result := 6;  // Variable
-    ctnConstDefinition:
-      Result := 21; // Constant
-    ctnEnumerationType:
-      Result := 13; // Enum
-    ctnEnumIdentifier:
-      Result := 20; // EnumMember
-  else
-    Result := 14;   // Keyword
-  end;
+  inherited Create(AModel);
+  FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
 end;
 
-function NXLSSplitParamString(const AValue: string; ADelimiter: Char): TStringList;
-var
-  lIdx: Integer;
-  lPart: string;
+destructor TNXLSCompletionService.Destroy;
 begin
-  Result := TStringList.Create;
-  lPart := '';
-  for lIdx := 1 to Length(AValue) do
-  begin
-    if AValue[lIdx] = ADelimiter then
-    begin
-      Result.Add(Trim(lPart));
-      lPart := '';
-    end
-    else
-      lPart := lPart + AValue[lIdx];
-  end;
-  if Trim(lPart) <> '' then
-    Result.Add(Trim(lPart));
-end;
-
-function NXLSParseParamList(const AValue: string): TStringList;
-var
-  lGroups: TStringList;
-  lNames: TStringList;
-  lIdx: Integer;
-  lNameIdx: Integer;
-  lColonPos: Integer;
-  lTypeName: string;
-begin
-  Result := TStringList.Create;
-  lGroups := NXLSSplitParamString(AValue, ';');
-  try
-    for lIdx := 0 to lGroups.Count - 1 do
-    begin
-      lColonPos := Pos(':', lGroups[lIdx]);
-      if lColonPos <= 0 then
-        Continue;
-
-      lTypeName := Trim(Copy(lGroups[lIdx], lColonPos + 1, MaxInt));
-      lNames := NXLSSplitParamString(Copy(lGroups[lIdx], 1, lColonPos - 1), ',');
-      try
-        for lNameIdx := 0 to lNames.Count - 1 do
-          if lNames[lNameIdx] <> '' then
-            Result.Add(lNames[lNameIdx] + ': ' + lTypeName);
-      finally
-        lNames.Free;
-      end;
-    end;
-  finally
-    lGroups.Free;
-  end;
-end;
-
-function NXLSWordMatchesPrefix(const AWord, APrefix: string): Boolean;
-begin
-  Result := (APrefix = '') or (Pos(LowerCase(APrefix), LowerCase(AWord)) = 1);
-end;
-
-procedure NXLSAddCompletionItem(ATarget: TNXLSCompletionItemArray; ASeen: TStrings;
-  const ALabel: string; AKind: Integer; const ADetail: string);
-var
-  lItem: TNXLSCompletionItem;
-begin
-  if (ALabel = '') or (ASeen.IndexOf(ALabel) >= 0) then
-    Exit;
-
-  ASeen.Add(ALabel);
-  lItem := TNXLSCompletionItem(ATarget.AddObject(TNXLSCompletionItem));
-  lItem.&label.Value := ALabel;
-  lItem.kind.Value := AKind;
-  if ADetail <> '' then
-    lItem.detail.Value := ADetail;
-  lItem.sortText.Value := IntToStr(ASeen.Count);
-  lItem.Assigned := True;
-end;
-
-procedure NXLSAddSourceCompletions(ATarget: TNXLSCompletionItemArray; ASeen: TStrings;
-  ACode: TCodeBuffer; const APrefix: string);
-var
-  lIdx: Integer;
-  lName: string;
-begin
-  if ACode = nil then
-    Exit;
-
-  for lIdx := 0 to ACode.LineCount - 1 do
-  begin
-    lName := NXLSIdentifierAfterKeyword(ACode.GetLine(lIdx), 'procedure');
-    if NXLSWordMatchesPrefix(lName, APrefix) then
-      NXLSAddCompletionItem(ATarget, ASeen, lName, 3, 'source procedure');
-
-    lName := NXLSIdentifierAfterKeyword(ACode.GetLine(lIdx), 'function');
-    if NXLSWordMatchesPrefix(lName, APrefix) then
-      NXLSAddCompletionItem(ATarget, ASeen, lName, 3, 'source function');
-  end;
-end;
-
-procedure NXLSAddSignatureFromHead(AResult: TNXLSSignatureHelp; const AHead: string;
-  AActiveParameter: Integer);
-var
-  lSignature: TNXLSSignatureInformation;
-  lParameter: TNXLSParameterInformation;
-  lParamList: TStringList;
-  lParamIdx: Integer;
-  lProcName: string;
-  lParamText: string;
-begin
-  lProcName := NXLSProcNameFromHead(AHead);
-  if lProcName = '' then
-    Exit;
-
-  lParamText := NXLSParamTextFromHead(AHead);
-  lSignature := TNXLSSignatureInformation(
-    AResult.signatures.AddObject(TNXLSSignatureInformation));
-  lSignature.&label.Value := Trim(AHead);
-  lSignature.activeParameter.Value := AActiveParameter;
-
-  lParamList := NXLSParseParamList(lParamText);
-  try
-    for lParamIdx := 0 to lParamList.Count - 1 do
-    begin
-      lParameter := TNXLSParameterInformation(
-        lSignature.parameters.AddObject(TNXLSParameterInformation));
-      lParameter.&label.StringValue := lParamList[lParamIdx];
-      lParameter.Assigned := True;
-    end;
-  finally
-    lParamList.Free;
-  end;
-
-  lSignature.parameters.Assigned := lSignature.parameters.Count > 0;
-  lSignature.Assigned := True;
-end;
-
-function NXLSCallIdentifierNear(ACode: TCodeBuffer; AX, AY: Integer): string;
-var
-  lLine: string;
-  lPos: Integer;
-  lEnd: Integer;
-  lStart: Integer;
-begin
-  Result := '';
-  if ACode = nil then
-    Exit;
-
-  lLine := ACode.GetLine(AY);
-  lPos := AX;
-  if lPos > Length(lLine) then
-    lPos := Length(lLine);
-
-  while (lPos >= 1) and (lLine[lPos] <> '(') do
-    Dec(lPos);
-  if lPos < 1 then
-    Exit;
-
-  Dec(lPos);
-  while (lPos >= 1) and (lLine[lPos] = ' ') do
-    Dec(lPos);
-  if lPos < 1 then
-    Exit;
-
-  lEnd := lPos;
-  while (lPos >= 1) and
-    (lLine[lPos] in ['A'..'Z', 'a'..'z', '_', '.', '0'..'9']) do
-    Dec(lPos);
-  lStart := lPos + 1;
-  Result := Copy(lLine, lStart, lEnd - lStart + 1);
-  if Pos('.', Result) > 0 then
-    Result := Copy(Result, LastDelimiter('.', Result) + 1, MaxInt);
-end;
-
-function NXLSFindDeclarationHead(ACode: TCodeBuffer; const AIdentifier: string): string;
-var
-  lIdx: Integer;
-  lName: string;
-begin
-  Result := '';
-  if (ACode = nil) or (AIdentifier = '') then
-    Exit;
-
-  for lIdx := 0 to ACode.LineCount - 1 do
-  begin
-    lName := NXLSProcNameFromHead(ACode.GetLine(lIdx));
-    if CompareText(lName, AIdentifier) = 0 then
-      Exit(Trim(ACode.GetLine(lIdx)));
-  end;
-end;
-
-function NXLSActiveParameterAt(ACode: TCodeBuffer; AX, AY: Integer): Integer;
-var
-  lLine: string;
-  lIdx: Integer;
-begin
-  Result := 0;
-  if ACode = nil then
-    Exit;
-
-  lLine := ACode.GetLine(AY);
-  if AX > Length(lLine) then
-    AX := Length(lLine);
-
-  lIdx := AX;
-  while (lIdx >= 1) and (lLine[lIdx] <> '(') do
-  begin
-    if lLine[lIdx] = ',' then
-      Inc(Result);
-    Dec(lIdx);
-  end;
-end;
-
-function NXLSFillFallbackSignatureHelp(ACode: TCodeBuffer; AX, AY: Integer;
-  AResult: TNXLSSignatureHelp): Boolean;
-var
-  lIdentifier: string;
-  lHead: string;
-  lActiveParameter: Integer;
-begin
-  Result := False;
-  if AResult = nil then
-    Exit;
-
-  lIdentifier := NXLSCallIdentifierNear(ACode, AX, AY);
-  lHead := NXLSFindDeclarationHead(ACode, lIdentifier);
-  if lHead = '' then
-    Exit;
-
-  lActiveParameter := NXLSActiveParameterAt(ACode, AX, AY);
-  AResult.activeSignature.Value := 0;
-  AResult.activeParameter.Value := lActiveParameter;
-  NXLSAddSignatureFromHead(AResult, lHead, lActiveParameter);
-  AResult.signatures.Assigned := AResult.signatures.Count > 0;
-  AResult.Assigned := AResult.signatures.Count > 0;
-  Result := AResult.Assigned;
+  FreeAndNil(FWorkspaceIndex);
+  inherited Destroy;
 end;
 
 procedure TNXLSCompletionService.FillCompletionItems(AParams: TNXLSCompletionParams;
   AResult: TNXLSCompletionItemArray);
 var
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lLine: string;
-  lIdentStart: Integer;
-  lIdentEnd: Integer;
-  lIdx: Integer;
-  lCount: Integer;
-  lIdentifier: TIdentifierListItem;
-  lSeen: TStringList;
   lPrefix: string;
+  lSeen: TStringList;
+  lSource: TNXPasSourceFile;
 begin
   if AResult = nil then
     Exit;
-  if (AParams = nil) or (AParams.textDocument = nil) or
-    (AParams.position = nil) then
+
+  AResult.Assigned := True;
+  if (AParams = nil) or (AParams.textDocument = nil) then
     Exit;
 
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
-  lCode := lDocument.CodeBuffer;
-  if lCode = nil then
-    Exit;
-  if (AParams.position.line.Value < 0) or
-    (AParams.position.line.Value >= lCode.LineCount) then
-    Exit;
-
-  lLine := lCode.GetLine(AParams.position.line.Value);
-  GetIdentStartEndAtPosition(lLine, AParams.position.character.Value + 1,
-    lIdentStart, lIdentEnd);
-  lPrefix := Copy(lLine, lIdentStart, lIdentEnd - lIdentStart);
-  CodeToolBoss.IdentifierList.Prefix := lPrefix;
-
   lSeen := TStringList.Create;
+  lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
+    lDocument.Text);
   try
+    lSeen.CaseSensitive := False;
     lSeen.Sorted := True;
     lSeen.Duplicates := dupIgnore;
-    if CodeToolBoss.GatherIdentifiers(lCode,
-      AParams.position.character.Value + 1, AParams.position.line.Value + 1) then
-    begin
-      lCount := CodeToolBoss.IdentifierList.GetFilteredCount;
-      for lIdx := 0 to lCount - 1 do
-      begin
-        lIdentifier := CodeToolBoss.IdentifierList.FilteredItems[lIdx];
-        if (lIdentifier = nil) or (lIdentifier.Identifier = '') then
-          Continue;
+    if not TNXPasCompletionHelper.CompletionPrefixAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value,
+      lPrefix) then
+      Exit;
 
-        NXLSAddCompletionItem(AResult, lSeen, lIdentifier.Identifier,
-          NXLSCompletionKind(lIdentifier), '');
-      end;
-    end;
-
-    NXLSAddSourceCompletions(AResult, lSeen, lCode, lPrefix);
+    FillSymbolCompletions(AResult, lPrefix, lSeen);
+    FillKeywordCompletions(AResult, lPrefix, lSeen);
   finally
+    lSource.Free;
     lSeen.Free;
   end;
 end;
@@ -369,124 +98,226 @@ end;
 function TNXLSCompletionService.FillSignatureHelp(
   AParams: TNXLSSignatureHelpParams; AResult: TNXLSSignatureHelp): Boolean;
 var
+  lCall: TNXPasCallContext;
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lContext: TCodeContextInfo;
-  lContextIdx: Integer;
-  lItem: TCodeContextInfoItem;
-  lExpr: TExpressionType;
-  lNode: TCodeTreeNode;
-  lTool: TFindDeclarationTool;
-  lSignature: TNXLSSignatureInformation;
-  lParameter: TNXLSParameterInformation;
-  lParams: string;
-  lResultType: string;
-  lParamList: TStringList;
-  lParamIdx: Integer;
-  lDeclCode: TCodeBuffer;
-  lDeclX: Integer;
-  lDeclY: Integer;
-  lTopLine: Integer;
+  lIdx: Integer;
+  lSignatures: TNXPasRoutineSignatureList;
+  lSource: TNXPasSourceFile;
 begin
   Result := False;
-  if AResult = nil then
-    Exit;
-  if (AParams = nil) or (AParams.textDocument = nil) or
-    (AParams.position = nil) then
+  if (AParams = nil) or (AParams.textDocument = nil) or (AResult = nil) then
     Exit;
 
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
-  lCode := lDocument.CodeBuffer;
-  if lCode = nil then
-    Exit;
-  if (AParams.position.line.Value < 0) or
-    (AParams.position.line.Value >= lCode.LineCount) then
-    Exit;
-
-  lContext := nil;
-  if not CodeToolBoss.FindCodeContext(lCode, AParams.position.character.Value + 1,
-    AParams.position.line.Value + 1, lContext) or (lContext = nil) or
-    (lContext.Count = 0) then
-  begin
-    if CodeToolBoss.FindMainDeclaration(lCode,
-      AParams.position.character.Value + 1, AParams.position.line.Value + 1,
-      lDeclCode, lDeclX, lDeclY, lTopLine) then
-    begin
-      AResult.activeSignature.Value := 0;
-      AResult.activeParameter.Value := 0;
-      NXLSAddSignatureFromHead(AResult,
-        Trim(lDeclCode.GetLine(lDeclY - 1)), 0);
-      AResult.signatures.Assigned := AResult.signatures.Count > 0;
-      AResult.Assigned := AResult.signatures.Count > 0;
-      Result := AResult.Assigned;
-    end;
-    if not Result then
-      Result := NXLSFillFallbackSignatureHelp(lCode,
-        AParams.position.character.Value + 1, AParams.position.line.Value,
-        AResult);
-    Exit;
-  end;
-
+  lCall := TNXPasCallContext.Create;
+  lSignatures := TNXPasRoutineSignatureList.Create(True);
+  lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
+    lDocument.Text);
   try
+    if TNXPasSignatureHelper.PositionIsInactive(lSource,
+      AParams.position.line.Value, AParams.position.character.Value) then
+      Exit;
+
+    if not TNXPasSignatureHelper.FindCallAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value, lCall) then
+      Exit;
+
+    FindSignatureCandidates(lCall.Name, lDocument.URI, lSignatures);
+    if lSignatures.Count = 0 then
+      Exit;
+
+    AResult.signatures.Assigned := True;
+    for lIdx := 0 to lSignatures.Count - 1 do
+      AddSignatureResult(AResult, lSignatures.SignatureAt(lIdx));
     AResult.activeSignature.Value := 0;
-    AResult.activeParameter.Value := lContext.ParameterIndex - 1;
-
-    for lContextIdx := 0 to lContext.Count - 1 do
-    begin
-      lItem := lContext[lContextIdx];
-      lExpr := lItem.Expr;
-      if (lExpr.Context.Node = nil) or
-        (not (lExpr.Context.Tool is TFindDeclarationTool)) then
-        Continue;
-
-      lNode := lExpr.Context.Node;
-      lTool := TFindDeclarationTool(lExpr.Context.Tool);
-      if lNode.Desc <> ctnProcedure then
-        Continue;
-
-      lResultType := lTool.ExtractProcHead(lNode,
-        [phpWithoutClassName, phpWithoutName, phpWithoutGenericParams,
-         phpWithoutParamList, phpWithoutParamTypes, phpWithoutBrackets,
-         phpWithoutSemicolon, phpWithResultType]);
-
-      lParams := lTool.ExtractProcHead(lNode,
-        [phpWithoutName, phpWithoutBrackets, phpWithoutSemicolon,
-         phpWithVarModifiers, phpWithParameterNames, phpWithDefaultValues]);
-
-      lSignature := TNXLSSignatureInformation(
-        AResult.signatures.AddObject(TNXLSSignatureInformation));
-      if lParams <> '' then
-        lSignature.&label.Value := lContext.ProcName + '(' + lParams + ')' + lResultType
-      else
-        lSignature.&label.Value := lContext.ProcName + lResultType;
-      lSignature.activeParameter.Value := lContext.ParameterIndex - 1;
-
-      lParamList := NXLSParseParamList(lParams);
-      try
-        for lParamIdx := 0 to lParamList.Count - 1 do
-        begin
-          lParameter := TNXLSParameterInformation(
-            lSignature.parameters.AddObject(TNXLSParameterInformation));
-          lParameter.&label.StringValue := lParamList[lParamIdx];
-          lParameter.Assigned := True;
-        end;
-      finally
-        lParamList.Free;
-      end;
-
-      lSignature.parameters.Assigned := lSignature.parameters.Count > 0;
-      lSignature.Assigned := True;
-    end;
-
-    AResult.signatures.Assigned := AResult.signatures.Count > 0;
-    AResult.Assigned := AResult.signatures.Count > 0;
-    Result := AResult.Assigned;
-    if not Result then
-      Result := NXLSFillFallbackSignatureHelp(lCode,
-        AParams.position.character.Value + 1, AParams.position.line.Value,
-        AResult);
+    AResult.activeParameter.Value := lCall.ActiveParameter;
+    AResult.Assigned := True;
+    Result := True;
   finally
-    lContext.Free;
+    lSource.Free;
+    lSignatures.Free;
+    lCall.Free;
+  end;
+end;
+
+procedure TNXLSCompletionService.AddSignatureResult(AResult: TNXLSSignatureHelp;
+  ASignature: TNXPasRoutineSignature);
+var
+  lIdx: Integer;
+  lParam: TNXLSParameterInformation;
+  lSignature: TNXLSSignatureInformation;
+begin
+  if (AResult = nil) or (ASignature = nil) then
+    Exit;
+
+  lSignature := TNXLSSignatureInformation(
+    AResult.signatures.AddObject(TNXLSSignatureInformation));
+  lSignature.&label.Value := ASignature.&Label;
+  lSignature.parameters.Assigned := True;
+  for lIdx := 0 to ASignature.Parameters.Count - 1 do
+  begin
+    lParam := TNXLSParameterInformation(
+      lSignature.parameters.AddObject(TNXLSParameterInformation));
+    lParam.&label.StringValue :=
+      ASignature.Parameters.ParameterAt(lIdx).&Label;
+    lParam.Assigned := True;
+  end;
+  lSignature.Assigned := True;
+end;
+
+procedure TNXLSCompletionService.AddCompletionItem(
+  AResult: TNXLSCompletionItemArray; const ALabel: string; AKind: Integer;
+  const ADetail: string; ASeen: TStrings);
+var
+  lItem: TNXLSCompletionItem;
+begin
+  if (AResult = nil) or (Trim(ALabel) = '') then
+    Exit;
+
+  if (ASeen <> nil) and (ASeen.IndexOf(ALabel) >= 0) then
+    Exit;
+
+  if ASeen <> nil then
+    ASeen.Add(ALabel);
+
+  lItem := TNXLSCompletionItem(AResult.AddObject(TNXLSCompletionItem));
+  lItem.&label.Value := ALabel;
+  if AKind > 0 then
+    lItem.kind.Value := AKind;
+  if ADetail <> '' then
+    lItem.detail.Value := ADetail;
+  lItem.Assigned := True;
+end;
+
+procedure TNXLSCompletionService.FillKeywordCompletions(
+  AResult: TNXLSCompletionItemArray; const APrefix: string; ASeen: TStrings);
+var
+  lIdx: Integer;
+  lKeywords: TStringList;
+begin
+  lKeywords := TStringList.Create;
+  try
+    TNXPasCompletionHelper.AddKeywordCompletions(lKeywords);
+    for lIdx := 0 to lKeywords.Count - 1 do
+      if (APrefix = '') or
+        (Pos(UpperCase(APrefix), UpperCase(lKeywords[lIdx])) = 1) then
+        AddCompletionItem(AResult, lKeywords[lIdx], 14, 'keyword', ASeen);
+  finally
+    lKeywords.Free;
+  end;
+end;
+
+procedure TNXLSCompletionService.FillSymbolCompletions(
+  AResult: TNXLSCompletionItemArray; const APrefix: string; ASeen: TStrings);
+var
+  lIdx: Integer;
+  lMatches: TNXPasWorkspaceSymbolMatchList;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+begin
+  lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
+  try
+    FWorkspaceIndex.QuerySymbols('', lMatches);
+    for lIdx := 0 to lMatches.Count - 1 do
+    begin
+      lMatch := lMatches.MatchAt(lIdx);
+      if (lMatch.Symbol = nil) or
+        (lMatch.Symbol.Kind in [pskUnknown, pskUsesUnit, pskVisibility]) then
+        Continue;
+      if (APrefix <> '') and
+        (Pos(UpperCase(APrefix), UpperCase(lMatch.Symbol.Name)) <> 1) then
+        Continue;
+
+      AddCompletionItem(AResult, lMatch.Symbol.Name,
+        SymbolCompletionKind(lMatch.Symbol.Kind),
+        NXPasSymbolKindName(lMatch.Symbol.Kind), ASeen);
+    end;
+  finally
+    lMatches.Free;
+  end;
+end;
+
+procedure TNXLSCompletionService.FindSignatureCandidates(const AName,
+  AURI: string; AResults: TNXPasRoutineSignatureList);
+var
+  lIdx: Integer;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+  lMatches: TNXPasWorkspaceSymbolMatchList;
+  lSignature: TNXPasRoutineSignature;
+begin
+  if (AResults = nil) or (Trim(AName) = '') then
+    Exit;
+
+  lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
+  try
+    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    for lIdx := 0 to lMatches.Count - 1 do
+    begin
+      lMatch := lMatches.MatchAt(lIdx);
+      if (lMatch.Symbol = nil) or (lMatch.Symbol.Kind <> pskRoutine) then
+        Continue;
+
+      lSignature := AResults.AddSignature;
+      if not TNXPasSignatureHelper.ExtractSignature(lMatch.FileRef,
+        lMatch.Symbol, lSignature) then
+        AResults.Remove(lSignature);
+    end;
+  finally
+    lMatches.Free;
+  end;
+end;
+
+function TNXLSCompletionService.SymbolCompletionKind(
+  AKind: TNXPasSymbolKind): Integer;
+begin
+  case AKind of
+    pskUnit:
+      Result := 9;
+    pskType:
+      Result := 7;
+    pskClass,
+    pskObject:
+      Result := 7;
+    pskRecord:
+      Result := 22;
+    pskInterface:
+      Result := 8;
+    pskRoutine:
+      Result := 3;
+    pskConst:
+      Result := 21;
+    pskVariable:
+      Result := 6;
+    pskField:
+      Result := 5;
+    pskProperty:
+      Result := 10;
+  else
+    Result := 1;
+  end;
+end;
+
+procedure TNXLSCompletionService.RebuildWorkspaceIndex;
+var
+  lIdx: Integer;
+begin
+  FWorkspaceIndex.Clear;
+  for lIdx := 0 to Model.DocumentCount - 1 do
+    ReindexDocument(Model.DocumentByIndex(lIdx));
+end;
+
+procedure TNXLSCompletionService.ReindexDocument(ADocument: TNXLSDocument);
+var
+  lSource: TNXPasSourceFile;
+begin
+  if ADocument = nil then
+    Exit;
+
+  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
+    ADocument.Text);
+  try
+    FWorkspaceIndex.UpdateSourceFile(lSource);
+  finally
+    lSource.Free;
   end;
 end;
 

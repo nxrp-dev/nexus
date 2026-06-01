@@ -15,7 +15,6 @@ type
   private
     FProgramFile: string;
     FFPCOptions: TStringList;
-    FCodeToolsConfig: string;
     FCheckSyntax: Boolean;
     FPublishDiagnostics: Boolean;
     FShowSyntaxErrors: Boolean;
@@ -35,7 +34,6 @@ type
 
     property ProgramFile: string read FProgramFile write FProgramFile;
     property FPCOptions: TStringList read FFPCOptions;
-    property CodeToolsConfig: string read FCodeToolsConfig write FCodeToolsConfig;
     property CheckSyntax: Boolean read FCheckSyntax write FCheckSyntax;
     property PublishDiagnostics: Boolean read FPublishDiagnostics write FPublishDiagnostics;
     property ShowSyntaxErrors: Boolean read FShowSyntaxErrors write FShowSyntaxErrors;
@@ -63,7 +61,6 @@ end;
 procedure TNXLSSettings.Clear;
 begin
   FProgramFile := '';
-  FCodeToolsConfig := '';
   FFPCOptions.Clear;
   FCheckSyntax := False;
   FPublishDiagnostics := False;
@@ -157,7 +154,6 @@ begin
 
     lObject := TJSONObject(lData);
     LoadStringValue(lObject, 'program', FProgramFile);
-    LoadStringValue(lObject, 'codeToolsConfig', FCodeToolsConfig);
     LoadStringArray(lObject.Find('fpcOptions'), FFPCOptions);
     LoadBooleanValue(lObject, 'checkSyntax', FCheckSyntax);
     LoadBooleanValue(lObject, 'publishDiagnostics', FPublishDiagnostics);
@@ -171,7 +167,6 @@ end;
 procedure TNXLSSettings.ExpandMacros(const ARootPath, ATempPath: string);
 begin
   FProgramFile := ExpandMacrosInString(FProgramFile, ARootPath, ATempPath);
-  FCodeToolsConfig := ExpandMacrosInString(FCodeToolsConfig, ARootPath, ATempPath);
   ExpandMacrosInStrings(FFPCOptions, ARootPath, ATempPath);
 end;
 

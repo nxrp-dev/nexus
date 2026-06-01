@@ -6,7 +6,6 @@ interface
 
 uses
   Classes,
-  CodeCache,
   obNXJSONValues,
   obNXJSONRPCMessages,
   obNXLSProtocolBase,
@@ -22,7 +21,6 @@ type
     FVersion: Int64;
     FText: string;
     FOpen: Boolean;
-    FCodeBuffer: TCodeBuffer;
   public
     procedure OpenFrom(AItem: TNXLSTextDocumentItem);
     procedure ApplyFullChange(AVersion: Int64; const AText: string);
@@ -35,7 +33,6 @@ type
     property Version: Int64 read FVersion;
     property Text: string read FText;
     property Open: Boolean read FOpen;
-    property CodeBuffer: TCodeBuffer read FCodeBuffer;
   end;
 
   TNXLSLSPContext = class
@@ -78,15 +75,13 @@ type
 
 function NXLSFileURIToPath(const AURI: string): string;
 function NXLSPathToFileURI(const AFileName: string): string;
-function NXLSLoadCodeBuffer(const ALocalPath: string): TCodeBuffer;
 function NXLSIsPascalSourceFile(const AFileName: string): Boolean;
 procedure NXLSSetPosition(APosition: TNXLSPosition; ALine, ACharacter: Integer);
 
 implementation
 
 uses
-  SysUtils,
-  CodeToolManager;
+  SysUtils;
 
 function NXLSHexValue(AChar: Char): Integer;
 begin
@@ -195,20 +190,6 @@ begin
     Result := Result + NXLSPathCharToURI(lPath[lIdx]);
 end;
 
-function NXLSLoadCodeBuffer(const ALocalPath: string): TCodeBuffer;
-begin
-  if ALocalPath = '' then
-    raise Exception.Create('Document local path is required.');
-
-  Result := CodeToolBoss.FindFile(ALocalPath);
-  if Result = nil then
-    Result := CodeToolBoss.LoadFile(ALocalPath, False, False);
-  if Result = nil then
-    Result := CodeToolBoss.CreateFile(ALocalPath);
-  if Result = nil then
-    raise Exception.CreateFmt('Unable to create CodeTools buffer for %s', [ALocalPath]);
-end;
-
 function NXLSIsPascalSourceFile(const AFileName: string): Boolean;
 var
   lExt: string;
@@ -246,8 +227,6 @@ begin
   FLanguageID := AItem.languageId.Value;
   FVersion := AItem.version.Value;
   FText := AItem.text.Value;
-  FCodeBuffer := NXLSLoadCodeBuffer(FLocalPath);
-  FCodeBuffer.Source := FText;
   FOpen := True;
 end;
 
@@ -255,18 +234,12 @@ procedure TNXLSDocument.ApplyFullChange(AVersion: Int64; const AText: string);
 begin
   FVersion := AVersion;
   FText := AText;
-  if FCodeBuffer = nil then
-    FCodeBuffer := NXLSLoadCodeBuffer(FLocalPath);
-  FCodeBuffer.Source := FText;
   FOpen := True;
 end;
 
 procedure TNXLSDocument.SaveText(const AText: string);
 begin
   FText := AText;
-  if FCodeBuffer = nil then
-    FCodeBuffer := NXLSLoadCodeBuffer(FLocalPath);
-  FCodeBuffer.Source := FText;
 end;
 
 procedure TNXLSDocument.Close;

@@ -7,7 +7,6 @@ interface
 uses
   Classes,
   Contnrs,
-  CodeToolsConfig,
   obNXJSONRPCMessages,
   obNXLSTransport,
   obNXLSOutboundDispatcher,
@@ -37,7 +36,6 @@ type
     FInitialized: Boolean;
     FShutdownRequested: Boolean;
     FExitRequested: Boolean;
-    FCodeToolsInitialized: Boolean;
     FProjectDir: string;
     FEffectiveFPCOptions: TStringList;
     FSettings: TNXLSSettings;
@@ -57,7 +55,7 @@ type
 
     function FindDocumentIndex(const AURI: string): Integer;
     function RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
-    procedure ConfigureCodeTools(AParams: TNXLSInitializeParams);
+    procedure ConfigureParserSettings(AParams: TNXLSInitializeParams);
   public
     constructor Create; virtual;
     destructor Destroy; override;
@@ -97,7 +95,6 @@ type
     property Initialized: Boolean read FInitialized;
     property ShutdownRequested: Boolean read FShutdownRequested;
     property ExitRequested: Boolean read FExitRequested;
-    property CodeToolsInitialized: Boolean read FCodeToolsInitialized;
     property ProjectDir: string read FProjectDir;
     property EffectiveFPCOptions: TStringList read FEffectiveFPCOptions;
     property Settings: TNXLSSettings read FSettings;
@@ -119,9 +116,7 @@ type
 implementation
 
 uses
-  SysUtils,
-  CodeToolManager,
-  IdentCompletionTool;
+  SysUtils;
 
 var
   gCurrentLSPModel: TNXLSLSPModel;
@@ -176,9 +171,8 @@ begin
   FInitialized := False;
   FShutdownRequested := False;
   FExitRequested := False;
-  ConfigureCodeTools(AParams);
+  ConfigureParserSettings(AParams);
   FSymbols.SetWorkspaceFolders(AParams);
-  FSymbols.RebuildWorkspaceIndex;
 end;
 
 function TNXLSLSPModel.RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
@@ -199,9 +193,7 @@ begin
     Result := '';
 end;
 
-procedure TNXLSLSPModel.ConfigureCodeTools(AParams: TNXLSInitializeParams);
-var
-  lOptions: TCodeToolsOptions;
+procedure TNXLSLSPModel.ConfigureParserSettings(AParams: TNXLSInitializeParams);
 begin
   if AParams = nil then
     Exit;
@@ -212,25 +204,6 @@ begin
 
   FEffectiveFPCOptions.Clear;
   FEffectiveFPCOptions.Assign(FSettings.FPCOptions);
-
-  lOptions := TCodeToolsOptions.Create;
-  try
-    lOptions.ProjectDir := FProjectDir;
-    lOptions.TargetOS := {$i %FPCTARGETOS%};
-    lOptions.TargetProcessor := {$i %FPCTARGETCPU%};
-    lOptions.InitWithEnvironmentVariables;
-
-    if (FSettings.CodeToolsConfig <> '') and FileExists(FSettings.CodeToolsConfig) then
-      lOptions.LoadFromFile(FSettings.CodeToolsConfig);
-
-    lOptions.FPCOptions := Trim(StringReplace(FEffectiveFPCOptions.Text, LineEnding, ' ', [rfReplaceAll]));
-    CodeToolBoss.Init(lOptions);
-    CodeToolBoss.IdentifierList.SortForHistory := True;
-    CodeToolBoss.IdentifierList.SortMethodForCompletion := icsScopedAlphabetic;
-    FCodeToolsInitialized := True;
-  finally
-    lOptions.Free;
-  end;
 end;
 
 procedure TNXLSLSPModel.MarkInitialized;
@@ -331,7 +304,7 @@ begin
   lDocument := RequireDocument(AParams.textDocument.uri.Value);
   if (AParams.text <> nil) and AParams.text.Assigned then
     lDocument.SaveText(AParams.text.Value)
-  else if lDocument.CodeBuffer = nil then
+  else
     lDocument.SaveText(lDocument.Text);
 end;
 
@@ -390,6 +363,8 @@ end;
 procedure TNXLSLSPModel.ReindexDocument(ADocument: TNXLSDocument);
 begin
   FSymbols.ReindexDocument(ADocument);
+  FNavigation.ReindexDocument(ADocument);
+  FCompletion.ReindexDocument(ADocument);
 end;
 
 procedure TNXLSLSPModel.AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
@@ -405,6 +380,8 @@ end;
 procedure TNXLSLSPModel.RebuildWorkspaceIndex;
 begin
   FSymbols.RebuildWorkspaceIndex;
+  FNavigation.RebuildWorkspaceIndex;
+  FCompletion.RebuildWorkspaceIndex;
 end;
 
 procedure TNXLSLSPModel.SendClientNotification(

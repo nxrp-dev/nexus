@@ -9,11 +9,32 @@ uses
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSProtocolObjects,
-  obNXLSServiceContext;
+  obNXLSServiceContext,
+  obNXPasLookup,
+  obNXPasWorkspaceIndex;
 
 type
   TNXLSNavigationService = class(TNXLSLSPService)
+  private
+    FWorkspaceIndex: TNXPasWorkspaceIndex;
+    procedure AddReferenceLocation(AResult: TNXLSLocationArray;
+      AMatch: TNXPasReferenceMatch);
+    function FindIdentifierAtParams(AParams: TNXLSTextDocumentPositionParams;
+      out ADocument: TNXLSDocument; out AName: string): Boolean;
+    function FindRoutinePair(const AName, AURI: string;
+      AImplementation: Boolean; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function FindSymbol(const AName, AURI: string;
+      out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function FillLocationFromSymbol(AMatch: TNXPasWorkspaceSymbolMatch;
+      AResult: TNXLSLocation): Boolean;
+    function ImplementationLine(AFile: TNXPasIndexedFile): Integer;
+    function IsImplementationSymbol(AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
+      AEndLine, AEndColumn: Integer);
   public
+    constructor Create(AModel: TNXLSLSPContext); override;
+    destructor Destroy; override;
+
     function FillDeclaration(AParams: TNXLSTextDocumentPositionParams;
       AResult: TNXLSLocation): Boolean; virtual;
     function FillDefinition(AParams: TNXLSTextDocumentPositionParams;
@@ -22,114 +43,53 @@ type
       AResult: TNXLSLocation): Boolean; virtual;
     procedure FillReferences(AParams: TNXLSReferenceParams;
       AResult: TNXLSLocationArray); virtual;
+    procedure RebuildWorkspaceIndex;
+    procedure ReindexDocument(ADocument: TNXLSDocument);
   end;
 
 implementation
 
 uses
-  SysUtils,
   Classes,
-  AVL_Tree,
-  BasicCodeTools,
-  CodeCache,
-  CodeToolManager,
-  CTUnitGraph,
-  FileUtil,
-  utNXLSServiceHelpers;
+  SysUtils,
+  obNXPasSymbols,
+  obNXPasSource;
 
-function NXLSFillLocation(AResult: TNXLSLocation; ACode: TCodeBuffer;
-  AX, AY: Integer): Boolean;
+constructor TNXLSNavigationService.Create(AModel: TNXLSLSPContext);
 begin
-  Result := False;
-  if AResult = nil then
-    Exit;
-
-  AResult.uri.Value := NXLSPathToFileURI(ACode.Filename);
-  NXLSSetIdentifierRange(AResult, ACode, AX, AY - 1);
-  AResult.Assigned := True;
-  Result := True;
+  inherited Create(AModel);
+  FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
 end;
 
-procedure NXLSAddReferenceLocation(ATarget: TNXJSONArray; ACode: TCodeBuffer;
-  AX, AY: Integer);
-var
-  lLocation: TNXLSLocation;
+destructor TNXLSNavigationService.Destroy;
 begin
-  lLocation := TNXLSLocation(ATarget.AddObject(TNXLSLocation));
-  lLocation.uri.Value := NXLSPathToFileURI(ACode.Filename);
-  NXLSSetIdentifierRange(lLocation, ACode, AX, AY - 1);
-  lLocation.Assigned := True;
-end;
-
-procedure NXLSAddTextScanReferences(ATarget: TNXJSONArray; AFiles: TStrings;
-  const AIdentifier: string);
-var
-  lFileIdx: Integer;
-  lLineIdx: Integer;
-  lPos: Integer;
-  lOffset: Integer;
-  lCode: TCodeBuffer;
-  lLine: string;
-begin
-  if AIdentifier = '' then
-    Exit;
-
-  for lFileIdx := 0 to AFiles.Count - 1 do
-  begin
-    lCode := NXLSLoadCodeBuffer(AFiles[lFileIdx]);
-    for lLineIdx := 0 to lCode.LineCount - 1 do
-    begin
-      lLine := lCode.GetLine(lLineIdx);
-      lOffset := 1;
-      lPos := Pos(AIdentifier, lLine);
-      while lPos > 0 do
-        begin
-          if NXLSWholeIdentifierAt(lLine, AIdentifier, lPos) then
-            NXLSAddReferenceLocation(ATarget, lCode, lPos, lLineIdx + 1);
-          lOffset := lPos + Length(AIdentifier);
-          lPos := Pos(AIdentifier, Copy(lLine, lOffset, MaxInt));
-          if lPos > 0 then
-            lPos := lPos + lOffset - 1;
-      end;
-    end;
-  end;
+  FreeAndNil(FWorkspaceIndex);
+  inherited Destroy;
 end;
 
 function TNXLSNavigationService.FillDeclaration(
   AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lNewCode: TCodeBuffer;
-  lNewX: Integer;
-  lNewY: Integer;
-  lNewTopLine: Integer;
-  lBlockTopLine: Integer;
-  lBlockBottomLine: Integer;
-  lIdentifier: string;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+  lName: string;
 begin
   Result := False;
-  if AResult = nil then
-    Exit;
-  if (AParams = nil) or (AParams.textDocument = nil) or (AParams.position = nil) then
+  if not FindIdentifierAtParams(AParams, lDocument, lName) then
     Exit;
 
-  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
-  lCode := lDocument.CodeBuffer;
-  if lCode = nil then
-    Exit;
+  if FindRoutinePair(lName, lDocument.URI, False, lMatch) then
+  try
+    Exit(FillLocationFromSymbol(lMatch, AResult));
+  finally
+    lMatch.Free;
+  end;
 
-  if CodeToolBoss.FindDeclaration(lCode, AParams.position.character.Value + 1,
-    AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
-    lBlockTopLine, lBlockBottomLine) then
-  begin
-    lIdentifier := NXLSIdentifierAt(lCode, AParams.position.character.Value + 1,
-      AParams.position.line.Value);
-    if lIdentifier <> '' then
-      CodeToolBoss.FindDeclarationInInterface(lNewCode, lIdentifier, lNewCode,
-        lNewX, lNewY, lNewTopLine, lBlockTopLine, lBlockBottomLine);
-
-    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
+  if FindSymbol(lName, lDocument.URI, lMatch) then
+  try
+    Result := FillLocationFromSymbol(lMatch, AResult);
+  finally
+    lMatch.Free;
   end;
 end;
 
@@ -137,204 +97,257 @@ function TNXLSNavigationService.FillDefinition(
   AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lNewCode: TCodeBuffer;
-  lNewX: Integer;
-  lNewY: Integer;
-  lNewTopLine: Integer;
-  lBlockTopLine: Integer;
-  lBlockBottomLine: Integer;
-  lIdentifier: string;
-  lDeclCode: TCodeBuffer;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+  lName: string;
 begin
   Result := False;
-  if AResult = nil then
-    Exit;
-  if (AParams = nil) or (AParams.textDocument = nil) or (AParams.position = nil) then
+  if not FindIdentifierAtParams(AParams, lDocument, lName) then
     Exit;
 
-  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
-  lCode := lDocument.CodeBuffer;
-  if lCode = nil then
-    Exit;
-
-  if CodeToolBoss.FindMainDeclaration(lCode, AParams.position.character.Value + 1,
-    AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine) then
-  begin
-    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
-    Exit;
+  if FindSymbol(lName, lDocument.URI, lMatch) then
+  try
+    Result := FillLocationFromSymbol(lMatch, AResult);
+  finally
+    lMatch.Free;
   end;
-
-  if CodeToolBoss.FindDeclaration(lCode, AParams.position.character.Value + 1,
-    AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
-    lBlockTopLine, lBlockBottomLine) then
-  begin
-    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
-    Exit;
-  end;
-
-  lIdentifier := NXLSIdentifierNear(lCode, AParams.position.character.Value + 1,
-    AParams.position.line.Value);
-  if NXLSFindTypeDeclaration(lCode, lIdentifier, lNewX, lNewY) then
-  begin
-    Result := NXLSFillLocation(AResult, lCode, lNewX, lNewY);
-    Exit;
-  end;
-
-  if NXLSFindRoutineDeclarationInUses(lCode, lIdentifier, lDeclCode, lNewX,
-    lNewY) then
-    Result := NXLSFillLocation(AResult, lDeclCode, lNewX, lNewY);
 end;
 
 function TNXLSNavigationService.FillImplementationLocation(
   AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lNewCode: TCodeBuffer;
-  lNewX: Integer;
-  lNewY: Integer;
-  lNewTopLine: Integer;
-  lBlockTopLine: Integer;
-  lBlockBottomLine: Integer;
-  lRevertableJump: Boolean;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+  lName: string;
 begin
   Result := False;
-  if AResult = nil then
-    Exit;
-  if (AParams = nil) or (AParams.textDocument = nil) or
-    (AParams.position = nil) then
+  if not FindIdentifierAtParams(AParams, lDocument, lName) then
     Exit;
 
-  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
-  lCode := lDocument.CodeBuffer;
-  if lCode = nil then
-    Exit;
-
-  if CodeToolBoss.JumpToMethod(lCode, AParams.position.character.Value + 1,
-    AParams.position.line.Value + 1, lNewCode, lNewX, lNewY, lNewTopLine,
-    lBlockTopLine, lBlockBottomLine, lRevertableJump) then
-    Result := NXLSFillLocation(AResult, lNewCode, lNewX, lNewY);
+  if FindRoutinePair(lName, lDocument.URI, True, lMatch) then
+  try
+    Result := FillLocationFromSymbol(lMatch, AResult);
+  finally
+    lMatch.Free;
+  end;
 end;
 
 procedure TNXLSNavigationService.FillReferences(AParams: TNXLSReferenceParams;
   AResult: TNXLSLocationArray);
 var
   lDocument: TNXLSDocument;
-  lStartCode: TCodeBuffer;
-  lDeclCode: TCodeBuffer;
-  lSearchCode: TCodeBuffer;
-  lTree: TAVLTree;
-  lList: TFPList;
-  lCache: TFindIdentifierReferenceCache;
-  lNode: TAVLTreeNode;
-  lCodePos: PCodeXYPosition;
-  lFiles: TStringList;
-  lIdx: Integer;
-  lDeclX: Integer;
-  lDeclY: Integer;
-  lDeclTopLine: Integer;
+  lIdentifierRange: TNXPasSourceRange;
   lIncludeDeclaration: Boolean;
-  lIdentifier: string;
-  lHasDeclaration: Boolean;
+  lIdx: Integer;
+  lName: string;
+  lReferences: TNXPasReferenceMatchList;
+  lSource: TNXPasSourceFile;
 begin
   if AResult = nil then
     Exit;
-  if (AParams = nil) or (AParams.textDocument = nil) or
-    (AParams.position = nil) then
+
+  AResult.Assigned := True;
+  if (AParams = nil) or (AParams.textDocument = nil) then
     Exit;
 
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
-  lStartCode := lDocument.CodeBuffer;
-  if lStartCode = nil then
+  lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
+    lDocument.Text);
+  lReferences := TNXPasReferenceMatchList.Create(True);
+  try
+    if not TNXPasLookup.IdentifierAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value, lName,
+      lIdentifierRange) then
+      Exit;
+
+    lIncludeDeclaration := True;
+    if (AParams.context <> nil) and (AParams.context.includeDeclaration <> nil)
+      and AParams.context.includeDeclaration.Assigned then
+      lIncludeDeclaration := AParams.context.includeDeclaration.Value;
+
+    TNXPasLookup.FindReferences(FWorkspaceIndex, lName, lIncludeDeclaration,
+      lReferences);
+    for lIdx := 0 to lReferences.Count - 1 do
+      AddReferenceLocation(AResult, lReferences.MatchAt(lIdx));
+  finally
+    lReferences.Free;
+    lSource.Free;
+  end;
+end;
+
+function TNXLSNavigationService.FindIdentifierAtParams(
+  AParams: TNXLSTextDocumentPositionParams; out ADocument: TNXLSDocument;
+  out AName: string): Boolean;
+var
+  lIdentifierRange: TNXPasSourceRange;
+  lSource: TNXPasSourceFile;
+begin
+  Result := False;
+  ADocument := nil;
+  AName := '';
+  if (AParams = nil) or (AParams.textDocument = nil) then
     Exit;
 
-  lHasDeclaration := CodeToolBoss.FindMainDeclaration(lStartCode,
-    AParams.position.character.Value + 1, AParams.position.line.Value + 1,
-    lDeclCode, lDeclX, lDeclY, lDeclTopLine);
-
-  if lHasDeclaration then
-  begin
-    CodeToolBoss.GetIdentifierAt(lDeclCode, lDeclX, lDeclY, lIdentifier);
-    if lIdentifier = '' then
-      lIdentifier := NXLSIdentifierNear(lDeclCode, lDeclX, lDeclY - 1);
-  end
-  else
-  begin
-    lDeclCode := lStartCode;
-    lDeclX := AParams.position.character.Value + 1;
-    lDeclY := AParams.position.line.Value + 1;
-    lIdentifier := NXLSIdentifierNear(lStartCode, lDeclX,
-      AParams.position.line.Value);
-  end;
-
-  lIncludeDeclaration := True;
-  if (AParams.context <> nil) and AParams.context.includeDeclaration.Assigned then
-    lIncludeDeclaration := AParams.context.includeDeclaration.Value;
-
-  lFiles := TStringList.Create;
-  lTree := nil;
-  lList := nil;
-  lCache := nil;
+  ADocument := Model.RequireDocument(AParams.textDocument.uri.Value);
+  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
+    ADocument.Text);
   try
-    lFiles.Sorted := True;
-    lFiles.Duplicates := dupIgnore;
-    lFiles.Add(lStartCode.Filename);
-    if lHasDeclaration and
-      (CompareText(lDeclCode.Filename, lStartCode.Filename) <> 0) then
-      lFiles.Add(lDeclCode.Filename);
-    if DirectoryExists(ExtractFileDir(lStartCode.Filename)) then
-      FindAllFiles(lFiles, ExtractFileDir(lStartCode.Filename),
-        '*.pas;*.pp;*.p;*.lpr;*.inc', True);
+    Result := TNXPasLookup.IdentifierAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value, AName,
+      lIdentifierRange);
+  finally
+    lSource.Free;
+  end;
+end;
 
-    if lHasDeclaration then
+function TNXLSNavigationService.FindSymbol(const AName, AURI: string;
+  out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+var
+  lMatches: TNXPasWorkspaceSymbolMatchList;
+begin
+  Result := False;
+  AMatch := nil;
+  lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
+  try
+    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    if lMatches.Count = 0 then
+      Exit;
+
+    AMatch := lMatches.MatchAt(0);
+    lMatches.Extract(AMatch);
+    Result := True;
+  finally
+    lMatches.Free;
+  end;
+end;
+
+function TNXLSNavigationService.FindRoutinePair(const AName, AURI: string;
+  AImplementation: Boolean; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+var
+  lIdx: Integer;
+  lMatches: TNXPasWorkspaceSymbolMatchList;
+  lMatch: TNXPasWorkspaceSymbolMatch;
+begin
+  Result := False;
+  AMatch := nil;
+  lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
+  try
+    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    for lIdx := 0 to lMatches.Count - 1 do
     begin
-      for lIdx := 0 to lFiles.Count - 1 do
+      lMatch := lMatches.MatchAt(lIdx);
+      if (lMatch.FileRef = nil) or (lMatch.Symbol = nil) or
+        (not SameText(lMatch.FileRef.URI, AURI)) or
+        (lMatch.Symbol.Kind <> pskRoutine) then
+        Continue;
+
+      if IsImplementationSymbol(lMatch) = AImplementation then
       begin
-        lSearchCode := NXLSLoadCodeBuffer(lFiles[lIdx]);
-        CodeToolBoss.FreeListOfPCodeXYPosition(lList);
-        lList := nil;
-        if not CodeToolBoss.FindReferences(lDeclCode, lDeclX, lDeclY,
-          lSearchCode, True, lList, lCache) then
-          Continue;
-
-        if lList = nil then
-          Continue;
-
-        if lTree = nil then
-          lTree := TAVLTree(CodeToolBoss.CreateTreeOfPCodeXYPosition);
-        CodeToolBoss.AddListToTreeOfPCodeXYPosition(lList, lTree, True, False);
+        AMatch := lMatch;
+        lMatches.Extract(AMatch);
+        Exit(True);
       end;
-
-      if lTree <> nil then
-      begin
-        lNode := TAVLTreeNode(lTree.FindLowest);
-        while lNode <> nil do
-        begin
-          lCodePos := PCodeXYPosition(lNode.Data);
-          if lIncludeDeclaration or
-            (CompareText(lCodePos^.Code.Filename, lDeclCode.Filename) <> 0) or
-            (lCodePos^.X <> lDeclX) or (lCodePos^.Y <> lDeclY) then
-          begin
-            NXLSAddReferenceLocation(AResult, lCodePos^.Code,
-              lCodePos^.X, lCodePos^.Y);
-          end;
-          lNode := TAVLTreeNode(lTree.FindSuccessor(lNode));
-        end;
-      end;
-    end;
-
-    if AResult.Count < 2 then
-    begin
-      AResult.Clear;
-      NXLSAddTextScanReferences(AResult, lFiles, lIdentifier);
     end;
   finally
-    lFiles.Free;
-    CodeToolBoss.FreeListOfPCodeXYPosition(lList);
-    CodeToolBoss.FreeTreeOfPCodeXYPosition(lTree);
-    lCache.Free;
+    lMatches.Free;
   end;
+end;
+
+function TNXLSNavigationService.FillLocationFromSymbol(
+  AMatch: TNXPasWorkspaceSymbolMatch; AResult: TNXLSLocation): Boolean;
+var
+  lRange: TNXPasSourceRange;
+begin
+  Result := (AMatch <> nil) and (AMatch.FileRef <> nil) and
+    (AMatch.Symbol <> nil) and (AResult <> nil);
+  if not Result then
+    Exit;
+
+  lRange := AMatch.Symbol.Range;
+  TNXPasLookup.FindSymbolIdentifierRange(AMatch.FileRef, AMatch.Symbol.Name,
+    AMatch.Symbol.Range, lRange);
+
+  AResult.uri.Value := AMatch.FileRef.URI;
+  SetRange(AResult.range, lRange.StartPos.Line, lRange.StartPos.Column,
+    lRange.EndPos.Line, lRange.EndPos.Column);
+  AResult.Assigned := True;
+end;
+
+function TNXLSNavigationService.ImplementationLine(
+  AFile: TNXPasIndexedFile): Integer;
+var
+  lIdx: Integer;
+  lLines: TStringList;
+begin
+  Result := MaxInt;
+  if AFile = nil then
+    Exit;
+
+  lLines := TStringList.Create;
+  try
+    lLines.Text := AFile.Text;
+    for lIdx := 0 to lLines.Count - 1 do
+      if SameText(Trim(lLines[lIdx]), 'implementation') then
+        Exit(lIdx);
+  finally
+    lLines.Free;
+  end;
+end;
+
+function TNXLSNavigationService.IsImplementationSymbol(
+  AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+begin
+  Result := (AMatch <> nil) and (AMatch.FileRef <> nil) and
+    (AMatch.Symbol <> nil) and
+    (AMatch.Symbol.Range.StartPos.Line > ImplementationLine(AMatch.FileRef));
+end;
+
+procedure TNXLSNavigationService.AddReferenceLocation(AResult: TNXLSLocationArray;
+  AMatch: TNXPasReferenceMatch);
+var
+  lLocation: TNXLSLocation;
+begin
+  if (AResult = nil) or (AMatch = nil) or (AMatch.FileRef = nil) then
+    Exit;
+
+  lLocation := TNXLSLocation(AResult.AddObject(TNXLSLocation));
+  lLocation.uri.Value := AMatch.FileRef.URI;
+  SetRange(lLocation.range, AMatch.Range.StartPos.Line,
+    AMatch.Range.StartPos.Column, AMatch.Range.EndPos.Line,
+    AMatch.Range.EndPos.Column);
+  lLocation.Assigned := True;
+end;
+
+procedure TNXLSNavigationService.RebuildWorkspaceIndex;
+var
+  lIdx: Integer;
+begin
+  FWorkspaceIndex.Clear;
+  for lIdx := 0 to Model.DocumentCount - 1 do
+    ReindexDocument(Model.DocumentByIndex(lIdx));
+end;
+
+procedure TNXLSNavigationService.ReindexDocument(ADocument: TNXLSDocument);
+var
+  lSource: TNXPasSourceFile;
+begin
+  if ADocument = nil then
+    Exit;
+
+  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
+    ADocument.Text);
+  try
+    FWorkspaceIndex.UpdateSourceFile(lSource);
+  finally
+    lSource.Free;
+  end;
+end;
+
+procedure TNXLSNavigationService.SetRange(ARange: TNXLSRange; AStartLine,
+  AStartColumn, AEndLine, AEndColumn: Integer);
+begin
+  NXLSSetPosition(ARange.start, AStartLine, AStartColumn);
+  NXLSSetPosition(ARange.&end, AEndLine, AEndColumn);
+  ARange.Assigned := True;
 end;
 
 end.

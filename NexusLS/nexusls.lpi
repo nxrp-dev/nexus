@@ -68,7 +68,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;..\NexusLib\src;..\lib\synapse;C:\lazarus\components\codetools;C:\lazarus\components\lazutils"/>
+      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;..\NexusLib\src;..\lib\synapse;C:\lazarus\components\lazutils"/>
       <UnitOutputDirectory Value="..\output\NexusLS\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
@@ -85,16 +85,13 @@
     </Linking>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="3">
+    <Exceptions Count="2">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
       <Item2>
-        <Name Value="ECodetoolError"/>
-      </Item2>
-      <Item3>
         <Name Value="EFOpenError"/>
-      </Item3>
+      </Item2>
     </Exceptions>
   </Debugging>
 </CONFIG>

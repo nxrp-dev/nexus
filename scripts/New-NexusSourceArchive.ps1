@@ -1,6 +1,7 @@
 param(
   [string]$OutputDirectory,
-  [string]$ArchiveName
+  [string]$ArchiveName,
+  [string[]]$IncludeFolders
 )
 
 $ErrorActionPreference = 'Stop'
@@ -22,7 +23,7 @@ $StagePath = Join-Path $env:TEMP ('nexus-source-chatgpt-{0}' -f ([guid]::NewGuid
 $ArchiveFileNamePattern = '^nexus-source-chatgpt-\d{8}-\d{6}\.zip$'
 $ExternalNexusPascalRoot = 'C:\gitdev\tools\nexus-pascal'
 
-$SourceRoots = @(
+$DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLib'); ArchivePath = 'NexusLib' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusUI'); ArchivePath = 'NexusUI' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusTest'); ArchivePath = 'NexusTest' },
@@ -34,7 +35,7 @@ $SourceRoots = @(
   [pscustomobject]@{ SourcePath = $ExternalNexusPascalRoot; ArchivePath = 'tools\nexus-pascal' }
 )
 
-$SourceFiles = @(
+$DefaultSourceFiles = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'AGENTS.md'); ArchivePath = 'AGENTS.md' }
 )
 
@@ -119,6 +120,67 @@ function Test-SourceFileIncluded {
     ($SourceFileNames -contains $SourceFile.Name)
 }
 
+function Test-PathWithinDirectory {
+  param(
+    [string]$BasePath,
+    [string]$ChildPath
+  )
+
+  $lBasePath = [System.IO.Path]::GetFullPath($BasePath).TrimEnd(
+    [System.IO.Path]::DirectorySeparatorChar,
+    [System.IO.Path]::AltDirectorySeparatorChar
+  ) + [System.IO.Path]::DirectorySeparatorChar
+  $lChildPath = [System.IO.Path]::GetFullPath($ChildPath)
+
+  return $lChildPath.StartsWith($lBasePath, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Get-SelectedSourceRoots {
+  param(
+    [string[]]$Folders
+  )
+
+  if (($null -eq $Folders) -or ($Folders.Count -eq 0)) {
+    return $DefaultSourceRoots
+  }
+
+  $lSourceRoots = @()
+  foreach ($Folder in $Folders) {
+    if ([string]::IsNullOrWhiteSpace($Folder)) {
+      continue
+    }
+
+    $lFolder = $Folder.Trim()
+    if ([System.IO.Path]::IsPathRooted($lFolder)) {
+      $lSourcePath = [System.IO.Path]::GetFullPath($lFolder)
+    }
+    else {
+      $lSourcePath = [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $lFolder))
+    }
+
+    $lSelectedRoot = $DefaultSourceRoots | Where-Object {
+      ($_.ArchivePath -ieq $lFolder) -or
+        ([System.IO.Path]::GetFullPath($_.SourcePath) -ieq $lSourcePath)
+    } | Select-Object -First 1
+
+    if ($null -ne $lSelectedRoot) {
+      $lSourceRoots += $lSelectedRoot
+      continue
+    }
+
+    if (Test-PathWithinDirectory -BasePath $RepositoryRoot -ChildPath $lSourcePath) {
+      $lArchivePath = Get-RelativePath -BasePath $RepositoryRoot -ChildPath $lSourcePath
+    }
+    else {
+      $lArchivePath = Split-Path -Leaf $lSourcePath
+    }
+
+    $lSourceRoots += [pscustomobject]@{ SourcePath = $lSourcePath; ArchivePath = $lArchivePath }
+  }
+
+  return $lSourceRoots
+}
+
 function Test-SourceFileExcluded {
   param(
     [System.IO.FileInfo]$SourceFile,
@@ -183,6 +245,12 @@ if (Test-Path -LiteralPath $StagePath) {
 New-Item -ItemType Directory -Force -Path $StagePath | Out-Null
 
 $FileCount = 0
+$SourceRoots = Get-SelectedSourceRoots -Folders $IncludeFolders
+$SourceFiles = @()
+
+if (($null -eq $IncludeFolders) -or ($IncludeFolders.Count -eq 0)) {
+  $SourceFiles = $DefaultSourceFiles
+}
 
 try {
   foreach ($SourceRoot in $SourceRoots) {

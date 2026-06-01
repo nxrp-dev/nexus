@@ -18,6 +18,7 @@ uses
   jsonparser,
   obNXLSTransport,
   obNXLSLSPModel,
+  obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
   obNXLSServiceContext,
@@ -131,7 +132,8 @@ begin
 end;
 
 procedure NXLSConfigureDiagnostics(AModel: TNXLSLSPModel; ARootPath: string;
-  ACheckSyntax, APublishDiagnostics, AShowSyntaxErrors: Boolean);
+  ACheckSyntax, APublishDiagnostics, AShowSyntaxErrors: Boolean;
+  ACheckInactiveRegions: Boolean = False);
 var
   lParams: TNXLSInitializeParams;
   lOptions: TJSONObject;
@@ -151,7 +153,7 @@ begin
       lOptions.Add('checkSyntax', ACheckSyntax);
       lOptions.Add('publishDiagnostics', APublishDiagnostics);
       lOptions.Add('showSyntaxErrors', AShowSyntaxErrors);
-      lOptions.Add('checkInactiveRegions', False);
+      lOptions.Add('checkInactiveRegions', ACheckInactiveRegions);
       lParams.initializationOptions.FromJSONData(lOptions);
     finally
       lOptions.Free;
@@ -279,6 +281,151 @@ begin
       lDiagnostics := lParams.Arrays['diagnostics'];
       AContext.AssertTrue(lDiagnostics.Count > 0,
         'Invalid Pascal should produce at least one diagnostic.');
+      AContext.AssertEquals('NexusPas',
+        lDiagnostics.Objects[0].Strings['source'],
+        'Parser diagnostics should identify NexusPas as the source.');
+    finally
+      lNotification.Free;
+    end;
+  finally
+    lModel.Transport := nil;
+    lTransport.Free;
+    lModel.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestFixedDocumentClearsDiagnostics(AContext: TNXTestContext);
+var
+  lChange: TNXLSContentChange;
+  lParams: TNXLSDidChangeTextDocumentParams;
+  lModel: TNXLSLSPModel;
+  lTransport: TNXLSTestTransport;
+  lRoot: string;
+  lFileName: string;
+  lNotification: TJSONObject;
+  lDiagnostics: TJSONArray;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlsdiag');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'DiagnosticsUnit.pas';
+  NXLSWriteTextFile(lFileName, cInvalidUnit);
+  lModel := TNXLSLSPModel.Create;
+  lTransport := TNXLSTestTransport.Create;
+  lParams := TNXLSDidChangeTextDocumentParams.Create;
+  try
+    lTransport.Open;
+    lModel.Transport := lTransport;
+    NXLSConfigureDiagnostics(lModel, lRoot, True, True, False);
+    NXLSOpenDocument(lModel, lFileName, cInvalidUnit);
+    lTransport.Clear;
+
+    lParams.textDocument.uri.Value := NXLSPathToFileURI(lFileName);
+    lParams.textDocument.version.Value := 2;
+    lChange := TNXLSContentChange(lParams.contentChanges.AddObject(TNXLSContentChange));
+    lChange.text.Value := cValidUnit;
+    lModel.Documents.DidChange(lParams);
+
+    lNotification := NXLSLastNotification(AContext, lTransport);
+    try
+      lDiagnostics := lNotification.Objects['params'].Arrays['diagnostics'];
+      AContext.AssertEquals(0, lDiagnostics.Count,
+        'Fixed Pascal should publish an empty diagnostics array.');
+    finally
+      lNotification.Free;
+    end;
+  finally
+    lParams.Free;
+    lModel.Transport := nil;
+    lTransport.Free;
+    lModel.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestInactiveMalformedDoesNotPublishSyntaxDiagnostic(
+  AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lTransport: TNXLSTestTransport;
+  lRoot: string;
+  lFileName: string;
+  lNotification: TJSONObject;
+  lDiagnostics: TJSONArray;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlsdiag');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'DiagnosticsUnit.pas';
+  lModel := TNXLSLSPModel.Create;
+  lTransport := TNXLSTestTransport.Create;
+  try
+    lTransport.Open;
+    lModel.Transport := lTransport;
+    NXLSConfigureDiagnostics(lModel, lRoot, True, True, False);
+    NXLSOpenDocument(lModel, lFileName,
+      'unit DiagnosticsUnit;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      'type' + LineEnding +
+      '  TBroken = class' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+
+    lNotification := NXLSLastNotification(AContext, lTransport);
+    try
+      lDiagnostics := lNotification.Objects['params'].Arrays['diagnostics'];
+      AContext.AssertEquals(0, lDiagnostics.Count,
+        'Inactive malformed source should not publish active syntax diagnostics.');
+    finally
+      lNotification.Free;
+    end;
+  finally
+    lModel.Transport := nil;
+    lTransport.Free;
+    lModel.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestMissingEndIfPublishesDirectiveDiagnostic(AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lTransport: TNXLSTestTransport;
+  lRoot: string;
+  lFileName: string;
+  lNotification: TJSONObject;
+  lDiagnostics: TJSONArray;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlsdiag');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'DiagnosticsUnit.pas';
+  lModel := TNXLSLSPModel.Create;
+  lTransport := TNXLSTestTransport.Create;
+  try
+    lTransport.Open;
+    lModel.Transport := lTransport;
+    NXLSConfigureDiagnostics(lModel, lRoot, True, True, False);
+    NXLSOpenDocument(lModel, lFileName,
+      'unit DiagnosticsUnit;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      'type' + LineEnding +
+      '  THidden = class end;' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+
+    lNotification := NXLSLastNotification(AContext, lTransport);
+    try
+      lDiagnostics := lNotification.Objects['params'].Arrays['diagnostics'];
+      AContext.AssertTrue(lDiagnostics.Count > 0,
+        'Missing ENDIF should publish a directive diagnostic.');
+      AContext.AssertEquals('nxpas.directive.missingEndIf',
+        lDiagnostics.Objects[0].Strings['code'],
+        'Missing ENDIF diagnostic should preserve the stable code.');
     finally
       lNotification.Free;
     end;
@@ -330,6 +477,144 @@ begin
   end;
 end;
 
+procedure TestUndefinedIfdefPublishesInactiveRegion(AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lTransport: TNXLSTestTransport;
+  lRoot: string;
+  lFileName: string;
+  lNotification: TJSONObject;
+  lRegions: TJSONArray;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlsdiag');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'DiagnosticsUnit.pas';
+  lModel := TNXLSLSPModel.Create;
+  lTransport := TNXLSTestTransport.Create;
+  try
+    lTransport.Open;
+    lModel.Transport := lTransport;
+    NXLSConfigureDiagnostics(lModel, lRoot, True, False, False, True);
+    NXLSOpenDocument(lModel, lFileName,
+      'unit DiagnosticsUnit;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      'type THidden = class end;' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+
+    lNotification := NXLSLastNotification(AContext, lTransport);
+    try
+      AContext.AssertEquals('pasls.inactiveRegions',
+        lNotification.Strings['method'],
+        'Inactive regions should use the inactive-region notification.');
+      lRegions := lNotification.Objects['params'].Arrays['regions'];
+      AContext.AssertEquals(1, lRegions.Count,
+        'Undefined IFDEF branch should publish one inactive region.');
+    finally
+      lNotification.Free;
+    end;
+  finally
+    lModel.Transport := nil;
+    lTransport.Free;
+    lModel.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestDefinedIfdefDoesNotPublishInactiveRegion(AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lTransport: TNXLSTestTransport;
+  lRoot: string;
+  lFileName: string;
+  lNotification: TJSONObject;
+  lRegions: TJSONArray;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlsdiag');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'DiagnosticsUnit.pas';
+  lModel := TNXLSLSPModel.Create;
+  lTransport := TNXLSTestTransport.Create;
+  try
+    lTransport.Open;
+    lModel.Transport := lTransport;
+    NXLSConfigureDiagnostics(lModel, lRoot, True, False, False, True);
+    NXLSOpenDocument(lModel, lFileName,
+      '{$DEFINE KNOWN}' + LineEnding +
+      'unit DiagnosticsUnit;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF KNOWN}' + LineEnding +
+      'type TVisible = class end;' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+
+    lNotification := NXLSLastNotification(AContext, lTransport);
+    try
+      lRegions := lNotification.Objects['params'].Arrays['regions'];
+      AContext.AssertEquals(0, lRegions.Count,
+        'Defined IFDEF branch should not publish inactive regions.');
+    finally
+      lNotification.Free;
+    end;
+  finally
+    lModel.Transport := nil;
+    lTransport.Free;
+    lModel.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestElsePublishesInactiveBranchRegion(AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lTransport: TNXLSTestTransport;
+  lRoot: string;
+  lFileName: string;
+  lNotification: TJSONObject;
+  lRegions: TJSONArray;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlsdiag');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'DiagnosticsUnit.pas';
+  lModel := TNXLSLSPModel.Create;
+  lTransport := TNXLSTestTransport.Create;
+  try
+    lTransport.Open;
+    lModel.Transport := lTransport;
+    NXLSConfigureDiagnostics(lModel, lRoot, True, False, False, True);
+    NXLSOpenDocument(lModel, lFileName,
+      'unit DiagnosticsUnit;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      'type THidden = class end;' + LineEnding +
+      '{$ELSE}' + LineEnding +
+      'type TVisible = class end;' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+
+    lNotification := NXLSLastNotification(AContext, lTransport);
+    try
+      lRegions := lNotification.Objects['params'].Arrays['regions'];
+      AContext.AssertEquals(1, lRegions.Count,
+        'ELSE should flip branch activity and publish the inactive branch.');
+    finally
+      lNotification.Free;
+    end;
+  finally
+    lModel.Transport := nil;
+    lTransport.Free;
+    lModel.Free;
+    if FileExists(lFileName) then
+      DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
 procedure RegisterNXLSDiagnosticsTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -342,6 +627,18 @@ begin
     @TestInvalidDocumentPublishesDiagnostic);
   lSuite.AddTest('ValidDocumentClearsDiagnostics',
     @TestValidDocumentClearsDiagnostics);
+  lSuite.AddTest('FixedDocumentClearsDiagnostics',
+    @TestFixedDocumentClearsDiagnostics);
+  lSuite.AddTest('InactiveMalformedDoesNotPublishSyntaxDiagnostic',
+    @TestInactiveMalformedDoesNotPublishSyntaxDiagnostic);
+  lSuite.AddTest('MissingEndIfPublishesDirectiveDiagnostic',
+    @TestMissingEndIfPublishesDirectiveDiagnostic);
+  lSuite.AddTest('UndefinedIfdefPublishesInactiveRegion',
+    @TestUndefinedIfdefPublishesInactiveRegion);
+  lSuite.AddTest('DefinedIfdefDoesNotPublishInactiveRegion',
+    @TestDefinedIfdefDoesNotPublishInactiveRegion);
+  lSuite.AddTest('ElsePublishesInactiveBranchRegion',
+    @TestElsePublishesInactiveBranchRegion);
 end;
 
 end.

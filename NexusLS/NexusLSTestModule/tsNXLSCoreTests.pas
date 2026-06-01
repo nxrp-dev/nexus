@@ -118,7 +118,7 @@ begin
   ForceDirectories(Result);
 end;
 
-procedure TestInitializeConfiguresCodeToolsWithExplicitPaths(AContext: TNXTestContext);
+procedure TestInitializeLoadsExplicitPaths(AContext: TNXTestContext);
 var
   lModel: TNXLSLSPModel;
   lParams: TNXLSInitializeParams;
@@ -166,14 +166,12 @@ begin
 
     lModel.BeginInitialize(lParams);
 
-    AContext.AssertTrue(lModel.CodeToolsInitialized,
-      'Initialize should configure CodeTools.');
     AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fu' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lUnitDir))) >= 0,
-      'Explicit unit search paths should be passed to CodeTools.');
+      ExpandFileName(lUnitDir)) >= 0,
+      'Explicit unit search paths should be loaded.');
     AContext.AssertTrue(lModel.EffectiveFPCOptions.IndexOf('-Fi' +
-      IncludeTrailingPathDelimiter(ExpandFileName(lIncludeDir))) >= 0,
-      'Explicit include search paths should be passed to CodeTools.');
+      ExpandFileName(lIncludeDir)) >= 0,
+      'Explicit include search paths should be loaded.');
   finally
     lModel.Free;
     lParams.Free;
@@ -262,8 +260,6 @@ begin
     lOptions := TJSONObject.Create;
     try
       lOptions.Add('program', '$(root)app.lpr');
-      lOptions.Add('codeToolsConfig', '$(root)codetools.config');
-
       lOptionsJSON := lOptions;
       lParams.initializationOptions.FromJSONData(lOptionsJSON);
     finally
@@ -276,8 +272,6 @@ begin
       lModel.ProjectDir, 'Initialize should fall back to rootPath when rootUri is absent.');
     AContext.AssertEquals(IncludeTrailingPathDelimiter(ExpandFileName(lRoot)) + 'app.lpr',
       lModel.Settings.ProgramFile, 'program should parse and expand $(root).');
-    AContext.AssertEquals(IncludeTrailingPathDelimiter(ExpandFileName(lRoot)) + 'codetools.config',
-      lModel.Settings.CodeToolsConfig, 'codeToolsConfig should parse and expand $(root).');
   finally
     lModel.Free;
     lParams.Free;
@@ -296,8 +290,8 @@ begin
   lSuite.AddTest('PascalProjectVariableResolution',
     @TestPascalProjectVariableResolution);
   lSuite.AddTest('LSPModelStartsEmpty', @TestLSPModelStartsEmpty);
-  lSuite.AddTest('InitializeConfiguresCodeToolsWithExplicitPaths',
-    @TestInitializeConfiguresCodeToolsWithExplicitPaths);
+  lSuite.AddTest('InitializeLoadsExplicitPaths',
+    @TestInitializeLoadsExplicitPaths);
   lSuite.AddTest('InitializeHonorsOptionsMacros',
     @TestInitializeHonorsOptionsMacros);
   lSuite.AddTest('InitializeHonorsProgramConfigAndRootPathFallback',

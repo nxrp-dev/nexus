@@ -28,14 +28,7 @@ implementation
 
 uses
   SysUtils,
-  BasicCodeTools,
-  CodeCache,
-  CodeToolManager,
-  CodeToolsStructs,
-  FindDeclarationTool,
-  obNXLSWorkspaceEditRequests,
-  PascalParserTool,
-  SourceChanger;
+  obNXLSWorkspaceEditRequests;
 
 type
   TNXLSInvertAssignOption = (iaoSpaceBefore, iaoSpaceAfter, iaoAlign);
@@ -76,18 +69,82 @@ begin
   ACharacter := AValue.character.Value;
 end;
 
-function NXLSWholeDocumentEndLine(ACode: TCodeBuffer): Integer;
+procedure NXLSFullDocumentEnd(const AText: string; out ALine, ACharacter: Integer);
+var
+  lIdx: Integer;
 begin
-  Result := 0;
-  if (ACode <> nil) and (ACode.LineCount > 0) then
-    Result := ACode.LineCount - 1;
+  ALine := 0;
+  ACharacter := 0;
+  lIdx := 1;
+  while lIdx <= Length(AText) do
+  begin
+    if AText[lIdx] = #13 then
+    begin
+      Inc(ALine);
+      ACharacter := 0;
+      if (lIdx < Length(AText)) and (AText[lIdx + 1] = #10) then
+        Inc(lIdx);
+    end
+    else if AText[lIdx] = #10 then
+    begin
+      Inc(ALine);
+      ACharacter := 0;
+    end
+    else
+      Inc(ACharacter);
+    Inc(lIdx);
+  end;
 end;
 
-function NXLSWholeDocumentEndCharacter(ACode: TCodeBuffer): Integer;
+function NXLSTextOffsetForPosition(const AText: string; ALine,
+  ACharacter: Integer): Integer;
+var
+  lIdx: Integer;
+  lLine: Integer;
+  lCharacter: Integer;
 begin
-  Result := 0;
-  if (ACode <> nil) and (ACode.LineCount > 0) then
-    Result := Length(ACode.GetLine(ACode.LineCount - 1));
+  Result := Length(AText) + 1;
+  lIdx := 1;
+  lLine := 0;
+  lCharacter := 0;
+
+  while lIdx <= Length(AText) do
+  begin
+    if (lLine = ALine) and (lCharacter = ACharacter) then
+      Exit(lIdx);
+
+    if AText[lIdx] = #13 then
+    begin
+      Inc(lLine);
+      lCharacter := 0;
+      if (lIdx < Length(AText)) and (AText[lIdx + 1] = #10) then
+        Inc(lIdx);
+    end
+    else if AText[lIdx] = #10 then
+    begin
+      Inc(lLine);
+      lCharacter := 0;
+    end
+    else
+      Inc(lCharacter);
+    Inc(lIdx);
+  end;
+
+  if (lLine = ALine) and (lCharacter = ACharacter) then
+    Result := Length(AText) + 1;
+end;
+
+function NXLSTextRange(const AText: string; AStartLine, AStartCharacter,
+  AEndLine, AEndCharacter: Integer): string;
+var
+  lStart: Integer;
+  lEnd: Integer;
+begin
+  lStart := NXLSTextOffsetForPosition(AText, AStartLine, AStartCharacter);
+  lEnd := NXLSTextOffsetForPosition(AText, AEndLine, AEndCharacter);
+  if lEnd < lStart then
+    lEnd := lStart;
+  Result := Copy(AText, lStart, lEnd - lStart);
 end;
 
 class function TNXLSInvertAssignment.GetIndent(const ALine: string): Integer;
@@ -309,11 +366,16 @@ begin
     lEdit := TNXLSTextDocumentEdit(lRequest.params.edit.documentChanges.AddObject(TNXLSTextDocumentEdit));
     lEdit.textDocument.uri.Value := AURI;
     lEdit.textDocument.version.SetNull;
+    lEdit.edits.Assigned := True;
+    lEdit.Assigned := True;
 
     lTextEdit := TNXLSTextEdit(lEdit.edits.AddObject(TNXLSTextEdit));
     NXLSSetPosition(lTextEdit.range.start, AStartLine, AStartCharacter);
     NXLSSetPosition(lTextEdit.range.&end, AEndLine, AEndCharacter);
+    lTextEdit.range.Assigned := True;
     lTextEdit.newText.Value := ANewText;
+    lTextEdit.Assigned := True;
+    lRequest.params.Assigned := True;
 
     lRequestToSend := lRequest;
     lRequest := nil;
@@ -326,62 +388,28 @@ end;
 procedure TNXLSCommandService.ApplyFullDocumentEdit(const AURI, ANewText: string);
 var
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
+  lEndLine: Integer;
+  lEndCharacter: Integer;
 begin
   lDocument := Model.RequireDocument(AURI);
-  lCode := lDocument.CodeBuffer;
-  ApplyTextEdit(AURI, ANewText, 0, 0, NXLSWholeDocumentEndLine(lCode),
-    NXLSWholeDocumentEndCharacter(lCode));
+  NXLSFullDocumentEnd(lDocument.Text, lEndLine, lEndCharacter);
+  ApplyTextEdit(AURI, ANewText, 0, 0, lEndLine, lEndCharacter);
 end;
 
 procedure TNXLSCommandService.CompleteCode(AParams: TNXLSCompleteCodeParams);
-var
-  lURI: string;
-  lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lNewCode: TCodeBuffer;
-  lLine: Integer;
-  lCharacter: Integer;
-  lNewX: Integer;
-  lNewY: Integer;
-  lNewTopLine: Integer;
-  lBlockTopLine: Integer;
-  lBlockBottomLine: Integer;
 begin
-  if AParams = nil then
-    raise Exception.Create('CompleteCode params are required.');
-
-  lURI := NXLSRequiredString(AParams.uri, 'uri');
-  NXLSRequiredPosition(AParams.position, 'position', lLine, lCharacter);
-  lDocument := Model.RequireDocument(lURI);
-  lCode := lDocument.CodeBuffer;
-
-  with CodeToolBoss.SourceChangeCache.BeautifyCodeOptions do
-  begin
-    ClassHeaderComments := False;
-    ClassImplementationComments := False;
-    ForwardProcBodyInsertPolicy := fpipInFrontOfMethods;
-  end;
-
-  if not CodeToolBoss.CompleteCode(lCode, lCharacter + 1, lLine + 1,
-    lLine + 1, lNewCode, lNewX, lNewY, lNewTopLine, lBlockTopLine,
-    lBlockBottomLine, False) then
-    raise Exception.CreateFmt('CompleteCode failed: %s', [CodeToolBoss.ErrorMessage]);
-
-  ApplyFullDocumentEdit(lURI, lCode.Source);
+  raise Exception.Create('CompleteCode is not implemented by NexusPas yet.');
 end;
 
 procedure TNXLSCommandService.InvertAssignment(AParams: TNXLSInvertAssignmentParams);
 var
   lURI: string;
   lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
   lStartLine: Integer;
   lStartCharacter: Integer;
   lEndLine: Integer;
   lEndCharacter: Integer;
   lText: string;
-  lLineText: string;
   lInverter: TNXLSInvertAssignment;
 begin
   if AParams = nil then
@@ -391,23 +419,8 @@ begin
   NXLSRequiredPosition(AParams.start, 'start', lStartLine, lStartCharacter);
   NXLSRequiredPosition(AParams.&end, 'end', lEndLine, lEndCharacter);
   lDocument := Model.RequireDocument(lURI);
-  lCode := lDocument.CodeBuffer;
-  if lCode = nil then
-    raise Exception.CreateFmt('Document has no CodeTools buffer: %s', [lURI]);
-
-  if lStartLine = lEndLine then
-  begin
-    lLineText := lCode.GetLine(lStartLine);
-    lText := Copy(lLineText, lStartCharacter + 1, lEndCharacter - lStartCharacter);
-  end
-  else
-  begin
-    lText := lCode.GetLines(lStartLine + 1, lEndLine);
-    if lStartCharacter > 0 then
-      Delete(lText, 1, lStartCharacter);
-    lLineText := lCode.GetLine(lEndLine);
-    lText := lText + Copy(lLineText, 1, lEndCharacter);
-  end;
+  lText := NXLSTextRange(lDocument.Text, lStartLine, lStartCharacter, lEndLine,
+    lEndCharacter);
 
   lInverter := TNXLSInvertAssignment.Create;
   try
@@ -420,79 +433,13 @@ begin
 end;
 
 procedure TNXLSCommandService.RemoveEmptyMethods(AParams: TNXLSRemoveEmptyMethodsParams);
-const
-  cAttributes =
-    [phpAddClassName, phpDoNotAddSemicolon, phpWithoutParamList,
-     phpWithoutBrackets, phpWithoutClassKeyword, phpWithoutSemicolon];
-var
-  lURI: string;
-  lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lLine: Integer;
-  lCharacter: Integer;
-  lAllEmpty: Boolean;
-  lList: TFPList;
-  lRemovedProcHeads: TStrings;
 begin
-  if AParams = nil then
-    raise Exception.Create('RemoveEmptyMethods params are required.');
-
-  lURI := NXLSRequiredString(AParams.uri, 'uri');
-  NXLSRequiredPosition(AParams.position, 'position', lLine, lCharacter);
-  lDocument := Model.RequireDocument(lURI);
-  lCode := lDocument.CodeBuffer;
-
-  lList := TFPList.Create;
-  lRemovedProcHeads := nil;
-  try
-    if not CodeToolBoss.FindEmptyMethods(lCode, '', lCharacter + 1, lLine + 1,
-      AllPascalClassSections, lList, lAllEmpty) then
-      raise Exception.CreateFmt('Cannot find empty methods: %s', [CodeToolBoss.ErrorMessage]);
-
-    if not CodeToolBoss.RemoveEmptyMethods(lCode, '', lCharacter + 1,
-      lLine + 1, AllPascalClassSections, lAllEmpty, cAttributes,
-      lRemovedProcHeads) then
-      raise Exception.CreateFmt('RemoveEmptyMethods failed: %s', [CodeToolBoss.ErrorMessage]);
-
-    ApplyFullDocumentEdit(lURI, lCode.Source);
-  finally
-    CodeToolBoss.FreeListOfPCodeXYPosition(lList);
-    lRemovedProcHeads.Free;
-  end;
+  raise Exception.Create('RemoveEmptyMethods is not implemented by NexusPas yet.');
 end;
 
 procedure TNXLSCommandService.RemoveUnusedUnits(AParams: TNXLSRemoveUnusedUnitsParams);
-var
-  lURI: string;
-  lDocument: TNXLSDocument;
-  lCode: TCodeBuffer;
-  lUnits: TStringList;
-  lIdx: Integer;
-  lRemovedCount: Integer;
 begin
-  if AParams = nil then
-    raise Exception.Create('RemoveUnusedUnits params are required.');
-
-  lURI := NXLSRequiredString(AParams.uri, 'uri');
-  lDocument := Model.RequireDocument(lURI);
-  lCode := lDocument.CodeBuffer;
-
-  lUnits := TStringList.Create;
-  try
-    if not CodeToolBoss.FindUnusedUnits(lCode, lUnits) then
-      raise Exception.CreateFmt('FindUnusedUnits failed: %s', [CodeToolBoss.ErrorMessage]);
-
-    lRemovedCount := 0;
-    for lIdx := 0 to lUnits.Count - 1 do
-      if SameText(lUnits.ValueFromIndex[lIdx], 'unused') and
-        CodeToolBoss.RemoveUnitFromAllUsesSections(lCode, lUnits.Names[lIdx]) then
-        Inc(lRemovedCount);
-
-    if lRemovedCount > 0 then
-      ApplyFullDocumentEdit(lURI, lCode.Source);
-  finally
-    lUnits.Free;
-  end;
+  raise Exception.Create('RemoveUnusedUnits is not implemented by NexusPas yet.');
 end;
 
 end.

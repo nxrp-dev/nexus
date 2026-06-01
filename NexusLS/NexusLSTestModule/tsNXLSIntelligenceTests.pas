@@ -22,8 +22,7 @@ uses
   obNXLSProtocolParams,
   obNXLSServiceContext,
   obNXTestContext,
-  obNXTestSuite,
-  utNXLSServiceHelpers;
+  obNXTestSuite;
 
 const
   cIntelligenceUnit =
@@ -74,6 +73,14 @@ begin
   finally
     AData.Free;
   end;
+end;
+
+procedure NXLSSetRange(ARange: TNXLSRange; AStartLine, AStartCharacter,
+  AEndLine, AEndCharacter: Integer);
+begin
+  NXLSSetPosition(ARange.start, AStartLine, AStartCharacter);
+  NXLSSetPosition(ARange.&end, AEndLine, AEndCharacter);
+  ARange.Assigned := True;
 end;
 
 procedure NXLSCreateIntelligenceModel(out AModel: TNXLSLSPModel;

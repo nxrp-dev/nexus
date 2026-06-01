@@ -9,11 +9,15 @@ uses
   obNXTestRegistry,
   obNXTestRPCRequests,
   tsNXLSCoreTests,
+  tsNXLSDiagnosticsTests,
+  tsNXLSDocumentSymbolTests,
+  tsNXLSNexusPasNavigationTests,
+  tsNXLSWorkspaceSymbolTests,
   tsNXLSProtocolObjectTests,
-  tsNXLSSymbolTests,
-  tsNXLSNavigationTests,
-  tsNXLSIntelligenceTests,
-  tsNXLSDiagnosticsTests;
+  tsNXPasLexerTests,
+  tsNXPasParserTests,
+  tsNXPasSignatureTests,
+  tsNXPasCompletionTests;
 
 var
   gModule: TNXTestModule = nil;
@@ -21,11 +25,15 @@ var
 procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXLSCoreTests(ARegistry);
-  RegisterNXLSProtocolObjectTests(ARegistry);
-  RegisterNXLSSymbolTests(ARegistry);
-  RegisterNXLSNavigationTests(ARegistry);
-  RegisterNXLSIntelligenceTests(ARegistry);
   RegisterNXLSDiagnosticsTests(ARegistry);
+  RegisterNXLSDocumentSymbolTests(ARegistry);
+  RegisterNXLSNexusPasNavigationTests(ARegistry);
+  RegisterNXLSWorkspaceSymbolTests(ARegistry);
+  RegisterNXLSProtocolObjectTests(ARegistry);
+  RegisterNXPasLexerTests(ARegistry);
+  RegisterNXPasParserTests(ARegistry);
+  RegisterNXPasSignatureTests(ARegistry);
+  RegisterNXPasCompletionTests(ARegistry);
 end;
 
 function NXTest_Init: Integer; cdecl;

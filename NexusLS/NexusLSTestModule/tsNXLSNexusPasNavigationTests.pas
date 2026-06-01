@@ -1,0 +1,708 @@
+unit tsNXLSNexusPasNavigationTests;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  obNXTestRegistry;
+
+procedure RegisterNXLSNexusPasNavigationTests(ARegistry: TNXTestRegistry);
+
+implementation
+
+uses
+  Classes,
+  obNXJSONValues,
+  obNXLSLSPModel,
+  obNXLSProtocolBase,
+  obNXLSProtocolObjects,
+  obNXLSProtocolParams,
+  obNXPasLookup,
+  obNXPasSource,
+  obNXTestContext,
+  obNXTestSuite;
+
+const
+  cNavigationUnit =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  end;' + LineEnding +
+    'procedure DoWork;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Call;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  DoWork;' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+
+function NXLSLineOf(const AText, ANeedle: string): Integer;
+var
+  lIdx: Integer;
+  lLines: TStringList;
+begin
+  Result := -1;
+  lLines := TStringList.Create;
+  try
+    lLines.Text := AText;
+    for lIdx := 0 to lLines.Count - 1 do
+      if Pos(ANeedle, lLines[lIdx]) > 0 then
+        Exit(lIdx);
+  finally
+    lLines.Free;
+  end;
+end;
+
+function NXLSColumnOf(const AText, ALineNeedle, AColumnNeedle: string): Integer;
+var
+  lLine: Integer;
+  lLines: TStringList;
+begin
+  Result := -1;
+  lLine := NXLSLineOf(AText, ALineNeedle);
+  if lLine < 0 then
+    Exit;
+
+  lLines := TStringList.Create;
+  try
+    lLines.Text := AText;
+    Result := Pos(AColumnNeedle, lLines[lLine]) - 1;
+  finally
+    lLines.Free;
+  end;
+end;
+
+function NXLSLineOfAfter(const AText, ANeedle: string;
+  AAfterLine: Integer): Integer;
+var
+  lIdx: Integer;
+  lLines: TStringList;
+begin
+  Result := -1;
+  lLines := TStringList.Create;
+  try
+    lLines.Text := AText;
+    for lIdx := AAfterLine + 1 to lLines.Count - 1 do
+      if Pos(ANeedle, lLines[lIdx]) > 0 then
+        Exit(lIdx);
+  finally
+    lLines.Free;
+  end;
+end;
+
+procedure NXLSOpenDocument(AModel: TNXLSLSPModel; const AURI,
+  AText: string);
+var
+  lItem: TNXLSTextDocumentItem;
+begin
+  lItem := TNXLSTextDocumentItem.Create;
+  try
+    lItem.uri.Value := AURI;
+    lItem.languageId.Value := 'pascal';
+    lItem.version.Value := 1;
+    lItem.text.Value := AText;
+    AModel.ReindexDocument(AModel.OpenDocument(lItem));
+  finally
+    lItem.Free;
+  end;
+end;
+
+procedure NXLSSetTextPosition(AParams: TNXLSTextDocumentPositionParams;
+  const AURI, AText, ALineNeedle, AColumnNeedle: string);
+begin
+  AParams.textDocument.uri.Value := AURI;
+  AParams.position.line.Value := NXLSLineOf(AText, ALineNeedle);
+  AParams.position.character.Value := NXLSColumnOf(AText, ALineNeedle,
+    AColumnNeedle);
+end;
+
+function NXLSHasReferenceOnLine(AResult: TNXLSLocationArray;
+  ALine: Integer): Boolean;
+var
+  lIdx: Integer;
+  lLocation: TNXLSLocation;
+begin
+  Result := False;
+  if AResult = nil then
+    Exit;
+
+  for lIdx := 0 to AResult.Count - 1 do
+  begin
+    lLocation := TNXLSLocation(AResult[lIdx]);
+    if lLocation.range.start.line.Value = ALine then
+      Exit(True);
+  end;
+end;
+
+procedure TestIdentifierAtPosition(AContext: TNXTestContext);
+var
+  lName: string;
+  lRange: TNXPasSourceRange;
+  lSource: TNXPasSourceFile;
+begin
+  lSource := TNXPasSourceFile.Create('Sample.pas',
+    'file:///C:/workspace/Sample.pas', cNavigationUnit);
+  try
+    AContext.AssertTrue(TNXPasLookup.IdentifierAtPosition(lSource,
+      NXLSLineOf(cNavigationUnit, 'Local: TSample'),
+      NXLSColumnOf(cNavigationUnit, 'Local: TSample', 'TSample') + 2, lName,
+      lRange), 'Identifier lookup should find the identifier under cursor.');
+    AContext.AssertEquals('TSample', lName,
+      'Identifier lookup should return the expected token text.');
+    AContext.AssertEquals(NXLSColumnOf(cNavigationUnit, 'Local: TSample',
+      'TSample'), lRange.StartPos.Column,
+      'Identifier range should start at the token column.');
+    AContext.AssertFalse(TNXPasLookup.IdentifierAtPosition(lSource,
+      NXLSLineOf(cNavigationUnit, 'Local: TSample'),
+      NXLSColumnOf(cNavigationUnit, 'Local: TSample', ':') + 1, lName,
+      lRange), 'Identifier lookup should not return whitespace or punctuation.');
+  finally
+    lSource.Free;
+  end;
+end;
+
+procedure TestDefinitionFindsClassInCurrentDocument(AContext: TNXTestContext);
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'Local: TSample', 'TSample');
+
+    AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Definition should resolve a simple class/type name.');
+    AContext.AssertEquals('file:///C:/workspace/Sample.pas',
+      lLocation.uri.Value, 'Definition should resolve in the current document.');
+    AContext.AssertEquals(3, lLocation.range.start.line.Value,
+      'Definition should point to the class declaration line.');
+    AContext.AssertEquals(2, lLocation.range.start.character.Value,
+      'Definition should point to the class identifier column.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDefinitionFindsRoutineInCurrentDocument(AContext: TNXTestContext);
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'DoWork;', 'DoWork');
+
+    AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Definition should resolve a simple routine name.');
+    AContext.AssertEquals(5, lLocation.range.start.line.Value,
+      'Definition should point to the routine declaration line.');
+    AContext.AssertEquals(10, lLocation.range.start.character.Value,
+      'Definition should point to the routine identifier column.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDefinitionFindsSymbolAcrossIndexedDocuments(
+  AContext: TNXTestContext);
+const
+  cUnitA =
+    'unit UnitA;' + LineEnding +
+    'interface' + LineEnding +
+    'type TShared = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+  cUnitB =
+    'unit UnitB;' + LineEnding +
+    'interface' + LineEnding +
+    'uses UnitA;' + LineEnding +
+    'var Shared: TShared;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/UnitA.pas', cUnitA);
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/UnitB.pas', cUnitB);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/UnitB.pas', cUnitB,
+      'Shared: TShared', 'TShared');
+
+    AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Definition should resolve across indexed documents.');
+    AContext.AssertEquals('file:///C:/workspace/UnitA.pas',
+      lLocation.uri.Value, 'Definition should point to the declaring document.');
+    AContext.AssertEquals(2, lLocation.range.start.line.Value,
+      'Definition should point to the declaration line in UnitA.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDefinitionReturnsEmptyForUnknownIdentifier(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'var Value: TMissing;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value: TMissing', 'TMissing');
+
+    AContext.AssertFalse(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Unknown identifiers should not produce a definition location.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestInactiveDeclarationIsNotDefinition(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    'type THidden = class end;' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    'var Value: THidden;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value: THidden', 'THidden');
+
+    AContext.AssertFalse(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Inactive declarations should not be returned as definitions.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestReferencesFindActiveOccurrences(AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSReferenceParams;
+  lResult: TNXLSLocationArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSReferenceParams.Create;
+  lResult := TNXLSLocationArray.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'Local: TSample', 'TSample');
+    lParams.context.includeDeclaration.Value := True;
+
+    lModel.Navigation.FillReferences(lParams, lResult);
+
+    AContext.AssertTrue(lResult.Count >= 2,
+      'References should include declaration and active usage.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 3),
+      'References should include the declaration line.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 9),
+      'References should include the active usage line.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestReferencesExcludeCommentsStringsAndInactiveRegions(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    '// TSample in comment' + LineEnding +
+    'const Text = ''TSample in string'';' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    'var Hidden: TSample;' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    'var Visible: TSample;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSReferenceParams;
+  lResult: TNXLSLocationArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSReferenceParams.Create;
+  lResult := TNXLSLocationArray.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Visible: TSample', 'TSample');
+    lParams.context.includeDeclaration.Value := True;
+
+    lModel.Navigation.FillReferences(lParams, lResult);
+
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 2),
+      'References should include the active declaration.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 8),
+      'References should include active usage.');
+    AContext.AssertFalse(NXLSHasReferenceOnLine(lResult, 3),
+      'References should not include comments.');
+    AContext.AssertFalse(NXLSHasReferenceOnLine(lResult, 4),
+      'References should not include strings.');
+    AContext.AssertFalse(NXLSHasReferenceOnLine(lResult, 6),
+      'References should not include inactive regions.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestReferencesExcludeDeclarationIdentifierOnly(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  private' + LineEnding +
+    '    FValue: TSample;' + LineEnding +
+    '  public' + LineEnding +
+    '    property Value: TSample read FValue;' + LineEnding +
+    '    procedure Run(AValue: TSample);' + LineEnding +
+    '  end;' + LineEnding +
+    'var' + LineEnding +
+    '  Item: TSample;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSReferenceParams;
+  lResult: TNXLSLocationArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSReferenceParams.Create;
+  lResult := TNXLSLocationArray.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Item: TSample', 'TSample');
+    lParams.context.includeDeclaration.Value := False;
+
+    lModel.Navigation.FillReferences(lParams, lResult);
+
+    AContext.AssertFalse(NXLSHasReferenceOnLine(lResult, 3),
+      'includeDeclaration=false should exclude the declaration identifier.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 5),
+      'Field type references inside the class body should remain references.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 7),
+      'Property type references inside the class body should remain references.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 8),
+      'Parameter type references inside the class body should remain references.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 11),
+      'Variable type references should remain references.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDeclarationFindsClassInCurrentDocument(AContext: TNXTestContext);
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cNavigationUnit, 'Local: TSample', 'TSample');
+
+    AContext.AssertTrue(lModel.Navigation.FillDeclaration(lParams, lLocation),
+      'Declaration should resolve a simple class/type name.');
+    AContext.AssertEquals(3, lLocation.range.start.line.Value,
+      'Declaration should point to the class declaration line.');
+    AContext.AssertEquals(2, lLocation.range.start.character.Value,
+      'Declaration should point to the class identifier column.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDeclarationReturnsEmptyForUnknownIdentifier(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'var Value: TMissing;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value: TMissing', 'TMissing');
+
+    AContext.AssertFalse(lModel.Navigation.FillDeclaration(lParams, lLocation),
+      'Unknown identifiers should not produce a declaration location.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDeclarationIgnoresInactiveDeclaration(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    'type THidden = class end;' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    'var Value: THidden;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value: THidden', 'THidden');
+
+    AContext.AssertFalse(lModel.Navigation.FillDeclaration(lParams, lLocation),
+      'Inactive declarations should not be returned as declarations.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestImplementationFindsRoutineBody(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure DoWork;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure DoWork;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lImplementationLine: Integer;
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'procedure DoWork;', 'DoWork');
+    lImplementationLine := NXLSLineOfAfter(cSource, 'procedure DoWork;',
+      lParams.position.line.Value);
+
+    AContext.AssertTrue(lModel.Navigation.FillImplementationLocation(lParams,
+      lLocation), 'Implementation should resolve a simple routine body.');
+    AContext.AssertEquals(lImplementationLine, lLocation.range.start.line.Value,
+      'Implementation should point to the implementation routine line.');
+    AContext.AssertEquals(10, lLocation.range.start.character.Value,
+      'Implementation should point to the routine identifier column.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDeclarationFindsRoutineInterfaceDeclaration(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure DoWork;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure DoWork;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lImplementationLine: Integer;
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    lImplementationLine := NXLSLineOfAfter(cSource, 'procedure DoWork;',
+      NXLSLineOf(cSource, 'procedure DoWork;'));
+    lParams.textDocument.uri.Value := 'file:///C:/workspace/Sample.pas';
+    lParams.position.line.Value := lImplementationLine;
+    lParams.position.character.Value := 10;
+
+    AContext.AssertTrue(lModel.Navigation.FillDeclaration(lParams, lLocation),
+      'Declaration should resolve from an implementation routine to interface.');
+    AContext.AssertEquals(2, lLocation.range.start.line.Value,
+      'Declaration should point to the interface routine declaration.');
+    AContext.AssertEquals(10, lLocation.range.start.character.Value,
+      'Declaration should point to the routine identifier column.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestInactiveRoutineImplementationIsIgnored(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure Hidden;' + LineEnding +
+    'implementation' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    'procedure Hidden;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'procedure Hidden;', 'Hidden');
+
+    AContext.AssertFalse(lModel.Navigation.FillImplementationLocation(lParams,
+      lLocation), 'Inactive routine implementations should not be returned.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure RegisterNXLSNexusPasNavigationTests(ARegistry: TNXTestRegistry);
+var
+  lSuite: TNXTestSuite;
+begin
+  lSuite := ARegistry.AddSuite('NexusLS.NexusPasNavigation');
+  lSuite.AddTest('IdentifierAtPosition', @TestIdentifierAtPosition);
+  lSuite.AddTest('DefinitionFindsClassInCurrentDocument',
+    @TestDefinitionFindsClassInCurrentDocument);
+  lSuite.AddTest('DefinitionFindsRoutineInCurrentDocument',
+    @TestDefinitionFindsRoutineInCurrentDocument);
+  lSuite.AddTest('DefinitionFindsSymbolAcrossIndexedDocuments',
+    @TestDefinitionFindsSymbolAcrossIndexedDocuments);
+  lSuite.AddTest('DefinitionReturnsEmptyForUnknownIdentifier',
+    @TestDefinitionReturnsEmptyForUnknownIdentifier);
+  lSuite.AddTest('InactiveDeclarationIsNotDefinition',
+    @TestInactiveDeclarationIsNotDefinition);
+  lSuite.AddTest('ReferencesFindActiveOccurrences',
+    @TestReferencesFindActiveOccurrences);
+  lSuite.AddTest('ReferencesExcludeCommentsStringsAndInactiveRegions',
+    @TestReferencesExcludeCommentsStringsAndInactiveRegions);
+  lSuite.AddTest('ReferencesExcludeDeclarationIdentifierOnly',
+    @TestReferencesExcludeDeclarationIdentifierOnly);
+  lSuite.AddTest('DeclarationFindsClassInCurrentDocument',
+    @TestDeclarationFindsClassInCurrentDocument);
+  lSuite.AddTest('DeclarationReturnsEmptyForUnknownIdentifier',
+    @TestDeclarationReturnsEmptyForUnknownIdentifier);
+  lSuite.AddTest('DeclarationIgnoresInactiveDeclaration',
+    @TestDeclarationIgnoresInactiveDeclaration);
+  lSuite.AddTest('ImplementationFindsRoutineBody',
+    @TestImplementationFindsRoutineBody);
+  lSuite.AddTest('DeclarationFindsRoutineInterfaceDeclaration',
+    @TestDeclarationFindsRoutineInterfaceDeclaration);
+  lSuite.AddTest('InactiveRoutineImplementationIsIgnored',
+    @TestInactiveRoutineImplementationIsIgnored);
+end;
+
+end.

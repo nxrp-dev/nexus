@@ -18,7 +18,7 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
-    <Units Count="8">
+    <Units Count="6">
       <Unit0>
         <Filename Value="NexusLSTestModule.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -32,25 +32,17 @@
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="tsNXLSSymbolTests.pas"/>
+        <Filename Value="tsNXPasLexerTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="tsNXLSNavigationTests.pas"/>
+        <Filename Value="tsNXPasParserTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="tsNXLSIntelligenceTests.pas"/>
+        <Filename Value="tsNXLSDocumentSymbolTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
-      <Unit6>
-        <Filename Value="tsNXLSDiagnosticsTests.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit6>
-      <Unit7>
-        <Filename Value="tsNXTestJSONRPCHardeningTests.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit7>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -60,7 +52,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\src\service;..\..\NexusTest\src;..\..\NexusLib\src;..\..\lib\synapse;C:\lazarus\components\codetools;C:\lazarus\components\lazutils"/>
+      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\src\service;..\src\parser;..\..\NexusTest\src;..\..\NexusLib\src;..\..\lib\synapse;C:\lazarus\components\lazutils"/>
       <UnitOutputDirectory Value="..\..\output\NexusLSTestModule\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
@@ -75,16 +67,13 @@
     </Linking>
   </CompilerOptions>
   <Debugging>
-    <Exceptions Count="3">
+    <Exceptions Count="2">
       <Item1>
         <Name Value="EAbort"/>
       </Item1>
       <Item2>
-        <Name Value="ECodetoolError"/>
-      </Item2>
-      <Item3>
         <Name Value="EFOpenError"/>
-      </Item3>
+      </Item2>
     </Exceptions>
   </Debugging>
 </CONFIG>
