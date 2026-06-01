@@ -127,6 +127,16 @@ begin
   AContext.AssertEquals(AText, lToken.Text, AMessage + ' text');
 end;
 
+procedure NXPassrcAssertRawToken(AContext: TNXTestContext; ALexer: TNXPasLexer;
+  AKind: TNXPasTokenKind; const AText, AMessage: string);
+var
+  lToken: TNXPasToken;
+begin
+  lToken := ALexer.NextToken;
+  AContext.AssertEquals(Ord(AKind), Ord(lToken.Kind), AMessage + ' kind');
+  AContext.AssertEquals(AText, lToken.Text, AMessage + ' text');
+end;
+
 procedure TestScannerEmptyInputEOF(AContext: TNXTestContext);
 var
   lLexer: TNXPasLexer;
@@ -270,16 +280,118 @@ procedure TestScannerIdentifierSelfAndCharFragments(AContext: TNXTestContext);
 var
   lLexer: TNXPasLexer;
 begin
-  lLexer := TNXPasLexer.Create('Alpha Self #65#$0A#13 ''A''');
+  lLexer := TNXPasLexer.Create('Alpha Self &xor #65#$0A#13 ''A''');
   try
     NXPassrcAssertToken(AContext, lLexer, ptkIdentifier, 'Alpha',
       'Identifier');
     NXPassrcAssertToken(AContext, lLexer, ptkIdentifier, 'Self',
       'Self pseudo-variable');
+    NXPassrcAssertToken(AContext, lLexer, ptkIdentifier, '&xor',
+      'Escaped keyword identifier');
     NXPassrcAssertToken(AContext, lLexer, ptkString, '#65#$0A#13',
       'Character literal sequence');
     NXPassrcAssertToken(AContext, lLexer, ptkString, '''A''',
       'String part after character ordinal');
+  finally
+    lLexer.Free;
+  end;
+end;
+
+procedure TestScannerTokenSeriesAndDirectives(AContext: TNXTestContext);
+var
+  lLexer: TNXPasLexer;
+begin
+  lLexer := TNXPasLexer.Create('in of then aninteger');
+  try
+    NXPassrcAssertRawToken(AContext, lLexer, ptkKeyword, 'in',
+      'Token series without comments in');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, ' ',
+      'Token series without comments whitespace 1');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token series without comments of');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, ' ',
+      'Token series without comments whitespace 2');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkKeyword, 'then',
+      'Token series without comments then');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, ' ',
+      'Token series without comments whitespace 3');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkIdentifier, 'aninteger',
+      'Token series without comments identifier');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('in of then aninteger');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'in',
+      'Token series adjusted skip whitespace in');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token series adjusted skip whitespace of');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'then',
+      'Token series adjusted skip whitespace then');
+    NXPassrcAssertToken(AContext, lLexer, ptkIdentifier, 'aninteger',
+      'Token series adjusted skip whitespace identifier');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('in of {then} aninteger');
+  try
+    NXPassrcAssertRawToken(AContext, lLexer, ptkKeyword, 'in',
+      'Token series in');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, ' ',
+      'Token series whitespace 1');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token series of');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, ' ',
+      'Token series whitespace 2');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkComment, '{then}',
+      'Token series comment');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, ' ',
+      'Token series whitespace 3');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkIdentifier, 'aninteger',
+      'Token series identifier');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('{$DEFINE NEVER} (*$DEFINE NEVER*) {$IFDEF ALWAYS} of {$ENDIF}');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$DEFINE NEVER}',
+      'Brace DEFINE directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '(*$DEFINE NEVER*)',
+      'Paren-star DEFINE directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$IFDEF ALWAYS}',
+      'IFDEF directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkKeyword, 'of',
+      'Token after directive');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$ENDIF}',
+      'ENDIF directive');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create('{$DEFINE  NEVER} {$DEFINE NEVER }');
+  try
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$DEFINE  NEVER}',
+      'Brace DEFINE directive with internal spacing');
+    NXPassrcAssertToken(AContext, lLexer, ptkDirective, '{$DEFINE NEVER }',
+      'Brace DEFINE directive with trailing spacing');
+  finally
+    lLexer.Free;
+  end;
+end;
+
+procedure TestScannerBOM(AContext: TNXTestContext);
+var
+  lLexer: TNXPasLexer;
+begin
+  lLexer := TNXPasLexer.Create(#$EF#$BB#$BF'unit Sample;');
+  try
+    NXPassrcAssertRawToken(AContext, lLexer, ptkWhitespace, #$EF#$BB#$BF,
+      'UTF-8 BOM');
+    NXPassrcAssertRawToken(AContext, lLexer, ptkKeyword, 'unit',
+      'Token after UTF-8 BOM');
   finally
     lLexer.Free;
   end;
@@ -354,26 +466,28 @@ procedure TestScannerSingleSymbolTokens(AContext: TNXTestContext);
 var
   lIdx: Integer;
   lLexer: TNXPasLexer;
-  lSymbols: array[0..15] of string;
+  lSymbols: array[0..17] of string;
 begin
-  lSymbols[0] := '*';
-  lSymbols[1] := '+';
-  lSymbols[2] := ',';
-  lSymbols[3] := '-';
-  lSymbols[4] := '.';
-  lSymbols[5] := '/';
-  lSymbols[6] := ':';
-  lSymbols[7] := ';';
-  lSymbols[8] := '<';
-  lSymbols[9] := '=';
-  lSymbols[10] := '>';
-  lSymbols[11] := '@';
-  lSymbols[12] := '[';
-  lSymbols[13] := ']';
-  lSymbols[14] := '^';
-  lSymbols[15] := '\';
+  lSymbols[0] := '(';
+  lSymbols[1] := ')';
+  lSymbols[2] := '*';
+  lSymbols[3] := '+';
+  lSymbols[4] := ',';
+  lSymbols[5] := '-';
+  lSymbols[6] := '.';
+  lSymbols[7] := '/';
+  lSymbols[8] := ':';
+  lSymbols[9] := ';';
+  lSymbols[10] := '<';
+  lSymbols[11] := '=';
+  lSymbols[12] := '>';
+  lSymbols[13] := '@';
+  lSymbols[14] := '[';
+  lSymbols[15] := ']';
+  lSymbols[16] := '^';
+  lSymbols[17] := '\';
 
-  lLexer := TNXPasLexer.Create('* + , - . / : ; < = > @ [ ] ^ \');
+  lLexer := TNXPasLexer.Create('( ) * + , - . / : ; < = > @ [ ] ^ \');
   try
     for lIdx := Low(lSymbols) to High(lSymbols) do
       NXPassrcAssertToken(AContext, lLexer, ptkSymbol, lSymbols[lIdx],
@@ -2046,6 +2160,9 @@ begin
   lSuite.AddTest('ScannerCommentForms', @TestScannerCommentForms);
   lSuite.AddTest('ScannerIdentifierSelfAndCharFragments',
     @TestScannerIdentifierSelfAndCharFragments);
+  lSuite.AddTest('ScannerTokenSeriesAndDirectives',
+    @TestScannerTokenSeriesAndDirectives);
+  lSuite.AddTest('ScannerBOM', @TestScannerBOM);
   lSuite.AddTest('ScannerUnterminatedDiagnostics',
     @TestScannerUnterminatedDiagnostics);
   lSuite.AddTest('ScannerNumbersAndCompoundSymbols',

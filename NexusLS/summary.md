@@ -1,49 +1,53 @@
 # Recent Work Summary
 
-## NexusPas Const/Var Structural Promotion Pass
+## NexusPas Scanner Coverage Promotion Pass
 
-- Promoted a bounded const/var structural slice from `tconstparser.pas` and `tcvarparser.pas`.
-- Promoted cases attempted: 32.
+- Promoted a bounded scanner/lexer slice from `tcscanner.pas`.
+- Promoted active-adjusted cases: 12.
+- Marked passrc-internal scanner/helper cases not applicable: 4.
 - Newly active NexusPas tests added: 2.
-- Active-adjusted inventory mappings now total: 347.
-- Remaining deferred inventory mappings: 1,697.
-- Not-applicable passrc-internal mappings: 30.
+- Active-adjusted inventory mappings now total: 359.
+- Remaining deferred inventory mappings: 1,681.
+- Not-applicable passrc-internal mappings: 34.
 - Inventory rows remain: 2,074.
 - Original published test methods remain: 2,073.
 - Full-key duplicate count remains: 0.
 
-## Parser Changes
+## Lexer Changes
 
-- Allowed keyword-shaped `helper` as a var/const declaration name where Pascal permits it.
-- Added structural declaration-tail detection for `absolute`, `cvar`, `deprecated`, `experimental`, `external`, `name`, `platform`, and `public`.
-- Stopped declared-type capture before declaration-tail modifiers so modifier text does not become type text.
-- Skipped declaration-tail directives after const/var declarations so modifier/export syntax does not become bogus declarations.
-- Fixed the `public name` tail skip so it consumes the whole tail instead of stopping on the visibility keyword.
+- Added UTF-8 BOM handling at the start of a source file, preserving it as leading whitespace.
+- Added escaped keyword identifier handling for forms such as `&xor`.
+- Kept scanner behavior Nexus-owned; no passrc scanner option model or helper object model was introduced.
 
 ## Active Assertions Added
 
-- Const symbols for set-like values, expression values, and modifier-tail consts.
-- Typed const declared type capture for nil, identifier, set, expression, record value, array value, range, and array-of-range forms.
-- Resourcestring symbols for simple and expression-style resourcestring declarations.
-- Var symbols and declared type capture for `helper` names/types, deprecated/platform tails, initialized vars with hints, absolute expressions, procedure vars, record vars, array vars, external/cvar/public/export tails, and hint-before-init syntax.
+- Escaped keyword identifiers.
+- `Self` as a NexusPas identifier token.
+- Parenthesis symbol tokens for passrc `TestBraceOpen` / `TestBraceClose`.
+- Raw token-series preservation for keywords, whitespace, comments, and identifiers.
+- Adjusted non-whitespace token walking for token-series behavior without adding scanner switches.
+- Brace and paren-star directive token preservation, including DEFINE spacing variants.
+- UTF-8 BOM preservation before the first real token.
+
+## Inventory
+
+- `tcscanner.pas` active-adjusted mappings increased from 130 to 142.
+- `tcscanner.pas` deferred mappings decreased from 64 to 48.
+- `tcscanner.pas` not-applicable mappings increased from 0 to 4.
+- `TTestTokenFinder.TestFind`, `TTestStreamLineReader.TestCreate`, `TTestScanner.TestonComment`, and `TTestScanner.TestOperatorIdentifier` are marked not applicable because they target passrc scanner helpers, callbacks, or option-model behavior rather than NexusPas lexer contracts.
 
 ## Verification
 
 - `lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
 - `lazbuild NexusLS\nexusls.lpi` passed.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-suite NexusPas.PassrcPort`
-  - 41 run, 41 passed, 0 failed, 0 skipped.
+  - 43 run, 43 passed, 0 failed, 0 skipped.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-all`
-  - 200 run, 200 passed, 0 failed, 0 skipped.
+  - 202 run, 202 passed, 0 failed, 0 skipped.
 - CodeTools/passrc/FPCUnit dependency scan found no active references in `NexusLS\src` or `NexusLS\NexusLSTestModule`.
-
-## Inventory
-
-- Coverage map: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.csv`.
-- Readable report: `NexusLS/NexusLSTestModule/NexusPasPassrcTestInventory.md`.
-- Full uploaded archive inventory remains at 2,073 original published test methods across 15 source units.
+- `git diff --check` found no whitespace errors.
 
 ## Archive
 
 - No commit was made.
-- Archive created: `nexus-source-chatgpt-const-var-structural.zip`.
+- Archive created with the default timestamped `New-NexusSourceArchive.ps1` call including `NexusLS` and `NexusLib`.

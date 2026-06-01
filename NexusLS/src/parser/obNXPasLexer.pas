@@ -33,6 +33,8 @@ type
     function ReadParenComment(out AToken: TNXPasToken): Boolean;
     function ReadSlashComment(out AToken: TNXPasToken): Boolean;
     function ReadCharLiteral(out AToken: TNXPasToken): Boolean;
+    function ReadBOM(out AToken: TNXPasToken): Boolean;
+    function ReadEscapedIdentifier(out AToken: TNXPasToken): Boolean;
     function ReadIdentifier(out AToken: TNXPasToken): Boolean;
     function ReadNumber(out AToken: TNXPasToken): Boolean;
     function ReadString(out AToken: TNXPasToken): Boolean;
@@ -199,6 +201,41 @@ begin
   while CurrentChar in [#1..#32] do
     Advance;
   CaptureToken(ptkWhitespace, lStart, lStartOffset, AToken);
+end;
+
+function TNXPasLexer.ReadBOM(out AToken: TNXPasToken): Boolean;
+var
+  lStart: TNXPasSourcePosition;
+  lStartOffset: Integer;
+begin
+  Result := (FOffset = 1) and (PeekChar(0) = #$EF) and
+    (PeekChar(1) = #$BB) and (PeekChar(2) = #$BF);
+  if not Result then
+    Exit;
+
+  lStart := CurrentPosition;
+  lStartOffset := FOffset;
+  Advance;
+  Advance;
+  Advance;
+  CaptureToken(ptkWhitespace, lStart, lStartOffset, AToken);
+end;
+
+function TNXPasLexer.ReadEscapedIdentifier(out AToken: TNXPasToken): Boolean;
+var
+  lStart: TNXPasSourcePosition;
+  lStartOffset: Integer;
+begin
+  Result := (CurrentChar = '&') and IsIdentStart(PeekChar(1));
+  if not Result then
+    Exit;
+
+  lStart := CurrentPosition;
+  lStartOffset := FOffset;
+  Advance;
+  while IsIdentChar(CurrentChar) do
+    Advance;
+  CaptureToken(ptkIdentifier, lStart, lStartOffset, AToken);
 end;
 
 function TNXPasLexer.ReadIdentifier(out AToken: TNXPasToken): Boolean;
@@ -492,11 +529,15 @@ begin
 
   if ReadWhitespace(Result) then
     Exit;
+  if ReadBOM(Result) then
+    Exit;
   if ReadSlashComment(Result) then
     Exit;
   if ReadBraceComment(Result) then
     Exit;
   if ReadParenComment(Result) then
+    Exit;
+  if ReadEscapedIdentifier(Result) then
     Exit;
   if ReadIdentifier(Result) then
     Exit;
