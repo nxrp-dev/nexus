@@ -25,7 +25,7 @@ type
     procedure FillKeywordCompletions(AResult: TNXLSCompletionItemArray;
       const APrefix: string; ASeen: TStrings);
     procedure FillSymbolCompletions(AResult: TNXLSCompletionItemArray;
-      const APrefix: string; ASeen: TStrings);
+      const APrefix: string; ALine, AColumn: Integer; ASeen: TStrings);
     procedure FindSignatureCandidates(const AName, AURI: string;
       AResults: TNXPasRoutineSignatureList);
     function SymbolCompletionKind(AKind: TNXPasSymbolKind): Integer;
@@ -87,7 +87,8 @@ begin
       lPrefix) then
       Exit;
 
-    FillSymbolCompletions(AResult, lPrefix, lSeen);
+    FillSymbolCompletions(AResult, lPrefix, AParams.position.line.Value,
+      AParams.position.character.Value, lSeen);
     FillKeywordCompletions(AResult, lPrefix, lSeen);
   finally
     lSource.Free;
@@ -208,7 +209,8 @@ begin
 end;
 
 procedure TNXLSCompletionService.FillSymbolCompletions(
-  AResult: TNXLSCompletionItemArray; const APrefix: string; ASeen: TStrings);
+  AResult: TNXLSCompletionItemArray; const APrefix: string; ALine,
+  AColumn: Integer; ASeen: TStrings);
 var
   lIdx: Integer;
   lMatches: TNXPasWorkspaceSymbolMatchList;
@@ -222,6 +224,8 @@ begin
       lMatch := lMatches.MatchAt(lIdx);
       if (lMatch.Symbol = nil) or
         (lMatch.Symbol.Kind in [pskUnknown, pskUsesUnit, pskVisibility]) then
+        Continue;
+      if not NXPasSymbolIsVisibleAt(lMatch.Symbol, ALine, AColumn) then
         Continue;
       if (APrefix <> '') and
         (Pos(UpperCase(APrefix), UpperCase(lMatch.Symbol.Name)) <> 1) then

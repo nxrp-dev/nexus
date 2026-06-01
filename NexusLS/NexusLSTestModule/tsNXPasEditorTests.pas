@@ -332,6 +332,86 @@ begin
   end;
 end;
 
+procedure TestHoverPrefersCurrentRoutineLocal(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure First;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local;' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Second;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: string;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local; // second' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lHover: TNXLSHover;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lHover := TNXLSHover.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, '  Local; // second', 'Local');
+
+    AContext.AssertTrue(lModel.Editor.FillHover(lParams, lHover),
+      'Hover should resolve the local symbol visible at the cursor.');
+    AContext.AssertEquals('variable Local: string',
+      lHover.contents.value.Value,
+      'Hover should prefer the local declared in the current routine.');
+  finally
+    lHover.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestHoverOutsideRoutineIgnoresLocal(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Test;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local;' + LineEnding +
+    'end.';
+var
+  lHover: TNXLSHover;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lHover := TNXLSHover.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, '  Local;', 'Local');
+
+    AContext.AssertFalse(lModel.Editor.FillHover(lParams, lHover),
+      'Hover outside a routine should not resolve routine-local symbols.');
+  finally
+    lHover.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestDocumentHighlightsExcludeCommentsStringsAndInactive(
   AContext: TNXTestContext);
 const
@@ -396,6 +476,10 @@ begin
   lSuite.AddTest('HoverUnknownReturnsEmpty', @TestHoverUnknownReturnsEmpty);
   lSuite.AddTest('HoverIgnoresInactiveDeclaration',
     @TestHoverIgnoresInactiveDeclaration);
+  lSuite.AddTest('HoverPrefersCurrentRoutineLocal',
+    @TestHoverPrefersCurrentRoutineLocal);
+  lSuite.AddTest('HoverOutsideRoutineIgnoresLocal',
+    @TestHoverOutsideRoutineIgnoresLocal);
   lSuite.AddTest('DocumentHighlightsExcludeCommentsStringsAndInactive',
     @TestDocumentHighlightsExcludeCommentsStringsAndInactive);
 end;

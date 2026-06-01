@@ -299,6 +299,39 @@ begin
   end;
 end;
 
+procedure TestRoutineLocalsAndParametersAreNotWorkspaceSymbols(
+  AContext: TNXTestContext);
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXJSONArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  try
+    NXLSOpenWorkspaceDocument(lModel, 'file:///C:/workspace/Sample.pas',
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'implementation' + LineEnding +
+      'procedure DoWork(AlphaParam: Integer);' + LineEnding +
+      'var' + LineEnding +
+      '  AlphaLocal: Integer;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.');
+
+    lResult := NXLSWorkspaceSymbols(lModel, 'Alpha');
+    try
+      AContext.AssertFalse(NXLSHasWorkspaceSymbol(lResult, 'AlphaParam'),
+        'Routine parameters should not appear as workspace symbols.');
+      AContext.AssertFalse(NXLSHasWorkspaceSymbol(lResult, 'AlphaLocal'),
+        'Routine-local variables should not appear as workspace symbols.');
+    finally
+      lResult.Free;
+    end;
+  finally
+    lModel.Free;
+  end;
+end;
+
 procedure RegisterNXLSWorkspaceSymbolTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -316,6 +349,8 @@ begin
     @TestClosedDocumentKeepsLastIndexedWorkspaceSymbols);
   lSuite.AddTest('UsesUnitsAreNotWorkspaceSymbols',
     @TestUsesUnitsAreNotWorkspaceSymbols);
+  lSuite.AddTest('RoutineLocalsAndParametersAreNotWorkspaceSymbols',
+    @TestRoutineLocalsAndParametersAreNotWorkspaceSymbols);
 end;
 
 end.

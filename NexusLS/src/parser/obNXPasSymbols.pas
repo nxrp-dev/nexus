@@ -37,6 +37,7 @@ type
     FDeclaredTypeText: string;
     FKind: TNXPasSymbolKind;
     FName: string;
+    FParent: TNXPasSymbol;
     FRange: TNXPasSourceRange;
     function GetChild(AIndex: Integer): TNXPasSymbol;
   public
@@ -51,6 +52,7 @@ type
     property DeclaredTypeText: string read FDeclaredTypeText write FDeclaredTypeText;
     property Kind: TNXPasSymbolKind read FKind write FKind;
     property Name: string read FName write FName;
+    property Parent: TNXPasSymbol read FParent write FParent;
     property Range: TNXPasSourceRange read FRange write FRange;
   end;
 
@@ -72,6 +74,13 @@ type
   end;
 
 function NXPasSymbolKindName(AKind: TNXPasSymbolKind): string;
+function NXPasRangeContains(const ARange: TNXPasSourceRange; ALine,
+  AColumn: Integer): Boolean;
+function NXPasSymbolOwnerRoutine(ASymbol: TNXPasSymbol): TNXPasSymbol;
+function NXPasSymbolIsRoutineOwned(ASymbol: TNXPasSymbol): Boolean;
+function NXPasSymbolIsVisibleAt(ASymbol: TNXPasSymbol; ALine,
+  AColumn: Integer): Boolean;
+function NXPasSymbolIsWorkspaceVisible(ASymbol: TNXPasSymbol): Boolean;
 
 implementation
 
@@ -101,6 +110,7 @@ begin
   Result := TNXPasSymbol.Create;
   Result.Kind := AKind;
   Result.Name := AName;
+  Result.Parent := Self;
   Result.Range := ARange;
   FChildren.Add(Result);
 end;
@@ -116,6 +126,7 @@ begin
   Result := TNXPasSymbol.Create;
   Result.Kind := AKind;
   Result.Name := AName;
+  Result.Parent := nil;
   Result.Range := ARange;
   Add(Result);
 end;
@@ -262,6 +273,71 @@ begin
   else
     Result := '';
   end;
+end;
+
+function NXPasRangeContains(const ARange: TNXPasSourceRange; ALine,
+  AColumn: Integer): Boolean;
+begin
+  Result := False;
+  if (ALine < ARange.StartPos.Line) or (ALine > ARange.EndPos.Line) then
+    Exit;
+
+  if (ALine = ARange.StartPos.Line) and (AColumn < ARange.StartPos.Column) then
+    Exit;
+
+  if (ALine = ARange.EndPos.Line) and (AColumn > ARange.EndPos.Column) then
+    Exit;
+
+  Result := True;
+end;
+
+function NXPasSymbolOwnerRoutine(ASymbol: TNXPasSymbol): TNXPasSymbol;
+begin
+  Result := ASymbol;
+  while Result <> nil do
+  begin
+    if Result.Kind = pskRoutine then
+      Exit;
+    Result := Result.Parent;
+  end;
+end;
+
+function NXPasSymbolIsRoutineOwned(ASymbol: TNXPasSymbol): Boolean;
+var
+  lRoutine: TNXPasSymbol;
+begin
+  lRoutine := NXPasSymbolOwnerRoutine(ASymbol);
+  Result := (lRoutine <> nil) and (lRoutine <> ASymbol);
+end;
+
+function NXPasSymbolIsVisibleAt(ASymbol: TNXPasSymbol; ALine,
+  AColumn: Integer): Boolean;
+var
+  lRoutine: TNXPasSymbol;
+begin
+  if ASymbol = nil then
+    Exit(False);
+
+  lRoutine := NXPasSymbolOwnerRoutine(ASymbol);
+  if (lRoutine = nil) or (lRoutine = ASymbol) then
+    Exit(True);
+
+  Result := NXPasRangeContains(lRoutine.Range, ALine, AColumn);
+end;
+
+function NXPasSymbolIsWorkspaceVisible(ASymbol: TNXPasSymbol): Boolean;
+begin
+  Result := False;
+  if ASymbol = nil then
+    Exit;
+
+  if ASymbol.Kind in [pskUnknown, pskUsesUnit, pskVisibility, pskParameter] then
+    Exit;
+
+  if NXPasSymbolIsRoutineOwned(ASymbol) then
+    Exit;
+
+  Result := True;
 end;
 
 end.

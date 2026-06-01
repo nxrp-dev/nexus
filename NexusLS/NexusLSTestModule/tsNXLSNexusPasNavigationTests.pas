@@ -477,6 +477,54 @@ begin
   end;
 end;
 
+procedure TestTypeDefinitionPrefersCurrentRoutineLocal(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TFirst = class end;' + LineEnding +
+    '  TSecond = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure First;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: TFirst;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local;' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Second;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: TSecond;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local; // second' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Local; // second', 'Local');
+
+    AContext.AssertTrue(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation),
+      'Type definition should use the local visible in the current routine.');
+    AContext.AssertEquals(4, lLocation.range.start.line.Value,
+      'Type definition should point to the second local declared type.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestTypeDefinitionIgnoresInactiveDeclaration(
   AContext: TNXTestContext);
 const
@@ -667,6 +715,55 @@ begin
       'Parameter type references inside the class body should remain references.');
     AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 11),
       'Variable type references should remain references.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestReferencesRemainLexicalForSameNameLocals(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure First;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local;' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Second;' + LineEnding +
+    'var' + LineEnding +
+    '  Local: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Local; // second' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSReferenceParams;
+  lResult: TNXLSLocationArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSReferenceParams.Create;
+  lResult := TNXLSLocationArray.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Local;', 'Local');
+    lParams.context.includeDeclaration.Value := True;
+
+    lModel.Navigation.FillReferences(lParams, lResult);
+
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 5),
+      'Lexical references include the first local declaration.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 11),
+      'Lexical references still include same-name locals in other routines.');
+    AContext.AssertTrue(NXLSHasReferenceOnLine(lResult, 13),
+      'Lexical references still include same-name usages in other routines.');
   finally
     lResult.Free;
     lParams.Free;
@@ -909,6 +1006,8 @@ begin
     @TestTypeDefinitionUsesParameterDeclaredType);
   lSuite.AddTest('TypeDefinitionUnknownDeclaredTypeReturnsEmpty',
     @TestTypeDefinitionUnknownDeclaredTypeReturnsEmpty);
+  lSuite.AddTest('TypeDefinitionPrefersCurrentRoutineLocal',
+    @TestTypeDefinitionPrefersCurrentRoutineLocal);
   lSuite.AddTest('TypeDefinitionIgnoresInactiveDeclaration',
     @TestTypeDefinitionIgnoresInactiveDeclaration);
   lSuite.AddTest('InactiveDeclarationIsNotDefinition',
@@ -919,6 +1018,8 @@ begin
     @TestReferencesExcludeCommentsStringsAndInactiveRegions);
   lSuite.AddTest('ReferencesExcludeDeclarationIdentifierOnly',
     @TestReferencesExcludeDeclarationIdentifierOnly);
+  lSuite.AddTest('ReferencesRemainLexicalForSameNameLocals',
+    @TestReferencesRemainLexicalForSameNameLocals);
   lSuite.AddTest('DeclarationFindsClassInCurrentDocument',
     @TestDeclarationFindsClassInCurrentDocument);
   lSuite.AddTest('DeclarationReturnsEmptyForUnknownIdentifier',

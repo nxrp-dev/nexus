@@ -1051,6 +1051,86 @@ begin
   end;
 end;
 
+procedure TestDeclaredTypeParsingHardened(AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lFunctionSymbol: TNXPasSymbol;
+  lParamSymbol: TNXPasSymbol;
+  lPropertySymbol: TNXPasSymbol;
+  lRoutineSymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TBar = class end;' + LineEnding +
+      '  TFoo<T> = class end;' + LineEnding +
+      '  TSample = class' + LineEnding +
+      '  private' + LineEnding +
+      '    FOne, FTwo: TFoo<TBar>;' + LineEnding +
+      '  public' + LineEnding +
+      '    property Items[Index: Integer]: TFoo<TBar> read FOne write FTwo;' +
+      LineEnding +
+      '  end;' + LineEnding +
+      'var First, Second: TFoo<TBar>;' + LineEnding +
+      'procedure DoWork(AFirst, ASecond: TFoo<TBar>);' + LineEnding +
+      'function Build: TFoo<TBar>;' + LineEnding +
+      'implementation' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertEquals('TFoo<TBar>',
+      NXPasFindSymbol(lSymbols, pskVariable, 'First').DeclaredTypeText,
+      'First variable in a shared declaration should capture the type.');
+    AContext.AssertEquals('TFoo<TBar>',
+      NXPasFindSymbol(lSymbols, pskVariable, 'Second').DeclaredTypeText,
+      'Second variable in a shared declaration should capture the type.');
+
+    lClassSymbol := NXPasFindSymbol(lSymbols, pskClass, 'TSample');
+    AContext.AssertEquals('TFoo<TBar>',
+      NXPasFindChildSymbol(lClassSymbol, pskField, 'FOne').DeclaredTypeText,
+      'First field in a shared declaration should capture the type.');
+    AContext.AssertEquals('TFoo<TBar>',
+      NXPasFindChildSymbol(lClassSymbol, pskField, 'FTwo').DeclaredTypeText,
+      'Second field in a shared declaration should capture the type.');
+
+    lPropertySymbol := NXPasFindChildSymbol(lClassSymbol, pskProperty, 'Items');
+    AContext.AssertEquals('TFoo<TBar>', lPropertySymbol.DeclaredTypeText,
+      'Property type should stop before read/write modifiers.');
+
+    lRoutineSymbol := NXPasFindSymbol(lSymbols, pskRoutine, 'DoWork');
+    lParamSymbol := NXPasFindChildSymbol(lRoutineSymbol, pskParameter, 'AFirst');
+    AContext.AssertEquals('TFoo<TBar>', lParamSymbol.DeclaredTypeText,
+      'First parameter in a shared declaration should capture the type.');
+    lParamSymbol := NXPasFindChildSymbol(lRoutineSymbol, pskParameter,
+      'ASecond');
+    AContext.AssertEquals('TFoo<TBar>', lParamSymbol.DeclaredTypeText,
+      'Second parameter in a shared declaration should capture the type.');
+
+    lFunctionSymbol := NXPasFindSymbol(lSymbols, pskRoutine, 'Build');
+    AContext.AssertEquals('TFoo<TBar>', lFunctionSymbol.DeclaredTypeText,
+      'Function return type should preserve generic-looking text.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestLocalVariableSymbols(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1140,6 +1220,8 @@ begin
     @TestConditionalUnitHeaderUsesActiveBranch);
   lSuite.AddTest('WorkspaceIndex', @TestWorkspaceIndex);
   lSuite.AddTest('DeclaredTypeReferences', @TestDeclaredTypeReferences);
+  lSuite.AddTest('DeclaredTypeParsingHardened',
+    @TestDeclaredTypeParsingHardened);
   lSuite.AddTest('LocalVariableSymbols', @TestLocalVariableSymbols);
 end;
 

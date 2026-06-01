@@ -625,6 +625,84 @@ begin
   end;
 end;
 
+procedure TestCompletionExcludesOtherRoutineLocalsAndParameters(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure First(AlphaFirstParam: Integer);' + LineEnding +
+    'var' + LineEnding +
+    '  AlphaFirstLocal: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Second(AlphaSecondParam: Integer);' + LineEnding +
+    'var' + LineEnding +
+    '  AlphaSecondLocal: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Al // complete' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Al // complete', 'Al', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'AlphaSecondParam'),
+      'Completion inside a routine should include its own parameter.');
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'AlphaSecondLocal'),
+      'Completion inside a routine should include its own local variable.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'AlphaFirstParam'),
+      'Completion should not include another routine parameter.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'AlphaFirstLocal'),
+      'Completion should not include another routine local variable.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionOutsideRoutineExcludesLocalsAndParameters(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Test(AlphaParam: Integer);' + LineEnding +
+    'var' + LineEnding +
+    '  AlphaLocal: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'begin' + LineEnding +
+    '  Al // complete' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Al // complete', 'Al', lResult);
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'AlphaParam'),
+      'Completion outside a routine should not include routine parameters.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'AlphaLocal'),
+      'Completion outside a routine should not include routine locals.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure RegisterNXPasCompletionTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -659,6 +737,10 @@ begin
     @TestCompletionIncludesLocalVariables);
   lSuite.AddTest('CompletionFiltersLocalAndParameterPrefixes',
     @TestCompletionFiltersLocalAndParameterPrefixes);
+  lSuite.AddTest('CompletionExcludesOtherRoutineLocalsAndParameters',
+    @TestCompletionExcludesOtherRoutineLocalsAndParameters);
+  lSuite.AddTest('CompletionOutsideRoutineExcludesLocalsAndParameters',
+    @TestCompletionOutsideRoutineExcludesLocalsAndParameters);
 end;
 
 end.

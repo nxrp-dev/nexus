@@ -18,6 +18,8 @@ type
     FWorkspaceIndex: TNXPasWorkspaceIndex;
     function FindSymbol(const AName, AURI: string;
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function FindSymbolAtPosition(const AName, AURI: string; ALine,
+      AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function HoverText(AMatch: TNXPasWorkspaceSymbolMatch): string;
     procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
       AEndLine, AEndColumn: Integer);
@@ -146,7 +148,9 @@ begin
       lIdentifierRange) then
       Exit;
 
-    if not FindSymbol(lName, lDocument.URI, lMatch) then
+    if not FindSymbolAtPosition(lName, lDocument.URI,
+      AParams.position.line.Value, AParams.position.character.Value,
+      lMatch) then
       Exit;
     try
       AResult.contents.kind.Value := 'plaintext';
@@ -192,6 +196,42 @@ begin
     AMatch := lMatches.MatchAt(0);
     lMatches.Extract(AMatch);
     Result := True;
+  finally
+    lMatches.Free;
+  end;
+end;
+
+function TNXLSEditorService.FindSymbolAtPosition(const AName, AURI: string;
+  ALine, AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+var
+  lIdx: Integer;
+  lMatches: TNXPasWorkspaceSymbolMatchList;
+begin
+  Result := False;
+  AMatch := nil;
+  if Trim(AName) = '' then
+    Exit;
+
+  lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
+  try
+    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    for lIdx := 0 to lMatches.Count - 1 do
+      if NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol) and
+        NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
+      begin
+        AMatch := lMatches.MatchAt(lIdx);
+        lMatches.Extract(AMatch);
+        Exit(True);
+      end;
+
+    for lIdx := 0 to lMatches.Count - 1 do
+      if (not NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol)) and
+        NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
+      begin
+        AMatch := lMatches.MatchAt(lIdx);
+        lMatches.Extract(AMatch);
+        Exit(True);
+      end;
   finally
     lMatches.Free;
   end;

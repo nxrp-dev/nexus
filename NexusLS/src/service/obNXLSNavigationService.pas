@@ -25,6 +25,8 @@ type
       AImplementation: Boolean; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FindSymbol(const AName, AURI: string;
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function FindSymbolAtPosition(const AName, AURI: string; ALine,
+      AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FillLocationFromSymbol(AMatch: TNXPasWorkspaceSymbolMatch;
       AResult: TNXLSLocation): Boolean;
     function FillLocationFromDeclaredType(AMatch: TNXPasWorkspaceSymbolMatch;
@@ -146,7 +148,8 @@ begin
   if not FindIdentifierAtParams(AParams, lDocument, lName) then
     Exit;
 
-  if FindSymbol(lName, lDocument.URI, lMatch) then
+  if FindSymbolAtPosition(lName, lDocument.URI, AParams.position.line.Value,
+    AParams.position.character.Value, lMatch) then
   try
     if lMatch.Symbol.Kind in [pskType, pskClass, pskRecord, pskObject,
       pskInterface] then
@@ -242,6 +245,40 @@ begin
     AMatch := lMatches.MatchAt(0);
     lMatches.Extract(AMatch);
     Result := True;
+  finally
+    lMatches.Free;
+  end;
+end;
+
+function TNXLSNavigationService.FindSymbolAtPosition(const AName,
+  AURI: string; ALine, AColumn: Integer;
+  out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+var
+  lIdx: Integer;
+  lMatches: TNXPasWorkspaceSymbolMatchList;
+begin
+  Result := False;
+  AMatch := nil;
+  lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
+  try
+    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    for lIdx := 0 to lMatches.Count - 1 do
+      if NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol) and
+        NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
+      begin
+        AMatch := lMatches.MatchAt(lIdx);
+        lMatches.Extract(AMatch);
+        Exit(True);
+      end;
+
+    for lIdx := 0 to lMatches.Count - 1 do
+      if (not NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol)) and
+        NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
+      begin
+        AMatch := lMatches.MatchAt(lIdx);
+        lMatches.Extract(AMatch);
+        Exit(True);
+      end;
   finally
     lMatches.Free;
   end;

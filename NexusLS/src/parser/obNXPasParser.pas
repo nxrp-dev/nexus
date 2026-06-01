@@ -34,6 +34,7 @@ type
     FDefines: TStringList;
     FCurrentActive: Boolean;
     FHeaderParsed: Boolean;
+    FLastDeclarationEnd: TNXPasSourcePosition;
     FStream: TNXPasTokenStream;
     FTree: TNXPasSyntaxTree;
     function TokenRange(const AToken: TNXPasToken): TNXPasSourceRange;
@@ -73,10 +74,12 @@ type
     procedure ParseRoutineDecl(AParent: TNXPasASTNode);
     procedure ParseRoutineParameters(AParent: TNXPasASTNode);
     procedure ParseRoutineBodyDeclarations(AParent: TNXPasASTNode);
+    procedure SkipRoutineBody(ANode: TNXPasASTNode);
     procedure ParseTypeDecl(AParent: TNXPasASTNode);
     procedure ParseStructuredTypeBody(ANode: TNXPasASTNode);
     procedure ParseFieldDecl(AParent: TNXPasASTNode);
     procedure ParsePropertyDecl(AParent: TNXPasASTNode);
+    procedure SkipPropertyParameters;
     procedure ParseVisibilitySection(AParent: TNXPasASTNode);
     function CaptureDeclaredType(AStopAtPropertyModifier,
       AStopAtParameterDelimiter: Boolean; out AText: string;
@@ -709,9 +712,14 @@ begin
     lDeclaredTypeText, lDeclaredTypeRange) then
     SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd;
+  SetNodeRange(lNode, lStart, FLastDeclarationEnd);
   if not (AParent.Kind in [pnkClassDecl, pnkObjectDecl, pnkRecordDecl,
     pnkInterfaceDecl]) then
+  begin
     ParseRoutineBodyDeclarations(lNode);
+    if FStream.Check(ptkKeyword, 'begin') then
+      SkipRoutineBody(lNode);
+  end;
 end;
 
 procedure TNXPasParser.ParseRoutineParameters(AParent: TNXPasASTNode);
@@ -791,6 +799,51 @@ begin
     else
       FStream.Next;
   end;
+end;
+
+procedure TNXPasParser.SkipRoutineBody(ANode: TNXPasASTNode);
+var
+  lDepth: Integer;
+  lEndPos: TNXPasSourcePosition;
+begin
+  if (ANode = nil) or not FStream.Check(ptkKeyword, 'begin') then
+    Exit;
+
+  lDepth := 0;
+  lEndPos := FStream.Current.EndPos;
+  while not FStream.Check(ptkEndOfFile) do
+  begin
+    if FStream.Check(ptkDirective) then
+    begin
+      ProcessDirective;
+      Continue;
+    end;
+
+    if FStream.Check(ptkKeyword, 'begin') then
+      Inc(lDepth)
+    else if FStream.Check(ptkKeyword, 'end') then
+    begin
+      Dec(lDepth);
+      lEndPos := FStream.Current.EndPos;
+      FStream.Next;
+      if lDepth <= 0 then
+      begin
+        if FStream.Check(ptkSymbol, ';') then
+        begin
+          lEndPos := FStream.Current.EndPos;
+          FStream.Next;
+        end;
+        SetNodeRange(ANode, ANode.Range.StartPos, lEndPos);
+        Exit;
+      end;
+      Continue;
+    end;
+
+    lEndPos := FStream.Current.EndPos;
+    FStream.Next;
+  end;
+
+  SetNodeRange(ANode, ANode.Range.StartPos, lEndPos);
 end;
 
 procedure TNXPasParser.ParseTypeDecl(AParent: TNXPasASTNode);
@@ -965,11 +1018,37 @@ begin
   begin
     lNode := AParent.AddChild(pnkPropertyDecl, lNameToken.Text);
     SetNodeRange(lNode, lStartPos, lNameToken.EndPos);
+    SkipPropertyParameters;
     if FStream.MatchSymbol(':') and CaptureDeclaredType(True, False,
       lDeclaredTypeText, lDeclaredTypeRange) then
       SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   end;
   SkipToDeclarationEnd;
+end;
+
+procedure TNXPasParser.SkipPropertyParameters;
+var
+  lBracketDepth: Integer;
+  lParenDepth: Integer;
+begin
+  lBracketDepth := 0;
+  lParenDepth := 0;
+  if not (FStream.Check(ptkSymbol, '[') or FStream.Check(ptkSymbol, '(')) then
+    Exit;
+
+  repeat
+    if FStream.Check(ptkSymbol, '[') then
+      Inc(lBracketDepth)
+    else if FStream.Check(ptkSymbol, ']') and (lBracketDepth > 0) then
+      Dec(lBracketDepth)
+    else if FStream.Check(ptkSymbol, '(') then
+      Inc(lParenDepth)
+    else if FStream.Check(ptkSymbol, ')') and (lParenDepth > 0) then
+      Dec(lParenDepth);
+
+    FStream.Next;
+  until FStream.Check(ptkEndOfFile) or
+    ((lBracketDepth = 0) and (lParenDepth = 0));
 end;
 
 procedure TNXPasParser.ParseVisibilitySection(AParent: TNXPasASTNode);
@@ -1062,6 +1141,7 @@ begin
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
+  FLastDeclarationEnd := FStream.Current.EndPos;
 
   while not FStream.Check(ptkEndOfFile) do
   begin
@@ -1074,6 +1154,7 @@ begin
     if FStream.Check(ptkSymbol, ';') and (lParenDepth = 0) and
       (lBracketDepth = 0) and (lAngleDepth = 0) then
     begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
       Exit;
     end;
@@ -1085,6 +1166,7 @@ begin
     begin
       AddExpectedDiagnostic('nxpas.declaration.missingSemicolon',
         'Missing semicolon after declaration.');
+      FLastDeclarationEnd := FStream.Current.StartPos;
       Exit;
     end;
 
@@ -1103,6 +1185,7 @@ begin
 
     FStream.Next;
   end;
+  FLastDeclarationEnd := FStream.Current.StartPos;
   AddExpectedDiagnostic('nxpas.declaration.unexpectedEOF',
     'Unexpected EOF inside declaration body.');
 end;

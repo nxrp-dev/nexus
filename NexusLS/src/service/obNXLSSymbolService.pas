@@ -180,6 +180,9 @@ begin
     (AMatch.FileRef = nil) then
     Exit;
 
+  if not NXPasSymbolIsWorkspaceVisible(AMatch.Symbol) then
+    Exit;
+
   lSymbol := TNXLSWorkspaceSymbol(AParent.AddObject(TNXLSWorkspaceSymbol));
   lSymbol.name.Value := AMatch.Symbol.Name;
   lSymbol.kind.Value := LSPKindForSymbol(Ord(AMatch.Symbol.Kind));
