@@ -5,14 +5,50 @@ unit obNXPasWorkspaceIndex;
 interface
 
 uses
+  Classes,
   Contnrs,
   obNXPasDiagnostics,
+  obNXPasMetadata,
   obNXPasProject,
   obNXPasSource,
   obNXPasSymbols;
 
 type
   TNXPasIndexedFile = class;
+
+  TNXPasUsesRelationship = class
+  private
+    FFromFile: TNXPasIndexedFile;
+    FToFile: TNXPasIndexedFile;
+    FUsesEntry: TNXPasUsesEntry;
+  public
+    property FromFile: TNXPasIndexedFile read FFromFile write FFromFile;
+    property ToFile: TNXPasIndexedFile read FToFile write FToFile;
+    property UsesEntry: TNXPasUsesEntry read FUsesEntry write FUsesEntry;
+  end;
+
+  TNXPasUsesRelationshipList = class(TObjectList)
+  public
+    function AddRelationship(AFromFile, AToFile: TNXPasIndexedFile;
+      AUsesEntry: TNXPasUsesEntry): TNXPasUsesRelationship;
+    function RelationshipAt(AIndex: Integer): TNXPasUsesRelationship;
+  end;
+
+  TNXPasUnresolvedUsesEntry = class
+  private
+    FFile: TNXPasIndexedFile;
+    FUsesEntry: TNXPasUsesEntry;
+  public
+    property FileRef: TNXPasIndexedFile read FFile write FFile;
+    property UsesEntry: TNXPasUsesEntry read FUsesEntry write FUsesEntry;
+  end;
+
+  TNXPasUnresolvedUsesList = class(TObjectList)
+  public
+    function AddUnresolved(AFile: TNXPasIndexedFile;
+      AUsesEntry: TNXPasUsesEntry): TNXPasUnresolvedUsesEntry;
+    function UnresolvedAt(AIndex: Integer): TNXPasUnresolvedUsesEntry;
+  end;
 
   TNXPasWorkspaceSymbolMatch = class
   private
@@ -36,6 +72,7 @@ type
   private
     FDiagnostics: TNXPasDiagnosticList;
     FFileName: string;
+    FMetadata: TNXPasUnitMetadata;
     FSymbols: TNXPasSymbolTable;
     FText: string;
     FURI: string;
@@ -45,6 +82,7 @@ type
 
     property Diagnostics: TNXPasDiagnosticList read FDiagnostics;
     property FileName: string read FFileName write FFileName;
+    property Metadata: TNXPasUnitMetadata read FMetadata;
     property Symbols: TNXPasSymbolTable read FSymbols;
     property Text: string read FText write FText;
     property URI: string read FURI write FURI;
@@ -61,6 +99,10 @@ type
       AResults: TNXPasWorkspaceSymbolMatchList);
     function FindFileIndexByURI(const AURI: string): Integer;
     function GetFile(AIndex: Integer): TNXPasIndexedFile;
+    procedure AddUsesRelationshipsForList(AFile: TNXPasIndexedFile;
+      AUsesList: TNXPasUsesEntryList; AResults: TNXPasUsesRelationshipList);
+    procedure AddUnresolvedUsesForList(AFile: TNXPasIndexedFile;
+      AUsesList: TNXPasUsesEntryList; AResults: TNXPasUnresolvedUsesList);
   public
     constructor Create;
     destructor Destroy; override;
@@ -72,6 +114,11 @@ type
       AResults: TNXPasWorkspaceSymbolMatchList);
     procedure FindSymbolsByName(const AName, APreferredURI: string;
       AResults: TNXPasWorkspaceSymbolMatchList);
+    function FindFileByUnitName(const AUnitName: string): TNXPasIndexedFile;
+    procedure ListKnownUnits(AUnits: TStrings);
+    procedure ListUsesRelationships(AResults: TNXPasUsesRelationshipList);
+    procedure ListUnresolvedUses(AResults: TNXPasUnresolvedUsesList);
+    procedure BuildDependencyManifest(AManifest: TNXPasDependencyManifest);
     procedure RemoveFile(const AURI: string);
     function UpdateSourceFile(ASource: TNXPasSourceFile): TNXPasIndexedFile;
     property Files[AIndex: Integer]: TNXPasIndexedFile read GetFile;
@@ -83,6 +130,38 @@ uses
   SysUtils,
   obNXPasAST,
   obNXPasParser;
+
+function TNXPasUsesRelationshipList.AddRelationship(AFromFile,
+  AToFile: TNXPasIndexedFile; AUsesEntry: TNXPasUsesEntry):
+  TNXPasUsesRelationship;
+begin
+  Result := TNXPasUsesRelationship.Create;
+  Result.FromFile := AFromFile;
+  Result.ToFile := AToFile;
+  Result.UsesEntry := AUsesEntry;
+  Add(Result);
+end;
+
+function TNXPasUsesRelationshipList.RelationshipAt(
+  AIndex: Integer): TNXPasUsesRelationship;
+begin
+  Result := TNXPasUsesRelationship(Items[AIndex]);
+end;
+
+function TNXPasUnresolvedUsesList.AddUnresolved(AFile: TNXPasIndexedFile;
+  AUsesEntry: TNXPasUsesEntry): TNXPasUnresolvedUsesEntry;
+begin
+  Result := TNXPasUnresolvedUsesEntry.Create;
+  Result.FileRef := AFile;
+  Result.UsesEntry := AUsesEntry;
+  Add(Result);
+end;
+
+function TNXPasUnresolvedUsesList.UnresolvedAt(
+  AIndex: Integer): TNXPasUnresolvedUsesEntry;
+begin
+  Result := TNXPasUnresolvedUsesEntry(Items[AIndex]);
+end;
 
 function TNXPasWorkspaceSymbolMatchList.AddMatch(AFile: TNXPasIndexedFile;
   ASymbol: TNXPasSymbol; const AContainerName: string): TNXPasWorkspaceSymbolMatch;
@@ -104,12 +183,14 @@ constructor TNXPasIndexedFile.Create;
 begin
   inherited Create;
   FDiagnostics := TNXPasDiagnosticList.Create(True);
+  FMetadata := TNXPasUnitMetadata.Create;
   FSymbols := TNXPasSymbolTable.Create(True);
 end;
 
 destructor TNXPasIndexedFile.Destroy;
 begin
   FreeAndNil(FSymbols);
+  FreeAndNil(FMetadata);
   FreeAndNil(FDiagnostics);
   inherited Destroy;
 end;
@@ -167,6 +248,137 @@ begin
   Result := FFiles.Count;
 end;
 
+function TNXPasWorkspaceIndex.FindFileByUnitName(
+  const AUnitName: string): TNXPasIndexedFile;
+var
+  lIdx: Integer;
+begin
+  Result := nil;
+  if Trim(AUnitName) = '' then
+    Exit;
+
+  for lIdx := 0 to FFiles.Count - 1 do
+    if SameText(TNXPasIndexedFile(FFiles[lIdx]).Metadata.Name, AUnitName) then
+      Exit(TNXPasIndexedFile(FFiles[lIdx]));
+end;
+
+procedure TNXPasWorkspaceIndex.ListKnownUnits(AUnits: TStrings);
+var
+  lFile: TNXPasIndexedFile;
+  lIdx: Integer;
+begin
+  if AUnits = nil then
+    Exit;
+
+  for lIdx := 0 to FFiles.Count - 1 do
+  begin
+    lFile := TNXPasIndexedFile(FFiles[lIdx]);
+    if lFile.Metadata.Name <> '' then
+      AUnits.Add(lFile.Metadata.Name);
+  end;
+end;
+
+procedure TNXPasWorkspaceIndex.AddUsesRelationshipsForList(
+  AFile: TNXPasIndexedFile; AUsesList: TNXPasUsesEntryList;
+  AResults: TNXPasUsesRelationshipList);
+var
+  lIdx: Integer;
+  lTarget: TNXPasIndexedFile;
+  lUsesEntry: TNXPasUsesEntry;
+begin
+  if (AFile = nil) or (AUsesList = nil) or (AResults = nil) then
+    Exit;
+
+  for lIdx := 0 to AUsesList.Count - 1 do
+  begin
+    lUsesEntry := AUsesList.EntryAt(lIdx);
+    if not lUsesEntry.Active then
+      Continue;
+    lTarget := FindFileByUnitName(lUsesEntry.UnitName);
+    if lTarget <> nil then
+      AResults.AddRelationship(AFile, lTarget, lUsesEntry);
+  end;
+end;
+
+procedure TNXPasWorkspaceIndex.ListUsesRelationships(
+  AResults: TNXPasUsesRelationshipList);
+var
+  lFile: TNXPasIndexedFile;
+  lIdx: Integer;
+begin
+  if AResults = nil then
+    Exit;
+
+  for lIdx := 0 to FFiles.Count - 1 do
+  begin
+    lFile := TNXPasIndexedFile(FFiles[lIdx]);
+    AddUsesRelationshipsForList(lFile, lFile.Metadata.InterfaceUses, AResults);
+    AddUsesRelationshipsForList(lFile, lFile.Metadata.ImplementationUses,
+      AResults);
+  end;
+end;
+
+procedure TNXPasWorkspaceIndex.AddUnresolvedUsesForList(
+  AFile: TNXPasIndexedFile; AUsesList: TNXPasUsesEntryList;
+  AResults: TNXPasUnresolvedUsesList);
+var
+  lIdx: Integer;
+  lUsesEntry: TNXPasUsesEntry;
+begin
+  if (AFile = nil) or (AUsesList = nil) or (AResults = nil) then
+    Exit;
+
+  for lIdx := 0 to AUsesList.Count - 1 do
+  begin
+    lUsesEntry := AUsesList.EntryAt(lIdx);
+    if lUsesEntry.Active and (FindFileByUnitName(lUsesEntry.UnitName) = nil) then
+      AResults.AddUnresolved(AFile, lUsesEntry);
+  end;
+end;
+
+procedure TNXPasWorkspaceIndex.ListUnresolvedUses(
+  AResults: TNXPasUnresolvedUsesList);
+var
+  lFile: TNXPasIndexedFile;
+  lIdx: Integer;
+begin
+  if AResults = nil then
+    Exit;
+
+  for lIdx := 0 to FFiles.Count - 1 do
+  begin
+    lFile := TNXPasIndexedFile(FFiles[lIdx]);
+    AddUnresolvedUsesForList(lFile, lFile.Metadata.InterfaceUses, AResults);
+    AddUnresolvedUsesForList(lFile, lFile.Metadata.ImplementationUses,
+      AResults);
+  end;
+end;
+
+procedure TNXPasWorkspaceIndex.BuildDependencyManifest(
+  AManifest: TNXPasDependencyManifest);
+var
+  lDependency: TNXPasDeploymentDependency;
+  lDependencyIdx: Integer;
+  lFile: TNXPasIndexedFile;
+  lFileIdx: Integer;
+begin
+  if AManifest = nil then
+    Exit;
+
+  for lFileIdx := 0 to FFiles.Count - 1 do
+  begin
+    lFile := TNXPasIndexedFile(FFiles[lFileIdx]);
+    for lDependencyIdx := 0 to lFile.Metadata.Dependencies.Count - 1 do
+    begin
+      lDependency := lFile.Metadata.Dependencies.DependencyAt(lDependencyIdx);
+      if lDependency.Active then
+        AManifest.AddEntry(lDependency.Value, lFile.Metadata.Name,
+          lFile.Metadata.SourcePath, lFile.Metadata.SourceURI,
+          lDependency.Range);
+    end;
+  end;
+end;
+
 procedure TNXPasWorkspaceIndex.RemoveFile(const AURI: string);
 var
   lIdx: Integer;
@@ -200,6 +412,7 @@ begin
   Result.URI := ASource.URI;
   Result.Text := ASource.Text;
   Result.Diagnostics.Clear;
+  Result.Metadata.Clear;
   Result.Symbols.Clear;
 
   lParser := TNXPasParser.Create(Result.Diagnostics);
@@ -207,6 +420,7 @@ begin
   lTree := nil;
   try
     lTree := lParser.Parse(ASource);
+    Result.Metadata.AssignFrom(lTree.Metadata);
     lExtractor.Extract(lTree, Result.Symbols);
   finally
     lTree.Free;

@@ -130,7 +130,7 @@ begin
     (lText = 'label') or (lText = 'library') or (lText = 'mod') or
     (lText = 'nil') or (lText = 'not') or (lText = 'object') or
     (lText = 'of') or (lText = 'operator') or (lText = 'or') or
-    (lText = 'out') or (lText = 'packed') or (lText = 'private') or
+    (lText = 'out') or (lText = 'package') or (lText = 'packed') or (lText = 'private') or
     (lText = 'procedure') or (lText = 'program') or
     (lText = 'property') or (lText = 'protected') or
     (lText = 'public') or (lText = 'published') or (lText = 'raise') or

@@ -9,6 +9,7 @@ uses
   Contnrs,
   obNXPasAST,
   obNXPasDiagnostics,
+  obNXPasMetadata,
   obNXPasSource,
   obNXPasTokenStream,
   tpNXPasTokens;
@@ -33,6 +34,7 @@ type
     FDirectiveStack: TObjectList;
     FDefines: TStringList;
     FCurrentActive: Boolean;
+    FCurrentUsesSection: TNXPasUsesSection;
     FHeaderParsed: Boolean;
     FLastDeclarationEnd: TNXPasSourcePosition;
     FStream: TNXPasTokenStream;
@@ -52,7 +54,12 @@ type
     function NormalizeDirectiveText(const AText: string): string;
     function DirectiveCommand(const AText: string): string;
     function DirectiveArgument(const AText: string): string;
+    function DirectiveArgumentRange(const AText: string;
+      const ATokenRange: TNXPasSourceRange): TNXPasSourceRange;
+    function StringLiteralValue(const AText: string): string;
     function IsDefined(const AName: string): Boolean;
+    function ResolveCandidatePath(const AInFileName: string): string;
+    function PathToFileURI(const APath: string): string;
     function ParseIdentifierList(AParent: TNXPasASTNode;
       AKind: TNXPasNodeKind): Boolean;
     procedure AddExpectedDiagnostic(const ACode, AMessage: string);
@@ -61,6 +68,8 @@ type
     procedure AddInactiveRegion(const AStartPos, AEndPos: TNXPasSourcePosition);
     procedure CloseInactiveRegionAt(const AEndPos: TNXPasSourcePosition);
     procedure ProcessDirective;
+    procedure ProcessMetadataDirective(const ACommand, AArgument: string;
+      const ARange: TNXPasSourceRange);
     procedure FinishDirectiveStack;
     procedure AdvanceToActiveToken;
     function RecoverAtSynchronizationPoint: Boolean;
@@ -68,6 +77,8 @@ type
     procedure ParseHeader;
     procedure ParseSection;
     procedure ParseUsesClause(AParent: TNXPasASTNode);
+    function ParseUsesEntry(AParent: TNXPasASTNode;
+      ASection: TNXPasUsesSection): Boolean;
     procedure ParseTypeSection(AParent: TNXPasASTNode);
     procedure ParseConstSection(AParent: TNXPasASTNode);
     procedure ParseVarSection(AParent: TNXPasASTNode);
@@ -233,9 +244,70 @@ begin
     Result := Trim(Copy(lText, lPos + 1, MaxInt));
 end;
 
+function TNXPasParser.DirectiveArgumentRange(const AText: string;
+  const ATokenRange: TNXPasSourceRange): TNXPasSourceRange;
+var
+  lArgument: string;
+  lNormalized: string;
+  lPos: Integer;
+begin
+  Result := ATokenRange;
+  lArgument := DirectiveArgument(AText);
+  if lArgument = '' then
+    Exit;
+
+  lNormalized := NormalizeDirectiveText(AText);
+  lPos := Pos(lArgument, lNormalized);
+  if lPos <= 0 then
+    Exit;
+
+  Result.StartPos.Offset := ATokenRange.StartPos.Offset + 1 + lPos;
+  Result.StartPos.Line := ATokenRange.StartPos.Line;
+  Result.StartPos.Column := ATokenRange.StartPos.Column + 1 + lPos;
+end;
+
+function TNXPasParser.StringLiteralValue(const AText: string): string;
+begin
+  Result := AText;
+  if (Length(Result) >= 2) and (Result[1] = '''') and
+    (Result[Length(Result)] = '''') then
+  begin
+    Result := Copy(Result, 2, Length(Result) - 2);
+    Result := StringReplace(Result, '''''', '''', [rfReplaceAll]);
+  end;
+end;
+
 function TNXPasParser.IsDefined(const AName: string): Boolean;
 begin
   Result := FDefines.IndexOf(UpperCase(AName)) >= 0;
+end;
+
+function TNXPasParser.ResolveCandidatePath(const AInFileName: string): string;
+var
+  lBasePath: string;
+begin
+  Result := '';
+  if (AInFileName = '') or (FTree = nil) or (FTree.Source = nil) then
+    Exit;
+
+  if ExtractFilePath(AInFileName) <> '' then
+    Result := ExpandFileName(AInFileName)
+  else
+  begin
+    lBasePath := ExtractFilePath(FTree.Source.FileName);
+    if lBasePath = '' then
+      Exit;
+    Result := ExpandFileName(lBasePath + AInFileName);
+  end;
+end;
+
+function TNXPasParser.PathToFileURI(const APath: string): string;
+begin
+  Result := '';
+  if APath = '' then
+    Exit;
+
+  Result := 'file:///' + StringReplace(APath, '\', '/', [rfReplaceAll]);
 end;
 
 procedure TNXPasParser.AddDiagnostic(const ACode, AMessage: string;
@@ -265,6 +337,7 @@ begin
   lRange.StartPos := AStartPos;
   lRange.EndPos := AEndPos;
   FTree.InactiveRegions.AddRegion(lRange);
+  FTree.Metadata.InactiveRegions.AddRegion(lRange);
 end;
 
 procedure TNXPasParser.CloseInactiveRegionAt(
@@ -294,6 +367,7 @@ begin
   lRange := CurrentRange;
   lCommand := DirectiveCommand(FStream.Current.Text);
   lArg := DirectiveArgument(FStream.Current.Text);
+  ProcessMetadataDirective(lCommand, lArg, lRange);
 
   if lCommand = 'DEFINE' then
   begin
@@ -374,6 +448,29 @@ begin
   FStream.Next;
 end;
 
+procedure TNXPasParser.ProcessMetadataDirective(const ACommand,
+  AArgument: string; const ARange: TNXPasSourceRange);
+begin
+  if FTree = nil then
+    Exit;
+
+  if FCurrentActive and (ACommand <> '') then
+    FTree.Metadata.ActiveDirectives.AddDirective(ACommand, AArgument, ARange,
+      True);
+
+  if (ACommand = 'I') or (ACommand = 'INCLUDE') then
+    FTree.Metadata.IncludeDirectives.AddDirective(ACommand, AArgument, ARange,
+      FCurrentActive)
+  else if ACommand = 'NXDEP' then
+  begin
+    if FCurrentActive and (AArgument = '') then
+      AddDiagnostic('nxpas.nxdep.malformed',
+        'NXDEP directive requires a dependency value.', ARange);
+    FTree.Metadata.Dependencies.AddDependency(AArgument, ARange,
+      FCurrentActive and (AArgument <> ''));
+  end;
+end;
+
 procedure TNXPasParser.FinishDirectiveStack;
 var
   lFrame: TNXPasDirectiveFrame;
@@ -448,7 +545,8 @@ var
 begin
   if not (FStream.Check(ptkKeyword, 'unit') or
     FStream.Check(ptkKeyword, 'program') or
-    FStream.Check(ptkKeyword, 'library')) then
+    FStream.Check(ptkKeyword, 'library') or
+    FStream.Check(ptkKeyword, 'package')) then
     Exit;
 
   FHeaderParsed := True;
@@ -458,25 +556,36 @@ begin
     lKind := pnkProgramHeader
   else if FStream.Check(ptkKeyword, 'library') then
     lKind := pnkLibraryHeader
+  else if FStream.Check(ptkKeyword, 'package') then
+    lKind := pnkHeader
   else
     lKind := pnkUnitHeader;
   lNode := FTree.Root.AddChild(lKind);
+  if FStream.Check(ptkKeyword, 'unit') then
+    FTree.Metadata.CompilationKind := pckUnit
+  else if FStream.Check(ptkKeyword, 'program') then
+    FTree.Metadata.CompilationKind := pckProgram
+  else if FStream.Check(ptkKeyword, 'library') then
+    FTree.Metadata.CompilationKind := pckLibrary
+  else if FStream.Check(ptkKeyword, 'package') then
+    FTree.Metadata.CompilationKind := pckPackage;
   FStream.Next;
   if FStream.ExpectIdentifierToken(lNameToken) then
   begin
     lNode.Name := lNameToken.Text;
+    FTree.Metadata.Name := lNameToken.Text;
     SetNodeRange(lNode, lStart, lNameToken.EndPos);
   end
   else
   begin
     lNode.Range := CurrentRange;
     AddExpectedDiagnostic('nxpas.header.malformed',
-      'Expected unit, program, or library name.');
+      'Expected unit, program, library, or package name.');
   end;
 
   if not FStream.MatchSymbol(';') then
     AddExpectedDiagnostic('nxpas.header.missingSemicolon',
-      'Missing semicolon after unit, program, or library header.');
+      'Missing semicolon after unit, program, library, or package header.');
 end;
 
 procedure TNXPasParser.ParseSection;
@@ -499,6 +608,7 @@ begin
   begin
     lNode := FTree.Root.AddChild(pnkInterfaceSection, 'interface');
     lNode.Range := CurrentRange;
+    FCurrentUsesSection := pusInterface;
     FStream.Next;
     Exit;
   end;
@@ -507,6 +617,7 @@ begin
   begin
     lNode := FTree.Root.AddChild(pnkImplementationSection, 'implementation');
     lNode.Range := CurrentRange;
+    FCurrentUsesSection := pusImplementation;
     FStream.Next;
     Exit;
   end;
@@ -536,7 +647,7 @@ begin
   lNode := AParent.AddChild(pnkUsesClause, 'uses');
   lNode.Range := CurrentRange;
   FStream.Next;
-  lSawItem := ParseIdentifierList(lNode, pnkUsesUnit);
+  lSawItem := ParseUsesEntry(lNode, FCurrentUsesSection);
 
   while not FStream.Check(ptkEndOfFile) do
   begin
@@ -554,7 +665,7 @@ begin
       ProcessDirective
     else if IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword then
       Break
-    else if not ParseIdentifierList(lNode, pnkUsesUnit) then
+    else if not ParseUsesEntry(lNode, FCurrentUsesSection) then
       FStream.Next;
   end;
 
@@ -563,6 +674,51 @@ begin
       'Expected uses clause item.');
   AddExpectedDiagnostic('nxpas.uses.missingSemicolon',
     'Missing semicolon after uses clause.');
+end;
+
+function TNXPasParser.ParseUsesEntry(AParent: TNXPasASTNode;
+  ASection: TNXPasUsesSection): Boolean;
+var
+  lCandidatePath: string;
+  lEntry: TNXPasUsesEntry;
+  lFileName: string;
+  lNameToken: TNXPasToken;
+  lNode: TNXPasASTNode;
+  lRange: TNXPasSourceRange;
+begin
+  Result := False;
+  if not FStream.ExpectIdentifierToken(lNameToken) then
+    Exit;
+
+  lFileName := '';
+  lRange := TokenRange(lNameToken);
+  lNode := AParent.AddChild(pnkUsesUnit, lNameToken.Text);
+  lNode.Range := lRange;
+
+  if FStream.MatchKeyword('in') then
+  begin
+    if FStream.Check(ptkString) then
+    begin
+      lFileName := StringLiteralValue(FStream.Current.Text);
+      lRange.EndPos := FStream.Current.EndPos;
+      lNode.Range := lRange;
+      FStream.Next;
+    end
+    else
+      AddExpectedDiagnostic('nxpas.uses.missingInFile',
+        'Expected filename string after uses in clause.');
+  end;
+
+  lEntry := FTree.Metadata.UsesForSection(ASection).AddEntry(lNameToken.Text,
+    lFileName, ASection, lRange, FCurrentActive);
+  if lFileName <> '' then
+  begin
+    lCandidatePath := ResolveCandidatePath(lFileName);
+    lEntry.CandidatePath := lCandidatePath;
+    lEntry.CandidateURI := PathToFileURI(lCandidatePath);
+  end;
+
+  Result := True;
 end;
 
 procedure TNXPasParser.ParseTypeSection(AParent: TNXPasASTNode);
@@ -1196,6 +1352,7 @@ var
   lLexer: TNXPasLexer;
 begin
   FCurrentActive := True;
+  FCurrentUsesSection := pusUnknown;
   FHeaderParsed := False;
   FDirectiveStack.Clear;
   FDefines.Clear;
@@ -1216,7 +1373,8 @@ begin
         Break;
       if not FHeaderParsed and (FStream.Check(ptkKeyword, 'unit') or
         FStream.Check(ptkKeyword, 'program') or
-        FStream.Check(ptkKeyword, 'library')) then
+        FStream.Check(ptkKeyword, 'library') or
+        FStream.Check(ptkKeyword, 'package')) then
         ParseHeader
       else
       ParseSection;

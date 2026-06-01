@@ -6,6 +6,7 @@ interface
 
 uses
   Contnrs,
+  obNXPasMetadata,
   obNXPasSource;
 
 type
@@ -63,12 +64,14 @@ type
   TNXPasSyntaxTree = class
   private
     FInactiveRegions: TNXPasInactiveRegionList;
+    FMetadata: TNXPasUnitMetadata;
     FRoot: TNXPasASTNode;
     FSource: TNXPasSourceFile;
   public
     constructor Create(ASource: TNXPasSourceFile);
     destructor Destroy; override;
     property InactiveRegions: TNXPasInactiveRegionList read FInactiveRegions;
+    property Metadata: TNXPasUnitMetadata read FMetadata;
     property Root: TNXPasASTNode read FRoot;
     property Source: TNXPasSourceFile read FSource;
   end;
@@ -116,12 +119,19 @@ begin
   inherited Create;
   FSource := ASource;
   FInactiveRegions := TNXPasInactiveRegionList.Create(True);
+  FMetadata := TNXPasUnitMetadata.Create;
+  if ASource <> nil then
+  begin
+    FMetadata.SourcePath := ASource.FileName;
+    FMetadata.SourceURI := ASource.URI;
+  end;
   FRoot := TNXPasASTNode.Create(pnkCompilationUnit);
 end;
 
 destructor TNXPasSyntaxTree.Destroy;
 begin
   FreeAndNil(FRoot);
+  FreeAndNil(FMetadata);
   FreeAndNil(FInactiveRegions);
   inherited Destroy;
 end;

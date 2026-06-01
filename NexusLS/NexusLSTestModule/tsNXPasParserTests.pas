@@ -12,8 +12,10 @@ procedure RegisterNXPasParserTests(ARegistry: TNXTestRegistry);
 implementation
 
 uses
+  Classes,
   obNXPasAST,
   obNXPasDiagnostics,
+  obNXPasMetadata,
   obNXPasParser,
   obNXPasProject,
   obNXPasSource,
@@ -979,6 +981,298 @@ begin
   end;
 end;
 
+procedure TestUnitMetadataCapturesHeaderAndUses(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lSource: TNXPasSourceFile;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'uses SysUtils, Classes;' + LineEnding +
+      'implementation' + LineEnding +
+      'uses Math;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+
+    AContext.AssertEquals('Sample', lTree.Metadata.Name,
+      'Metadata should capture the unit name.');
+    AContext.AssertEquals(Ord(pckUnit), Ord(lTree.Metadata.CompilationKind),
+      'Metadata should capture the compilation kind.');
+    AContext.AssertEquals(2, lTree.Metadata.InterfaceUses.Count,
+      'Metadata should capture interface uses entries.');
+    AContext.AssertEquals(1, lTree.Metadata.ImplementationUses.Count,
+      'Metadata should capture implementation uses entries.');
+    AContext.AssertEquals('SysUtils',
+      lTree.Metadata.InterfaceUses.EntryAt(0).UnitName,
+      'First interface uses entry should preserve the unit name.');
+    AContext.AssertTrue(
+      lTree.Metadata.InterfaceUses.EntryAt(0).Range.EndPos.Offset >
+      lTree.Metadata.InterfaceUses.EntryAt(0).Range.StartPos.Offset,
+      'Uses entry should have a source range.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestUsesInCapturesFilenameAndCandidatePath(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lEntry: TNXPasUsesEntry;
+  lParser: TNXPasParser;
+  lSource: TNXPasSourceFile;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lSource := TNXPasSourceFile.Create('C:\workspace\sample.pas',
+    'file:///C:/workspace/sample.pas',
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'uses Foo in ''foo.pas'';' + LineEnding +
+    'implementation' + LineEnding +
+    'end.');
+  lParser := TNXPasParser.Create(lDiagnostics);
+  lTree := nil;
+  try
+    lTree := lParser.Parse(lSource);
+    AContext.AssertEquals(1, lTree.Metadata.InterfaceUses.Count,
+      'Uses in clause should be captured as one entry.');
+    lEntry := lTree.Metadata.InterfaceUses.EntryAt(0);
+    AContext.AssertEquals('Foo', lEntry.UnitName,
+      'Uses in clause should preserve unit name.');
+    AContext.AssertEquals('foo.pas', lEntry.InFileName,
+      'Uses in clause should preserve filename text.');
+    AContext.AssertTrue(Pos('foo.pas', LowerCase(lEntry.CandidatePath)) > 0,
+      'Uses in clause should produce a direct candidate path.');
+  finally
+    lTree.Free;
+    lParser.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestInactiveUsesMetadataExcluded(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lSource: TNXPasSourceFile;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      'uses HiddenUnit;' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'uses VisibleUnit;' + LineEnding +
+      'implementation' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    AContext.AssertEquals(1, lTree.Metadata.InterfaceUses.Count,
+      'Inactive uses entries should not be collected as active metadata.');
+    AContext.AssertEquals('VisibleUnit',
+      lTree.Metadata.InterfaceUses.EntryAt(0).UnitName,
+      'Active uses entry after inactive region should still be captured.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestProjectGraphTracksKnownUnitsAndUses(AContext: TNXTestContext);
+var
+  lIndex: TNXPasWorkspaceIndex;
+  lRelationships: TNXPasUsesRelationshipList;
+  lSourceA: TNXPasSourceFile;
+  lSourceB: TNXPasSourceFile;
+  lUnits: TStringList;
+begin
+  lIndex := TNXPasWorkspaceIndex.Create;
+  lRelationships := TNXPasUsesRelationshipList.Create(True);
+  lSourceA := nil;
+  lSourceB := nil;
+  lUnits := TStringList.Create;
+  try
+    lSourceA := TNXPasSourceFile.Create('UnitA.pas',
+      'file:///UnitA.pas',
+      'unit UnitA;' + LineEnding +
+      'interface' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+    lSourceB := TNXPasSourceFile.Create('UnitB.pas',
+      'file:///UnitB.pas',
+      'unit UnitB;' + LineEnding +
+      'interface' + LineEnding +
+      'uses UnitA;' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+    lIndex.UpdateSourceFile(lSourceA);
+    lIndex.UpdateSourceFile(lSourceB);
+
+    AContext.AssertTrue(lIndex.FindFileByUnitName('UnitA') <> nil,
+      'Workspace graph should find known units by unit name.');
+    lIndex.ListKnownUnits(lUnits);
+    AContext.AssertEquals(2, lUnits.Count,
+      'Workspace graph should list known indexed units.');
+    lIndex.ListUsesRelationships(lRelationships);
+    AContext.AssertEquals(1, lRelationships.Count,
+      'Workspace graph should represent uses relationships among known files.');
+    AContext.AssertEquals('UnitA',
+      lRelationships.RelationshipAt(0).UsesEntry.UnitName,
+      'Uses relationship should preserve the used unit name.');
+  finally
+    lUnits.Free;
+    lSourceB.Free;
+    lSourceA.Free;
+    lRelationships.Free;
+    lIndex.Free;
+  end;
+end;
+
+procedure TestUnresolvedUsesReported(AContext: TNXTestContext);
+var
+  lIndex: TNXPasWorkspaceIndex;
+  lSource: TNXPasSourceFile;
+  lUnresolved: TNXPasUnresolvedUsesList;
+begin
+  lIndex := TNXPasWorkspaceIndex.Create;
+  lSource := nil;
+  lUnresolved := TNXPasUnresolvedUsesList.Create(True);
+  try
+    lSource := TNXPasSourceFile.Create('UnitB.pas',
+      'file:///UnitB.pas',
+      'unit UnitB;' + LineEnding +
+      'interface' + LineEnding +
+      'uses MissingUnit;' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+    lIndex.UpdateSourceFile(lSource);
+    lIndex.ListUnresolvedUses(lUnresolved);
+    AContext.AssertEquals(1, lUnresolved.Count,
+      'Workspace graph should report uses entries whose units are not indexed.');
+    AContext.AssertEquals('MissingUnit',
+      lUnresolved.UnresolvedAt(0).UsesEntry.UnitName,
+      'Unresolved uses entry should preserve the missing unit name.');
+  finally
+    lSource.Free;
+    lUnresolved.Free;
+    lIndex.Free;
+  end;
+end;
+
+procedure TestNXDEPCollection(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lSource: TNXPasSourceFile;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      '{$NXDEP sqlite3.dll}' + LineEnding +
+      '{$NXDEP SDL2.dll}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    AContext.AssertEquals(2, lTree.Metadata.Dependencies.Count,
+      'Parser should collect multiple NXDEP directives.');
+    AContext.AssertEquals('sqlite3.dll',
+      lTree.Metadata.Dependencies.DependencyAt(0).Value,
+      'NXDEP should preserve dependency value.');
+    AContext.AssertTrue(lTree.Metadata.Dependencies.DependencyAt(0).Active,
+      'Active NXDEP should be marked active.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestNXDEPActiveBranch(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lSource: TNXPasSourceFile;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      '{$NXDEP hidden.dll}' + LineEnding +
+      '{$ELSE}' + LineEnding +
+      '{$NXDEP active.dll}' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    AContext.AssertEquals(2, lTree.Metadata.Dependencies.Count,
+      'Parser should preserve NXDEP directives from conditional branches.');
+    AContext.AssertFalse(lTree.Metadata.Dependencies.DependencyAt(0).Active,
+      'Inactive NXDEP branch should not be active.');
+    AContext.AssertTrue(lTree.Metadata.Dependencies.DependencyAt(1).Active,
+      'Active NXDEP branch should be active.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestDependencyManifest(AContext: TNXTestContext);
+var
+  lIndex: TNXPasWorkspaceIndex;
+  lManifest: TNXPasDependencyManifest;
+  lSource: TNXPasSourceFile;
+begin
+  lIndex := TNXPasWorkspaceIndex.Create;
+  lManifest := TNXPasDependencyManifest.Create(True);
+  lSource := nil;
+  try
+    lSource := TNXPasSourceFile.Create('sqlite3.pas',
+      'file:///sqlite3.pas',
+      'unit sqlite3;' + LineEnding +
+      'interface' + LineEnding +
+      '{$NXDEP sqlite3.dll}' + LineEnding +
+      '{$IFDEF UNKNOWN}' + LineEnding +
+      '{$NXDEP hidden.dll}' + LineEnding +
+      '{$ENDIF}' + LineEnding +
+      'implementation' + LineEnding +
+      'end.');
+    lIndex.UpdateSourceFile(lSource);
+    lIndex.BuildDependencyManifest(lManifest);
+    AContext.AssertEquals(1, lManifest.Count,
+      'Dependency manifest should include active dependencies only.');
+    AContext.AssertEquals('sqlite3.dll', lManifest.EntryAt(0).Dependency,
+      'Dependency manifest should preserve dependency value.');
+    AContext.AssertEquals('sqlite3', lManifest.EntryAt(0).SourceName,
+      'Dependency manifest should preserve declaring source unit.');
+  finally
+    lSource.Free;
+    lManifest.Free;
+    lIndex.Free;
+  end;
+end;
+
 procedure TestDeclaredTypeReferences(AContext: TNXTestContext);
 var
   lClassSymbol: TNXPasSymbol;
@@ -1219,6 +1513,18 @@ begin
   lSuite.AddTest('ConditionalUnitHeaderUsesActiveBranch',
     @TestConditionalUnitHeaderUsesActiveBranch);
   lSuite.AddTest('WorkspaceIndex', @TestWorkspaceIndex);
+  lSuite.AddTest('UnitMetadataCapturesHeaderAndUses',
+    @TestUnitMetadataCapturesHeaderAndUses);
+  lSuite.AddTest('UsesInCapturesFilenameAndCandidatePath',
+    @TestUsesInCapturesFilenameAndCandidatePath);
+  lSuite.AddTest('InactiveUsesMetadataExcluded',
+    @TestInactiveUsesMetadataExcluded);
+  lSuite.AddTest('ProjectGraphTracksKnownUnitsAndUses',
+    @TestProjectGraphTracksKnownUnitsAndUses);
+  lSuite.AddTest('UnresolvedUsesReported', @TestUnresolvedUsesReported);
+  lSuite.AddTest('NXDEPCollection', @TestNXDEPCollection);
+  lSuite.AddTest('NXDEPActiveBranch', @TestNXDEPActiveBranch);
+  lSuite.AddTest('DependencyManifest', @TestDependencyManifest);
   lSuite.AddTest('DeclaredTypeReferences', @TestDeclaredTypeReferences);
   lSuite.AddTest('DeclaredTypeParsingHardened',
     @TestDeclaredTypeParsingHardened);
