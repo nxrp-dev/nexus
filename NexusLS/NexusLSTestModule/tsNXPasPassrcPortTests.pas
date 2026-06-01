@@ -171,6 +171,28 @@ var
   lLexer: TNXPasLexer;
   lToken: TNXPasToken;
 begin
+  lLexer := TNXPasLexer.Create(#10);
+  try
+    lToken := lLexer.NextToken;
+    AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
+      'Line ending should produce whitespace token.');
+    AContext.AssertEquals(#10, lToken.Text,
+      'Line ending whitespace text should be preserved.');
+  finally
+    lLexer.Free;
+  end;
+
+  lLexer := TNXPasLexer.Create(#9);
+  try
+    lToken := lLexer.NextToken;
+    AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
+      'Tab should produce whitespace token.');
+    AContext.AssertEquals(#9, lToken.Text,
+      'Tab whitespace text should be preserved.');
+  finally
+    lLexer.Free;
+  end;
+
   lLexer := TNXPasLexer.Create('One' + #13 + 'Two' + #10 + 'Three' +
     #10#13 + 'Four'#9'Five');
   try
@@ -365,7 +387,7 @@ procedure TestScannerAssignmentCompoundSymbols(AContext: TNXTestContext);
 var
   lIdx: Integer;
   lLexer: TNXPasLexer;
-  lSymbols: array[0..5] of string;
+  lSymbols: array[0..7] of string;
 begin
   lSymbols[0] := '+=';
   lSymbols[1] := '-=';
@@ -373,8 +395,10 @@ begin
   lSymbols[3] := '/=';
   lSymbols[4] := '**';
   lSymbols[5] := '><';
+  lSymbols[6] := '<<';
+  lSymbols[7] := '>>';
 
-  lLexer := TNXPasLexer.Create('+= -= *= /= ** ><');
+  lLexer := TNXPasLexer.Create('+= -= *= /= ** >< << >>');
   try
     for lIdx := Low(lSymbols) to High(lSymbols) do
       NXPassrcAssertToken(AContext, lLexer, ptkSymbol, lSymbols[lIdx],
@@ -388,7 +412,7 @@ procedure TestScannerKeywordTokens(AContext: TNXTestContext);
 var
   lIdx: Integer;
   lLexer: TNXPasLexer;
-  lKeywords: array[0..52] of string;
+  lKeywords: array[0..71] of string;
 begin
   lKeywords[0] := 'and';
   lKeywords[1] := 'as';
@@ -443,13 +467,34 @@ begin
   lKeywords[50] := 'class';
   lKeywords[51] := 'function';
   lKeywords[52] := 'object';
+  lKeywords[53] := 'bitpacked';
+  lKeywords[54] := 'dispinterface';
+  lKeywords[55] := 'except';
+  lKeywords[56] := 'exports';
+  lKeywords[57] := 'false';
+  lKeywords[58] := 'file';
+  lKeywords[59] := 'finally';
+  lKeywords[60] := 'goto';
+  lKeywords[61] := 'helper';
+  lKeywords[62] := 'is';
+  lKeywords[63] := 'label';
+  lKeywords[64] := 'mod';
+  lKeywords[65] := 'on';
+  lKeywords[66] := 'raise';
+  lKeywords[67] := 'shl';
+  lKeywords[68] := 'shr';
+  lKeywords[69] := 'specialize';
+  lKeywords[70] := 'threadvar';
+  lKeywords[71] := 'true';
 
   lLexer := TNXPasLexer.Create('and as asm begin case const constructor ' +
     'destructor div do downto else end finalization for generic if ' +
     'implementation in inherited initialization inline interface library nil ' +
     'not of operator or packed procedure program property record repeat ' +
     'resourcestring set then to try type unit until uses var while with xor ' +
-    'absolute array class function object');
+    'absolute array class function object bitpacked dispinterface except ' +
+    'exports false file finally goto helper is label mod on raise shl shr ' +
+    'specialize threadvar true');
   try
     for lIdx := Low(lKeywords) to High(lKeywords) do
       NXPassrcAssertToken(AContext, lLexer, ptkKeyword, lKeywords[lIdx],

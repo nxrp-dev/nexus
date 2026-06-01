@@ -14,13 +14,21 @@ This file summarizes the source-controlled coverage map in `NexusPasPassrcTestIn
 
 Only published test methods from the uploaded passrc-style units are counted as runnable original tests. Helper functions, private methods, protected methods, and implementation routines are not counted.
 
+## Inventory identity
+
+Inventory rows are identified by:
+
+`SourceUnit + OriginalTestClass + OriginalTestMethod`
+
+The original `SourceUnit + OriginalTestMethod` pair is not unique for all passrc tests. The current full-key duplicate count is 0.
+
 ## Classification totals
 
 | Status | Count |
 | --- | ---: |
 | active NexusPas test | 0 |
-| active NexusPas test with adjusted Nexus expectation | 224 |
-| deferred because NexusPas does not yet support the required feature | 1820 |
+| active NexusPas test with adjusted Nexus expectation | 248 |
+| deferred because NexusPas does not yet support the required feature | 1796 |
 | not applicable because it targets passrc-specific internals | 30 |
 
 Current active mappings are classified as adjusted Nexus expectations because they assert NexusPas lexer/parser/symbol behavior directly rather than preserving passrc object-model expectations.
@@ -39,7 +47,7 @@ Current active mappings are classified as adjusted Nexus expectations because th
 | tcprocfunc.pas | 130 | 130 | 30 | 100 | 0 |
 | tcresolvegenerics.pas | 129 | 129 | 0 | 129 | 0 |
 | tcresolver.pas | 726 | 726 | 0 | 726 | 0 |
-| tcscanner.pas | 194 | 194 | 106 | 88 | 0 |
+| tcscanner.pas | 194 | 194 | 130 | 64 | 0 |
 | tcstatements.pas | 95 | 95 | 0 | 95 | 0 |
 | tctypeparser.pas | 282 | 282 | 33 | 249 | 0 |
 | tcuseanalyzer.pas | 124 | 124 | 1 | 123 | 0 |

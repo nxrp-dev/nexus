@@ -117,29 +117,33 @@ var
 begin
   lText := LowerCase(AText);
   Result := (lText = 'absolute') or (lText = 'and') or (lText = 'array') or (lText = 'as') or
-    (lText = 'asm') or (lText = 'begin') or (lText = 'case') or
+    (lText = 'asm') or (lText = 'begin') or (lText = 'bitpacked') or
+    (lText = 'case') or
     (lText = 'class') or (lText = 'const') or (lText = 'constructor') or
     (lText = 'destructor') or (lText = 'dispinterface') or
     (lText = 'div') or (lText = 'do') or (lText = 'downto') or
     (lText = 'else') or (lText = 'end') or (lText = 'except') or
     (lText = 'exports') or (lText = 'file') or
-    (lText = 'finalization') or (lText = 'finally') or (lText = 'for') or
-    (lText = 'function') or (lText = 'generic') or (lText = 'goto') or (lText = 'if') or
+    (lText = 'false') or (lText = 'finalization') or
+    (lText = 'finally') or (lText = 'for') or
+    (lText = 'function') or (lText = 'generic') or (lText = 'goto') or
+    (lText = 'helper') or (lText = 'if') or
     (lText = 'implementation') or (lText = 'in') or
     (lText = 'inherited') or (lText = 'initialization') or
     (lText = 'inline') or (lText = 'interface') or (lText = 'is') or
     (lText = 'label') or (lText = 'library') or (lText = 'mod') or
     (lText = 'nil') or (lText = 'not') or (lText = 'object') or
-    (lText = 'of') or (lText = 'operator') or (lText = 'or') or
+    (lText = 'of') or (lText = 'on') or (lText = 'operator') or (lText = 'or') or
     (lText = 'out') or (lText = 'package') or (lText = 'packed') or (lText = 'private') or
     (lText = 'procedure') or (lText = 'program') or
     (lText = 'property') or (lText = 'protected') or
     (lText = 'public') or (lText = 'published') or (lText = 'raise') or
     (lText = 'record') or (lText = 'repeat') or
     (lText = 'resourcestring') or (lText = 'set') or (lText = 'shl') or
-    (lText = 'shr') or (lText = 'string') or (lText = 'then') or
+    (lText = 'shr') or (lText = 'specialize') or (lText = 'string') or
+    (lText = 'then') or
     (lText = 'threadvar') or (lText = 'to') or (lText = 'try') or
-    (lText = 'type') or (lText = 'unit') or (lText = 'until') or
+    (lText = 'true') or (lText = 'type') or (lText = 'unit') or (lText = 'until') or
     (lText = 'uses') or (lText = 'var') or (lText = 'while') or
     (lText = 'with') or (lText = 'xor');
 end;
