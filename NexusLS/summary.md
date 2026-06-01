@@ -1,12 +1,12 @@
 # Recent Work Summary
 
-## NexusPas Structured Member Promotion Pass
+## NexusPas Const/Var Structural Promotion Pass
 
-- Promoted a bounded structured type/member slice from `tcclasstype.pas` and `tctypeparser.pas`.
-- Promoted cases attempted: 43.
+- Promoted a bounded const/var structural slice from `tconstparser.pas` and `tcvarparser.pas`.
+- Promoted cases attempted: 32.
 - Newly active NexusPas tests added: 2.
-- Active-adjusted inventory mappings now total: 315.
-- Remaining deferred inventory mappings: 1,729.
+- Active-adjusted inventory mappings now total: 347.
+- Remaining deferred inventory mappings: 1,697.
 - Not-applicable passrc-internal mappings: 30.
 - Inventory rows remain: 2,074.
 - Original published test methods remain: 2,073.
@@ -14,28 +14,27 @@
 
 ## Parser Changes
 
-- Added structural handling for class-body `var` and `class var` member sections.
-- Added structural handling for `class procedure`, `class function`, and class-prefixed properties.
-- Allowed the keyword-shaped field name `helper` in structured type bodies.
-- Skipped routine directive tails such as `virtual`, `abstract`, `final`, `override`, `dynamic`, `reintroduce`, and `inline` so they do not become false field symbols.
-- Skipped property tail directives such as `default;` so indexed default properties do not create false field symbols.
+- Allowed keyword-shaped `helper` as a var/const declaration name where Pascal permits it.
+- Added structural declaration-tail detection for `absolute`, `cvar`, `deprecated`, `experimental`, `external`, `name`, `platform`, and `public`.
+- Stopped declared-type capture before declaration-tail modifiers so modifier text does not become type text.
+- Skipped declaration-tail directives after const/var declarations so modifier/export syntax does not become bogus declarations.
+- Fixed the `public name` tail skip so it consumes the whole tail instead of stopping on the visibility keyword.
 
 ## Active Assertions Added
 
-- Class grouped fields, `var` fields, `class var` fields, and keyword-shaped `helper` fields.
-- Class methods/functions with class prefixes and routine modifiers.
-- Property forms including write-only, `nodefault`, `stored`, fully qualified types, indexed read/write, indexed default, multidimensional index parameters, and `implements` as parse-safe structure.
-- Record fields, constructor members, and properties.
-- Interface heritage and interface property members.
+- Const symbols for set-like values, expression values, and modifier-tail consts.
+- Typed const declared type capture for nil, identifier, set, expression, record value, array value, range, and array-of-range forms.
+- Resourcestring symbols for simple and expression-style resourcestring declarations.
+- Var symbols and declared type capture for `helper` names/types, deprecated/platform tails, initialized vars with hints, absolute expressions, procedure vars, record vars, array vars, external/cvar/public/export tails, and hint-before-init syntax.
 
 ## Verification
 
 - `lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
 - `lazbuild NexusLS\nexusls.lpi` passed.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-suite NexusPas.PassrcPort`
-  - 39 run, 39 passed, 0 failed, 0 skipped.
+  - 41 run, 41 passed, 0 failed, 0 skipped.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-all`
-  - 198 run, 198 passed, 0 failed, 0 skipped.
+  - 200 run, 200 passed, 0 failed, 0 skipped.
 - CodeTools/passrc/FPCUnit dependency scan found no active references in `NexusLS\src` or `NexusLS\NexusLSTestModule`.
 
 ## Inventory
@@ -47,4 +46,4 @@
 ## Archive
 
 - No commit was made.
-- Archive created: `nexus-source-chatgpt-structured-members.zip`.
+- Archive created: `nexus-source-chatgpt-const-var-structural.zip`.

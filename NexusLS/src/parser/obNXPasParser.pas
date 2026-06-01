@@ -53,6 +53,8 @@ type
     function IsVisibilityKeyword: Boolean;
     function IsRoutineDirective: Boolean;
     function IsFieldNameToken: Boolean;
+    function IsDeclarationNameToken: Boolean;
+    function IsDeclarationTailKeyword: Boolean;
     function NormalizeDirectiveText(const AText: string): string;
     function DirectiveCommand(const AText: string): string;
     function DirectiveArgument(const AText: string): string;
@@ -94,6 +96,7 @@ type
     procedure ParseFieldDecl(AParent: TNXPasASTNode);
     procedure ParsePropertyDecl(AParent: TNXPasASTNode);
     procedure SkipPropertyParameters;
+    function ExpectDeclarationNameToken(out AToken: TNXPasToken): Boolean;
     function ExpectFieldNameToken(out AToken: TNXPasToken): Boolean;
     procedure ParseVisibilitySection(AParent: TNXPasASTNode);
     function CaptureDeclaredType(AStopAtPropertyModifier,
@@ -101,6 +104,7 @@ type
       out ARange: TNXPasSourceRange): Boolean;
     procedure SkipToDeclarationEnd(AStopAtRoutineKeyword: Boolean = True);
     procedure SkipRoutineDirectives;
+    procedure SkipDeclarationTailDirectives;
   public
     destructor Destroy; override;
     constructor Create(ADiagnostics: TNXPasDiagnosticList);
@@ -244,6 +248,24 @@ end;
 function TNXPasParser.IsFieldNameToken: Boolean;
 begin
   Result := FStream.Check(ptkIdentifier) or FStream.Check(ptkKeyword, 'helper');
+end;
+
+function TNXPasParser.IsDeclarationNameToken: Boolean;
+begin
+  Result := FStream.Check(ptkIdentifier) or FStream.Check(ptkKeyword, 'helper');
+end;
+
+function TNXPasParser.IsDeclarationTailKeyword: Boolean;
+begin
+  Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+    (SameText(FStream.Current.Text, 'absolute') or
+    SameText(FStream.Current.Text, 'cvar') or
+    SameText(FStream.Current.Text, 'deprecated') or
+    SameText(FStream.Current.Text, 'experimental') or
+    SameText(FStream.Current.Text, 'external') or
+    SameText(FStream.Current.Text, 'name') or
+    SameText(FStream.Current.Text, 'platform') or
+    SameText(FStream.Current.Text, 'public'));
 end;
 
 function TNXPasParser.NormalizeDirectiveText(const AText: string): string;
@@ -811,7 +833,7 @@ begin
       ProcessDirective;
       Continue;
     end;
-    if not FStream.ExpectIdentifierToken(lNameToken) then
+    if not ExpectDeclarationNameToken(lNameToken) then
     begin
       RecoverDeclaration;
       Continue;
@@ -822,6 +844,7 @@ begin
       lDeclaredTypeText, lDeclaredTypeRange) then
       SetDeclaredType(lItemNode, lDeclaredTypeText, lDeclaredTypeRange);
     SkipToDeclarationEnd;
+    SkipDeclarationTailDirectives;
   end;
 end;
 
@@ -855,7 +878,7 @@ begin
       ProcessDirective;
       Continue;
     end;
-    if not FStream.ExpectIdentifierToken(lNameToken) then
+    if not ExpectDeclarationNameToken(lNameToken) then
     begin
       RecoverDeclaration;
       Continue;
@@ -865,7 +888,7 @@ begin
     lItems.Clear;
     lItems.Add(lItemNode);
     while FStream.MatchSymbol(',') do
-      if FStream.ExpectIdentifierToken(lNameToken) then
+      if ExpectDeclarationNameToken(lNameToken) then
       begin
         lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
         lItemNode.Range := TokenRange(lNameToken);
@@ -877,6 +900,7 @@ begin
         SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
           lDeclaredTypeRange);
     SkipToDeclarationEnd;
+    SkipDeclarationTailDirectives;
   end;
   finally
     lItems.Free;
@@ -1304,6 +1328,26 @@ begin
     SkipToDeclarationEnd;
 end;
 
+function TNXPasParser.ExpectDeclarationNameToken(
+  out AToken: TNXPasToken): Boolean;
+begin
+  Result := IsDeclarationNameToken;
+  if Result then
+  begin
+    AToken := FStream.Current;
+    FStream.Next;
+  end
+  else
+  begin
+    AToken.Kind := ptkUnknown;
+    AToken.Text := '';
+    AToken.StartPos.Offset := 0;
+    AToken.StartPos.Line := 0;
+    AToken.StartPos.Column := 0;
+    AToken.EndPos := AToken.StartPos;
+  end;
+end;
+
 function TNXPasParser.ExpectFieldNameToken(out AToken: TNXPasToken): Boolean;
 begin
   Result := IsFieldNameToken;
@@ -1404,6 +1448,8 @@ begin
         SameText(FStream.Current.Text, 'default') or
         SameText(FStream.Current.Text, 'nodefault') or
         SameText(FStream.Current.Text, 'implements'))) then
+        Break;
+      if IsDeclarationTailKeyword then
         Break;
       if IsSectionStart or
         (IsDeclarationSectionStart and
@@ -1536,6 +1582,38 @@ begin
       IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
       IsVisibilityKeyword or FStream.Check(ptkKeyword, 'end') or
       FStream.Check(ptkKeyword, 'property')) do
+    begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
+      FStream.Next;
+    end;
+
+    if FStream.Check(ptkSymbol, ';') then
+    begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
+      FStream.Next;
+    end
+    else
+      Exit;
+  end;
+end;
+
+procedure TNXPasParser.SkipDeclarationTailDirectives;
+begin
+  while not FStream.Check(ptkEndOfFile) do
+  begin
+    if FStream.Check(ptkSymbol, ';') then
+    begin
+      FLastDeclarationEnd := FStream.Current.EndPos;
+      FStream.Next;
+      Continue;
+    end;
+
+    if not IsDeclarationTailKeyword then
+      Exit;
+
+    while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ';') or
+      IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
+      FStream.Check(ptkKeyword, 'end')) do
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;

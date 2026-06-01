@@ -1424,6 +1424,90 @@ begin
   end;
 end;
 
+procedure TestConstAdvancedStructuralDeclarations(AContext: TNXTestContext);
+var
+  lConst: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'const' + LineEnding +
+      '  SetConst = [taLeftJustify, taRightJustify];' + LineEnding +
+      '  ExprConst = 1 + 2;' + LineEnding +
+      '  DeprecatedConst = 1 deprecated;' + LineEnding +
+      '  PlatformConst = ''text'' platform;' + LineEnding +
+      '  ExperimentalConst = True experimental;' + LineEnding +
+      '  TypedNil: PChar = nil;' + LineEnding +
+      '  TypedIdent: TAlign = taCenter;' + LineEnding +
+      '  TypedSet: TAligns = [taLeftJustify, taRightJustify];' + LineEnding +
+      '  TypedExpr: ShortInt = 1 + 2;' + LineEnding +
+      '  RecordConst: TPoint = (x: 1; y: 2);' + LineEnding +
+      '  ArrayConst: TMyArray = (1, 2);' + LineEnding +
+      '  RangeConst: 0..1 = 1;' + LineEnding +
+      '  ArrayOfRange: array[0..7] of 0..1 = (0, 0, 0, 0);' + LineEnding +
+      'resourcestring' + LineEnding +
+      '  SimpleResource = ''Something'';' + LineEnding +
+      '  SumResource = ''Something'' + '' else'' deprecated;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SetConst') <> nil, 'Set-like const should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'ExprConst') <> nil, 'Expression const should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'DeprecatedConst') <> nil, 'Deprecated const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'PlatformConst') <> nil, 'Platform const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'ExperimentalConst') <> nil,
+      'Experimental const should not corrupt parsing.');
+    lConst := NXPassrcFindSymbol(lSymbols, pskConst, 'TypedNil');
+    AContext.AssertEquals('PChar', lConst.DeclaredTypeText,
+      'Typed nil const declared type should be captured.');
+    AContext.AssertEquals('TAlign',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'TypedIdent').DeclaredTypeText,
+      'Typed identifier const declared type should be captured.');
+    AContext.AssertEquals('TAligns',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'TypedSet').DeclaredTypeText,
+      'Typed set const declared type should be captured.');
+    AContext.AssertEquals('ShortInt',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'TypedExpr').DeclaredTypeText,
+      'Typed expression const declared type should be captured.');
+    AContext.AssertEquals('TPoint',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'RecordConst').DeclaredTypeText,
+      'Record const declared type should be captured.');
+    AContext.AssertEquals('TMyArray',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'ArrayConst').DeclaredTypeText,
+      'Array const declared type should be captured.');
+    AContext.AssertEquals('0..1',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'RangeConst').DeclaredTypeText,
+      'Range const declared type should be captured structurally.');
+    AContext.AssertEquals('array[0..7] of 0..1',
+      NXPassrcFindSymbol(lSymbols, pskConst, 'ArrayOfRange').DeclaredTypeText,
+      'Array-of-range const declared type should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SimpleResource') <> nil, 'Resourcestring should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SumResource') <> nil, 'Resourcestring expression should be captured structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestVarStructuralDeclarations(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1479,6 +1563,93 @@ begin
       'CVarVar') <> nil, 'cvar variable should not corrupt parsing.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskVariable,
       'PublicVar') <> nil, 'public variable should not corrupt parsing.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestVarModifierStructuralDeclarations(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'var' + LineEnding +
+      '  Helper: Integer;' + LineEnding +
+      '  HelperType: helper;' + LineEnding +
+      '  DeprecatedVar: b deprecated;' + LineEnding +
+      '  PlatformVar: b platform;' + LineEnding +
+      '  InitializedDeprecated: b = 123 deprecated;' + LineEnding +
+      '  InitializedPlatform: b = 123 platform;' + LineEnding +
+      '  AbsoluteDot: q absolute v.w;' + LineEnding +
+      '  AbsoluteTwoDots: q absolute v.w.x;' + LineEnding +
+      '  ProcDeprecated: procedure deprecated;' + LineEnding +
+      '  RecordDeprecated: record x, y: integer; end deprecated;' + LineEnding +
+      '  RecordPlatform: record x, y: integer; end platform;' + LineEnding +
+      '  ArrayDeprecated: array[1..20] of integer deprecated;' + LineEnding +
+      '  ExternalNoSemi: integer external;' + LineEnding +
+      '  CVarExternal: integer cvar; external;' + LineEnding +
+      '  PublicName: integer public name ''ce'';' + LineEnding +
+      '  DeprecatedExternalName: integer deprecated; external name ''me'';' + LineEnding +
+      '  HintPriorToInit: boolean platform = false;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    AContext.AssertEquals('Integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'Helper').DeclaredTypeText,
+      'Keyword-shaped helper variable name should be parsed.');
+    AContext.AssertEquals('helper',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'HelperType').DeclaredTypeText,
+      'Keyword-shaped helper variable type should be captured.');
+    AContext.AssertEquals('b',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'DeprecatedVar').DeclaredTypeText,
+      'Deprecated variable tail should not enter declared type text.');
+    AContext.AssertEquals('b',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'PlatformVar').DeclaredTypeText,
+      'Platform variable tail should not enter declared type text.');
+    AContext.AssertEquals('q',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'AbsoluteDot').DeclaredTypeText,
+      'Absolute variable tail should not enter declared type text.');
+    AContext.AssertEquals('procedure',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'ProcDeprecated').DeclaredTypeText,
+      'Procedure variable deprecated tail should be skipped structurally.');
+    AContext.AssertTrue(Pos('record', NXPassrcFindSymbol(lSymbols, pskVariable,
+      'RecordDeprecated').DeclaredTypeText) = 1,
+      'Record variable deprecated tail should be skipped structurally.');
+    AContext.AssertTrue(Pos('array[1..20] of integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable,
+      'ArrayDeprecated').DeclaredTypeText) = 1,
+      'Array variable deprecated tail should be skipped structurally.');
+    AContext.AssertEquals('integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'ExternalNoSemi').DeclaredTypeText,
+      'External variable tail without early semicolon should be skipped.');
+    AContext.AssertEquals('integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'CVarExternal').DeclaredTypeText,
+      'cvar/external variable tails should be skipped.');
+    AContext.AssertEquals('integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable, 'PublicName').DeclaredTypeText,
+      'public name variable tail should be skipped.');
+    AContext.AssertEquals('integer',
+      NXPassrcFindSymbol(lSymbols, pskVariable,
+      'DeprecatedExternalName').DeclaredTypeText,
+      'deprecated/external name variable tails should be skipped.');
+    AContext.AssertEquals('boolean',
+      NXPassrcFindSymbol(lSymbols, pskVariable,
+      'HintPriorToInit').DeclaredTypeText,
+      'Hint before initializer should be skipped structurally.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -1918,7 +2089,11 @@ begin
   lSuite.AddTest('ConstAndVarDeclarations', @TestConstAndVarDeclarations);
   lSuite.AddTest('ConstTypedAndLiteralDeclarations',
     @TestConstTypedAndLiteralDeclarations);
+  lSuite.AddTest('ConstAdvancedStructuralDeclarations',
+    @TestConstAdvancedStructuralDeclarations);
   lSuite.AddTest('VarStructuralDeclarations', @TestVarStructuralDeclarations);
+  lSuite.AddTest('VarModifierStructuralDeclarations',
+    @TestVarModifierStructuralDeclarations);
   lSuite.AddTest('InlineAnonymousTypeDeclarations',
     @TestInlineAnonymousTypeDeclarations);
   lSuite.AddTest('GenericDeclaredTypeText', @TestGenericDeclaredTypeText);
