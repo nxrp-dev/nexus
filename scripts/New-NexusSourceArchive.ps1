@@ -83,6 +83,9 @@ $ExcludedDirectoryNames = @(
   'output_compare'
 )
 
+$TestArtifactFolderName = 'test-artifacts'
+$TestArtifactArchiveRoot = 'test\artifacts'
+
 function Copy-ArchiveFile {
   param(
     [System.IO.FileInfo]$SourceFile,
@@ -236,6 +239,42 @@ function Remove-OldArchives {
   return $DeletedCount
 }
 
+function Get-FlattenedTestArtifactName {
+  param(
+    [string]$OutputRoot,
+    [System.IO.FileInfo]$SourceFile
+  )
+
+  $lRelativePath = Get-RelativePath -BasePath $OutputRoot -ChildPath $SourceFile.FullName
+  $lPathParts = $lRelativePath -split '[\\/]'
+  $lFlattenedParts = $lPathParts | Where-Object { $_ -ine $TestArtifactFolderName }
+
+  return $lFlattenedParts -join '__'
+}
+
+function Copy-TestArtifacts {
+  $lOutputRoot = Join-Path $RepositoryRoot 'output'
+  if (-not (Test-Path -LiteralPath $lOutputRoot -PathType Container)) {
+    return 0
+  }
+
+  $lCopiedCount = 0
+  Get-ChildItem -LiteralPath $lOutputRoot -Directory -Recurse | Where-Object {
+    $_.Name -ieq $TestArtifactFolderName
+  } | ForEach-Object {
+    $lArtifactRoot = $_.FullName
+    Get-ChildItem -LiteralPath $lArtifactRoot -File -Recurse | ForEach-Object {
+      $lArchiveFileName = Get-FlattenedTestArtifactName -OutputRoot $lOutputRoot -SourceFile $_
+      $lArchivePath = Join-Path $TestArtifactArchiveRoot $lArchiveFileName
+
+      Copy-ArchiveFile -SourceFile $_ -ArchiveRelativePath $lArchivePath
+      $lCopiedCount++
+    }
+  }
+
+  return $lCopiedCount
+}
+
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
 if (Test-Path -LiteralPath $StagePath) {
@@ -280,6 +319,9 @@ try {
     $script:FileCount++
   }
 
+  $TestArtifactCount = Copy-TestArtifacts
+  $FileCount += $TestArtifactCount
+
   if (Test-Path -LiteralPath $OutputPath) {
     Remove-Item -LiteralPath $OutputPath -Force
   }
@@ -298,4 +340,5 @@ $OldArchiveCount = Remove-OldArchives -CurrentArchive $Archive
 Write-Host ('Created: {0}' -f $Archive.FullName)
 Write-Host ('Size: {0} bytes' -f $Archive.Length)
 Write-Host ('Files: {0}' -f $FileCount)
+Write-Host ('Test artifacts: {0}' -f $TestArtifactCount)
 Write-Host ('Old archives removed: {0}' -f $OldArchiveCount)

@@ -16,6 +16,7 @@ uses
   tsNXLSProtocolObjectTests,
   tsNXPasLexerTests,
   tsNXPasParserTests,
+  tsNXPasPassrcPortTests,
   tsNXPasSignatureTests,
   tsNXPasCompletionTests,
   tsNXPasEditorTests;
@@ -33,6 +34,7 @@ begin
   RegisterNXLSProtocolObjectTests(ARegistry);
   RegisterNXPasLexerTests(ARegistry);
   RegisterNXPasParserTests(ARegistry);
+  RegisterNXPasPassrcPortTests(ARegistry);
   RegisterNXPasSignatureTests(ARegistry);
   RegisterNXPasCompletionTests(ARegistry);
   RegisterNXPasEditorTests(ARegistry);

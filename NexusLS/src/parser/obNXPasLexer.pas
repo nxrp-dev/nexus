@@ -115,7 +115,7 @@ var
   lText: string;
 begin
   lText := LowerCase(AText);
-  Result := (lText = 'and') or (lText = 'array') or (lText = 'as') or
+  Result := (lText = 'absolute') or (lText = 'and') or (lText = 'array') or (lText = 'as') or
     (lText = 'asm') or (lText = 'begin') or (lText = 'case') or
     (lText = 'class') or (lText = 'const') or (lText = 'constructor') or
     (lText = 'destructor') or (lText = 'dispinterface') or
@@ -407,7 +407,7 @@ begin
     '.', '<', '>', '+', '-', '*', '/':
       begin
         Advance;
-        if CurrentChar in ['=', '.'] then
+        if CurrentChar in ['=', '.', '>'] then
           Advance;
       end;
   else

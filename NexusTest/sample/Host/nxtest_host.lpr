@@ -3,7 +3,7 @@ program nxtest_host;
 {$mode objfpc}{$H+}
 
 uses
-  Classes, SysUtils, DynLibs, fpjson, tpNXTest;
+  Classes, SysUtils, DynLibs, fpjson, jsonparser, tpNXTest;
 
 type
   TNXTestInitFunc = function: Integer; cdecl;
@@ -71,6 +71,211 @@ begin
   Result.Add(AName, AValue);
 end;
 
+function NXHostCleanFileName(const AValue: string): string;
+var
+  lIndex: Integer;
+begin
+  Result := AValue;
+  for lIndex := 1 to Length(Result) do
+    if not (Result[lIndex] in ['A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.']) then
+      Result[lIndex] := '-';
+end;
+
+function NXHostArtifactDirectory: string;
+var
+  lDirectory: string;
+begin
+  lDirectory := GetEnvironmentVariable('NEXUS_TEST_ARTIFACT_DIR');
+  if lDirectory <> '' then
+    Exit(IncludeTrailingPathDelimiter(lDirectory));
+
+  lDirectory := IncludeTrailingPathDelimiter(GetCurrentDir) + 'output';
+  if DirectoryExists(lDirectory) then
+    Exit(IncludeTrailingPathDelimiter(lDirectory) + 'NexusTestHost' +
+      DirectorySeparator + 'test-artifacts' + DirectorySeparator);
+
+  Result := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
+    'test-artifacts' + DirectorySeparator;
+end;
+
+function NXHostJSONText(AObject: TJSONObject; const AName: string): string;
+var
+  lValue: TJSONData;
+begin
+  Result := '';
+  lValue := AObject.Find(AName);
+  if Assigned(lValue) then
+    Result := lValue.AsString;
+end;
+
+function NXHostJSONInt(AObject: TJSONObject; const AName: string): Integer;
+var
+  lValue: TJSONData;
+begin
+  Result := 0;
+  lValue := AObject.Find(AName);
+  if Assigned(lValue) then
+    Result := lValue.AsInteger;
+end;
+
+procedure NXHostAddTextLine(ALines: TStrings; const AName: string;
+  const AValue: Integer);
+begin
+  ALines.Add(Format('%s: %d', [AName, AValue]));
+end;
+
+procedure NXHostWriteTestSummaryArtifacts(const ALibraryName, ACommand,
+  ASuiteName, AResponse: string);
+var
+  lData: TJSONData;
+  lResponse: TJSONObject;
+  lResult: TJSONObject;
+  lResults: TJSONArray;
+  lTest: TJSONObject;
+  lSummary: TJSONObject;
+  lLines: TStringList;
+  lDirectory: string;
+  lBaseName: string;
+  lStatus: string;
+  lIndex: Integer;
+  lTotal: Integer;
+  lPassed: Integer;
+  lFailed: Integer;
+  lError: Integer;
+  lSkipped: Integer;
+  lNotRun: Integer;
+  lOther: Integer;
+  lDurationMs: Integer;
+begin
+  lData := GetJSON(AResponse);
+  try
+    if (lData.JSONType <> jtObject) then
+      Exit;
+
+    lResponse := TJSONObject(lData);
+    if not Assigned(lResponse.Find('result')) or
+      (lResponse.Find('result').JSONType <> jtObject) then
+      Exit;
+
+    lResult := TJSONObject(lResponse.Find('result'));
+    if not Assigned(lResult.Find('results')) or
+      (lResult.Find('results').JSONType <> jtArray) then
+      Exit;
+
+    lResults := TJSONArray(lResult.Find('results'));
+    lTotal := lResults.Count;
+    lPassed := 0;
+    lFailed := 0;
+    lError := 0;
+    lSkipped := 0;
+    lNotRun := 0;
+    lOther := 0;
+    lDurationMs := 0;
+
+    for lIndex := 0 to lResults.Count - 1 do
+    begin
+      if lResults.Items[lIndex].JSONType <> jtObject then
+      begin
+        Inc(lOther);
+        Continue;
+      end;
+
+      lTest := TJSONObject(lResults.Items[lIndex]);
+      lStatus := NXHostJSONText(lTest, 'status');
+      lDurationMs := lDurationMs + NXHostJSONInt(lTest, 'durationMs');
+
+      if SameText(lStatus, cNXTestStatusPassed) then
+        Inc(lPassed)
+      else if SameText(lStatus, cNXTestStatusFailed) then
+        Inc(lFailed)
+      else if SameText(lStatus, cNXTestStatusError) then
+        Inc(lError)
+      else if SameText(lStatus, cNXTestStatusSkipped) then
+        Inc(lSkipped)
+      else if SameText(lStatus, cNXTestStatusNotRun) then
+        Inc(lNotRun)
+      else
+        Inc(lOther);
+    end;
+
+    lSummary := TJSONObject.Create;
+    try
+      lSummary.Add('schema', 'nexus-test-summary-v1');
+      lSummary.Add('generatedAt', FormatDateTime('yyyy"-"mm"-"dd"T"hh":"nn":"ss', Now));
+      lSummary.Add('command', ACommand);
+      lSummary.Add('library', ExpandFileName(ALibraryName));
+      if ASuiteName <> '' then
+        lSummary.Add('suite', ASuiteName);
+      lSummary.Add('total', lTotal);
+      lSummary.Add('passed', lPassed);
+      lSummary.Add('failed', lFailed);
+      lSummary.Add('error', lError);
+      lSummary.Add('skipped', lSkipped);
+      lSummary.Add('notRun', lNotRun);
+      lSummary.Add('other', lOther);
+      lSummary.Add('durationMs', lDurationMs);
+      lSummary.Add('successful', (lFailed = 0) and (lError = 0));
+      lSummary.Add('results', lResults.Clone);
+
+      lDirectory := NXHostArtifactDirectory;
+      ForceDirectories(lDirectory);
+      lBaseName := 'nxtest-' + NXHostCleanFileName(ACommand);
+      if ASuiteName <> '' then
+        lBaseName := lBaseName + '-' + NXHostCleanFileName(ASuiteName);
+      lBaseName := lBaseName + '-summary';
+
+      lLines := TStringList.Create;
+      try
+        lLines.Add('Nexus test summary');
+        lLines.Add('Command: ' + ACommand);
+        if ASuiteName <> '' then
+          lLines.Add('Suite: ' + ASuiteName);
+        lLines.Add('Library: ' + ExpandFileName(ALibraryName));
+        NXHostAddTextLine(lLines, 'Total', lTotal);
+        NXHostAddTextLine(lLines, 'Passed', lPassed);
+        NXHostAddTextLine(lLines, 'Failed', lFailed);
+        NXHostAddTextLine(lLines, 'Error', lError);
+        NXHostAddTextLine(lLines, 'Skipped', lSkipped);
+        NXHostAddTextLine(lLines, 'Not run', lNotRun);
+        NXHostAddTextLine(lLines, 'Other', lOther);
+        NXHostAddTextLine(lLines, 'Duration ms', lDurationMs);
+        lLines.SaveToFile(lDirectory + lBaseName + '.txt');
+      finally
+        lLines.Free;
+      end;
+
+      with TStringList.Create do
+      try
+        Text := lSummary.FormatJSON;
+        SaveToFile(lDirectory + lBaseName + '.json');
+      finally
+        Free;
+      end;
+    finally
+      lSummary.Free;
+    end;
+  finally
+    lData.Free;
+  end;
+end;
+
+procedure NXHostPrintRunResult(AExecuteCommand: TNXTestExecuteCommandFunc;
+  AReadResult: TNXTestReadResultFunc; const ALibraryName, ACommand,
+  ARequest: string; const ASuiteName: string = '');
+var
+  lResponse: string;
+begin
+  lResponse := ExecuteCommand(AExecuteCommand, AReadResult, ARequest);
+  WriteLn(lResponse);
+
+  try
+    NXHostWriteTestSummaryArtifacts(ALibraryName, ACommand, ASuiteName, lResponse);
+  except
+    on E: Exception do
+      WriteLn(StdErr, 'Unable to write test summary artifact: ' + E.Message);
+  end;
+end;
+
 procedure Run;
 var
   lLibraryName: string;
@@ -112,7 +317,8 @@ begin
       else if SameText(ParamStr(2), 'capabilities') then
         WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodGetCapabilities)))
       else if SameText(ParamStr(2), 'run-all') then
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunAll)))
+        NXHostPrintRunResult(lExecuteCommand, lReadResult, lLibraryName, 'run-all',
+          BuildRequest(1, cNXTestMethodRunAll))
       else if SameText(ParamStr(2), 'run-test') then
       begin
         if ParamCount < 3 then
@@ -123,7 +329,9 @@ begin
       begin
         if ParamCount < 3 then
           raise Exception.Create('run-suite requires a suite name.');
-        WriteLn(ExecuteCommand(lExecuteCommand, lReadResult, BuildRequest(1, cNXTestMethodRunSuite, BuildSingleStringParam('suite', ParamStr(3)))));
+        NXHostPrintRunResult(lExecuteCommand, lReadResult, lLibraryName,
+          'run-suite', BuildRequest(1, cNXTestMethodRunSuite,
+          BuildSingleStringParam('suite', ParamStr(3))), ParamStr(3));
       end
       else
         raise Exception.Create('Unknown command: ' + ParamStr(2));
