@@ -949,7 +949,8 @@ begin
   SkipToDeclarationEnd;
   SkipRoutineDirectives;
   SetNodeRange(lNode, lStart, FLastDeclarationEnd);
-  if not (AParent.Kind in [pnkClassDecl, pnkObjectDecl, pnkRecordDecl,
+  if (FCurrentUsesSection <> pusInterface) and
+    not (AParent.Kind in [pnkClassDecl, pnkObjectDecl, pnkRecordDecl,
     pnkInterfaceDecl]) then
   begin
     ParseRoutineBodyDeclarations(lNode);

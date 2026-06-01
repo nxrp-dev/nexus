@@ -85,6 +85,24 @@ begin
   end;
 end;
 
+function NXPassrcCountSymbols(ASymbols: TNXPasSymbolTable;
+  AKind: TNXPasSymbolKind; const AName: string): Integer;
+var
+  lIdx: Integer;
+  lSymbol: TNXPasSymbol;
+begin
+  Result := 0;
+  if ASymbols = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbols.Count - 1 do
+  begin
+    lSymbol := ASymbols.SymbolAt(lIdx);
+    if (lSymbol.Kind = AKind) and (lSymbol.Name = AName) then
+      Inc(Result);
+  end;
+end;
+
 function NXPassrcFindChildSymbol(ASymbol: TNXPasSymbol;
   AKind: TNXPasSymbolKind; const AName: string): TNXPasSymbol;
 var
@@ -145,6 +163,17 @@ begin
   lSymbol := NXPassrcFindSymbol(ASymbols, pskType, AName);
   AContext.AssertTrue(lSymbol <> nil, AMessage + ' exists');
   AContext.AssertEquals(AText, lSymbol.DeclaredTypeText,
+    AMessage + ' declared type text');
+end;
+
+procedure NXPassrcAssertRoutine(AContext: TNXTestContext;
+  ASymbols: TNXPasSymbolTable; const AName, ADeclaredType, AMessage: string);
+var
+  lSymbol: TNXPasSymbol;
+begin
+  lSymbol := NXPassrcFindSymbol(ASymbols, pskRoutine, AName);
+  AContext.AssertTrue(lSymbol <> nil, AMessage + ' exists');
+  AContext.AssertEquals(ADeclaredType, lSymbol.DeclaredTypeText,
     AMessage + ' declared type text');
 end;
 
@@ -2540,6 +2569,145 @@ begin
   end;
 end;
 
+procedure TestProcedureAdditionalStructuralForms(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      '// comment before routine declarations' + LineEnding +
+      'procedure Commented;' + LineEnding +
+      'function CommentedFunction: Integer;' + LineEnding +
+      'type' + LineEnding +
+      '  TProcPlain = procedure;' + LineEnding +
+      '  TProcVar = procedure(var A: Integer);' + LineEnding +
+      '  TProcConst = procedure(const A: Integer);' + LineEnding +
+      '  TProcOut = procedure(out A: Integer);' + LineEnding +
+      '  TProcTwoVar = procedure(var A: Integer; var B: string);' + LineEnding +
+      '  TProcTwoConst = procedure(const A: Integer; const B: string);' + LineEnding +
+      '  TProcTwoOut = procedure(out A: Integer; out B: string);' + LineEnding +
+      '  TProcCombined = procedure(A, B: Integer);' + LineEnding +
+      '  TProcCombinedVar = procedure(var A, B: Integer);' + LineEnding +
+      '  TProcCombinedConst = procedure(const A, B: Integer);' + LineEnding +
+      '  TProcCombinedOut = procedure(out A, B: Integer);' + LineEnding +
+      '  TProcDefaultConst = procedure(A: Integer; const B: Integer);' + LineEnding +
+      '  TProcUntypedVar = procedure(var A);' + LineEnding +
+      '  TProcUntypedConst = procedure(const A);' + LineEnding +
+      '  TProcUntypedOut = procedure(out A);' + LineEnding +
+      '  TProcDefault = procedure(A: Integer = 1);' + LineEnding +
+      '  TProcDefaultExpr = procedure(A: Integer = 1 + 2);' + LineEnding +
+      '  TProcDefaultSet = procedure(A: TB = []);' + LineEnding +
+      '  TProcVarDefault = procedure(var A: Integer = 1);' + LineEnding +
+      '  TProcConstDefault = procedure(const A: Integer = 1);' + LineEnding +
+      '  TProcOutDefault = procedure(out A: Integer = 1);' + LineEnding +
+      '  TProcOpenArray = procedure(A: array of Integer);' + LineEnding +
+      '  TProcConstOpenArray = procedure(const A: array of Integer);' + LineEnding +
+      '  TProcVarOpenArray = procedure(var A: array of Integer);' + LineEnding +
+      '  TProcOutOpenArray = procedure(out A: array of Integer);' + LineEnding +
+      '  TProcArrayOfConst = procedure(A: array of const);' + LineEnding +
+      '  TProcReference = reference to procedure;' + LineEnding +
+      '  TProcNested = procedure is nested;' + LineEnding +
+      '  TProcNestedOneArg = procedure(A: Integer) is nested;' + LineEnding +
+      'implementation' + LineEnding +
+      'procedure CDeclForward; cdecl; forward;' + LineEnding +
+      'function CDeclForwardFunction: Integer; cdecl; forward;' + LineEnding +
+      'function TestDelphiModeFuncs(d: double): string;' + LineEnding +
+      'function TestDelphiModeFuncs;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    NXPassrcAssertRoutine(AContext, lSymbols, 'Commented', '',
+      'Commented procedure');
+    NXPassrcAssertRoutine(AContext, lSymbols, 'CommentedFunction',
+      'Integer', 'Commented function');
+    NXPassrcAssertRoutine(AContext, lSymbols, 'CDeclForward', '',
+      'cdecl forward procedure');
+    NXPassrcAssertRoutine(AContext, lSymbols, 'CDeclForwardFunction',
+      'Integer', 'cdecl forward function');
+    AContext.AssertEquals(2, NXPassrcCountSymbols(lSymbols, pskRoutine,
+      'TestDelphiModeFuncs'), 'Function without repeated result should parse.');
+
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcPlain',
+      'procedure', 'Plain procedure type');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcVar',
+      'procedure(var A: Integer)', 'var parameter procedure type');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcConst',
+      'procedure(const A: Integer)', 'const parameter procedure type');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcOut',
+      'procedure(out A: Integer)', 'out parameter procedure type');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcTwoVar',
+      'procedure(var A: Integer; var B: string)', 'two var parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcTwoConst',
+      'procedure(const A: Integer; const B: string)',
+      'two const parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcTwoOut',
+      'procedure(out A: Integer; out B: string)', 'two out parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcCombined',
+      'procedure(A, B: Integer)', 'combined parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcCombinedVar',
+      'procedure(var A, B: Integer)', 'combined var parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcCombinedConst',
+      'procedure(const A, B: Integer)', 'combined const parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcCombinedOut',
+      'procedure(out A, B: Integer)', 'combined out parameters');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefaultConst',
+      'procedure(A: Integer; const B: Integer)',
+      'default plus const parameter groups');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcUntypedVar',
+      'procedure(var A)', 'untyped var parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcUntypedConst',
+      'procedure(const A)', 'untyped const parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcUntypedOut',
+      'procedure(out A)', 'untyped out parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefault',
+      'procedure(A: Integer = 1)', 'default parameter value');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefaultExpr',
+      'procedure(A: Integer = 1 + 2)', 'default parameter expression');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefaultSet',
+      'procedure(A: TB = [])', 'default set parameter value');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcVarDefault',
+      'procedure(var A: Integer = 1)', 'var default parameter value');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcConstDefault',
+      'procedure(const A: Integer = 1)', 'const default parameter value');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcOutDefault',
+      'procedure(out A: Integer = 1)', 'out default parameter value');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcOpenArray',
+      'procedure(A: array of Integer)', 'open array parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcConstOpenArray',
+      'procedure(const A: array of Integer)', 'const open array parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcVarOpenArray',
+      'procedure(var A: array of Integer)', 'var open array parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcOutOpenArray',
+      'procedure(out A: array of Integer)', 'out open array parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcArrayOfConst',
+      'procedure(A: array of const)', 'array-of-const parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcReference',
+      'reference to procedure', 'reference to procedure type');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcNested',
+      'procedure is nested', 'nested procedure type');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcNestedOneArg',
+      'procedure(A: Integer) is nested', 'nested procedure type with arg');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestDiagnosticsRecoveryForMalformedUses(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -2749,6 +2917,8 @@ begin
     @TestTypeAdditionalStructuralVariants);
   lSuite.AddTest('ProcedureTypeDeclarations',
     @TestProcedureTypeDeclarations);
+  lSuite.AddTest('ProcedureAdditionalStructuralForms',
+    @TestProcedureAdditionalStructuralForms);
   lSuite.AddTest('DiagnosticsRecoveryForMalformedUses',
     @TestDiagnosticsRecoveryForMalformedUses);
   lSuite.AddTest('DiagnosticsMissingClassEndRecovery',
