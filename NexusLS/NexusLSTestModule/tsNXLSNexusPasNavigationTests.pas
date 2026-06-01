@@ -771,6 +771,225 @@ begin
   end;
 end;
 
+procedure TestDefinitionFindsDirectDeclaredTypeMember(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '    FCount: Integer;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value.FCount := 1;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value.FCount', 'FCount');
+
+    AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Definition should resolve a direct declared-type member.');
+    AContext.AssertEquals(5, lLocation.range.start.line.Value,
+      'Definition should point to the member declaration.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDefinitionUnknownMemberReturnsEmpty(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value.Missing;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value.Missing', 'Missing');
+
+    AContext.AssertFalse(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Unknown direct members should not resolve.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDefinitionUnknownReceiverReturnsEmpty(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'begin' + LineEnding +
+    '  Missing.FCount;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Missing.FCount', 'FCount');
+
+    AContext.AssertFalse(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Unknown receivers should not resolve member definitions.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestMemberDefinitionDoesNotFallbackToGlobal(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'var Missing: Integer;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value.Missing;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value.Missing', 'Missing');
+
+    AContext.AssertFalse(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Member lookup should not fall back to an unrelated global symbol.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionUsesDirectMemberDeclaredType(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TInner = class end;' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '    Item: TInner;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value.Item;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value.Item', 'Item');
+
+    AContext.AssertTrue(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Type definition should use direct member declared type.');
+    AContext.AssertEquals(3, lLocation.range.start.line.Value,
+      'Type definition should point to the member declared type symbol.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestTypeDefinitionPrimitiveMemberTypeReturnsEmpty(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '    Count: Integer;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value.Count;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas', cSource,
+      'Value.Count', 'Count');
+
+    AContext.AssertFalse(lModel.Navigation.FillTypeDefinition(lParams,
+      lLocation), 'Primitive/unresolved member types should not fake locations.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestDeclarationFindsClassInCurrentDocument(AContext: TNXTestContext);
 var
   lLocation: TNXLSLocation;
@@ -1020,6 +1239,18 @@ begin
     @TestReferencesExcludeDeclarationIdentifierOnly);
   lSuite.AddTest('ReferencesRemainLexicalForSameNameLocals',
     @TestReferencesRemainLexicalForSameNameLocals);
+  lSuite.AddTest('DefinitionFindsDirectDeclaredTypeMember',
+    @TestDefinitionFindsDirectDeclaredTypeMember);
+  lSuite.AddTest('DefinitionUnknownMemberReturnsEmpty',
+    @TestDefinitionUnknownMemberReturnsEmpty);
+  lSuite.AddTest('DefinitionUnknownReceiverReturnsEmpty',
+    @TestDefinitionUnknownReceiverReturnsEmpty);
+  lSuite.AddTest('MemberDefinitionDoesNotFallbackToGlobal',
+    @TestMemberDefinitionDoesNotFallbackToGlobal);
+  lSuite.AddTest('TypeDefinitionUsesDirectMemberDeclaredType',
+    @TestTypeDefinitionUsesDirectMemberDeclaredType);
+  lSuite.AddTest('TypeDefinitionPrimitiveMemberTypeReturnsEmpty',
+    @TestTypeDefinitionPrimitiveMemberTypeReturnsEmpty);
   lSuite.AddTest('DeclarationFindsClassInCurrentDocument',
     @TestDeclarationFindsClassInCurrentDocument);
   lSuite.AddTest('DeclarationReturnsEmptyForUnknownIdentifier',

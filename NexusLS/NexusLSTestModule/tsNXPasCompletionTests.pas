@@ -473,16 +473,23 @@ begin
   end;
 end;
 
-procedure TestCompletionAfterDotReturnsEmpty(AContext: TNXTestContext);
+procedure TestCompletionAfterDotReturnsDirectMembers(AContext: TNXTestContext);
 const
   cSource =
     'unit Sample;' + LineEnding +
     'interface' + LineEnding +
-    'type TSample = class end;' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '    FCount: Integer;' + LineEnding +
+    '    property Name: string read FCount;' + LineEnding +
+    '    procedure Run;' + LineEnding +
+    '  end;' + LineEnding +
+    'procedure GlobalRun;' + LineEnding +
     'implementation' + LineEnding +
     'var Item: TSample;' + LineEnding +
     'begin' + LineEnding +
-    '  Item.' + LineEnding +
+    '  Item. // complete' + LineEnding +
     'end.';
 var
   lModel: TNXLSLSPModel;
@@ -493,25 +500,36 @@ begin
   try
     NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
     NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
-      '  Item.', 'Item.', lResult);
-    AContext.AssertEquals(0, lResult.Count,
-      'Member completion after dot is intentionally empty in this milestone.');
+      '  Item. // complete', 'Item.', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'FCount'),
+      'Member completion should include fields from the declared receiver type.');
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'Name'),
+      'Member completion should include properties from the declared receiver type.');
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'Run'),
+      'Member completion should include methods from the declared receiver type.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'GlobalRun'),
+      'Member completion should not include global symbols after dot.');
   finally
     lResult.Free;
     lModel.Free;
   end;
 end;
 
-procedure TestCompletionAfterDotPrefixReturnsEmpty(AContext: TNXTestContext);
+procedure TestCompletionAfterDotPrefixFiltersMembers(AContext: TNXTestContext);
 const
   cSource =
     'unit Sample;' + LineEnding +
     'interface' + LineEnding +
-    'type TSample = class end;' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '    FCount: Integer;' + LineEnding +
+    '    Name: string;' + LineEnding +
+    '  end;' + LineEnding +
     'implementation' + LineEnding +
     'var Item: TSample;' + LineEnding +
     'begin' + LineEnding +
-    '  Item.Fo' + LineEnding +
+    '  Item.F' + LineEnding +
     'end.';
 var
   lModel: TNXLSLSPModel;
@@ -522,9 +540,239 @@ begin
   try
     NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
     NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
-      '  Item.Fo', 'Fo', lResult);
+      '  Item.F', 'F', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'FCount'),
+      'Member completion should prefix-filter fields.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'Name'),
+      'Member completion should exclude members that do not match the prefix.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionAfterDotUnknownReceiverReturnsEmpty(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class end;' + LineEnding +
+    'implementation' + LineEnding +
+    'begin' + LineEnding +
+    '  Missing. // complete' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Missing. // complete', 'Missing.', lResult);
     AContext.AssertEquals(0, lResult.Count,
-      'Member completion with a typed member prefix is intentionally empty.');
+      'Unknown receivers should produce no member completion.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionAfterDotReceiverWithoutDeclaredTypeReturnsEmpty(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'const Item = 1;' + LineEnding +
+    'implementation' + LineEnding +
+    'begin' + LineEnding +
+    '  Item. // complete' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Item. // complete', 'Item.', lResult);
+    AContext.AssertEquals(0, lResult.Count,
+      'Receivers without declared type metadata should produce no member completion.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestCompletionAfterDotExcludesInactiveMembers(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    '    Hidden: Integer;' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    '    Visible: Integer;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Item: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Item. // complete' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Item. // complete', 'Item.', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'Visible'),
+      'Active members should remain available.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'Hidden'),
+      'Inactive members should not be member completion candidates.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestMemberCompletionUsesCurrentRoutineReceiver(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TFirst = class public FirstMember: Integer; end;' + LineEnding +
+    '  TSecond = class public SecondMember: Integer; end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure First;' + LineEnding +
+    'var Value: TFirst;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Second;' + LineEnding +
+    'var Value: TSecond;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value. // complete' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Value. // complete', 'Value.', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'SecondMember'),
+      'Member completion should use the receiver visible in the current routine.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'FirstMember'),
+      'Member completion should not use another routine receiver with the same name.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestMemberCompletionIgnoresOtherDocumentRoutineReceivers(
+  AContext: TNXTestContext);
+const
+  cOther =
+    'unit OtherUnit;' + LineEnding +
+    'interface' + LineEnding +
+    'type TOther = class public OtherMember: Integer; end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Other;' + LineEnding +
+    'var Value: TOther;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TLocal = class public LocalMember: Integer; end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Local;' + LineEnding +
+    'var Value: TLocal;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value. // complete' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/OtherUnit.pas', cOther);
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Value. // complete', 'Value.', lResult);
+    AContext.AssertTrue(NXPasHasCompletion(lResult, 'LocalMember'),
+      'Member completion should use current document routine receivers.');
+    AContext.AssertFalse(NXPasHasCompletion(lResult, 'OtherMember'),
+      'Member completion should ignore routine receivers from other documents.');
+  finally
+    lResult.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestMemberCompletionAfterDotSuppressedInCommentStringAndInactive(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type TSample = class public FCount: Integer; end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  // Value. comment' + LineEnding +
+    '  Text := ''Value.'';' + LineEnding +
+    '{$IFDEF UNKNOWN}' + LineEnding +
+    '  Value. inactive' + LineEnding +
+    '{$ENDIF}' + LineEnding +
+    'end.';
+var
+  lModel: TNXLSLSPModel;
+  lResult: TNXLSCompletionItemArray;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lResult := TNXLSCompletionItemArray.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  // Value. comment', 'Value.', lResult);
+    AContext.AssertEquals(0, lResult.Count,
+      'Member completion inside comments should remain suppressed.');
+
+    lResult.Clear;
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Text := ''Value.'';', 'Value.', lResult);
+    AContext.AssertEquals(0, lResult.Count,
+      'Member completion inside strings should remain suppressed.');
+
+    lResult.Clear;
+    NXPasFillCompletion(lModel, 'file:///C:/workspace/Sample.pas', cSource,
+      '  Value. inactive', 'Value.', lResult);
+    AContext.AssertEquals(0, lResult.Count,
+      'Member completion inside inactive regions should remain suppressed.');
   finally
     lResult.Free;
     lModel.Free;
@@ -727,10 +975,22 @@ begin
     @TestCompletionInsideCommentReturnsEmpty);
   lSuite.AddTest('DuplicateSymbolsReduced', @TestDuplicateSymbolsReduced);
   lSuite.AddTest('KeywordCompletion', @TestKeywordCompletion);
-  lSuite.AddTest('CompletionAfterDotReturnsEmpty',
-    @TestCompletionAfterDotReturnsEmpty);
-  lSuite.AddTest('CompletionAfterDotPrefixReturnsEmpty',
-    @TestCompletionAfterDotPrefixReturnsEmpty);
+  lSuite.AddTest('CompletionAfterDotReturnsDirectMembers',
+    @TestCompletionAfterDotReturnsDirectMembers);
+  lSuite.AddTest('CompletionAfterDotPrefixFiltersMembers',
+    @TestCompletionAfterDotPrefixFiltersMembers);
+  lSuite.AddTest('CompletionAfterDotUnknownReceiverReturnsEmpty',
+    @TestCompletionAfterDotUnknownReceiverReturnsEmpty);
+  lSuite.AddTest('CompletionAfterDotReceiverWithoutDeclaredTypeReturnsEmpty',
+    @TestCompletionAfterDotReceiverWithoutDeclaredTypeReturnsEmpty);
+  lSuite.AddTest('CompletionAfterDotExcludesInactiveMembers',
+    @TestCompletionAfterDotExcludesInactiveMembers);
+  lSuite.AddTest('MemberCompletionUsesCurrentRoutineReceiver',
+    @TestMemberCompletionUsesCurrentRoutineReceiver);
+  lSuite.AddTest('MemberCompletionIgnoresOtherDocumentRoutineReceivers',
+    @TestMemberCompletionIgnoresOtherDocumentRoutineReceivers);
+  lSuite.AddTest('MemberCompletionAfterDotSuppressedInCommentStringAndInactive',
+    @TestMemberCompletionAfterDotSuppressedInCommentStringAndInactive);
   lSuite.AddTest('CompletionIncludesRoutineParameters',
     @TestCompletionIncludesRoutineParameters);
   lSuite.AddTest('CompletionIncludesLocalVariables',

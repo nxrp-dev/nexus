@@ -21,6 +21,9 @@ type
     function FindSymbolAtPosition(const AName, AURI: string; ALine,
       AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function HoverText(AMatch: TNXPasWorkspaceSymbolMatch): string;
+    function ResolveMemberAtParams(AParams: TNXLSTextDocumentPositionParams;
+      out AIsMemberAccess: Boolean;
+      out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
       AEndLine, AEndColumn: Integer);
   public
@@ -44,6 +47,7 @@ uses
   SysUtils,
   obNXPasCompletion,
   obNXPasLookup,
+  obNXPasMemberLookup,
   obNXPasSignatures,
   obNXPasSource,
   obNXPasSymbols;
@@ -126,6 +130,7 @@ function TNXLSEditorService.FillHover(AParams: TNXLSTextDocumentPositionParams;
 var
   lDocument: TNXLSDocument;
   lIdentifierRange: TNXPasSourceRange;
+  lIsMemberAccess: Boolean;
   lMatch: TNXPasWorkspaceSymbolMatch;
   lName: string;
   lRange: TNXPasSourceRange;
@@ -146,6 +151,23 @@ begin
     if not TNXPasLookup.IdentifierAtPosition(lSource,
       AParams.position.line.Value, AParams.position.character.Value, lName,
       lIdentifierRange) then
+      Exit;
+
+    if ResolveMemberAtParams(AParams, lIsMemberAccess, lMatch) then
+    try
+      AResult.contents.kind.Value := 'plaintext';
+      AResult.contents.value.Value := HoverText(lMatch);
+      lRange := lMatch.Symbol.Range;
+      TNXPasLookup.FindSymbolIdentifierRange(lMatch.FileRef,
+        lMatch.Symbol.Name, lMatch.Symbol.Range, lRange);
+      SetRange(AResult.range, lRange.StartPos.Line, lRange.StartPos.Column,
+        lRange.EndPos.Line, lRange.EndPos.Column);
+      AResult.Assigned := True;
+      Exit(True);
+    finally
+      lMatch.Free;
+    end
+    else if lIsMemberAccess then
       Exit;
 
     if not FindSymbolAtPosition(lName, lDocument.URI,
@@ -234,6 +256,60 @@ begin
       end;
   finally
     lMatches.Free;
+  end;
+end;
+
+function TNXLSEditorService.ResolveMemberAtParams(
+  AParams: TNXLSTextDocumentPositionParams; out AIsMemberAccess: Boolean;
+  out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+var
+  lDocument: TNXLSDocument;
+  lMember: TNXPasSymbol;
+  lMemberName: string;
+  lMemberRange: TNXPasSourceRange;
+  lReceiverMatch: TNXPasWorkspaceSymbolMatch;
+  lReceiverName: string;
+  lSource: TNXPasSourceFile;
+  lTypeMatch: TNXPasWorkspaceSymbolMatch;
+begin
+  Result := False;
+  AIsMemberAccess := False;
+  AMatch := nil;
+  if (AParams = nil) or (AParams.textDocument = nil) then
+    Exit;
+
+  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
+  lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
+    lDocument.Text);
+  try
+    AIsMemberAccess := TNXPasMemberLookup.DetectMemberAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value,
+      lReceiverName, lMemberName, lMemberRange);
+    if not AIsMemberAccess then
+      Exit;
+  finally
+    lSource.Free;
+  end;
+
+  lReceiverMatch := nil;
+  lTypeMatch := nil;
+  try
+    if not TNXPasMemberLookup.ResolveReceiverType(FWorkspaceIndex,
+      lDocument.URI, lReceiverName, AParams.position.line.Value,
+      AParams.position.character.Value, lReceiverMatch, lTypeMatch) then
+      Exit;
+
+    if not TNXPasMemberLookup.FindDirectMember(lTypeMatch.Symbol, lMemberName,
+      lMember) then
+      Exit;
+
+    AMatch := TNXPasWorkspaceSymbolMatch.Create;
+    AMatch.FileRef := lTypeMatch.FileRef;
+    AMatch.Symbol := lMember;
+    Result := True;
+  finally
+    lTypeMatch.Free;
+    lReceiverMatch.Free;
   end;
 end;
 

@@ -24,6 +24,9 @@ type
       ASignature: TNXPasRoutineSignature);
     procedure FillKeywordCompletions(AResult: TNXLSCompletionItemArray;
       const APrefix: string; ASeen: TStrings);
+    procedure FillMemberCompletions(AResult: TNXLSCompletionItemArray;
+      const AReceiverName, APrefix, AURI: string; ALine, AColumn: Integer;
+      ASeen: TStrings);
     procedure FillSymbolCompletions(AResult: TNXLSCompletionItemArray;
       const APrefix: string; ALine, AColumn: Integer; ASeen: TStrings);
     procedure FindSignatureCandidates(const AName, AURI: string;
@@ -45,6 +48,7 @@ implementation
 uses
   SysUtils,
   obNXPasCompletion,
+  obNXPasMemberLookup,
   obNXPasSource;
 
 constructor TNXLSCompletionService.Create(AModel: TNXLSLSPContext);
@@ -64,6 +68,7 @@ procedure TNXLSCompletionService.FillCompletionItems(AParams: TNXLSCompletionPar
 var
   lDocument: TNXLSDocument;
   lPrefix: string;
+  lReceiverName: string;
   lSeen: TStringList;
   lSource: TNXPasSourceFile;
 begin
@@ -82,6 +87,20 @@ begin
     lSeen.CaseSensitive := False;
     lSeen.Sorted := True;
     lSeen.Duplicates := dupIgnore;
+
+    if TNXPasCompletionHelper.CompletionSuppressedAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value) then
+      Exit;
+
+    if TNXPasMemberLookup.DetectCompletion(lSource,
+      AParams.position.line.Value, AParams.position.character.Value,
+      lReceiverName, lPrefix) then
+    begin
+      FillMemberCompletions(AResult, lReceiverName, lPrefix, lDocument.URI,
+        AParams.position.line.Value, AParams.position.character.Value, lSeen);
+      Exit;
+    end;
+
     if not TNXPasCompletionHelper.CompletionPrefixAtPosition(lSource,
       AParams.position.line.Value, AParams.position.character.Value,
       lPrefix) then
@@ -205,6 +224,40 @@ begin
         AddCompletionItem(AResult, lKeywords[lIdx], 14, 'keyword', ASeen);
   finally
     lKeywords.Free;
+  end;
+end;
+
+procedure TNXLSCompletionService.FillMemberCompletions(
+  AResult: TNXLSCompletionItemArray; const AReceiverName, APrefix,
+  AURI: string; ALine, AColumn: Integer; ASeen: TStrings);
+var
+  lIdx: Integer;
+  lMember: TNXPasSymbol;
+  lReceiverMatch: TNXPasWorkspaceSymbolMatch;
+  lTypeMatch: TNXPasWorkspaceSymbolMatch;
+begin
+  lReceiverMatch := nil;
+  lTypeMatch := nil;
+  try
+    if not TNXPasMemberLookup.ResolveReceiverType(FWorkspaceIndex, AURI,
+      AReceiverName, ALine, AColumn, lReceiverMatch, lTypeMatch) then
+      Exit;
+
+    for lIdx := 0 to lTypeMatch.Symbol.ChildCount - 1 do
+    begin
+      lMember := lTypeMatch.Symbol.Children[lIdx];
+      if not (lMember.Kind in [pskField, pskProperty, pskRoutine]) then
+        Continue;
+      if (APrefix <> '') and
+        (Pos(UpperCase(APrefix), UpperCase(lMember.Name)) <> 1) then
+        Continue;
+
+      AddCompletionItem(AResult, lMember.Name, SymbolCompletionKind(lMember.Kind),
+        NXPasSymbolKindName(lMember.Kind), ASeen);
+    end;
+  finally
+    lTypeMatch.Free;
+    lReceiverMatch.Free;
   end;
 end;
 

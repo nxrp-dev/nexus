@@ -27,6 +27,9 @@ type
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FindSymbolAtPosition(const AName, AURI: string; ALine,
       AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function ResolveMemberAtParams(AParams: TNXLSTextDocumentPositionParams;
+      out AIsMemberAccess: Boolean;
+      out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FillLocationFromSymbol(AMatch: TNXPasWorkspaceSymbolMatch;
       AResult: TNXLSLocation): Boolean;
     function FillLocationFromDeclaredType(AMatch: TNXPasWorkspaceSymbolMatch;
@@ -58,6 +61,7 @@ implementation
 uses
   Classes,
   SysUtils,
+  obNXPasMemberLookup,
   obNXPasSymbols,
   obNXPasSource;
 
@@ -103,11 +107,21 @@ function TNXLSNavigationService.FillDefinition(
   AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
+  lIsMemberAccess: Boolean;
   lMatch: TNXPasWorkspaceSymbolMatch;
   lName: string;
 begin
   Result := False;
   if not FindIdentifierAtParams(AParams, lDocument, lName) then
+    Exit;
+
+  if ResolveMemberAtParams(AParams, lIsMemberAccess, lMatch) then
+  try
+    Exit(FillLocationFromSymbol(lMatch, AResult));
+  finally
+    lMatch.Free;
+  end
+  else if lIsMemberAccess then
     Exit;
 
   if FindSymbol(lName, lDocument.URI, lMatch) then
@@ -141,11 +155,21 @@ function TNXLSNavigationService.FillTypeDefinition(
   AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSLocation): Boolean;
 var
   lDocument: TNXLSDocument;
+  lIsMemberAccess: Boolean;
   lMatch: TNXPasWorkspaceSymbolMatch;
   lName: string;
 begin
   Result := False;
   if not FindIdentifierAtParams(AParams, lDocument, lName) then
+    Exit;
+
+  if ResolveMemberAtParams(AParams, lIsMemberAccess, lMatch) then
+  try
+    Exit(FillLocationFromDeclaredType(lMatch, lDocument.URI, AResult));
+  finally
+    lMatch.Free;
+  end
+  else if lIsMemberAccess then
     Exit;
 
   if FindSymbolAtPosition(lName, lDocument.URI, AParams.position.line.Value,
@@ -281,6 +305,60 @@ begin
       end;
   finally
     lMatches.Free;
+  end;
+end;
+
+function TNXLSNavigationService.ResolveMemberAtParams(
+  AParams: TNXLSTextDocumentPositionParams; out AIsMemberAccess: Boolean;
+  out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+var
+  lDocument: TNXLSDocument;
+  lMember: TNXPasSymbol;
+  lMemberName: string;
+  lMemberRange: TNXPasSourceRange;
+  lReceiverMatch: TNXPasWorkspaceSymbolMatch;
+  lReceiverName: string;
+  lSource: TNXPasSourceFile;
+  lTypeMatch: TNXPasWorkspaceSymbolMatch;
+begin
+  Result := False;
+  AIsMemberAccess := False;
+  AMatch := nil;
+  if (AParams = nil) or (AParams.textDocument = nil) then
+    Exit;
+
+  lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
+  lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
+    lDocument.Text);
+  try
+    AIsMemberAccess := TNXPasMemberLookup.DetectMemberAtPosition(lSource,
+      AParams.position.line.Value, AParams.position.character.Value,
+      lReceiverName, lMemberName, lMemberRange);
+    if not AIsMemberAccess then
+      Exit;
+  finally
+    lSource.Free;
+  end;
+
+  lReceiverMatch := nil;
+  lTypeMatch := nil;
+  try
+    if not TNXPasMemberLookup.ResolveReceiverType(FWorkspaceIndex,
+      lDocument.URI, lReceiverName, AParams.position.line.Value,
+      AParams.position.character.Value, lReceiverMatch, lTypeMatch) then
+      Exit;
+
+    if not TNXPasMemberLookup.FindDirectMember(lTypeMatch.Symbol, lMemberName,
+      lMember) then
+      Exit;
+
+    AMatch := TNXPasWorkspaceSymbolMatch.Create;
+    AMatch.FileRef := lTypeMatch.FileRef;
+    AMatch.Symbol := lMember;
+    Result := True;
+  finally
+    lTypeMatch.Free;
+    lReceiverMatch.Free;
   end;
 end;
 

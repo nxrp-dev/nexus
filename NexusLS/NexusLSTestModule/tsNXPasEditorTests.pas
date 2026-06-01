@@ -236,6 +236,45 @@ begin
   end;
 end;
 
+procedure TestHoverMemberIncludesDeclaredType(AContext: TNXTestContext);
+const
+  cSource =
+    'unit Sample;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TSample = class' + LineEnding +
+    '  public' + LineEnding +
+    '    FCount: Integer;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'var Value: TSample;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value.FCount;' + LineEnding +
+    'end.';
+var
+  lHover: TNXLSHover;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lHover := TNXLSHover.Create;
+  try
+    NXPasOpenDocument(lModel, 'file:///C:/workspace/Sample.pas', cSource);
+    NXPasSetTextPosition(lParams, 'file:///C:/workspace/Sample.pas',
+      cSource, 'Value.FCount', 'FCount');
+
+    AContext.AssertTrue(lModel.Editor.FillHover(lParams, lHover),
+      'Hover should resolve a direct declared-type member.');
+    AContext.AssertEquals('field FCount: Integer',
+      lHover.contents.value.Value, 'Hover should include member declared type.');
+  finally
+    lHover.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestHoverParameterIncludesDeclaredType(AContext: TNXTestContext);
 const
   cSource =
@@ -471,6 +510,8 @@ begin
     @TestHoverVariableIncludesDeclaredType);
   lSuite.AddTest('HoverFieldIncludesDeclaredType',
     @TestHoverFieldIncludesDeclaredType);
+  lSuite.AddTest('HoverMemberIncludesDeclaredType',
+    @TestHoverMemberIncludesDeclaredType);
   lSuite.AddTest('HoverParameterIncludesDeclaredType',
     @TestHoverParameterIncludesDeclaredType);
   lSuite.AddTest('HoverUnknownReturnsEmpty', @TestHoverUnknownReturnsEmpty);
