@@ -45,6 +45,7 @@ type
   TNXPasSearchPathTemplateStore = class
   public
     class function DefaultFileName: string; static;
+    class function DefaultRootDir: string; static;
     class procedure AddMasterDefaults(
       ATemplates: TNXPasSearchPathTemplateList); static;
     class procedure LoadOrCreate(ATemplates: TNXPasSearchPathTemplateList);
@@ -121,6 +122,8 @@ uses
 
 const
   cSearchPathTemplateFile = 'nexuspas-search-paths.json';
+  cSearchPathTemplateDir = 'search-paths';
+  cNexusLSStorageEnv = 'NEXUSLS_CACHE_DIR';
 
 function NXPasDefaultTargetCPU: string;
 begin
@@ -200,8 +203,16 @@ end;
 
 class function TNXPasSearchPathTemplateStore.DefaultFileName: string;
 begin
-  Result := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
+  Result := IncludeTrailingPathDelimiter(DefaultRootDir) +
+    IncludeTrailingPathDelimiter(cSearchPathTemplateDir) +
     cSearchPathTemplateFile;
+end;
+
+class function TNXPasSearchPathTemplateStore.DefaultRootDir: string;
+begin
+  Result := Trim(GetEnvironmentVariable(cNexusLSStorageEnv));
+  if Result = '' then
+    Result := GetAppConfigDir(False);
 end;
 
 class procedure TNXPasSearchPathTemplateStore.AddMasterDefaults(

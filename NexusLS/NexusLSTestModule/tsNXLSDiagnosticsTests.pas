@@ -505,7 +505,7 @@ begin
 
     lNotification := NXLSLastNotification(AContext, lTransport);
     try
-      AContext.AssertEquals('pasls.inactiveRegions',
+      AContext.AssertEquals('nexusls.inactiveRegions',
         lNotification.Strings['method'],
         'Inactive regions should use the inactive-region notification.');
       lRegions := lNotification.Objects['params'].Arrays['regions'];

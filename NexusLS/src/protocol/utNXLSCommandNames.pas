@@ -5,13 +5,13 @@ unit utNXLSCommandNames;
 interface
 
 const
-  cNXLSCommandCompleteCode = 'pasls.completeCode';
-  cNXLSCommandInvertAssignment = 'pasls.invertAssignment';
-  cNXLSCommandRemoveEmptyMethods = 'pasls.removeEmptyMethods';
-  cNXLSCommandRemoveUnusedUnits = 'pasls.removeUnusedUnits';
-  cNXLSCommandNexusProjectCreateWizard = 'nexus.project.createWizard';
-  cNXLSCommandNexusProjectPlanCreate = 'nexus.project.planCreate';
-  cNXLSCommandNexusProjectCreate = 'nexus.project.create';
+  cNXLSCommandCompleteCode = 'nexusls.completeCode';
+  cNXLSCommandInvertAssignment = 'nexusls.invertAssignment';
+  cNXLSCommandRemoveEmptyMethods = 'nexusls.removeEmptyMethods';
+  cNXLSCommandRemoveUnusedUnits = 'nexusls.removeUnusedUnits';
+  cNXLSCommandProjectCreateWizard = 'nexusls.project.createWizard';
+  cNXLSCommandProjectPlanCreate = 'nexusls.project.planCreate';
+  cNXLSCommandProjectCreate = 'nexusls.project.create';
 
 implementation
 

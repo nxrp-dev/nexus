@@ -273,6 +273,7 @@ var
   lIdx: Integer;
   lLPI: TNXPasLPIProject;
   lLPIFile: string;
+  lTemplateFileName: string;
   lTemplates: TNXPasSearchPathTemplateList;
 begin
   FPascalSearchPaths.Clear;
@@ -334,9 +335,9 @@ begin
 
   lTemplates := TNXPasSearchPathTemplateList.Create;
   try
-    TNXPasSearchPathTemplateStore.LoadOrCreate(lTemplates);
-    FPascalSearchPaths.Log.Add('search path templates: ' +
-      TNXPasSearchPathTemplateStore.DefaultFileName);
+    lTemplateFileName := TNXPasSearchPathTemplateStore.DefaultFileName;
+    TNXPasSearchPathTemplateStore.LoadOrCreate(lTemplateFileName, lTemplates);
+    FPascalSearchPaths.Log.Add('search path templates: ' + lTemplateFileName);
     FPascalSearchPaths.AddTemplates(lTemplates);
   finally
     lTemplates.Free;

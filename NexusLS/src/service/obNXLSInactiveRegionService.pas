@@ -70,7 +70,7 @@ end;
 
 class function TNXLSInactiveRegionsNotification.GetFactoryName: string;
 begin
-  Result := 'pasls.inactiveRegions';
+  Result := 'nexusls.inactiveRegions';
 end;
 
 function TNXLSInactiveRegionsNotification.GetParams: TNXLSInactiveRegionsParams;

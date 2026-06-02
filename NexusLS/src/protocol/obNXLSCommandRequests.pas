@@ -181,7 +181,7 @@ end;
 
 class function TNXLSProjectCreateWizardRequest.GetFactoryName: string;
 begin
-  Result := cNXLSCommandNexusProjectCreateWizard;
+  Result := cNXLSCommandProjectCreateWizard;
 end;
 
 function TNXLSProjectCreateWizardRequest.Execute: TNXJSONRPCValue;
@@ -196,7 +196,7 @@ end;
 
 class function TNXLSProjectPlanCreateRequest.GetFactoryName: string;
 begin
-  Result := cNXLSCommandNexusProjectPlanCreate;
+  Result := cNXLSCommandProjectPlanCreate;
 end;
 
 function TNXLSProjectPlanCreateRequest.Execute: TNXJSONRPCValue;
@@ -211,7 +211,7 @@ end;
 
 class function TNXLSProjectCreateRequest.GetFactoryName: string;
 begin
-  Result := cNXLSCommandNexusProjectCreate;
+  Result := cNXLSCommandProjectCreate;
 end;
 
 function TNXLSProjectCreateRequest.Execute: TNXJSONRPCValue;
