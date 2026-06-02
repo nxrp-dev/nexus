@@ -10,7 +10,9 @@ uses
   obNXJSONRPCMessages,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
-  obNXLSDocumentSyncParams;
+  obNXLSDocumentSyncParams,
+  obNXPasSearchPaths,
+  obNXPasUnitResolver;
 
 type
   TNXLSDocument = class
@@ -60,6 +62,8 @@ type
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;
     procedure RebuildWorkspaceIndex; virtual; abstract;
+    function PascalSearchPathContext: TNXPasSearchPathContext; virtual; abstract;
+    function PascalUnitResolver: TNXPasUnitResolver; virtual; abstract;
 
     procedure SendClientNotification(ANotification: TNXJSONRPCOutboundNotification); virtual; abstract;
     function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; virtual; abstract;

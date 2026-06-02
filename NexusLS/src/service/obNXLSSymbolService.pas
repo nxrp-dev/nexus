@@ -57,6 +57,7 @@ constructor TNXLSSymbolService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
   FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
+  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
   FWorkspaceFolders := TStringList.Create;
   FWorkspaceFolders.Sorted := True;
   FWorkspaceFolders.Duplicates := dupIgnore;

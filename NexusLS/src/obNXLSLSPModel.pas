@@ -25,7 +25,9 @@ uses
   obNXLSWorkspaceService,
   obNXLSCommandService,
   obNXLSDiagnosticsService,
-  obNXLSInactiveRegionService;
+  obNXLSInactiveRegionService,
+  obNXPasSearchPaths,
+  obNXPasUnitResolver;
 
 type
   TNXLSLSPModel = class(TNXLSLSPContext)
@@ -37,9 +39,12 @@ type
     FShutdownRequested: Boolean;
     FExitRequested: Boolean;
     FProjectDir: string;
+    FExplicitLPIFile: string;
     FEffectiveFPCOptions: TStringList;
     FSettings: TNXLSSettings;
     FOutboundDispatcher: TNXLSOutboundDispatcher;
+    FPascalSearchPaths: TNXPasSearchPathContext;
+    FPascalUnitResolver: TNXPasSearchPathUnitResolver;
 
     FLifecycle: TNXLSLifecycleService;
     FDocuments: TNXLSDocumentService;
@@ -54,7 +59,10 @@ type
     FInactiveRegions: TNXLSInactiveRegionService;
 
     function FindDocumentIndex(const AURI: string): Integer;
+    function DiscoverLPIFile(const ARootPath: string): string;
+    function ExplicitLPIFileFromSettings: string;
     function RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
+    procedure ConfigurePascalSearchPaths;
     procedure ConfigureParserSettings(AParams: TNXLSInitializeParams);
   public
     constructor Create; virtual;
@@ -87,6 +95,8 @@ type
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); override;
     procedure RebuildWorkspaceIndex; override;
+    function PascalSearchPathContext: TNXPasSearchPathContext; override;
+    function PascalUnitResolver: TNXPasUnitResolver; override;
     procedure SendClientNotification(ANotification: TNXJSONRPCOutboundNotification); override;
     function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; override;
     function ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean; virtual;
@@ -116,7 +126,8 @@ type
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  obNXPasLPIProject;
 
 var
   gCurrentLSPModel: TNXLSLSPModel;
@@ -127,6 +138,8 @@ begin
   FDocumentsByURI := TObjectList.Create(True);
   FSettings := TNXLSSettings.Create;
   FEffectiveFPCOptions := TStringList.Create;
+  FPascalSearchPaths := TNXPasSearchPathContext.Create;
+  FPascalUnitResolver := TNXPasSearchPathUnitResolver.Create(FPascalSearchPaths);
   FOutboundDispatcher := TNXLSOutboundDispatcher.Create;
   FLifecycle := TNXLSLifecycleService.Create(Self);
   FDocuments := TNXLSDocumentService.Create(Self);
@@ -155,6 +168,8 @@ begin
   FreeAndNil(FDocuments);
   FreeAndNil(FLifecycle);
   FreeAndNil(FOutboundDispatcher);
+  FreeAndNil(FPascalUnitResolver);
+  FreeAndNil(FPascalSearchPaths);
   FreeAndNil(FEffectiveFPCOptions);
   FreeAndNil(FSettings);
   FreeAndNil(FDocumentsByURI);
@@ -172,7 +187,49 @@ begin
   FShutdownRequested := False;
   FExitRequested := False;
   ConfigureParserSettings(AParams);
+  ConfigurePascalSearchPaths;
   FSymbols.SetWorkspaceFolders(AParams);
+end;
+
+function TNXLSLSPModel.DiscoverLPIFile(const ARootPath: string): string;
+var
+  lInfo: TSearchRec;
+  lRoot: string;
+begin
+  Result := '';
+  lRoot := IncludeTrailingPathDelimiter(ARootPath);
+  if (ARootPath = '') or (not DirectoryExists(ARootPath)) then
+    Exit;
+
+  if FindFirst(lRoot + '*.lpi', faAnyFile, lInfo) <> 0 then
+    Exit;
+  try
+    repeat
+      if (lInfo.Attr and faDirectory) = 0 then
+      begin
+        Result := lRoot + lInfo.Name;
+        Exit;
+      end;
+    until FindNext(lInfo) <> 0;
+  finally
+    FindClose(lInfo);
+  end;
+end;
+
+function TNXLSLSPModel.ExplicitLPIFileFromSettings: string;
+var
+  lProgramFile: string;
+begin
+  Result := '';
+  lProgramFile := Trim(FSettings.ProgramFile);
+  if lProgramFile = '' then
+    Exit;
+
+  if (not SameText(ExtractFileExt(lProgramFile), '.lpi')) or
+    (not FileExists(lProgramFile)) then
+    Exit;
+
+  Result := ExpandFileName(lProgramFile);
 end;
 
 function TNXLSLSPModel.RootPathFromInitializeParams(AParams: TNXLSInitializeParams): string;
@@ -201,9 +258,89 @@ begin
   FSettings.LoadFromInitializationOptions(AParams.initializationOptions);
   FProjectDir := RootPathFromInitializeParams(AParams);
   FSettings.ExpandMacros(FProjectDir, GetTempDir(True));
+  FExplicitLPIFile := ExplicitLPIFileFromSettings;
+  if FExplicitLPIFile <> '' then
+    FProjectDir := IncludeTrailingPathDelimiter(ExtractFileDir(FExplicitLPIFile))
+  else if (FSettings.CWD <> '') and DirectoryExists(FSettings.CWD) then
+    FProjectDir := IncludeTrailingPathDelimiter(ExpandFileName(FSettings.CWD));
 
   FEffectiveFPCOptions.Clear;
   FEffectiveFPCOptions.Assign(FSettings.FPCOptions);
+end;
+
+procedure TNXLSLSPModel.ConfigurePascalSearchPaths;
+var
+  lIdx: Integer;
+  lLPI: TNXPasLPIProject;
+  lLPIFile: string;
+  lTemplates: TNXPasSearchPathTemplateList;
+begin
+  FPascalSearchPaths.Clear;
+  FPascalSearchPaths.WorkspaceDir := FProjectDir;
+  FPascalSearchPaths.ProjectDir := FProjectDir;
+  FPascalSearchPaths.LazarusDir := FSettings.LazarusDir;
+  FPascalSearchPaths.FPCDir := FSettings.FPCDir;
+  FPascalSearchPaths.Log.Add('lazarus dir: ' + FPascalSearchPaths.LazarusDir);
+  FPascalSearchPaths.Log.Add('lazarus source dir: ' +
+    FPascalSearchPaths.LazarusSrcDir);
+  FPascalSearchPaths.Log.Add('fpc dir: ' + FPascalSearchPaths.FPCDir);
+  FPascalSearchPaths.Log.Add('fpc source dir: ' +
+    FPascalSearchPaths.FPCSrcDir);
+
+  if FProjectDir <> '' then
+    FPascalSearchPaths.AddRawPath(FProjectDir, 'workspaceRoot', pspkUnitPath);
+
+  if FExplicitLPIFile <> '' then
+    lLPIFile := FExplicitLPIFile
+  else
+    lLPIFile := DiscoverLPIFile(FProjectDir);
+  if lLPIFile <> '' then
+  begin
+    lLPI := TNXPasLPIProject.Create;
+    try
+      if lLPI.LoadFromFile(lLPIFile) then
+      begin
+        FPascalSearchPaths.LPIFileName := lLPI.FileName;
+        FPascalSearchPaths.ProjectDir := lLPI.ProjectDir;
+        if lLPI.TargetCPU <> '' then
+          FPascalSearchPaths.TargetCPU := lLPI.TargetCPU;
+        if lLPI.TargetOS <> '' then
+          FPascalSearchPaths.TargetOS := lLPI.TargetOS;
+
+        FPascalSearchPaths.Log.Add('lpi: ' + lLPI.FileName);
+        FPascalSearchPaths.AddRawPaths(lLPI.UnitPaths, 'lpi:OtherUnitFiles',
+          pspkUnitPath, lLPI.ProjectDir);
+        FPascalSearchPaths.AddRawPaths(lLPI.IncludePaths, 'lpi:IncludeFiles',
+          pspkIncludePath, lLPI.ProjectDir);
+        FPascalSearchPaths.AddRawPaths(lLPI.SourcePaths, 'lpi:SourcePath',
+          pspkSourcePath, lLPI.ProjectDir);
+        if lLPI.UnitOutputDirectory <> '' then
+          FPascalSearchPaths.AddRawPath(lLPI.UnitOutputDirectory,
+            'lpi:UnitOutputDirectory', pspkOutputPath, lLPI.ProjectDir);
+
+        for lIdx := 0 to lLPI.ProjectFiles.Count - 1 do
+          if ExtractFileDir(lLPI.ProjectFiles[lIdx]) <> '' then
+            FPascalSearchPaths.AddRawPath(ExtractFileDir(lLPI.ProjectFiles[lIdx]),
+              'lpi:ProjectUnit', pspkUnitPath, lLPI.ProjectDir);
+      end;
+    finally
+      lLPI.Free;
+    end;
+  end
+  else
+    FPascalSearchPaths.Log.Add('lpi: none found');
+
+  FPascalSearchPaths.AddFPCOptionPaths(FEffectiveFPCOptions);
+
+  lTemplates := TNXPasSearchPathTemplateList.Create;
+  try
+    TNXPasSearchPathTemplateStore.LoadOrCreate(lTemplates);
+    FPascalSearchPaths.Log.Add('search path templates: ' +
+      TNXPasSearchPathTemplateStore.DefaultFileName);
+    FPascalSearchPaths.AddTemplates(lTemplates);
+  finally
+    lTemplates.Free;
+  end;
 end;
 
 procedure TNXLSLSPModel.MarkInitialized;
@@ -371,19 +508,32 @@ end;
 procedure TNXLSLSPModel.AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
 begin
   FSymbols.AddWorkspaceFolders(AFolders);
+  ConfigurePascalSearchPaths;
 end;
 
 procedure TNXLSLSPModel.RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
 begin
   FSymbols.RemoveWorkspaceFolders(AFolders);
+  ConfigurePascalSearchPaths;
 end;
 
 procedure TNXLSLSPModel.RebuildWorkspaceIndex;
 begin
+  ConfigurePascalSearchPaths;
   FSymbols.RebuildWorkspaceIndex;
   FNavigation.RebuildWorkspaceIndex;
   FCompletion.RebuildWorkspaceIndex;
   FEditor.RebuildWorkspaceIndex;
+end;
+
+function TNXLSLSPModel.PascalSearchPathContext: TNXPasSearchPathContext;
+begin
+  Result := FPascalSearchPaths;
+end;
+
+function TNXLSLSPModel.PascalUnitResolver: TNXPasUnitResolver;
+begin
+  Result := FPascalUnitResolver;
 end;
 
 procedure TNXLSLSPModel.SendClientNotification(

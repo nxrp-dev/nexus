@@ -279,6 +279,79 @@ begin
   end;
 end;
 
+procedure TestInitializeUsesExplicitLPIProgram(AContext: TNXTestContext);
+var
+  lLPIFile: string;
+  lModel: TNXLSLSPModel;
+  lOptions: TJSONObject;
+  lOptionsJSON: TJSONData;
+  lParams: TNXLSInitializeParams;
+  lProjectDir: string;
+  lRoot: string;
+  lRootJSON: TJSONData;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxls');
+  lProjectDir := IncludeTrailingPathDelimiter(lRoot) + 'NexusLS';
+  ForceDirectories(lProjectDir);
+  lLPIFile := IncludeTrailingPathDelimiter(lProjectDir) + 'nexusls.lpi';
+
+  with TStringList.Create do
+  try
+    Text :=
+      '<?xml version="1.0"?>' + LineEnding +
+      '<CONFIG>' + LineEnding +
+      '  <ProjectOptions>' + LineEnding +
+      '    <General><Title Value="NexusLS"/></General>' + LineEnding +
+      '  </ProjectOptions>' + LineEnding +
+      '  <CompilerOptions>' + LineEnding +
+      '    <SearchPaths><OtherUnitFiles Value="src;src\protocol;..\NexusLib\src"/></SearchPaths>' + LineEnding +
+      '  </CompilerOptions>' + LineEnding +
+      '</CONFIG>';
+    SaveToFile(lLPIFile);
+  finally
+    Free;
+  end;
+
+  lParams := TNXLSInitializeParams.Create;
+  lModel := TNXLSLSPModel.Create;
+  try
+    lRootJSON := TJSONString.Create(lRoot);
+    try
+      lParams.rootPath.FromJSONData(lRootJSON);
+    finally
+      lRootJSON.Free;
+    end;
+
+    lOptions := TJSONObject.Create;
+    try
+      lOptions.Add('cwd', lProjectDir);
+      lOptions.Add('program', lLPIFile);
+      lOptionsJSON := lOptions;
+      lParams.initializationOptions.FromJSONData(lOptionsJSON);
+    finally
+      lOptions.Free;
+    end;
+
+    lModel.BeginInitialize(lParams);
+
+    AContext.AssertEquals(IncludeTrailingPathDelimiter(ExpandFileName(lProjectDir)),
+      lModel.ProjectDir,
+      'Explicit .lpi program should set project root to the .lpi directory.');
+    AContext.AssertEquals(ExpandFileName(lLPIFile),
+      lModel.PascalSearchPathContext.LPIFileName,
+      'Explicit .lpi program should be used instead of shallow root discovery.');
+    AContext.AssertEquals(ExpandFileName(lLPIFile),
+      lModel.Settings.ProgramFile,
+      'Settings should preserve and expand the explicit program file.');
+  finally
+    lModel.Free;
+    lParams.Free;
+    DeleteFile(lLPIFile);
+    RemoveDir(lProjectDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
 procedure RegisterNXLSCoreTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -296,6 +369,8 @@ begin
     @TestInitializeHonorsOptionsMacros);
   lSuite.AddTest('InitializeHonorsProgramConfigAndRootPathFallback',
     @TestInitializeHonorsProgramConfigAndRootPathFallback);
+  lSuite.AddTest('InitializeUsesExplicitLPIProgram',
+    @TestInitializeUsesExplicitLPIProgram);
 end;
 
 end.

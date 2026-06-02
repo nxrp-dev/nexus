@@ -13,13 +13,17 @@ implementation
 
 uses
   Classes,
+  SysUtils,
+  fpjson,
   obNXJSONValues,
   obNXLSLSPModel,
   obNXLSProtocolBase,
   obNXLSProtocolObjects,
   obNXLSProtocolParams,
   obNXPasLookup,
+  obNXPasSearchPaths,
   obNXPasSource,
+  obNXPasUnitLocator,
   obNXTestContext,
   obNXTestSuite;
 
@@ -135,6 +139,32 @@ begin
     lLocation := TNXLSLocation(AResult[lIdx]);
     if lLocation.range.start.line.Value = ALine then
       Exit(True);
+  end;
+end;
+
+function NXLSCreateUniqueTempDir(const APrefix: string): string;
+var
+  lTempFile: string;
+begin
+  lTempFile := GetTempFileName('', APrefix);
+  if FileExists(lTempFile) then
+    DeleteFile(lTempFile);
+
+  Result := lTempFile + '_dir';
+  ForceDirectories(Result);
+end;
+
+procedure NXLSWriteTextFile(const AFileName, AText: string);
+var
+  lText: TStringList;
+begin
+  ForceDirectories(ExtractFileDir(AFileName));
+  lText := TStringList.Create;
+  try
+    lText.Text := AText;
+    lText.SaveToFile(AFileName);
+  finally
+    lText.Free;
   end;
 end;
 
@@ -263,6 +293,156 @@ begin
     lLocation.Free;
     lParams.Free;
     lModel.Free;
+  end;
+end;
+
+procedure TestDefinitionFindsUnopenedUsesUnitName(AContext: TNXTestContext);
+const
+  cTargetUnit =
+    'unit UsedPlatformUnit;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+  cConsumerUnit =
+    'unit UsedConsumerUnit;' + LineEnding +
+    'interface' + LineEnding +
+    'uses UsedPlatformUnit;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lConsumerFile: string;
+  lConsumerURI: string;
+  lExpectedURI: string;
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+  lRoot: string;
+  lTargetFile: string;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxls');
+  lTargetFile := IncludeTrailingPathDelimiter(lRoot) + 'UsedPlatformUnit.pas';
+  lConsumerFile := IncludeTrailingPathDelimiter(lRoot) + 'UsedConsumerUnit.pas';
+  NXLSWriteTextFile(lTargetFile, cTargetUnit);
+
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    lModel.PascalSearchPathContext.AddRawPath(lRoot, 'test', pspkUnitPath);
+    lConsumerURI := TNXPasUnitLocator.PathToFileURI(lConsumerFile);
+    NXLSOpenDocument(lModel, lConsumerURI, cConsumerUnit);
+    NXLSSetTextPosition(lParams, lConsumerURI, cConsumerUnit,
+      'uses UsedPlatformUnit', 'UsedPlatformUnit');
+
+    AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Definition should resolve unopened uses-unit names through search paths.');
+    lExpectedURI := TNXPasUnitLocator.PathToFileURI(lTargetFile);
+    AContext.AssertEquals(lExpectedURI, lLocation.uri.Value,
+      'Uses-unit definition should point to the resolved unit file.');
+    AContext.AssertEquals(0, lLocation.range.start.line.Value,
+      'Uses-unit definition should point to the unit header.');
+    AContext.AssertEquals(5, lLocation.range.start.character.Value,
+      'Uses-unit definition should point to the unit identifier.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+    if FileExists(lTargetFile) then
+      DeleteFile(lTargetFile);
+    if FileExists(lConsumerFile) then
+      DeleteFile(lConsumerFile);
+    if DirectoryExists(lRoot) then
+      RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestDefinitionFindsSystemUnitAfterInitializeAndDidOpen(
+  AContext: TNXTestContext);
+const
+  cSysUtilsUnit =
+    'unit SysUtils;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+  cConsumerUnit =
+    'unit Consumer;' + LineEnding +
+    'interface' + LineEnding +
+    'uses SysUtils;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lConsumerFile: string;
+  lConsumerURI: string;
+  lExpectedURI: string;
+  lFPCDir: string;
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lOptions: TJSONObject;
+  lOptionsJSON: TJSONData;
+  lParams: TNXLSTextDocumentPositionParams;
+  lRoot: string;
+  lRootJSON: TJSONData;
+  lInitializeParams: TNXLSInitializeParams;
+  lSysUtilsFile: string;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxls');
+  lFPCDir := IncludeTrailingPathDelimiter(lRoot) + 'fpc';
+  lSysUtilsFile := IncludeTrailingPathDelimiter(lFPCDir) +
+    'source' + DirectorySeparator + 'rtl' + DirectorySeparator + 'win' +
+    DirectorySeparator + 'SysUtils.pp';
+  lConsumerFile := IncludeTrailingPathDelimiter(lRoot) + 'Consumer.pas';
+  NXLSWriteTextFile(lSysUtilsFile, cSysUtilsUnit);
+
+  lModel := TNXLSLSPModel.Create;
+  lInitializeParams := TNXLSInitializeParams.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    lRootJSON := TJSONString.Create(TNXPasUnitLocator.PathToFileURI(lRoot));
+    try
+      lInitializeParams.rootUri.FromJSONData(lRootJSON);
+    finally
+      lRootJSON.Free;
+    end;
+
+    lOptions := TJSONObject.Create;
+    try
+      lOptions.Add('fpcDir', lFPCDir);
+      lOptionsJSON := lOptions;
+      lInitializeParams.initializationOptions.FromJSONData(lOptionsJSON);
+    finally
+      lOptions.Free;
+    end;
+
+    lModel.BeginInitialize(lInitializeParams);
+    lConsumerURI := TNXPasUnitLocator.PathToFileURI(lConsumerFile);
+    NXLSOpenDocument(lModel, lConsumerURI, cConsumerUnit);
+    NXLSSetTextPosition(lParams, lConsumerURI, cConsumerUnit,
+      'uses SysUtils', 'SysUtils');
+
+    AContext.AssertTrue(lModel.Navigation.FillDefinition(lParams, lLocation),
+      'Definition should resolve system units after initialize and didOpen.');
+    lExpectedURI := TNXPasUnitLocator.PathToFileURI(lSysUtilsFile);
+    AContext.AssertEquals(lExpectedURI, lLocation.uri.Value,
+      'System-unit definition should point to the FPC source file.');
+    AContext.AssertEquals(0, lLocation.range.start.line.Value,
+      'System-unit definition should point to the unit header.');
+    AContext.AssertEquals(5, lLocation.range.start.character.Value,
+      'System-unit definition should point to the unit identifier.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lInitializeParams.Free;
+    lModel.Free;
+    if FileExists(lSysUtilsFile) then
+      DeleteFile(lSysUtilsFile);
+    if FileExists(lConsumerFile) then
+      DeleteFile(lConsumerFile);
+    RemoveDir(ExtractFileDir(lSysUtilsFile));
+    RemoveDir(ExtractFileDir(ExtractFileDir(lSysUtilsFile)));
+    RemoveDir(ExtractFileDir(ExtractFileDir(ExtractFileDir(lSysUtilsFile))));
+    RemoveDir(lFPCDir);
+    RemoveDir(lRoot);
   end;
 end;
 
@@ -1211,6 +1391,10 @@ begin
     @TestDefinitionFindsRoutineInCurrentDocument);
   lSuite.AddTest('DefinitionFindsSymbolAcrossIndexedDocuments',
     @TestDefinitionFindsSymbolAcrossIndexedDocuments);
+  lSuite.AddTest('DefinitionFindsUnopenedUsesUnitName',
+    @TestDefinitionFindsUnopenedUsesUnitName);
+  lSuite.AddTest('DefinitionFindsSystemUnitAfterInitializeAndDidOpen',
+    @TestDefinitionFindsSystemUnitAfterInitializeAndDidOpen);
   lSuite.AddTest('DefinitionReturnsEmptyForUnknownIdentifier',
     @TestDefinitionReturnsEmptyForUnknownIdentifier);
   lSuite.AddTest('TypeDefinitionFindsTypeIdentifier',

@@ -32,6 +32,8 @@ type
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FillLocationFromSymbol(AMatch: TNXPasWorkspaceSymbolMatch;
       AResult: TNXLSLocation): Boolean;
+    function FillLocationFromUnitFile(const AName: string;
+      AResult: TNXLSLocation): Boolean;
     function FillLocationFromDeclaredType(AMatch: TNXPasWorkspaceSymbolMatch;
       AURI: string; AResult: TNXLSLocation): Boolean;
     function ImplementationLine(AFile: TNXPasIndexedFile): Integer;
@@ -69,6 +71,7 @@ constructor TNXLSNavigationService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
   FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
+  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
 end;
 
 destructor TNXLSNavigationService.Destroy;
@@ -100,7 +103,9 @@ begin
     Result := FillLocationFromSymbol(lMatch, AResult);
   finally
     lMatch.Free;
-  end;
+  end
+  else
+    Result := FillLocationFromUnitFile(lName, AResult);
 end;
 
 function TNXLSNavigationService.FillDefinition(
@@ -129,7 +134,9 @@ begin
     Result := FillLocationFromSymbol(lMatch, AResult);
   finally
     lMatch.Free;
-  end;
+  end
+  else
+    Result := FillLocationFromUnitFile(lName, AResult);
 end;
 
 function TNXLSNavigationService.FillImplementationLocation(
@@ -263,6 +270,11 @@ begin
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
     FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    if lMatches.Count = 0 then
+    begin
+      FWorkspaceIndex.ResolveUnitReference(AName);
+      FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    end;
     if lMatches.Count = 0 then
       Exit;
 
@@ -412,6 +424,37 @@ begin
   SetRange(AResult.range, lRange.StartPos.Line, lRange.StartPos.Column,
     lRange.EndPos.Line, lRange.EndPos.Column);
   AResult.Assigned := True;
+end;
+
+function TNXLSNavigationService.FillLocationFromUnitFile(const AName: string;
+  AResult: TNXLSLocation): Boolean;
+var
+  lFile: TNXPasIndexedFile;
+  lRange: TNXPasSourceRange;
+  lSymbol: TNXPasSymbol;
+begin
+  Result := False;
+  if AResult = nil then
+    Exit;
+
+  lFile := FWorkspaceIndex.ResolveUnitReference(AName);
+  if lFile = nil then
+    Exit;
+
+  AResult.uri.Value := lFile.URI;
+  if lFile.Symbols.Count > 0 then
+  begin
+    lSymbol := lFile.Symbols.SymbolAt(0);
+    lRange := lSymbol.Range;
+    TNXPasLookup.FindSymbolIdentifierRange(lFile, lSymbol.Name,
+      lSymbol.Range, lRange);
+    SetRange(AResult.range, lRange.StartPos.Line, lRange.StartPos.Column,
+      lRange.EndPos.Line, lRange.EndPos.Column);
+  end
+  else
+    SetRange(AResult.range, 0, 0, 0, 0);
+  AResult.Assigned := True;
+  Result := True;
 end;
 
 function TNXLSNavigationService.FillLocationFromDeclaredType(

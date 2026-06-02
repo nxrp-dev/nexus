@@ -395,7 +395,7 @@ var
   lHasError: Boolean;
   lHasResult: Boolean;
 begin
-  lHasResult := (result <> nil) and result.Assigned;
+  lHasResult := (Self.result <> nil) and Self.result.Assigned;
   lHasError := (error <> nil) and error.Assigned;
 
   if lHasResult and (not lHasError) then
@@ -422,7 +422,7 @@ begin
   if lResultKind = rkNullResult then
     Exit(TNXJSONNull.Create);
 
-  lResult := result;
+  lResult := Self.result;
   if lResult = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.result property is not assigned.');
@@ -490,7 +490,7 @@ begin
       ClassName + '.Execute returned ' + AResult.ClassName +
       ' but this result kind does not allow a concrete result.');
 
-  lResult := result;
+  lResult := Self.result;
   if lResult = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.result property is not assigned.');
@@ -561,7 +561,7 @@ begin
       ClassName + ' received ' + AResult.ClassName +
       ' but this result kind does not allow a concrete result.');
 
-  lResult := result;
+  lResult := Self.result;
   if lResult = nil then
     raise ENXJSONRPC.CreateCode(TNXJSONRPC.InternalError,
       ClassName + '.result property is not assigned.');

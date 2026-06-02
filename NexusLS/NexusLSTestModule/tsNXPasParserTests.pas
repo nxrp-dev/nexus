@@ -13,13 +13,18 @@ implementation
 
 uses
   Classes,
+  SysUtils,
   obNXPasAST,
   obNXPasDiagnostics,
+  obNXPasLPIProject,
   obNXPasMetadata,
   obNXPasParser,
   obNXPasProject,
+  obNXPasSearchPaths,
   obNXPasSource,
   obNXPasSymbols,
+  obNXPasUnitLocator,
+  obNXPasUnitResolver,
   obNXPasWorkspaceIndex,
   obNXTestContext,
   obNXTestSuite,
@@ -81,6 +86,32 @@ begin
     lSymbol := ASymbols.SymbolAt(lIdx);
     if (lSymbol.Kind = AKind) and (lSymbol.Name = AName) then
       Exit(True);
+  end;
+end;
+
+function NXPasCreateTempDir(const APrefix: string): string;
+var
+  lTempFile: string;
+begin
+  lTempFile := GetTempFileName('', APrefix);
+  if FileExists(lTempFile) then
+    DeleteFile(lTempFile);
+
+  Result := lTempFile + '_dir';
+  ForceDirectories(Result);
+end;
+
+procedure NXPasWriteTextFile(const AFileName, AText: string);
+var
+  lText: TStringList;
+begin
+  ForceDirectories(ExtractFileDir(AFileName));
+  lText := TStringList.Create;
+  try
+    lText.Text := AText;
+    lText.SaveToFile(AFileName);
+  finally
+    lText.Free;
   end;
 end;
 
@@ -981,6 +1012,235 @@ begin
   end;
 end;
 
+procedure TestLPIProjectReadsPathModel(AContext: TNXTestContext);
+var
+  lLPI: TNXPasLPIProject;
+  lLPIFile: string;
+  lRoot: string;
+begin
+  lRoot := NXPasCreateTempDir('nxplpi');
+  lLPIFile := IncludeTrailingPathDelimiter(lRoot) + 'sample.lpi';
+  NXPasWriteTextFile(lLPIFile,
+    '<?xml version="1.0"?>' + LineEnding +
+    '<CONFIG>' + LineEnding +
+    '  <ProjectOptions>' + LineEnding +
+    '    <General><Title Value="Sample"/></General>' + LineEnding +
+    '    <Units Count="1"><Unit0><Filename Value="sample.lpr"/></Unit0></Units>' + LineEnding +
+    '  </ProjectOptions>' + LineEnding +
+    '  <CompilerOptions>' + LineEnding +
+    '    <Target><Filename Value="bin/sample"/></Target>' + LineEnding +
+    '    <SearchPaths>' + LineEnding +
+    '      <OtherUnitFiles Value="src;lib"/>' + LineEnding +
+    '      <IncludeFiles Value="include"/>' + LineEnding +
+    '      <UnitOutputDirectory Value="units"/>' + LineEnding +
+    '    </SearchPaths>' + LineEnding +
+    '    <TargetCPU Value="x86_64"/>' + LineEnding +
+    '    <TargetOS Value="win64"/>' + LineEnding +
+    '  </CompilerOptions>' + LineEnding +
+    '</CONFIG>');
+
+  lLPI := TNXPasLPIProject.Create;
+  try
+    AContext.AssertTrue(lLPI.LoadFromFile(lLPIFile),
+      'LPI project should load from XML.');
+    AContext.AssertEquals('Sample', lLPI.Title,
+      'LPI model should capture the project title.');
+    AContext.AssertEquals(2, lLPI.UnitPaths.Count,
+      'LPI model should capture semicolon-delimited unit paths.');
+    AContext.AssertEquals(1, lLPI.IncludePaths.Count,
+      'LPI model should capture include paths.');
+    AContext.AssertEquals('x86_64', lLPI.TargetCPU,
+      'LPI model should capture target CPU.');
+    AContext.AssertEquals('win64', lLPI.TargetOS,
+      'LPI model should capture target OS.');
+  finally
+    lLPI.Free;
+    DeleteFile(lLPIFile);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestSearchPathContextResolvesAndDeduplicates(AContext: TNXTestContext);
+var
+  lContext: TNXPasSearchPathContext;
+  lRoot: string;
+  lSrc: string;
+begin
+  lRoot := NXPasCreateTempDir('nxppath');
+  lSrc := IncludeTrailingPathDelimiter(lRoot) + 'src';
+  ForceDirectories(lSrc);
+
+  lContext := TNXPasSearchPathContext.Create;
+  try
+    lContext.ProjectDir := lRoot;
+    lContext.WorkspaceDir := lRoot;
+    lContext.AddRawPath('src', 'test', pspkUnitPath, lRoot);
+    lContext.AddRawPath('src', 'test duplicate', pspkUnitPath, lRoot);
+    lContext.AddRawPath('missing', 'test missing', pspkUnitPath, lRoot);
+
+    AContext.AssertEquals(1, lContext.UnitPaths.Count,
+      'Resolved unit paths should be deduplicated.');
+    AContext.AssertEquals(1, lContext.MissingPaths.Count,
+      'Missing paths should be logged but ignored.');
+  finally
+    lContext.Free;
+    RemoveDir(lSrc);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestSearchPathTemplatesResolveConfiguredRoots(AContext: TNXTestContext);
+var
+  lContext: TNXPasSearchPathContext;
+  lFPCDir: string;
+  lLazarusDir: string;
+  lRoot: string;
+  lTemplates: TNXPasSearchPathTemplateList;
+begin
+  lRoot := NXPasCreateTempDir('nxproot');
+  lLazarusDir := IncludeTrailingPathDelimiter(lRoot) + 'lazarus';
+  lFPCDir := IncludeTrailingPathDelimiter(lRoot) + 'fpcsrc';
+  ForceDirectories(IncludeTrailingPathDelimiter(lLazarusDir) + 'lcl');
+  ForceDirectories(IncludeTrailingPathDelimiter(lFPCDir) + 'rtl');
+
+  lContext := TNXPasSearchPathContext.Create;
+  lTemplates := TNXPasSearchPathTemplateList.Create;
+  try
+    lContext.LazarusDir := lLazarusDir;
+    lContext.FPCDir := lFPCDir;
+    lTemplates.AddTemplate('Test Lazarus LCL', '$(LazarusDir)\lcl',
+      pspkUnitPath);
+    lTemplates.AddTemplate('Test FPC RTL', '$(FPCDir)\rtl', pspkUnitPath);
+    lContext.AddTemplates(lTemplates);
+
+    AContext.AssertEquals(2, lContext.UnitPaths.Count,
+      'Configured Lazarus/FPC roots should resolve template paths.');
+    AContext.AssertEquals(0, lContext.MissingPaths.Count,
+      'Existing template paths should not be logged as missing.');
+  finally
+    lTemplates.Free;
+    lContext.Free;
+    RemoveDir(IncludeTrailingPathDelimiter(lFPCDir) + 'rtl');
+    RemoveDir(lFPCDir);
+    RemoveDir(IncludeTrailingPathDelimiter(lLazarusDir) + 'lcl');
+    RemoveDir(lLazarusDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestSearchPathTemplateStoreCreatesMasterList(AContext: TNXTestContext);
+var
+  lFileName: string;
+  lLoaded: TNXPasSearchPathTemplateList;
+  lRoot: string;
+  lTemplates: TNXPasSearchPathTemplateList;
+begin
+  lRoot := NXPasCreateTempDir('nxptpl');
+  lFileName := IncludeTrailingPathDelimiter(lRoot) + 'nexuspas-search-paths.json';
+  lTemplates := TNXPasSearchPathTemplateList.Create;
+  lLoaded := TNXPasSearchPathTemplateList.Create;
+  try
+    TNXPasSearchPathTemplateStore.LoadOrCreate(lFileName, lTemplates);
+    AContext.AssertTrue(FileExists(lFileName),
+      'Template store should create a missing path template file.');
+    AContext.AssertTrue(lTemplates.Count > 20,
+      'Template store should seed the master Lazarus/FPC path list.');
+
+    TNXPasSearchPathTemplateStore.LoadOrCreate(lFileName, lLoaded);
+    AContext.AssertEquals(lTemplates.Count, lLoaded.Count,
+      'Template store should load the same persisted template count.');
+  finally
+    lLoaded.Free;
+    lTemplates.Free;
+    DeleteFile(lFileName);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestUnitLocatorFindsPasAndPP(AContext: TNXTestContext);
+var
+  lFileName: string;
+  lPaths: TStringList;
+  lRoot: string;
+begin
+  lRoot := NXPasCreateTempDir('nxpunit');
+  NXPasWriteTextFile(IncludeTrailingPathDelimiter(lRoot) + 'Foo.pp',
+    'unit Foo;' + LineEnding + 'interface' + LineEnding +
+    'implementation' + LineEnding + 'end.');
+
+  lPaths := TStringList.Create;
+  try
+    lPaths.Add(lRoot);
+    AContext.AssertTrue(TNXPasUnitLocator.FindUnitFile('Foo', lPaths,
+      lFileName), 'Unit locator should find .pp source files.');
+    AContext.AssertTrue(SameText(ExtractFileName(lFileName), 'Foo.pp'),
+      'Unit locator should return the matching source file.');
+  finally
+    lPaths.Free;
+    DeleteFile(IncludeTrailingPathDelimiter(lRoot) + 'Foo.pp');
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestWorkspaceIndexResolvesUsesViaSearchPath(AContext: TNXTestContext);
+var
+  lIndex: TNXPasWorkspaceIndex;
+  lLibDir: string;
+  lRelationships: TNXPasUsesRelationshipList;
+  lResolver: TNXPasSearchPathUnitResolver;
+  lRoot: string;
+  lSearchPaths: TNXPasSearchPathContext;
+  lSource: TNXPasSourceFile;
+begin
+  lRoot := NXPasCreateTempDir('nxpuses');
+  lLibDir := IncludeTrailingPathDelimiter(lRoot) + 'lib';
+  ForceDirectories(lLibDir);
+  NXPasWriteTextFile(IncludeTrailingPathDelimiter(lLibDir) + 'OtherUnit.pas',
+    'unit OtherUnit;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure Ping;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Ping;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.');
+
+  lIndex := TNXPasWorkspaceIndex.Create;
+  lRelationships := TNXPasUsesRelationshipList.Create(True);
+  lSearchPaths := TNXPasSearchPathContext.Create;
+  lResolver := TNXPasSearchPathUnitResolver.Create(lSearchPaths);
+  lSource := TNXPasSourceFile.Create(IncludeTrailingPathDelimiter(lRoot) +
+    'MainUnit.pas', TNXPasUnitLocator.PathToFileURI(
+    IncludeTrailingPathDelimiter(lRoot) + 'MainUnit.pas'),
+    'unit MainUnit;' + LineEnding +
+    'interface' + LineEnding +
+    'uses OtherUnit;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.');
+  try
+    lSearchPaths.AddRawPath(lLibDir, 'test', pspkUnitPath);
+    lIndex.UnitResolver := lResolver;
+    lIndex.UpdateSourceFile(lSource);
+    lIndex.ListUsesRelationships(lRelationships);
+
+    AContext.AssertEquals(1, lRelationships.Count,
+      'Workspace index should resolve uses units through search paths.');
+    AContext.AssertEquals(2, lIndex.FileCount,
+      'Workspace index should index the discovered used unit.');
+    AContext.AssertTrue(lIndex.FindFileByUnitName('OtherUnit') <> nil,
+      'Discovered unit should be available by unit name.');
+  finally
+    lSource.Free;
+    lResolver.Free;
+    lSearchPaths.Free;
+    lRelationships.Free;
+    lIndex.Free;
+    DeleteFile(IncludeTrailingPathDelimiter(lLibDir) + 'OtherUnit.pas');
+    RemoveDir(lLibDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
 procedure TestUnitMetadataCapturesHeaderAndUses(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1513,6 +1773,17 @@ begin
   lSuite.AddTest('ConditionalUnitHeaderUsesActiveBranch',
     @TestConditionalUnitHeaderUsesActiveBranch);
   lSuite.AddTest('WorkspaceIndex', @TestWorkspaceIndex);
+  lSuite.AddTest('LPIProjectReadsPathModel',
+    @TestLPIProjectReadsPathModel);
+  lSuite.AddTest('SearchPathContextResolvesAndDeduplicates',
+    @TestSearchPathContextResolvesAndDeduplicates);
+  lSuite.AddTest('SearchPathTemplatesResolveConfiguredRoots',
+    @TestSearchPathTemplatesResolveConfiguredRoots);
+  lSuite.AddTest('SearchPathTemplateStoreCreatesMasterList',
+    @TestSearchPathTemplateStoreCreatesMasterList);
+  lSuite.AddTest('UnitLocatorFindsPasAndPP', @TestUnitLocatorFindsPasAndPP);
+  lSuite.AddTest('WorkspaceIndexResolvesUsesViaSearchPath',
+    @TestWorkspaceIndexResolvesUsesViaSearchPath);
   lSuite.AddTest('UnitMetadataCapturesHeaderAndUses',
     @TestUnitMetadataCapturesHeaderAndUses);
   lSuite.AddTest('UsesInCapturesFilenameAndCandidatePath',

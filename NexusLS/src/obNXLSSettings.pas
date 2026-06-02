@@ -13,7 +13,10 @@ uses
 type
   TNXLSSettings = class
   private
+    FCWD: string;
+    FFPCDir: string;
     FProgramFile: string;
+    FLazarusDir: string;
     FFPCOptions: TStringList;
     FCheckSyntax: Boolean;
     FPublishDiagnostics: Boolean;
@@ -33,7 +36,10 @@ type
     procedure ExpandMacros(const ARootPath, ATempPath: string);
 
     property ProgramFile: string read FProgramFile write FProgramFile;
+    property CWD: string read FCWD write FCWD;
+    property FPCDir: string read FFPCDir write FFPCDir;
     property FPCOptions: TStringList read FFPCOptions;
+    property LazarusDir: string read FLazarusDir write FLazarusDir;
     property CheckSyntax: Boolean read FCheckSyntax write FCheckSyntax;
     property PublishDiagnostics: Boolean read FPublishDiagnostics write FPublishDiagnostics;
     property ShowSyntaxErrors: Boolean read FShowSyntaxErrors write FShowSyntaxErrors;
@@ -61,6 +67,9 @@ end;
 procedure TNXLSSettings.Clear;
 begin
   FProgramFile := '';
+  FCWD := '';
+  FFPCDir := '';
+  FLazarusDir := '';
   FFPCOptions.Clear;
   FCheckSyntax := False;
   FPublishDiagnostics := False;
@@ -153,6 +162,9 @@ begin
       Exit;
 
     lObject := TJSONObject(lData);
+    LoadStringValue(lObject, 'cwd', FCWD);
+    LoadStringValue(lObject, 'fpcDir', FFPCDir);
+    LoadStringValue(lObject, 'lazarusDir', FLazarusDir);
     LoadStringValue(lObject, 'program', FProgramFile);
     LoadStringArray(lObject.Find('fpcOptions'), FFPCOptions);
     LoadBooleanValue(lObject, 'checkSyntax', FCheckSyntax);
@@ -167,6 +179,9 @@ end;
 procedure TNXLSSettings.ExpandMacros(const ARootPath, ATempPath: string);
 begin
   FProgramFile := ExpandMacrosInString(FProgramFile, ARootPath, ATempPath);
+  FCWD := ExpandMacrosInString(FCWD, ARootPath, ATempPath);
+  FFPCDir := ExpandMacrosInString(FFPCDir, ARootPath, ATempPath);
+  FLazarusDir := ExpandMacrosInString(FLazarusDir, ARootPath, ATempPath);
   ExpandMacrosInStrings(FFPCOptions, ARootPath, ATempPath);
 end;
 

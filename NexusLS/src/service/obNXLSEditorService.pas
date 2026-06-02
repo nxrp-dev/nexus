@@ -56,6 +56,7 @@ constructor TNXLSEditorService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
   FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
+  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
 end;
 
 destructor TNXLSEditorService.Destroy;
