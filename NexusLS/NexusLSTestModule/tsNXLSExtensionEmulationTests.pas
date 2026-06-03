@@ -38,8 +38,11 @@ type
 
     function Initialize(const ARootURI: string): TJSONObject;
     procedure Initialized;
+    function IndexedUnitExists(const AUnitName: string): Boolean;
     procedure OpenDocument(const AURI, AText: string);
     function RequestDocumentHighlights(const AURI: string; ALine,
+      ACharacter: Integer): TJSONObject;
+    function RequestHover(const AURI: string; ALine,
       ACharacter: Integer): TJSONObject;
     function RequestLocation(const AMethod, AURI: string; ALine,
       ACharacter: Integer): TJSONObject;
@@ -130,6 +133,17 @@ end;
 function NXLSLocationStartCharacter(AResponse: TJSONObject): Integer;
 begin
   Result := AResponse.Objects['result'].Objects['range'].Objects['start'].Integers['character'];
+end;
+
+function NXLSPathToFileURI(const APath: string): string;
+begin
+  Result := 'file:///' + StringReplace(ExpandFileName(APath), '\', '/',
+    [rfReplaceAll]);
+end;
+
+function NXLSHoverText(AResponse: TJSONObject): string;
+begin
+  Result := AResponse.Objects['result'].Objects['contents'].Strings['value'];
 end;
 
 function NXLSHighlightCount(AResponse: TJSONObject): Integer;
@@ -229,6 +243,20 @@ begin
     AMessage + ' should contain a result.');
   AContext.AssertTrue(AResponse.Find('result').JSONType = jtNull,
     AMessage + ' result should be null.');
+end;
+
+procedure NXLSAssertHover(AContext: TNXTestContext; AResponse: TJSONObject;
+  const AExpectedText, AMessage: string);
+begin
+  AContext.AssertTrue(AResponse <> nil, AMessage + ' response should exist.');
+  AContext.AssertTrue(AResponse.Find('error') = nil,
+    AMessage + ' should not return an error.');
+  AContext.AssertTrue(AResponse.Find('result') <> nil,
+    AMessage + ' should contain a result.');
+  AContext.AssertTrue(AResponse.Find('result').JSONType = jtObject,
+    AMessage + ' result should be a hover object.');
+  AContext.AssertEquals(AExpectedText, NXLSHoverText(AResponse),
+    AMessage + ' should return expected hover text.');
 end;
 
 procedure NXLSAssertRequestLocation(AContext: TNXTestContext;
@@ -334,6 +362,13 @@ begin
   end;
 end;
 
+function TNXLSEmulatedClient.IndexedUnitExists(
+  const AUnitName: string): Boolean;
+begin
+  Result := FModel.PascalLanguage.WorkspaceIndex.FindFileByUnitName(
+    AUnitName) <> nil;
+end;
+
 procedure TNXLSEmulatedClient.OpenDocument(const AURI, AText: string);
 var
   lParams: TJSONObject;
@@ -360,6 +395,45 @@ begin
     DispatchJSON(lRequest, lResponse);
   finally
     lTextDocument.Free;
+    lParams.Free;
+    lRequest.Free;
+  end;
+end;
+
+function TNXLSEmulatedClient.RequestHover(const AURI: string; ALine,
+  ACharacter: Integer): TJSONObject;
+var
+  lParams: TJSONObject;
+  lPosition: TJSONObject;
+  lRequest: TJSONObject;
+  lResponse: string;
+  lTextDocument: TJSONObject;
+begin
+  Result := nil;
+  lParams := TJSONObject.Create;
+  lPosition := TJSONObject.Create;
+  lRequest := TJSONObject.Create;
+  lTextDocument := TJSONObject.Create;
+  try
+    lTextDocument.Add('uri', AURI);
+    lPosition.Add('line', ALine);
+    lPosition.Add('character', ACharacter);
+    lParams.Add('textDocument', lTextDocument);
+    lTextDocument := nil;
+    lParams.Add('position', lPosition);
+    lPosition := nil;
+
+    lRequest.Add('jsonrpc', '2.0');
+    lRequest.Add('id', NextID);
+    lRequest.Add('method', 'textDocument/hover');
+    lRequest.Add('params', lParams);
+    lParams := nil;
+
+    DispatchJSON(lRequest, lResponse);
+    Result := TJSONObject(GetJSON(lResponse));
+  finally
+    lTextDocument.Free;
+    lPosition.Free;
     lParams.Free;
     lRequest.Free;
   end;
@@ -1400,6 +1474,126 @@ begin
   end;
 end;
 
+procedure TestDefinitionAndHoverIndexCurrentDocumentUsedUnits(
+  AContext: TNXTestContext);
+const
+  cMainSource =
+    'unit MainUnit;' + LineEnding +
+    'interface' + LineEnding +
+    'uses' + LineEnding +
+    '  UsedDiagnostics,' + LineEnding +
+    '  UsedSymbols;' + LineEnding +
+    'type' + LineEnding +
+    '  TMain = class' + LineEnding +
+    '  private' + LineEnding +
+    '    FDiagnostics: TUsedDiagnosticList;' + LineEnding +
+    '    FSymbols: TUsedSymbolTable;' + LineEnding +
+    '    FUnknown: TMissingType;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+  cUsedDiagnosticsSource =
+    'unit UsedDiagnostics;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TUsedDiagnosticList = class' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+  cUsedSymbolsSource =
+    'unit UsedSymbols;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TUsedSymbolTable = class' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'end.';
+var
+  lClient: TNXLSEmulatedClient;
+  lDir: string;
+  lMainPath: string;
+  lMainURI: string;
+  lResponse: TJSONObject;
+
+  procedure WriteTextFile(const AFileName, AText: string);
+  var
+    lText: TStringList;
+  begin
+    lText := TStringList.Create;
+    try
+      lText.Text := AText;
+      lText.SaveToFile(AFileName);
+    finally
+      lText.Free;
+    end;
+  end;
+
+  procedure AssertLocationForType(const ATypeName, AUnitName: string;
+    AExpectedLine, AExpectedColumn: Integer);
+  begin
+    FreeAndNil(lResponse);
+    lResponse := lClient.RequestLocation('textDocument/definition', lMainURI,
+      NXLSLineOf(cMainSource, ATypeName),
+      NXLSColumnOf(cMainSource, ATypeName, ATypeName));
+    NXLSAssertLocation(AContext, lResponse,
+      ATypeName + ' definition');
+    AContext.AssertEquals(AExpectedLine, NXLSLocationStartLine(lResponse),
+      ATypeName + ' definition should point to the used unit type line.');
+    AContext.AssertEquals(AExpectedColumn, NXLSLocationStartCharacter(lResponse),
+      ATypeName + ' definition should point to the used unit type name.');
+    AContext.AssertTrue(lClient.IndexedUnitExists(AUnitName),
+      AUnitName + ' should be indexed by current-document uses.');
+  end;
+
+  procedure AssertHoverForType(const ATypeName, AExpectedText: string);
+  begin
+    FreeAndNil(lResponse);
+    lResponse := lClient.RequestHover(lMainURI,
+      NXLSLineOf(cMainSource, ATypeName),
+      NXLSColumnOf(cMainSource, ATypeName, ATypeName));
+    NXLSAssertHover(AContext, lResponse, AExpectedText,
+      ATypeName + ' hover');
+  end;
+
+begin
+  lDir := IncludeTrailingPathDelimiter(GetTempDir(False)) +
+    'nexusls-used-units-' + IntToStr(GetTickCount);
+  ForceDirectories(lDir);
+  lMainPath := IncludeTrailingPathDelimiter(lDir) + 'MainUnit.pas';
+  lMainURI := NXLSPathToFileURI(lMainPath);
+  WriteTextFile(lMainPath, cMainSource);
+  WriteTextFile(IncludeTrailingPathDelimiter(lDir) + 'UsedDiagnostics.pas',
+    cUsedDiagnosticsSource);
+  WriteTextFile(IncludeTrailingPathDelimiter(lDir) + 'UsedSymbols.pas',
+    cUsedSymbolsSource);
+
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenEmulatedDocument(AContext, lClient, lMainURI, cMainSource);
+    AContext.AssertFalse(lClient.IndexedUnitExists('UsedDiagnostics'),
+      'UsedDiagnostics should not be indexed before symbol lookup.');
+    AContext.AssertFalse(lClient.IndexedUnitExists('UsedSymbols'),
+      'UsedSymbols should not be indexed before symbol lookup.');
+
+    AssertLocationForType('TUsedDiagnosticList', 'UsedDiagnostics', 3, 2);
+    AssertHoverForType('TUsedDiagnosticList',
+      'class TUsedDiagnosticList');
+    AssertLocationForType('TUsedSymbolTable', 'UsedSymbols', 3, 2);
+    AssertHoverForType('TUsedSymbolTable', 'class TUsedSymbolTable');
+
+    FreeAndNil(lResponse);
+    lResponse := lClient.RequestLocation('textDocument/definition', lMainURI,
+      NXLSLineOf(cMainSource, 'TMissingType'),
+      NXLSColumnOf(cMainSource, 'TMissingType', 'TMissingType'));
+    NXLSAssertNullResult(AContext, lResponse,
+      'Unknown type definition');
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
 procedure RegisterNXLSExtensionEmulationTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -1433,6 +1627,8 @@ begin
     @TestDocumentHighlightLocalVariablesStayInRoutine);
   lSuite.AddTest('RoutineContextOutsideRoutineKeepsExistingNoResult',
     @TestRoutineContextOutsideRoutineKeepsExistingNoResult);
+  lSuite.AddTest('DefinitionAndHoverIndexCurrentDocumentUsedUnits',
+    @TestDefinitionAndHoverIndexCurrentDocumentUsedUnits);
 end;
 
 end.

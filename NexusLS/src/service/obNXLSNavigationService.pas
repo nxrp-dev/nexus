@@ -462,7 +462,7 @@ begin
     WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     if lMatches.Count = 0 then
     begin
-      WorkspaceIndex.ResolveUnitReference(AName);
+      Model.PascalLanguage.EnsureUsedUnitsIndexedForURI(AURI);
       WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     end;
     if lMatches.Count = 0 then
@@ -544,6 +544,11 @@ begin
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
     WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    if lMatches.Count = 0 then
+    begin
+      Model.PascalLanguage.EnsureUsedUnitsIndexedForURI(AURI);
+      WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    end;
     for lIdx := 0 to lMatches.Count - 1 do
       if NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol) and
         NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
@@ -691,7 +696,7 @@ begin
   if AResult = nil then
     Exit;
 
-  lFile := WorkspaceIndex.ResolveUnitReference(AName);
+  lFile := Model.PascalLanguage.ResolveUnitReference(AName);
   if lFile = nil then
     Exit;
 

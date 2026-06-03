@@ -55,6 +55,7 @@ type
     TNXFastStringEntry = record
       Text: string;
       Data: PChar;
+      Index: LongInt;
     end;
 
     TNXFastStringBucket = record
@@ -80,6 +81,7 @@ type
     property Metrics: TNXFastStringSetMetrics read FMetrics;
 
     function Contains(const AText: string): Boolean; inline;
+    function TryIndexOf(const AText: string; out AIndex: Integer): Boolean; inline;
   end;
 
 implementation
@@ -264,6 +266,7 @@ begin
 
     FEntries[lEntryIndex].Text := AWords[lIndex];
     FEntries[lEntryIndex].Data := PChar(FEntries[lEntryIndex].Text);
+    FEntries[lEntryIndex].Index := lIndex;
   end;
 
   UpdateMetrics(lStringBytes, QWord(lDistinctLengthCount), QWord(lMaxLength), GetTickCount64 - lInitStart);
@@ -333,6 +336,76 @@ begin
   begin
     if CompareMem(FEntries[lIndex].Data, lData, lLength) then
     begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+function TNXFastStringSet.TryIndexOf(const AText: string;
+  out AIndex: Integer): Boolean;
+var
+  lLength: SizeInt;
+  lFirst: Byte;
+  lLast: Byte;
+  lBucketIndex: SizeInt;
+  lBucketStart: LongInt;
+  lBucketCount: LongInt;
+  lIndex: LongInt;
+  lData: PChar;
+begin
+  Result := False;
+  AIndex := -1;
+
+  lLength := System.Length(AText);
+
+  if lLength > High(FLengthIndex) then
+    Exit;
+
+  if lLength = 0 then
+  begin
+    lFirst := 0;
+    lLast := 0;
+  end
+  else
+  begin
+    lFirst := Ord(AText[1]);
+    lLast := Ord(AText[lLength]);
+  end;
+
+  lBucketIndex := GetBucketIndex(lLength, lFirst, lLast);
+
+  if lBucketIndex < 0 then
+    Exit;
+
+  lBucketStart := FBuckets[lBucketIndex].Start;
+  lBucketCount := FBuckets[lBucketIndex].Count;
+
+  if lBucketCount = 0 then
+    Exit;
+
+  if lLength = 0 then
+  begin
+    AIndex := FEntries[lBucketStart].Index;
+    Result := True;
+    Exit;
+  end;
+
+  lData := PChar(AText);
+
+  if lBucketCount = 1 then
+  begin
+    Result := CompareMem(FEntries[lBucketStart].Data, lData, lLength);
+    if Result then
+      AIndex := FEntries[lBucketStart].Index;
+    Exit;
+  end;
+
+  for lIndex := lBucketStart to lBucketStart + lBucketCount - 1 do
+  begin
+    if CompareMem(FEntries[lIndex].Data, lData, lLength) then
+    begin
+      AIndex := FEntries[lIndex].Index;
       Result := True;
       Exit;
     end;

@@ -23,12 +23,14 @@ type
     function IsAtEnd: Boolean;
     function IsIdentStart(AChar: Char): Boolean;
     function IsIdentChar(AChar: Char): Boolean;
-    function IsKeyword(const AText: string): Boolean;
+    function KeywordKindOf(const AText: string): TNXPasKeywordKind;
     procedure Advance;
     procedure AddDiagnostic(const ACode, AMessage: string;
       const AStartPos, AEndPos: TNXPasSourcePosition);
     procedure CaptureToken(AKind: TNXPasTokenKind; const AStart: TNXPasSourcePosition;
-      AStartOffset: Integer; out AToken: TNXPasToken);
+      AStartOffset: Integer; out AToken: TNXPasToken;
+      AKeyword: TNXPasKeywordKind = pkwNone;
+      ASymbol: TNXPasTokenSymbolKind = psyNone);
     function ReadBraceComment(out AToken: TNXPasToken): Boolean;
     function ReadParenComment(out AToken: TNXPasToken): Boolean;
     function ReadSlashComment(out AToken: TNXPasToken): Boolean;
@@ -44,6 +46,7 @@ type
     constructor Create(const ASource: string;
       ADiagnostics: TNXPasDiagnosticList = nil);
     function NextToken: TNXPasToken;
+    property SourceText: string read FSource;
   end;
 
 implementation
@@ -114,9 +117,10 @@ begin
   Result := IsIdentStart(AChar) or (AChar in ['0'..'9']);
 end;
 
-function TNXPasLexer.IsKeyword(const AText: string): Boolean;
+function TNXPasLexer.KeywordKindOf(const AText: string): TNXPasKeywordKind;
 begin
-  Result := TNXPascalKeywordSet.Contains(LowerCase(AText));
+  if not TNXPascalKeywordSet.TryKindOf(AText, Result) then
+    Result := pkwNone;
 end;
 
 procedure TNXPasLexer.Advance;
@@ -148,12 +152,17 @@ end;
 
 procedure TNXPasLexer.CaptureToken(AKind: TNXPasTokenKind;
   const AStart: TNXPasSourcePosition; AStartOffset: Integer;
-  out AToken: TNXPasToken);
+  out AToken: TNXPasToken; AKeyword: TNXPasKeywordKind;
+  ASymbol: TNXPasTokenSymbolKind);
 begin
+  NXPasClearToken(AToken);
   AToken.Kind := AKind;
-  AToken.Text := Copy(FSource, AStartOffset, FOffset - AStartOffset);
+  AToken.Keyword := AKeyword;
+  AToken.Symbol := ASymbol;
   AToken.StartPos := AStart;
   AToken.EndPos := CurrentPosition;
+  AToken.StartOffset := AStartOffset;
+  AToken.EndOffset := FOffset;
 end;
 
 function TNXPasLexer.ReadWhitespace(out AToken: TNXPasToken): Boolean;
@@ -209,6 +218,7 @@ end;
 
 function TNXPasLexer.ReadIdentifier(out AToken: TNXPasToken): Boolean;
 var
+  lKeyword: TNXPasKeywordKind;
   lStart: TNXPasSourcePosition;
   lStartOffset: Integer;
 begin
@@ -221,8 +231,9 @@ begin
   while IsIdentChar(CurrentChar) do
     Advance;
 
-  if IsKeyword(Copy(FSource, lStartOffset, FOffset - lStartOffset)) then
-    CaptureToken(ptkKeyword, lStart, lStartOffset, AToken)
+  lKeyword := KeywordKindOf(Copy(FSource, lStartOffset, FOffset - lStartOffset));
+  if lKeyword <> pkwNone then
+    CaptureToken(ptkKeyword, lStart, lStartOffset, AToken, lKeyword)
   else
     CaptureToken(ptkIdentifier, lStart, lStartOffset, AToken);
 end;
@@ -454,6 +465,7 @@ function TNXPasLexer.ReadSymbol(out AToken: TNXPasToken): Boolean;
 var
   lStart: TNXPasSourcePosition;
   lStartOffset: Integer;
+  lSymbol: TNXPasTokenSymbolKind;
 begin
   Result := not IsAtEnd;
   if not Result then
@@ -461,25 +473,138 @@ begin
 
   lStart := CurrentPosition;
   lStartOffset := FOffset;
+  lSymbol := psyUnknown;
 
   case CurrentChar of
     ':':
       begin
         Advance;
         if CurrentChar = '=' then
+        begin
           Advance;
+          lSymbol := psyAssign;
+        end
+        else
+          lSymbol := psyColon;
       end;
-    '.', '<', '>', '+', '-', '*', '/':
+    '.':
       begin
         Advance;
-        if CurrentChar in ['=', '.', '>', '<', '*'] then
+        if CurrentChar = '.' then
+        begin
           Advance;
+          lSymbol := psyDotDot;
+        end
+        else
+          lSymbol := psyDot;
+      end;
+    '<':
+      begin
+        Advance;
+        if CurrentChar = '=' then
+        begin
+          Advance;
+          lSymbol := psyLessEqual;
+        end
+        else if CurrentChar = '>' then
+        begin
+          Advance;
+          lSymbol := psyNotEqual;
+        end
+        else
+          lSymbol := psyLess;
+      end;
+    '>':
+      begin
+        Advance;
+        if CurrentChar = '=' then
+        begin
+          Advance;
+          lSymbol := psyGreaterEqual;
+        end
+        else
+          lSymbol := psyGreater;
+      end;
+    '+':
+      begin
+        Advance;
+        lSymbol := psyPlus;
+      end;
+    '-':
+      begin
+        Advance;
+        lSymbol := psyMinus;
+      end;
+    '*':
+      begin
+        Advance;
+        lSymbol := psyStar;
+      end;
+    '/':
+      begin
+        Advance;
+        lSymbol := psySlash;
+      end;
+    '=':
+      begin
+        Advance;
+        lSymbol := psyEquals;
+      end;
+    ';':
+      begin
+        Advance;
+        lSymbol := psySemicolon;
+      end;
+    ',':
+      begin
+        Advance;
+        lSymbol := psyComma;
+      end;
+    '(':
+      begin
+        Advance;
+        lSymbol := psyOpenParen;
+      end;
+    ')':
+      begin
+        Advance;
+        lSymbol := psyCloseParen;
+      end;
+    '[':
+      begin
+        Advance;
+        lSymbol := psyOpenBracket;
+      end;
+    ']':
+      begin
+        Advance;
+        lSymbol := psyCloseBracket;
+      end;
+    '{':
+      begin
+        Advance;
+        lSymbol := psyOpenBrace;
+      end;
+    '}':
+      begin
+        Advance;
+        lSymbol := psyCloseBrace;
+      end;
+    '^':
+      begin
+        Advance;
+        lSymbol := psyCaret;
+      end;
+    '@':
+      begin
+        Advance;
+        lSymbol := psyAt;
       end;
   else
     Advance;
   end;
 
-  CaptureToken(ptkSymbol, lStart, lStartOffset, AToken);
+  CaptureToken(ptkSymbol, lStart, lStartOffset, AToken, pkwNone, lSymbol);
 end;
 
 function TNXPasLexer.NextToken: TNXPasToken;
@@ -488,11 +613,13 @@ var
 begin
   if IsAtEnd then
   begin
+    NXPasClearToken(Result);
     lStart := CurrentPosition;
     Result.Kind := ptkEndOfFile;
-    Result.Text := '';
     Result.StartPos := lStart;
     Result.EndPos := lStart;
+    Result.StartOffset := FOffset;
+    Result.EndOffset := FOffset;
     Exit;
   end;
 
@@ -520,3 +647,4 @@ begin
 end;
 
 end.
+

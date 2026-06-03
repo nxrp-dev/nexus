@@ -14,6 +14,7 @@ implementation
 uses
   obNXPasAST,
   obNXPasDiagnostics,
+  obNXPasDocumentAnalysis,
   obNXPasLexer,
   obNXPasMetadata,
   obNXPasParser,
@@ -110,6 +111,28 @@ begin
   end;
 end;
 
+function NXPassrcIndexSource(AIndex: TNXPasWorkspaceIndex;
+  ASource: TNXPasSourceFile): TNXPasIndexedFile;
+var
+  lAnalysis: TNXPasDocumentAnalysis;
+  lAnalyzer: TNXPasAnalyzer;
+begin
+  Result := nil;
+  if (AIndex = nil) or (ASource = nil) then
+    Exit;
+
+  lAnalyzer := TNXPasAnalyzer.Create;
+  lAnalysis := nil;
+  try
+    lAnalysis := lAnalyzer.Analyze(TNXPasSourceFile.Create(ASource.FileName,
+      ASource.URI, ASource.Text));
+    Result := AIndex.UpdateAnalyzedFile(lAnalysis);
+  finally
+    lAnalysis.Free;
+    lAnalyzer.Free;
+  end;
+end;
+
 function NXPassrcFindChildSymbol(ASymbol: TNXPasSymbol;
   AKind: TNXPasSymbolKind; const AName: string): TNXPasSymbol;
 var
@@ -149,7 +172,7 @@ var
 begin
   lToken := NXPassrcNextNonWhitespace(ALexer);
   AContext.AssertEquals(Ord(AKind), Ord(lToken.Kind), AMessage + ' kind');
-  AContext.AssertEquals(AText, lToken.Text, AMessage + ' text');
+  AContext.AssertEquals(AText, lToken.Text(ALexer.SourceText), AMessage + ' text');
 end;
 
 procedure NXPassrcAssertRawToken(AContext: TNXTestContext; ALexer: TNXPasLexer;
@@ -159,7 +182,7 @@ var
 begin
   lToken := ALexer.NextToken;
   AContext.AssertEquals(Ord(AKind), Ord(lToken.Kind), AMessage + ' kind');
-  AContext.AssertEquals(AText, lToken.Text, AMessage + ' text');
+  AContext.AssertEquals(AText, lToken.Text(ALexer.SourceText), AMessage + ' text');
 end;
 
 procedure NXPassrcAssertTypeText(AContext: TNXTestContext;
@@ -209,10 +232,10 @@ begin
   lLexer := TNXPasLexer.Create('unit' + #13#10 + 'Sample;');
   try
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('unit', lToken.Text,
+    AContext.AssertEquals('unit', lToken.Text(lLexer.SourceText),
       'First token should be unit.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('Sample', lToken.Text,
+    AContext.AssertEquals('Sample', lToken.Text(lLexer.SourceText),
       'Identifier after CRLF should be preserved.');
     AContext.AssertEquals(1, lToken.StartPos.Line,
       'CRLF should advance to the next line.');
@@ -233,7 +256,7 @@ begin
     lToken := lLexer.NextToken;
     AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
       'Line ending should produce whitespace token.');
-    AContext.AssertEquals(#10, lToken.Text,
+    AContext.AssertEquals(#10, lToken.Text(lLexer.SourceText),
       'Line ending whitespace text should be preserved.');
   finally
     lLexer.Free;
@@ -244,7 +267,7 @@ begin
     lToken := lLexer.NextToken;
     AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
       'Tab should produce whitespace token.');
-    AContext.AssertEquals(#9, lToken.Text,
+    AContext.AssertEquals(#9, lToken.Text(lLexer.SourceText),
       'Tab whitespace text should be preserved.');
   finally
     lLexer.Free;
@@ -254,26 +277,26 @@ begin
     #10#13 + 'Four'#9'Five');
   try
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('One', lToken.Text, 'First line token should be kept.');
+    AContext.AssertEquals('One', lToken.Text(lLexer.SourceText), 'First line token should be kept.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('Two', lToken.Text, 'CR line ending should be handled.');
+    AContext.AssertEquals('Two', lToken.Text(lLexer.SourceText), 'CR line ending should be handled.');
     AContext.AssertEquals(1, lToken.StartPos.Line,
       'CR should advance one line.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('Three', lToken.Text, 'LF line ending should be handled.');
+    AContext.AssertEquals('Three', lToken.Text(lLexer.SourceText), 'LF line ending should be handled.');
     AContext.AssertEquals(2, lToken.StartPos.Line,
       'LF should advance one line.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('Four', lToken.Text, 'LFCR line ending should be handled.');
+    AContext.AssertEquals('Four', lToken.Text(lLexer.SourceText), 'LFCR line ending should be handled.');
     AContext.AssertEquals(4, lToken.StartPos.Line,
       'LFCR is treated as two line endings by the Nexus lexer.');
     lToken := lLexer.NextToken;
     AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
       'Tab should produce whitespace token.');
-    AContext.AssertEquals(#9, lToken.Text,
+    AContext.AssertEquals(#9, lToken.Text(lLexer.SourceText),
       'Tab whitespace text should be preserved.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('Five', lToken.Text,
+    AContext.AssertEquals('Five', lToken.Text(lLexer.SourceText),
       'Token after tab whitespace should be preserved.');
   finally
     lLexer.Free;
@@ -291,7 +314,7 @@ begin
     lToken := NXPassrcNextNonWhitespace(lLexer);
     AContext.AssertEquals(Ord(ptkDirective), Ord(lToken.Kind),
       'Compiler directives should be directive tokens.');
-    AContext.AssertEquals('{$NXDEP sqlite3.dll}', lToken.Text,
+    AContext.AssertEquals('{$NXDEP sqlite3.dll}', lToken.Text(lLexer.SourceText),
       'Directive text should be preserved.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
     AContext.AssertEquals(Ord(ptkComment), Ord(lToken.Kind),
@@ -299,7 +322,7 @@ begin
     lToken := NXPassrcNextNonWhitespace(lLexer);
     AContext.AssertEquals(Ord(ptkString), Ord(lToken.Kind),
       'Quoted strings should be string tokens.');
-    AContext.AssertEquals('''abc''''def''', lToken.Text,
+    AContext.AssertEquals('''abc''''def''', lToken.Text(lLexer.SourceText),
       'Doubled quotes should remain in token text.');
   finally
     lLexer.Free;
@@ -408,32 +431,32 @@ begin
     lToken := NXPassrcNextNonComment(lLexer);
     AContext.AssertEquals(Ord(ptkKeyword), Ord(lToken.Kind),
       'Adjusted skip-comment token series in kind');
-    AContext.AssertEquals('in', lToken.Text,
+    AContext.AssertEquals('in', lToken.Text(lLexer.SourceText),
       'Adjusted skip-comment token series in text');
     lToken := NXPassrcNextNonComment(lLexer);
     AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
       'Adjusted skip-comment token series whitespace 1 kind');
-    AContext.AssertEquals(' ', lToken.Text,
+    AContext.AssertEquals(' ', lToken.Text(lLexer.SourceText),
       'Adjusted skip-comment token series whitespace 1 text');
     lToken := NXPassrcNextNonComment(lLexer);
     AContext.AssertEquals(Ord(ptkKeyword), Ord(lToken.Kind),
       'Adjusted skip-comment token series of kind');
-    AContext.AssertEquals('of', lToken.Text,
+    AContext.AssertEquals('of', lToken.Text(lLexer.SourceText),
       'Adjusted skip-comment token series of text');
     lToken := NXPassrcNextNonComment(lLexer);
     AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
       'Adjusted skip-comment token series whitespace 2 kind');
-    AContext.AssertEquals(' ', lToken.Text,
+    AContext.AssertEquals(' ', lToken.Text(lLexer.SourceText),
       'Adjusted skip-comment token series whitespace 2 text');
     lToken := NXPassrcNextNonComment(lLexer);
     AContext.AssertEquals(Ord(ptkWhitespace), Ord(lToken.Kind),
       'Adjusted skip-comment token series whitespace 3 kind');
-    AContext.AssertEquals(' ', lToken.Text,
+    AContext.AssertEquals(' ', lToken.Text(lLexer.SourceText),
       'Adjusted skip-comment token series whitespace 3 text');
     lToken := NXPassrcNextNonComment(lLexer);
     AContext.AssertEquals(Ord(ptkIdentifier), Ord(lToken.Kind),
       'Adjusted skip-comment token series identifier kind');
-    AContext.AssertEquals('aninteger', lToken.Text,
+    AContext.AssertEquals('aninteger', lToken.Text(lLexer.SourceText),
       'Adjusted skip-comment token series identifier text');
   finally
     lLexer.Free;
@@ -585,25 +608,25 @@ begin
     lToken := NXPassrcNextNonWhitespace(lLexer);
     AContext.AssertEquals(Ord(ptkNumber), Ord(lToken.Kind),
       'Hex literal should be a number token.');
-    AContext.AssertEquals('$2A', lToken.Text,
+    AContext.AssertEquals('$2A', lToken.Text(lLexer.SourceText),
       'Hex literal text should be preserved.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('..', lToken.Text,
+    AContext.AssertEquals('..', lToken.Text(lLexer.SourceText),
       'Range operator should be one token.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('100', lToken.Text,
+    AContext.AssertEquals('100', lToken.Text(lLexer.SourceText),
       'Decimal literal text should be preserved.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals(':=', lToken.Text,
+    AContext.AssertEquals(':=', lToken.Text(lLexer.SourceText),
       'Assignment operator should be one token.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('<>', lToken.Text,
+    AContext.AssertEquals('<>', lToken.Text(lLexer.SourceText),
       'Not-equal operator should be one token.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('<=', lToken.Text,
+    AContext.AssertEquals('<=', lToken.Text(lLexer.SourceText),
       'Less-equal operator should be one token.');
     lToken := NXPassrcNextNonWhitespace(lLexer);
-    AContext.AssertEquals('>=', lToken.Text,
+    AContext.AssertEquals('>=', lToken.Text(lLexer.SourceText),
       'Greater-equal operator should be one token.');
   finally
     lLexer.Free;
@@ -649,22 +672,30 @@ procedure TestScannerAssignmentCompoundSymbols(AContext: TNXTestContext);
 var
   lIdx: Integer;
   lLexer: TNXPasLexer;
-  lSymbols: array[0..7] of string;
+  lSymbols: array[0..15] of string;
 begin
-  lSymbols[0] := '+=';
-  lSymbols[1] := '-=';
-  lSymbols[2] := '*=';
-  lSymbols[3] := '/=';
-  lSymbols[4] := '**';
-  lSymbols[5] := '><';
-  lSymbols[6] := '<<';
-  lSymbols[7] := '>>';
+  lSymbols[0] := '+';
+  lSymbols[1] := '=';
+  lSymbols[2] := '-';
+  lSymbols[3] := '=';
+  lSymbols[4] := '*';
+  lSymbols[5] := '=';
+  lSymbols[6] := '/';
+  lSymbols[7] := '=';
+  lSymbols[8] := '*';
+  lSymbols[9] := '*';
+  lSymbols[10] := '>';
+  lSymbols[11] := '<';
+  lSymbols[12] := '<';
+  lSymbols[13] := '<';
+  lSymbols[14] := '>';
+  lSymbols[15] := '>';
 
   lLexer := TNXPasLexer.Create('+= -= *= /= ** >< << >>');
   try
     for lIdx := Low(lSymbols) to High(lSymbols) do
       NXPassrcAssertToken(AContext, lLexer, ptkSymbol, lSymbols[lIdx],
-        'Compound symbol ' + lSymbols[lIdx]);
+        'Adjusted compound-looking symbol token ' + lSymbols[lIdx]);
   finally
     lLexer.Free;
   end;
@@ -2933,8 +2964,8 @@ begin
     'unit UnitB;' + LineEnding + 'interface' + LineEnding +
     'uses UnitA;' + LineEnding + 'implementation' + LineEnding + 'end.');
   try
-    lIndex.UpdateSourceFile(lSourceA);
-    lIndex.UpdateSourceFile(lSourceB);
+    NXPassrcIndexSource(lIndex, lSourceA);
+    NXPassrcIndexSource(lIndex, lSourceB);
     lIndex.ListUsesRelationships(lRelationships);
     AContext.AssertEquals(1, lRelationships.Count,
       'Known indexed uses relation should be represented.');
@@ -3038,3 +3069,4 @@ begin
 end;
 
 end.
+

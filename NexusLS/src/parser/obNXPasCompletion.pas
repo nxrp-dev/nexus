@@ -80,8 +80,7 @@ begin
 
   lLexer := TNXPasLexer.Create(ASource.Text);
   try
-    lPrevSignificant.Kind := ptkUnknown;
-    lPrevSignificant.Text := '';
+    NXPasClearToken(lPrevSignificant);
     repeat
       lToken := lLexer.NextToken;
       lRange := ASource.RangeFromPositions(lToken.StartPos, lToken.EndPos);
@@ -89,9 +88,10 @@ begin
         PositionInRange(ALine, AColumn, lRange) then
       begin
         if (lPrevSignificant.Kind = ptkSymbol) and
-          (lPrevSignificant.Text = '.') then
+          (lPrevSignificant.Symbol = psyDot) then
           Exit;
-        APrefix := Copy(lToken.Text, 1, AColumn - lToken.StartPos.Column);
+        APrefix := Copy(lToken.Text(ASource.Text), 1,
+          AColumn - lToken.StartPos.Column);
         Exit(True);
       end;
 
@@ -99,13 +99,13 @@ begin
         (lToken.EndPos.Line = ALine) and (lToken.EndPos.Column = AColumn) then
       begin
         if (lPrevSignificant.Kind = ptkSymbol) and
-          (lPrevSignificant.Text = '.') then
+          (lPrevSignificant.Symbol = psyDot) then
           Exit;
-        APrefix := lToken.Text;
+        APrefix := lToken.Text(ASource.Text);
         Exit(True);
       end;
 
-      if (lToken.Kind = ptkSymbol) and (lToken.Text = '.') and
+      if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyDot) and
         TokenEndsAtOrBeforePosition(ALine, AColumn, lRange) then
         lPrevSignificant := lToken
       else if not (lToken.Kind in [ptkWhitespace, ptkComment, ptkDirective]) and
@@ -119,7 +119,8 @@ begin
     lLexer.Free;
   end;
 
-  if (lPrevSignificant.Kind = ptkSymbol) and (lPrevSignificant.Text = '.') then
+  if (lPrevSignificant.Kind = ptkSymbol) and
+    (lPrevSignificant.Symbol = psyDot) then
     Exit;
 
   Result := True;

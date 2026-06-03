@@ -10,10 +10,7 @@ uses
   obNXPasDiagnostics,
   obNXPasDocumentAnalysis,
   obNXPasMetadata,
-  obNXPasProject,
-  obNXPasSource,
-  obNXPasSymbols,
-  obNXPasUnitResolver;
+  obNXPasSymbols;
 
 type
   TNXPasIndexedFile = class;
@@ -95,7 +92,6 @@ type
     FFiles: TObjectList;
     FLocalSourceDirs: TStringList;
     FLog: TStringList;
-    FUnitResolver: TNXPasUnitResolver;
     procedure AddSymbolMatches(AFile: TNXPasIndexedFile; ASymbol: TNXPasSymbol;
       const AQuery, AContainerName: string;
       AResults: TNXPasWorkspaceSymbolMatchList);
@@ -109,18 +105,17 @@ type
     procedure AddUnresolvedUsesForList(AFile: TNXPasIndexedFile;
       AUsesList: TNXPasUsesEntryList; AResults: TNXPasUnresolvedUsesList);
     procedure AddSourceDirectory(const AFileName: string);
-    function EnsureUsesUnitIndexed(const AUnitName: string): TNXPasIndexedFile;
   public
     constructor Create;
     destructor Destroy; override;
 
     procedure Clear;
-    function AddProject(AProject: TNXPasProject): Integer;
     function FileCount: Integer;
     procedure QuerySymbols(const AQuery: string;
       AResults: TNXPasWorkspaceSymbolMatchList);
     procedure FindSymbolsByName(const AName, APreferredURI: string;
       AResults: TNXPasWorkspaceSymbolMatchList);
+    function FindFileByURI(const AURI: string): TNXPasIndexedFile;
     function FindFileByUnitName(const AUnitName: string): TNXPasIndexedFile;
     function ResolveUnitReference(const AUnitName: string): TNXPasIndexedFile;
     procedure ListKnownUnits(AUnits: TStrings);
@@ -130,18 +125,15 @@ type
     procedure RemoveFile(const AURI: string);
     function UpdateAnalyzedFile(AAnalysis: TNXPasDocumentAnalysis):
       TNXPasIndexedFile;
-    function UpdateSourceFile(ASource: TNXPasSourceFile): TNXPasIndexedFile;
     property Files[AIndex: Integer]: TNXPasIndexedFile read GetFile;
     property LocalSourceDirs: TStringList read FLocalSourceDirs;
     property Log: TStringList read FLog;
-    property UnitResolver: TNXPasUnitResolver read FUnitResolver write FUnitResolver;
   end;
 
 implementation
 
 uses
-  SysUtils,
-  obNXPasUnitLocator;
+  SysUtils;
 
 function TNXPasUsesRelationshipList.AddRelationship(AFromFile,
   AToFile: TNXPasIndexedFile; AUsesEntry: TNXPasUsesEntry):
@@ -247,21 +239,6 @@ begin
   FLog.Clear;
 end;
 
-function TNXPasWorkspaceIndex.AddProject(AProject: TNXPasProject): Integer;
-var
-  lIdx: Integer;
-begin
-  Result := 0;
-  if AProject = nil then
-    Exit;
-
-  for lIdx := 0 to AProject.SourceFileCount - 1 do
-  begin
-    UpdateSourceFile(AProject.SourceFiles[lIdx]);
-    Inc(Result);
-  end;
-end;
-
 function TNXPasWorkspaceIndex.FileCount: Integer;
 begin
   Result := FFiles.Count;
@@ -281,10 +258,21 @@ begin
       Exit(TNXPasIndexedFile(FFiles[lIdx]));
 end;
 
+function TNXPasWorkspaceIndex.FindFileByURI(
+  const AURI: string): TNXPasIndexedFile;
+var
+  lIdx: Integer;
+begin
+  Result := nil;
+  lIdx := FindFileIndexByURI(AURI);
+  if lIdx >= 0 then
+    Result := TNXPasIndexedFile(FFiles[lIdx]);
+end;
+
 function TNXPasWorkspaceIndex.ResolveUnitReference(
   const AUnitName: string): TNXPasIndexedFile;
 begin
-  Result := EnsureUsesUnitIndexed(AUnitName);
+  Result := FindFileByUnitName(AUnitName);
 end;
 
 procedure TNXPasWorkspaceIndex.ListKnownUnits(AUnits: TStrings);
@@ -319,7 +307,7 @@ begin
     lUsesEntry := AUsesList.EntryAt(lIdx);
     if not lUsesEntry.Active then
       Continue;
-    lTarget := EnsureUsesUnitIndexed(lUsesEntry.UnitName);
+    lTarget := FindFileByUnitName(lUsesEntry.UnitName);
     if lTarget <> nil then
       AResults.AddRelationship(AFile, lTarget, lUsesEntry);
   end;
@@ -356,11 +344,10 @@ begin
   for lIdx := 0 to AUsesList.Count - 1 do
   begin
     lUsesEntry := AUsesList.EntryAt(lIdx);
-    if lUsesEntry.Active and (EnsureUsesUnitIndexed(lUsesEntry.UnitName) = nil) then
+    if lUsesEntry.Active and (FindFileByUnitName(lUsesEntry.UnitName) = nil) then
     begin
       FLog.Add('unresolved uses unit: ' + lUsesEntry.UnitName +
-        ' localSourceDirs=' + IntToStr(FLocalSourceDirs.Count) +
-        ' resolver=' + IntToStr(Ord(FUnitResolver <> nil)));
+        ' localSourceDirs=' + IntToStr(FLocalSourceDirs.Count));
       AResults.AddUnresolved(AFile, lUsesEntry);
     end;
   end;
@@ -429,58 +416,6 @@ begin
   lDir := ExcludeTrailingPathDelimiter(ExpandFileName(lDir));
   if FLocalSourceDirs.IndexOf(lDir) < 0 then
     FLocalSourceDirs.Insert(0, lDir);
-end;
-
-function TNXPasWorkspaceIndex.EnsureUsesUnitIndexed(
-  const AUnitName: string): TNXPasIndexedFile;
-var
-  lFileName: string;
-  lSource: TNXPasSourceFile;
-  lText: TStringList;
-  lURI: string;
-begin
-  Result := FindFileByUnitName(AUnitName);
-  if Result <> nil then
-    Exit;
-
-  if (FUnitResolver = nil) or
-    (not FUnitResolver.LocateUnitFile(AUnitName, FLocalSourceDirs, lFileName)) then
-    Exit(nil);
-
-  lText := TStringList.Create;
-  lSource := nil;
-  try
-    lText.LoadFromFile(lFileName);
-    lURI := TNXPasUnitLocator.PathToFileURI(lFileName);
-    lSource := TNXPasSourceFile.Create(lFileName, lURI, lText.Text);
-    Result := UpdateSourceFile(lSource);
-    FLog.Add('resolved uses unit: ' + AUnitName + ' -> ' + lFileName);
-  finally
-    lSource.Free;
-    lText.Free;
-  end;
-end;
-
-function TNXPasWorkspaceIndex.UpdateSourceFile(
-  ASource: TNXPasSourceFile): TNXPasIndexedFile;
-var
-  lAnalysis: TNXPasDocumentAnalysis;
-  lAnalyzer: TNXPasAnalyzer;
-begin
-  Result := nil;
-  if ASource = nil then
-    Exit;
-
-  lAnalyzer := TNXPasAnalyzer.Create;
-  lAnalysis := nil;
-  try
-    lAnalysis := lAnalyzer.Analyze(TNXPasSourceFile.Create(ASource.FileName,
-      ASource.URI, ASource.Text));
-    Result := UpdateAnalyzedFile(lAnalysis);
-  finally
-    lAnalysis.Free;
-    lAnalyzer.Free;
-  end;
 end;
 
 function TNXPasWorkspaceIndex.UpdateAnalyzedFile(

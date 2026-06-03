@@ -153,7 +153,7 @@ begin
         PositionInRange(ALine, AColumn, ASource.RangeFromPositions(
         lToken.StartPos, lToken.EndPos)) then
       begin
-        AName := lToken.Text;
+        AName := lToken.Text(ASource.Text);
         ARange := ASource.RangeFromPositions(lToken.StartPos, lToken.EndPos);
         Exit(True);
       end;
@@ -178,7 +178,8 @@ begin
   try
     repeat
       lToken := lLexer.NextToken;
-      if (lToken.Kind = ptkIdentifier) and SameText(lToken.Text, AName) and
+      if (lToken.Kind = ptkIdentifier) and
+        SameText(lToken.Text(AFile.Text), AName) and
         PositionInRange(lToken.StartPos.Line, lToken.StartPos.Column,
         ASymbolRange) then
       begin
@@ -219,7 +220,8 @@ begin
       try
         repeat
           lToken := lLexer.NextToken;
-          if (lToken.Kind = ptkIdentifier) and SameText(lToken.Text, AName) then
+          if (lToken.Kind = ptkIdentifier) and
+            SameText(lToken.Text(lFile.Text), AName) then
           begin
             lRange.StartPos := lToken.StartPos;
             lRange.EndPos := lToken.EndPos;

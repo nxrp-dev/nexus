@@ -17,6 +17,7 @@ uses
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSServiceContext,
+  obNXPasDocumentAnalysis,
   obNXPasSignatures,
   obNXPasSource,
   obNXPasWorkspaceIndex,
@@ -77,6 +78,28 @@ begin
   end;
 end;
 
+function NXPasIndexSource(AIndex: TNXPasWorkspaceIndex;
+  ASource: TNXPasSourceFile): TNXPasIndexedFile;
+var
+  lAnalysis: TNXPasDocumentAnalysis;
+  lAnalyzer: TNXPasAnalyzer;
+begin
+  Result := nil;
+  if (AIndex = nil) or (ASource = nil) then
+    Exit;
+
+  lAnalyzer := TNXPasAnalyzer.Create;
+  lAnalysis := nil;
+  try
+    lAnalysis := lAnalyzer.Analyze(TNXPasSourceFile.Create(ASource.FileName,
+      ASource.URI, ASource.Text));
+    Result := AIndex.UpdateAnalyzedFile(lAnalysis);
+  finally
+    lAnalysis.Free;
+    lAnalyzer.Free;
+  end;
+end;
+
 function NXPasExtractFirstSignature(const AText, AName: string;
   ASignature: TNXPasRoutineSignature): Boolean;
 var
@@ -90,7 +113,7 @@ begin
   lSource := TNXPasSourceFile.Create('Sample.pas',
     'file:///C:/workspace/Sample.pas', AText);
   try
-    lIndex.UpdateSourceFile(lSource);
+    NXPasIndexSource(lIndex, lSource);
     lIndex.FindSymbolsByName(AName, lSource.URI, lMatches);
     if lMatches.Count = 0 then
       Exit;

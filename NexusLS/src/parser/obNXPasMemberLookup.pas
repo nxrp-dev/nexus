@@ -108,8 +108,7 @@ begin
   if ASource = nil then
     Exit;
 
-  lPrev.Kind := ptkUnknown;
-  lPrev.Text := '';
+  NXPasClearToken(lPrev);
   lPrevPrev := lPrev;
   lLexer := TNXPasLexer.Create(ASource.Text);
   try
@@ -120,11 +119,13 @@ begin
       if (lToken.Kind = ptkIdentifier) and PositionInRange(ALine, AColumn,
         lRange) then
       begin
-        if (lPrev.Kind = ptkSymbol) and (lPrev.Text = '.') and
-          IsReceiverTokenKind(Ord(lPrevPrev.Kind), lPrevPrev.Text) then
+        if (lPrev.Kind = ptkSymbol) and (lPrev.Symbol = psyDot) and
+          IsReceiverTokenKind(Ord(lPrevPrev.Kind),
+          lPrevPrev.Text(ASource.Text)) then
         begin
-          AReceiverName := lPrevPrev.Text;
-          APrefix := Copy(lToken.Text, 1, AColumn - lToken.StartPos.Column);
+          AReceiverName := lPrevPrev.Text(ASource.Text);
+          APrefix := Copy(lToken.Text(ASource.Text), 1,
+            AColumn - lToken.StartPos.Column);
           Exit(True);
         end;
         Exit(False);
@@ -144,10 +145,10 @@ begin
     lLexer.Free;
   end;
 
-  if (lPrev.Kind = ptkSymbol) and (lPrev.Text = '.') and
-    IsReceiverTokenKind(Ord(lPrevPrev.Kind), lPrevPrev.Text) then
+  if (lPrev.Kind = ptkSymbol) and (lPrev.Symbol = psyDot) and
+    IsReceiverTokenKind(Ord(lPrevPrev.Kind), lPrevPrev.Text(ASource.Text)) then
   begin
-    AReceiverName := lPrevPrev.Text;
+    AReceiverName := lPrevPrev.Text(ASource.Text);
     APrefix := '';
     Result := True;
   end;
@@ -169,8 +170,7 @@ begin
   if ASource = nil then
     Exit;
 
-  lPrev.Kind := ptkUnknown;
-  lPrev.Text := '';
+  NXPasClearToken(lPrev);
   lPrevPrev := lPrev;
   lLexer := TNXPasLexer.Create(ASource.Text);
   try
@@ -180,11 +180,12 @@ begin
       if (lToken.Kind = ptkIdentifier) and PositionInRange(ALine, AColumn,
         lRange) then
       begin
-        if (lPrev.Kind = ptkSymbol) and (lPrev.Text = '.') and
-          IsReceiverTokenKind(Ord(lPrevPrev.Kind), lPrevPrev.Text) then
+        if (lPrev.Kind = ptkSymbol) and (lPrev.Symbol = psyDot) and
+          IsReceiverTokenKind(Ord(lPrevPrev.Kind),
+          lPrevPrev.Text(ASource.Text)) then
         begin
-          AReceiverName := lPrevPrev.Text;
-          AMemberName := lToken.Text;
+          AReceiverName := lPrevPrev.Text(ASource.Text);
+          AMemberName := lToken.Text(ASource.Text);
           AMemberRange := lRange;
           Exit(True);
         end;

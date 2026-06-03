@@ -47,6 +47,7 @@ implementation
 uses
   SysUtils,
   obNXPasCompletion,
+  obNXPasDocumentAnalysis,
   obNXPasDocumentHighlights,
   obNXPasLookup,
   obNXPasMemberLookup,
@@ -74,6 +75,7 @@ end;
 procedure TNXLSEditorService.FillDocumentHighlights(
   AParams: TNXLSTextDocumentPositionParams; AResult: TNXLSDocumentHighlightArray);
 var
+  lAnalysis: TNXPasDocumentAnalysis;
   lDocument: TNXLSDocument;
   lHighlight: TNXLSDocumentHighlight;
   lIdx: Integer;
@@ -94,6 +96,7 @@ begin
     lDocument.Text);
   lReferences := TNXPasReferenceMatchList.Create(True);
   lTempIndex := TNXPasWorkspaceIndex.Create;
+  lAnalysis := nil;
   try
     lIndexedFile := FindIndexedFile(lDocument.URI);
     if PositionIsInactive(lIndexedFile, AParams.position.line.Value,
@@ -104,7 +107,9 @@ begin
       AParams.position.line.Value, AParams.position.character.Value) then
       Exit;
 
-    lTempIndex.UpdateSourceFile(lSource);
+    lAnalysis := Model.PascalLanguage.AnalyzeSource(TNXPasSourceFile.Create(
+      lSource.FileName, lSource.URI, lSource.Text));
+    lTempIndex.UpdateAnalyzedFile(lAnalysis);
     TNXPasDocumentHighlightResolver.FindDocumentHighlights(lTempIndex,
       lDocument.URI, AParams.position.line.Value,
       AParams.position.character.Value, lReferences);
@@ -120,6 +125,7 @@ begin
       lHighlight.Assigned := True;
     end;
   finally
+    lAnalysis.Free;
     lTempIndex.Free;
     lReferences.Free;
     lSource.Free;
@@ -231,6 +237,11 @@ begin
   try
     WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     if lMatches.Count = 0 then
+    begin
+      Model.PascalLanguage.EnsureUsedUnitsIndexedForURI(AURI);
+      WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    end;
+    if lMatches.Count = 0 then
       Exit;
 
     AMatch := lMatches.MatchAt(0);
@@ -255,6 +266,11 @@ begin
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
     WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    if lMatches.Count = 0 then
+    begin
+      Model.PascalLanguage.EnsureUsedUnitsIndexedForURI(AURI);
+      WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    end;
     for lIdx := 0 to lMatches.Count - 1 do
       if NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol) and
         NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then

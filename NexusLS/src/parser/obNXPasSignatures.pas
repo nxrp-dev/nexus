@@ -183,26 +183,26 @@ begin
       if lToken.StartPos.Offset < AStartOffset then
         Continue;
 
-      if (lToken.Kind = ptkSymbol) and (lToken.Text = ';') and
+      if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psySemicolon) and
         (lParenDepth = 0) and (lBracketDepth = 0) and (lAngleDepth = 0) then
       begin
         AEndOffset := lToken.StartPos.Offset;
         Exit(True);
       end;
 
-      if (lToken.Kind = ptkSymbol) and (lToken.Text = '(') then
+      if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyOpenParen) then
         Inc(lParenDepth)
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = ')') and
+      else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyCloseParen) and
         (lParenDepth > 0) then
         Dec(lParenDepth)
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = '[') then
+      else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyOpenBracket) then
         Inc(lBracketDepth)
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = ']') and
+      else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyCloseBracket) and
         (lBracketDepth > 0) then
         Dec(lBracketDepth)
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = '<') then
+      else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyLess) then
         Inc(lAngleDepth)
-      else if (lToken.Kind = ptkSymbol) and (lToken.Text = '>') and
+      else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyGreater) and
         (lAngleDepth > 0) then
         Dec(lAngleDepth);
     until lToken.Kind = ptkEndOfFile;
@@ -382,10 +382,10 @@ begin
 
         if lToken.Kind = ptkIdentifier then
         begin
-          lLastIdentifier := lToken.Text;
+          lLastIdentifier := lToken.Text(ASource.Text);
           lLastIdentifierRange := lRange;
         end
-        else if (lToken.Kind = ptkSymbol) and (lToken.Text = '(') then
+        else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyOpenParen) then
         begin
           lFrame := TNXPasCallFrame.Create;
           lFrame.Name := lLastIdentifier;
@@ -394,17 +394,17 @@ begin
           lCallStack.Add(lFrame);
           lLastIdentifier := '';
         end
-        else if (lToken.Kind = ptkSymbol) and (lToken.Text = ')') then
+        else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyCloseParen) then
         begin
           if lCallStack.Count > 0 then
             lCallStack.Delete(lCallStack.Count - 1);
         end
-        else if (lToken.Kind = ptkSymbol) and (lToken.Text = '[') then
+        else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyOpenBracket) then
           Inc(lBracketDepth)
-        else if (lToken.Kind = ptkSymbol) and (lToken.Text = ']') and
+        else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyCloseBracket) and
           (lBracketDepth > 0) then
           Dec(lBracketDepth)
-        else if (lToken.Kind = ptkSymbol) and (lToken.Text = ',') and
+        else if (lToken.Kind = ptkSymbol) and (lToken.Symbol = psyComma) and
           (lCallStack.Count > 0) and (lBracketDepth = 0) then
         begin
           lFrame := TNXPasCallFrame(lCallStack[lCallStack.Count - 1]);

@@ -22,15 +22,22 @@ type
     destructor Destroy; override;
 
     procedure Next;
-    function Check(AKind: TNXPasTokenKind; const AText: string = ''): Boolean;
-    function CheckPeek(AOffset: Integer; AKind: TNXPasTokenKind;
-      const AText: string = ''): Boolean;
-    function Match(AKind: TNXPasTokenKind; const AText: string = ''): Boolean;
-    function MatchKeyword(const AText: string): Boolean;
-    function MatchSymbol(const AText: string): Boolean;
+    function Check(AKind: TNXPasTokenKind): Boolean;
+    function CheckKeyword(AKeyword: TNXPasKeywordKind): Boolean;
+    function CheckSymbol(ASymbol: TNXPasTokenSymbolKind): Boolean;
+    function CheckPeek(AOffset: Integer; AKind: TNXPasTokenKind): Boolean;
+    function CheckPeekKeyword(AOffset: Integer;
+      AKeyword: TNXPasKeywordKind): Boolean;
+    function CheckPeekSymbol(AOffset: Integer;
+      ASymbol: TNXPasTokenSymbolKind): Boolean;
+    function Match(AKind: TNXPasTokenKind): Boolean;
+    function MatchKeyword(AKeyword: TNXPasKeywordKind): Boolean;
+    function MatchSymbol(ASymbol: TNXPasTokenSymbolKind): Boolean;
     function Peek(AOffset: Integer = 1): TNXPasToken;
     function ExpectIdentifier(out AName: string): Boolean;
     function ExpectIdentifierToken(out AToken: TNXPasToken): Boolean;
+    function TokenText(const AToken: TNXPasToken): string;
+    function CurrentText: string;
 
     property Current: TNXPasToken read FCurrent;
   end;
@@ -84,41 +91,80 @@ begin
     ReadNextToken;
 end;
 
-function TNXPasTokenStream.Check(AKind: TNXPasTokenKind;
-  const AText: string): Boolean;
+function TNXPasTokenStream.TokenText(const AToken: TNXPasToken): string;
+begin
+  Result := '';
+  if FLexer <> nil then
+    Result := AToken.Text(FLexer.SourceText);
+end;
+
+function TNXPasTokenStream.CurrentText: string;
+begin
+  Result := TokenText(FCurrent);
+end;
+
+function TNXPasTokenStream.Check(AKind: TNXPasTokenKind): Boolean;
 begin
   Result := FCurrent.Kind = AKind;
-  if Result and (AText <> '') then
-    Result := SameText(FCurrent.Text, AText);
+end;
+
+function TNXPasTokenStream.CheckKeyword(
+  AKeyword: TNXPasKeywordKind): Boolean;
+begin
+  Result := (FCurrent.Kind = ptkKeyword) and (FCurrent.Keyword = AKeyword);
+end;
+
+function TNXPasTokenStream.CheckSymbol(ASymbol: TNXPasTokenSymbolKind): Boolean;
+begin
+  Result := (FCurrent.Kind = ptkSymbol) and (FCurrent.Symbol = ASymbol);
 end;
 
 function TNXPasTokenStream.CheckPeek(AOffset: Integer;
-  AKind: TNXPasTokenKind; const AText: string): Boolean;
+  AKind: TNXPasTokenKind): Boolean;
 var
   lToken: TNXPasToken;
 begin
   lToken := Peek(AOffset);
   Result := lToken.Kind = AKind;
-  if Result and (AText <> '') then
-    Result := SameText(lToken.Text, AText);
 end;
 
-function TNXPasTokenStream.Match(AKind: TNXPasTokenKind;
-  const AText: string): Boolean;
+function TNXPasTokenStream.CheckPeekKeyword(AOffset: Integer;
+  AKeyword: TNXPasKeywordKind): Boolean;
+var
+  lToken: TNXPasToken;
 begin
-  Result := Check(AKind, AText);
+  lToken := Peek(AOffset);
+  Result := (lToken.Kind = ptkKeyword) and (lToken.Keyword = AKeyword);
+end;
+
+function TNXPasTokenStream.CheckPeekSymbol(AOffset: Integer;
+  ASymbol: TNXPasTokenSymbolKind): Boolean;
+var
+  lToken: TNXPasToken;
+begin
+  lToken := Peek(AOffset);
+  Result := (lToken.Kind = ptkSymbol) and (lToken.Symbol = ASymbol);
+end;
+
+function TNXPasTokenStream.Match(AKind: TNXPasTokenKind): Boolean;
+begin
+  Result := Check(AKind);
   if Result then
     Next;
 end;
 
-function TNXPasTokenStream.MatchKeyword(const AText: string): Boolean;
+function TNXPasTokenStream.MatchKeyword(AKeyword: TNXPasKeywordKind): Boolean;
 begin
-  Result := Match(ptkKeyword, AText);
+  Result := CheckKeyword(AKeyword);
+  if Result then
+    Next;
 end;
 
-function TNXPasTokenStream.MatchSymbol(const AText: string): Boolean;
+function TNXPasTokenStream.MatchSymbol(ASymbol: TNXPasTokenSymbolKind): Boolean;
 begin
-  Result := Match(ptkSymbol, AText);
+  Result := CheckSymbol(ASymbol);
+  if Result then
+    Next;
 end;
 
 function TNXPasTokenStream.Peek(AOffset: Integer): TNXPasToken;
@@ -146,7 +192,7 @@ begin
   Result := FCurrent.Kind = ptkIdentifier;
   if Result then
   begin
-    AName := FCurrent.Text;
+    AName := CurrentText;
     Next;
   end
   else
@@ -163,14 +209,8 @@ begin
     Next;
   end
   else
-  begin
-    AToken.Kind := ptkUnknown;
-    AToken.Text := '';
-    AToken.StartPos.Offset := 0;
-    AToken.StartPos.Line := 0;
-    AToken.StartPos.Column := 0;
-    AToken.EndPos := AToken.StartPos;
-  end;
+    NXPasClearToken(AToken);
 end;
 
 end.
+

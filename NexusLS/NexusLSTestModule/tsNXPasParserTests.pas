@@ -16,6 +16,8 @@ uses
   SysUtils,
   obNXPasAST,
   obNXPasDiagnostics,
+  obNXPasDocumentAnalysis,
+  obNXPasLanguageContext,
   obNXPasLPIProject,
   obNXPasMetadata,
   obNXPasParser,
@@ -25,7 +27,6 @@ uses
   obNXPasSource,
   obNXPasSymbols,
   obNXPasUnitLocator,
-  obNXPasUnitResolver,
   obNXPasWorkspaceIndex,
   obNXTestContext,
   obNXTestSuite,
@@ -333,6 +334,28 @@ begin
     Result := lParser.Parse(ASource);
   finally
     lParser.Free;
+  end;
+end;
+
+function NXPasIndexSource(AIndex: TNXPasWorkspaceIndex;
+  ASource: TNXPasSourceFile): TNXPasIndexedFile;
+var
+  lAnalysis: TNXPasDocumentAnalysis;
+  lAnalyzer: TNXPasAnalyzer;
+begin
+  Result := nil;
+  if (AIndex = nil) or (ASource = nil) then
+    Exit;
+
+  lAnalyzer := TNXPasAnalyzer.Create;
+  lAnalysis := nil;
+  try
+    lAnalysis := lAnalyzer.Analyze(TNXPasSourceFile.Create(ASource.FileName,
+      ASource.URI, ASource.Text));
+    Result := AIndex.UpdateAnalyzedFile(lAnalysis);
+  finally
+    lAnalysis.Free;
+    lAnalyzer.Free;
   end;
 end;
 
@@ -1561,22 +1584,22 @@ end;
 
 procedure TestWorkspaceIndex(AContext: TNXTestContext);
 var
-  lIndex: TNXPasWorkspaceIndex;
+  lContext: TNXPasLanguageContext;
   lProject: TNXPasProject;
 begin
   lProject := TNXPasProject.Create;
-  lIndex := TNXPasWorkspaceIndex.Create;
+  lContext := TNXPasLanguageContext.Create;
   try
     lProject.Name := 'Sample';
     lProject.AddSourceFile('sample.pas', 'file:///sample.pas', cSimpleUnit);
-    AContext.AssertEquals(1, lIndex.AddProject(lProject),
+    AContext.AssertEquals(1, lContext.ReindexProject(lProject),
       'Workspace index should index one source file.');
-    AContext.AssertEquals(1, lIndex.FileCount,
+    AContext.AssertEquals(1, lContext.WorkspaceIndex.FileCount,
       'Workspace index should contain one indexed file.');
-    AContext.AssertTrue(NXPasHasSymbol(lIndex.Files[0].Symbols, pskClass,
+    AContext.AssertTrue(NXPasHasSymbol(lContext.WorkspaceIndex.Files[0].Symbols, pskClass,
       'TSample'), 'Workspace index should expose extracted symbols.');
   finally
-    lIndex.Free;
+    lContext.Free;
     lProject.Free;
   end;
 end;
@@ -1753,12 +1776,10 @@ end;
 
 procedure TestWorkspaceIndexResolvesUsesViaSearchPath(AContext: TNXTestContext);
 var
-  lIndex: TNXPasWorkspaceIndex;
+  lContext: TNXPasLanguageContext;
   lLibDir: string;
   lRelationships: TNXPasUsesRelationshipList;
-  lResolver: TNXPasSearchPathUnitResolver;
   lRoot: string;
-  lSearchPaths: TNXPasSearchPathContext;
   lSource: TNXPasSourceFile;
 begin
   lRoot := NXPasCreateTempDir('nxpuses');
@@ -1774,10 +1795,8 @@ begin
     'end;' + LineEnding +
     'end.');
 
-  lIndex := TNXPasWorkspaceIndex.Create;
+  lContext := TNXPasLanguageContext.Create;
   lRelationships := TNXPasUsesRelationshipList.Create(True);
-  lSearchPaths := TNXPasSearchPathContext.Create;
-  lResolver := TNXPasSearchPathUnitResolver.Create(lSearchPaths);
   lSource := TNXPasSourceFile.Create(IncludeTrailingPathDelimiter(lRoot) +
     'MainUnit.pas', TNXPasUnitLocator.PathToFileURI(
     IncludeTrailingPathDelimiter(lRoot) + 'MainUnit.pas'),
@@ -1787,23 +1806,22 @@ begin
     'implementation' + LineEnding +
     'end.');
   try
-    lSearchPaths.AddRawPath(lLibDir, 'test', pspkUnitPath);
-    lIndex.UnitResolver := lResolver;
-    lIndex.UpdateSourceFile(lSource);
-    lIndex.ListUsesRelationships(lRelationships);
+    lContext.SearchPaths.AddRawPath(lLibDir, 'test', pspkUnitPath);
+    lContext.ReindexSource(lSource);
+    lContext.ResolveUnitReference('OtherUnit');
+    lContext.WorkspaceIndex.ListUsesRelationships(lRelationships);
 
     AContext.AssertEquals(1, lRelationships.Count,
       'Workspace index should resolve uses units through search paths.');
-    AContext.AssertEquals(2, lIndex.FileCount,
+    AContext.AssertEquals(2, lContext.WorkspaceIndex.FileCount,
       'Workspace index should index the discovered used unit.');
-    AContext.AssertTrue(lIndex.FindFileByUnitName('OtherUnit') <> nil,
+    AContext.AssertTrue(lContext.WorkspaceIndex.FindFileByUnitName(
+      'OtherUnit') <> nil,
       'Discovered unit should be available by unit name.');
   finally
     lSource.Free;
-    lResolver.Free;
-    lSearchPaths.Free;
     lRelationships.Free;
-    lIndex.Free;
+    lContext.Free;
     DeleteFile(IncludeTrailingPathDelimiter(lLibDir) + 'OtherUnit.pas');
     RemoveDir(lLibDir);
     RemoveDir(lRoot);
@@ -1947,8 +1965,8 @@ begin
       'uses UnitA;' + LineEnding +
       'implementation' + LineEnding +
       'end.');
-    lIndex.UpdateSourceFile(lSourceA);
-    lIndex.UpdateSourceFile(lSourceB);
+    NXPasIndexSource(lIndex, lSourceA);
+    NXPasIndexSource(lIndex, lSourceB);
 
     AContext.AssertTrue(lIndex.FindFileByUnitName('UnitA') <> nil,
       'Workspace graph should find known units by unit name.');
@@ -1987,7 +2005,7 @@ begin
       'uses MissingUnit;' + LineEnding +
       'implementation' + LineEnding +
       'end.');
-    lIndex.UpdateSourceFile(lSource);
+    NXPasIndexSource(lIndex, lSource);
     lIndex.ListUnresolvedUses(lUnresolved);
     AContext.AssertEquals(1, lUnresolved.Count,
       'Workspace graph should report uses entries whose units are not indexed.');
@@ -2087,7 +2105,7 @@ begin
       '{$ENDIF}' + LineEnding +
       'implementation' + LineEnding +
       'end.');
-    lIndex.UpdateSourceFile(lSource);
+    NXPasIndexSource(lIndex, lSource);
     lIndex.BuildDependencyManifest(lManifest);
     AContext.AssertEquals(1, lManifest.Count,
       'Dependency manifest should include active dependencies only.');

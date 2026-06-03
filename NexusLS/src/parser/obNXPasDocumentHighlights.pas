@@ -201,7 +201,8 @@ begin
   try
     repeat
       lToken := lLexer.NextToken;
-      if (lToken.Kind = ptkIdentifier) and SameText(lToken.Text, AName) and
+      if (lToken.Kind = ptkIdentifier) and
+        SameText(lToken.Text(AFile.Text), AName) and
         NXPasRangeContains(AScopeRange, lToken.StartPos.Line,
         lToken.StartPos.Column) then
       begin

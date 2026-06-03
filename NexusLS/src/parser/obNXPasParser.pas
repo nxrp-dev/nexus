@@ -53,6 +53,9 @@ type
     function IsDeclarationSectionStart: Boolean;
     function IsVisibilityKeyword: Boolean;
     function IsRoutineDirective: Boolean;
+    function IsParameterModifier: Boolean;
+    function IsPropertySpecifier: Boolean;
+    function IsPropertyDefaultSpecifier: Boolean;
     function IsFieldNameToken: Boolean;
     function IsDeclarationNameToken: Boolean;
     function IsDeclarationTailKeyword: Boolean;
@@ -192,62 +195,83 @@ end;
 
 function TNXPasParser.IsRoutineKeywordAt(AOffset: Integer): Boolean;
 begin
-  Result := FStream.CheckPeek(AOffset, ptkKeyword, 'procedure') or
-    FStream.CheckPeek(AOffset, ptkKeyword, 'function') or
-    FStream.CheckPeek(AOffset, ptkKeyword, 'constructor') or
-    FStream.CheckPeek(AOffset, ptkKeyword, 'destructor');
+  Result := FStream.CheckPeekKeyword(AOffset, pkwProcedure) or
+    FStream.CheckPeekKeyword(AOffset, pkwFunction) or
+    FStream.CheckPeekKeyword(AOffset, pkwConstructor) or
+    FStream.CheckPeekKeyword(AOffset, pkwDestructor);
 end;
 
 function TNXPasParser.IsStructuredTypeKeyword: Boolean;
 begin
-  Result := FStream.Check(ptkKeyword, 'class') or
-    FStream.Check(ptkKeyword, 'object') or FStream.Check(ptkKeyword, 'record') or
-    FStream.Check(ptkKeyword, 'interface');
+  Result := FStream.CheckKeyword(pkwClass) or
+    FStream.CheckKeyword(pkwObject) or FStream.CheckKeyword(pkwRecord) or
+    FStream.CheckKeyword(pkwInterface);
 end;
 
 function TNXPasParser.IsSectionStart: Boolean;
 begin
-  Result := FStream.Check(ptkKeyword, 'interface') or
-    FStream.Check(ptkKeyword, 'implementation') or
-    FStream.Check(ptkKeyword, 'initialization') or
-    FStream.Check(ptkKeyword, 'finalization');
+  Result := FStream.CheckKeyword(pkwInterface) or
+    FStream.CheckKeyword(pkwImplementation) or
+    FStream.CheckKeyword(pkwInitialization) or
+    FStream.CheckKeyword(pkwFinalization);
 end;
 
 function TNXPasParser.IsDeclarationSectionStart: Boolean;
 begin
-  Result := FStream.Check(ptkKeyword, 'type') or
-    FStream.Check(ptkKeyword, 'const') or FStream.Check(ptkKeyword, 'var') or
-    FStream.Check(ptkKeyword, 'threadvar') or
-    FStream.Check(ptkKeyword, 'resourcestring');
+  Result := FStream.CheckKeyword(pkwType) or
+    FStream.CheckKeyword(pkwConst) or FStream.CheckKeyword(pkwVar) or
+    FStream.CheckKeyword(pkwThreadvar) or
+    FStream.CheckKeyword(pkwResourcestring);
 end;
 
 function TNXPasParser.IsVisibilityKeyword: Boolean;
 begin
-  Result := FStream.Check(ptkKeyword, 'private') or
-    FStream.Check(ptkKeyword, 'protected') or FStream.Check(ptkKeyword, 'public') or
-    FStream.Check(ptkKeyword, 'published');
+  Result := FStream.CheckKeyword(pkwPrivate) or
+    FStream.CheckKeyword(pkwProtected) or FStream.CheckKeyword(pkwPublic) or
+    FStream.CheckKeyword(pkwPublished);
 end;
 
 function TNXPasParser.IsRoutineDirective: Boolean;
 begin
   Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
-    TNXPascalRoutineDirectiveSet.Contains(FStream.Current.Text);
+    TNXPascalRoutineDirectiveSet.Contains(FStream.CurrentText);
+end;
+
+function TNXPasParser.IsParameterModifier: Boolean;
+begin
+  Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+    TNXPascalParameterModifierSet.Contains(FStream.CurrentText);
+end;
+
+function TNXPasParser.IsPropertySpecifier: Boolean;
+begin
+  Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+    TNXPascalPropertySpecifierSet.Contains(FStream.CurrentText);
+end;
+
+function TNXPasParser.IsPropertyDefaultSpecifier: Boolean;
+var
+  lKind: TNXPasPropertySpecifierKind;
+begin
+  Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
+    TNXPascalPropertySpecifierSet.TryKindOf(FStream.CurrentText, lKind) and
+    (lKind in [ppsDefault, ppsNodefault]);
 end;
 
 function TNXPasParser.IsFieldNameToken: Boolean;
 begin
-  Result := FStream.Check(ptkIdentifier) or FStream.Check(ptkKeyword, 'helper');
+  Result := FStream.Check(ptkIdentifier) or FStream.CheckKeyword(pkwHelper);
 end;
 
 function TNXPasParser.IsDeclarationNameToken: Boolean;
 begin
-  Result := FStream.Check(ptkIdentifier) or FStream.Check(ptkKeyword, 'helper');
+  Result := FStream.Check(ptkIdentifier) or FStream.CheckKeyword(pkwHelper);
 end;
 
 function TNXPasParser.IsDeclarationTailKeyword: Boolean;
 begin
   Result := (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
-    TNXPascalDeclarationTailKeywordSet.Contains(FStream.Current.Text);
+    TNXPascalDeclarationTailKeywordSet.Contains(FStream.CurrentText);
 end;
 
 function TNXPasParser.NormalizeDirectiveText(const AText: string): string;
@@ -407,8 +431,8 @@ begin
     Exit;
 
   lRange := CurrentRange;
-  lCommand := DirectiveCommand(FStream.Current.Text);
-  lArg := DirectiveArgument(FStream.Current.Text);
+  lCommand := DirectiveCommand(FStream.CurrentText);
+  lArg := DirectiveArgument(FStream.CurrentText);
   ProcessMetadataDirective(lCommand, lArg, lRange);
 
   if lCommand = 'DEFINE' then
@@ -548,16 +572,16 @@ end;
 
 function TNXPasParser.RecoverAtSynchronizationPoint: Boolean;
 begin
-  Result := FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ';') or
+  Result := FStream.Check(ptkEndOfFile) or FStream.CheckSymbol(psySemicolon) or
     FStream.Check(ptkDirective) or IsSectionStart or IsDeclarationSectionStart or
-    IsRoutineKeyword or IsVisibilityKeyword or FStream.Check(ptkKeyword, 'end');
+    IsRoutineKeyword or IsVisibilityKeyword or FStream.CheckKeyword(pkwEnd);
 end;
 
 procedure TNXPasParser.RecoverDeclaration;
 begin
   while not RecoverAtSynchronizationPoint do
     FStream.Next;
-  if FStream.Check(ptkSymbol, ';') then
+  if FStream.CheckSymbol(psySemicolon) then
     FStream.Next;
 end;
 
@@ -570,10 +594,10 @@ begin
   Result := False;
   while FStream.ExpectIdentifierToken(lToken) do
   begin
-    lNode := AParent.AddChild(AKind, lToken.Text);
+    lNode := AParent.AddChild(AKind, FStream.TokenText(lToken));
     lNode.Range := TokenRange(lToken);
     Result := True;
-    if not FStream.MatchSymbol(',') then
+    if not FStream.MatchSymbol(psyComma) then
       Break;
   end;
 end;
@@ -585,37 +609,37 @@ var
   lNode: TNXPasASTNode;
   lStart: TNXPasSourcePosition;
 begin
-  if not (FStream.Check(ptkKeyword, 'unit') or
-    FStream.Check(ptkKeyword, 'program') or
-    FStream.Check(ptkKeyword, 'library') or
-    FStream.Check(ptkKeyword, 'package')) then
+  if not (FStream.CheckKeyword(pkwUnit) or
+    FStream.CheckKeyword(pkwProgram) or
+    FStream.CheckKeyword(pkwLibrary) or
+    FStream.CheckKeyword(pkwPackage)) then
     Exit;
 
   FHeaderParsed := True;
 
   lStart := FStream.Current.StartPos;
-  if FStream.Check(ptkKeyword, 'program') then
+  if FStream.CheckKeyword(pkwProgram) then
     lKind := pnkProgramHeader
-  else if FStream.Check(ptkKeyword, 'library') then
+  else if FStream.CheckKeyword(pkwLibrary) then
     lKind := pnkLibraryHeader
-  else if FStream.Check(ptkKeyword, 'package') then
+  else if FStream.CheckKeyword(pkwPackage) then
     lKind := pnkHeader
   else
     lKind := pnkUnitHeader;
   lNode := FTree.Root.AddChild(lKind);
-  if FStream.Check(ptkKeyword, 'unit') then
+  if FStream.CheckKeyword(pkwUnit) then
     FTree.Metadata.CompilationKind := pckUnit
-  else if FStream.Check(ptkKeyword, 'program') then
+  else if FStream.CheckKeyword(pkwProgram) then
     FTree.Metadata.CompilationKind := pckProgram
-  else if FStream.Check(ptkKeyword, 'library') then
+  else if FStream.CheckKeyword(pkwLibrary) then
     FTree.Metadata.CompilationKind := pckLibrary
-  else if FStream.Check(ptkKeyword, 'package') then
+  else if FStream.CheckKeyword(pkwPackage) then
     FTree.Metadata.CompilationKind := pckPackage;
   FStream.Next;
   if FStream.ExpectIdentifierToken(lNameToken) then
   begin
-    lNode.Name := lNameToken.Text;
-    FTree.Metadata.Name := lNameToken.Text;
+    lNode.Name := FStream.TokenText(lNameToken);
+    FTree.Metadata.Name := FStream.TokenText(lNameToken);
     SetNodeRange(lNode, lStart, lNameToken.EndPos);
   end
   else
@@ -625,7 +649,7 @@ begin
       'Expected unit, program, library, or package name.');
   end;
 
-  if not FStream.MatchSymbol(';') then
+  if not FStream.MatchSymbol(psySemicolon) then
     AddExpectedDiagnostic('nxpas.header.missingSemicolon',
       'Missing semicolon after unit, program, library, or package header.');
 end;
@@ -647,7 +671,7 @@ begin
     Exit;
   end;
 
-  if FStream.Check(ptkKeyword, 'interface') then
+  if FStream.CheckKeyword(pkwInterface) then
   begin
     lNode := FTree.Root.AddChild(pnkInterfaceSection, 'interface');
     lNode.Range := CurrentRange;
@@ -656,7 +680,7 @@ begin
     Exit;
   end;
 
-  if FStream.Check(ptkKeyword, 'implementation') then
+  if FStream.CheckKeyword(pkwImplementation) then
   begin
     lNode := FTree.Root.AddChild(pnkImplementationSection, 'implementation');
     lNode.Range := CurrentRange;
@@ -666,17 +690,17 @@ begin
   end;
 
   lNode := FTree.Root;
-  if FStream.Check(ptkKeyword, 'uses') then
+  if FStream.CheckKeyword(pkwUses) then
     ParseUsesClause(lNode)
-  else if FStream.Check(ptkKeyword, 'type') then
+  else if FStream.CheckKeyword(pkwType) then
     ParseTypeSection(lNode)
-  else if FStream.Check(ptkKeyword, 'const') or
-    FStream.Check(ptkKeyword, 'resourcestring') then
+  else if FStream.CheckKeyword(pkwConst) or
+    FStream.CheckKeyword(pkwResourcestring) then
     ParseConstSection(lNode)
-  else if FStream.Check(ptkKeyword, 'var') or
-    FStream.Check(ptkKeyword, 'threadvar') then
+  else if FStream.CheckKeyword(pkwVar) or
+    FStream.CheckKeyword(pkwThreadvar) then
     ParseVarSection(lNode)
-  else if FStream.Check(ptkKeyword, 'class') and IsRoutineKeywordAt(1) then
+  else if FStream.CheckKeyword(pkwClass) and IsRoutineKeywordAt(1) then
   begin
     lStartPos := FStream.Current.StartPos;
     FStream.Next;
@@ -704,7 +728,7 @@ begin
     if FStream.Check(ptkEndOfFile) then
       Break;
 
-    if FStream.Check(ptkSymbol, ';') then
+    if FStream.CheckSymbol(psySemicolon) then
     begin
       FStream.Next;
       Exit;
@@ -741,14 +765,14 @@ begin
 
   lFileName := '';
   lRange := TokenRange(lNameToken);
-  lNode := AParent.AddChild(pnkUsesUnit, lNameToken.Text);
+  lNode := AParent.AddChild(pnkUsesUnit, FStream.TokenText(lNameToken));
   lNode.Range := lRange;
 
-  if FStream.MatchKeyword('in') then
+  if FStream.MatchKeyword(pkwIn) then
   begin
     if FStream.Check(ptkString) then
     begin
-      lFileName := StringLiteralValue(FStream.Current.Text);
+      lFileName := StringLiteralValue(FStream.CurrentText);
       lRange.EndPos := FStream.Current.EndPos;
       lNode.Range := lRange;
       FStream.Next;
@@ -758,7 +782,7 @@ begin
         'Expected filename string after uses in clause.');
   end;
 
-  lEntry := FTree.Metadata.UsesForSection(ASection).AddEntry(lNameToken.Text,
+  lEntry := FTree.Metadata.UsesForSection(ASection).AddEntry(FStream.TokenText(lNameToken),
     lFileName, ASection, lRange, FCurrentActive);
   if lFileName <> '' then
   begin
@@ -777,18 +801,18 @@ begin
   lNode := AParent.AddChild(pnkTypeSection, 'type');
   lNode.Range := CurrentRange;
   FStream.Next;
-  while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkKeyword, 'const') or
-    FStream.Check(ptkKeyword, 'var') or FStream.Check(ptkKeyword, 'threadvar') or
-    FStream.Check(ptkKeyword, 'resourcestring') or FStream.Check(ptkKeyword, 'uses') or
-    IsRoutineKeyword or FStream.Check(ptkKeyword, 'implementation') or
-    FStream.Check(ptkKeyword, 'begin')) do
+  while not (FStream.Check(ptkEndOfFile) or FStream.CheckKeyword(pkwConst) or
+    FStream.CheckKeyword(pkwVar) or FStream.CheckKeyword(pkwThreadvar) or
+    FStream.CheckKeyword(pkwResourcestring) or FStream.CheckKeyword(pkwUses) or
+    IsRoutineKeyword or FStream.CheckKeyword(pkwImplementation) or
+    FStream.CheckKeyword(pkwBegin)) do
   begin
     AdvanceToActiveToken;
-    if FStream.Check(ptkEndOfFile) or FStream.Check(ptkKeyword, 'const') or
-      FStream.Check(ptkKeyword, 'var') or FStream.Check(ptkKeyword, 'threadvar') or
-      FStream.Check(ptkKeyword, 'resourcestring') or FStream.Check(ptkKeyword, 'uses') or
-      IsRoutineKeyword or FStream.Check(ptkKeyword, 'implementation') or
-      FStream.Check(ptkKeyword, 'begin') then
+    if FStream.Check(ptkEndOfFile) or FStream.CheckKeyword(pkwConst) or
+      FStream.CheckKeyword(pkwVar) or FStream.CheckKeyword(pkwThreadvar) or
+      FStream.CheckKeyword(pkwResourcestring) or FStream.CheckKeyword(pkwUses) or
+      IsRoutineKeyword or FStream.CheckKeyword(pkwImplementation) or
+      FStream.CheckKeyword(pkwBegin) then
       Break;
 
     if not FStream.Check(ptkDirective) then
@@ -809,12 +833,12 @@ begin
   FStream.Next;
   while not (FStream.Check(ptkEndOfFile) or IsSectionStart or
     IsDeclarationSectionStart or IsRoutineKeyword or
-    FStream.Check(ptkKeyword, 'begin') or FStream.Check(ptkKeyword, 'end')) do
+    FStream.CheckKeyword(pkwBegin) or FStream.CheckKeyword(pkwEnd)) do
   begin
     AdvanceToActiveToken;
     if FStream.Check(ptkEndOfFile) or IsSectionStart or
       IsDeclarationSectionStart or IsRoutineKeyword or
-      FStream.Check(ptkKeyword, 'begin') or FStream.Check(ptkKeyword, 'end') then
+      FStream.CheckKeyword(pkwBegin) or FStream.CheckKeyword(pkwEnd) then
       Break;
 
     if FStream.Check(ptkDirective) then
@@ -827,10 +851,10 @@ begin
       RecoverDeclaration;
       Continue;
     end;
-    lItemNode := lNode.AddChild(pnkConstDecl, lNameToken.Text);
+    lItemNode := lNode.AddChild(pnkConstDecl, FStream.TokenText(lNameToken));
     lItemNode.Range := TokenRange(lNameToken);
     lItemNode.NameRange := TokenRange(lNameToken);
-    if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+    if FStream.MatchSymbol(psyColon) and CaptureDeclaredType(False, False,
       lDeclaredTypeText, lDeclaredTypeRange) then
       SetDeclaredType(lItemNode, lDeclaredTypeText, lDeclaredTypeRange);
     SkipToDeclarationEnd;
@@ -856,12 +880,12 @@ begin
   try
   while not (FStream.Check(ptkEndOfFile) or IsSectionStart or
     IsDeclarationSectionStart or IsRoutineKeyword or
-    FStream.Check(ptkKeyword, 'begin') or FStream.Check(ptkKeyword, 'end')) do
+    FStream.CheckKeyword(pkwBegin) or FStream.CheckKeyword(pkwEnd)) do
   begin
     AdvanceToActiveToken;
     if FStream.Check(ptkEndOfFile) or IsSectionStart or
       IsDeclarationSectionStart or IsRoutineKeyword or
-      FStream.Check(ptkKeyword, 'begin') or FStream.Check(ptkKeyword, 'end') then
+      FStream.CheckKeyword(pkwBegin) or FStream.CheckKeyword(pkwEnd) then
       Break;
 
     if FStream.Check(ptkDirective) then
@@ -874,20 +898,20 @@ begin
       RecoverDeclaration;
       Continue;
     end;
-    lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
+    lItemNode := lNode.AddChild(pnkVarDecl, FStream.TokenText(lNameToken));
     lItemNode.Range := TokenRange(lNameToken);
     lItemNode.NameRange := TokenRange(lNameToken);
     lItems.Clear;
     lItems.Add(lItemNode);
-    while FStream.MatchSymbol(',') do
+    while FStream.MatchSymbol(psyComma) do
       if ExpectDeclarationNameToken(lNameToken) then
       begin
-        lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
+        lItemNode := lNode.AddChild(pnkVarDecl, FStream.TokenText(lNameToken));
         lItemNode.Range := TokenRange(lNameToken);
         lItemNode.NameRange := TokenRange(lNameToken);
         lItems.Add(lItemNode);
       end;
-    if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+    if FStream.MatchSymbol(psyColon) and CaptureDeclaredType(False, False,
       lDeclaredTypeText, lDeclaredTypeRange) then
       for lIdx := 0 to lItems.Count - 1 do
         SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
@@ -926,7 +950,7 @@ begin
   FStream.Next;
   if FStream.ExpectIdentifierToken(lNameToken) then
   begin
-    lRoutineName := lNameToken.Text;
+    lRoutineName := FStream.TokenText(lNameToken);
     lEndToken := lNameToken;
     lOwnerRange.StartPos.Offset := 0;
     lOwnerRange.StartPos.Line := 0;
@@ -934,14 +958,14 @@ begin
     lOwnerRange.EndPos.Offset := 0;
     lOwnerRange.EndPos.Line := 0;
     lOwnerRange.EndPos.Column := 0;
-    while FStream.MatchSymbol('.') do
+    while FStream.MatchSymbol(psyDot) do
     begin
       if lOwnerRange.StartPos.Offset = 0 then
         lOwnerRange.StartPos := lEndToken.StartPos;
       lOwnerRange.EndPos := lEndToken.EndPos;
       if not FStream.ExpectIdentifierToken(lNameToken) then
         Break;
-      lRoutineName := lRoutineName + '.' + lNameToken.Text;
+      lRoutineName := lRoutineName + '.' + FStream.TokenText(lNameToken);
       lEndToken := lNameToken;
     end;
     lNode.Name := lRoutineName;
@@ -955,9 +979,9 @@ begin
     AddExpectedDiagnostic('nxpas.routine.malformed',
       'Expected routine name.');
   end;
-  if FStream.Check(ptkSymbol, '(') then
+  if FStream.CheckSymbol(psyOpenParen) then
     ParseRoutineParameters(lNode);
-  if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+  if FStream.MatchSymbol(psyColon) and CaptureDeclaredType(False, False,
     lDeclaredTypeText, lDeclaredTypeRange) then
     SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd;
@@ -968,7 +992,7 @@ begin
     pnkInterfaceDecl]) then
   begin
     ParseRoutineBodyDeclarations(lNode);
-    if FStream.Check(ptkKeyword, 'begin') then
+    if FStream.CheckKeyword(pkwBegin) then
       SkipRoutineBody(lNode);
   end;
 end;
@@ -982,17 +1006,17 @@ var
   lParamNode: TNXPasASTNode;
   lIdx: Integer;
 begin
-  if not FStream.MatchSymbol('(') then
+  if not FStream.MatchSymbol(psyOpenParen) then
     Exit;
 
   lItems := TObjectList.Create(False);
   try
-    while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ')')) do
+    while not (FStream.Check(ptkEndOfFile) or FStream.CheckSymbol(psyCloseParen)) do
     begin
       lItems.Clear;
-      if FStream.Check(ptkKeyword, 'const') or
-        FStream.Check(ptkIdentifier, 'constref') or
-        FStream.Check(ptkKeyword, 'var') or FStream.Check(ptkKeyword, 'out') then
+      if FStream.CheckKeyword(pkwConst) or
+        IsParameterModifier or FStream.CheckKeyword(pkwVar) or
+        FStream.CheckKeyword(pkwOut) then
         FStream.Next;
 
       if not FStream.ExpectIdentifierToken(lNameToken) then
@@ -1001,54 +1025,54 @@ begin
         Continue;
       end;
 
-      lParamNode := AParent.AddChild(pnkParameterDecl, lNameToken.Text);
+      lParamNode := AParent.AddChild(pnkParameterDecl, FStream.TokenText(lNameToken));
       lParamNode.Range := TokenRange(lNameToken);
       lParamNode.NameRange := TokenRange(lNameToken);
       lItems.Add(lParamNode);
-      while FStream.MatchSymbol(',') do
+      while FStream.MatchSymbol(psyComma) do
         if FStream.ExpectIdentifierToken(lNameToken) then
         begin
-          lParamNode := AParent.AddChild(pnkParameterDecl, lNameToken.Text);
+          lParamNode := AParent.AddChild(pnkParameterDecl, FStream.TokenText(lNameToken));
           lParamNode.Range := TokenRange(lNameToken);
           lParamNode.NameRange := TokenRange(lNameToken);
           lItems.Add(lParamNode);
         end;
 
-      if FStream.MatchSymbol(':') and CaptureDeclaredType(False, True,
+      if FStream.MatchSymbol(psyColon) and CaptureDeclaredType(False, True,
         lDeclaredTypeText, lDeclaredTypeRange) then
         for lIdx := 0 to lItems.Count - 1 do
           SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
             lDeclaredTypeRange);
 
-      if FStream.Check(ptkSymbol, ';') then
+      if FStream.CheckSymbol(psySemicolon) then
         FStream.Next
-      else if not FStream.Check(ptkSymbol, ')') then
+      else if not FStream.CheckSymbol(psyCloseParen) then
         FStream.Next;
     end;
   finally
     lItems.Free;
   end;
 
-  if FStream.Check(ptkSymbol, ')') then
+  if FStream.CheckSymbol(psyCloseParen) then
     FStream.Next;
 end;
 
 procedure TNXPasParser.ParseRoutineBodyDeclarations(AParent: TNXPasASTNode);
 begin
-  while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkKeyword, 'begin') or
-    FStream.Check(ptkKeyword, 'end') or IsSectionStart or IsRoutineKeyword) do
+  while not (FStream.Check(ptkEndOfFile) or FStream.CheckKeyword(pkwBegin) or
+    FStream.CheckKeyword(pkwEnd) or IsSectionStart or IsRoutineKeyword) do
   begin
     AdvanceToActiveToken;
-    if FStream.Check(ptkEndOfFile) or FStream.Check(ptkKeyword, 'begin') or
-      FStream.Check(ptkKeyword, 'end') or IsSectionStart or IsRoutineKeyword then
+    if FStream.Check(ptkEndOfFile) or FStream.CheckKeyword(pkwBegin) or
+      FStream.CheckKeyword(pkwEnd) or IsSectionStart or IsRoutineKeyword then
       Break;
 
-    if FStream.Check(ptkKeyword, 'var') then
+    if FStream.CheckKeyword(pkwVar) then
       ParseVarSection(AParent)
-    else if FStream.Check(ptkKeyword, 'const') or
-      FStream.Check(ptkKeyword, 'resourcestring') then
+    else if FStream.CheckKeyword(pkwConst) or
+      FStream.CheckKeyword(pkwResourcestring) then
       ParseConstSection(AParent)
-    else if FStream.Check(ptkKeyword, 'type') then
+    else if FStream.CheckKeyword(pkwType) then
       ParseTypeSection(AParent)
     else
       FStream.Next;
@@ -1060,7 +1084,7 @@ var
   lDepth: Integer;
   lEndPos: TNXPasSourcePosition;
 begin
-  if (ANode = nil) or not FStream.Check(ptkKeyword, 'begin') then
+  if (ANode = nil) or not FStream.CheckKeyword(pkwBegin) then
     Exit;
 
   lDepth := 0;
@@ -1073,16 +1097,16 @@ begin
       Continue;
     end;
 
-    if FStream.Check(ptkKeyword, 'begin') then
+    if FStream.CheckKeyword(pkwBegin) then
       Inc(lDepth)
-    else if FStream.Check(ptkKeyword, 'end') then
+    else if FStream.CheckKeyword(pkwEnd) then
     begin
       Dec(lDepth);
       lEndPos := FStream.Current.EndPos;
       FStream.Next;
       if lDepth <= 0 then
       begin
-        if FStream.Check(ptkSymbol, ';') then
+        if FStream.CheckSymbol(psySemicolon) then
         begin
           lEndPos := FStream.Current.EndPos;
           FStream.Next;
@@ -1118,17 +1142,17 @@ begin
     Exit;
   end;
 
-  lNode := AParent.AddChild(pnkTypeDecl, lNameToken.Text);
+  lNode := AParent.AddChild(pnkTypeDecl, FStream.TokenText(lNameToken));
   lNode.Range := TokenRange(lNameToken);
   lNode.NameRange := TokenRange(lNameToken);
-  if not FStream.MatchSymbol('=') then
+  if not FStream.MatchSymbol(psyEquals) then
   begin
     SkipToDeclarationEnd;
     Exit;
   end;
 
-  if FStream.Check(ptkKeyword, 'class') and
-    FStream.CheckPeek(1, ptkKeyword, 'of') then
+  if FStream.CheckKeyword(pkwClass) and
+    FStream.CheckPeekKeyword(1, pkwOf) then
   begin
     lTypeToken := FStream.Current;
     FStream.Next;
@@ -1143,11 +1167,11 @@ begin
     Exit;
   end;
 
-  if FStream.Check(ptkKeyword, 'class') then
+  if FStream.CheckKeyword(pkwClass) then
   begin
     lTypeToken := FStream.Current;
     FStream.Next;
-    lChildNode := lNode.AddChild(pnkClassDecl, lNameToken.Text);
+    lChildNode := lNode.AddChild(pnkClassDecl, FStream.TokenText(lNameToken));
     lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, lTypeToken.EndPos);
     CaptureStructuredTypeHeritage(lChildNode);
@@ -1157,9 +1181,9 @@ begin
     lNode.Range := lChildNode.Range;
     Exit;
   end
-  else if FStream.Check(ptkKeyword, 'object') then
+  else if FStream.CheckKeyword(pkwObject) then
   begin
-    lChildNode := lNode.AddChild(pnkObjectDecl, lNameToken.Text);
+    lChildNode := lNode.AddChild(pnkObjectDecl, FStream.TokenText(lNameToken));
     lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
@@ -1170,9 +1194,9 @@ begin
     lNode.Range := lChildNode.Range;
     Exit;
   end
-  else if FStream.Check(ptkKeyword, 'record') then
+  else if FStream.CheckKeyword(pkwRecord) then
   begin
-    lChildNode := lNode.AddChild(pnkRecordDecl, lNameToken.Text);
+    lChildNode := lNode.AddChild(pnkRecordDecl, FStream.TokenText(lNameToken));
     lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
@@ -1180,9 +1204,9 @@ begin
     lNode.Range := lChildNode.Range;
     Exit;
   end
-  else if FStream.Check(ptkKeyword, 'interface') then
+  else if FStream.CheckKeyword(pkwInterface) then
   begin
-    lChildNode := lNode.AddChild(pnkInterfaceDecl, lNameToken.Text);
+    lChildNode := lNode.AddChild(pnkInterfaceDecl, FStream.TokenText(lNameToken));
     lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
@@ -1205,7 +1229,7 @@ var
   lEndPos: TNXPasSourcePosition;
 begin
   Result := False;
-  if not FStream.Check(ptkSymbol, ';') then
+  if not FStream.CheckSymbol(psySemicolon) then
     Exit;
 
   lEndPos := FStream.Current.EndPos;
@@ -1222,7 +1246,7 @@ var
   lStartPos: TNXPasSourcePosition;
   lDepth: Integer;
 begin
-  if (ANode = nil) or not FStream.Check(ptkSymbol, '(') then
+  if (ANode = nil) or not FStream.CheckSymbol(psyOpenParen) then
     Exit;
 
   FStream.Next;
@@ -1234,9 +1258,9 @@ begin
   lDepth := 1;
   while not FStream.Check(ptkEndOfFile) do
   begin
-    if FStream.Check(ptkSymbol, '(') then
+    if FStream.CheckSymbol(psyOpenParen) then
       Inc(lDepth)
-    else if FStream.Check(ptkSymbol, ')') then
+    else if FStream.CheckSymbol(psyCloseParen) then
     begin
       Dec(lDepth);
       if lDepth = 0 then
@@ -1275,21 +1299,21 @@ begin
       Continue;
     end;
 
-    if FStream.Check(ptkKeyword, 'var') then
+    if FStream.CheckKeyword(pkwVar) then
     begin
       FStream.Next;
       Continue;
     end;
 
-    if FStream.Check(ptkKeyword, 'class') and
-      FStream.CheckPeek(1, ptkKeyword, 'var') then
+    if FStream.CheckKeyword(pkwClass) and
+      FStream.CheckPeekKeyword(1, pkwVar) then
     begin
       FStream.Next;
       FStream.Next;
       Continue;
     end;
 
-    if FStream.Check(ptkKeyword, 'class') and IsRoutineKeywordAt(1) then
+    if FStream.CheckKeyword(pkwClass) and IsRoutineKeywordAt(1) then
     begin
       lClassStartPos := FStream.Current.StartPos;
       FStream.Next;
@@ -1297,8 +1321,8 @@ begin
       Continue;
     end;
 
-    if FStream.Check(ptkKeyword, 'class') and
-      FStream.CheckPeek(1, ptkKeyword, 'property') then
+    if FStream.CheckKeyword(pkwClass) and
+      FStream.CheckPeekKeyword(1, pkwProperty) then
     begin
       FStream.Next;
       ParsePropertyDecl(ANode);
@@ -1313,11 +1337,11 @@ begin
       Exit;
     end;
 
-    if FStream.Check(ptkKeyword, 'end') then
+    if FStream.CheckKeyword(pkwEnd) then
     begin
       lEndPos := FStream.Current.EndPos;
       FStream.Next;
-      if FStream.Check(ptkSymbol, ';') then
+      if FStream.CheckSymbol(psySemicolon) then
       begin
         lEndPos := FStream.Current.EndPos;
         FStream.Next;
@@ -1330,7 +1354,7 @@ begin
       ParseVisibilitySection(ANode)
     else if IsRoutineKeyword then
       ParseRoutineDecl(ANode)
-    else if FStream.Check(ptkKeyword, 'property') then
+    else if FStream.CheckKeyword(pkwProperty) then
       ParsePropertyDecl(ANode)
     else if IsFieldNameToken then
       ParseFieldDecl(ANode)
@@ -1359,19 +1383,19 @@ begin
 
   lItems := TObjectList.Create(False);
   try
-  lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
+  lNode := AParent.AddChild(pnkFieldDecl, FStream.TokenText(lNameToken));
   lNode.Range := TokenRange(lNameToken);
   lNode.NameRange := TokenRange(lNameToken);
   lItems.Add(lNode);
-  while FStream.MatchSymbol(',') do
+  while FStream.MatchSymbol(psyComma) do
     if ExpectFieldNameToken(lNameToken) then
     begin
-      lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
+      lNode := AParent.AddChild(pnkFieldDecl, FStream.TokenText(lNameToken));
       lNode.Range := TokenRange(lNameToken);
       lNode.NameRange := TokenRange(lNameToken);
       lItems.Add(lNode);
     end;
-  if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
+  if FStream.MatchSymbol(psyColon) and CaptureDeclaredType(False, False,
     lDeclaredTypeText, lDeclaredTypeRange) then
     for lIdx := 0 to lItems.Count - 1 do
       SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
@@ -1398,20 +1422,18 @@ begin
   FStream.Next;
   if FStream.ExpectIdentifierToken(lNameToken) then
   begin
-    lNode := AParent.AddChild(pnkPropertyDecl, lNameToken.Text);
+    lNode := AParent.AddChild(pnkPropertyDecl, FStream.TokenText(lNameToken));
     lNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lNode, lStartPos, lNameToken.EndPos);
     SkipPropertyParameters;
-    if FStream.MatchSymbol(':') and CaptureDeclaredType(True, False,
+    if FStream.MatchSymbol(psyColon) and CaptureDeclaredType(True, False,
       lDeclaredTypeText, lDeclaredTypeRange) then
       SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   end;
   SkipToDeclarationEnd;
   if lNode <> nil then
     SetNodeRange(lNode, lNode.Range.StartPos, FLastDeclarationEnd);
-  while (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
-    (SameText(FStream.Current.Text, 'default') or
-    SameText(FStream.Current.Text, 'nodefault')) do
+  while IsPropertyDefaultSpecifier do
   begin
     SkipToDeclarationEnd;
     if lNode <> nil then
@@ -1431,11 +1453,7 @@ begin
   else
   begin
     AToken.Kind := ptkUnknown;
-    AToken.Text := '';
-    AToken.StartPos.Offset := 0;
-    AToken.StartPos.Line := 0;
-    AToken.StartPos.Column := 0;
-    AToken.EndPos := AToken.StartPos;
+    NXPasClearToken(AToken);
   end;
 end;
 
@@ -1450,11 +1468,7 @@ begin
   else
   begin
     AToken.Kind := ptkUnknown;
-    AToken.Text := '';
-    AToken.StartPos.Offset := 0;
-    AToken.StartPos.Line := 0;
-    AToken.StartPos.Column := 0;
-    AToken.EndPos := AToken.StartPos;
+    NXPasClearToken(AToken);
   end;
 end;
 
@@ -1465,17 +1479,17 @@ var
 begin
   lBracketDepth := 0;
   lParenDepth := 0;
-  if not (FStream.Check(ptkSymbol, '[') or FStream.Check(ptkSymbol, '(')) then
+  if not (FStream.CheckSymbol(psyOpenBracket) or FStream.CheckSymbol(psyOpenParen)) then
     Exit;
 
   repeat
-    if FStream.Check(ptkSymbol, '[') then
+    if FStream.CheckSymbol(psyOpenBracket) then
       Inc(lBracketDepth)
-    else if FStream.Check(ptkSymbol, ']') and (lBracketDepth > 0) then
+    else if FStream.CheckSymbol(psyCloseBracket) and (lBracketDepth > 0) then
       Dec(lBracketDepth)
-    else if FStream.Check(ptkSymbol, '(') then
+    else if FStream.CheckSymbol(psyOpenParen) then
       Inc(lParenDepth)
-    else if FStream.Check(ptkSymbol, ')') and (lParenDepth > 0) then
+    else if FStream.CheckSymbol(psyCloseParen) and (lParenDepth > 0) then
       Dec(lParenDepth);
 
     FStream.Next;
@@ -1487,7 +1501,7 @@ procedure TNXPasParser.ParseVisibilitySection(AParent: TNXPasASTNode);
 var
   lNode: TNXPasASTNode;
 begin
-  lNode := AParent.AddChild(pnkVisibilitySection, FStream.Current.Text);
+  lNode := AParent.AddChild(pnkVisibilitySection, FStream.CurrentText);
   lNode.Range := CurrentRange;
   FStream.Next;
 end;
@@ -1500,7 +1514,7 @@ var
   lBracketDepth: Integer;
   lEndPos: TNXPasSourcePosition;
   lParenDepth: Integer;
-  lPreviousText: string;
+  lPreviousKeyword: TNXPasKeywordKind;
   lStartPos: TNXPasSourcePosition;
   lStructuredDepth: Integer;
 begin
@@ -1509,7 +1523,7 @@ begin
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
-  lPreviousText := '';
+  lPreviousKeyword := pkwNone;
   lStructuredDepth := 0;
 
   if FStream.Check(ptkEndOfFile) then
@@ -1525,57 +1539,50 @@ begin
     if (lParenDepth = 0) and (lBracketDepth = 0) and (lAngleDepth = 0) and
       (lStructuredDepth = 0) then
     begin
-      if FStream.Check(ptkSymbol, ';') or FStream.Check(ptkSymbol, '=') then
+      if FStream.CheckSymbol(psySemicolon) or FStream.CheckSymbol(psyEquals) then
         Break;
       if AStopAtParameterDelimiter and
-        (FStream.Check(ptkSymbol, ')') or FStream.Check(ptkSymbol, ',')) then
+        (FStream.CheckSymbol(psyCloseParen) or FStream.CheckSymbol(psyComma)) then
         Break;
       if AStopAtPropertyModifier and
-        ((FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
-        (SameText(FStream.Current.Text, 'read') or
-        SameText(FStream.Current.Text, 'write') or
-        SameText(FStream.Current.Text, 'index') or
-        SameText(FStream.Current.Text, 'stored') or
-        SameText(FStream.Current.Text, 'default') or
-        SameText(FStream.Current.Text, 'nodefault') or
-        SameText(FStream.Current.Text, 'implements'))) then
+        IsPropertySpecifier then
         Break;
       if IsDeclarationTailKeyword then
         Break;
       if IsSectionStart or
         (IsDeclarationSectionStart and
-        not SameText(FStream.Current.Text, 'type') and
-        not (SameText(FStream.Current.Text, 'const') and
-        SameText(lPreviousText, 'of'))) or
-        FStream.Check(ptkKeyword, 'begin') or
-        FStream.Check(ptkKeyword, 'end') then
+        not FStream.CheckKeyword(pkwType) and
+        not (FStream.CheckKeyword(pkwConst) and
+        (lPreviousKeyword = pkwOf))) or
+        FStream.CheckKeyword(pkwBegin) or
+        FStream.CheckKeyword(pkwEnd) then
         Break;
     end;
 
     lEndPos := FStream.Current.EndPos;
-    if FStream.Check(ptkSymbol, '(') then
+    if FStream.CheckSymbol(psyOpenParen) then
       Inc(lParenDepth)
-    else if FStream.Check(ptkSymbol, ')') and (lParenDepth > 0) then
+    else if FStream.CheckSymbol(psyCloseParen) and (lParenDepth > 0) then
       Dec(lParenDepth)
-    else if FStream.Check(ptkSymbol, '[') then
+    else if FStream.CheckSymbol(psyOpenBracket) then
       Inc(lBracketDepth)
-    else if FStream.Check(ptkSymbol, ']') and (lBracketDepth > 0) then
+    else if FStream.CheckSymbol(psyCloseBracket) and (lBracketDepth > 0) then
       Dec(lBracketDepth)
-    else if FStream.Check(ptkSymbol, '<') then
+    else if FStream.CheckSymbol(psyLess) then
       Inc(lAngleDepth)
-    else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
+    else if FStream.CheckSymbol(psyGreater) and (lAngleDepth > 0) then
       Dec(lAngleDepth);
-    if FStream.Check(ptkKeyword, 'record') or
-      (FStream.Check(ptkKeyword, 'object') and
-      (not SameText(lPreviousText, 'of'))) or
-      (FStream.Check(ptkKeyword, 'class') and
-      (not SameText(lPreviousText, 'type'))) or
-      FStream.Check(ptkKeyword, 'interface') then
+    if FStream.CheckKeyword(pkwRecord) or
+      (FStream.CheckKeyword(pkwObject) and
+      (lPreviousKeyword <> pkwOf)) or
+      (FStream.CheckKeyword(pkwClass) and
+      (lPreviousKeyword <> pkwType)) or
+      FStream.CheckKeyword(pkwInterface) then
       Inc(lStructuredDepth)
-    else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
+    else if FStream.CheckKeyword(pkwEnd) and (lStructuredDepth > 0) then
       Dec(lStructuredDepth);
 
-    lPreviousText := FStream.Current.Text;
+    lPreviousKeyword := FStream.Current.Keyword;
     FStream.Next;
   end;
 
@@ -1590,13 +1597,13 @@ var
   lAngleDepth: Integer;
   lBracketDepth: Integer;
   lParenDepth: Integer;
-  lPreviousText: string;
+  lPreviousKeyword: TNXPasKeywordKind;
   lStructuredDepth: Integer;
 begin
   lAngleDepth := 0;
   lBracketDepth := 0;
   lParenDepth := 0;
-  lPreviousText := '';
+  lPreviousKeyword := pkwNone;
   lStructuredDepth := 0;
   FLastDeclarationEnd := FStream.Current.EndPos;
 
@@ -1608,7 +1615,7 @@ begin
       Continue;
     end;
 
-    if FStream.Check(ptkSymbol, ';') and (lParenDepth = 0) and
+    if FStream.CheckSymbol(psySemicolon) and (lParenDepth = 0) and
       (lBracketDepth = 0) and (lAngleDepth = 0) and (lStructuredDepth = 0) then
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
@@ -1620,7 +1627,7 @@ begin
       (lStructuredDepth = 0) and
       (IsSectionStart or IsDeclarationSectionStart or
       (AStopAtRoutineKeyword and IsRoutineKeyword) or
-      IsVisibilityKeyword or FStream.Check(ptkKeyword, 'end')) then
+      IsVisibilityKeyword or FStream.CheckKeyword(pkwEnd)) then
     begin
       AddExpectedDiagnostic('nxpas.declaration.missingSemicolon',
         'Missing semicolon after declaration.');
@@ -1628,28 +1635,28 @@ begin
       Exit;
     end;
 
-    if FStream.Check(ptkSymbol, '(') then
+    if FStream.CheckSymbol(psyOpenParen) then
       Inc(lParenDepth)
-    else if FStream.Check(ptkSymbol, ')') and (lParenDepth > 0) then
+    else if FStream.CheckSymbol(psyCloseParen) and (lParenDepth > 0) then
       Dec(lParenDepth)
-    else if FStream.Check(ptkSymbol, '[') then
+    else if FStream.CheckSymbol(psyOpenBracket) then
       Inc(lBracketDepth)
-    else if FStream.Check(ptkSymbol, ']') and (lBracketDepth > 0) then
+    else if FStream.CheckSymbol(psyCloseBracket) and (lBracketDepth > 0) then
       Dec(lBracketDepth)
-    else if FStream.Check(ptkSymbol, '<') then
+    else if FStream.CheckSymbol(psyLess) then
       Inc(lAngleDepth)
-    else if FStream.Check(ptkSymbol, '>') and (lAngleDepth > 0) then
+    else if FStream.CheckSymbol(psyGreater) and (lAngleDepth > 0) then
       Dec(lAngleDepth);
-    if FStream.Check(ptkKeyword, 'record') or
-      (FStream.Check(ptkKeyword, 'object') and
-      (not SameText(lPreviousText, 'of'))) or
-      FStream.Check(ptkKeyword, 'class') or
-      FStream.Check(ptkKeyword, 'interface') then
+    if FStream.CheckKeyword(pkwRecord) or
+      (FStream.CheckKeyword(pkwObject) and
+      (lPreviousKeyword <> pkwOf)) or
+      FStream.CheckKeyword(pkwClass) or
+      FStream.CheckKeyword(pkwInterface) then
       Inc(lStructuredDepth)
-    else if FStream.Check(ptkKeyword, 'end') and (lStructuredDepth > 0) then
+    else if FStream.CheckKeyword(pkwEnd) and (lStructuredDepth > 0) then
       Dec(lStructuredDepth);
 
-    lPreviousText := FStream.Current.Text;
+    lPreviousKeyword := FStream.Current.Keyword;
     FStream.Next;
   end;
   FLastDeclarationEnd := FStream.Current.StartPos;
@@ -1661,7 +1668,7 @@ procedure TNXPasParser.SkipRoutineDirectives;
 begin
   while not FStream.Check(ptkEndOfFile) do
   begin
-    if FStream.Check(ptkSymbol, ';') then
+    if FStream.CheckSymbol(psySemicolon) then
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
@@ -1671,16 +1678,16 @@ begin
     if not IsRoutineDirective then
       Exit;
 
-    while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ';') or
+    while not (FStream.Check(ptkEndOfFile) or FStream.CheckSymbol(psySemicolon) or
       IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
-      IsVisibilityKeyword or FStream.Check(ptkKeyword, 'end') or
-      FStream.Check(ptkKeyword, 'property')) do
+      IsVisibilityKeyword or FStream.CheckKeyword(pkwEnd) or
+      FStream.CheckKeyword(pkwProperty)) do
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
     end;
 
-    if FStream.Check(ptkSymbol, ';') then
+    if FStream.CheckSymbol(psySemicolon) then
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
@@ -1694,7 +1701,7 @@ procedure TNXPasParser.SkipDeclarationTailDirectives;
 begin
   while not FStream.Check(ptkEndOfFile) do
   begin
-    if FStream.Check(ptkSymbol, ';') then
+    if FStream.CheckSymbol(psySemicolon) then
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
@@ -1704,15 +1711,15 @@ begin
     if not IsDeclarationTailKeyword then
       Exit;
 
-    while not (FStream.Check(ptkEndOfFile) or FStream.Check(ptkSymbol, ';') or
+    while not (FStream.Check(ptkEndOfFile) or FStream.CheckSymbol(psySemicolon) or
       IsSectionStart or IsDeclarationSectionStart or IsRoutineKeyword or
-      FStream.Check(ptkKeyword, 'end')) do
+      FStream.CheckKeyword(pkwEnd)) do
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
     end;
 
-    if FStream.Check(ptkSymbol, ';') then
+    if FStream.CheckSymbol(psySemicolon) then
     begin
       FLastDeclarationEnd := FStream.Current.EndPos;
       FStream.Next;
@@ -1747,10 +1754,10 @@ begin
       AdvanceToActiveToken;
       if FStream.Check(ptkEndOfFile) then
         Break;
-      if not FHeaderParsed and (FStream.Check(ptkKeyword, 'unit') or
-        FStream.Check(ptkKeyword, 'program') or
-        FStream.Check(ptkKeyword, 'library') or
-        FStream.Check(ptkKeyword, 'package')) then
+      if not FHeaderParsed and (FStream.CheckKeyword(pkwUnit) or
+        FStream.CheckKeyword(pkwProgram) or
+        FStream.CheckKeyword(pkwLibrary) or
+        FStream.CheckKeyword(pkwPackage)) then
         ParseHeader
       else
       ParseSection;
@@ -1770,3 +1777,4 @@ begin
 end;
 
 end.
+
