@@ -423,8 +423,8 @@ begin
       and AParams.context.includeDeclaration.Assigned then
       lIncludeDeclaration := AParams.context.includeDeclaration.Value;
 
-    TNXPasLookup.FindReferences(FWorkspaceIndex, lName, lIncludeDeclaration,
-      lReferences);
+    TNXPasLookup.FindLexicalIdentifierReferences(FWorkspaceIndex, lName,
+      lIncludeDeclaration, lReferences);
     for lIdx := 0 to lReferences.Count - 1 do
       AddReferenceLocation(AResult, lReferences.MatchAt(lIdx));
   finally

@@ -46,6 +46,7 @@ implementation
 uses
   SysUtils,
   obNXPasCompletion,
+  obNXPasDocumentHighlights,
   obNXPasLookup,
   obNXPasMemberLookup,
   obNXPasSignatures,
@@ -77,9 +78,7 @@ procedure TNXLSEditorService.FillDocumentHighlights(
 var
   lDocument: TNXLSDocument;
   lHighlight: TNXLSDocumentHighlight;
-  lIdentifierRange: TNXPasSourceRange;
   lIdx: Integer;
-  lName: string;
   lReferences: TNXPasReferenceMatchList;
   lSource: TNXPasSourceFile;
   lTempIndex: TNXPasWorkspaceIndex;
@@ -101,13 +100,10 @@ begin
       AParams.position.line.Value, AParams.position.character.Value) then
       Exit;
 
-    if not TNXPasLookup.IdentifierAtPosition(lSource,
-      AParams.position.line.Value, AParams.position.character.Value, lName,
-      lIdentifierRange) then
-      Exit;
-
     lTempIndex.UpdateSourceFile(lSource);
-    TNXPasLookup.FindReferences(lTempIndex, lName, True, lReferences);
+    TNXPasDocumentHighlightResolver.FindDocumentHighlights(lTempIndex,
+      lDocument.URI, AParams.position.line.Value,
+      AParams.position.character.Value, lReferences);
     for lIdx := 0 to lReferences.Count - 1 do
     begin
       lHighlight := TNXLSDocumentHighlight(

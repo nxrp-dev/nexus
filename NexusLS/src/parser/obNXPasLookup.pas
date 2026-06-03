@@ -46,7 +46,7 @@ type
     class function FindSymbolIdentifierRange(AFile: TNXPasIndexedFile;
       const AName: string; const ASymbolRange: TNXPasSourceRange;
       out ARange: TNXPasSourceRange): Boolean; static;
-    class procedure FindReferences(AIndex: TNXPasWorkspaceIndex;
+    class procedure FindLexicalIdentifierReferences(AIndex: TNXPasWorkspaceIndex;
       const AName: string; AIncludeDeclaration: Boolean;
       AResults: TNXPasReferenceMatchList); static;
   end;
@@ -226,7 +226,8 @@ begin
   end;
 end;
 
-class procedure TNXPasLookup.FindReferences(AIndex: TNXPasWorkspaceIndex;
+class procedure TNXPasLookup.FindLexicalIdentifierReferences(
+  AIndex: TNXPasWorkspaceIndex;
   const AName: string; AIncludeDeclaration: Boolean;
   AResults: TNXPasReferenceMatchList);
 var

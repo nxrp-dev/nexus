@@ -39,6 +39,8 @@ type
     function Initialize(const ARootURI: string): TJSONObject;
     procedure Initialized;
     procedure OpenDocument(const AURI, AText: string);
+    function RequestDocumentHighlights(const AURI: string; ALine,
+      ACharacter: Integer): TJSONObject;
     function RequestLocation(const AMethod, AURI: string; ALine,
       ACharacter: Integer): TJSONObject;
     function RoutinePairDiagnostics(const AMethod, AURI: string; ALine,
@@ -128,6 +130,81 @@ end;
 function NXLSLocationStartCharacter(AResponse: TJSONObject): Integer;
 begin
   Result := AResponse.Objects['result'].Objects['range'].Objects['start'].Integers['character'];
+end;
+
+function NXLSHighlightCount(AResponse: TJSONObject): Integer;
+begin
+  Result := AResponse.Arrays['result'].Count;
+end;
+
+function NXLSHighlightStartLine(AResponse: TJSONObject; AIndex: Integer): Integer;
+begin
+  Result := AResponse.Arrays['result'].Objects[AIndex].Objects['range'].
+    Objects['start'].Integers['line'];
+end;
+
+function NXLSHighlightStartCharacter(AResponse: TJSONObject;
+  AIndex: Integer): Integer;
+begin
+  Result := AResponse.Arrays['result'].Objects[AIndex].Objects['range'].
+    Objects['start'].Integers['character'];
+end;
+
+function NXLSHighlightEndLine(AResponse: TJSONObject; AIndex: Integer): Integer;
+begin
+  Result := AResponse.Arrays['result'].Objects[AIndex].Objects['range'].
+    Objects['end'].Integers['line'];
+end;
+
+function NXLSHighlightEndCharacter(AResponse: TJSONObject;
+  AIndex: Integer): Integer;
+begin
+  Result := AResponse.Arrays['result'].Objects[AIndex].Objects['range'].
+    Objects['end'].Integers['character'];
+end;
+
+function NXLSHasHighlightRange(AResponse: TJSONObject; ALine,
+  AStartColumn, AEndColumn: Integer): Boolean;
+var
+  lIdx: Integer;
+begin
+  Result := False;
+  if (AResponse = nil) or (AResponse.Find('result') = nil) or
+    (AResponse.Find('result').JSONType <> jtArray) then
+    Exit;
+
+  for lIdx := 0 to NXLSHighlightCount(AResponse) - 1 do
+    if (NXLSHighlightStartLine(AResponse, lIdx) = ALine) and
+      (NXLSHighlightEndLine(AResponse, lIdx) = ALine) and
+      (NXLSHighlightStartCharacter(AResponse, lIdx) = AStartColumn) and
+      (NXLSHighlightEndCharacter(AResponse, lIdx) = AEndColumn) then
+      Exit(True);
+end;
+
+procedure NXLSAssertHighlightSet(AContext: TNXTestContext;
+  AResponse: TJSONObject; const AMessage: string; const ALines,
+  AStartColumns, AEndColumns: array of Integer);
+var
+  lIdx: Integer;
+begin
+  AContext.AssertTrue(AResponse <> nil, AMessage + ' response should exist.');
+  AContext.AssertTrue(AResponse.Find('error') = nil,
+    AMessage + ' should not return an error.');
+  AContext.AssertTrue(AResponse.Find('result') <> nil,
+    AMessage + ' should contain a result.');
+  AContext.AssertTrue(AResponse.Find('result').JSONType = jtArray,
+    AMessage + ' result should be an array.');
+  AContext.AssertEquals(Length(ALines), NXLSHighlightCount(AResponse),
+    AMessage + ' should return the exact highlight count.');
+  AContext.AssertEquals(Length(ALines), Length(AStartColumns),
+    AMessage + ' expected line/start arrays should match.');
+  AContext.AssertEquals(Length(ALines), Length(AEndColumns),
+    AMessage + ' expected line/end arrays should match.');
+
+  for lIdx := 0 to High(ALines) do
+    AContext.AssertTrue(NXLSHasHighlightRange(AResponse, ALines[lIdx],
+      AStartColumns[lIdx], AEndColumns[lIdx]),
+      AMessage + ' missing expected highlight ' + IntToStr(lIdx) + '.');
 end;
 
 procedure NXLSAssertLocation(AContext: TNXTestContext; AResponse: TJSONObject;
@@ -283,6 +360,45 @@ begin
     DispatchJSON(lRequest, lResponse);
   finally
     lTextDocument.Free;
+    lParams.Free;
+    lRequest.Free;
+  end;
+end;
+
+function TNXLSEmulatedClient.RequestDocumentHighlights(const AURI: string;
+  ALine, ACharacter: Integer): TJSONObject;
+var
+  lParams: TJSONObject;
+  lPosition: TJSONObject;
+  lRequest: TJSONObject;
+  lResponse: string;
+  lTextDocument: TJSONObject;
+begin
+  Result := nil;
+  lParams := TJSONObject.Create;
+  lPosition := TJSONObject.Create;
+  lRequest := TJSONObject.Create;
+  lTextDocument := TJSONObject.Create;
+  try
+    lTextDocument.Add('uri', AURI);
+    lPosition.Add('line', ALine);
+    lPosition.Add('character', ACharacter);
+    lParams.Add('textDocument', lTextDocument);
+    lTextDocument := nil;
+    lParams.Add('position', lPosition);
+    lPosition := nil;
+
+    lRequest.Add('jsonrpc', '2.0');
+    lRequest.Add('id', NextID);
+    lRequest.Add('method', 'textDocument/documentHighlight');
+    lRequest.Add('params', lParams);
+    lParams := nil;
+
+    DispatchJSON(lRequest, lResponse);
+    Result := TJSONObject(GetJSON(lResponse));
+  finally
+    lTextDocument.Free;
+    lPosition.Free;
     lParams.Free;
     lRequest.Free;
   end;
@@ -797,6 +913,426 @@ begin
   end;
 end;
 
+const
+  cDocumentHighlightLoggerURI =
+    'file:///C:/workspace/SampleLoggerHighlights.pas';
+  cDocumentHighlightLoggerSource =
+    'unit SampleLoggerHighlights;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TNXLSLogger = class' + LineEnding +
+    '  public' + LineEnding +
+    '    class procedure Info(const AMessage: string); static;' + LineEnding +
+    '    class procedure Error(const AMessage: string); static;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'class procedure TNXLSLogger.Info(const AMessage: string);' + LineEnding +
+    'begin' + LineEnding +
+    '  WriteLn(StdErr, AMessage);' + LineEnding +
+    'end;' + LineEnding +
+    'class procedure TNXLSLogger.Error(const AMessage: string);' + LineEnding +
+    'begin' + LineEnding +
+    '  WriteLn(StdErr, AMessage);' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+
+procedure NXLSOpenHighlightLogger(AContext: TNXTestContext;
+  AClient: TNXLSEmulatedClient);
+begin
+  NXLSOpenEmulatedDocument(AContext, AClient, cDocumentHighlightLoggerURI,
+    cDocumentHighlightLoggerSource);
+end;
+
+procedure TestDocumentHighlightOwnerClassNameIsTypeScoped(
+  AContext: TNXTestContext);
+var
+  lClient: TNXLSEmulatedClient;
+  lImplementationStart: Integer;
+  lResponse: TJSONObject;
+  lTokenLength: Integer;
+  lTypeLine: Integer;
+  lInfoOwnerLine: Integer;
+  lErrorOwnerLine: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenHighlightLogger(AContext, lClient);
+    lImplementationStart := NXLSLineOf(cDocumentHighlightLoggerSource,
+      'implementation');
+    lTokenLength := Length('TNXLSLogger');
+    lTypeLine := NXLSLineOf(cDocumentHighlightLoggerSource,
+      '  TNXLSLogger = class');
+    lInfoOwnerLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);',
+      lImplementationStart);
+    lErrorOwnerLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      lImplementationStart);
+
+    lResponse := lClient.RequestDocumentHighlights(cDocumentHighlightLoggerURI,
+      lInfoOwnerLine, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);',
+      'TNXLSLogger', lImplementationStart));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Owner class name highlight',
+      [lTypeLine, lInfoOwnerLine, lErrorOwnerLine],
+      [NXLSColumnOf(cDocumentHighlightLoggerSource, '  TNXLSLogger = class',
+      'TNXLSLogger'), NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);',
+      'TNXLSLogger', lImplementationStart),
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      'TNXLSLogger', lImplementationStart)],
+      [NXLSColumnOf(cDocumentHighlightLoggerSource, '  TNXLSLogger = class',
+      'TNXLSLogger') + lTokenLength,
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);',
+      'TNXLSLogger', lImplementationStart) + lTokenLength,
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      'TNXLSLogger', lImplementationStart) + lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
+procedure TestDocumentHighlightInfoRoutineNameIsRoutineScoped(
+  AContext: TNXTestContext);
+var
+  lClient: TNXLSEmulatedClient;
+  lDeclarationLine: Integer;
+  lImplementationLine: Integer;
+  lImplementationStart: Integer;
+  lResponse: TJSONObject;
+  lTokenLength: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenHighlightLogger(AContext, lClient);
+    lImplementationStart := NXLSLineOf(cDocumentHighlightLoggerSource,
+      'implementation');
+    lTokenLength := Length('Info');
+    lDeclarationLine := NXLSLineOf(cDocumentHighlightLoggerSource,
+      '    class procedure Info(const AMessage: string); static;');
+    lImplementationLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);',
+      lImplementationStart);
+
+    lResponse := lClient.RequestDocumentHighlights(cDocumentHighlightLoggerURI,
+      lImplementationLine, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);', 'Info',
+      lImplementationStart));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Info routine name highlight',
+      [lDeclarationLine, lImplementationLine],
+      [NXLSColumnOf(cDocumentHighlightLoggerSource,
+      '    class procedure Info(const AMessage: string); static;', 'Info'),
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);', 'Info',
+      lImplementationStart)],
+      [NXLSColumnOf(cDocumentHighlightLoggerSource,
+      '    class procedure Info(const AMessage: string); static;', 'Info') +
+      lTokenLength, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);', 'Info',
+      lImplementationStart) + lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
+procedure TestDocumentHighlightErrorRoutineNameIsRoutineScoped(
+  AContext: TNXTestContext);
+var
+  lClient: TNXLSEmulatedClient;
+  lDeclarationLine: Integer;
+  lImplementationLine: Integer;
+  lImplementationStart: Integer;
+  lResponse: TJSONObject;
+  lTokenLength: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenHighlightLogger(AContext, lClient);
+    lImplementationStart := NXLSLineOf(cDocumentHighlightLoggerSource,
+      'implementation');
+    lTokenLength := Length('Error');
+    lDeclarationLine := NXLSLineOf(cDocumentHighlightLoggerSource,
+      '    class procedure Error(const AMessage: string); static;');
+    lImplementationLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      lImplementationStart);
+
+    lResponse := lClient.RequestDocumentHighlights(cDocumentHighlightLoggerURI,
+      lImplementationLine, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);', 'Error',
+      lImplementationStart));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Error routine name highlight',
+      [lDeclarationLine, lImplementationLine],
+      [NXLSColumnOf(cDocumentHighlightLoggerSource,
+      '    class procedure Error(const AMessage: string); static;', 'Error'),
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);', 'Error',
+      lImplementationStart)],
+      [NXLSColumnOf(cDocumentHighlightLoggerSource,
+      '    class procedure Error(const AMessage: string); static;', 'Error') +
+      lTokenLength, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);', 'Error',
+      lImplementationStart) + lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
+procedure TestDocumentHighlightInfoParameterIsRoutineScoped(
+  AContext: TNXTestContext);
+var
+  lClient: TNXLSEmulatedClient;
+  lBodyLine: Integer;
+  lDeclarationLine: Integer;
+  lImplementationLine: Integer;
+  lImplementationStart: Integer;
+  lResponse: TJSONObject;
+  lTokenLength: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenHighlightLogger(AContext, lClient);
+    lImplementationStart := NXLSLineOf(cDocumentHighlightLoggerSource,
+      'implementation');
+    lTokenLength := Length('AMessage');
+    lImplementationLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);',
+      lImplementationStart);
+    lDeclarationLine := lImplementationLine;
+    lBodyLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', lImplementationLine);
+
+    lResponse := lClient.RequestDocumentHighlights(cDocumentHighlightLoggerURI,
+      lBodyLine, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', 'AMessage', lImplementationLine));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Info parameter highlight',
+      [lDeclarationLine, lBodyLine],
+      [NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);', 'AMessage',
+      lImplementationStart), NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', 'AMessage', lImplementationLine)],
+      [NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Info(const AMessage: string);', 'AMessage',
+      lImplementationStart) + lTokenLength,
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', 'AMessage', lImplementationLine) +
+      lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
+procedure TestDocumentHighlightErrorParameterIsRoutineScoped(
+  AContext: TNXTestContext);
+var
+  lClient: TNXLSEmulatedClient;
+  lBodyLine: Integer;
+  lDeclarationLine: Integer;
+  lImplementationLine: Integer;
+  lImplementationStart: Integer;
+  lResponse: TJSONObject;
+  lTokenLength: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenHighlightLogger(AContext, lClient);
+    lImplementationStart := NXLSLineOf(cDocumentHighlightLoggerSource,
+      'implementation');
+    lTokenLength := Length('AMessage');
+    lImplementationLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      lImplementationStart);
+    lDeclarationLine := lImplementationLine;
+    lBodyLine := NXLSLineOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', lImplementationLine);
+
+    lResponse := lClient.RequestDocumentHighlights(cDocumentHighlightLoggerURI,
+      lBodyLine, NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', 'AMessage', lImplementationLine));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Error parameter highlight',
+      [lDeclarationLine, lBodyLine],
+      [NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      'AMessage', lImplementationStart),
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', 'AMessage', lImplementationLine)],
+      [NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      'class procedure TNXLSLogger.Error(const AMessage: string);',
+      'AMessage', lImplementationStart) + lTokenLength,
+      NXLSColumnOfAfter(cDocumentHighlightLoggerSource,
+      '  WriteLn(StdErr, AMessage);', 'AMessage', lImplementationLine) +
+      lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
+procedure TestDocumentHighlightOverloadedRoutineNamesUseIdentity(
+  AContext: TNXTestContext);
+const
+  cURI = 'file:///C:/workspace/SampleOverloadHighlights.pas';
+  cSource =
+    'unit SampleOverloadHighlights;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TFoo = class' + LineEnding +
+    '  public' + LineEnding +
+    '    procedure Run(AValue: Integer); overload;' + LineEnding +
+    '    procedure Run(AValue: string); overload;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure TFoo.Run(AValue: Integer);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure TFoo.Run(AValue: string);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lClient: TNXLSEmulatedClient;
+  lImplementationStart: Integer;
+  lIntegerDeclLine: Integer;
+  lIntegerImplLine: Integer;
+  lResponse: TJSONObject;
+  lStringDeclLine: Integer;
+  lStringImplLine: Integer;
+  lTokenLength: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
+    lImplementationStart := NXLSLineOf(cSource, 'implementation');
+    lTokenLength := Length('Run');
+    lIntegerDeclLine := NXLSLineOf(cSource,
+      '    procedure Run(AValue: Integer); overload;');
+    lStringDeclLine := NXLSLineOf(cSource,
+      '    procedure Run(AValue: string); overload;');
+    lIntegerImplLine := NXLSLineOfAfter(cSource,
+      'procedure TFoo.Run(AValue: Integer);', lImplementationStart);
+    lStringImplLine := NXLSLineOfAfter(cSource,
+      'procedure TFoo.Run(AValue: string);', lImplementationStart);
+
+    lResponse := lClient.RequestDocumentHighlights(cURI, lIntegerImplLine,
+      NXLSColumnOfAfter(cSource, 'procedure TFoo.Run(AValue: Integer);',
+      'Run', lImplementationStart));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Integer overload routine highlight',
+      [lIntegerDeclLine, lIntegerImplLine],
+      [NXLSColumnOf(cSource, '    procedure Run(AValue: Integer); overload;',
+      'Run'), NXLSColumnOfAfter(cSource,
+      'procedure TFoo.Run(AValue: Integer);', 'Run', lImplementationStart)],
+      [NXLSColumnOf(cSource, '    procedure Run(AValue: Integer); overload;',
+      'Run') + lTokenLength, NXLSColumnOfAfter(cSource,
+      'procedure TFoo.Run(AValue: Integer);', 'Run', lImplementationStart) +
+      lTokenLength]);
+    FreeAndNil(lResponse);
+
+    lResponse := lClient.RequestDocumentHighlights(cURI, lStringImplLine,
+      NXLSColumnOfAfter(cSource, 'procedure TFoo.Run(AValue: string);',
+      'Run', lImplementationStart));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'String overload routine highlight',
+      [lStringDeclLine, lStringImplLine],
+      [NXLSColumnOf(cSource, '    procedure Run(AValue: string); overload;',
+      'Run'), NXLSColumnOfAfter(cSource,
+      'procedure TFoo.Run(AValue: string);', 'Run', lImplementationStart)],
+      [NXLSColumnOf(cSource, '    procedure Run(AValue: string); overload;',
+      'Run') + lTokenLength, NXLSColumnOfAfter(cSource,
+      'procedure TFoo.Run(AValue: string);', 'Run', lImplementationStart) +
+      lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
+procedure TestDocumentHighlightLocalVariablesStayInRoutine(
+  AContext: TNXTestContext);
+const
+  cURI = 'file:///C:/workspace/SampleLocalHighlights.pas';
+  cSource =
+    'unit SampleLocalHighlights;' + LineEnding +
+    'interface' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure First;' + LineEnding +
+    'var' + LineEnding +
+    '  Value: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value := 1;' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Second;' + LineEnding +
+    'var' + LineEnding +
+    '  Value: Integer;' + LineEnding +
+    'begin' + LineEnding +
+    '  Value := 2;' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lClient: TNXLSEmulatedClient;
+  lFirstBodyLine: Integer;
+  lFirstDeclLine: Integer;
+  lResponse: TJSONObject;
+  lSecondBodyLine: Integer;
+  lSecondDeclLine: Integer;
+  lTokenLength: Integer;
+begin
+  lClient := TNXLSEmulatedClient.Create;
+  lResponse := nil;
+  try
+    NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
+    lTokenLength := Length('Value');
+    lFirstDeclLine := NXLSLineOf(cSource, '  Value: Integer;');
+    lFirstBodyLine := NXLSLineOf(cSource, '  Value := 1;');
+    lSecondDeclLine := NXLSLineOfAfter(cSource, '  Value: Integer;',
+      lFirstBodyLine);
+    lSecondBodyLine := NXLSLineOf(cSource, '  Value := 2;');
+
+    lResponse := lClient.RequestDocumentHighlights(cURI, lFirstBodyLine,
+      NXLSColumnOf(cSource, '  Value := 1;', 'Value'));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'First local Value highlight',
+      [lFirstDeclLine, lFirstBodyLine],
+      [NXLSColumnOf(cSource, '  Value: Integer;', 'Value'),
+      NXLSColumnOf(cSource, '  Value := 1;', 'Value')],
+      [NXLSColumnOf(cSource, '  Value: Integer;', 'Value') + lTokenLength,
+      NXLSColumnOf(cSource, '  Value := 1;', 'Value') + lTokenLength]);
+    FreeAndNil(lResponse);
+
+    lResponse := lClient.RequestDocumentHighlights(cURI, lSecondBodyLine,
+      NXLSColumnOf(cSource, '  Value := 2;', 'Value'));
+    NXLSAssertHighlightSet(AContext, lResponse,
+      'Second local Value highlight',
+      [lSecondDeclLine, lSecondBodyLine],
+      [NXLSColumnOfAfter(cSource, '  Value: Integer;', 'Value', lFirstBodyLine),
+      NXLSColumnOf(cSource, '  Value := 2;', 'Value')],
+      [NXLSColumnOfAfter(cSource, '  Value: Integer;', 'Value', lFirstBodyLine) +
+      lTokenLength, NXLSColumnOf(cSource, '  Value := 2;', 'Value') +
+      lTokenLength]);
+  finally
+    lResponse.Free;
+    lClient.Free;
+  end;
+end;
+
 procedure TestRoutineContextOutsideRoutineKeepsExistingNoResult(
   AContext: TNXTestContext);
 const
@@ -881,6 +1417,20 @@ begin
     @TestLoggerStyleDeclarationRangeImplementationLookup);
   lSuite.AddTest('LoggerStyleImplementationRangeDeclarationLookup',
     @TestLoggerStyleImplementationRangeDeclarationLookup);
+  lSuite.AddTest('DocumentHighlightOwnerClassNameIsTypeScoped',
+    @TestDocumentHighlightOwnerClassNameIsTypeScoped);
+  lSuite.AddTest('DocumentHighlightInfoRoutineNameIsRoutineScoped',
+    @TestDocumentHighlightInfoRoutineNameIsRoutineScoped);
+  lSuite.AddTest('DocumentHighlightErrorRoutineNameIsRoutineScoped',
+    @TestDocumentHighlightErrorRoutineNameIsRoutineScoped);
+  lSuite.AddTest('DocumentHighlightInfoParameterIsRoutineScoped',
+    @TestDocumentHighlightInfoParameterIsRoutineScoped);
+  lSuite.AddTest('DocumentHighlightErrorParameterIsRoutineScoped',
+    @TestDocumentHighlightErrorParameterIsRoutineScoped);
+  lSuite.AddTest('DocumentHighlightOverloadedRoutineNamesUseIdentity',
+    @TestDocumentHighlightOverloadedRoutineNamesUseIdentity);
+  lSuite.AddTest('DocumentHighlightLocalVariablesStayInRoutine',
+    @TestDocumentHighlightLocalVariablesStayInRoutine);
   lSuite.AddTest('RoutineContextOutsideRoutineKeepsExistingNoResult',
     @TestRoutineContextOutsideRoutineKeepsExistingNoResult);
 end;
