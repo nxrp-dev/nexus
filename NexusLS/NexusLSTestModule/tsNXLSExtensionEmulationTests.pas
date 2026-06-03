@@ -142,6 +142,18 @@ begin
     AMessage + ' result should be a location object.');
 end;
 
+procedure NXLSAssertNullResult(AContext: TNXTestContext; AResponse: TJSONObject;
+  const AMessage: string);
+begin
+  AContext.AssertTrue(AResponse <> nil, AMessage + ' response should exist.');
+  AContext.AssertTrue(AResponse.Find('error') = nil,
+    AMessage + ' should not return an error.');
+  AContext.AssertTrue(AResponse.Find('result') <> nil,
+    AMessage + ' should contain a result.');
+  AContext.AssertTrue(AResponse.Find('result').JSONType = jtNull,
+    AMessage + ' result should be null.');
+end;
+
 procedure NXLSAssertRequestLocation(AContext: TNXTestContext;
   AClient: TNXLSEmulatedClient; const AMethod, AURI: string; ALine,
   ACharacter, AExpectedLine: Integer; const AMessage: string);
@@ -409,6 +421,13 @@ begin
 
     lImplementationLine := NXLSLineOf(cSource,
       'procedure TFoo.Run(AValue: Integer);');
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoImplementation',
+      cURI, lImplementationLine, NXLSColumnOf(cSource,
+      'procedure TFoo.Run(AValue: Integer);', 'Run'));
+    NXLSAssertNullResult(AContext, lResponse,
+      'Implementation request from implementation side');
+    FreeAndNil(lResponse);
+
     lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration', cURI,
       lImplementationLine,
       NXLSColumnOf(cSource, 'procedure TFoo.Run(AValue: Integer);', 'Run'));
@@ -421,6 +440,13 @@ begin
       '    procedure Run(AValue: Integer);'),
       NXLSLocationStartLine(lResponse),
       'Declaration should point to the class-body method.');
+    FreeAndNil(lResponse);
+
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration',
+      cURI, NXLSLineOf(cSource, '    procedure Run(AValue: Integer);'),
+      NXLSColumnOf(cSource, '    procedure Run(AValue: Integer);', 'Run'));
+    NXLSAssertNullResult(AContext, lResponse,
+      'Declaration request from declaration side');
   finally
     lResponse.Free;
     lClient.Free;
