@@ -1344,6 +1344,288 @@ begin
   end;
 end;
 
+procedure TestImplementationFindsClassMethodBodyByOwner(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit NavOwner;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TFoo = class' + LineEnding +
+    '    procedure Run(AValue: Integer);' + LineEnding +
+    '  end;' + LineEnding +
+    '  TBar = class' + LineEnding +
+    '    procedure Run(AValue: Integer);' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure TBar.Run(AValue: Integer);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure TFoo.Run(AValue: Integer);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/NavOwner.pas', cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/NavOwner.pas',
+      cSource, '    procedure Run(AValue: Integer);', 'Run');
+
+    AContext.AssertTrue(lModel.Navigation.FillImplementationLocation(lParams,
+      lLocation), 'Implementation should resolve a class method by owner.');
+    AContext.AssertEquals(NXLSLineOf(cSource,
+      'procedure TFoo.Run(AValue: Integer);'),
+      lLocation.range.start.line.Value,
+      'Implementation should point to the matching owner method.');
+    AContext.AssertEquals(NXLSColumnOf(cSource,
+      'procedure TFoo.Run(AValue: Integer);', 'Run'),
+      lLocation.range.start.character.Value,
+      'Implementation should point to the simple routine identifier.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestImplementationFindsMethodAfterForwardClassDeclaration(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit NavForwardClass;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TBar = class;' + LineEnding +
+    '  TFoo = class;' + LineEnding +
+    '  TFoo = class' + LineEnding +
+    '  public' + LineEnding +
+    '    procedure Run(AValue: TBar); virtual;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure TFoo.Run(AValue: TBar);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/NavForwardClass.pas',
+      cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/NavForwardClass.pas',
+      cSource, '    procedure Run(AValue: TBar);', 'Run');
+
+    AContext.AssertTrue(lModel.Navigation.FillImplementationLocation(lParams,
+      lLocation),
+      'Implementation should resolve methods after forward class declarations.');
+    AContext.AssertEquals(NXLSLineOf(cSource,
+      'procedure TFoo.Run(AValue: TBar);'), lLocation.range.start.line.Value,
+      'Implementation should point to the qualified implementation.');
+    AContext.AssertEquals(NXLSColumnOf(cSource,
+      'procedure TFoo.Run(AValue: TBar);', 'Run'),
+      lLocation.range.start.character.Value,
+      'Implementation should point to the simple routine identifier.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDeclarationFindsMethodAfterForwardClassDeclaration(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit NavForwardClass;' + LineEnding +
+    'interface' + LineEnding +
+    'type' + LineEnding +
+    '  TBar = class;' + LineEnding +
+    '  TFoo = class;' + LineEnding +
+    '  TFoo = class' + LineEnding +
+    '  public' + LineEnding +
+    '    procedure Run(AValue: TBar); virtual;' + LineEnding +
+    '  end;' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure TFoo.Run(AValue: TBar);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/NavForwardClass.pas',
+      cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/NavForwardClass.pas',
+      cSource, 'procedure TFoo.Run(AValue: TBar);', 'Run');
+
+    AContext.AssertTrue(lModel.Navigation.FillDeclaration(lParams, lLocation),
+      'Declaration should resolve methods after forward class declarations.');
+    AContext.AssertEquals(NXLSLineOf(cSource,
+      '    procedure Run(AValue: TBar);'), lLocation.range.start.line.Value,
+      'Declaration should point to the class-body method declaration.');
+    AContext.AssertEquals(NXLSColumnOf(cSource,
+      '    procedure Run(AValue: TBar);', 'Run'),
+      lLocation.range.start.character.Value,
+      'Declaration should point to the simple routine identifier.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestImplementationFindsOverloadByParameterType(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit NavOverload;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure Run(AValue: Integer);' + LineEnding +
+    'procedure Run(AValue: string);' + LineEnding +
+    'procedure Run(AValue: Boolean);' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Run(AValue: string);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Run(AValue: Boolean);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Run(AValue: Integer);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lImplementationStart: Integer;
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/NavOverload.pas',
+      cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/NavOverload.pas',
+      cSource, 'procedure Run(AValue: Integer);', 'Run');
+    lImplementationStart := NXLSLineOf(cSource, 'implementation');
+
+    AContext.AssertTrue(lModel.Navigation.FillImplementationLocation(lParams,
+      lLocation), 'Implementation should resolve an overload by parameter type.');
+    AContext.AssertEquals(NXLSLineOfAfter(cSource,
+      'procedure Run(AValue: Integer);', lImplementationStart),
+      lLocation.range.start.line.Value,
+      'Implementation should point to the Integer overload.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestDeclarationFindsOverloadByParameterType(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit NavOverload;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure Run(AValue: Integer);' + LineEnding +
+    'procedure Run(AValue: string);' + LineEnding +
+    'procedure Run(AValue: Boolean);' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Run(AValue: string);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Run(AValue: Boolean);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'procedure Run(AValue: Integer);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lImplementationStart: Integer;
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/NavOverload.pas',
+      cSource);
+    lImplementationStart := NXLSLineOf(cSource, 'implementation');
+    lParams.textDocument.uri.Value := 'file:///C:/workspace/NavOverload.pas';
+    lParams.position.line.Value := NXLSLineOfAfter(cSource,
+      'procedure Run(AValue: Boolean);', lImplementationStart);
+    lParams.position.character.Value := 10;
+
+    AContext.AssertTrue(lModel.Navigation.FillDeclaration(lParams, lLocation),
+      'Declaration should resolve an overload by parameter type.');
+    AContext.AssertEquals(NXLSLineOf(cSource,
+      'procedure Run(AValue: Boolean);'), lLocation.range.start.line.Value,
+      'Declaration should point to the Boolean overload.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
+procedure TestImplementationDoesNotFallbackToDifferentOverload(
+  AContext: TNXTestContext);
+const
+  cSource =
+    'unit NavNoFallback;' + LineEnding +
+    'interface' + LineEnding +
+    'procedure Run(AValue: Integer);' + LineEnding +
+    'implementation' + LineEnding +
+    'procedure Run(AValue: string);' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    'end.';
+var
+  lLocation: TNXLSLocation;
+  lModel: TNXLSLSPModel;
+  lParams: TNXLSTextDocumentPositionParams;
+begin
+  lModel := TNXLSLSPModel.Create;
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lLocation := TNXLSLocation.Create;
+  try
+    NXLSOpenDocument(lModel, 'file:///C:/workspace/NavNoFallback.pas',
+      cSource);
+    NXLSSetTextPosition(lParams, 'file:///C:/workspace/NavNoFallback.pas',
+      cSource, 'procedure Run(AValue: Integer);', 'Run');
+
+    AContext.AssertFalse(lModel.Navigation.FillImplementationLocation(lParams,
+      lLocation), 'Implementation must not fall back to a different overload.');
+  finally
+    lLocation.Free;
+    lParams.Free;
+    lModel.Free;
+  end;
+end;
+
 procedure TestInactiveRoutineImplementationIsIgnored(AContext: TNXTestContext);
 const
   cSource =
@@ -1445,6 +1727,18 @@ begin
     @TestImplementationFindsRoutineBody);
   lSuite.AddTest('DeclarationFindsRoutineInterfaceDeclaration',
     @TestDeclarationFindsRoutineInterfaceDeclaration);
+  lSuite.AddTest('ImplementationFindsClassMethodBodyByOwner',
+    @TestImplementationFindsClassMethodBodyByOwner);
+  lSuite.AddTest('ImplementationFindsMethodAfterForwardClassDeclaration',
+    @TestImplementationFindsMethodAfterForwardClassDeclaration);
+  lSuite.AddTest('DeclarationFindsMethodAfterForwardClassDeclaration',
+    @TestDeclarationFindsMethodAfterForwardClassDeclaration);
+  lSuite.AddTest('ImplementationFindsOverloadByParameterType',
+    @TestImplementationFindsOverloadByParameterType);
+  lSuite.AddTest('DeclarationFindsOverloadByParameterType',
+    @TestDeclarationFindsOverloadByParameterType);
+  lSuite.AddTest('ImplementationDoesNotFallbackToDifferentOverload',
+    @TestImplementationDoesNotFallbackToDifferentOverload);
   lSuite.AddTest('InactiveRoutineImplementationIsIgnored',
     @TestInactiveRoutineImplementationIsIgnored);
 end;

@@ -169,6 +169,26 @@ begin
   end;
 end;
 
+function NXPasFindNamedSymbolWithChild(ASymbols: TNXPasSymbolTable;
+  AKind: TNXPasSymbolKind; const AName: string; AChildKind: TNXPasSymbolKind;
+  const AChildName: string): TNXPasSymbol;
+var
+  lIdx: Integer;
+  lSymbol: TNXPasSymbol;
+begin
+  Result := nil;
+  if ASymbols = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbols.Count - 1 do
+  begin
+    lSymbol := ASymbols.SymbolAt(lIdx);
+    if (lSymbol.Kind = AKind) and (lSymbol.Name = AName) and
+      NXPasHasChildSymbol(lSymbol, AChildKind, AChildName) then
+      Exit(lSymbol);
+  end;
+end;
+
 function NXPasHasDiagnostic(ADiagnostics: TNXPasDiagnosticList;
   const ACode: string): Boolean;
 var
@@ -410,6 +430,141 @@ begin
     lSymbols.Free;
     lExtractor.Free;
     lParser.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestForwardClassDeclarationAllowsLaterMembers(
+  AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lImplementationSymbol: TNXPasSymbol;
+  lMethodSymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TBar = class;' + LineEnding +
+      '  TFoo = class;' + LineEnding +
+      '  TFoo = class' + LineEnding +
+      '  public' + LineEnding +
+      '    procedure Run(AValue: TBar); virtual;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding +
+      'procedure TFoo.Run(AValue: TBar);' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertFalse(NXPasHasDiagnostic(lDiagnostics,
+      'nxpas.structuredType.missingEnd'),
+      'Forward class declarations should not enter body parsing.');
+    lClassSymbol := NXPasFindNamedSymbolWithChild(lSymbols, pskClass, 'TFoo',
+      pskRoutine, 'Run');
+    AContext.AssertTrue(lClassSymbol <> nil,
+      'Real class declaration after a forward declaration should keep members.');
+    lMethodSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine, 'Run');
+    AContext.AssertTrue(lMethodSymbol <> nil,
+      'Class-body method should be extracted.');
+    lImplementationSymbol := NXPasFindSymbol(lSymbols, pskRoutine,
+      'TFoo.Run');
+    AContext.AssertTrue(lImplementationSymbol <> nil,
+      'Qualified implementation method should be extracted.');
+    AContext.AssertEquals(lImplementationSymbol.RoutineIdentity,
+      lMethodSymbol.RoutineIdentity,
+      'Class-body declaration and qualified implementation should share routine identity.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestClassRoutineRangeIncludesClassPrefix(AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lImplementationSymbol: TNXPasSymbol;
+  lMethodSymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TFoo = class' + LineEnding +
+      '  public' + LineEnding +
+      '    class procedure Info(const AMessage: string); static;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding +
+      'class procedure TFoo.Info(const AMessage: string);' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClassSymbol := NXPasFindNamedSymbolWithChild(lSymbols, pskClass, 'TFoo',
+      pskRoutine, 'Info');
+    AContext.AssertTrue(lClassSymbol <> nil,
+      'Class declaration should be extracted.');
+    lMethodSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine, 'Info');
+    AContext.AssertTrue(lMethodSymbol <> nil,
+      'Class-body class procedure should be extracted.');
+    lImplementationSymbol := NXPasFindSymbol(lSymbols, pskRoutine,
+      'TFoo.Info');
+    AContext.AssertTrue(lImplementationSymbol <> nil,
+      'Implementation class procedure should be extracted.');
+
+    AContext.AssertEquals(5, lMethodSymbol.Range.StartPos.Line,
+      'Class-body class procedure range should start on the class token line.');
+    AContext.AssertEquals(4, lMethodSymbol.Range.StartPos.Column,
+      'Class-body class procedure range should start at the class token.');
+    AContext.AssertEquals(5, lMethodSymbol.Range.EndPos.Line,
+      'Class-body class procedure range should end on the static tail line.');
+    AContext.AssertEquals(57, lMethodSymbol.Range.EndPos.Column,
+      'Class-body class procedure range should end after static semicolon.');
+    AContext.AssertEquals(8, lImplementationSymbol.Range.StartPos.Line,
+      'Implementation class procedure range should start on the class token line.');
+    AContext.AssertEquals(0, lImplementationSymbol.Range.StartPos.Column,
+      'Implementation class procedure range should start at the class token.');
+    AContext.AssertEquals('procedure', lMethodSymbol.RoutineKindText,
+      'Class-body routine kind should stay normalized to the routine keyword.');
+    AContext.AssertEquals('procedure', lImplementationSymbol.RoutineKindText,
+      'Implementation routine kind should stay normalized to the routine keyword.');
+    AContext.AssertEquals(lImplementationSymbol.RoutineIdentity,
+      lMethodSymbol.RoutineIdentity,
+      'Class-body declaration and implementation should keep matching identity.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
     lSource.Free;
     lDiagnostics.Free;
   end;
@@ -1746,6 +1901,10 @@ begin
     @TestUsesUnitsAreNotTypeSymbols);
   lSuite.AddTest('StructuredClassBodySymbols',
     @TestStructuredClassBodySymbols);
+  lSuite.AddTest('ForwardClassDeclarationAllowsLaterMembers',
+    @TestForwardClassDeclarationAllowsLaterMembers);
+  lSuite.AddTest('ClassRoutineRangeIncludesClassPrefix',
+    @TestClassRoutineRangeIncludesClassPrefix);
   lSuite.AddTest('ProcedureTypesUseBalancedDeclarationSkipping',
     @TestProcedureTypesUseBalancedDeclarationSkipping);
   lSuite.AddTest('StructuredRecordBodySymbols',

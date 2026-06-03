@@ -11,6 +11,7 @@ uses
   tsNXLSCoreTests,
   tsNXLSDiagnosticsTests,
   tsNXLSDocumentSymbolTests,
+  tsNXLSExtensionEmulationTests,
   tsNXLSNexusPasNavigationTests,
   tsNXLSWorkspaceSymbolTests,
   tsNXLSProtocolObjectTests,
@@ -29,6 +30,7 @@ begin
   RegisterNXLSCoreTests(ARegistry);
   RegisterNXLSDiagnosticsTests(ARegistry);
   RegisterNXLSDocumentSymbolTests(ARegistry);
+  RegisterNXLSExtensionEmulationTests(ARegistry);
   RegisterNXLSNexusPasNavigationTests(ARegistry);
   RegisterNXLSWorkspaceSymbolTests(ARegistry);
   RegisterNXLSProtocolObjectTests(ARegistry);
