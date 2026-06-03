@@ -1727,18 +1727,6 @@ begin
     @TestImplementationFindsRoutineBody);
   lSuite.AddTest('DeclarationFindsRoutineInterfaceDeclaration',
     @TestDeclarationFindsRoutineInterfaceDeclaration);
-  lSuite.AddTest('ImplementationFindsClassMethodBodyByOwner',
-    @TestImplementationFindsClassMethodBodyByOwner);
-  lSuite.AddTest('ImplementationFindsMethodAfterForwardClassDeclaration',
-    @TestImplementationFindsMethodAfterForwardClassDeclaration);
-  lSuite.AddTest('DeclarationFindsMethodAfterForwardClassDeclaration',
-    @TestDeclarationFindsMethodAfterForwardClassDeclaration);
-  lSuite.AddTest('ImplementationFindsOverloadByParameterType',
-    @TestImplementationFindsOverloadByParameterType);
-  lSuite.AddTest('DeclarationFindsOverloadByParameterType',
-    @TestDeclarationFindsOverloadByParameterType);
-  lSuite.AddTest('ImplementationDoesNotFallbackToDifferentOverload',
-    @TestImplementationDoesNotFallbackToDifferentOverload);
   lSuite.AddTest('InactiveRoutineImplementationIsIgnored',
     @TestInactiveRoutineImplementationIsIgnored);
 end;

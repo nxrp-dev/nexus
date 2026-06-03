@@ -20,6 +20,7 @@ uses
   obNXPasMetadata,
   obNXPasParser,
   obNXPasProject,
+  obNXPasRoutineIdentity,
   obNXPasSearchPaths,
   obNXPasSource,
   obNXPasSymbols,
@@ -226,75 +227,6 @@ begin
   end;
 end;
 
-function NXPasNormalizedRoutineTypeText(const AText: string): string;
-begin
-  Result := StringReplace(UpperCase(Trim(AText)), ' ', '', [rfReplaceAll]);
-end;
-
-function NXPasRoutineOwnerName(ASymbol: TNXPasSymbol): string;
-var
-  lDotPos: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  lDotPos := LastDelimiter('.', ASymbol.Name);
-  if lDotPos > 0 then
-    Exit(Copy(ASymbol.Name, 1, lDotPos - 1));
-
-  if (ASymbol.Parent <> nil) and (ASymbol.Parent.Kind in [pskClass,
-    pskRecord, pskObject, pskInterface]) then
-    Result := ASymbol.Parent.Name;
-end;
-
-function NXPasRoutineSimpleName(ASymbol: TNXPasSymbol): string;
-var
-  lDotPos: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  lDotPos := LastDelimiter('.', ASymbol.Name);
-  if lDotPos > 0 then
-    Result := Copy(ASymbol.Name, lDotPos + 1, MaxInt)
-  else
-    Result := ASymbol.Name;
-end;
-
-function NXPasRoutineParameterSignature(ASymbol: TNXPasSymbol): string;
-var
-  lChild: TNXPasSymbol;
-  lIdx: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  for lIdx := 0 to ASymbol.ChildCount - 1 do
-  begin
-    lChild := ASymbol.Children[lIdx];
-    if lChild.Kind <> pskParameter then
-      Continue;
-
-    if Result <> '' then
-      Result := Result + ';';
-    Result := Result + NXPasNormalizedRoutineTypeText(lChild.DeclaredTypeText);
-  end;
-end;
-
-function NXPasRoutineIdentity(ASymbol: TNXPasSymbol): string;
-begin
-  Result := '';
-  if (ASymbol = nil) or (ASymbol.Kind <> pskRoutine) then
-    Exit;
-
-  Result := UpperCase(NXPasRoutineOwnerName(ASymbol)) + '|' +
-    UpperCase(NXPasRoutineSimpleName(ASymbol)) + '|' +
-    NXPasRoutineParameterSignature(ASymbol);
-end;
-
 function NXPasFindRoutineByIdentity(ASymbols: TNXPasSymbolTable;
   const AIdentity: string): TNXPasSymbol;
 var
@@ -402,6 +334,33 @@ begin
   finally
     lParser.Free;
   end;
+end;
+
+procedure NXPasAssertRange(AContext: TNXTestContext; const AMessage: string;
+  const ARange: TNXPasSourceRange; AStartLine, AStartColumn, AEndLine,
+  AEndColumn: Integer);
+begin
+  AContext.AssertEquals(AStartLine, ARange.StartPos.Line,
+    AMessage + ': start line');
+  AContext.AssertEquals(AStartColumn, ARange.StartPos.Column,
+    AMessage + ': start column');
+  AContext.AssertEquals(AEndLine, ARange.EndPos.Line,
+    AMessage + ': end line');
+  AContext.AssertEquals(AEndColumn, ARange.EndPos.Column,
+    AMessage + ': end column');
+end;
+
+procedure NXPasAssertSymbolContract(AContext: TNXTestContext;
+  ASymbol: TNXPasSymbol; AKind: TNXPasSymbolKind; const AName: string;
+  const ADeclaredTypeText: string);
+begin
+  AContext.AssertTrue(ASymbol <> nil, AName + ' symbol should exist.');
+  AContext.AssertEquals(Ord(AKind), Ord(ASymbol.Kind),
+    AName + ' symbol kind should match.');
+  AContext.AssertEquals(AName, ASymbol.Name,
+    AName + ' symbol name should match.');
+  AContext.AssertEquals(ADeclaredTypeText, ASymbol.DeclaredTypeText,
+    AName + ' declared type should match.');
 end;
 
 procedure TestSourceRangeCreation(AContext: TNXTestContext);
@@ -735,6 +694,14 @@ begin
       'procedure TFoo.Run(AValue: Integer);', 'Run'),
       lImplementationSymbol.NameRange.StartPos.Column,
       'Implementation name range should point to Run.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'procedure TFoo.Run(AValue: Integer);', 'TFoo'),
+      lImplementationSymbol.OwnerNameRange.StartPos.Column,
+      'Implementation owner range should point to TFoo.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'procedure TFoo.Run(AValue: Integer);', 'TFoo') + Length('TFoo'),
+      lImplementationSymbol.OwnerNameRange.EndPos.Column,
+      'Implementation owner range should end after TFoo.');
     AContext.AssertEquals('TFOO|RUN|INTEGER',
       NXPasRoutineIdentity(lDeclarationSymbol),
       'Declaration identity should include owner, name, and parameter type.');
@@ -832,6 +799,14 @@ begin
       'class procedure TLogger.Info(const AMessage: string);', 'Info'),
       lImplementationSymbol.NameRange.StartPos.Column,
       'Class routine implementation name range should point to Info.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'class procedure TLogger.Info(const AMessage: string);', 'TLogger'),
+      lImplementationSymbol.OwnerNameRange.StartPos.Column,
+      'Class routine implementation owner range should point to TLogger.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'class procedure TLogger.Info(const AMessage: string);', 'TLogger') +
+      Length('TLogger'), lImplementationSymbol.OwnerNameRange.EndPos.Column,
+      'Class routine implementation owner range should end after TLogger.');
     AContext.AssertEquals('TLOGGER|INFO|STRING',
       NXPasRoutineIdentity(lDeclarationSymbol),
       'Declaration identity should include owner, name, and parameter type.');
@@ -904,6 +879,102 @@ begin
       'String overload should keep the qualified implementation name.');
     AContext.AssertFalse(lIntegerImplementation = lStringImplementation,
       'Distinct overload identities must not collapse to one symbol.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestParserSymbolContractForClassRoutinePair(
+  AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDeclarationSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lImplementationSymbol: TNXPasSymbol;
+  lParameterSymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit ContractSample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TLogger = class' + LineEnding +
+      '  public' + LineEnding +
+      '    class procedure Info(const AMessage: string); static;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding +
+      'class procedure TLogger.Info(const AMessage: string);' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClassSymbol := NXPasFindSymbol(lSymbols, pskClass, 'TLogger');
+    NXPasAssertSymbolContract(AContext, lClassSymbol, pskClass, 'TLogger',
+      '');
+    NXPasAssertRange(AContext, 'class full range', lClassSymbol.Range,
+      3, 2, 6, 6);
+    NXPasAssertRange(AContext, 'class name range', lClassSymbol.NameRange,
+      3, 2, 3, 9);
+
+    lDeclarationSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine,
+      'Info');
+    NXPasAssertSymbolContract(AContext, lDeclarationSymbol, pskRoutine,
+      'Info', '');
+    NXPasAssertRange(AContext, 'class routine declaration full range',
+      lDeclarationSymbol.Range, 5, 4, 5, 57);
+    NXPasAssertRange(AContext, 'class routine declaration name range',
+      lDeclarationSymbol.NameRange, 5, 20, 5, 24);
+    AContext.AssertEquals('TLogger',
+      NXPasRoutineOwnerName(lDeclarationSymbol),
+      'Class-body routine declaration should report owner.');
+    AContext.AssertEquals('Info',
+      NXPasRoutineSimpleName(lDeclarationSymbol),
+      'Class-body routine declaration should report simple name.');
+    AContext.AssertEquals('TLOGGER|INFO|STRING',
+      NXPasRoutineIdentity(lDeclarationSymbol),
+      'Class-body routine declaration identity should be stable.');
+
+    lParameterSymbol := NXPasFindChildSymbol(lDeclarationSymbol, pskParameter,
+      'AMessage');
+    NXPasAssertSymbolContract(AContext, lParameterSymbol, pskParameter,
+      'AMessage', 'string');
+    NXPasAssertRange(AContext, 'parameter name range',
+      lParameterSymbol.NameRange, 5, 31, 5, 39);
+
+    lImplementationSymbol := NXPasFindSymbol(lSymbols, pskRoutine,
+      'TLogger.Info');
+    NXPasAssertSymbolContract(AContext, lImplementationSymbol, pskRoutine,
+      'TLogger.Info', '');
+    NXPasAssertRange(AContext, 'class routine implementation full range',
+      lImplementationSymbol.Range, 8, 0, 10, 4);
+    NXPasAssertRange(AContext, 'class routine implementation owner range',
+      lImplementationSymbol.OwnerNameRange, 8, 16, 8, 23);
+    NXPasAssertRange(AContext, 'class routine implementation name range',
+      lImplementationSymbol.NameRange, 8, 24, 8, 28);
+    AContext.AssertEquals('TLogger',
+      NXPasRoutineOwnerName(lImplementationSymbol),
+      'Implementation routine should report owner.');
+    AContext.AssertEquals('Info',
+      NXPasRoutineSimpleName(lImplementationSymbol),
+      'Implementation routine should report simple name.');
+    AContext.AssertEquals(NXPasRoutineIdentity(lDeclarationSymbol),
+      NXPasRoutineIdentity(lImplementationSymbol),
+      'Declaration and implementation routine identities should match.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -2103,6 +2174,135 @@ begin
   end;
 end;
 
+procedure TestParserSymbolContractForDeclaredTypes(AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lFieldSymbol: TNXPasSymbol;
+  lFunctionSymbol: TNXPasSymbol;
+  lImplementationSymbol: TNXPasSymbol;
+  lLocalSymbol: TNXPasSymbol;
+  lParameterSymbol: TNXPasSymbol;
+  lPropertySymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+  lVarSymbol: TNXPasSymbol;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit ContractTypes;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TPayload = class' + LineEnding +
+      '  private' + LineEnding +
+      '    FCount: Integer;' + LineEnding +
+      '  public' + LineEnding +
+      '    property Count: Integer read FCount;' + LineEnding +
+      '    function Make(AValue: string): TPayload;' + LineEnding +
+      '  end;' + LineEnding +
+      'var' + LineEnding +
+      '  GlobalPayload: TPayload;' + LineEnding +
+      'implementation' + LineEnding +
+      'function TPayload.Make(AValue: string): TPayload;' + LineEnding +
+      'var' + LineEnding +
+      '  LocalPayload: TPayload;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClassSymbol := NXPasFindSymbol(lSymbols, pskClass, 'TPayload');
+    NXPasAssertSymbolContract(AContext, lClassSymbol, pskClass, 'TPayload',
+      '');
+    NXPasAssertRange(AContext, 'declared-type class name range',
+      lClassSymbol.NameRange, 3, 2, 3, 10);
+
+    lFieldSymbol := NXPasFindChildSymbol(lClassSymbol, pskField, 'FCount');
+    NXPasAssertSymbolContract(AContext, lFieldSymbol, pskField, 'FCount',
+      'Integer');
+    NXPasAssertRange(AContext, 'field full range', lFieldSymbol.Range,
+      5, 4, 5, 20);
+    NXPasAssertRange(AContext, 'field name range', lFieldSymbol.NameRange,
+      5, 4, 5, 10);
+    NXPasAssertRange(AContext, 'field declared type range',
+      lFieldSymbol.DeclaredTypeRange, 5, 12, 5, 19);
+
+    lPropertySymbol := NXPasFindChildSymbol(lClassSymbol, pskProperty,
+      'Count');
+    NXPasAssertSymbolContract(AContext, lPropertySymbol, pskProperty,
+      'Count', 'Integer');
+    NXPasAssertRange(AContext, 'property full range', lPropertySymbol.Range,
+      7, 4, 7, 40);
+    NXPasAssertRange(AContext, 'property name range',
+      lPropertySymbol.NameRange, 7, 13, 7, 18);
+    NXPasAssertRange(AContext, 'property declared type range',
+      lPropertySymbol.DeclaredTypeRange, 7, 20, 7, 27);
+
+    lFunctionSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine, 'Make');
+    NXPasAssertSymbolContract(AContext, lFunctionSymbol, pskRoutine, 'Make',
+      'TPayload');
+    NXPasAssertRange(AContext, 'function declaration name range',
+      lFunctionSymbol.NameRange, 8, 13, 8, 17);
+    NXPasAssertRange(AContext, 'function declaration return type range',
+      lFunctionSymbol.DeclaredTypeRange, 8, 35, 8, 43);
+    AContext.AssertEquals('TPAYLOAD|MAKE|STRING',
+      NXPasRoutineIdentity(lFunctionSymbol),
+      'Function declaration routine identity should be stable.');
+
+    lParameterSymbol := NXPasFindChildSymbol(lFunctionSymbol, pskParameter,
+      'AValue');
+    NXPasAssertSymbolContract(AContext, lParameterSymbol, pskParameter,
+      'AValue', 'string');
+    NXPasAssertRange(AContext, 'parameter name range',
+      lParameterSymbol.NameRange, 8, 18, 8, 24);
+    NXPasAssertRange(AContext, 'parameter declared type range',
+      lParameterSymbol.DeclaredTypeRange, 8, 26, 8, 32);
+
+    lVarSymbol := NXPasFindSymbol(lSymbols, pskVariable, 'GlobalPayload');
+    NXPasAssertSymbolContract(AContext, lVarSymbol, pskVariable,
+      'GlobalPayload', 'TPayload');
+    NXPasAssertRange(AContext, 'global variable full range',
+      lVarSymbol.Range, 11, 2, 11, 26);
+    NXPasAssertRange(AContext, 'global variable declared type range',
+      lVarSymbol.DeclaredTypeRange, 11, 17, 11, 25);
+
+    lImplementationSymbol := NXPasFindSymbol(lSymbols, pskRoutine,
+      'TPayload.Make');
+    NXPasAssertSymbolContract(AContext, lImplementationSymbol, pskRoutine,
+      'TPayload.Make', 'TPayload');
+    NXPasAssertRange(AContext, 'implementation owner range',
+      lImplementationSymbol.OwnerNameRange, 13, 9, 13, 17);
+    NXPasAssertRange(AContext, 'implementation name range',
+      lImplementationSymbol.NameRange, 13, 18, 13, 22);
+    AContext.AssertEquals(NXPasRoutineIdentity(lFunctionSymbol),
+      NXPasRoutineIdentity(lImplementationSymbol),
+      'Function declaration and implementation identities should match.');
+
+    lLocalSymbol := NXPasFindChildSymbol(lImplementationSymbol, pskVariable,
+      'LocalPayload');
+    NXPasAssertSymbolContract(AContext, lLocalSymbol, pskVariable,
+      'LocalPayload', 'TPayload');
+    NXPasAssertRange(AContext, 'local variable name range',
+      lLocalSymbol.NameRange, 15, 2, 15, 14);
+    NXPasAssertRange(AContext, 'local variable declared type range',
+      lLocalSymbol.DeclaredTypeRange, 15, 16, 15, 24);
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestDeclaredTypeParsingHardened(AContext: TNXTestContext);
 var
   lClassSymbol: TNXPasSymbol;
@@ -2252,6 +2452,8 @@ begin
     @TestQualifiedClassRoutineImplementationIdentity);
   lSuite.AddTest('QualifiedRoutineOverloadIdentitiesRemainDistinct',
     @TestQualifiedRoutineOverloadIdentitiesRemainDistinct);
+  lSuite.AddTest('ParserSymbolContractForClassRoutinePair',
+    @TestParserSymbolContractForClassRoutinePair);
   lSuite.AddTest('ProcedureTypesUseBalancedDeclarationSkipping',
     @TestProcedureTypesUseBalancedDeclarationSkipping);
   lSuite.AddTest('StructuredRecordBodySymbols',
@@ -2303,6 +2505,8 @@ begin
   lSuite.AddTest('NXDEPActiveBranch', @TestNXDEPActiveBranch);
   lSuite.AddTest('DependencyManifest', @TestDependencyManifest);
   lSuite.AddTest('DeclaredTypeReferences', @TestDeclaredTypeReferences);
+  lSuite.AddTest('ParserSymbolContractForDeclaredTypes',
+    @TestParserSymbolContractForDeclaredTypes);
   lSuite.AddTest('DeclaredTypeParsingHardened',
     @TestDeclaredTypeParsingHardened);
   lSuite.AddTest('LocalVariableSymbols', @TestLocalVariableSymbols);

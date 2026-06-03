@@ -47,6 +47,7 @@ type
     procedure SetDeclaredType(ANode: TNXPasASTNode; const AText: string;
       const ARange: TNXPasSourceRange);
     function IsRoutineKeyword: Boolean;
+    function IsRoutineKeywordAt(AOffset: Integer): Boolean;
     function IsStructuredTypeKeyword: Boolean;
     function IsSectionStart: Boolean;
     function IsDeclarationSectionStart: Boolean;
@@ -186,10 +187,15 @@ end;
 
 function TNXPasParser.IsRoutineKeyword: Boolean;
 begin
-  Result := FStream.Check(ptkKeyword, 'procedure') or
-    FStream.Check(ptkKeyword, 'function') or
-    FStream.Check(ptkKeyword, 'constructor') or
-    FStream.Check(ptkKeyword, 'destructor');
+  Result := IsRoutineKeywordAt(0);
+end;
+
+function TNXPasParser.IsRoutineKeywordAt(AOffset: Integer): Boolean;
+begin
+  Result := FStream.CheckPeek(AOffset, ptkKeyword, 'procedure') or
+    FStream.CheckPeek(AOffset, ptkKeyword, 'function') or
+    FStream.CheckPeek(AOffset, ptkKeyword, 'constructor') or
+    FStream.CheckPeek(AOffset, ptkKeyword, 'destructor');
 end;
 
 function TNXPasParser.IsStructuredTypeKeyword: Boolean;
@@ -670,12 +676,11 @@ begin
   else if FStream.Check(ptkKeyword, 'var') or
     FStream.Check(ptkKeyword, 'threadvar') then
     ParseVarSection(lNode)
-  else if FStream.Check(ptkKeyword, 'class') then
+  else if FStream.Check(ptkKeyword, 'class') and IsRoutineKeywordAt(1) then
   begin
     lStartPos := FStream.Current.StartPos;
     FStream.Next;
-    if IsRoutineKeyword then
-      ParseRoutineDeclAt(lNode, lStartPos);
+    ParseRoutineDeclAt(lNode, lStartPos);
   end
   else if IsRoutineKeyword then
     ParseRoutineDecl(lNode)
@@ -824,11 +829,13 @@ begin
     end;
     lItemNode := lNode.AddChild(pnkConstDecl, lNameToken.Text);
     lItemNode.Range := TokenRange(lNameToken);
+    lItemNode.NameRange := TokenRange(lNameToken);
     if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
       lDeclaredTypeText, lDeclaredTypeRange) then
       SetDeclaredType(lItemNode, lDeclaredTypeText, lDeclaredTypeRange);
     SkipToDeclarationEnd;
     SkipDeclarationTailDirectives;
+    SetNodeRange(lItemNode, lItemNode.Range.StartPos, FLastDeclarationEnd);
   end;
 end;
 
@@ -869,6 +876,7 @@ begin
     end;
     lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
     lItemNode.Range := TokenRange(lNameToken);
+    lItemNode.NameRange := TokenRange(lNameToken);
     lItems.Clear;
     lItems.Add(lItemNode);
     while FStream.MatchSymbol(',') do
@@ -876,6 +884,7 @@ begin
       begin
         lItemNode := lNode.AddChild(pnkVarDecl, lNameToken.Text);
         lItemNode.Range := TokenRange(lNameToken);
+        lItemNode.NameRange := TokenRange(lNameToken);
         lItems.Add(lItemNode);
       end;
     if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
@@ -885,6 +894,9 @@ begin
           lDeclaredTypeRange);
     SkipToDeclarationEnd;
     SkipDeclarationTailDirectives;
+    for lIdx := 0 to lItems.Count - 1 do
+      SetNodeRange(TNXPasASTNode(lItems[lIdx]),
+        TNXPasASTNode(lItems[lIdx]).Range.StartPos, FLastDeclarationEnd);
   end;
   finally
     lItems.Free;
@@ -907,6 +919,7 @@ var
   lEndToken: TNXPasToken;
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
+  lOwnerRange: TNXPasSourceRange;
   lRoutineName: string;
 begin
   lNode := AParent.AddChild(pnkRoutineDecl);
@@ -915,8 +928,17 @@ begin
   begin
     lRoutineName := lNameToken.Text;
     lEndToken := lNameToken;
+    lOwnerRange.StartPos.Offset := 0;
+    lOwnerRange.StartPos.Line := 0;
+    lOwnerRange.StartPos.Column := 0;
+    lOwnerRange.EndPos.Offset := 0;
+    lOwnerRange.EndPos.Line := 0;
+    lOwnerRange.EndPos.Column := 0;
     while FStream.MatchSymbol('.') do
     begin
+      if lOwnerRange.StartPos.Offset = 0 then
+        lOwnerRange.StartPos := lEndToken.StartPos;
+      lOwnerRange.EndPos := lEndToken.EndPos;
       if not FStream.ExpectIdentifierToken(lNameToken) then
         Break;
       lRoutineName := lRoutineName + '.' + lNameToken.Text;
@@ -924,6 +946,7 @@ begin
     end;
     lNode.Name := lRoutineName;
     lNode.NameRange := TokenRange(lEndToken);
+    lNode.OwnerNameRange := lOwnerRange;
     SetNodeRange(lNode, AStartPos, lEndToken.EndPos);
   end
   else
@@ -980,12 +1003,14 @@ begin
 
       lParamNode := AParent.AddChild(pnkParameterDecl, lNameToken.Text);
       lParamNode.Range := TokenRange(lNameToken);
+      lParamNode.NameRange := TokenRange(lNameToken);
       lItems.Add(lParamNode);
       while FStream.MatchSymbol(',') do
         if FStream.ExpectIdentifierToken(lNameToken) then
         begin
           lParamNode := AParent.AddChild(pnkParameterDecl, lNameToken.Text);
           lParamNode.Range := TokenRange(lNameToken);
+          lParamNode.NameRange := TokenRange(lNameToken);
           lItems.Add(lParamNode);
         end;
 
@@ -1095,9 +1120,26 @@ begin
 
   lNode := AParent.AddChild(pnkTypeDecl, lNameToken.Text);
   lNode.Range := TokenRange(lNameToken);
+  lNode.NameRange := TokenRange(lNameToken);
   if not FStream.MatchSymbol('=') then
   begin
     SkipToDeclarationEnd;
+    Exit;
+  end;
+
+  if FStream.Check(ptkKeyword, 'class') and
+    FStream.CheckPeek(1, ptkKeyword, 'of') then
+  begin
+    lTypeToken := FStream.Current;
+    FStream.Next;
+    if CaptureDeclaredType(False, False, lDeclaredTypeText,
+      lDeclaredTypeRange) then
+    begin
+      lDeclaredTypeRange.StartPos := lTypeToken.StartPos;
+      SetDeclaredType(lNode, 'class ' + lDeclaredTypeText,
+        lDeclaredTypeRange);
+    end;
+    SkipToDeclarationEnd(False);
     Exit;
   end;
 
@@ -1105,19 +1147,8 @@ begin
   begin
     lTypeToken := FStream.Current;
     FStream.Next;
-    if FStream.Check(ptkKeyword, 'of') then
-    begin
-      if CaptureDeclaredType(False, False, lDeclaredTypeText,
-        lDeclaredTypeRange) then
-      begin
-        lDeclaredTypeRange.StartPos := lTypeToken.StartPos;
-        SetDeclaredType(lNode, 'class ' + lDeclaredTypeText,
-          lDeclaredTypeRange);
-      end;
-      SkipToDeclarationEnd(False);
-      Exit;
-    end;
     lChildNode := lNode.AddChild(pnkClassDecl, lNameToken.Text);
+    lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, lTypeToken.EndPos);
     CaptureStructuredTypeHeritage(lChildNode);
     if TryFinishForwardStructuredType(lNode, lChildNode) then
@@ -1129,6 +1160,7 @@ begin
   else if FStream.Check(ptkKeyword, 'object') then
   begin
     lChildNode := lNode.AddChild(pnkObjectDecl, lNameToken.Text);
+    lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
     CaptureStructuredTypeHeritage(lChildNode);
@@ -1141,6 +1173,7 @@ begin
   else if FStream.Check(ptkKeyword, 'record') then
   begin
     lChildNode := lNode.AddChild(pnkRecordDecl, lNameToken.Text);
+    lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
     ParseStructuredTypeBody(lChildNode);
@@ -1150,6 +1183,7 @@ begin
   else if FStream.Check(ptkKeyword, 'interface') then
   begin
     lChildNode := lNode.AddChild(pnkInterfaceDecl, lNameToken.Text);
+    lChildNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
     CaptureStructuredTypeHeritage(lChildNode);
@@ -1247,25 +1281,27 @@ begin
       Continue;
     end;
 
-    if FStream.Check(ptkKeyword, 'class') then
+    if FStream.Check(ptkKeyword, 'class') and
+      FStream.CheckPeek(1, ptkKeyword, 'var') then
+    begin
+      FStream.Next;
+      FStream.Next;
+      Continue;
+    end;
+
+    if FStream.Check(ptkKeyword, 'class') and IsRoutineKeywordAt(1) then
     begin
       lClassStartPos := FStream.Current.StartPos;
       FStream.Next;
-      if FStream.Check(ptkKeyword, 'var') then
-      begin
-        FStream.Next;
-        Continue;
-      end;
-      if IsRoutineKeyword then
-      begin
-        ParseRoutineDeclAt(ANode, lClassStartPos);
-        Continue;
-      end;
-      if FStream.Check(ptkKeyword, 'property') then
-      begin
-        ParsePropertyDecl(ANode);
-        Continue;
-      end;
+      ParseRoutineDeclAt(ANode, lClassStartPos);
+      Continue;
+    end;
+
+    if FStream.Check(ptkKeyword, 'class') and
+      FStream.CheckPeek(1, ptkKeyword, 'property') then
+    begin
+      FStream.Next;
+      ParsePropertyDecl(ANode);
       Continue;
     end;
 
@@ -1325,12 +1361,14 @@ begin
   try
   lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
   lNode.Range := TokenRange(lNameToken);
+  lNode.NameRange := TokenRange(lNameToken);
   lItems.Add(lNode);
   while FStream.MatchSymbol(',') do
     if ExpectFieldNameToken(lNameToken) then
     begin
       lNode := AParent.AddChild(pnkFieldDecl, lNameToken.Text);
       lNode.Range := TokenRange(lNameToken);
+      lNode.NameRange := TokenRange(lNameToken);
       lItems.Add(lNode);
     end;
   if FStream.MatchSymbol(':') and CaptureDeclaredType(False, False,
@@ -1339,6 +1377,9 @@ begin
       SetDeclaredType(TNXPasASTNode(lItems[lIdx]), lDeclaredTypeText,
         lDeclaredTypeRange);
   SkipToDeclarationEnd;
+  for lIdx := 0 to lItems.Count - 1 do
+    SetNodeRange(TNXPasASTNode(lItems[lIdx]),
+      TNXPasASTNode(lItems[lIdx]).Range.StartPos, FLastDeclarationEnd);
   finally
     lItems.Free;
   end;
@@ -1353,10 +1394,12 @@ var
   lStartPos: TNXPasSourcePosition;
 begin
   lStartPos := FStream.Current.StartPos;
+  lNode := nil;
   FStream.Next;
   if FStream.ExpectIdentifierToken(lNameToken) then
   begin
     lNode := AParent.AddChild(pnkPropertyDecl, lNameToken.Text);
+    lNode.NameRange := TokenRange(lNameToken);
     SetNodeRange(lNode, lStartPos, lNameToken.EndPos);
     SkipPropertyParameters;
     if FStream.MatchSymbol(':') and CaptureDeclaredType(True, False,
@@ -1364,10 +1407,16 @@ begin
       SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   end;
   SkipToDeclarationEnd;
+  if lNode <> nil then
+    SetNodeRange(lNode, lNode.Range.StartPos, FLastDeclarationEnd);
   while (FStream.Current.Kind in [ptkIdentifier, ptkKeyword]) and
     (SameText(FStream.Current.Text, 'default') or
     SameText(FStream.Current.Text, 'nodefault')) do
+  begin
     SkipToDeclarationEnd;
+    if lNode <> nil then
+      SetNodeRange(lNode, lNode.Range.StartPos, FLastDeclarationEnd);
+  end;
 end;
 
 function TNXPasParser.ExpectDeclarationNameToken(

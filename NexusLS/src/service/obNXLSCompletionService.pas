@@ -16,7 +16,6 @@ uses
 type
   TNXLSCompletionService = class(TNXLSLSPService)
   private
-    FWorkspaceIndex: TNXPasWorkspaceIndex;
     procedure AddCompletionItem(AResult: TNXLSCompletionItemArray;
       const ALabel: string; AKind: Integer; const ADetail: string;
       ASeen: TStrings);
@@ -29,9 +28,13 @@ type
       ASeen: TStrings);
     procedure FillSymbolCompletions(AResult: TNXLSCompletionItemArray;
       const APrefix: string; ALine, AColumn: Integer; ASeen: TStrings);
+    function FindIndexedFile(const AURI: string): TNXPasIndexedFile;
     procedure FindSignatureCandidates(const AName, AURI: string;
       AResults: TNXPasRoutineSignatureList);
+    function PositionIsInactive(AFile: TNXPasIndexedFile; ALine,
+      AColumn: Integer): Boolean;
     function SymbolCompletionKind(AKind: TNXPasSymbolKind): Integer;
+    function WorkspaceIndex: TNXPasWorkspaceIndex;
   public
     constructor Create(AModel: TNXLSLSPContext); override;
     destructor Destroy; override;
@@ -39,8 +42,6 @@ type
       AResult: TNXLSCompletionItemArray); virtual;
     function FillSignatureHelp(AParams: TNXLSSignatureHelpParams;
       AResult: TNXLSSignatureHelp): Boolean; virtual;
-    procedure RebuildWorkspaceIndex;
-    procedure ReindexDocument(ADocument: TNXLSDocument);
   end;
 
 implementation
@@ -54,13 +55,10 @@ uses
 constructor TNXLSCompletionService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
-  FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
-  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
 end;
 
 destructor TNXLSCompletionService.Destroy;
 begin
-  FreeAndNil(FWorkspaceIndex);
   inherited Destroy;
 end;
 
@@ -71,6 +69,7 @@ var
   lPrefix: string;
   lReceiverName: string;
   lSeen: TStringList;
+  lIndexedFile: TNXPasIndexedFile;
   lSource: TNXPasSourceFile;
 begin
   if AResult = nil then
@@ -85,9 +84,14 @@ begin
   lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
     lDocument.Text);
   try
+    lIndexedFile := FindIndexedFile(lDocument.URI);
     lSeen.CaseSensitive := False;
     lSeen.Sorted := True;
     lSeen.Duplicates := dupIgnore;
+
+    if PositionIsInactive(lIndexedFile, AParams.position.line.Value,
+      AParams.position.character.Value) then
+      Exit;
 
     if TNXPasCompletionHelper.CompletionSuppressedAtPosition(lSource,
       AParams.position.line.Value, AParams.position.character.Value) then
@@ -135,7 +139,7 @@ begin
   lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
     lDocument.Text);
   try
-    if TNXPasSignatureHelper.PositionIsInactive(lSource,
+    if PositionIsInactive(FindIndexedFile(lDocument.URI),
       AParams.position.line.Value, AParams.position.character.Value) then
       Exit;
 
@@ -240,7 +244,7 @@ begin
   lReceiverMatch := nil;
   lTypeMatch := nil;
   try
-    if not TNXPasMemberLookup.ResolveReceiverType(FWorkspaceIndex, AURI,
+    if not TNXPasMemberLookup.ResolveReceiverType(WorkspaceIndex, AURI,
       AReceiverName, ALine, AColumn, lReceiverMatch, lTypeMatch) then
       Exit;
 
@@ -272,7 +276,7 @@ var
 begin
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.QuerySymbols('', lMatches);
+    WorkspaceIndex.QuerySymbols('', lMatches);
     for lIdx := 0 to lMatches.Count - 1 do
     begin
       lMatch := lMatches.MatchAt(lIdx);
@@ -307,7 +311,7 @@ begin
 
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     for lIdx := 0 to lMatches.Count - 1 do
     begin
       lMatch := lMatches.MatchAt(lIdx);
@@ -321,6 +325,42 @@ begin
     end;
   finally
     lMatches.Free;
+  end;
+end;
+
+function TNXLSCompletionService.FindIndexedFile(
+  const AURI: string): TNXPasIndexedFile;
+var
+  lIdx: Integer;
+begin
+  Result := nil;
+  for lIdx := 0 to WorkspaceIndex.FileCount - 1 do
+    if SameText(WorkspaceIndex.Files[lIdx].URI, AURI) then
+      Exit(WorkspaceIndex.Files[lIdx]);
+end;
+
+function TNXLSCompletionService.PositionIsInactive(AFile: TNXPasIndexedFile;
+  ALine, AColumn: Integer): Boolean;
+var
+  lIdx: Integer;
+  lRange: TNXPasSourceRange;
+begin
+  Result := False;
+  if AFile = nil then
+    Exit;
+
+  for lIdx := 0 to AFile.Metadata.InactiveRegions.Count - 1 do
+  begin
+    lRange := AFile.Metadata.InactiveRegions.RegionAt(lIdx).Range;
+    if (ALine < lRange.StartPos.Line) or (ALine > lRange.EndPos.Line) then
+      Continue;
+    if (ALine = lRange.StartPos.Line) and
+      (AColumn < lRange.StartPos.Column) then
+      Continue;
+    if (ALine = lRange.EndPos.Line) and
+      (AColumn > lRange.EndPos.Column) then
+      Continue;
+    Exit(True);
   end;
 end;
 
@@ -356,29 +396,9 @@ begin
   end;
 end;
 
-procedure TNXLSCompletionService.RebuildWorkspaceIndex;
-var
-  lIdx: Integer;
+function TNXLSCompletionService.WorkspaceIndex: TNXPasWorkspaceIndex;
 begin
-  FWorkspaceIndex.Clear;
-  for lIdx := 0 to Model.DocumentCount - 1 do
-    ReindexDocument(Model.DocumentByIndex(lIdx));
-end;
-
-procedure TNXLSCompletionService.ReindexDocument(ADocument: TNXLSDocument);
-var
-  lSource: TNXPasSourceFile;
-begin
-  if ADocument = nil then
-    Exit;
-
-  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
-    ADocument.Text);
-  try
-    FWorkspaceIndex.UpdateSourceFile(lSource);
-  finally
-    lSource.Free;
-  end;
+  Result := Model.PascalLanguage.WorkspaceIndex;
 end;
 
 end.

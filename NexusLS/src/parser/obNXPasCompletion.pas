@@ -30,7 +30,6 @@ implementation
 uses
   SysUtils,
   obNXPasLexer,
-  obNXPasSignatures,
   tpNXPasTokens;
 
 class function TNXPasCompletionHelper.PositionInRange(ALine, AColumn: Integer;
@@ -136,9 +135,6 @@ begin
   Result := False;
   if ASource = nil then
     Exit;
-
-  if TNXPasSignatureHelper.PositionIsInactive(ASource, ALine, AColumn) then
-    Exit(True);
 
   lLexer := TNXPasLexer.Create(ASource.Text);
   try

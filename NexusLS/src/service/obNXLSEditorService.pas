@@ -15,15 +15,18 @@ uses
 type
   TNXLSEditorService = class(TNXLSLSPService)
   private
-    FWorkspaceIndex: TNXPasWorkspaceIndex;
+    function FindIndexedFile(const AURI: string): TNXPasIndexedFile;
     function FindSymbol(const AName, AURI: string;
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function FindSymbolAtPosition(const AName, AURI: string; ALine,
       AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
     function HoverText(AMatch: TNXPasWorkspaceSymbolMatch): string;
+    function PositionIsInactive(AFile: TNXPasIndexedFile; ALine,
+      AColumn: Integer): Boolean;
     function ResolveMemberAtParams(AParams: TNXLSTextDocumentPositionParams;
       out AIsMemberAccess: Boolean;
       out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function WorkspaceIndex: TNXPasWorkspaceIndex;
     procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
       AEndLine, AEndColumn: Integer);
   public
@@ -37,8 +40,6 @@ type
       AResult: TNXLSHover): Boolean; virtual;
     procedure FillInlayHints(AParams: TNXLSInlayHintParams;
       AResult: TNXLSInlayHintArray); virtual;
-    procedure RebuildWorkspaceIndex;
-    procedure ReindexDocument(ADocument: TNXLSDocument);
   end;
 
 implementation
@@ -56,13 +57,10 @@ uses
 constructor TNXLSEditorService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
-  FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
-  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
 end;
 
 destructor TNXLSEditorService.Destroy;
 begin
-  FreeAndNil(FWorkspaceIndex);
   inherited Destroy;
 end;
 
@@ -79,6 +77,7 @@ var
   lDocument: TNXLSDocument;
   lHighlight: TNXLSDocumentHighlight;
   lIdx: Integer;
+  lIndexedFile: TNXPasIndexedFile;
   lReferences: TNXPasReferenceMatchList;
   lSource: TNXPasSourceFile;
   lTempIndex: TNXPasWorkspaceIndex;
@@ -96,6 +95,11 @@ begin
   lReferences := TNXPasReferenceMatchList.Create(True);
   lTempIndex := TNXPasWorkspaceIndex.Create;
   try
+    lIndexedFile := FindIndexedFile(lDocument.URI);
+    if PositionIsInactive(lIndexedFile, AParams.position.line.Value,
+      AParams.position.character.Value) then
+      Exit;
+
     if TNXPasCompletionHelper.CompletionSuppressedAtPosition(lSource,
       AParams.position.line.Value, AParams.position.character.Value) then
       Exit;
@@ -127,6 +131,7 @@ function TNXLSEditorService.FillHover(AParams: TNXLSTextDocumentPositionParams;
 var
   lDocument: TNXLSDocument;
   lIdentifierRange: TNXPasSourceRange;
+  lIndexedFile: TNXPasIndexedFile;
   lIsMemberAccess: Boolean;
   lMatch: TNXPasWorkspaceSymbolMatch;
   lName: string;
@@ -141,6 +146,11 @@ begin
   lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
     lDocument.Text);
   try
+    lIndexedFile := FindIndexedFile(lDocument.URI);
+    if PositionIsInactive(lIndexedFile, AParams.position.line.Value,
+      AParams.position.character.Value) then
+      Exit;
+
     if TNXPasCompletionHelper.CompletionSuppressedAtPosition(lSource,
       AParams.position.line.Value, AParams.position.character.Value) then
       Exit;
@@ -196,6 +206,17 @@ begin
     AResult.Assigned := True;
 end;
 
+function TNXLSEditorService.FindIndexedFile(
+  const AURI: string): TNXPasIndexedFile;
+var
+  lIdx: Integer;
+begin
+  Result := nil;
+  for lIdx := 0 to WorkspaceIndex.FileCount - 1 do
+    if SameText(WorkspaceIndex.Files[lIdx].URI, AURI) then
+      Exit(WorkspaceIndex.Files[lIdx]);
+end;
+
 function TNXLSEditorService.FindSymbol(const AName, AURI: string;
   out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
 var
@@ -208,7 +229,7 @@ begin
 
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     if lMatches.Count = 0 then
       Exit;
 
@@ -233,7 +254,7 @@ begin
 
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     for lIdx := 0 to lMatches.Count - 1 do
       if NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol) and
         NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
@@ -253,6 +274,31 @@ begin
       end;
   finally
     lMatches.Free;
+  end;
+end;
+
+function TNXLSEditorService.PositionIsInactive(AFile: TNXPasIndexedFile;
+  ALine, AColumn: Integer): Boolean;
+var
+  lIdx: Integer;
+  lRange: TNXPasSourceRange;
+begin
+  Result := False;
+  if AFile = nil then
+    Exit;
+
+  for lIdx := 0 to AFile.Metadata.InactiveRegions.Count - 1 do
+  begin
+    lRange := AFile.Metadata.InactiveRegions.RegionAt(lIdx).Range;
+    if (ALine < lRange.StartPos.Line) or (ALine > lRange.EndPos.Line) then
+      Continue;
+    if (ALine = lRange.StartPos.Line) and
+      (AColumn < lRange.StartPos.Column) then
+      Continue;
+    if (ALine = lRange.EndPos.Line) and
+      (AColumn > lRange.EndPos.Column) then
+      Continue;
+    Exit(True);
   end;
 end;
 
@@ -291,7 +337,7 @@ begin
   lReceiverMatch := nil;
   lTypeMatch := nil;
   try
-    if not TNXPasMemberLookup.ResolveReceiverType(FWorkspaceIndex,
+    if not TNXPasMemberLookup.ResolveReceiverType(WorkspaceIndex,
       lDocument.URI, lReceiverName, AParams.position.line.Value,
       AParams.position.character.Value, lReceiverMatch, lTypeMatch) then
       Exit;
@@ -341,37 +387,17 @@ begin
     AMatch.Symbol.Name;
 end;
 
-procedure TNXLSEditorService.RebuildWorkspaceIndex;
-var
-  lIdx: Integer;
-begin
-  FWorkspaceIndex.Clear;
-  for lIdx := 0 to Model.DocumentCount - 1 do
-    ReindexDocument(Model.DocumentByIndex(lIdx));
-end;
-
-procedure TNXLSEditorService.ReindexDocument(ADocument: TNXLSDocument);
-var
-  lSource: TNXPasSourceFile;
-begin
-  if ADocument = nil then
-    Exit;
-
-  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
-    ADocument.Text);
-  try
-    FWorkspaceIndex.UpdateSourceFile(lSource);
-  finally
-    lSource.Free;
-  end;
-end;
-
 procedure TNXLSEditorService.SetRange(ARange: TNXLSRange; AStartLine,
   AStartColumn, AEndLine, AEndColumn: Integer);
 begin
   NXLSSetPosition(ARange.start, AStartLine, AStartColumn);
   NXLSSetPosition(ARange.&end, AEndLine, AEndColumn);
   ARange.Assigned := True;
+end;
+
+function TNXLSEditorService.WorkspaceIndex: TNXPasWorkspaceIndex;
+begin
+  Result := Model.PascalLanguage.WorkspaceIndex;
 end;
 
 end.

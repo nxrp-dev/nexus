@@ -37,8 +37,6 @@ type
     class function TokenIsDeclaration(const ARange: TNXPasSourceRange;
       AFile: TNXPasIndexedFile;
       ADeclarations: TNXPasWorkspaceSymbolMatchList): Boolean; static;
-    class function BuildInactiveRegions(AFile: TNXPasIndexedFile):
-      TNXPasInactiveRegionList; static;
   public
     class function IdentifierAtPosition(ASource: TNXPasSourceFile;
       ALine, AColumn: Integer; out AName: string;
@@ -55,10 +53,7 @@ implementation
 
 uses
   SysUtils,
-  obNXPasAST,
-  obNXPasDiagnostics,
   obNXPasLexer,
-  obNXPasParser,
   tpNXPasTokens;
 
 function TNXPasReferenceMatchList.AddMatch(AFile: TNXPasIndexedFile;
@@ -138,35 +133,6 @@ begin
   end;
 end;
 
-class function TNXPasLookup.BuildInactiveRegions(
-  AFile: TNXPasIndexedFile): TNXPasInactiveRegionList;
-var
-  lDiagnostics: TNXPasDiagnosticList;
-  lIdx: Integer;
-  lParser: TNXPasParser;
-  lSource: TNXPasSourceFile;
-  lTree: TNXPasSyntaxTree;
-begin
-  Result := TNXPasInactiveRegionList.Create(True);
-  if AFile = nil then
-    Exit;
-
-  lDiagnostics := TNXPasDiagnosticList.Create(True);
-  lSource := TNXPasSourceFile.Create(AFile.FileName, AFile.URI, AFile.Text);
-  lParser := TNXPasParser.Create(lDiagnostics);
-  lTree := nil;
-  try
-    lTree := lParser.Parse(lSource);
-    for lIdx := 0 to lTree.InactiveRegions.Count - 1 do
-      Result.AddRegion(lTree.InactiveRegions.RegionAt(lIdx).Range);
-  finally
-    lTree.Free;
-    lParser.Free;
-    lSource.Free;
-    lDiagnostics.Free;
-  end;
-end;
-
 class function TNXPasLookup.IdentifierAtPosition(ASource: TNXPasSourceFile;
   ALine, AColumn: Integer; out AName: string;
   out ARange: TNXPasSourceRange): Boolean;
@@ -234,7 +200,6 @@ var
   lDeclarations: TNXPasWorkspaceSymbolMatchList;
   lFile: TNXPasIndexedFile;
   lFileIdx: Integer;
-  lInactiveRegions: TNXPasInactiveRegionList;
   lLexer: TNXPasLexer;
   lRange: TNXPasSourceRange;
   lToken: TNXPasToken;
@@ -250,7 +215,6 @@ begin
     for lFileIdx := 0 to AIndex.FileCount - 1 do
     begin
       lFile := AIndex.Files[lFileIdx];
-      lInactiveRegions := BuildInactiveRegions(lFile);
       lLexer := TNXPasLexer.Create(lFile.Text);
       try
         repeat
@@ -259,7 +223,8 @@ begin
           begin
             lRange.StartPos := lToken.StartPos;
             lRange.EndPos := lToken.EndPos;
-            if (not TokenIsInactive(lRange, lInactiveRegions)) and
+            if (not TokenIsInactive(lRange,
+              lFile.Metadata.InactiveRegions)) and
               (AIncludeDeclaration or
               (not TokenIsDeclaration(lRange, lFile, lDeclarations))) then
               AResults.AddMatch(lFile, lRange);
@@ -267,7 +232,6 @@ begin
         until lToken.Kind = ptkEndOfFile;
       finally
         lLexer.Free;
-        lInactiveRegions.Free;
       end;
     end;
   finally

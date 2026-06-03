@@ -14,6 +14,7 @@ implementation
 uses
   obNXPasDiagnostics,
   obNXPasLexer,
+  obNXPasTokenStream,
   obNXTestContext,
   obNXTestSuite,
   tpNXPasTokens;
@@ -288,6 +289,45 @@ begin
   end;
 end;
 
+procedure TestTokenStreamPeekDoesNotAdvance(AContext: TNXTestContext);
+var
+  lStream: TNXPasTokenStream;
+  lToken: TNXPasToken;
+begin
+  lStream := TNXPasTokenStream.Create(TNXPasLexer.Create(
+    'unit Sample;' + LineEnding + 'interface'), True);
+  try
+    AContext.AssertEquals('unit', lStream.Current.Text,
+      'Current token should start at unit.');
+
+    lToken := lStream.Peek(1);
+    AContext.AssertEquals('Sample', lToken.Text,
+      'Peek(1) should return the next significant token.');
+
+    lToken := lStream.Peek(2);
+    AContext.AssertEquals(';', lToken.Text,
+      'Peek(2) should return the second significant token.');
+
+    AContext.AssertEquals('unit', lStream.Current.Text,
+      'Peek should not advance Current.');
+
+    lStream.Next;
+    AContext.AssertEquals('Sample', lStream.Current.Text,
+      'Next should consume the buffered first peek token.');
+
+    lStream.Next;
+    AContext.AssertEquals(';', lStream.Current.Text,
+      'Next should consume the buffered second peek token.');
+
+    AContext.AssertTrue(lStream.CheckPeek(1, ptkKeyword, 'interface'),
+      'CheckPeek should inspect the next significant token.');
+    AContext.AssertEquals(';', lStream.Current.Text,
+      'CheckPeek should not advance Current.');
+  finally
+    lStream.Free;
+  end;
+end;
+
 procedure RegisterNXPasLexerTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -307,6 +347,8 @@ begin
     @TestUnterminatedBraceCommentDiagnostic);
   lSuite.AddTest('UnterminatedParenStarCommentDiagnostic',
     @TestUnterminatedParenStarCommentDiagnostic);
+  lSuite.AddTest('TokenStreamPeekDoesNotAdvance',
+    @TestTokenStreamPeekDoesNotAdvance);
 end;
 
 end.

@@ -11,6 +11,7 @@ uses
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
+  obNXPasLanguageContext,
   obNXPasSearchPaths,
   obNXPasUnitResolver;
 
@@ -56,12 +57,14 @@ type
     function PublishDiagnosticsEnabled: Boolean; virtual; abstract;
     function ShowSyntaxErrorsEnabled: Boolean; virtual; abstract;
     function EffectiveFPCOptionList: TStrings; virtual; abstract;
+    procedure AnalyzeDocument(ADocument: TNXLSDocument); virtual; abstract;
     procedure CheckDocument(ADocument: TNXLSDocument); virtual; abstract;
     procedure CheckInactiveRegions(ADocument: TNXLSDocument); virtual; abstract;
     procedure ReindexDocument(ADocument: TNXLSDocument); virtual; abstract;
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray); virtual; abstract;
     procedure RebuildWorkspaceIndex; virtual; abstract;
+    function PascalLanguage: TNXPasLanguageContext; virtual; abstract;
     function PascalSearchPathContext: TNXPasSearchPathContext; virtual; abstract;
     function PascalUnitResolver: TNXPasUnitResolver; virtual; abstract;
 

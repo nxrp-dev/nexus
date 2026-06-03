@@ -38,6 +38,7 @@ type
     FKind: TNXPasSymbolKind;
     FName: string;
     FNameRange: TNXPasSourceRange;
+    FOwnerNameRange: TNXPasSourceRange;
     FParent: TNXPasSymbol;
     FRange: TNXPasSourceRange;
     function GetChild(AIndex: Integer): TNXPasSymbol;
@@ -54,6 +55,7 @@ type
     property Kind: TNXPasSymbolKind read FKind write FKind;
     property Name: string read FName write FName;
     property NameRange: TNXPasSourceRange read FNameRange write FNameRange;
+    property OwnerNameRange: TNXPasSourceRange read FOwnerNameRange write FOwnerNameRange;
     property Parent: TNXPasSymbol read FParent write FParent;
     property Range: TNXPasSourceRange read FRange write FRange;
   end;
@@ -62,6 +64,7 @@ type
   public
     function AddSymbol(AKind: TNXPasSymbolKind; const AName: string;
       const ARange: TNXPasSourceRange): TNXPasSymbol;
+    procedure AssignFrom(ASource: TNXPasSymbolTable);
     function SymbolAt(AIndex: Integer): TNXPasSymbol;
   end;
 
@@ -131,6 +134,49 @@ begin
   Result.Parent := nil;
   Result.Range := ARange;
   Add(Result);
+end;
+
+procedure TNXPasSymbolTable.AssignFrom(ASource: TNXPasSymbolTable);
+
+  procedure CopyChildren(ASourceSymbol, ADestSymbol: TNXPasSymbol);
+  var
+    lChild: TNXPasSymbol;
+    lDestChild: TNXPasSymbol;
+    lIdx: Integer;
+  begin
+    for lIdx := 0 to ASourceSymbol.ChildCount - 1 do
+    begin
+      lChild := ASourceSymbol.Children[lIdx];
+      lDestChild := ADestSymbol.AddChild(lChild.Kind, lChild.Name,
+        lChild.Range);
+      lDestChild.DeclaredTypeText := lChild.DeclaredTypeText;
+      lDestChild.DeclaredTypeRange := lChild.DeclaredTypeRange;
+      lDestChild.NameRange := lChild.NameRange;
+      lDestChild.OwnerNameRange := lChild.OwnerNameRange;
+      CopyChildren(lChild, lDestChild);
+    end;
+  end;
+
+var
+  lDestSymbol: TNXPasSymbol;
+  lIdx: Integer;
+  lSourceSymbol: TNXPasSymbol;
+begin
+  Clear;
+  if ASource = nil then
+    Exit;
+
+  for lIdx := 0 to ASource.Count - 1 do
+  begin
+    lSourceSymbol := ASource.SymbolAt(lIdx);
+    lDestSymbol := AddSymbol(lSourceSymbol.Kind, lSourceSymbol.Name,
+      lSourceSymbol.Range);
+    lDestSymbol.DeclaredTypeText := lSourceSymbol.DeclaredTypeText;
+    lDestSymbol.DeclaredTypeRange := lSourceSymbol.DeclaredTypeRange;
+    lDestSymbol.NameRange := lSourceSymbol.NameRange;
+    lDestSymbol.OwnerNameRange := lSourceSymbol.OwnerNameRange;
+    CopyChildren(lSourceSymbol, lDestSymbol);
+  end;
 end;
 
 function TNXPasSymbolTable.SymbolAt(AIndex: Integer): TNXPasSymbol;
@@ -216,6 +262,7 @@ begin
     lSymbol.DeclaredTypeText := ANode.DeclaredTypeText;
     lSymbol.DeclaredTypeRange := ANode.DeclaredTypeRange;
     lSymbol.NameRange := ANode.NameRange;
+    lSymbol.OwnerNameRange := ANode.OwnerNameRange;
   end;
 
   if lSymbol <> nil then

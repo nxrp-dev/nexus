@@ -8,11 +8,15 @@ uses
   obNXJSONValues,
   obNXJSONRPCMessages,
   obNXJSONRPCObjects,
-  obNXLSServiceContext;
+  obNXLSDocumentParse,
+  obNXLSServiceContext,
+  obNXPasDocumentAnalysis;
 
 type
   TNXLSInactiveRegionService = class(TNXLSLSPService)
   public
+    procedure CheckAnalysis(ADocument: TNXLSDocument;
+      AAnalysis: TNXPasDocumentAnalysis); virtual;
     procedure CheckDocument(ADocument: TNXLSDocument); virtual;
   end;
 
@@ -20,7 +24,6 @@ implementation
 
 uses
   SysUtils,
-  obNXLSDocumentParse,
   obNXPasSource;
 
 type
@@ -83,27 +86,25 @@ begin
   inherited params := AValue;
 end;
 
-procedure TNXLSInactiveRegionService.CheckDocument(ADocument: TNXLSDocument);
+procedure TNXLSInactiveRegionService.CheckAnalysis(ADocument: TNXLSDocument;
+  AAnalysis: TNXPasDocumentAnalysis);
 var
   lIdx: Integer;
   lNotification: TNXLSInactiveRegionsNotification;
-  lParseResult: TNXLSDocumentParseResult;
   lRegion: TNXLSInactiveRegion;
   lSourceRegion: TNXPasInactiveRegion;
 begin
-  if ADocument = nil then
+  if (ADocument = nil) or (AAnalysis = nil) then
     Exit;
 
   lNotification := TNXLSInactiveRegionsNotification.Create;
-  lParseResult := nil;
   try
-    lParseResult := TNXLSDocumentParseResult.Create(ADocument);
     lNotification.params.uri.Value := ADocument.URI;
     lNotification.params.fileVersion.Value := ADocument.Version;
     lNotification.params.regions.Assigned := True;
-    for lIdx := 0 to lParseResult.Tree.InactiveRegions.Count - 1 do
+    for lIdx := 0 to AAnalysis.InactiveRegions.Count - 1 do
     begin
-      lSourceRegion := lParseResult.Tree.InactiveRegions.RegionAt(lIdx);
+      lSourceRegion := AAnalysis.InactiveRegions.RegionAt(lIdx);
       lRegion := TNXLSInactiveRegion(
         lNotification.params.regions.AddObject(TNXLSInactiveRegion));
       lRegion.startLine.Value := lSourceRegion.Range.StartPos.Line;
@@ -115,8 +116,22 @@ begin
     Model.SendClientNotification(lNotification);
     lNotification := nil;
   finally
-    lParseResult.Free;
     lNotification.Free;
+  end;
+end;
+
+procedure TNXLSInactiveRegionService.CheckDocument(ADocument: TNXLSDocument);
+var
+  lAnalysis: TNXPasDocumentAnalysis;
+begin
+  if ADocument = nil then
+    Exit;
+
+  lAnalysis := Model.PascalLanguage.AnalyzeSource(NXLSCreatePascalSource(ADocument));
+  try
+    CheckAnalysis(ADocument, lAnalysis);
+  finally
+    lAnalysis.Free;
   end;
 end;
 

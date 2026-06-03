@@ -8,6 +8,7 @@ uses
   Classes,
   Contnrs,
   obNXPasDiagnostics,
+  obNXPasDocumentAnalysis,
   obNXPasMetadata,
   obNXPasProject,
   obNXPasSource,
@@ -127,6 +128,8 @@ type
     procedure ListUnresolvedUses(AResults: TNXPasUnresolvedUsesList);
     procedure BuildDependencyManifest(AManifest: TNXPasDependencyManifest);
     procedure RemoveFile(const AURI: string);
+    function UpdateAnalyzedFile(AAnalysis: TNXPasDocumentAnalysis):
+      TNXPasIndexedFile;
     function UpdateSourceFile(ASource: TNXPasSourceFile): TNXPasIndexedFile;
     property Files[AIndex: Integer]: TNXPasIndexedFile read GetFile;
     property LocalSourceDirs: TStringList read FLocalSourceDirs;
@@ -138,8 +141,6 @@ implementation
 
 uses
   SysUtils,
-  obNXPasAST,
-  obNXPasParser,
   obNXPasUnitLocator;
 
 function TNXPasUsesRelationshipList.AddRelationship(AFromFile,
@@ -463,16 +464,36 @@ end;
 function TNXPasWorkspaceIndex.UpdateSourceFile(
   ASource: TNXPasSourceFile): TNXPasIndexedFile;
 var
-  lExtractor: TNXPasSymbolExtractor;
-  lIdx: Integer;
-  lParser: TNXPasParser;
-  lTree: TNXPasSyntaxTree;
+  lAnalysis: TNXPasDocumentAnalysis;
+  lAnalyzer: TNXPasAnalyzer;
 begin
+  Result := nil;
   if ASource = nil then
+    Exit;
+
+  lAnalyzer := TNXPasAnalyzer.Create;
+  lAnalysis := nil;
+  try
+    lAnalysis := lAnalyzer.Analyze(TNXPasSourceFile.Create(ASource.FileName,
+      ASource.URI, ASource.Text));
+    Result := UpdateAnalyzedFile(lAnalysis);
+  finally
+    lAnalysis.Free;
+    lAnalyzer.Free;
+  end;
+end;
+
+function TNXPasWorkspaceIndex.UpdateAnalyzedFile(
+  AAnalysis: TNXPasDocumentAnalysis): TNXPasIndexedFile;
+var
+  lDiagnostic: TNXPasDiagnostic;
+  lIdx: Integer;
+begin
+  if (AAnalysis = nil) or (AAnalysis.Source = nil) then
     Exit(nil);
 
-  AddSourceDirectory(ASource.FileName);
-  lIdx := FindFileIndexByURI(ASource.URI);
+  AddSourceDirectory(AAnalysis.Source.FileName);
+  lIdx := FindFileIndexByURI(AAnalysis.Source.URI);
   if lIdx >= 0 then
     Result := TNXPasIndexedFile(FFiles[lIdx])
   else
@@ -481,25 +502,23 @@ begin
     FFiles.Add(Result);
   end;
 
-  Result.FileName := ASource.FileName;
-  Result.URI := ASource.URI;
-  Result.Text := ASource.Text;
+  Result.FileName := AAnalysis.Source.FileName;
+  Result.URI := AAnalysis.Source.URI;
+  Result.Text := AAnalysis.Source.Text;
   Result.Diagnostics.Clear;
   Result.Metadata.Clear;
   Result.Symbols.Clear;
 
-  lParser := TNXPasParser.Create(Result.Diagnostics);
-  lExtractor := TNXPasSymbolExtractor.Create;
-  lTree := nil;
-  try
-    lTree := lParser.Parse(ASource);
-    Result.Metadata.AssignFrom(lTree.Metadata);
-    lExtractor.Extract(lTree, Result.Symbols);
-  finally
-    lTree.Free;
-    lExtractor.Free;
-    lParser.Free;
+  for lIdx := 0 to AAnalysis.Diagnostics.Count - 1 do
+  begin
+    lDiagnostic := AAnalysis.Diagnostics.DiagnosticAt(lIdx);
+    Result.Diagnostics.AddDiagnostic(lDiagnostic.Severity,
+      lDiagnostic.Message, lDiagnostic.Range, lDiagnostic.Code);
   end;
+
+  if AAnalysis.Metadata <> nil then
+    Result.Metadata.AssignFrom(AAnalysis.Metadata);
+  Result.Symbols.AssignFrom(AAnalysis.Symbols);
 end;
 
 procedure TNXPasWorkspaceIndex.AddExactSymbolMatches(AFile: TNXPasIndexedFile;

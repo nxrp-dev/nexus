@@ -18,7 +18,6 @@ uses
 type
   TNXLSNavigationService = class(TNXLSLSPService)
   private
-    FWorkspaceIndex: TNXPasWorkspaceIndex;
     procedure AddReferenceLocation(AResult: TNXLSLocationArray;
       AMatch: TNXPasReferenceMatch);
     function FindIdentifierAtParams(AParams: TNXLSTextDocumentPositionParams;
@@ -42,12 +41,9 @@ type
       AURI: string; AResult: TNXLSLocation): Boolean;
     function ImplementationLine(AFile: TNXPasIndexedFile): Integer;
     function IsImplementationSymbol(AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
-    function RoutineIdentity(ASymbol: TNXPasSymbol): string;
-    function RoutineOwnerName(ASymbol: TNXPasSymbol): string;
-    function RoutineParameterSignature(ASymbol: TNXPasSymbol): string;
-    function RoutineSimpleName(ASymbol: TNXPasSymbol): string;
     function TryFindRoutineAtPosition(const AURI: string; ALine,
       AColumn: Integer; out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
+    function WorkspaceIndex: TNXPasWorkspaceIndex;
     procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
       AEndLine, AEndColumn: Integer);
   public
@@ -71,8 +67,6 @@ type
       AReport: TStrings); virtual;
     procedure FillReferences(AParams: TNXLSReferenceParams;
       AResult: TNXLSLocationArray); virtual;
-    procedure RebuildWorkspaceIndex;
-    procedure ReindexDocument(ADocument: TNXLSDocument);
   end;
 
 implementation
@@ -80,18 +74,16 @@ implementation
 uses
   SysUtils,
   obNXPasMemberLookup,
+  obNXPasRoutineIdentity,
   obNXPasSource;
 
 constructor TNXLSNavigationService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
-  FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
-  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
 end;
 
 destructor TNXLSNavigationService.Destroy;
 begin
-  FreeAndNil(FWorkspaceIndex);
   inherited Destroy;
 end;
 
@@ -303,9 +295,9 @@ var
     if ASymbol.Kind = pskRoutine then
     begin
       AReport.Add(AIndent + 'routine name=' + ASymbol.Name +
-        ' parent=' + RoutineOwnerName(ASymbol) +
+        ' parent=' + NXPasRoutineOwnerName(ASymbol) +
         ' range=' + RangeText(ASymbol.Range) +
-        ' identity=' + RoutineIdentity(ASymbol));
+        ' identity=' + NXPasRoutineIdentity(ASymbol));
 
       lMatch := TNXPasWorkspaceSymbolMatch.Create;
       try
@@ -340,11 +332,11 @@ begin
   lColumn := AParams.position.character.Value;
   AReport.Add('uri=' + lURI);
   AReport.Add(Format('position=%d:%d', [lLine, lColumn]));
-  AReport.Add('file-count=' + IntToStr(FWorkspaceIndex.FileCount));
+  AReport.Add('file-count=' + IntToStr(WorkspaceIndex.FileCount));
 
-  for lFileIdx := 0 to FWorkspaceIndex.FileCount - 1 do
+  for lFileIdx := 0 to WorkspaceIndex.FileCount - 1 do
   begin
-    lFile := FWorkspaceIndex.Files[lFileIdx];
+    lFile := WorkspaceIndex.Files[lFileIdx];
     if lFile = nil then
       Continue;
 
@@ -366,7 +358,7 @@ begin
       AReport.Add('routine-at-position=true');
       AReport.Add('source.name=' + lMatch.Symbol.Name);
       AReport.Add('source.range=' + RangeText(lMatch.Symbol.Range));
-      AReport.Add('source.identity=' + RoutineIdentity(lMatch.Symbol));
+      AReport.Add('source.identity=' + NXPasRoutineIdentity(lMatch.Symbol));
       AReport.Add('source.implementation=' +
         BoolText(IsImplementationSymbol(lMatch)));
 
@@ -375,7 +367,7 @@ begin
         AReport.Add('pair-found=true');
         AReport.Add('pair.name=' + lPair.Symbol.Name);
         AReport.Add('pair.range=' + RangeText(lPair.Symbol.Range));
-        AReport.Add('pair.identity=' + RoutineIdentity(lPair.Symbol));
+        AReport.Add('pair.identity=' + NXPasRoutineIdentity(lPair.Symbol));
         AReport.Add('pair.implementation=' +
           BoolText(IsImplementationSymbol(lPair)));
       end
@@ -423,7 +415,7 @@ begin
       and AParams.context.includeDeclaration.Assigned then
       lIncludeDeclaration := AParams.context.includeDeclaration.Value;
 
-    TNXPasLookup.FindLexicalIdentifierReferences(FWorkspaceIndex, lName,
+    TNXPasLookup.FindLexicalIdentifierReferences(WorkspaceIndex, lName,
       lIncludeDeclaration, lReferences);
     for lIdx := 0 to lReferences.Count - 1 do
       AddReferenceLocation(AResult, lReferences.MatchAt(lIdx));
@@ -458,11 +450,6 @@ begin
   end;
 end;
 
-function NXLSNormalizedRoutineTypeText(const AText: string): string;
-begin
-  Result := StringReplace(UpperCase(Trim(AText)), ' ', '', [rfReplaceAll]);
-end;
-
 function TNXLSNavigationService.FindSymbol(const AName, AURI: string;
   out AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
 var
@@ -472,11 +459,11 @@ begin
   AMatch := nil;
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     if lMatches.Count = 0 then
     begin
-      FWorkspaceIndex.ResolveUnitReference(AName);
-      FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+      WorkspaceIndex.ResolveUnitReference(AName);
+      WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     end;
     if lMatches.Count = 0 then
       Exit;
@@ -507,7 +494,7 @@ var
       Exit;
 
     if (ASymbol.Kind = pskRoutine) and (ASymbol <> ASource.Symbol) and
-      (RoutineIdentity(ASymbol) = lIdentity) then
+      (NXPasRoutineIdentity(ASymbol) = lIdentity) then
     begin
       AMatch := TNXPasWorkspaceSymbolMatch.Create;
       AMatch.FileRef := lFile;
@@ -529,13 +516,13 @@ begin
   if (ASource = nil) or (ASource.Symbol = nil) then
     Exit;
 
-  lIdentity := RoutineIdentity(ASource.Symbol);
+  lIdentity := NXPasRoutineIdentity(ASource.Symbol);
   if lIdentity = '' then
     Exit;
 
-  for lFileIdx := 0 to FWorkspaceIndex.FileCount - 1 do
+  for lFileIdx := 0 to WorkspaceIndex.FileCount - 1 do
   begin
-    lFile := FWorkspaceIndex.Files[lFileIdx];
+    lFile := WorkspaceIndex.Files[lFileIdx];
     if lFile = nil then
       Continue;
 
@@ -556,7 +543,7 @@ begin
   AMatch := nil;
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     for lIdx := 0 to lMatches.Count - 1 do
       if NXPasSymbolIsRoutineOwned(lMatches.MatchAt(lIdx).Symbol) and
         NXPasSymbolIsVisibleAt(lMatches.MatchAt(lIdx).Symbol, ALine, AColumn) then
@@ -614,7 +601,7 @@ begin
   lReceiverMatch := nil;
   lTypeMatch := nil;
   try
-    if not TNXPasMemberLookup.ResolveReceiverType(FWorkspaceIndex,
+    if not TNXPasMemberLookup.ResolveReceiverType(WorkspaceIndex,
       lDocument.URI, lReceiverName, AParams.position.line.Value,
       AParams.position.character.Value, lReceiverMatch, lTypeMatch) then
       Exit;
@@ -644,7 +631,7 @@ begin
   AMatch := nil;
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
+    WorkspaceIndex.FindSymbolsByName(AName, AURI, lMatches);
     for lIdx := 0 to lMatches.Count - 1 do
     begin
       lMatch := lMatches.MatchAt(lIdx);
@@ -704,7 +691,7 @@ begin
   if AResult = nil then
     Exit;
 
-  lFile := FWorkspaceIndex.ResolveUnitReference(AName);
+  lFile := WorkspaceIndex.ResolveUnitReference(AName);
   if lFile = nil then
     Exit;
 
@@ -766,71 +753,6 @@ begin
   end;
 end;
 
-function TNXLSNavigationService.RoutineOwnerName(ASymbol: TNXPasSymbol): string;
-var
-  lDotPos: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  lDotPos := LastDelimiter('.', ASymbol.Name);
-  if lDotPos > 0 then
-    Exit(Copy(ASymbol.Name, 1, lDotPos - 1));
-
-  if (ASymbol.Parent <> nil) and (ASymbol.Parent.Kind in [pskClass,
-    pskRecord, pskObject, pskInterface]) then
-    Result := ASymbol.Parent.Name;
-end;
-
-function TNXLSNavigationService.RoutineParameterSignature(
-  ASymbol: TNXPasSymbol): string;
-var
-  lChild: TNXPasSymbol;
-  lIdx: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  for lIdx := 0 to ASymbol.ChildCount - 1 do
-  begin
-    lChild := ASymbol.Children[lIdx];
-    if lChild.Kind <> pskParameter then
-      Continue;
-
-    if Result <> '' then
-      Result := Result + ';';
-    Result := Result + NXLSNormalizedRoutineTypeText(lChild.DeclaredTypeText);
-  end;
-end;
-
-function TNXLSNavigationService.RoutineSimpleName(ASymbol: TNXPasSymbol): string;
-var
-  lDotPos: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  lDotPos := LastDelimiter('.', ASymbol.Name);
-  if lDotPos > 0 then
-    Result := Copy(ASymbol.Name, lDotPos + 1, MaxInt)
-  else
-    Result := ASymbol.Name;
-end;
-
-function TNXLSNavigationService.RoutineIdentity(ASymbol: TNXPasSymbol): string;
-begin
-  Result := '';
-  if (ASymbol = nil) or (ASymbol.Kind <> pskRoutine) then
-    Exit;
-
-  Result := UpperCase(RoutineOwnerName(ASymbol)) + '|' +
-    UpperCase(RoutineSimpleName(ASymbol)) + '|' +
-    RoutineParameterSignature(ASymbol);
-end;
-
 function TNXLSNavigationService.IsImplementationSymbol(
   AMatch: TNXPasWorkspaceSymbolMatch): Boolean;
 begin
@@ -887,9 +809,9 @@ begin
   lBestRangeSize := MaxInt;
   lBestSymbol := nil;
 
-  for lFileIdx := 0 to FWorkspaceIndex.FileCount - 1 do
+  for lFileIdx := 0 to WorkspaceIndex.FileCount - 1 do
   begin
-    lFile := FWorkspaceIndex.Files[lFileIdx];
+    lFile := WorkspaceIndex.Files[lFileIdx];
     if (lFile = nil) or (not SameText(lFile.URI, AURI)) then
       Continue;
 
@@ -922,37 +844,17 @@ begin
   lLocation.Assigned := True;
 end;
 
-procedure TNXLSNavigationService.RebuildWorkspaceIndex;
-var
-  lIdx: Integer;
-begin
-  FWorkspaceIndex.Clear;
-  for lIdx := 0 to Model.DocumentCount - 1 do
-    ReindexDocument(Model.DocumentByIndex(lIdx));
-end;
-
-procedure TNXLSNavigationService.ReindexDocument(ADocument: TNXLSDocument);
-var
-  lSource: TNXPasSourceFile;
-begin
-  if ADocument = nil then
-    Exit;
-
-  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
-    ADocument.Text);
-  try
-    FWorkspaceIndex.UpdateSourceFile(lSource);
-  finally
-    lSource.Free;
-  end;
-end;
-
 procedure TNXLSNavigationService.SetRange(ARange: TNXLSRange; AStartLine,
   AStartColumn, AEndLine, AEndColumn: Integer);
 begin
   NXLSSetPosition(ARange.start, AStartLine, AStartColumn);
   NXLSSetPosition(ARange.&end, AEndLine, AEndColumn);
   ARange.Assigned := True;
+end;
+
+function TNXLSNavigationService.WorkspaceIndex: TNXPasWorkspaceIndex;
+begin
+  Result := Model.PascalLanguage.WorkspaceIndex;
 end;
 
 end.

@@ -4,6 +4,7 @@ library NexusLSTestModule;
 
 uses
   SysUtils,
+  Windows,
   tpNXTest,
   obNXTestModule,
   obNXTestRegistry,
@@ -24,6 +25,16 @@ uses
 
 var
   gModule: TNXTestModule = nil;
+
+procedure ConfigureNexusLSTestCache;
+var
+  lRoot: string;
+begin
+  lRoot := IncludeTrailingPathDelimiter(GetTempDir(False)) +
+    'nexusls-test-module';
+  ForceDirectories(IncludeTrailingPathDelimiter(lRoot) + 'search-paths');
+  SetEnvironmentVariable(PChar('NEXUSLS_CACHE_DIR'), PChar(lRoot));
+end;
 
 procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
 begin
@@ -48,6 +59,7 @@ begin
     Exit(cNXTestSuccess);
 
   try
+    ConfigureNexusLSTestCache;
     gModule := TNXTestModule.Create(@RegisterNXLSTests);
     Result := cNXTestSuccess;
   except

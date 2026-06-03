@@ -7,6 +7,8 @@ interface
 uses
   obNXLSProtocolParams,
   obNXLSServiceContext,
+  obNXLSDocumentParse,
+  obNXPasDocumentAnalysis,
   obNXPasDiagnostics;
 
 type
@@ -16,13 +18,14 @@ type
       ADiagnostic: TNXPasDiagnostic);
     procedure PublishDiagnostics(var AParams: TNXLSPublishDiagnosticsParams);
   public
+    procedure CheckAnalysis(ADocument: TNXLSDocument;
+      AAnalysis: TNXPasDocumentAnalysis); virtual;
     procedure CheckDocument(ADocument: TNXLSDocument); virtual;
   end;
 
 implementation
 
 uses
-  obNXLSDocumentParse,
   obNXLSDiagnosticRequests;
 
 procedure TNXLSDiagnosticsService.AddDiagnostic(
@@ -72,13 +75,13 @@ begin
   end;
 end;
 
-procedure TNXLSDiagnosticsService.CheckDocument(ADocument: TNXLSDocument);
+procedure TNXLSDiagnosticsService.CheckAnalysis(ADocument: TNXLSDocument;
+  AAnalysis: TNXPasDocumentAnalysis);
 var
   lIdx: Integer;
   lParams: TNXLSPublishDiagnosticsParams;
-  lParseResult: TNXLSDocumentParseResult;
 begin
-  if ADocument = nil then
+  if (ADocument = nil) or (AAnalysis = nil) then
     Exit;
 
   if not Model.CheckSyntaxEnabled then
@@ -88,18 +91,30 @@ begin
     Exit;
 
   lParams := TNXLSPublishDiagnosticsParams.Create;
-  lParseResult := nil;
   try
-    lParseResult := TNXLSDocumentParseResult.Create(ADocument);
     lParams.uri.Value := ADocument.URI;
     lParams.version.Value := ADocument.Version;
     lParams.diagnostics.Assigned := True;
-    for lIdx := 0 to lParseResult.Diagnostics.Count - 1 do
-      AddDiagnostic(lParams, lParseResult.Diagnostics.DiagnosticAt(lIdx));
+    for lIdx := 0 to AAnalysis.Diagnostics.Count - 1 do
+      AddDiagnostic(lParams, AAnalysis.Diagnostics.DiagnosticAt(lIdx));
     PublishDiagnostics(lParams);
   finally
-    lParseResult.Free;
     lParams.Free;
+  end;
+end;
+
+procedure TNXLSDiagnosticsService.CheckDocument(ADocument: TNXLSDocument);
+var
+  lAnalysis: TNXPasDocumentAnalysis;
+begin
+  if ADocument = nil then
+    Exit;
+
+  lAnalysis := Model.PascalLanguage.AnalyzeSource(NXLSCreatePascalSource(ADocument));
+  try
+    CheckAnalysis(ADocument, lAnalysis);
+  finally
+    lAnalysis.Free;
   end;
 end;
 

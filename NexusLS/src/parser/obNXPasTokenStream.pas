@@ -13,7 +13,9 @@ type
   private
     FLexer: TNXPasLexer;
     FCurrent: TNXPasToken;
+    FLookahead: array of TNXPasToken;
     FOwnsLexer: Boolean;
+    function ReadNextSignificantToken: TNXPasToken;
     procedure ReadNextToken;
   public
     constructor Create(ALexer: TNXPasLexer; AOwnsLexer: Boolean = True);
@@ -21,9 +23,12 @@ type
 
     procedure Next;
     function Check(AKind: TNXPasTokenKind; const AText: string = ''): Boolean;
+    function CheckPeek(AOffset: Integer; AKind: TNXPasTokenKind;
+      const AText: string = ''): Boolean;
     function Match(AKind: TNXPasTokenKind; const AText: string = ''): Boolean;
     function MatchKeyword(const AText: string): Boolean;
     function MatchSymbol(const AText: string): Boolean;
+    function Peek(AOffset: Integer = 1): TNXPasToken;
     function ExpectIdentifier(out AName: string): Boolean;
     function ExpectIdentifierToken(out AToken: TNXPasToken): Boolean;
 
@@ -50,11 +55,27 @@ begin
   inherited Destroy;
 end;
 
-procedure TNXPasTokenStream.ReadNextToken;
+function TNXPasTokenStream.ReadNextSignificantToken: TNXPasToken;
 begin
   repeat
-    FCurrent := FLexer.NextToken;
-  until not (FCurrent.Kind in [ptkWhitespace, ptkComment]);
+    Result := FLexer.NextToken;
+  until not (Result.Kind in [ptkWhitespace, ptkComment]);
+end;
+
+procedure TNXPasTokenStream.ReadNextToken;
+var
+  lIdx: Integer;
+begin
+  if Length(FLookahead) = 0 then
+  begin
+    FCurrent := ReadNextSignificantToken;
+    Exit;
+  end;
+
+  FCurrent := FLookahead[0];
+  for lIdx := 1 to High(FLookahead) do
+    FLookahead[lIdx - 1] := FLookahead[lIdx];
+  SetLength(FLookahead, Length(FLookahead) - 1);
 end;
 
 procedure TNXPasTokenStream.Next;
@@ -69,6 +90,17 @@ begin
   Result := FCurrent.Kind = AKind;
   if Result and (AText <> '') then
     Result := SameText(FCurrent.Text, AText);
+end;
+
+function TNXPasTokenStream.CheckPeek(AOffset: Integer;
+  AKind: TNXPasTokenKind; const AText: string): Boolean;
+var
+  lToken: TNXPasToken;
+begin
+  lToken := Peek(AOffset);
+  Result := lToken.Kind = AKind;
+  if Result and (AText <> '') then
+    Result := SameText(lToken.Text, AText);
 end;
 
 function TNXPasTokenStream.Match(AKind: TNXPasTokenKind;
@@ -87,6 +119,26 @@ end;
 function TNXPasTokenStream.MatchSymbol(const AText: string): Boolean;
 begin
   Result := Match(ptkSymbol, AText);
+end;
+
+function TNXPasTokenStream.Peek(AOffset: Integer): TNXPasToken;
+var
+  lIdx: Integer;
+begin
+  if AOffset <= 0 then
+  begin
+    Result := FCurrent;
+    Exit;
+  end;
+
+  while Length(FLookahead) < AOffset do
+  begin
+    lIdx := Length(FLookahead);
+    SetLength(FLookahead, lIdx + 1);
+    FLookahead[lIdx] := ReadNextSignificantToken;
+  end;
+
+  Result := FLookahead[AOffset - 1];
 end;
 
 function TNXPasTokenStream.ExpectIdentifier(out AName: string): Boolean;

@@ -11,13 +11,13 @@ uses
   obNXLSProtocolObjects,
   obNXLSProtocolParams,
   obNXLSServiceContext,
+  obNXPasDocumentAnalysis,
   obNXPasSymbols,
   obNXPasWorkspaceIndex;
 
 type
   TNXLSSymbolService = class(TNXLSLSPService)
   private
-    FWorkspaceIndex: TNXPasWorkspaceIndex;
     FWorkspaceFolders: TStringList;
     procedure ClearWorkspaceFolders;
     procedure AddWorkspaceFolderPath(const APath: string);
@@ -29,6 +29,7 @@ type
       AMatch: TNXPasWorkspaceSymbolMatch);
     procedure SetRange(ARange: TNXLSRange; AStartLine, AStartColumn,
       AEndLine, AEndColumn: Integer);
+    function WorkspaceIndex: TNXPasWorkspaceIndex;
   public
     constructor Create(AModel: TNXLSLSPContext); override;
     destructor Destroy; override;
@@ -40,24 +41,17 @@ type
     procedure SetWorkspaceFolders(AParams: TNXLSInitializeParams);
     procedure AddWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
     procedure RemoveWorkspaceFolders(AFolders: TNXLSWorkspaceFolderArray);
-    procedure RebuildWorkspaceIndex;
-    procedure ReindexDocument(ADocument: TNXLSDocument);
   end;
 
 implementation
 
 uses
   SysUtils,
-  obNXPasAST,
-  obNXPasDiagnostics,
-  obNXPasParser,
   obNXPasSource;
 
 constructor TNXLSSymbolService.Create(AModel: TNXLSLSPContext);
 begin
   inherited Create(AModel);
-  FWorkspaceIndex := TNXPasWorkspaceIndex.Create;
-  FWorkspaceIndex.UnitResolver := Model.PascalUnitResolver;
   FWorkspaceFolders := TStringList.Create;
   FWorkspaceFolders.Sorted := True;
   FWorkspaceFolders.Duplicates := dupIgnore;
@@ -66,20 +60,14 @@ end;
 destructor TNXLSSymbolService.Destroy;
 begin
   FreeAndNil(FWorkspaceFolders);
-  FreeAndNil(FWorkspaceIndex);
   inherited Destroy;
 end;
 
 procedure TNXLSSymbolService.FillDocumentSymbols(AParams: TNXLSDocumentSymbolParams;
   AResult: TNXJSONArray);
 var
+  lAnalysis: TNXPasDocumentAnalysis;
   lDocument: TNXLSDocument;
-  lSource: TNXPasSourceFile;
-  lDiagnostics: TNXPasDiagnosticList;
-  lParser: TNXPasParser;
-  lTree: TNXPasSyntaxTree;
-  lExtractor: TNXPasSymbolExtractor;
-  lSymbols: TNXPasSymbolTable;
   lIdx: Integer;
   lSymbol: TNXPasSymbol;
 begin
@@ -89,32 +77,19 @@ begin
   AResult.Assigned := True;
   lDocument := Model.RequireDocument(AParams.textDocument.uri.Value);
 
-  lSource := TNXPasSourceFile.Create(lDocument.LocalPath, lDocument.URI,
-    lDocument.Text);
-  lDiagnostics := TNXPasDiagnosticList.Create(True);
-  lParser := TNXPasParser.Create(lDiagnostics);
-  lTree := nil;
-  lExtractor := TNXPasSymbolExtractor.Create;
-  lSymbols := TNXPasSymbolTable.Create(True);
+  lAnalysis := Model.PascalLanguage.AnalyzeSource(TNXPasSourceFile.Create(
+    lDocument.LocalPath, lDocument.URI, lDocument.Text));
   try
-    lTree := lParser.Parse(lSource);
-    lExtractor.Extract(lTree, lSymbols);
-
-    for lIdx := 0 to lSymbols.Count - 1 do
+    for lIdx := 0 to lAnalysis.Symbols.Count - 1 do
     begin
-      lSymbol := lSymbols.SymbolAt(lIdx);
+      lSymbol := lAnalysis.Symbols.SymbolAt(lIdx);
       if lSymbol.Kind in [pskUnknown, pskUsesUnit, pskVisibility] then
         Continue;
 
       AddDocumentSymbol(AResult, lSymbol);
     end;
   finally
-    lSymbols.Free;
-    lExtractor.Free;
-    lTree.Free;
-    lParser.Free;
-    lDiagnostics.Free;
-    lSource.Free;
+    lAnalysis.Free;
   end;
 end;
 
@@ -163,7 +138,7 @@ begin
 
   lMatches := TNXPasWorkspaceSymbolMatchList.Create(True);
   try
-    FWorkspaceIndex.QuerySymbols(lQuery, lMatches);
+    WorkspaceIndex.QuerySymbols(lQuery, lMatches);
     for lIdx := 0 to lMatches.Count - 1 do
       AddWorkspaceSymbol(AResult, lMatches.MatchAt(lIdx));
   finally
@@ -297,31 +272,6 @@ begin
   end;
 end;
 
-procedure TNXLSSymbolService.RebuildWorkspaceIndex;
-var
-  lIdx: Integer;
-begin
-  FWorkspaceIndex.Clear;
-  for lIdx := 0 to Model.DocumentCount - 1 do
-    ReindexDocument(Model.DocumentByIndex(lIdx));
-end;
-
-procedure TNXLSSymbolService.ReindexDocument(ADocument: TNXLSDocument);
-var
-  lSource: TNXPasSourceFile;
-begin
-  if ADocument = nil then
-    Exit;
-
-  lSource := TNXPasSourceFile.Create(ADocument.LocalPath, ADocument.URI,
-    ADocument.Text);
-  try
-    FWorkspaceIndex.UpdateSourceFile(lSource);
-  finally
-    lSource.Free;
-  end;
-end;
-
 function TNXLSSymbolService.LSPKindForSymbol(AKind: Integer): Integer;
 begin
   case TNXPasSymbolKind(AKind) of
@@ -360,6 +310,11 @@ begin
   NXLSSetPosition(ARange.start, AStartLine, AStartColumn);
   NXLSSetPosition(ARange.&end, AEndLine, AEndColumn);
   ARange.Assigned := True;
+end;
+
+function TNXLSSymbolService.WorkspaceIndex: TNXPasWorkspaceIndex;
+begin
+  Result := Model.PascalLanguage.WorkspaceIndex;
 end;
 
 end.

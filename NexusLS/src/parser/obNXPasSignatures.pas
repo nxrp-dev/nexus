@@ -97,18 +97,13 @@ type
       ASymbol: TNXPasSymbol; ASignature: TNXPasRoutineSignature): Boolean; static;
     class function FindCallAtPosition(ASource: TNXPasSourceFile;
       ALine, AColumn: Integer; AContext: TNXPasCallContext): Boolean; static;
-    class function PositionIsInactive(ASource: TNXPasSourceFile;
-      ALine, AColumn: Integer): Boolean; static;
   end;
 
 implementation
 
 uses
   SysUtils,
-  obNXPasAST,
-  obNXPasDiagnostics,
   obNXPasLexer,
-  obNXPasParser,
   tpNXPasTokens;
 
 function TNXPasSignatureParameterList.AddParameter(
@@ -435,42 +430,6 @@ begin
     end;
   finally
     lCallStack.Free;
-  end;
-end;
-
-class function TNXPasSignatureHelper.PositionIsInactive(
-  ASource: TNXPasSourceFile; ALine, AColumn: Integer): Boolean;
-var
-  lDiagnostics: TNXPasDiagnosticList;
-  lIdx: Integer;
-  lParser: TNXPasParser;
-  lRange: TNXPasSourceRange;
-  lTree: TNXPasSyntaxTree;
-begin
-  Result := False;
-  if ASource = nil then
-    Exit;
-
-  lDiagnostics := TNXPasDiagnosticList.Create(True);
-  lParser := TNXPasParser.Create(lDiagnostics);
-  lTree := nil;
-  try
-    lTree := lParser.Parse(ASource);
-    for lIdx := 0 to lTree.InactiveRegions.Count - 1 do
-    begin
-      lRange := lTree.InactiveRegions.RegionAt(lIdx).Range;
-      if (ALine < lRange.StartPos.Line) or (ALine > lRange.EndPos.Line) then
-        Continue;
-      if (ALine = lRange.StartPos.Line) and (AColumn < lRange.StartPos.Column) then
-        Continue;
-      if (ALine = lRange.EndPos.Line) and (AColumn > lRange.EndPos.Column) then
-        Continue;
-      Exit(True);
-    end;
-  finally
-    lTree.Free;
-    lParser.Free;
-    lDiagnostics.Free;
   end;
 end;
 

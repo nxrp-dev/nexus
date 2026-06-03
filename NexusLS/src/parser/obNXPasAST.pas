@@ -46,6 +46,7 @@ type
     FKind: TNXPasNodeKind;
     FName: string;
     FNameRange: TNXPasSourceRange;
+    FOwnerNameRange: TNXPasSourceRange;
     FRange: TNXPasSourceRange;
     function GetChild(AIndex: Integer): TNXPasASTNode;
   public
@@ -60,6 +61,7 @@ type
     property Kind: TNXPasNodeKind read FKind write FKind;
     property Name: string read FName write FName;
     property NameRange: TNXPasSourceRange read FNameRange write FNameRange;
+    property OwnerNameRange: TNXPasSourceRange read FOwnerNameRange write FOwnerNameRange;
     property Range: TNXPasSourceRange read FRange write FRange;
   end;
 

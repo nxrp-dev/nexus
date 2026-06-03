@@ -21,6 +21,7 @@ implementation
 uses
   SysUtils,
   obNXPasLexer,
+  obNXPasRoutineIdentity,
   obNXPasSource,
   obNXPasSymbols,
   tpNXPasTokens;
@@ -38,11 +39,6 @@ begin
     (ALeft.StartPos.Column = ARight.StartPos.Column) and
     (ALeft.EndPos.Line = ARight.EndPos.Line) and
     (ALeft.EndPos.Column = ARight.EndPos.Column);
-end;
-
-function NXPasHighlightNormalizedRoutineTypeText(const AText: string): string;
-begin
-  Result := StringReplace(UpperCase(Trim(AText)), ' ', '', [rfReplaceAll]);
 end;
 
 function NXPasHighlightFileByURI(AIndex: TNXPasWorkspaceIndex;
@@ -91,71 +87,6 @@ begin
       Exit;
 
   AResults.AddMatch(AFile, ARange);
-end;
-
-function NXPasHighlightRoutineOwnerName(ASymbol: TNXPasSymbol): string;
-var
-  lDotPos: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  lDotPos := LastDelimiter('.', ASymbol.Name);
-  if lDotPos > 0 then
-    Exit(Copy(ASymbol.Name, 1, lDotPos - 1));
-
-  if (ASymbol.Parent <> nil) and (ASymbol.Parent.Kind in [pskClass,
-    pskRecord, pskObject, pskInterface]) then
-    Result := ASymbol.Parent.Name;
-end;
-
-function NXPasHighlightRoutineSimpleName(ASymbol: TNXPasSymbol): string;
-var
-  lDotPos: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  lDotPos := LastDelimiter('.', ASymbol.Name);
-  if lDotPos > 0 then
-    Result := Copy(ASymbol.Name, lDotPos + 1, MaxInt)
-  else
-    Result := ASymbol.Name;
-end;
-
-function NXPasHighlightRoutineParameterSignature(ASymbol: TNXPasSymbol): string;
-var
-  lChild: TNXPasSymbol;
-  lIdx: Integer;
-begin
-  Result := '';
-  if ASymbol = nil then
-    Exit;
-
-  for lIdx := 0 to ASymbol.ChildCount - 1 do
-  begin
-    lChild := ASymbol.Children[lIdx];
-    if lChild.Kind <> pskParameter then
-      Continue;
-
-    if Result <> '' then
-      Result := Result + ';';
-    Result := Result + NXPasHighlightNormalizedRoutineTypeText(
-      lChild.DeclaredTypeText);
-  end;
-end;
-
-function NXPasHighlightRoutineIdentity(ASymbol: TNXPasSymbol): string;
-begin
-  Result := '';
-  if (ASymbol = nil) or (ASymbol.Kind <> pskRoutine) then
-    Exit;
-
-  Result := UpperCase(NXPasHighlightRoutineOwnerName(ASymbol)) + '|' +
-    UpperCase(NXPasHighlightRoutineSimpleName(ASymbol)) + '|' +
-    NXPasHighlightRoutineParameterSignature(ASymbol);
 end;
 
 function NXPasHighlightFindSmallestRoutineAt(AFile: TNXPasIndexedFile;
@@ -284,40 +215,18 @@ begin
   end;
 end;
 
-function NXPasHighlightFindOwnerQualifierRange(AFile: TNXPasIndexedFile;
-  ASymbol: TNXPasSymbol; out ARange: TNXPasSourceRange): Boolean;
-var
-  lLexer: TNXPasLexer;
-  lOwnerName: string;
-  lSimpleNameRange: TNXPasSourceRange;
-  lToken: TNXPasToken;
+function NXPasHighlightFindOwnerQualifierRange(ASymbol: TNXPasSymbol;
+  out ARange: TNXPasSourceRange): Boolean;
 begin
   Result := False;
-  if (AFile = nil) or (ASymbol = nil) or (ASymbol.Kind <> pskRoutine) then
+  if (ASymbol = nil) or (ASymbol.Kind <> pskRoutine) then
     Exit;
 
-  lOwnerName := NXPasHighlightRoutineOwnerName(ASymbol);
-  if (lOwnerName = '') or
-    (not NXPasHighlightSymbolNameRange(AFile, ASymbol, lSimpleNameRange)) then
+  if not NXPasHighlightRangeAssigned(ASymbol.OwnerNameRange) then
     Exit;
 
-  lLexer := TNXPasLexer.Create(AFile.Text);
-  try
-    repeat
-      lToken := lLexer.NextToken;
-      if (lToken.Kind = ptkIdentifier) and SameText(lToken.Text, lOwnerName) and
-        NXPasRangeContains(ASymbol.Range, lToken.StartPos.Line,
-        lToken.StartPos.Column) and
-        (lToken.StartPos.Offset < lSimpleNameRange.StartPos.Offset) then
-      begin
-        ARange.StartPos := lToken.StartPos;
-        ARange.EndPos := lToken.EndPos;
-        Exit(True);
-      end;
-    until lToken.Kind = ptkEndOfFile;
-  finally
-    lLexer.Free;
-  end;
+  ARange := ASymbol.OwnerNameRange;
+  Result := True;
 end;
 
 function NXPasHighlightOwnerQualifierAtPosition(AFile: TNXPasIndexedFile;
@@ -334,10 +243,10 @@ var
       Exit;
 
     if (ASymbol.Kind = pskRoutine) and
-      NXPasHighlightFindOwnerQualifierRange(AFile, ASymbol, lRange) and
+      NXPasHighlightFindOwnerQualifierRange(ASymbol, lRange) and
       NXPasRangeContains(lRange, ALine, AColumn) then
     begin
-      AOwnerName := NXPasHighlightRoutineOwnerName(ASymbol);
+      AOwnerName := NXPasRoutineOwnerName(ASymbol);
       Result := True;
       Exit;
     end;
@@ -372,7 +281,7 @@ var
       Exit;
 
     if (ASymbol.Kind = pskRoutine) and
-      (NXPasHighlightRoutineIdentity(ASymbol) = AIdentity) and
+      (NXPasRoutineIdentity(ASymbol) = AIdentity) and
       NXPasHighlightSymbolNameRange(AFile, ASymbol, lRange) then
       NXPasHighlightAddRange(AResults, AFile, lRange);
 
@@ -418,8 +327,8 @@ var
       NXPasHighlightAddRange(AResults, AFile, ASymbol.DeclaredTypeRange);
 
     if (ASymbol.Kind = pskRoutine) and
-      SameText(NXPasHighlightRoutineOwnerName(ASymbol), ATypeName) and
-      NXPasHighlightFindOwnerQualifierRange(AFile, ASymbol, lRange) then
+      SameText(NXPasRoutineOwnerName(ASymbol), ATypeName) and
+      NXPasHighlightFindOwnerQualifierRange(ASymbol, lRange) then
       NXPasHighlightAddRange(AResults, AFile, lRange);
 
     for lChildIdx := 0 to ASymbol.ChildCount - 1 do
@@ -506,7 +415,7 @@ begin
     if lSymbol.Kind = pskRoutine then
     begin
       NXPasHighlightAddRoutineIdentity(AIndex,
-        NXPasHighlightRoutineIdentity(lSymbol), AResults);
+        NXPasRoutineIdentity(lSymbol), AResults);
       Exit;
     end;
 
