@@ -101,6 +101,43 @@ begin
   ForceDirectories(Result);
 end;
 
+function NXPasLineOf(const AText, ANeedle: string): Integer;
+var
+  lIdx: Integer;
+  lLines: TStringList;
+begin
+  Result := -1;
+  lLines := TStringList.Create;
+  try
+    lLines.Text := AText;
+    for lIdx := 0 to lLines.Count - 1 do
+      if Pos(ANeedle, lLines[lIdx]) > 0 then
+        Exit(lIdx);
+  finally
+    lLines.Free;
+  end;
+end;
+
+function NXPasColumnOf(const AText, ALineNeedle,
+  AColumnNeedle: string): Integer;
+var
+  lLine: Integer;
+  lLines: TStringList;
+begin
+  Result := -1;
+  lLine := NXPasLineOf(AText, ALineNeedle);
+  if lLine < 0 then
+    Exit;
+
+  lLines := TStringList.Create;
+  try
+    lLines.Text := AText;
+    Result := Pos(AColumnNeedle, lLines[lLine]) - 1;
+  finally
+    lLines.Free;
+  end;
+end;
+
 procedure NXPasWriteTextFile(const AFileName, AText: string);
 var
   lText: TStringList;
@@ -186,6 +223,152 @@ begin
     if (lSymbol.Kind = AKind) and (lSymbol.Name = AName) and
       NXPasHasChildSymbol(lSymbol, AChildKind, AChildName) then
       Exit(lSymbol);
+  end;
+end;
+
+function NXPasNormalizedRoutineTypeText(const AText: string): string;
+begin
+  Result := StringReplace(UpperCase(Trim(AText)), ' ', '', [rfReplaceAll]);
+end;
+
+function NXPasRoutineOwnerName(ASymbol: TNXPasSymbol): string;
+var
+  lDotPos: Integer;
+begin
+  Result := '';
+  if ASymbol = nil then
+    Exit;
+
+  lDotPos := LastDelimiter('.', ASymbol.Name);
+  if lDotPos > 0 then
+    Exit(Copy(ASymbol.Name, 1, lDotPos - 1));
+
+  if (ASymbol.Parent <> nil) and (ASymbol.Parent.Kind in [pskClass,
+    pskRecord, pskObject, pskInterface]) then
+    Result := ASymbol.Parent.Name;
+end;
+
+function NXPasRoutineSimpleName(ASymbol: TNXPasSymbol): string;
+var
+  lDotPos: Integer;
+begin
+  Result := '';
+  if ASymbol = nil then
+    Exit;
+
+  lDotPos := LastDelimiter('.', ASymbol.Name);
+  if lDotPos > 0 then
+    Result := Copy(ASymbol.Name, lDotPos + 1, MaxInt)
+  else
+    Result := ASymbol.Name;
+end;
+
+function NXPasRoutineParameterSignature(ASymbol: TNXPasSymbol): string;
+var
+  lChild: TNXPasSymbol;
+  lIdx: Integer;
+begin
+  Result := '';
+  if ASymbol = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbol.ChildCount - 1 do
+  begin
+    lChild := ASymbol.Children[lIdx];
+    if lChild.Kind <> pskParameter then
+      Continue;
+
+    if Result <> '' then
+      Result := Result + ';';
+    Result := Result + NXPasNormalizedRoutineTypeText(lChild.DeclaredTypeText);
+  end;
+end;
+
+function NXPasRoutineIdentity(ASymbol: TNXPasSymbol): string;
+begin
+  Result := '';
+  if (ASymbol = nil) or (ASymbol.Kind <> pskRoutine) then
+    Exit;
+
+  Result := UpperCase(NXPasRoutineOwnerName(ASymbol)) + '|' +
+    UpperCase(NXPasRoutineSimpleName(ASymbol)) + '|' +
+    NXPasRoutineParameterSignature(ASymbol);
+end;
+
+function NXPasFindRoutineByIdentity(ASymbols: TNXPasSymbolTable;
+  const AIdentity: string): TNXPasSymbol;
+var
+  lIdx: Integer;
+
+  function SearchSymbol(ASymbol: TNXPasSymbol): TNXPasSymbol;
+  var
+    lChildIdx: Integer;
+  begin
+    Result := nil;
+    if ASymbol = nil then
+      Exit;
+
+    if (ASymbol.Kind = pskRoutine) and
+      (NXPasRoutineIdentity(ASymbol) = AIdentity) then
+      Exit(ASymbol);
+
+    for lChildIdx := 0 to ASymbol.ChildCount - 1 do
+    begin
+      Result := SearchSymbol(ASymbol.Children[lChildIdx]);
+      if Result <> nil then
+        Exit;
+    end;
+  end;
+
+begin
+  Result := nil;
+  if ASymbols = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbols.Count - 1 do
+  begin
+    Result := SearchSymbol(ASymbols.SymbolAt(lIdx));
+    if Result <> nil then
+      Exit;
+  end;
+end;
+
+function NXPasFindRoutineByIdentityAfterLine(ASymbols: TNXPasSymbolTable;
+  const AIdentity: string; ALine: Integer): TNXPasSymbol;
+var
+  lIdx: Integer;
+
+  function SearchSymbol(ASymbol: TNXPasSymbol): TNXPasSymbol;
+  var
+    lChildIdx: Integer;
+  begin
+    Result := nil;
+    if ASymbol = nil then
+      Exit;
+
+    if (ASymbol.Kind = pskRoutine) and
+      (ASymbol.Range.StartPos.Line > ALine) and
+      (NXPasRoutineIdentity(ASymbol) = AIdentity) then
+      Exit(ASymbol);
+
+    for lChildIdx := 0 to ASymbol.ChildCount - 1 do
+    begin
+      Result := SearchSymbol(ASymbol.Children[lChildIdx]);
+      if Result <> nil then
+        Exit;
+    end;
+  end;
+
+begin
+  Result := nil;
+  if ASymbols = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbols.Count - 1 do
+  begin
+    Result := SearchSymbol(ASymbols.SymbolAt(lIdx));
+    if Result <> nil then
+      Exit;
   end;
 end;
 
@@ -485,9 +668,6 @@ begin
       'TFoo.Run');
     AContext.AssertTrue(lImplementationSymbol <> nil,
       'Qualified implementation method should be extracted.');
-    AContext.AssertEquals(lImplementationSymbol.RoutineIdentity,
-      lMethodSymbol.RoutineIdentity,
-      'Class-body declaration and qualified implementation should share routine identity.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -497,13 +677,14 @@ begin
   end;
 end;
 
-procedure TestClassRoutineRangeIncludesClassPrefix(AContext: TNXTestContext);
+procedure TestQualifiedInstanceRoutineImplementationIdentity(
+  AContext: TNXTestContext);
 var
   lClassSymbol: TNXPasSymbol;
+  lDeclarationSymbol: TNXPasSymbol;
   lDiagnostics: TNXPasDiagnosticList;
   lExtractor: TNXPasSymbolExtractor;
   lImplementationSymbol: TNXPasSymbol;
-  lMethodSymbol: TNXPasSymbol;
   lSource: TNXPasSourceFile;
   lSymbols: TNXPasSymbolTable;
   lTree: TNXPasSyntaxTree;
@@ -520,47 +701,209 @@ begin
       'type' + LineEnding +
       '  TFoo = class' + LineEnding +
       '  public' + LineEnding +
-      '    class procedure Info(const AMessage: string); static;' + LineEnding +
+      '    procedure Run(AValue: Integer);' + LineEnding +
       '  end;' + LineEnding +
       'implementation' + LineEnding +
-      'class procedure TFoo.Info(const AMessage: string);' + LineEnding +
+      'procedure TFoo.Run(AValue: Integer);' + LineEnding +
       'begin' + LineEnding +
       'end;' + LineEnding +
       'end.',
       lDiagnostics, lSource);
     lExtractor.Extract(lTree, lSymbols);
 
-    lClassSymbol := NXPasFindNamedSymbolWithChild(lSymbols, pskClass, 'TFoo',
-      pskRoutine, 'Info');
-    AContext.AssertTrue(lClassSymbol <> nil,
-      'Class declaration should be extracted.');
-    lMethodSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine, 'Info');
-    AContext.AssertTrue(lMethodSymbol <> nil,
-      'Class-body class procedure should be extracted.');
+    lClassSymbol := NXPasFindSymbol(lSymbols, pskClass, 'TFoo');
+    lDeclarationSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine,
+      'Run');
     lImplementationSymbol := NXPasFindSymbol(lSymbols, pskRoutine,
-      'TFoo.Info');
-    AContext.AssertTrue(lImplementationSymbol <> nil,
-      'Implementation class procedure should be extracted.');
+      'TFoo.Run');
 
-    AContext.AssertEquals(5, lMethodSymbol.Range.StartPos.Line,
-      'Class-body class procedure range should start on the class token line.');
-    AContext.AssertEquals(4, lMethodSymbol.Range.StartPos.Column,
-      'Class-body class procedure range should start at the class token.');
-    AContext.AssertEquals(5, lMethodSymbol.Range.EndPos.Line,
-      'Class-body class procedure range should end on the static tail line.');
-    AContext.AssertEquals(57, lMethodSymbol.Range.EndPos.Column,
-      'Class-body class procedure range should end after static semicolon.');
-    AContext.AssertEquals(8, lImplementationSymbol.Range.StartPos.Line,
-      'Implementation class procedure range should start on the class token line.');
-    AContext.AssertEquals(0, lImplementationSymbol.Range.StartPos.Column,
-      'Implementation class procedure range should start at the class token.');
-    AContext.AssertEquals('procedure', lMethodSymbol.RoutineKindText,
-      'Class-body routine kind should stay normalized to the routine keyword.');
-    AContext.AssertEquals('procedure', lImplementationSymbol.RoutineKindText,
-      'Implementation routine kind should stay normalized to the routine keyword.');
-    AContext.AssertEquals(lImplementationSymbol.RoutineIdentity,
-      lMethodSymbol.RoutineIdentity,
-      'Class-body declaration and implementation should keep matching identity.');
+    AContext.AssertTrue(lDeclarationSymbol <> nil,
+      'Class-body routine declaration should be extracted.');
+    AContext.AssertTrue(lImplementationSymbol <> nil,
+      'Qualified implementation routine should be extracted.');
+    AContext.AssertEquals('Run', NXPasRoutineSimpleName(lImplementationSymbol),
+      'Implementation simple routine name should be Run.');
+    AContext.AssertEquals('TFoo', NXPasRoutineOwnerName(lImplementationSymbol),
+      'Implementation owner should be TFoo.');
+    AContext.AssertEquals('TFoo.Run', lImplementationSymbol.Name,
+      'Implementation display name should stay qualified.');
+    AContext.AssertEquals(NXPasLineOf(lSource.Text,
+      'procedure TFoo.Run(AValue: Integer);'),
+      lImplementationSymbol.NameRange.StartPos.Line,
+      'Implementation name range should point to the qualified simple name line.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'procedure TFoo.Run(AValue: Integer);', 'Run'),
+      lImplementationSymbol.NameRange.StartPos.Column,
+      'Implementation name range should point to Run.');
+    AContext.AssertEquals('TFOO|RUN|INTEGER',
+      NXPasRoutineIdentity(lDeclarationSymbol),
+      'Declaration identity should include owner, name, and parameter type.');
+    AContext.AssertEquals('TFOO|RUN|INTEGER',
+      NXPasRoutineIdentity(lImplementationSymbol),
+      'Implementation identity should match declaration identity.');
+    AContext.AssertTrue(lImplementationSymbol.Range.StartPos.Line >
+      NXPasLineOf(lSource.Text, 'implementation'),
+      'Implementation routine should be in the implementation section.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestQualifiedClassRoutineImplementationIdentity(
+  AContext: TNXTestContext);
+var
+  lClassSymbol: TNXPasSymbol;
+  lDeclarationSymbol: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lImplementationSymbol: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TLogger = class' + LineEnding +
+      '  public' + LineEnding +
+      '    class procedure Info(const AMessage: string); static;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding +
+      'class procedure TLogger.Info(const AMessage: string);' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClassSymbol := NXPasFindSymbol(lSymbols, pskClass, 'TLogger');
+    lDeclarationSymbol := NXPasFindChildSymbol(lClassSymbol, pskRoutine,
+      'Info');
+    lImplementationSymbol := NXPasFindSymbol(lSymbols, pskRoutine,
+      'TLogger.Info');
+
+    AContext.AssertTrue(lDeclarationSymbol <> nil,
+      'Class-body class routine declaration should be extracted.');
+    AContext.AssertTrue(lImplementationSymbol <> nil,
+      'Qualified class routine implementation should be extracted.');
+    AContext.AssertEquals('Info', NXPasRoutineSimpleName(lImplementationSymbol),
+      'Implementation simple routine name should be Info.');
+    AContext.AssertEquals('TLogger',
+      NXPasRoutineOwnerName(lImplementationSymbol),
+      'Implementation owner should be TLogger.');
+    AContext.AssertEquals('TLogger.Info', lImplementationSymbol.Name,
+      'Implementation display name should stay qualified.');
+    AContext.AssertEquals(NXPasLineOf(lSource.Text,
+      '    class procedure Info(const AMessage: string); static;'),
+      lDeclarationSymbol.Range.StartPos.Line,
+      'Class-body class routine range should start on declaration line.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      '    class procedure Info(const AMessage: string); static;', 'class'),
+      lDeclarationSymbol.Range.StartPos.Column,
+      'Class-body class routine range should start at class.');
+    AContext.AssertEquals(NXPasLineOf(lSource.Text,
+      '    class procedure Info(const AMessage: string); static;'),
+      lDeclarationSymbol.Range.EndPos.Line,
+      'Class-body class routine range should end on declaration line.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      '    class procedure Info(const AMessage: string); static;', 'static') +
+      Length('static;'), lDeclarationSymbol.Range.EndPos.Column,
+      'Class-body class routine range should end after static semicolon.');
+    AContext.AssertEquals(NXPasLineOf(lSource.Text,
+      'class procedure TLogger.Info(const AMessage: string);'),
+      lImplementationSymbol.Range.StartPos.Line,
+      'Implementation class routine range should start on implementation line.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'class procedure TLogger.Info(const AMessage: string);', 'class'),
+      lImplementationSymbol.Range.StartPos.Column,
+      'Implementation class routine range should start at class.');
+    AContext.AssertEquals(NXPasColumnOf(lSource.Text,
+      'class procedure TLogger.Info(const AMessage: string);', 'Info'),
+      lImplementationSymbol.NameRange.StartPos.Column,
+      'Class routine implementation name range should point to Info.');
+    AContext.AssertEquals('TLOGGER|INFO|STRING',
+      NXPasRoutineIdentity(lDeclarationSymbol),
+      'Declaration identity should include owner, name, and parameter type.');
+    AContext.AssertEquals('TLOGGER|INFO|STRING',
+      NXPasRoutineIdentity(lImplementationSymbol),
+      'Implementation identity should match declaration identity.');
+    AContext.AssertTrue(lImplementationSymbol.Range.StartPos.Line >
+      NXPasLineOf(lSource.Text, 'implementation'),
+      'Class routine implementation should be in the implementation section.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestQualifiedRoutineOverloadIdentitiesRemainDistinct(
+  AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lImplementationLine: Integer;
+  lIntegerImplementation: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lStringImplementation: TNXPasSymbol;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPasParseText(
+      'unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TFoo = class' + LineEnding +
+      '  public' + LineEnding +
+      '    procedure Run(AValue: Integer);' + LineEnding +
+      '    procedure Run(AValue: string);' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding +
+      'procedure TFoo.Run(AValue: Integer);' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'procedure TFoo.Run(AValue: string);' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.',
+      lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lImplementationLine := NXPasLineOf(lSource.Text, 'implementation');
+    lIntegerImplementation := NXPasFindRoutineByIdentityAfterLine(lSymbols,
+      'TFOO|RUN|INTEGER', lImplementationLine);
+    lStringImplementation := NXPasFindRoutineByIdentityAfterLine(lSymbols,
+      'TFOO|RUN|STRING', lImplementationLine);
+
+    AContext.AssertTrue(lIntegerImplementation <> nil,
+      'Integer overload implementation should be found by identity.');
+    AContext.AssertTrue(lStringImplementation <> nil,
+      'String overload implementation should be found by identity.');
+    AContext.AssertEquals('TFoo.Run', lIntegerImplementation.Name,
+      'Integer overload should keep the qualified implementation name.');
+    AContext.AssertEquals('TFoo.Run', lStringImplementation.Name,
+      'String overload should keep the qualified implementation name.');
+    AContext.AssertFalse(lIntegerImplementation = lStringImplementation,
+      'Distinct overload identities must not collapse to one symbol.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -1903,8 +2246,12 @@ begin
     @TestStructuredClassBodySymbols);
   lSuite.AddTest('ForwardClassDeclarationAllowsLaterMembers',
     @TestForwardClassDeclarationAllowsLaterMembers);
-  lSuite.AddTest('ClassRoutineRangeIncludesClassPrefix',
-    @TestClassRoutineRangeIncludesClassPrefix);
+  lSuite.AddTest('QualifiedInstanceRoutineImplementationIdentity',
+    @TestQualifiedInstanceRoutineImplementationIdentity);
+  lSuite.AddTest('QualifiedClassRoutineImplementationIdentity',
+    @TestQualifiedClassRoutineImplementationIdentity);
+  lSuite.AddTest('QualifiedRoutineOverloadIdentitiesRemainDistinct',
+    @TestQualifiedRoutineOverloadIdentitiesRemainDistinct);
   lSuite.AddTest('ProcedureTypesUseBalancedDeclarationSkipping',
     @TestProcedureTypesUseBalancedDeclarationSkipping);
   lSuite.AddTest('StructuredRecordBodySymbols',

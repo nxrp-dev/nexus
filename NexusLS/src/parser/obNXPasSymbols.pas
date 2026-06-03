@@ -37,6 +37,7 @@ type
     FDeclaredTypeText: string;
     FKind: TNXPasSymbolKind;
     FName: string;
+    FNameRange: TNXPasSourceRange;
     FParent: TNXPasSymbol;
     FRange: TNXPasSourceRange;
     function GetChild(AIndex: Integer): TNXPasSymbol;
@@ -52,6 +53,7 @@ type
     property DeclaredTypeText: string read FDeclaredTypeText write FDeclaredTypeText;
     property Kind: TNXPasSymbolKind read FKind write FKind;
     property Name: string read FName write FName;
+    property NameRange: TNXPasSourceRange read FNameRange write FNameRange;
     property Parent: TNXPasSymbol read FParent write FParent;
     property Range: TNXPasSourceRange read FRange write FRange;
   end;
@@ -213,6 +215,7 @@ begin
       lSymbol := ASymbols.AddSymbol(lKind, ANode.Name, ANode.Range);
     lSymbol.DeclaredTypeText := ANode.DeclaredTypeText;
     lSymbol.DeclaredTypeRange := ANode.DeclaredTypeRange;
+    lSymbol.NameRange := ANode.NameRange;
   end;
 
   if lSymbol <> nil then

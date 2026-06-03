@@ -87,12 +87,16 @@ type
     procedure ParseConstSection(AParent: TNXPasASTNode);
     procedure ParseVarSection(AParent: TNXPasASTNode);
     procedure ParseRoutineDecl(AParent: TNXPasASTNode);
+    procedure ParseRoutineDeclAt(AParent: TNXPasASTNode;
+      const AStartPos: TNXPasSourcePosition);
     procedure ParseRoutineParameters(AParent: TNXPasASTNode);
     procedure ParseRoutineBodyDeclarations(AParent: TNXPasASTNode);
     procedure SkipRoutineBody(ANode: TNXPasASTNode);
     procedure ParseTypeDecl(AParent: TNXPasASTNode);
     procedure ParseStructuredTypeBody(ANode: TNXPasASTNode);
     procedure CaptureStructuredTypeHeritage(ANode: TNXPasASTNode);
+    function TryFinishForwardStructuredType(ANode,
+      AChildNode: TNXPasASTNode): Boolean;
     procedure ParseFieldDecl(AParent: TNXPasASTNode);
     procedure ParsePropertyDecl(AParent: TNXPasASTNode);
     procedure SkipPropertyParameters;
@@ -248,6 +252,7 @@ begin
     SameText(FStream.Current.Text, 'public') or
     SameText(FStream.Current.Text, 'reintroduce') or
     SameText(FStream.Current.Text, 'safecall') or
+    SameText(FStream.Current.Text, 'static') or
     SameText(FStream.Current.Text, 'stdcall') or
     SameText(FStream.Current.Text, 'sysv_abi_cdecl') or
     SameText(FStream.Current.Text, 'sysv_abi_default') or
@@ -663,6 +668,7 @@ end;
 procedure TNXPasParser.ParseSection;
 var
   lNode: TNXPasASTNode;
+  lStartPos: TNXPasSourcePosition;
 begin
   if FStream.Check(ptkDirective) then
   begin
@@ -705,6 +711,13 @@ begin
   else if FStream.Check(ptkKeyword, 'var') or
     FStream.Check(ptkKeyword, 'threadvar') then
     ParseVarSection(lNode)
+  else if FStream.Check(ptkKeyword, 'class') then
+  begin
+    lStartPos := FStream.Current.StartPos;
+    FStream.Next;
+    if IsRoutineKeyword then
+      ParseRoutineDeclAt(lNode, lStartPos);
+  end
   else if IsRoutineKeyword then
     ParseRoutineDecl(lNode)
   else
@@ -921,19 +934,38 @@ end;
 
 procedure TNXPasParser.ParseRoutineDecl(AParent: TNXPasASTNode);
 var
+  lStartPos: TNXPasSourcePosition;
+begin
+  lStartPos := FStream.Current.StartPos;
+  ParseRoutineDeclAt(AParent, lStartPos);
+end;
+
+procedure TNXPasParser.ParseRoutineDeclAt(AParent: TNXPasASTNode;
+  const AStartPos: TNXPasSourcePosition);
+var
   lDeclaredTypeRange: TNXPasSourceRange;
   lDeclaredTypeText: string;
+  lEndToken: TNXPasToken;
   lNameToken: TNXPasToken;
   lNode: TNXPasASTNode;
-  lStart: TNXPasSourcePosition;
+  lRoutineName: string;
 begin
-  lStart := FStream.Current.StartPos;
   lNode := AParent.AddChild(pnkRoutineDecl);
   FStream.Next;
   if FStream.ExpectIdentifierToken(lNameToken) then
   begin
-    lNode.Name := lNameToken.Text;
-    SetNodeRange(lNode, lStart, lNameToken.EndPos);
+    lRoutineName := lNameToken.Text;
+    lEndToken := lNameToken;
+    while FStream.MatchSymbol('.') do
+    begin
+      if not FStream.ExpectIdentifierToken(lNameToken) then
+        Break;
+      lRoutineName := lRoutineName + '.' + lNameToken.Text;
+      lEndToken := lNameToken;
+    end;
+    lNode.Name := lRoutineName;
+    lNode.NameRange := TokenRange(lEndToken);
+    SetNodeRange(lNode, AStartPos, lEndToken.EndPos);
   end
   else
   begin
@@ -948,7 +980,7 @@ begin
     SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd;
   SkipRoutineDirectives;
-  SetNodeRange(lNode, lStart, FLastDeclarationEnd);
+  SetNodeRange(lNode, AStartPos, FLastDeclarationEnd);
   if (FCurrentUsesSection <> pusInterface) and
     not (AParent.Kind in [pnkClassDecl, pnkObjectDecl, pnkRecordDecl,
     pnkInterfaceDecl]) then
@@ -1129,6 +1161,8 @@ begin
     lChildNode := lNode.AddChild(pnkClassDecl, lNameToken.Text);
     SetNodeRange(lChildNode, lNameToken.StartPos, lTypeToken.EndPos);
     CaptureStructuredTypeHeritage(lChildNode);
+    if TryFinishForwardStructuredType(lNode, lChildNode) then
+      Exit;
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
     Exit;
@@ -1139,6 +1173,8 @@ begin
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
     CaptureStructuredTypeHeritage(lChildNode);
+    if TryFinishForwardStructuredType(lNode, lChildNode) then
+      Exit;
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
     Exit;
@@ -1158,6 +1194,8 @@ begin
     SetNodeRange(lChildNode, lNameToken.StartPos, FStream.Current.EndPos);
     FStream.Next;
     CaptureStructuredTypeHeritage(lChildNode);
+    if TryFinishForwardStructuredType(lNode, lChildNode) then
+      Exit;
     ParseStructuredTypeBody(lChildNode);
     lNode.Range := lChildNode.Range;
     Exit;
@@ -1166,6 +1204,22 @@ begin
   if CaptureDeclaredType(False, False, lDeclaredTypeText, lDeclaredTypeRange) then
     SetDeclaredType(lNode, lDeclaredTypeText, lDeclaredTypeRange);
   SkipToDeclarationEnd(False);
+end;
+
+function TNXPasParser.TryFinishForwardStructuredType(ANode,
+  AChildNode: TNXPasASTNode): Boolean;
+var
+  lEndPos: TNXPasSourcePosition;
+begin
+  Result := False;
+  if not FStream.Check(ptkSymbol, ';') then
+    Exit;
+
+  lEndPos := FStream.Current.EndPos;
+  FStream.Next;
+  SetNodeRange(AChildNode, AChildNode.Range.StartPos, lEndPos);
+  ANode.Range := AChildNode.Range;
+  Result := True;
 end;
 
 procedure TNXPasParser.CaptureStructuredTypeHeritage(ANode: TNXPasASTNode);
@@ -1209,6 +1263,7 @@ end;
 
 procedure TNXPasParser.ParseStructuredTypeBody(ANode: TNXPasASTNode);
 var
+  lClassStartPos: TNXPasSourcePosition;
   lStartPos: TNXPasSourcePosition;
   lEndPos: TNXPasSourcePosition;
 begin
@@ -1235,6 +1290,7 @@ begin
 
     if FStream.Check(ptkKeyword, 'class') then
     begin
+      lClassStartPos := FStream.Current.StartPos;
       FStream.Next;
       if FStream.Check(ptkKeyword, 'var') then
       begin
@@ -1243,7 +1299,7 @@ begin
       end;
       if IsRoutineKeyword then
       begin
-        ParseRoutineDecl(ANode);
+        ParseRoutineDeclAt(ANode, lClassStartPos);
         Continue;
       end;
       if FStream.Check(ptkKeyword, 'property') then

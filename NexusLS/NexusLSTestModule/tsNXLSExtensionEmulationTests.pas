@@ -21,6 +21,7 @@ uses
   obNXLSAllRequests,
   obNXLSDispatcher,
   obNXLSLSPModel,
+  obNXLSProtocolBase,
   obNXTestContext,
   obNXTestSuite;
 
@@ -40,6 +41,8 @@ type
     procedure OpenDocument(const AURI, AText: string);
     function RequestLocation(const AMethod, AURI: string; ALine,
       ACharacter: Integer): TJSONObject;
+    function RoutinePairDiagnostics(const AMethod, AURI: string; ALine,
+      ACharacter: Integer): string;
   end;
 
 function NXLSLineOf(const AText, ANeedle: string): Integer;
@@ -143,13 +146,16 @@ procedure NXLSAssertRequestLocation(AContext: TNXTestContext;
   AClient: TNXLSEmulatedClient; const AMethod, AURI: string; ALine,
   ACharacter, AExpectedLine: Integer; const AMessage: string);
 var
+  lMessage: string;
   lResponse: TJSONObject;
 begin
   lResponse := AClient.RequestLocation(AMethod, AURI, ALine, ACharacter);
   try
-    NXLSAssertLocation(AContext, lResponse, AMessage);
+    lMessage := AMessage + AClient.RoutinePairDiagnostics(AMethod, AURI,
+      ALine, ACharacter);
+    NXLSAssertLocation(AContext, lResponse, lMessage);
     AContext.AssertEquals(AExpectedLine, NXLSLocationStartLine(lResponse),
-      AMessage + ' should return the expected target line.');
+      lMessage + ' should return the expected target line.');
   finally
     lResponse.Free;
   end;
@@ -309,6 +315,32 @@ begin
   end;
 end;
 
+function TNXLSEmulatedClient.RoutinePairDiagnostics(const AMethod,
+  AURI: string; ALine, ACharacter: Integer): string;
+var
+  lParams: TNXLSTextDocumentPositionParams;
+  lReport: TStringList;
+begin
+  Result := '';
+  if (AMethod <> 'nexusls.routine.gotoImplementation') and
+    (AMethod <> 'nexusls.routine.gotoDeclaration') then
+    Exit;
+
+  lParams := TNXLSTextDocumentPositionParams.Create;
+  lReport := TStringList.Create;
+  try
+    lParams.textDocument.uri.Value := AURI;
+    lParams.position.line.Value := ALine;
+    lParams.position.character.Value := ACharacter;
+    FModel.Navigation.CollectRoutinePairDiagnostics(lParams,
+      AMethod = 'nexusls.routine.gotoImplementation', lReport);
+    Result := LineEnding + lReport.Text;
+  finally
+    lReport.Free;
+    lParams.Free;
+  end;
+end;
+
 procedure NXLSOpenEmulatedDocument(AContext: TNXTestContext;
   AClient: TNXLSEmulatedClient; const AURI, AText: string);
 var
@@ -357,11 +389,14 @@ begin
   try
     NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
 
-    lResponse := lClient.RequestLocation('textDocument/implementation', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoImplementation', cURI,
       NXLSLineOf(cSource, '    procedure Run(AValue: Integer);'),
       NXLSColumnOf(cSource, '    procedure Run(AValue: Integer);', 'Run'));
     NXLSAssertLocation(AContext, lResponse,
-      'Instance method implementation lookup');
+      'Instance method implementation lookup' +
+      lClient.RoutinePairDiagnostics('nexusls.routine.gotoImplementation',
+      cURI, NXLSLineOf(cSource, '    procedure Run(AValue: Integer);'),
+      NXLSColumnOf(cSource, '    procedure Run(AValue: Integer);', 'Run')));
     AContext.AssertEquals(NXLSLineOf(cSource,
       'procedure TFoo.Run(AValue: Integer);'),
       NXLSLocationStartLine(lResponse),
@@ -374,11 +409,14 @@ begin
 
     lImplementationLine := NXLSLineOf(cSource,
       'procedure TFoo.Run(AValue: Integer);');
-    lResponse := lClient.RequestLocation('textDocument/declaration', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration', cURI,
       lImplementationLine,
       NXLSColumnOf(cSource, 'procedure TFoo.Run(AValue: Integer);', 'Run'));
     NXLSAssertLocation(AContext, lResponse,
-      'Instance method declaration lookup');
+      'Instance method declaration lookup' +
+      lClient.RoutinePairDiagnostics('nexusls.routine.gotoDeclaration',
+      cURI, lImplementationLine, NXLSColumnOf(cSource,
+      'procedure TFoo.Run(AValue: Integer);', 'Run')));
     AContext.AssertEquals(NXLSLineOf(cSource,
       '    procedure Run(AValue: Integer);'),
       NXLSLocationStartLine(lResponse),
@@ -415,11 +453,16 @@ begin
   try
     NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
 
-    lResponse := lClient.RequestLocation('textDocument/implementation', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoImplementation', cURI,
       NXLSLineOf(cSource, '    class procedure Info(const AMessage: string);'),
       NXLSColumnOf(cSource, '    class procedure Info(const AMessage: string);',
       'Info'));
-    NXLSAssertLocation(AContext, lResponse, 'Class method implementation lookup');
+    NXLSAssertLocation(AContext, lResponse, 'Class method implementation lookup' +
+      lClient.RoutinePairDiagnostics('nexusls.routine.gotoImplementation',
+      cURI, NXLSLineOf(cSource,
+      '    class procedure Info(const AMessage: string);'),
+      NXLSColumnOf(cSource,
+      '    class procedure Info(const AMessage: string);', 'Info')));
     AContext.AssertEquals(NXLSLineOf(cSource,
       'class procedure TLogger.Info(const AMessage: string);'),
       NXLSLocationStartLine(lResponse),
@@ -428,11 +471,14 @@ begin
 
     lImplementationLine := NXLSLineOf(cSource,
       'class procedure TLogger.Info(const AMessage: string);');
-    lResponse := lClient.RequestLocation('textDocument/declaration', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration', cURI,
       lImplementationLine,
       NXLSColumnOf(cSource,
       'class procedure TLogger.Info(const AMessage: string);', 'Info'));
-    NXLSAssertLocation(AContext, lResponse, 'Class method declaration lookup');
+    NXLSAssertLocation(AContext, lResponse, 'Class method declaration lookup' +
+      lClient.RoutinePairDiagnostics('nexusls.routine.gotoDeclaration',
+      cURI, lImplementationLine, NXLSColumnOf(cSource,
+      'class procedure TLogger.Info(const AMessage: string);', 'Info')));
     AContext.AssertEquals(NXLSLineOf(cSource,
       '    class procedure Info(const AMessage: string);'),
       NXLSLocationStartLine(lResponse),
@@ -472,7 +518,7 @@ begin
   try
     NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
 
-    lResponse := lClient.RequestLocation('textDocument/implementation', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoImplementation', cURI,
       NXLSLineOf(cSource, '    procedure Run;'),
       NXLSColumnOf(cSource, '    procedure Run;', 'Run'));
     NXLSAssertLocation(AContext, lResponse,
@@ -483,7 +529,7 @@ begin
     FreeAndNil(lResponse);
 
     lImplementationLine := NXLSLineOf(cSource, 'procedure TFoo.Run;');
-    lResponse := lClient.RequestLocation('textDocument/declaration', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration', cURI,
       lImplementationLine,
       NXLSColumnOf(cSource, 'procedure TFoo.Run;', 'Run'));
     NXLSAssertLocation(AContext, lResponse,
@@ -529,7 +575,7 @@ begin
     NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
     lImplementationStart := NXLSLineOf(cSource, 'implementation');
 
-    lResponse := lClient.RequestLocation('textDocument/implementation', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoImplementation', cURI,
       NXLSLineOf(cSource, '    class procedure Info(const AMessage: string);'),
       NXLSColumnOf(cSource, '    class procedure Info(const AMessage: string);',
       'Info'));
@@ -540,7 +586,7 @@ begin
       'Info implementation should be selected.');
     FreeAndNil(lResponse);
 
-    lResponse := lClient.RequestLocation('textDocument/declaration', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration', cURI,
       NXLSLineOfAfter(cSource,
       'class procedure TNXLSLogger.Info(const AMessage: string);',
       lImplementationStart),
@@ -554,7 +600,7 @@ begin
       'Info declaration should be selected.');
     FreeAndNil(lResponse);
 
-    lResponse := lClient.RequestLocation('textDocument/implementation', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoImplementation', cURI,
       NXLSLineOf(cSource, '    class procedure Error(const AMessage: string);'),
       NXLSColumnOf(cSource, '    class procedure Error(const AMessage: string);',
       'Error'));
@@ -565,7 +611,7 @@ begin
       'Error implementation should be selected.');
     FreeAndNil(lResponse);
 
-    lResponse := lClient.RequestLocation('textDocument/declaration', cURI,
+    lResponse := lClient.RequestLocation('nexusls.routine.gotoDeclaration', cURI,
       NXLSLineOfAfter(cSource,
       'class procedure TNXLSLogger.Error(const AMessage: string);',
       lImplementationStart),
@@ -611,7 +657,7 @@ var
   procedure AssertDeclPosition(const ADeclLine, AImplLine, ASimpleName,
     AColumnNeedle, AMessage: string; AColumnOffset: Integer = 0);
   begin
-    NXLSAssertRequestLocation(AContext, lClient, 'textDocument/implementation',
+    NXLSAssertRequestLocation(AContext, lClient, 'nexusls.routine.gotoImplementation',
       cURI, NXLSLineOf(cSource, ADeclLine),
       NXLSColumnOf(cSource, ADeclLine, AColumnNeedle) + AColumnOffset,
       NXLSLineOfAfter(cSource, AImplLine, lImplementationStart),
@@ -677,7 +723,7 @@ var
   procedure AssertImplPosition(const ADeclLine, AImplLine, ASimpleName,
     AColumnNeedle, AMessage: string; AColumnOffset: Integer = 0);
   begin
-    NXLSAssertRequestLocation(AContext, lClient, 'textDocument/declaration',
+    NXLSAssertRequestLocation(AContext, lClient, 'nexusls.routine.gotoDeclaration',
       cURI, NXLSLineOfAfter(cSource, AImplLine, lImplementationStart),
       NXLSColumnOfAfter(cSource, AImplLine, AColumnNeedle,
       lImplementationStart) + AColumnOffset,
@@ -688,7 +734,7 @@ var
   procedure AssertImplementationBody(const ADeclLine, AImplLine, ASimpleName,
     ABodyNeedle: string);
   begin
-    NXLSAssertRequestLocation(AContext, lClient, 'textDocument/declaration',
+    NXLSAssertRequestLocation(AContext, lClient, 'nexusls.routine.gotoDeclaration',
       cURI, NXLSLineOfAfter(cSource, ABodyNeedle, NXLSLineOfAfter(cSource,
       AImplLine, lImplementationStart)), 1, NXLSLineOf(cSource, ADeclLine),
       ASimpleName + ' implementation body');
@@ -734,27 +780,58 @@ const
     'interface' + LineEnding +
     'type' + LineEnding +
     '  TFoo = class' + LineEnding +
+    '  public' + LineEnding +
+    '    procedure Run;' + LineEnding +
     '  end;' + LineEnding +
     'implementation' + LineEnding +
+    'procedure TFoo.Run;' + LineEnding +
+    'begin' + LineEnding +
+    'end;' + LineEnding +
+    '' + LineEnding +
     'end.';
 var
   lClient: TNXLSEmulatedClient;
   lResponse: TJSONObject;
+
+  procedure AssertNoRoutinePair(const AMethod, ALineNeedle,
+    AColumnNeedle, AMessage: string);
+  begin
+    FreeAndNil(lResponse);
+    lResponse := lClient.RequestLocation(AMethod, cURI,
+      NXLSLineOf(cSource, ALineNeedle),
+      NXLSColumnOf(cSource, ALineNeedle, AColumnNeedle));
+    AContext.AssertTrue(lResponse <> nil, AMessage + ' response should exist.');
+    AContext.AssertTrue(lResponse.Find('error') = nil,
+      AMessage + ' should not error.');
+    AContext.AssertTrue((lResponse.Find('result') = nil) or
+      (lResponse.Find('result').JSONType = jtNull),
+      AMessage + ' should not return a routine pair.');
+  end;
+
+  procedure AssertNoRoutinePairAt(const AMethod: string; ALine,
+    AColumn: Integer; const AMessage: string);
+  begin
+    FreeAndNil(lResponse);
+    lResponse := lClient.RequestLocation(AMethod, cURI, ALine, AColumn);
+    AContext.AssertTrue(lResponse <> nil, AMessage + ' response should exist.');
+    AContext.AssertTrue(lResponse.Find('error') = nil,
+      AMessage + ' should not error.');
+    AContext.AssertTrue((lResponse.Find('result') = nil) or
+      (lResponse.Find('result').JSONType = jtNull),
+      AMessage + ' should not return a routine pair.');
+  end;
 begin
   lClient := TNXLSEmulatedClient.Create;
   lResponse := nil;
   try
     NXLSOpenEmulatedDocument(AContext, lClient, cURI, cSource);
-    lResponse := lClient.RequestLocation('textDocument/implementation', cURI,
-      NXLSLineOf(cSource, '  TFoo = class'), NXLSColumnOf(cSource,
-      '  TFoo = class', 'TFoo'));
-    AContext.AssertTrue(lResponse <> nil,
-      'Outside-routine implementation response should exist.');
-    AContext.AssertTrue(lResponse.Find('error') = nil,
-      'Outside-routine implementation should not error.');
-    AContext.AssertTrue((lResponse.Find('result') = nil) or
-      (lResponse.Find('result').JSONType = jtNull),
-      'Outside-routine implementation should not return a routine pair.');
+    AssertNoRoutinePair('nexusls.routine.gotoImplementation',
+      '  TFoo = class', 'TFoo', 'Class line implementation');
+    AssertNoRoutinePair('nexusls.routine.gotoImplementation',
+      '  public', 'public', 'Visibility line implementation');
+    AssertNoRoutinePairAt('nexusls.routine.gotoDeclaration',
+      NXLSLineOf(cSource, 'procedure TFoo.Run;') + 3, 0,
+      'Blank line declaration');
   finally
     lResponse.Free;
     lClient.Free;

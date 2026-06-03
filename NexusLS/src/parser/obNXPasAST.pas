@@ -45,6 +45,7 @@ type
     FDeclaredTypeText: string;
     FKind: TNXPasNodeKind;
     FName: string;
+    FNameRange: TNXPasSourceRange;
     FRange: TNXPasSourceRange;
     function GetChild(AIndex: Integer): TNXPasASTNode;
   public
@@ -58,6 +59,7 @@ type
     property DeclaredTypeText: string read FDeclaredTypeText write FDeclaredTypeText;
     property Kind: TNXPasNodeKind read FKind write FKind;
     property Name: string read FName write FName;
+    property NameRange: TNXPasSourceRange read FNameRange write FNameRange;
     property Range: TNXPasSourceRange read FRange write FRange;
   end;
 

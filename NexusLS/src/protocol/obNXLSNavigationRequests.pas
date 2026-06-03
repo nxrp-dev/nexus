@@ -74,6 +74,36 @@ public
     property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
   end;
 
+  TNXLSRoutineGotoImplementationRequest = class(TNXJSONRPCRequest)
+    private
+    function GetResult: TNXLSLocation;
+    procedure SetResult(AValue: TNXLSLocation);
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
+    class function GetFactoryName: string; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
+    function Execute: TNXJSONRPCValue; override;
+  published
+    property result: TNXLSLocation read GetResult write SetResult;
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
+  end;
+
+  TNXLSRoutineGotoDeclarationRequest = class(TNXJSONRPCRequest)
+    private
+    function GetResult: TNXLSLocation;
+    procedure SetResult(AValue: TNXLSLocation);
+    function GetParams: TNXLSTextDocumentPositionParams;
+    procedure SetParams(AValue: TNXLSTextDocumentPositionParams);
+public
+    class function GetFactoryName: string; override;
+    class function GetResultKind: TNXJSONRPCResultKind; override;
+    function Execute: TNXJSONRPCValue; override;
+  published
+    property result: TNXLSLocation read GetResult write SetResult;
+    property params: TNXLSTextDocumentPositionParams read GetParams write SetParams;
+  end;
+
   TNXLSTextDocumentReferencesRequest = class(TNXJSONRPCRequest)
     private
     function GetResult: TNXLSLocationArray;
@@ -195,6 +225,56 @@ begin
   end;
 end;
 
+class function TNXLSRoutineGotoImplementationRequest.GetFactoryName: string;
+begin
+  Result := 'nexusls.routine.gotoImplementation';
+end;
+
+class function TNXLSRoutineGotoImplementationRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
+function TNXLSRoutineGotoImplementationRequest.Execute: TNXJSONRPCValue;
+var
+  lResult: TNXLSLocation;
+begin
+  lResult := TNXLSLocation(PrepareResult);
+  if TNXLSLSPModel.Current.Navigation.FillRoutineImplementation(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
+end;
+
+class function TNXLSRoutineGotoDeclarationRequest.GetFactoryName: string;
+begin
+  Result := 'nexusls.routine.gotoDeclaration';
+end;
+
+class function TNXLSRoutineGotoDeclarationRequest.GetResultKind: TNXJSONRPCResultKind;
+begin
+  Result := rkNullableConcreteResult;
+end;
+
+function TNXLSRoutineGotoDeclarationRequest.Execute: TNXJSONRPCValue;
+var
+  lResult: TNXLSLocation;
+begin
+  lResult := TNXLSLocation(PrepareResult);
+  if TNXLSLSPModel.Current.Navigation.FillRoutineDeclaration(
+    TNXLSTextDocumentPositionParams(params), lResult) then
+    Result := lResult
+  else
+  begin
+    lResult.Free;
+    Result := TNXJSONNull.Create;
+  end;
+end;
+
 class function TNXLSTextDocumentReferencesRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/references';
@@ -216,6 +296,26 @@ begin
 end;
 
 procedure TNXLSTextDocumentImplementationRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSRoutineGotoImplementationRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSRoutineGotoImplementationRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSRoutineGotoDeclarationRequest.GetParams: TNXLSTextDocumentPositionParams;
+begin
+  Result := TNXLSTextDocumentPositionParams(inherited params);
+end;
+
+procedure TNXLSRoutineGotoDeclarationRequest.SetParams(AValue: TNXLSTextDocumentPositionParams);
 begin
   inherited params := AValue;
 end;
@@ -300,6 +400,26 @@ begin
   inherited result := AValue;
 end;
 
+function TNXLSRoutineGotoImplementationRequest.GetResult: TNXLSLocation;
+begin
+  Result := TNXLSLocation(inherited result);
+end;
+
+procedure TNXLSRoutineGotoImplementationRequest.SetResult(AValue: TNXLSLocation);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSRoutineGotoDeclarationRequest.GetResult: TNXLSLocation;
+begin
+  Result := TNXLSLocation(inherited result);
+end;
+
+procedure TNXLSRoutineGotoDeclarationRequest.SetResult(AValue: TNXLSLocation);
+begin
+  inherited result := AValue;
+end;
+
 function TNXLSTextDocumentReferencesRequest.GetResult: TNXLSLocationArray;
 begin
   Result := TNXLSLocationArray(inherited result);
@@ -315,6 +435,8 @@ initialization
   TNXClassFactory.RegisterClass(TNXLSTextDocumentDefinitionRequest);
   TNXClassFactory.RegisterClass(TNXLSTextDocumentTypeDefinitionRequest);
   TNXClassFactory.RegisterClass(TNXLSTextDocumentImplementationRequest);
+  TNXClassFactory.RegisterClass(TNXLSRoutineGotoImplementationRequest);
+  TNXClassFactory.RegisterClass(TNXLSRoutineGotoDeclarationRequest);
   TNXClassFactory.RegisterClass(TNXLSTextDocumentReferencesRequest);
 
 end.

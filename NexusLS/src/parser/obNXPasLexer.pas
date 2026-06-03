@@ -50,7 +50,7 @@ implementation
 
 uses
   SysUtils,
-  obNXFastParse;
+  obNXFastPascal;
 
 constructor TNXPasLexer.Create(const ASource: string;
   ADiagnostics: TNXPasDiagnosticList);
