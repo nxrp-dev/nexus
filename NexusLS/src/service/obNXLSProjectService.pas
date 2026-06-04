@@ -23,6 +23,7 @@ type
 implementation
 
 uses
+  obNXFPCBuildOptions,
   obNXPascalProject,
   SysUtils;
 
@@ -48,6 +49,36 @@ function NXLSProjectFileName(const AProjectName, ATargetDir: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ExpandFileName(ATargetDir)) +
     AProjectName + '.nxp';
+end;
+
+function NXLSProjectSourceDir(const ATargetDir: string): string;
+begin
+  Result := IncludeTrailingPathDelimiter(ExpandFileName(ATargetDir)) + 'src';
+end;
+
+function NXLSProjectProgramFileName(const AProjectName, ATargetDir: string): string;
+begin
+  Result := IncludeTrailingPathDelimiter(NXLSProjectSourceDir(ATargetDir)) +
+    AProjectName + '.lpr';
+end;
+
+function NXLSPascalIdentifier(const AProjectName: string): string;
+var
+  lIdx: Integer;
+  lChar: Char;
+begin
+  Result := '';
+  for lIdx := 1 to Length(AProjectName) do
+  begin
+    lChar := AProjectName[lIdx];
+    if lChar in ['A'..'Z', 'a'..'z', '0'..'9', '_'] then
+      Result := Result + lChar
+    else
+      Result := Result + '_';
+  end;
+
+  if (Result = '') or not (Result[1] in ['A'..'Z', 'a'..'z', '_']) then
+    Result := 'NexusProject';
 end;
 
 procedure NXLSAddField(AFields: TNXLSProjectFieldArray; const AId, ALabel, AType,
@@ -123,10 +154,36 @@ begin
     lProject.Name := AProjectName;
     lProject.ProjectRoot := ExpandFileName(ATargetDir);
     lProject.ProjectFileName := NXLSProjectFileName(AProjectName, ATargetDir);
+    lProject.ProjectKind := ppkProgram;
+    lProject.SourceRoot := 'src';
+    lProject.OutputRoot := 'output';
+    lProject.TargetPlatform.FPCMode := 'objfpc';
+    lProject.FPCBuildOptions.InputFile := '$(SourceRoot)' +
+      DirectorySeparator + AProjectName + '.lpr';
+    lProject.FPCBuildOptions.Files.UnitPaths.Add('$(SourceRoot)');
+    lProject.FPCBuildOptions.Files.UnitOutputPath := '$(OutputRoot)' +
+      DirectorySeparator + 'units';
+    lProject.FPCBuildOptions.Files.ExecutableOutputPath := '$(OutputRoot)';
+    lProject.FPCBuildOptions.Language.Mode := flmObjFPC;
     Result := lProject.JSON;
   finally
     lProject.Free;
   end;
+end;
+
+function NXLSNexusProgramSource(const AProjectName: string): string;
+var
+  lProgramName: string;
+begin
+  lProgramName := NXLSPascalIdentifier(AProjectName);
+  Result :=
+    'program ' + lProgramName + ';' + LineEnding +
+    LineEnding +
+    '{$mode objfpc}{$H+}' + LineEnding +
+    LineEnding +
+    'begin' + LineEnding +
+    '  WriteLn(''Hello from ' + AProjectName + '.'');' + LineEnding +
+    'end.' + LineEnding;
 end;
 
 procedure NXLSReadNexusProjectParams(AParams: TNXLSProjectCreateParams;
@@ -197,6 +254,8 @@ begin
   end;
 
   NXLSAddOutput(AResult.outputs, 'Nexus project', lProjectFile);
+  NXLSAddOutput(AResult.outputs, 'Program source',
+    NXLSProjectProgramFileName(lProjectName, lTargetDir));
   NXLSAddDetail(AResult.details, 'Project type', 'Nexus Project');
   NXLSAddDetail(AResult.details, 'Project name', lProjectName);
   NXLSAddDetail(AResult.details, 'Destination', ExpandFileName(lTargetDir));
@@ -232,6 +291,11 @@ begin
   lFile := TNXLSProjectFile(AResult.files.AddObject(TNXLSProjectFile));
   lFile.path.Value := lProjectFile;
   lFile.content.Value := NXLSNexusProjectJSON(lProjectName, lTargetDir);
+  lFile.Assigned := True;
+
+  lFile := TNXLSProjectFile(AResult.files.AddObject(TNXLSProjectFile));
+  lFile.path.Value := NXLSProjectProgramFileName(lProjectName, lTargetDir);
+  lFile.content.Value := NXLSNexusProgramSource(lProjectName);
   lFile.Assigned := True;
 
   AResult.message.Value := 'Nexus project created: ' + lProjectName;

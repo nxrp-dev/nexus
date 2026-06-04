@@ -4,7 +4,9 @@ setlocal
 REM Build Nexus Pascal and ensure the local VS Code extension junction points here.
 
 set "RepoRoot=C:\gitdev\tools\nexus-pascal"
+set "NexusRoot=C:\gitdev\nexus"
 set "ExtensionDir=%USERPROFILE%\.vscode\extensions"
+set "TargetTriple=x86_64-win64"
 
 if not exist "%RepoRoot%\package.json" (
     echo ERROR: package.json not found at "%RepoRoot%".
@@ -54,6 +56,15 @@ if not exist node_modules (
 echo Building Nexus Pascal...
 call npm.cmd run esbuild
 if errorlevel 1 goto Fail
+
+if exist "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" (
+    if not exist "%RepoRoot%\bin\%TargetTriple%" mkdir "%RepoRoot%\bin\%TargetTriple%"
+    echo Promoting NexusBuild executable...
+    copy /Y "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" "%RepoRoot%\bin\%TargetTriple%\nexusbuild.exe" >nul
+    if errorlevel 1 goto Fail
+) else (
+    echo WARNING: NexusBuild executable was not found. Build NexusBuild\nexusbuild.lpi before using Nexus project tasks.
+)
 
 if exist "%ExtensionLink%\package.json" (
     echo Local extension link already present:
