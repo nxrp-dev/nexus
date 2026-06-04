@@ -30,6 +30,28 @@ type
     pskVisibility
   );
 
+const
+  cNXPasSymbolKindNames: array[TNXPasSymbolKind] of string = (
+    'Unknown',
+    'Unit',
+    'Program',
+    'Library',
+    'UsesUnit',
+    'Type',
+    'Class',
+    'Record',
+    'Object',
+    'Interface',
+    'Routine',
+    'Const',
+    'Variable',
+    'Field',
+    'Parameter',
+    'Property',
+    'Visibility'
+  );
+
+type
   TNXPasSymbol = class
   private
     FChildren: TObjectList;
@@ -285,44 +307,7 @@ end;
 
 function NXPasSymbolKindName(AKind: TNXPasSymbolKind): string;
 begin
-  case AKind of
-    pskUnknown:
-      Result := 'Unknown';
-    pskUnit:
-      Result := 'Unit';
-    pskProgram:
-      Result := 'Program';
-    pskLibrary:
-      Result := 'Library';
-    pskUsesUnit:
-      Result := 'UsesUnit';
-    pskType:
-      Result := 'Type';
-    pskClass:
-      Result := 'Class';
-    pskRecord:
-      Result := 'Record';
-    pskObject:
-      Result := 'Object';
-    pskInterface:
-      Result := 'Interface';
-    pskRoutine:
-      Result := 'Routine';
-    pskConst:
-      Result := 'Const';
-    pskVariable:
-      Result := 'Variable';
-    pskField:
-      Result := 'Field';
-    pskParameter:
-      Result := 'Parameter';
-    pskProperty:
-      Result := 'Property';
-    pskVisibility:
-      Result := 'Visibility';
-  else
-    Result := '';
-  end;
+  Result := cNXPasSymbolKindNames[AKind];
 end;
 
 function NXPasRangeContains(const ARange: TNXPasSourceRange; ALine,
