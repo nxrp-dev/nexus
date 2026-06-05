@@ -377,6 +377,7 @@ var
   lFPCDir: string;
   lLocation: TNXLSLocation;
   lModel: TNXLSLSPModel;
+  lFpcToolchain: TJSONObject;
   lOptions: TJSONObject;
   lOptionsJSON: TJSONData;
   lParams: TNXLSTextDocumentPositionParams;
@@ -407,7 +408,12 @@ begin
 
     lOptions := TJSONObject.Create;
     try
-      lOptions.Add('fpcDir', lFPCDir);
+      lFpcToolchain := TJSONObject.Create;
+      lFpcToolchain.Add('enabled', True);
+      lFpcToolchain.Add('installDirectory', lFPCDir);
+      lOptions.Add('toolchains', TJSONObject.Create([
+        'freepascal', lFpcToolchain
+      ]));
       lOptionsJSON := lOptions;
       lInitializeParams.initializationOptions.FromJSONData(lOptionsJSON);
     finally

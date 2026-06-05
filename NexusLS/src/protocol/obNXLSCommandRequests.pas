@@ -104,12 +104,52 @@ public
     property params: TNXLSProjectCreateParams read GetParams write SetParams;
   end;
 
+  TNXLSToolchainListSupportedRequest = class(TNXJSONRPCRequest)
+    private
+    function GetResult: TNXLSToolchainListSupportedResult;
+    procedure SetResult(AValue: TNXLSToolchainListSupportedResult);
+public
+    class function GetFactoryName: string; override;
+    function Execute: TNXJSONRPCValue; override;
+  published
+    property result: TNXLSToolchainListSupportedResult read GetResult write SetResult;
+  end;
+
+  TNXLSToolchainConfigureWizardRequest = class(TNXJSONRPCRequest)
+    private
+    function GetResult: TNXLSToolchainConfigureWizardResult;
+    procedure SetResult(AValue: TNXLSToolchainConfigureWizardResult);
+    function GetParams: TNXLSToolchainConfigureParams;
+    procedure SetParams(AValue: TNXLSToolchainConfigureParams);
+public
+    class function GetFactoryName: string; override;
+    function Execute: TNXJSONRPCValue; override;
+  published
+    property result: TNXLSToolchainConfigureWizardResult read GetResult write SetResult;
+    property params: TNXLSToolchainConfigureParams read GetParams write SetParams;
+  end;
+
+  TNXLSToolchainPlanConfigureRequest = class(TNXJSONRPCRequest)
+    private
+    function GetResult: TNXLSToolchainPlanConfigureResult;
+    procedure SetResult(AValue: TNXLSToolchainPlanConfigureResult);
+    function GetParams: TNXLSToolchainConfigureParams;
+    procedure SetParams(AValue: TNXLSToolchainConfigureParams);
+public
+    class function GetFactoryName: string; override;
+    function Execute: TNXJSONRPCValue; override;
+  published
+    property result: TNXLSToolchainPlanConfigureResult read GetResult write SetResult;
+    property params: TNXLSToolchainConfigureParams read GetParams write SetParams;
+  end;
+
 implementation
 
 uses
   obNXClassFactory,
   obNXLSLSPModel,
   obNXLSProjectService,
+  obNXLSToolchainService,
   utNXLSCommandNames;
 
 class function TNXLSCompleteCodeRequest.GetFactoryName: string;
@@ -224,6 +264,50 @@ begin
   Result := lResult;
 end;
 
+class function TNXLSToolchainListSupportedRequest.GetFactoryName: string;
+begin
+  Result := cNXLSCommandToolchainListSupported;
+end;
+
+function TNXLSToolchainListSupportedRequest.Execute: TNXJSONRPCValue;
+var
+  lResult: TNXLSToolchainListSupportedResult;
+begin
+  lResult := TNXLSToolchainListSupportedResult(PrepareResult);
+  TNXLSToolchainService.FillListSupported(lResult);
+  Result := lResult;
+end;
+
+class function TNXLSToolchainConfigureWizardRequest.GetFactoryName: string;
+begin
+  Result := cNXLSCommandToolchainConfigureWizard;
+end;
+
+function TNXLSToolchainConfigureWizardRequest.Execute: TNXJSONRPCValue;
+var
+  lResult: TNXLSToolchainConfigureWizardResult;
+begin
+  lResult := TNXLSToolchainConfigureWizardResult(PrepareResult);
+  TNXLSToolchainService.FillConfigureWizard(
+    TNXLSToolchainConfigureParams(params), lResult);
+  Result := lResult;
+end;
+
+class function TNXLSToolchainPlanConfigureRequest.GetFactoryName: string;
+begin
+  Result := cNXLSCommandToolchainPlanConfigure;
+end;
+
+function TNXLSToolchainPlanConfigureRequest.Execute: TNXJSONRPCValue;
+var
+  lResult: TNXLSToolchainPlanConfigureResult;
+begin
+  lResult := TNXLSToolchainPlanConfigureResult(PrepareResult);
+  TNXLSToolchainService.FillPlanConfigure(
+    TNXLSToolchainConfigureParams(params), lResult);
+  Result := lResult;
+end;
+
 function TNXLSProjectPlanCreateRequest.GetParams: TNXLSProjectCreateParams;
 begin
   Result := TNXLSProjectCreateParams(inherited params);
@@ -294,6 +378,26 @@ begin
   inherited params := AValue;
 end;
 
+function TNXLSToolchainConfigureWizardRequest.GetParams: TNXLSToolchainConfigureParams;
+begin
+  Result := TNXLSToolchainConfigureParams(inherited params);
+end;
+
+procedure TNXLSToolchainConfigureWizardRequest.SetParams(AValue: TNXLSToolchainConfigureParams);
+begin
+  inherited params := AValue;
+end;
+
+function TNXLSToolchainPlanConfigureRequest.GetParams: TNXLSToolchainConfigureParams;
+begin
+  Result := TNXLSToolchainConfigureParams(inherited params);
+end;
+
+procedure TNXLSToolchainPlanConfigureRequest.SetParams(AValue: TNXLSToolchainConfigureParams);
+begin
+  inherited params := AValue;
+end;
+
 function TNXLSProjectCreateWizardRequest.GetResult: TNXLSProjectCreateWizardResult;
 begin
   Result := TNXLSProjectCreateWizardResult(inherited result);
@@ -324,6 +428,40 @@ begin
   inherited result := AValue;
 end;
 
+function TNXLSToolchainListSupportedRequest.GetResult:
+  TNXLSToolchainListSupportedResult;
+begin
+  Result := TNXLSToolchainListSupportedResult(inherited result);
+end;
+
+procedure TNXLSToolchainListSupportedRequest.SetResult(
+  AValue: TNXLSToolchainListSupportedResult);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSToolchainConfigureWizardRequest.GetResult: TNXLSToolchainConfigureWizardResult;
+begin
+  Result := TNXLSToolchainConfigureWizardResult(inherited result);
+end;
+
+procedure TNXLSToolchainConfigureWizardRequest.SetResult(
+  AValue: TNXLSToolchainConfigureWizardResult);
+begin
+  inherited result := AValue;
+end;
+
+function TNXLSToolchainPlanConfigureRequest.GetResult: TNXLSToolchainPlanConfigureResult;
+begin
+  Result := TNXLSToolchainPlanConfigureResult(inherited result);
+end;
+
+procedure TNXLSToolchainPlanConfigureRequest.SetResult(
+  AValue: TNXLSToolchainPlanConfigureResult);
+begin
+  inherited result := AValue;
+end;
+
 initialization
   TNXClassFactory.RegisterClass(TNXLSCompleteCodeRequest);
   TNXClassFactory.RegisterClass(TNXLSInvertAssignmentRequest);
@@ -332,5 +470,8 @@ initialization
   TNXClassFactory.RegisterClass(TNXLSProjectCreateWizardRequest);
   TNXClassFactory.RegisterClass(TNXLSProjectPlanCreateRequest);
   TNXClassFactory.RegisterClass(TNXLSProjectCreateRequest);
+  TNXClassFactory.RegisterClass(TNXLSToolchainListSupportedRequest);
+  TNXClassFactory.RegisterClass(TNXLSToolchainConfigureWizardRequest);
+  TNXClassFactory.RegisterClass(TNXLSToolchainPlanConfigureRequest);
 
 end.

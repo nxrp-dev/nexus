@@ -56,6 +56,7 @@ type
     FProjectRoot: string;
     FSourceRoot: string;
     FOutputRoot: string;
+    FLazarusProjectFile: string;
     FTargetPlatform: TNXPascalTargetPlatform;
     FToolchain: TNXPascalToolchain;
     FFPCBuildOptions: TNXFPCBuildOptions;
@@ -84,6 +85,7 @@ type
     property ProjectRoot: string read FProjectRoot write FProjectRoot;
     property SourceRoot: string read FSourceRoot write FSourceRoot;
     property OutputRoot: string read FOutputRoot write FOutputRoot;
+    property LazarusProjectFile: string read FLazarusProjectFile write FLazarusProjectFile;
     property TargetPlatform: TNXPascalTargetPlatform read FTargetPlatform;
     property Toolchain: TNXPascalToolchain read FToolchain;
     property FPCBuildOptions: TNXFPCBuildOptions read FFPCBuildOptions;
@@ -155,6 +157,7 @@ begin
   SetVariableValue('ProjectRoot', FProjectRoot);
   SetVariableValue('SourceRoot', FSourceRoot);
   SetVariableValue('OutputRoot', FOutputRoot);
+  SetVariableValue('LazarusProjectFile', FLazarusProjectFile);
   SetVariableValue('CompilerPath', FToolchain.CompilerPath);
   SetVariableValue('FPCSourceRoot', FToolchain.FPCSourceRoot);
   SetVariableValue('FPCUnitRoot', FToolchain.FPCUnitRoot);
@@ -251,6 +254,7 @@ end;
 procedure TNXPascalProject.ApplyToBuildOptions;
 begin
   FFPCBuildOptions.CompilerPath := ResolveValue(FToolchain.CompilerPath);
+  FLazarusProjectFile := ResolvePath(FLazarusProjectFile);
   FFPCBuildOptions.InputFile := ResolvePath(FFPCBuildOptions.InputFile);
   FFPCBuildOptions.OutputFile := ResolvePath(FFPCBuildOptions.OutputFile);
   FFPCBuildOptions.Target.OperatingSystem := ResolveValue(FTargetPlatform.TargetOS);

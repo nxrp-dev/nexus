@@ -16,9 +16,13 @@ uses
   SysUtils,
   fpjson,
   obNXFPCBuildOptions,
+  obNXJSONRPCMessages,
+  obNXLSDispatcher,
   obNXLSLSPModel,
+  obNXLSProtocolObjects,
   obNXLSProtocolParams,
   obNXLSServiceContext,
+  obNXLSToolchainService,
   obNXPascalProject,
   obNXTestContext,
   obNXTestSuite;
@@ -236,6 +240,67 @@ begin
   end;
 end;
 
+procedure TestInitializeLoadsToolchainConfig(AContext: TNXTestContext);
+var
+  lFPCDir: string;
+  lLazarusDir: string;
+  lLazarusToolchain: TJSONObject;
+  lModel: TNXLSLSPModel;
+  lOptions: TJSONObject;
+  lOptionsJSON: TJSONData;
+  lParams: TNXLSInitializeParams;
+  lRoot: string;
+  lRootJSON: TJSONData;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxls');
+  lLazarusDir := IncludeTrailingPathDelimiter(lRoot) + 'lazarus';
+  lFPCDir := IncludeTrailingPathDelimiter(lLazarusDir) + 'fpc' +
+    DirectorySeparator + '3.2.2';
+  ForceDirectories(lFPCDir);
+
+  lParams := TNXLSInitializeParams.Create;
+  lModel := TNXLSLSPModel.Create;
+  try
+    lRootJSON := TJSONString.Create(NXLSPathToFileURI(lRoot));
+    try
+      lParams.rootUri.FromJSONData(lRootJSON);
+    finally
+      lRootJSON.Free;
+    end;
+
+    lOptions := TJSONObject.Create;
+    try
+      lLazarusToolchain := TJSONObject.Create;
+      lLazarusToolchain.Add('enabled', True);
+      lLazarusToolchain.Add('installDirectory', lLazarusDir);
+      lOptions.Add('toolchains', TJSONObject.Create([
+        'lazarus', lLazarusToolchain
+      ]));
+
+      lOptionsJSON := lOptions;
+      lParams.initializationOptions.FromJSONData(lOptionsJSON);
+    finally
+      lOptions.Free;
+    end;
+
+    lModel.BeginInitialize(lParams);
+
+    AContext.AssertEquals(ExpandFileName(lLazarusDir),
+      lModel.Settings.LazarusDir,
+      'Initialize should load Lazarus directory from toolchain config.');
+    AContext.AssertEquals(ExpandFileName(lFPCDir),
+      lModel.Settings.FPCDir,
+      'Initialize should derive bundled FPC directory from Lazarus toolchain config.');
+  finally
+    lModel.Free;
+    lParams.Free;
+    RemoveDir(lFPCDir);
+    RemoveDir(ExtractFileDir(lFPCDir));
+    RemoveDir(lLazarusDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
 procedure TestInitializeHonorsProgramConfigAndRootPathFallback(AContext: TNXTestContext);
 var
   lModel: TNXLSLSPModel;
@@ -352,6 +417,158 @@ begin
   end;
 end;
 
+procedure TestLazarusToolchainPlanValidatesDirectory(AContext: TNXTestContext);
+var
+  lRoot: string;
+  lLazbuildFile: string;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxlaz');
+  lLazbuildFile := IncludeTrailingPathDelimiter(lRoot) + 'lazbuild';
+  {$IFDEF MSWINDOWS}
+  lLazbuildFile := lLazbuildFile + '.exe';
+  {$ENDIF}
+
+  with TStringList.Create do
+  try
+    Text := '';
+    SaveToFile(lLazbuildFile);
+  finally
+    Free;
+  end;
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'lazarus';
+    lParams.lazarusDirectory.Value := lRoot;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'A Lazarus directory with lazbuild should validate.');
+    AContext.AssertEquals(ExpandFileName(lRoot),
+      lResult.normalizedLazarusDirectory.Value,
+      'Toolchain plan should normalize the Lazarus directory.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    DeleteFile(lLazbuildFile);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestToolchainListSupportedIncludesLazarus(AContext: TNXTestContext);
+var
+  lResult: TNXLSToolchainListSupportedResult;
+begin
+  lResult := TNXLSToolchainListSupportedResult.Create;
+  try
+    TNXLSToolchainService.FillListSupported(lResult);
+
+    AContext.AssertTrue(lResult.toolchains.Count >= 3,
+      'Supported toolchains should include Lazarus, Free Pascal, and Android.');
+    AContext.AssertEquals('lazarus',
+      TNXLSToolchainDescriptor(lResult.toolchains[0]).kind.Value,
+      'The initial supported toolchain should be Lazarus.');
+    AContext.AssertEquals('freepascal',
+      TNXLSToolchainDescriptor(lResult.toolchains[1]).kind.Value,
+      'Supported toolchains should include Free Pascal.');
+    AContext.AssertEquals('android',
+      TNXLSToolchainDescriptor(lResult.toolchains[2]).kind.Value,
+      'Supported toolchains should include Android.');
+  finally
+    lResult.Free;
+  end;
+end;
+
+procedure TestToolchainListSupportedDispatchReturnsDescriptors(
+  AContext: TNXTestContext);
+var
+  lMessage: TNXJSONRPCMessage;
+  lDispatched: Boolean;
+  lResponseText: string;
+  lResponse: TJSONData;
+  lResult: TJSONObject;
+  lToolchains: TJSONArray;
+begin
+  lMessage := TNXJSONRPC.ParseMessage(
+    '{"jsonrpc":"2.0","id":1,"method":"nexusls.toolchain.listSupported","params":{}}');
+  try
+    lDispatched := TNXLSDispatcher.DispatchMessage(lMessage, lResponseText);
+  finally
+    lMessage.Free;
+  end;
+
+  AContext.AssertTrue(lDispatched,
+    'Toolchain listSupported request should dispatch.');
+  lResponse := GetJSON(lResponseText);
+  try
+    AContext.AssertTrue(lResponse is TJSONObject,
+      'Toolchain listSupported response should be a JSON object.');
+    lResult := TJSONObject(lResponse).Objects['result'];
+    lToolchains := lResult.Arrays['toolchains'];
+    AContext.AssertEquals(3, lToolchains.Count,
+      'Toolchain listSupported dispatch should return all supported toolchains.');
+    AContext.AssertEquals('lazarus',
+      lToolchains.Objects[0].Strings['kind'],
+      'The first dispatched toolchain should be Lazarus.');
+    AContext.AssertEquals('freepascal',
+      lToolchains.Objects[1].Strings['kind'],
+      'The second dispatched toolchain should be Free Pascal.');
+    AContext.AssertEquals('android',
+      lToolchains.Objects[2].Strings['kind'],
+      'The third dispatched toolchain should be Android.');
+  finally
+    lResponse.Free;
+  end;
+end;
+
+procedure TestDisabledLazarusToolchainPlanDoesNotRequireDirectory(
+  AContext: TNXTestContext);
+var
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+begin
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'lazarus';
+    lParams.enabled.Value := False;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Disabled Lazarus toolchain should be saveable without a directory.');
+  finally
+    lResult.Free;
+    lParams.Free;
+  end;
+end;
+
+procedure TestDisabledAndroidToolchainPlanDoesNotRequireDirectories(
+  AContext: TNXTestContext);
+var
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+begin
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'android';
+    lParams.enabled.Value := False;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Disabled Android toolchain should be saveable without SDK paths.');
+  finally
+    lResult.Free;
+    lParams.Free;
+  end;
+end;
+
 procedure RegisterNXLSCoreTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -367,10 +584,22 @@ begin
     @TestInitializeLoadsExplicitPaths);
   lSuite.AddTest('InitializeHonorsOptionsMacros',
     @TestInitializeHonorsOptionsMacros);
+  lSuite.AddTest('InitializeLoadsToolchainConfig',
+    @TestInitializeLoadsToolchainConfig);
   lSuite.AddTest('InitializeHonorsProgramConfigAndRootPathFallback',
     @TestInitializeHonorsProgramConfigAndRootPathFallback);
   lSuite.AddTest('InitializeUsesExplicitLPIProgram',
     @TestInitializeUsesExplicitLPIProgram);
+  lSuite.AddTest('ToolchainListSupportedIncludesLazarus',
+    @TestToolchainListSupportedIncludesLazarus);
+  lSuite.AddTest('ToolchainListSupportedDispatchReturnsDescriptors',
+    @TestToolchainListSupportedDispatchReturnsDescriptors);
+  lSuite.AddTest('LazarusToolchainPlanValidatesDirectory',
+    @TestLazarusToolchainPlanValidatesDirectory);
+  lSuite.AddTest('DisabledLazarusToolchainPlanDoesNotRequireDirectory',
+    @TestDisabledLazarusToolchainPlanDoesNotRequireDirectory);
+  lSuite.AddTest('DisabledAndroidToolchainPlanDoesNotRequireDirectories',
+    @TestDisabledAndroidToolchainPlanDoesNotRequireDirectories);
 end;
 
 end.

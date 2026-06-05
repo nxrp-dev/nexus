@@ -745,17 +745,46 @@ type
   TNXLSProjectCreateWizardParams = class(TNXJSONRPCObjectParams)
   private
     FworkspaceRoot: TNXJSONString;
+    Fkind: TNXJSONString;
+    FlpiFile: TNXJSONString;
   published
     property workspaceRoot: TNXJSONString read FworkspaceRoot write FworkspaceRoot;
+    property kind: TNXJSONString read Fkind write Fkind;
+    property lpiFile: TNXJSONString read FlpiFile write FlpiFile;
   end;
 
   TNXLSProjectCreateParams = class(TNXJSONRPCObjectParams)
   private
     FprojectName: TNXJSONString;
     FtargetDir: TNXJSONString;
+    Fkind: TNXJSONString;
+    FlpiFile: TNXJSONString;
   published
     property projectName: TNXJSONString read FprojectName write FprojectName;
     property targetDir: TNXJSONString read FtargetDir write FtargetDir;
+    property kind: TNXJSONString read Fkind write Fkind;
+    property lpiFile: TNXJSONString read FlpiFile write FlpiFile;
+  end;
+
+  TNXLSToolchainConfigureParams = class(TNXJSONRPCObjectParams)
+  private
+    FandroidNdkDirectory: TNXJSONString;
+    FandroidSdkDirectory: TNXJSONString;
+    FcompilerPath: TNXJSONString;
+    Fenabled: TNXJSONBoolean;
+    FfpcDirectory: TNXJSONString;
+    FjavaHome: TNXJSONString;
+    Fkind: TNXJSONString;
+    FlazarusDirectory: TNXJSONString;
+  published
+    property androidNdkDirectory: TNXJSONString read FandroidNdkDirectory write FandroidNdkDirectory;
+    property androidSdkDirectory: TNXJSONString read FandroidSdkDirectory write FandroidSdkDirectory;
+    property compilerPath: TNXJSONString read FcompilerPath write FcompilerPath;
+    property enabled: TNXJSONBoolean read Fenabled write Fenabled;
+    property fpcDirectory: TNXJSONString read FfpcDirectory write FfpcDirectory;
+    property javaHome: TNXJSONString read FjavaHome write FjavaHome;
+    property kind: TNXJSONString read Fkind write Fkind;
+    property lazarusDirectory: TNXJSONString read FlazarusDirectory write FlazarusDirectory;
   end;
 
   TNXLSInlayHintParams = class(TNXJSONRPCObjectParams)

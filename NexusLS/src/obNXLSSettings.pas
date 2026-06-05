@@ -27,6 +27,11 @@ type
     procedure LoadStringArray(AData: TJSONData; ATarget: TStrings);
     procedure LoadStringValue(AObject: TJSONObject; const AName: string; var ATarget: string);
     procedure LoadBooleanValue(AObject: TJSONObject; const AName: string; var ATarget: Boolean);
+    function JSONBoolean(AObject: TJSONObject; const AName: string; ADefault: Boolean): Boolean;
+    function JSONString(AObject: TJSONObject; const AName: string): string;
+    function FindFPCDirInLazarus(const ALazarusDir: string): string;
+    function FPCDirFromCompilerPath(const ACompilerPath: string): string;
+    procedure LoadToolchains(AObject: TJSONObject);
   public
     constructor Create;
     destructor Destroy; override;
@@ -146,6 +151,125 @@ begin
     ATarget := lData.AsBoolean;
 end;
 
+function TNXLSSettings.JSONBoolean(AObject: TJSONObject; const AName: string;
+  ADefault: Boolean): Boolean;
+var
+  lData: TJSONData;
+begin
+  Result := ADefault;
+  if AObject = nil then
+    Exit;
+
+  lData := AObject.Find(AName);
+  if (lData <> nil) and (lData.JSONType = jtBoolean) then
+    Result := lData.AsBoolean;
+end;
+
+function TNXLSSettings.JSONString(AObject: TJSONObject; const AName: string): string;
+var
+  lData: TJSONData;
+begin
+  Result := '';
+  if AObject = nil then
+    Exit;
+
+  lData := AObject.Find(AName);
+  if (lData <> nil) and (lData.JSONType = jtString) then
+    Result := Trim(lData.AsString);
+end;
+
+function TNXLSSettings.FindFPCDirInLazarus(const ALazarusDir: string): string;
+var
+  lRoot: string;
+  lSearch: TSearchRec;
+begin
+  Result := '';
+  if ALazarusDir = '' then
+    Exit;
+
+  lRoot := IncludeTrailingPathDelimiter(ALazarusDir) + 'fpc';
+  if not DirectoryExists(lRoot) then
+    Exit;
+
+  if FindFirst(IncludeTrailingPathDelimiter(lRoot) + '*', faDirectory,
+    lSearch) = 0 then
+  try
+    repeat
+      if (lSearch.Name <> '.') and (lSearch.Name <> '..') and
+        ((lSearch.Attr and faDirectory) <> 0) and
+        DirectoryExists(IncludeTrailingPathDelimiter(lRoot) + lSearch.Name) then
+      begin
+        Result := IncludeTrailingPathDelimiter(lRoot) + lSearch.Name;
+        Exit;
+      end;
+    until FindNext(lSearch) <> 0;
+  finally
+    FindClose(lSearch);
+  end;
+
+  if Result = '' then
+    Result := lRoot;
+end;
+
+function TNXLSSettings.FPCDirFromCompilerPath(const ACompilerPath: string): string;
+var
+  lBinDir: string;
+begin
+  Result := '';
+  if ACompilerPath = '' then
+    Exit;
+
+  lBinDir := ExtractFileDir(ACompilerPath);
+  if SameText(ExtractFileName(lBinDir), 'bin') then
+    Exit(ExtractFileDir(lBinDir));
+
+  lBinDir := ExtractFileDir(lBinDir);
+  if SameText(ExtractFileName(lBinDir), 'bin') then
+    Result := ExtractFileDir(lBinDir);
+end;
+
+procedure TNXLSSettings.LoadToolchains(AObject: TJSONObject);
+var
+  lCompilerPath: string;
+  lData: TJSONData;
+  lFPC: TJSONObject;
+  lLazarus: TJSONObject;
+  lToolchains: TJSONData;
+begin
+  if AObject = nil then
+    Exit;
+
+  lToolchains := AObject.Find('toolchains');
+  if (lToolchains = nil) or (lToolchains.JSONType <> jtObject) then
+    Exit;
+
+  lLazarus := nil;
+  lData := TJSONObject(lToolchains).Find('lazarus');
+  if (lData <> nil) and (lData.JSONType = jtObject) then
+    lLazarus := TJSONObject(lData);
+  if (lLazarus <> nil) and JSONBoolean(lLazarus, 'enabled', True) then
+    FLazarusDir := JSONString(lLazarus, 'installDirectory');
+
+  lFPC := nil;
+  lData := TJSONObject(lToolchains).Find('freepascal');
+  if (lData <> nil) and (lData.JSONType = jtObject) then
+    lFPC := TJSONObject(lData);
+  if (lFPC <> nil) and JSONBoolean(lFPC, 'enabled', True) then
+  begin
+    FFPCDir := JSONString(lFPC, 'installDirectory');
+    if FFPCDir = '' then
+      FFPCDir := JSONString(lFPC, 'fpcDirectory');
+    if FFPCDir = '' then
+    begin
+      lCompilerPath := JSONString(lFPC, 'compilerPath');
+      FFPCDir := FPCDirFromCompilerPath(lCompilerPath);
+    end;
+  end;
+
+  if (FFPCDir = '') and (FLazarusDir <> '') then
+    FFPCDir := FindFPCDirInLazarus(FLazarusDir);
+end;
+
 procedure TNXLSSettings.LoadFromInitializationOptions(AOptions: TNXJSONRPCValue);
 var
   lData: TJSONData;
@@ -163,8 +287,7 @@ begin
 
     lObject := TJSONObject(lData);
     LoadStringValue(lObject, 'cwd', FCWD);
-    LoadStringValue(lObject, 'fpcDir', FFPCDir);
-    LoadStringValue(lObject, 'lazarusDir', FLazarusDir);
+    LoadToolchains(lObject);
     LoadStringValue(lObject, 'program', FProgramFile);
     LoadStringArray(lObject.Find('fpcOptions'), FFPCOptions);
     LoadBooleanValue(lObject, 'checkSyntax', FCheckSyntax);

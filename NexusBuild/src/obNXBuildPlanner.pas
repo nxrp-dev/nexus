@@ -28,6 +28,9 @@ type
   TNXBuildPlanner = class
   private
     function ResolveCompiler(AProject: TNXPascalProject): string;
+    function ResolveLazbuild(AProject: TNXPascalProject): string;
+    procedure CreateFPCPlan(APlan: TNXBuildPlan);
+    procedure CreateLazarusPlan(APlan: TNXBuildPlan);
   public
     function CreatePlan(AProject: TNXPascalProject): TNXBuildPlan;
     procedure WritePlan(APlan: TNXBuildPlan);
@@ -69,6 +72,49 @@ begin
     Result := 'fpc';
 end;
 
+function TNXBuildPlanner.ResolveLazbuild(AProject: TNXPascalProject): string;
+var
+  lLazarusRoot: string;
+begin
+  lLazarusRoot := AProject.ResolvePath(AProject.Toolchain.LazarusRoot);
+  if lLazarusRoot = '' then
+    lLazarusRoot := GetEnvironmentVariable('LAZARUSDIR');
+  if lLazarusRoot <> '' then
+  begin
+    Result := IncludeTrailingPathDelimiter(lLazarusRoot) + 'lazbuild';
+    {$IFDEF MSWINDOWS}
+    Result := Result + '.exe';
+    {$ENDIF}
+    if FileExists(Result) then
+      Exit;
+  end;
+
+  Result := GetEnvironmentVariable('LAZBUILD');
+  if Result = '' then
+    Result := 'lazbuild';
+end;
+
+procedure TNXBuildPlanner.CreateFPCPlan(APlan: TNXBuildPlan);
+begin
+  APlan.Executable := ResolveCompiler(APlan.Project);
+  APlan.WorkingDirectory := APlan.Project.ProjectRoot;
+  APlan.Project.FPCBuildOptions.AppendArguments(APlan.Arguments);
+end;
+
+procedure TNXBuildPlanner.CreateLazarusPlan(APlan: TNXBuildPlan);
+var
+  lProjectFile: string;
+begin
+  lProjectFile := APlan.Project.ResolvePath(APlan.Project.LazarusProjectFile);
+  if lProjectFile = '' then
+    raise Exception.Create('Lazarus project file is required.');
+
+  APlan.Executable := ResolveLazbuild(APlan.Project);
+  APlan.WorkingDirectory := ExtractFileDir(lProjectFile);
+  APlan.Arguments.Add('--quiet');
+  APlan.Arguments.Add(lProjectFile);
+end;
+
 function TNXBuildPlanner.CreatePlan(AProject: TNXPascalProject): TNXBuildPlan;
 begin
   if AProject = nil then
@@ -76,9 +122,10 @@ begin
 
   Result := TNXBuildPlan.Create(AProject);
   try
-    Result.Executable := ResolveCompiler(AProject);
-    Result.WorkingDirectory := AProject.ProjectRoot;
-    AProject.FPCBuildOptions.AppendArguments(Result.Arguments);
+    if AProject.ProjectKind = ppkLazarusProject then
+      CreateLazarusPlan(Result)
+    else
+      CreateFPCPlan(Result);
   except
     Result.Free;
     raise;
