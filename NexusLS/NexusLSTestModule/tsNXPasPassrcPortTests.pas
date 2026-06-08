@@ -1081,6 +1081,295 @@ begin
   end;
 end;
 
+procedure TestPromotedClassEmptyAndFieldTails(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TEmpty = class end deprecated;' + LineEnding +
+      '  TNoParent = class end;' + LineEnding +
+      '  TFields = class' + LineEnding +
+      '    StaticField: Integer; static;' + LineEnding +
+      '    DeprecatedField: Integer deprecated;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TEmpty');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred empty deprecated class should be captured.');
+    AContext.AssertEquals(0, lClass.ChildCount,
+      'Deferred empty deprecated class should remain shallow.');
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TNoParent');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred empty no-parent class should be captured.');
+    AContext.AssertEquals(0, lClass.ChildCount,
+      'Deferred empty no-parent class should remain shallow.');
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TFields');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred field-tail class should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'StaticField');
+    AContext.AssertTrue(lField <> nil,
+      'Deferred static field should be captured structurally.');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred static field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'DeprecatedField');
+    AContext.AssertTrue(lField <> nil,
+      'Deferred deprecated field should be captured structurally.');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred deprecated field type should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedClassCommentAndEmptyVariants(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  {c} TCommentedEmpty = class end;' + LineEnding +
+      '  TExplicitEnd = class end;' + LineEnding +
+      '  TCommentMembers = class' + LineEnding +
+      '    {c} CommentedField: Integer;' + LineEnding +
+      '    {c} procedure CommentedRun;' + LineEnding +
+      '    {c} class procedure CommentedClassRun; static;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TCommentedEmpty');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred empty comment class should be captured.');
+    AContext.AssertEquals(0, lClass.ChildCount,
+      'Deferred empty comment class should remain shallow.');
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TExplicitEnd');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred empty end class should be captured.');
+    AContext.AssertEquals(0, lClass.ChildCount,
+      'Deferred empty end class should remain shallow.');
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TCommentMembers');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred comment member class should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskField,
+      'CommentedField') <> nil,
+      'Deferred commented field should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'CommentedRun') <> nil,
+      'Deferred commented method should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'CommentedClassRun') <> nil,
+      'Deferred commented class method should be captured structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedClassVisibilitySectionMembers(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TVisibility = class' + LineEnding +
+      '  published' + LineEnding +
+      '    PublishedField: Integer;' + LineEnding +
+      '  public' + LineEnding +
+      '    A, B: Integer;' + LineEnding +
+      '    procedure DoSomething(AValue: Integer);' + LineEnding +
+      '  private' + LineEnding +
+      '    procedure Hidden;' + LineEnding +
+      '  public' + LineEnding +
+      '    procedure DoSomethingB(AValue: Integer);' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TVisibility');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred visibility-section class should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'PublishedField');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred published field declared type should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'A');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred public grouped field A should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'B');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred public grouped field B should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'DoSomething') <> nil,
+      'Deferred public method should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Hidden') <> nil,
+      'Deferred private method should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'DoSomethingB') <> nil,
+      'Deferred second visibility-section method should be captured structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedClassHintKeywordFieldNames(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  THintNames = class' + LineEnding +
+      '    deprecated: Integer;' + LineEnding +
+      '    platform: Integer;' + LineEnding +
+      '    experimental: Integer;' + LineEnding +
+      '    unimplemented: Integer;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'THintNames');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred hint-keyword field class should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'deprecated');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred deprecated-shaped field name should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'platform');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred platform-shaped field name should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'experimental');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred experimental-shaped field name should be captured.');
+    lField := NXPassrcFindChildSymbol(lClass, pskField, 'unimplemented');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deferred unimplemented-shaped field name should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedClassMethodHintAndMessageDirectives(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TMethodTails = class' + LineEnding +
+      '    procedure DeprecatedRun(AValue: Integer) deprecated;' + LineEnding +
+      '    procedure VirtualDeprecatedRun(AValue: Integer) virtual; deprecated;' + LineEnding +
+      '    procedure IntegerMessageRun(AValue: Integer) message 123;' + LineEnding +
+      '    procedure StringMessageRun(AValue: Integer) message ''aha'';' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TMethodTails');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred method-tail class should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'DeprecatedRun') <> nil,
+      'Deferred deprecated routine tail should not block routine capture.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'VirtualDeprecatedRun') <> nil,
+      'Deferred virtual/deprecated routine tail should not block routine capture.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'IntegerMessageRun') <> nil,
+      'Deferred integer message routine tail should not block routine capture.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'StringMessageRun') <> nil,
+      'Deferred string message routine tail should not block routine capture.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestObjectRecordInterfaceMemberSymbols(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1345,6 +1634,173 @@ begin
       'Interface heritage should be captured structurally.');
     AContext.AssertTrue(NXPassrcFindChildSymbol(lInterface, pskProperty,
       'Value') <> nil, 'Interface property should be parsed structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedPropertyRedeclareStructuralVariants(
+  AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lProperty: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TPropertyRedeclare = class' + LineEnding +
+      '  published' + LineEnding +
+      '    property Something;' + LineEnding +
+      '    {p} property Commented;' + LineEnding +
+      '  public' + LineEnding +
+      '    property DefaultThing; default;' + LineEnding +
+      '    property RecordField: Integer read FPoint.X;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TPropertyRedeclare');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred property redeclare class should be captured.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Something');
+    AContext.AssertTrue(lProperty <> nil,
+      'Deferred redeclared property without type should be captured.');
+    AContext.AssertEquals('', lProperty.DeclaredTypeText,
+      'Redeclared property without type should keep empty declared type.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Commented');
+    AContext.AssertTrue(lProperty <> nil,
+      'Deferred commented redeclared property should be captured structurally.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'DefaultThing');
+    AContext.AssertTrue(lProperty <> nil,
+      'Deferred default redeclared property should be captured structurally.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'RecordField');
+    AContext.AssertEquals('Integer', lProperty.DeclaredTypeText,
+      'Property read accessor with dotted field should not corrupt declared type capture.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedPropertyAccessorAndHintTails(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lProperty: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TPropertyTails = class' + LineEnding +
+      '  published' + LineEnding +
+      '    property ArrayField: Integer read FPoint.W[x].y.Z;' + LineEnding +
+      '    property RecordRW: Integer read FPoint.X write FPoint.X;' + LineEnding +
+      '    property DeprecatedProp: AInterface read FSomething; deprecated;' + LineEnding +
+      '    property DeprecatedMessageProp: AInterface read FSomething; deprecated ''this is no longer used'';' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TPropertyTails');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred property accessor/tail class should be captured.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'ArrayField');
+    AContext.AssertEquals('Integer', lProperty.DeclaredTypeText,
+      'Property read accessor with array/dotted field should preserve declared type.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'RecordRW');
+    AContext.AssertEquals('Integer', lProperty.DeclaredTypeText,
+      'Property read/write accessors with dotted fields should preserve declared type.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'DeprecatedProp');
+    AContext.AssertEquals('AInterface', lProperty.DeclaredTypeText,
+      'Deprecated property tail should preserve declared type.');
+    lProperty := NXPassrcFindChildSymbol(lClass, pskProperty,
+      'DeprecatedMessageProp');
+    AContext.AssertEquals('AInterface', lProperty.DeclaredTypeText,
+      'Deprecated property tail with message should preserve declared type.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedClassLocalTypeAndConstSections(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TLocalSections = class' + LineEnding +
+      '  public' + LineEnding +
+      '    type' + LineEnding +
+      '      TDirection = (Left, Right);' + LineEnding +
+      '      TVerticalDirection = (Up, Down);' + LineEnding +
+      '    const' + LineEnding +
+      '      A = 23;' + LineEnding +
+      '      B = 45;' + LineEnding +
+      '    procedure Something;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TLocalSections');
+    AContext.AssertTrue(lClass <> nil,
+      'Deferred class-local declaration section class should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskType,
+      'TDirection') <> nil,
+      'Class-local type section should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskType,
+      'TVerticalDirection') <> nil,
+      'Second class-local type should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskConst, 'A') <> nil,
+      'Class-local const section should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskConst, 'B') <> nil,
+      'Second class-local const should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Something') <> nil,
+      'Routine after class-local declaration sections should be captured.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -3022,6 +3478,16 @@ begin
     @TestTypeClassRecordInterfaceSymbols);
   lSuite.AddTest('ClassMembersAndPropertySymbols',
     @TestClassMembersAndPropertySymbols);
+  lSuite.AddTest('PromotedClassEmptyAndFieldTails',
+    @TestPromotedClassEmptyAndFieldTails);
+  lSuite.AddTest('PromotedClassCommentAndEmptyVariants',
+    @TestPromotedClassCommentAndEmptyVariants);
+  lSuite.AddTest('PromotedClassVisibilitySectionMembers',
+    @TestPromotedClassVisibilitySectionMembers);
+  lSuite.AddTest('PromotedClassHintKeywordFieldNames',
+    @TestPromotedClassHintKeywordFieldNames);
+  lSuite.AddTest('PromotedClassMethodHintAndMessageDirectives',
+    @TestPromotedClassMethodHintAndMessageDirectives);
   lSuite.AddTest('ObjectRecordInterfaceMemberSymbols',
     @TestObjectRecordInterfaceMemberSymbols);
   lSuite.AddTest('StructuredTypeHeritageConstructorsProperties',
@@ -3030,6 +3496,12 @@ begin
     @TestClassFieldMethodStructuralVariants);
   lSuite.AddTest('PropertyInterfaceAndRecordStructuralVariants',
     @TestPropertyInterfaceAndRecordStructuralVariants);
+  lSuite.AddTest('PromotedPropertyRedeclareStructuralVariants',
+    @TestPromotedPropertyRedeclareStructuralVariants);
+  lSuite.AddTest('PromotedPropertyAccessorAndHintTails',
+    @TestPromotedPropertyAccessorAndHintTails);
+  lSuite.AddTest('PromotedClassLocalTypeAndConstSections',
+    @TestPromotedClassLocalTypeAndConstSections);
   lSuite.AddTest('ProcedureFunctionDeclarations',
     @TestProcedureFunctionDeclarations);
   lSuite.AddTest('ProcedureParameterModes', @TestProcedureParameterModes);

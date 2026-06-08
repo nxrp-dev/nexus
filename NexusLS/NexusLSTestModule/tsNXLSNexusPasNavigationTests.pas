@@ -410,7 +410,7 @@ begin
     try
       lFpcToolchain := TJSONObject.Create;
       lFpcToolchain.Add('enabled', True);
-      lFpcToolchain.Add('installDirectory', lFPCDir);
+      lFpcToolchain.Add('fpcDirectory', lFPCDir);
       lOptions.Add('toolchains', TJSONObject.Create([
         'freepascal', lFpcToolchain
       ]));

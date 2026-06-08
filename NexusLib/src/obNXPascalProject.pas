@@ -21,6 +21,12 @@ type
     ppkPascalUnitSet
   );
 
+  TNXPascalBuildTool = (
+    pbtUnknown,
+    pbtFPC,
+    pbtLazarus
+  );
+
   TNXPascalTargetPlatform = class(TNXPersistObject)
   private
     FTargetOS: string;
@@ -51,6 +57,8 @@ type
 
   TNXPascalProject = class(TNXPersistObject)
   private
+    FBuildFile: string;
+    FBuildTool: TNXPascalBuildTool;
     FProjectKind: TNXPascalProjectKind;
     FProjectFileName: string;
     FProjectRoot: string;
@@ -80,6 +88,8 @@ type
     procedure ResolveBuildOptionPaths;
 
   published
+    property BuildFile: string read FBuildFile write FBuildFile;
+    property BuildTool: TNXPascalBuildTool read FBuildTool write FBuildTool;
     property ProjectKind: TNXPascalProjectKind read FProjectKind write FProjectKind;
     property ProjectFileName: string read FProjectFileName write FProjectFileName;
     property ProjectRoot: string read FProjectRoot write FProjectRoot;
@@ -153,6 +163,7 @@ end;
 procedure TNXPascalProject.UpdateBuiltInVariables;
 begin
   SetVariableValue('ProjectName', Name);
+  SetVariableValue('BuildFile', FBuildFile);
   SetVariableValue('ProjectFileName', FProjectFileName);
   SetVariableValue('ProjectRoot', FProjectRoot);
   SetVariableValue('SourceRoot', FSourceRoot);
@@ -254,6 +265,7 @@ end;
 procedure TNXPascalProject.ApplyToBuildOptions;
 begin
   FFPCBuildOptions.CompilerPath := ResolveValue(FToolchain.CompilerPath);
+  FBuildFile := ResolvePath(FBuildFile);
   FLazarusProjectFile := ResolvePath(FLazarusProjectFile);
   FFPCBuildOptions.InputFile := ResolvePath(FFPCBuildOptions.InputFile);
   FFPCBuildOptions.OutputFile := ResolvePath(FFPCBuildOptions.OutputFile);

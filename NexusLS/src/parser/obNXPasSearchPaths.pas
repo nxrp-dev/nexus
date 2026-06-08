@@ -78,7 +78,9 @@ type
     function NormalizePath(const APath: string): string;
     function PathListForKind(AKind: TNXPasSearchPathKind): TStrings;
     procedure SetFPCDir(const AValue: string);
+    procedure SetFPCSrcDir(const AValue: string);
     procedure SetLazarusDir(const AValue: string);
+    procedure SetLazarusSrcDir(const AValue: string);
   public
     constructor Create;
     destructor Destroy; override;
@@ -95,10 +97,10 @@ type
 
     property ExistingPaths: TStringList read FExistingPaths;
     property FPCDir: string read FFPCDir write SetFPCDir;
-    property FPCSrcDir: string read FFPCSrcDir;
+    property FPCSrcDir: string read FFPCSrcDir write SetFPCSrcDir;
     property IncludePaths: TStringList read FIncludePaths;
     property LazarusDir: string read FLazarusDir write SetLazarusDir;
-    property LazarusSrcDir: string read FLazarusSrcDir;
+    property LazarusSrcDir: string read FLazarusSrcDir write SetLazarusSrcDir;
     property LPIFileName: string read FLPIFileName write FLPIFileName;
     property Log: TStringList read FLog;
     property MissingPaths: TStringList read FMissingPaths;
@@ -394,16 +396,21 @@ end;
 procedure TNXPasSearchPathContext.SetFPCDir(const AValue: string);
 begin
   FFPCDir := Trim(AValue);
-  if FFPCDir = '' then
-    FFPCSrcDir := ''
-  else
-    FFPCSrcDir := IncludeTrailingPathDelimiter(FFPCDir) + 'source';
+end;
+
+procedure TNXPasSearchPathContext.SetFPCSrcDir(const AValue: string);
+begin
+  FFPCSrcDir := Trim(AValue);
 end;
 
 procedure TNXPasSearchPathContext.SetLazarusDir(const AValue: string);
 begin
   FLazarusDir := Trim(AValue);
-  FLazarusSrcDir := FLazarusDir;
+end;
+
+procedure TNXPasSearchPathContext.SetLazarusSrcDir(const AValue: string);
+begin
+  FLazarusSrcDir := Trim(AValue);
 end;
 
 function TNXPasSearchPathContext.PathListForKind(

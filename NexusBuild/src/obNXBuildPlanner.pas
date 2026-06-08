@@ -98,6 +98,8 @@ procedure TNXBuildPlanner.CreateFPCPlan(APlan: TNXBuildPlan);
 begin
   APlan.Executable := ResolveCompiler(APlan.Project);
   APlan.WorkingDirectory := APlan.Project.ProjectRoot;
+  if APlan.Project.BuildFile <> '' then
+    APlan.Project.FPCBuildOptions.InputFile := APlan.Project.BuildFile;
   APlan.Project.FPCBuildOptions.AppendArguments(APlan.Arguments);
 end;
 
@@ -105,7 +107,7 @@ procedure TNXBuildPlanner.CreateLazarusPlan(APlan: TNXBuildPlan);
 var
   lProjectFile: string;
 begin
-  lProjectFile := APlan.Project.ResolvePath(APlan.Project.LazarusProjectFile);
+  lProjectFile := APlan.Project.ResolvePath(APlan.Project.BuildFile);
   if lProjectFile = '' then
     raise Exception.Create('Lazarus project file is required.');
 
@@ -122,7 +124,7 @@ begin
 
   Result := TNXBuildPlan.Create(AProject);
   try
-    if AProject.ProjectKind = ppkLazarusProject then
+    if AProject.BuildTool = pbtLazarus then
       CreateLazarusPlan(Result)
     else
       CreateFPCPlan(Result);

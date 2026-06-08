@@ -64,7 +64,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\src\service;..\src\parser;..\..\NexusTest\src;..\..\NexusLib\src;..\..\lib\synapse;C:\lazarus\components\lazutils"/>
+      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\src\service;..\src\parser;..\src\toolchain;..\..\NexusTest\src;..\..\NexusLib\src;..\..\lib\synapse;C:\lazarus\components\lazutils"/>
       <UnitOutputDirectory Value="..\..\output\NexusLSTestModule\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

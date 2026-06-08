@@ -62,6 +62,12 @@ begin
     AProjectName + '.lpr';
 end;
 
+function NXLSProjectLPIFileName(const AProjectName, ATargetDir: string): string;
+begin
+  Result := IncludeTrailingPathDelimiter(ExpandFileName(ATargetDir)) +
+    AProjectName + '.lpi';
+end;
+
 function NXLSImportedProjectName(const ALPIFile: string): string;
 begin
   Result := ChangeFileExt(ExtractFileName(ALPIFile), '');
@@ -107,13 +113,78 @@ begin
   lField.Assigned := True;
 end;
 
+procedure NXLSAddFieldOption(AField: TNXLSProjectField; const AValue,
+  ALabel: string);
+var
+  lOption: TNXLSProjectFieldOption;
+begin
+  if AField = nil then
+    Exit;
+
+  lOption := TNXLSProjectFieldOption(
+    AField.options.AddObject(TNXLSProjectFieldOption));
+  lOption.value.Value := AValue;
+  lOption.&label.Value := ALabel;
+  lOption.Assigned := True;
+  AField.options.Assigned := True;
+end;
+
+function NXLSBuildToolName(ABuildTool: TNXPascalBuildTool): string;
+begin
+  case ABuildTool of
+    pbtLazarus:
+      Result := 'lazarus';
+    else
+      Result := 'fpc';
+  end;
+end;
+
+function NXLSBuildToolLabel(ABuildTool: TNXPascalBuildTool): string;
+begin
+  case ABuildTool of
+    pbtLazarus:
+      Result := 'Lazarus';
+    else
+      Result := 'FPC';
+  end;
+end;
+
+function NXLSBuildToolFromName(const ABuildTool: string): TNXPascalBuildTool;
+begin
+  if SameText(ABuildTool, 'lazarus') then
+    Result := pbtLazarus
+  else
+    Result := pbtFPC;
+end;
+
+procedure NXLSAddBuildToolField(AFields: TNXLSProjectFieldArray;
+  ABuildTool: TNXPascalBuildTool);
+var
+  lField: TNXLSProjectField;
+begin
+  if AFields = nil then
+    Exit;
+
+  lField := TNXLSProjectField(AFields.AddObject(TNXLSProjectField));
+  lField.id.Value := 'buildTool';
+  lField.&label.Value := 'Build Tool';
+  lField.&type.Value := 'select';
+  lField.value.Value := NXLSBuildToolName(ABuildTool);
+  lField.required.Value := True;
+  lField.description.Value := 'Select the build tool NexusBuild will invoke.';
+  NXLSAddFieldOption(lField, 'fpc', 'FPC');
+  NXLSAddFieldOption(lField, 'lazarus', 'Lazarus');
+  lField.Assigned := True;
+end;
+
 procedure NXLSFillNexusProjectFields(AFields: TNXLSProjectFieldArray;
-  const AProjectName, ATargetDir: string);
+  const AProjectName, ATargetDir: string; ABuildTool: TNXPascalBuildTool);
 begin
   if AFields = nil then
     Exit;
   NXLSAddField(AFields, 'projectName', 'Project Name', 'text', AProjectName,
     True, 'Used for the .nxp file name in this first project-service pass.');
+  NXLSAddBuildToolField(AFields, ABuildTool);
   NXLSAddField(AFields, 'targetDir', 'Destination Folder', 'folder',
     ATargetDir, True, '', 'Select Project Folder');
   AFields.Assigned := True;
@@ -169,21 +240,32 @@ begin
   lOutput.Assigned := True;
 end;
 
-function NXLSNexusProjectJSON(const AProjectName, ATargetDir: string): string;
+function NXLSNexusProjectJSON(const AProjectName, ATargetDir: string;
+  ABuildTool: TNXPascalBuildTool): string;
 var
   lProject: TNXPascalProject;
 begin
   lProject := TNXPascalProject.Create;
   try
     lProject.Name := AProjectName;
+    lProject.BuildTool := ABuildTool;
     lProject.ProjectRoot := ExpandFileName(ATargetDir);
     lProject.ProjectFileName := NXLSProjectFileName(AProjectName, ATargetDir);
-    lProject.ProjectKind := ppkProgram;
     lProject.SourceRoot := 'src';
     lProject.OutputRoot := 'output';
+    if ABuildTool = pbtLazarus then
+    begin
+      lProject.ProjectKind := ppkLazarusProject;
+      lProject.BuildFile := AProjectName + '.lpi';
+    end
+    else
+    begin
+      lProject.ProjectKind := ppkProgram;
+      lProject.BuildFile := '$(SourceRoot)' + DirectorySeparator +
+        AProjectName + '.lpr';
+    end;
     lProject.TargetPlatform.FPCMode := 'objfpc';
-    lProject.FPCBuildOptions.InputFile := '$(SourceRoot)' +
-      DirectorySeparator + AProjectName + '.lpr';
+    lProject.FPCBuildOptions.InputFile := lProject.BuildFile;
     lProject.FPCBuildOptions.Files.UnitPaths.Add('$(SourceRoot)');
     lProject.FPCBuildOptions.Files.UnitOutputPath := '$(OutputRoot)' +
       DirectorySeparator + 'units';
@@ -203,11 +285,12 @@ begin
   lProject := TNXPascalProject.Create;
   try
     lProject.Name := AProjectName;
+    lProject.BuildTool := pbtLazarus;
+    lProject.BuildFile := ExpandFileName(ALPIFile);
     lProject.ProjectRoot := ExpandFileName(ATargetDir);
     lProject.ProjectFileName := NXLSProjectFileName(AProjectName, ATargetDir);
     lProject.ProjectKind := ppkLazarusProject;
     lProject.OutputRoot := 'output';
-    lProject.LazarusProjectFile := ExpandFileName(ALPIFile);
     Result := lProject.JSON;
   finally
     lProject.Free;
@@ -229,19 +312,43 @@ begin
     'end.' + LineEnding;
 end;
 
+function NXLSNexusLazarusProjectSource(const AProjectName: string): string;
+begin
+  Result :=
+    '<?xml version="1.0" encoding="UTF-8"?>' + LineEnding +
+    '<CONFIG>' + LineEnding +
+    '  <ProjectOptions>' + LineEnding +
+    '    <Version Value="12"/>' + LineEnding +
+    '    <General>' + LineEnding +
+    '      <MainUnit Value="0"/>' + LineEnding +
+    '      <Title Value="' + AProjectName + '"/>' + LineEnding +
+    '    </General>' + LineEnding +
+    '    <Units Count="1">' + LineEnding +
+    '      <Unit0>' + LineEnding +
+    '        <Filename Value="src/' + AProjectName + '.lpr"/>' + LineEnding +
+    '        <IsPartOfProject Value="True"/>' + LineEnding +
+    '      </Unit0>' + LineEnding +
+    '    </Units>' + LineEnding +
+    '  </ProjectOptions>' + LineEnding +
+    '</CONFIG>' + LineEnding;
+end;
+
 procedure NXLSReadNexusProjectParams(AParams: TNXLSProjectCreateParams;
-  out AProjectName, ATargetDir, AKind, ALPIFile: string);
+  out AProjectName, ATargetDir, AKind, ALPIFile: string;
+  out ABuildTool: TNXPascalBuildTool);
 begin
   AProjectName := 'newproject';
   ATargetDir := GetCurrentDir;
   AKind := 'nexus';
   ALPIFile := '';
+  ABuildTool := pbtFPC;
   if AParams <> nil then
   begin
     AProjectName := NXLSCleanProjectName(AParams.projectName.Value);
     ATargetDir := Trim(AParams.targetDir.Value);
     AKind := LowerCase(Trim(AParams.kind.Value));
     ALPIFile := Trim(AParams.lpiFile.Value);
+    ABuildTool := NXLSBuildToolFromName(AParams.buildTool.Value);
   end;
   if AKind = '' then
     AKind := 'nexus';
@@ -264,6 +371,7 @@ var
   lLPIFile: string;
   lProjectName: string;
   lTargetDir: string;
+  lBuildTool: TNXPascalBuildTool;
 begin
   if AResult = nil then
     Exit;
@@ -274,10 +382,12 @@ begin
 
   lKind := 'nexus';
   lLPIFile := '';
+  lBuildTool := pbtFPC;
   if AParams <> nil then
   begin
     lKind := LowerCase(Trim(AParams.kind.Value));
     lLPIFile := Trim(AParams.lpiFile.Value);
+    lBuildTool := NXLSBuildToolFromName(AParams.buildTool.Value);
   end;
   if lKind = '' then
     lKind := 'nexus';
@@ -292,6 +402,7 @@ begin
 
     AResult.title.Value := 'Import Lazarus Project';
     AResult.request.kind.Value := 'lazarus';
+    AResult.request.buildTool.Value := NXLSBuildToolName(pbtLazarus);
     AResult.request.projectName.Value := lProjectName;
     AResult.request.targetDir.Value := lTargetDir;
     AResult.request.lpiFile.Value := ExpandFileName(lLPIFile);
@@ -302,10 +413,11 @@ begin
   begin
     AResult.title.Value := 'New Nexus Project';
     AResult.request.kind.Value := 'nexus';
+    AResult.request.buildTool.Value := NXLSBuildToolName(lBuildTool);
     AResult.request.projectName.Value := 'newproject';
     AResult.request.targetDir.Value := ExpandFileName(lWorkspaceRoot);
     NXLSFillNexusProjectFields(AResult.fields, 'newproject',
-      ExpandFileName(lWorkspaceRoot));
+      ExpandFileName(lWorkspaceRoot), lBuildTool);
   end;
 
   AResult.request.Assigned := True;
@@ -319,13 +431,15 @@ var
   lTargetDir: string;
   lKind: string;
   lLPIFile: string;
+  lBuildTool: TNXPascalBuildTool;
   lProjectFile: string;
   lCanExecute: Boolean;
 begin
   if AResult = nil then
     Exit;
 
-  NXLSReadNexusProjectParams(AParams, lProjectName, lTargetDir, lKind, lLPIFile);
+  NXLSReadNexusProjectParams(AParams, lProjectName, lTargetDir, lKind,
+    lLPIFile, lBuildTool);
   lProjectFile := NXLSProjectFileName(lProjectName, lTargetDir);
 
   lCanExecute := True;
@@ -364,7 +478,11 @@ begin
   begin
     NXLSAddOutput(AResult.outputs, 'Program source',
       NXLSProjectProgramFileName(lProjectName, lTargetDir));
+    if lBuildTool = pbtLazarus then
+      NXLSAddOutput(AResult.outputs, 'Lazarus project',
+        NXLSProjectLPIFileName(lProjectName, lTargetDir));
     NXLSAddDetail(AResult.details, 'Project type', 'Nexus Project');
+    NXLSAddDetail(AResult.details, 'Build tool', NXLSBuildToolLabel(lBuildTool));
   end;
   NXLSAddDetail(AResult.details, 'Project name', lProjectName);
   NXLSAddDetail(AResult.details, 'Destination', ExpandFileName(lTargetDir));
@@ -378,7 +496,8 @@ begin
   else
   begin
     AResult.title.Value := 'New Nexus Project';
-    AResult.summary.Value := 'Create Nexus project "' + lProjectName + '" in ' +
+    AResult.summary.Value := 'Create Nexus project "' + lProjectName +
+      '" using ' + NXLSBuildToolLabel(lBuildTool) + ' in ' +
       ExpandFileName(lTargetDir);
   end;
   AResult.canExecute.Value := lCanExecute;
@@ -390,7 +509,7 @@ begin
       ExpandFileName(lTargetDir), ExpandFileName(lLPIFile))
   else
     NXLSFillNexusProjectFields(AResult.fields, lProjectName,
-      ExpandFileName(lTargetDir));
+      ExpandFileName(lTargetDir), lBuildTool);
   AResult.Assigned := True;
 end;
 
@@ -401,13 +520,15 @@ var
   lTargetDir: string;
   lKind: string;
   lLPIFile: string;
+  lBuildTool: TNXPascalBuildTool;
   lProjectFile: string;
   lFile: TNXLSProjectFile;
 begin
   if AResult = nil then
     Exit;
 
-  NXLSReadNexusProjectParams(AParams, lProjectName, lTargetDir, lKind, lLPIFile);
+  NXLSReadNexusProjectParams(AParams, lProjectName, lTargetDir, lKind,
+    lLPIFile, lBuildTool);
   if not NXLSIsValidProjectName(lProjectName) then
     raise Exception.Create('Project name is invalid.');
   if (lKind = 'lazarus') and ((lLPIFile = '') or
@@ -422,11 +543,20 @@ begin
     lFile.content.Value := NXLSLazarusProjectJSON(lProjectName, lTargetDir,
       lLPIFile)
   else
-    lFile.content.Value := NXLSNexusProjectJSON(lProjectName, lTargetDir);
+    lFile.content.Value := NXLSNexusProjectJSON(lProjectName, lTargetDir,
+      lBuildTool);
   lFile.Assigned := True;
 
   if lKind <> 'lazarus' then
   begin
+    if lBuildTool = pbtLazarus then
+    begin
+      lFile := TNXLSProjectFile(AResult.files.AddObject(TNXLSProjectFile));
+      lFile.path.Value := NXLSProjectLPIFileName(lProjectName, lTargetDir);
+      lFile.content.Value := NXLSNexusLazarusProjectSource(lProjectName);
+      lFile.Assigned := True;
+    end;
+
     lFile := TNXLSProjectFile(AResult.files.AddObject(TNXLSProjectFile));
     lFile.path.Value := NXLSProjectProgramFileName(lProjectName, lTargetDir);
     lFile.content.Value := NXLSNexusProgramSource(lProjectName);

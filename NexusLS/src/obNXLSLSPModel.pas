@@ -283,7 +283,9 @@ begin
   FPascalLanguage.SearchPaths.WorkspaceDir := FProjectDir;
   FPascalLanguage.SearchPaths.ProjectDir := FProjectDir;
   FPascalLanguage.SearchPaths.LazarusDir := FSettings.LazarusDir;
+  FPascalLanguage.SearchPaths.LazarusSrcDir := FSettings.LazarusSrcDir;
   FPascalLanguage.SearchPaths.FPCDir := FSettings.FPCDir;
+  FPascalLanguage.SearchPaths.FPCSrcDir := FSettings.FPCSrcDir;
   FPascalLanguage.SearchPaths.Log.Add('lazarus dir: ' + FPascalLanguage.SearchPaths.LazarusDir);
   FPascalLanguage.SearchPaths.Log.Add('lazarus source dir: ' +
     FPascalLanguage.SearchPaths.LazarusSrcDir);

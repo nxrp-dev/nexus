@@ -272,7 +272,7 @@ begin
     try
       lLazarusToolchain := TJSONObject.Create;
       lLazarusToolchain.Add('enabled', True);
-      lLazarusToolchain.Add('installDirectory', lLazarusDir);
+      lLazarusToolchain.Add('lazarusDirectory', lLazarusDir);
       lOptions.Add('toolchains', TJSONObject.Create([
         'lazarus', lLazarusToolchain
       ]));
@@ -291,6 +291,18 @@ begin
     AContext.AssertEquals(ExpandFileName(lFPCDir),
       lModel.Settings.FPCDir,
       'Initialize should derive bundled FPC directory from Lazarus toolchain config.');
+    AContext.AssertEquals(IncludeTrailingPathDelimiter(ExpandFileName(lFPCDir)) +
+      'source', lModel.Settings.FPCSrcDir,
+      'Toolchain resolution should derive FPC source directory.');
+    AContext.AssertEquals(ExpandFileName(lLazarusDir),
+      lModel.Settings.LazarusSrcDir,
+      'Toolchain resolution should derive Lazarus source directory.');
+    AContext.AssertEquals(lModel.Settings.FPCSrcDir,
+      lModel.PascalSearchPathContext.FPCSrcDir,
+      'Search paths should consume resolved FPC source directory from settings.');
+    AContext.AssertEquals(lModel.Settings.LazarusSrcDir,
+      lModel.PascalSearchPathContext.LazarusSrcDir,
+      'Search paths should consume resolved Lazarus source directory from settings.');
   finally
     lModel.Free;
     lParams.Free;
@@ -459,6 +471,352 @@ begin
   end;
 end;
 
+function NXLSFindProjectField(AFields: TNXLSProjectFieldArray;
+  const AId: string): TNXLSProjectField;
+var
+  lField: TNXLSProjectField;
+  lIndex: Integer;
+begin
+  Result := nil;
+  for lIndex := 0 to AFields.Count - 1 do
+  begin
+    lField := TNXLSProjectField(AFields[lIndex]);
+    if lField.id.Value = AId then
+      Exit(lField);
+  end;
+end;
+
+procedure NXLSCreateEmptyFile(const AFileName: string);
+begin
+  ForceDirectories(ExtractFileDir(AFileName));
+  with TStringList.Create do
+  try
+    Text := '';
+    SaveToFile(AFileName);
+  finally
+    Free;
+  end;
+end;
+
+function NXLSTestExecutableFileName(const ABaseName: string): string;
+begin
+  Result := ABaseName;
+  {$IFDEF MSWINDOWS}
+  Result := Result + '.exe';
+  {$ENDIF}
+end;
+
+function NXLSTestBatchFileName(const ABaseName: string): string;
+begin
+  Result := ABaseName;
+  {$IFDEF MSWINDOWS}
+  Result := Result + '.cmd';
+  {$ENDIF}
+end;
+
+procedure TestToolchainPlanMarksInvalidField(AContext: TNXTestContext);
+var
+  lField: TNXLSProjectField;
+  lMissingRoot: string;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+begin
+  lMissingRoot := IncludeTrailingPathDelimiter(GetTempDir) +
+    'nexus-lazarus-missing-directory';
+  if DirectoryExists(lMissingRoot) then
+    RemoveDir(lMissingRoot);
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'lazarus';
+    lParams.lazarusDirectory.Value := lMissingRoot;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Missing Lazarus directory should still allow partial settings to be saved.');
+    lField := NXLSFindProjectField(lResult.fields, 'lazarusDirectory');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Lazarus directory field.');
+    AContext.AssertFalse(lField.valid.Value,
+      'Missing Lazarus directory should mark its field invalid.');
+    AContext.AssertEquals('error', lField.severity.Value,
+      'Invalid Lazarus directory field should report error severity.');
+    AContext.AssertEquals('The Lazarus directory does not exist.',
+      lField.message.Value,
+      'Invalid Lazarus directory field should report the field-level reason.');
+  finally
+    lResult.Free;
+    lParams.Free;
+  end;
+end;
+
+procedure TestAndroidNDKFieldSuggestsDownloadURL(AContext: TNXTestContext);
+var
+  lField: TNXLSProjectField;
+  lMissingRoot: string;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+  lSuggestion: TNXLSProjectFieldSuggestion;
+begin
+  lMissingRoot := IncludeTrailingPathDelimiter(GetTempDir) +
+    'nexus-android-ndk-missing-directory';
+  if DirectoryExists(lMissingRoot) then
+    RemoveDir(lMissingRoot);
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'android';
+    lParams.androidSdkDirectory.Value := lMissingRoot;
+    lParams.androidNdkDirectory.Value := lMissingRoot;
+    lParams.javaHome.Value := lMissingRoot;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Missing Android NDK directory should still allow partial settings to be saved.');
+    lField := NXLSFindProjectField(lResult.fields, 'androidNdkDirectory');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Android NDK field.');
+    AContext.AssertFalse(lField.valid.Value,
+      'Missing Android NDK directory should mark its field invalid.');
+    AContext.AssertTrue(lField.suggestions.Count > 0,
+      'Missing Android NDK should provide a suggestion.');
+
+    lSuggestion := TNXLSProjectFieldSuggestion(lField.suggestions[0]);
+    AContext.AssertEquals('url', lSuggestion.kind.Value,
+      'Android NDK missing suggestion should be a URL suggestion.');
+    AContext.AssertEquals('https://developer.android.com/ndk/downloads',
+      lSuggestion.value.Value,
+      'Android NDK missing suggestion should point to the official downloads page.');
+  finally
+    lResult.Free;
+    lParams.Free;
+  end;
+end;
+
+procedure TestFreePascalDirectoryRequiresCompiler(AContext: TNXTestContext);
+var
+  lField: TNXLSProjectField;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+  lRoot: string;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxfpc');
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'freepascal';
+    lParams.fpcDirectory.Value := lRoot;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Invalid Free Pascal directory should still allow partial settings to be saved.');
+    lField := NXLSFindProjectField(lResult.fields, 'fpcDirectory');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Free Pascal directory field.');
+    AContext.AssertFalse(lField.valid.Value,
+      'Free Pascal directory without fpc should be invalid.');
+    AContext.AssertEquals(
+      'fpc was not found in the selected Free Pascal directory.',
+      lField.message.Value,
+      'Free Pascal install validator should report missing fpc.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestFreePascalDirectoryWithCompilerValidates(AContext: TNXTestContext);
+var
+  lBinDir: string;
+  lField: TNXLSProjectField;
+  lFpcFile: string;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+  lRoot: string;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxfpc');
+  {$IFDEF MSWINDOWS}
+  lBinDir := IncludeTrailingPathDelimiter(lRoot) + 'bin' +
+    DirectorySeparator + 'x86_64-win64';
+  {$ELSE}
+  lBinDir := IncludeTrailingPathDelimiter(lRoot) + 'bin';
+  {$ENDIF}
+  lFpcFile := IncludeTrailingPathDelimiter(lBinDir) +
+    NXLSTestExecutableFileName('fpc');
+  NXLSCreateEmptyFile(lFpcFile);
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'freepascal';
+    lParams.fpcDirectory.Value := lRoot;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Valid Free Pascal directory should allow saving.');
+    lField := NXLSFindProjectField(lResult.fields, 'fpcDirectory');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Free Pascal directory field.');
+    AContext.AssertTrue(lField.valid.Value,
+      'Free Pascal directory with fpc should validate.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    DeleteFile(lFpcFile);
+    RemoveDir(lBinDir);
+    RemoveDir(ExtractFileDir(lBinDir));
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestAndroidToolchainVerifiesInstalledTools(AContext: TNXTestContext);
+var
+  lField: TNXLSProjectField;
+  lJavaHome: string;
+  lNdkDir: string;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+  lRoot: string;
+  lSdkDir: string;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxandroid');
+  lSdkDir := IncludeTrailingPathDelimiter(lRoot) + 'sdk';
+  lNdkDir := IncludeTrailingPathDelimiter(lRoot) + 'ndk';
+  lJavaHome := IncludeTrailingPathDelimiter(lRoot) + 'java';
+  ForceDirectories(lSdkDir);
+  ForceDirectories(lNdkDir);
+  ForceDirectories(lJavaHome);
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'android';
+    lParams.androidSdkDirectory.Value := lSdkDir;
+    lParams.androidNdkDirectory.Value := lNdkDir;
+    lParams.javaHome.Value := lJavaHome;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Invalid Android toolchain paths should still allow partial settings to be saved.');
+
+    lField := NXLSFindProjectField(lResult.fields, 'androidSdkDirectory');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Android SDK field.');
+    AContext.AssertFalse(lField.valid.Value,
+      'Android SDK without adb should be invalid.');
+    AContext.AssertEquals(
+      'adb was not found under platform-tools in the selected Android SDK directory.',
+      lField.message.Value,
+      'Android SDK validator should report missing adb.');
+
+    lField := NXLSFindProjectField(lResult.fields, 'androidNdkDirectory');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Android NDK field.');
+    AContext.AssertFalse(lField.valid.Value,
+      'Android NDK without ndk-build/source.properties should be invalid.');
+    AContext.AssertEquals(
+      'ndk-build and source.properties were not found in the selected Android NDK directory.',
+      lField.message.Value,
+      'Android NDK validator should report missing NDK markers.');
+
+    lField := NXLSFindProjectField(lResult.fields, 'javaHome');
+    AContext.AssertTrue(lField <> nil,
+      'Toolchain plan should return the Java Home field.');
+    AContext.AssertFalse(lField.valid.Value,
+      'Java Home without bin/java should be invalid.');
+    AContext.AssertEquals(
+      'java was not found under bin in the selected Java Home directory.',
+      lField.message.Value,
+      'Java Home validator should report missing java.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    RemoveDir(lJavaHome);
+    RemoveDir(lNdkDir);
+    RemoveDir(lSdkDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
+procedure TestAndroidToolchainInstalledToolsValidate(AContext: TNXTestContext);
+var
+  lAdbFile: string;
+  lField: TNXLSProjectField;
+  lJavaFile: string;
+  lJavaHome: string;
+  lNdkBuildFile: string;
+  lNdkDir: string;
+  lParams: TNXLSToolchainConfigureParams;
+  lResult: TNXLSToolchainPlanConfigureResult;
+  lRoot: string;
+  lSdkDir: string;
+  lSourcePropertiesFile: string;
+begin
+  lRoot := NXLSCreateUniqueTempDir('nxandroid');
+  lSdkDir := IncludeTrailingPathDelimiter(lRoot) + 'sdk';
+  lNdkDir := IncludeTrailingPathDelimiter(lRoot) + 'ndk';
+  lJavaHome := IncludeTrailingPathDelimiter(lRoot) + 'java';
+
+  lAdbFile := IncludeTrailingPathDelimiter(lSdkDir) + 'platform-tools' +
+    DirectorySeparator + NXLSTestExecutableFileName('adb');
+  lNdkBuildFile := IncludeTrailingPathDelimiter(lNdkDir) +
+    NXLSTestBatchFileName('ndk-build');
+  lSourcePropertiesFile := IncludeTrailingPathDelimiter(lNdkDir) +
+    'source.properties';
+  lJavaFile := IncludeTrailingPathDelimiter(lJavaHome) + 'bin' +
+    DirectorySeparator + NXLSTestExecutableFileName('java');
+
+  NXLSCreateEmptyFile(lAdbFile);
+  NXLSCreateEmptyFile(lNdkBuildFile);
+  NXLSCreateEmptyFile(lSourcePropertiesFile);
+  NXLSCreateEmptyFile(lJavaFile);
+
+  lParams := TNXLSToolchainConfigureParams.Create;
+  lResult := TNXLSToolchainPlanConfigureResult.Create;
+  try
+    lParams.kind.Value := 'android';
+    lParams.androidSdkDirectory.Value := lSdkDir;
+    lParams.androidNdkDirectory.Value := lNdkDir;
+    lParams.javaHome.Value := lJavaHome;
+
+    TNXLSToolchainService.FillPlanConfigure(lParams, lResult);
+
+    AContext.AssertTrue(lResult.canExecute.Value,
+      'Valid Android toolchain paths should allow saving.');
+
+    lField := NXLSFindProjectField(lResult.fields, 'androidSdkDirectory');
+    AContext.AssertTrue(lField.valid.Value,
+      'Android SDK with adb should validate.');
+    lField := NXLSFindProjectField(lResult.fields, 'androidNdkDirectory');
+    AContext.AssertTrue(lField.valid.Value,
+      'Android NDK with ndk-build/source.properties should validate.');
+    lField := NXLSFindProjectField(lResult.fields, 'javaHome');
+    AContext.AssertTrue(lField.valid.Value,
+      'Java Home with bin/java should validate.');
+  finally
+    lResult.Free;
+    lParams.Free;
+    DeleteFile(lJavaFile);
+    RemoveDir(ExtractFileDir(lJavaFile));
+    DeleteFile(lSourcePropertiesFile);
+    DeleteFile(lNdkBuildFile);
+    RemoveDir(lNdkDir);
+    DeleteFile(lAdbFile);
+    RemoveDir(ExtractFileDir(lAdbFile));
+    RemoveDir(lSdkDir);
+    RemoveDir(lRoot);
+  end;
+end;
+
 procedure TestToolchainListSupportedIncludesLazarus(AContext: TNXTestContext);
 var
   lResult: TNXLSToolchainListSupportedResult;
@@ -596,6 +954,18 @@ begin
     @TestToolchainListSupportedDispatchReturnsDescriptors);
   lSuite.AddTest('LazarusToolchainPlanValidatesDirectory',
     @TestLazarusToolchainPlanValidatesDirectory);
+  lSuite.AddTest('ToolchainPlanMarksInvalidField',
+    @TestToolchainPlanMarksInvalidField);
+  lSuite.AddTest('AndroidNDKFieldSuggestsDownloadURL',
+    @TestAndroidNDKFieldSuggestsDownloadURL);
+  lSuite.AddTest('FreePascalDirectoryRequiresCompiler',
+    @TestFreePascalDirectoryRequiresCompiler);
+  lSuite.AddTest('FreePascalDirectoryWithCompilerValidates',
+    @TestFreePascalDirectoryWithCompilerValidates);
+  lSuite.AddTest('AndroidToolchainVerifiesInstalledTools',
+    @TestAndroidToolchainVerifiesInstalledTools);
+  lSuite.AddTest('AndroidToolchainInstalledToolsValidate',
+    @TestAndroidToolchainInstalledToolsValidate);
   lSuite.AddTest('DisabledLazarusToolchainPlanDoesNotRequireDirectory',
     @TestDisabledLazarusToolchainPlanDoesNotRequireDirectory);
   lSuite.AddTest('DisabledAndroidToolchainPlanDoesNotRequireDirectories',

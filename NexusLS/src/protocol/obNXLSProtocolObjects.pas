@@ -131,25 +131,52 @@ type
     class function ItemClass: TNXJSONRPCValueClass; override;
   end;
 
+  TNXLSProjectFieldSuggestion = class(TNXJSONObject)
+  private
+    Fkind: TNXJSONString;
+    Flabel: TNXJSONString;
+    Freason: TNXJSONString;
+    Fvalue: TNXJSONString;
+  published
+    property kind: TNXJSONString read Fkind write Fkind;
+    property &label: TNXJSONString read Flabel write Flabel;
+    property reason: TNXJSONString read Freason write Freason;
+    property value: TNXJSONString read Fvalue write Fvalue;
+  end;
+
+  TNXLSProjectFieldSuggestionArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONRPCValueClass; override;
+  end;
+
   TNXLSProjectField = class(TNXJSONObject)
   private
+    FbrowseLabel: TNXJSONString;
+    Fdescription: TNXJSONString;
     Fid: TNXJSONString;
     Flabel: TNXJSONString;
-    Ftype: TNXJSONString;
-    Fvalue: TNXJSONString;
-    Frequired: TNXJSONBoolean;
-    Fdescription: TNXJSONString;
-    FbrowseLabel: TNXJSONString;
+    Fmessage: TNXJSONString;
     Foptions: TNXLSProjectFieldOptionArray;
+    Frequired: TNXJSONBoolean;
+    Fseverity: TNXJSONString;
+    Fsuggestions: TNXLSProjectFieldSuggestionArray;
+    Ftype: TNXJSONString;
+    Fvalid: TNXJSONBoolean;
+    Fvalue: TNXJSONString;
   published
+    property browseLabel: TNXJSONString read FbrowseLabel write FbrowseLabel;
+    property description: TNXJSONString read Fdescription write Fdescription;
     property id: TNXJSONString read Fid write Fid;
     property &label: TNXJSONString read Flabel write Flabel;
-    property &type: TNXJSONString read Ftype write Ftype;
-    property value: TNXJSONString read Fvalue write Fvalue;
-    property required: TNXJSONBoolean read Frequired write Frequired;
-    property description: TNXJSONString read Fdescription write Fdescription;
-    property browseLabel: TNXJSONString read FbrowseLabel write FbrowseLabel;
+    property message: TNXJSONString read Fmessage write Fmessage;
     property options: TNXLSProjectFieldOptionArray read Foptions write Foptions;
+    property required: TNXJSONBoolean read Frequired write Frequired;
+    property severity: TNXJSONString read Fseverity write Fseverity;
+    property suggestions: TNXLSProjectFieldSuggestionArray read Fsuggestions
+      write Fsuggestions;
+    property &type: TNXJSONString read Ftype write Ftype;
+    property valid: TNXJSONBoolean read Fvalid write Fvalid;
+    property value: TNXJSONString read Fvalue write Fvalue;
   end;
 
   TNXLSProjectFieldArray = class(TNXJSONArray)
@@ -159,11 +186,13 @@ type
 
   TNXLSProjectRequestValue = class(TNXJSONObject)
   private
+    FbuildTool: TNXJSONString;
     FprojectName: TNXJSONString;
     FtargetDir: TNXJSONString;
     Fkind: TNXJSONString;
     FlpiFile: TNXJSONString;
   published
+    property buildTool: TNXJSONString read FbuildTool write FbuildTool;
     property projectName: TNXJSONString read FprojectName write FprojectName;
     property targetDir: TNXJSONString read FtargetDir write FtargetDir;
     property kind: TNXJSONString read Fkind write Fkind;
@@ -678,6 +707,12 @@ end;
 class function TNXLSProjectFieldOptionArray.ItemClass: TNXJSONRPCValueClass;
 begin
   Result := TNXLSProjectFieldOption;
+end;
+
+class function TNXLSProjectFieldSuggestionArray.ItemClass:
+  TNXJSONRPCValueClass;
+begin
+  Result := TNXLSProjectFieldSuggestion;
 end;
 
 class function TNXLSProjectMessageArray.ItemClass: TNXJSONRPCValueClass;

@@ -744,10 +744,12 @@ type
 
   TNXLSProjectCreateWizardParams = class(TNXJSONRPCObjectParams)
   private
+    FbuildTool: TNXJSONString;
     FworkspaceRoot: TNXJSONString;
     Fkind: TNXJSONString;
     FlpiFile: TNXJSONString;
   published
+    property buildTool: TNXJSONString read FbuildTool write FbuildTool;
     property workspaceRoot: TNXJSONString read FworkspaceRoot write FworkspaceRoot;
     property kind: TNXJSONString read Fkind write Fkind;
     property lpiFile: TNXJSONString read FlpiFile write FlpiFile;
@@ -755,11 +757,13 @@ type
 
   TNXLSProjectCreateParams = class(TNXJSONRPCObjectParams)
   private
+    FbuildTool: TNXJSONString;
     FprojectName: TNXJSONString;
     FtargetDir: TNXJSONString;
     Fkind: TNXJSONString;
     FlpiFile: TNXJSONString;
   published
+    property buildTool: TNXJSONString read FbuildTool write FbuildTool;
     property projectName: TNXJSONString read FprojectName write FprojectName;
     property targetDir: TNXJSONString read FtargetDir write FtargetDir;
     property kind: TNXJSONString read Fkind write Fkind;

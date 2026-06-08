@@ -19,6 +19,15 @@ nav:
       - Naming and Ownership: architecture/naming-ownership.md
   - Nexus Pascal:
       - Overview: nexus-pascal/index.md
+      - Installation: nexus-pascal/installation.md
+      - Quick Start: nexus-pascal/quick-start.md
+      - Project Types: nexus-pascal/project-types.md
+      - Project Starters: nexus-pascal/project-starters.md
+      - Building: nexus-pascal/building.md
+      - Debugging: nexus-pascal/debugging.md
+      - Code Intelligence: nexus-pascal/code-intelligence.md
+      - Configuration: nexus-pascal/configuration.md
+      - Troubleshooting: nexus-pascal/troubleshooting.md
   - NexusUI:
       - Overview: nexus-ui/index.md
       - Philosophy: nexus-ui/philosophy.md

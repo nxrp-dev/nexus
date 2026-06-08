@@ -15,6 +15,15 @@ type
   TNXJSONRPCValueClass = TNXJSONValueClass;
   TNXJSONRPCValueClassArray = array of TNXJSONRPCValueClass;
 
+  TNXJSONRPCString = class(TNXJSONString)
+  end;
+
+  TNXJSONRPCBoolean = class(TNXJSONBoolean)
+  end;
+
+  TNXJSONRPCInteger = class(TNXJSONInteger)
+  end;
+
   TNXJSONRPCUnknown = class(TNXJSONRPCValue)
   end;
 
