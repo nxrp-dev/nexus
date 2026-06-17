@@ -14,6 +14,8 @@
   - Keep the subsystem in `NexusNet` unless a later integration point is explicitly requested.
   - Avoid external dependencies unless explicitly approved.
   - Keep the design simple, explicit, and staged.
+  - First implementation target is library only plus focused tests.
+  - GUI client work belongs later in Nexus Lab.
 
 ## Summary
 
@@ -23,20 +25,16 @@ For this plan, "client/server" should mean:
 
 - client: load/create torrents, announce to trackers, connect to peers, download pieces, verify content, resume downloads, and manage multiple torrents.
 - server/seeding: accept inbound peer connections, upload verified pieces, enforce choking/unchoking policy, rate/account traffic, and continue seeding after download completion.
-- optional service components: a JSON-RPC control service should be part of the product shape; a tracker server should be a later module after the peer engine is correct.
+- optional service components: a tracker server should be a later module after the peer engine is correct.
 
 The implementation should be delivered in verified slices. The first slice should not try to include DHT, peer exchange, uTP, encryption, and tracker server behavior. Those are real BitTorrent features, but adding them before the metainfo, storage, tracker, peer-wire, and seeding core is stable would create too much surface area.
 
 ## Verified Findings
 
 - `NexusNet` currently exists under the repository root.
-- `NexusNet/src` currently contains two folders:
-  - `json-rpc`
-  - `torrent`
+- `NexusNet/src/torrent` currently exists for the BitTorrent work.
 - No `AGENTS.md` file exists under `NexusNet`, so the root repository rules and Pascal standards apply.
-- No source files currently exist under `NexusNet/src/json-rpc` or `NexusNet/src/torrent`.
-- Existing shared Nexus JSON-RPC object units are present under `NexusLib/src`, including `obNXJSONRPCObjects.pas` and `obNXJSONRPCMessages.pas`.
-- Existing persistence and JSON support are present under `NexusLib/src`, including `obNXPersist.pas` and `obNXJSONValues.pas`.
+- No source files currently exist under `NexusNet/src/torrent`.
 - The current worktree has unrelated NexusLS changes. Implementation should avoid those files unless explicitly approved for a separate task.
 
 ## Architecture Problem
@@ -115,17 +113,6 @@ If these concerns are owned by one manager class, the result will be hard to tes
   - session coordinates tracker, peer, and storage components
   - session owns runtime state, not protocol encoding details
 
-### JSON-RPC Control Layer
-
-- Owner: `NexusNet/src/json-rpc`
-- Responsibilities:
-  - typed control request/result objects
-  - local service methods for torrent lifecycle
-  - status queries and control commands
-- State flow:
-  - JSON-RPC commands call the session service
-  - JSON-RPC objects do not implement torrent protocol mechanics
-
 ## Proposed Unit Structure
 
 Initial torrent units:
@@ -143,14 +130,6 @@ NexusNet/src/torrent/obNXTorrentSession.pas
 NexusNet/src/torrent/obNXTorrentService.pas
 ```
 
-Initial JSON-RPC units:
-
-```text
-NexusNet/src/json-rpc/tpNXNetJSONRPC.pas
-NexusNet/src/json-rpc/obNXNetJSONRPCRequests.pas
-NexusNet/src/json-rpc/obNXNetJSONRPCService.pas
-```
-
 Initial verification targets:
 
 ```text
@@ -158,15 +137,6 @@ NexusNet/tests/NexusNetTestModule.lpi
 NexusNet/tests/NexusNetTestModule.lpr
 NexusNet/tests/tsNXTorrentCoreTests.pas
 NexusNet/tests/fixtures/
-```
-
-Optional later executable targets:
-
-```text
-NexusNet/app/NexusTorrentCLI.lpi
-NexusNet/app/NexusTorrentCLI.lpr
-NexusNet/app/NexusNetDaemon.lpi
-NexusNet/app/NexusNetDaemon.lpr
 ```
 
 The exact file list can be tightened during implementation, but the first pass should keep `tp...` for shared enums/records/constants and `ob...` for classes.
@@ -257,20 +227,18 @@ For the first working version, a simple deterministic piece picker is acceptable
 
 This is the "server" part of the first functional BitTorrent scope.
 
-### Stage 8: Multi-Torrent Session And JSON-RPC Control
+### Stage 8: Multi-Torrent Library Session
 
 - Add `TNXTorrentService` or equivalent service object that owns multiple torrents.
-- Add JSON-RPC request/result objects for:
-  - add torrent file
-  - add magnet link, initially allowed to return unsupported until Stage 9
-  - start torrent
-  - pause torrent
-  - remove torrent
-  - get torrent status
-  - list torrents
-  - get peer list
-  - set rate limits if rate limiting exists by then
-- Keep control API objects separate from torrent engine objects.
+- Add library methods for:
+  - adding torrent metainfo
+  - adding magnet links, initially allowed to return unsupported until Stage 9
+  - starting and pausing torrent sessions
+  - removing torrent sessions
+  - reading torrent status snapshots
+  - reading peer and file status snapshots
+  - setting rate limits if rate limiting exists by then
+- Keep the public library surface separate from protocol encoding and socket mechanics.
 
 ### Stage 9: Magnet, DHT, And Extension Protocol
 
@@ -297,40 +265,38 @@ Only after the core is stable, consider:
 
 These are not first-pass requirements.
 
-## JSON-RPC Control Shape
+## Library Surface Shape
 
-Use typed request/result objects, matching the Nexus JSON-RPC style already used elsewhere in the repo.
+Expose typed Pascal objects and methods that a future Nexus Lab GUI can call without depending on protocol internals.
 
-Representative methods:
+Representative service methods:
 
 ```text
-torrent.addFile
-torrent.addMagnet
-torrent.start
-torrent.pause
-torrent.remove
-torrent.list
-torrent.status
-torrent.peers
-torrent.files
-torrent.setLimits
-session.status
-session.shutdown
+AddTorrent
+AddMagnet
+StartTorrent
+PauseTorrent
+RemoveTorrent
+GetTorrentStatus
+ListTorrents
+GetTorrentPeers
+GetTorrentFiles
+SetTorrentLimits
+Shutdown
 ```
 
 Representative object model:
 
 ```text
-TNXNetTorrentAddFileRequest
-TNXNetTorrentAddFileResult
-TNXNetTorrentStatusRequest
-TNXNetTorrentStatusResult
-TNXNetTorrentInfo
-TNXNetTorrentPeerInfo
-TNXNetTorrentFileInfo
+TNXTorrentService
+TNXTorrentAddResult
+TNXTorrentStatus
+TNXTorrentInfo
+TNXTorrentPeerInfo
+TNXTorrentFileInfo
 ```
 
-Published properties should be the JSON-RPC contract surface. The JSON-RPC layer should call a service object and return typed results; it should not assemble arbitrary JSON payloads by hand.
+The public library surface should return typed status snapshots. It should not expose raw peer message objects, socket handles, or storage internals unless a caller has a real library-level reason to inspect them.
 
 ## Non-Goals For First Approved Implementation
 
@@ -339,6 +305,7 @@ Published properties should be the JSON-RPC contract surface. The JSON-RPC layer
 - No encryption in the first compiling slice.
 - No tracker server in the first compiling slice.
 - No GUI integration.
+- No CLI or daemon target in the first implementation.
 - No NexusLS integration.
 - No public-network-only test strategy.
 - No dependency-heavy implementation unless separately approved.
@@ -349,13 +316,6 @@ Compile after every structural stage:
 
 ```text
 lazbuild NexusNet\tests\NexusNetTestModule.lpi
-```
-
-If a CLI or daemon target is added:
-
-```text
-lazbuild NexusNet\app\NexusTorrentCLI.lpi
-lazbuild NexusNet\app\NexusNetDaemon.lpi
 ```
 
 Focused test categories:
@@ -374,13 +334,12 @@ Focused test categories:
 - peer message stream parsing with fragmented input
 - request pipeline state
 - seeding refuses unverified pieces
-- JSON-RPC request/result serialization
+- public library status snapshots
 
 Focused greps after implementation:
 
 ```text
 rg "class\\(" NexusNet\\src
-rg "published" NexusNet\\src\\json-rpc NexusNet\\src\\torrent
 rg "TStringList|TMemoryStream|TFileStream" NexusNet\\src\\torrent
 rg "SHA1|sha1|InfoHash|BEncode|Tracker|Handshake" NexusNet\\src\\torrent NexusNet\\tests
 ```
@@ -394,7 +353,7 @@ Manual interoperability tests after the relevant stages:
 5. Restart the NexusNet process and resume the partial download.
 6. Seed the completed content from NexusNet.
 7. Download from NexusNet using a known client.
-8. Control add/start/pause/status/list through JSON-RPC.
+8. Exercise add/start/pause/status/list through the library test surface.
 
 Public torrents should not be the main verification path. They are useful later as smoke tests, but they are too noisy for first-pass correctness.
 
@@ -410,8 +369,8 @@ Proposed roles:
   - owns piece map, file store, hashing, resume state, and related tests
 - `NexusNet session worker`
   - owns torrent session orchestration, peer scheduling, and seeding policy after protocol/storage contracts exist
-- `NexusNet control worker`
-  - owns JSON-RPC request/result objects and service boundary after the session API is stable
+- `NexusNet library API worker`
+  - owns the public service/status object boundary after the session API is stable
 
 Main Codex responsibilities:
 
@@ -426,7 +385,7 @@ Recommended initial implementation delegation:
 
 - Do not start with four workers.
 - Use one `NexusNet protocol worker` for Stage 1 and Stage 2 after approval.
-- Add storage/session/control workers only when the preceding contracts compile and tests pass.
+- Add storage/session/library API workers only when the preceding contracts compile and tests pass.
 
 ## Risks And Questions
 
@@ -434,15 +393,14 @@ Recommended initial implementation delegation:
 - SHA-1 implementation source needs verification. If the repo already has a suitable hash unit, use it; otherwise decide whether FPC standard units are enough or whether a small local implementation is needed.
 - Bencode dictionary ordering is critical for info-hash correctness. The metainfo implementation must preserve exact encoded `info` bytes or provide deterministic canonical encoding where valid.
 - BitTorrent has many BEPs. The first functional target needs a firm scope or it will sprawl.
-- "Server" should be confirmed: this plan treats it primarily as seeding/inbound peer service plus JSON-RPC daemon control. A tracker server is proposed as later optional work.
+- "Server" should be confirmed: this plan treats it primarily as seeding/inbound peer service. A tracker server is proposed as later optional work.
 - NAT traversal and public inbound connectivity are operational concerns. The first version should work on loopback/LAN before trying to solve internet reachability.
 - Legal/safety policy for default downloads may matter later. The code should support user-provided torrents and controlled tests; bundled public content is not needed.
 
 Open questions for Kevin before implementation:
 
 - Should `server` include a BitTorrent tracker server in the first full milestone, or is seeding/inbound peer service the intended meaning?
-- Do you want a CLI executable first, a daemon with JSON-RPC first, or only a testable library first?
-- Should `json-rpc` reuse NexusLib JSON-RPC objects directly, or should NexusNet keep its own command surface that depends on NexusLib only at the boundary?
+- The first implementation target is now understood as library only plus focused tests.
 - Is the first implementation allowed to use standard FPC networking/hash units if available, or should NexusNet avoid even those where practical?
 
 ## Approval Gate

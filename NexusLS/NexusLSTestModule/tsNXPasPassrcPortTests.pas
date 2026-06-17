@@ -151,6 +151,24 @@ begin
   end;
 end;
 
+function NXPassrcCountChildSymbols(ASymbol: TNXPasSymbol;
+  AKind: TNXPasSymbolKind; const AName: string): Integer;
+var
+  lIdx: Integer;
+  lSymbol: TNXPasSymbol;
+begin
+  Result := 0;
+  if ASymbol = nil then
+    Exit;
+
+  for lIdx := 0 to ASymbol.ChildCount - 1 do
+  begin
+    lSymbol := ASymbol.Children[lIdx];
+    if (lSymbol.Kind = AKind) and (lSymbol.Name = AName) then
+      Inc(Result);
+  end;
+end;
+
 function NXPassrcHasDiagnostic(ADiagnostics: TNXPasDiagnosticList;
   const ACode: string): Boolean;
 var
@@ -838,6 +856,14 @@ begin
       'Program header should produce metadata name.');
     AContext.AssertEquals(Ord(pckProgram), Ord(lTree.Metadata.CompilationKind),
       'Program header should produce program metadata kind.');
+    lTree.Free;
+    lSource.Free;
+    lTree := NXPassrcParse('program Sample(Input, Output);' + LineEnding +
+      'begin' + LineEnding + 'end.', lDiagnostics, lSource);
+    AContext.AssertEquals('Sample', lTree.Metadata.Name,
+      'Program input/output header should produce metadata name.');
+    AContext.AssertEquals(Ord(pckProgram), Ord(lTree.Metadata.CompilationKind),
+      'Program input/output header should produce program metadata kind.');
   finally
     lTree.Free;
     lSource.Free;
@@ -994,6 +1020,154 @@ begin
       'end.', lDiagnostics, lSource);
     AContext.AssertEquals(1, lTree.Metadata.InterfaceUses.Count,
       'Library uses should be captured structurally.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedModuleProgramAndExportsStructuralForms(
+  AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lSource: TNXPasSourceFile;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('program Sample;' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckProgram), Ord(lTree.Metadata.CompilationKind),
+      'Program without explicit begin should keep program metadata.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('program Sample;' + LineEnding +
+      'initialization' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckProgram), Ord(lTree.Metadata.CompilationKind),
+      'Program without finalization should keep program metadata.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('program Sample;' + LineEnding +
+      'finalization' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckProgram), Ord(lTree.Metadata.CompilationKind),
+      'Program without initialization should keep program metadata.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('library Sample;' + LineEnding +
+      'exports Foo;' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckLibrary), Ord(lTree.Metadata.CompilationKind),
+      'Library exports section should keep library metadata.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('library Sample;' + LineEnding +
+      'exports Foo name ''FooAlias'';' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckLibrary), Ord(lTree.Metadata.CompilationKind),
+      'Library export alias should parse structurally.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('library Sample;' + LineEnding +
+      'exports Foo index 1;' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckLibrary), Ord(lTree.Metadata.CompilationKind),
+      'Library export index should parse structurally.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('library Sample;' + LineEnding +
+      'exports Foo, Bar;' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckLibrary), Ord(lTree.Metadata.CompilationKind),
+      'Two library exports should parse structurally.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('library Sample;' + LineEnding +
+      'exports Foo name ''FooAlias'', Bar name ''BarAlias'';' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckLibrary), Ord(lTree.Metadata.CompilationKind),
+      'Two library export aliases should parse structurally.');
+  finally
+    lTree.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('library Sample;' + LineEnding +
+      'exports Foo index 1, Bar index 2;' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    AContext.AssertEquals(Ord(pckLibrary), Ord(lTree.Metadata.CompilationKind),
+      'Two library export indexes should parse structurally.');
   finally
     lTree.Free;
     lSource.Free;
@@ -1370,6 +1544,802 @@ begin
   end;
 end;
 
+procedure TestPromotedClassOverloadVisibility(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TOverloaded = class' + LineEnding +
+      '  private' + LineEnding +
+      '    procedure Run(AValue: Integer); overload;' + LineEnding +
+      '  public' + LineEnding +
+      '    procedure Run(AValue: string); overload;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TOverloaded');
+    AContext.AssertTrue(lClass <> nil,
+      'Overload visibility class should be captured.');
+    AContext.AssertEquals(2, NXPassrcCountChildSymbols(lClass, pskRoutine,
+      'Run'),
+      'Overloaded methods across visibility sections should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedClassDottedMethodNames(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lFunction: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TDottedMethods = class' + LineEnding +
+      '  public' + LineEnding +
+      '    procedure Service.Run;' + LineEnding +
+      '    function Service.Make: Integer;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TDottedMethods');
+    AContext.AssertTrue(lClass <> nil,
+      'Dotted method class should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Service.Run') <> nil,
+      'Dotted procedure name should be captured structurally.');
+    lFunction := NXPassrcFindChildSymbol(lClass, pskRoutine, 'Service.Make');
+    AContext.AssertTrue(lFunction <> nil,
+      'Dotted function name should be captured structurally.');
+    AContext.AssertEquals('Integer', lFunction.DeclaredTypeText,
+      'Dotted function return type should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedInterfaceUUIDStructuralVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lInterface: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  IBase = interface' + LineEnding +
+      '  end;' + LineEnding +
+      '  IWithUUID = interface' + LineEnding +
+      '    [''{11111111-1111-1111-1111-111111111111}'']' + LineEnding +
+      '  end;' + LineEnding +
+      '  IParentedUUID = interface(IBase)' + LineEnding +
+      '    [''{22222222-2222-2222-2222-222222222222}'']' + LineEnding +
+      '  end;' + LineEnding +
+      '  IMethodUUID = interface' + LineEnding +
+      '    [''{33333333-3333-3333-3333-333333333333}'']' + LineEnding +
+      '    procedure Run;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskInterface,
+      'IWithUUID') <> nil,
+      'Interface with UUID should be captured structurally.');
+
+    lInterface := NXPassrcFindSymbol(lSymbols, pskInterface,
+      'IParentedUUID');
+    AContext.AssertTrue(lInterface <> nil,
+      'Parented interface with UUID should be captured structurally.');
+    AContext.AssertEquals('IBase', lInterface.DeclaredTypeText,
+      'Parented interface heritage should survive UUID skipping.');
+
+    lInterface := NXPassrcFindSymbol(lSymbols, pskInterface, 'IMethodUUID');
+    AContext.AssertTrue(lInterface <> nil,
+      'Interface with UUID and method should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lInterface, pskRoutine,
+      'Run') <> nil,
+      'Interface method after UUID should be captured structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedHelperTypeStructuralVariants(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TBaseClass = class' + LineEnding +
+      '  end;' + LineEnding +
+      '  TBaseRecord = record' + LineEnding +
+      '  end;' + LineEnding +
+      '  TClassHelper = class helper for TBaseClass' + LineEnding +
+      '    procedure Help;' + LineEnding +
+      '  end;' + LineEnding +
+      '  TRecordHelper = record helper for TBaseRecord' + LineEnding +
+      '    procedure Help;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TClassHelper');
+    AContext.AssertTrue(lClass <> nil,
+      'Class helper should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
+      'Help') <> nil,
+      'Class helper method should be captured structurally.');
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord, 'TRecordHelper');
+    AContext.AssertTrue(lRecord <> nil,
+      'Record helper should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lRecord, pskRoutine,
+      'Help') <> nil,
+      'Record helper method should be captured structurally.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordFieldTailVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordFieldTails = record' + LineEnding +
+      '    Commented: Integer; { comment }' + LineEnding +
+      '    DeprecatedField: Integer deprecated;' + LineEnding +
+      '    PlatformField: Integer platform;' + LineEnding +
+      '    SemicolonDeprecated: Integer; deprecated;' + LineEnding +
+      '    SemicolonPlatform: Integer; platform;' + LineEnding +
+      '    GenericField: specialize TList<Integer>;' + LineEnding +
+      '    A, B: string;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord, 'TRecordFieldTails');
+    AContext.AssertTrue(lRecord <> nil,
+      'Record field-tail fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'Commented');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Commented record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'DeprecatedField');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deprecated record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'PlatformField');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Platform record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'SemicolonDeprecated');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Post-semicolon deprecated record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'SemicolonPlatform');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Post-semicolon platform record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'GenericField');
+    AContext.AssertEquals('specialize TList<Integer>', lField.DeclaredTypeText,
+      'Generic-looking record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'B');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Second grouped record field type should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordVisibilityAndGroupedTails(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordVisibility = record' + LineEnding +
+      '  protected' + LineEnding +
+      '    ProtectedA, ProtectedB: Integer;' + LineEnding +
+      '  strict private' + LineEnding +
+      '    StrictA, StrictB: string;' + LineEnding +
+      '  private' + LineEnding +
+      '    PrivateA, PrivateB: Boolean;' + LineEnding +
+      '  public' + LineEnding +
+      '    DeprecatedA, DeprecatedB: Integer deprecated;' + LineEnding +
+      '    PlatformA, PlatformB: Integer platform;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord, 'TRecordVisibility');
+    AContext.AssertTrue(lRecord <> nil,
+      'Record visibility fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'ProtectedB');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Protected grouped record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'StrictB');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Strict private grouped record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'PrivateB');
+    AContext.AssertEquals('Boolean', lField.DeclaredTypeText,
+      'Private grouped record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'DeprecatedB');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deprecated grouped record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'PlatformB');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Platform grouped record field type should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordHintKeywordFieldNames(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordHintNames = record' + LineEnding +
+      '    deprecated: Integer;' + LineEnding +
+      '    deprecatedDeprecated: Integer deprecated;' + LineEnding +
+      '    deprecatedPlatform: Integer platform;' + LineEnding +
+      '    platform: string;' + LineEnding +
+      '    platformDeprecated: string deprecated;' + LineEnding +
+      '    platformPlatform: string platform;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord, 'TRecordHintNames');
+    AContext.AssertTrue(lRecord <> nil,
+      'Record hint-keyword field fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'deprecated');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deprecated-shaped record field name should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedDeprecated');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deprecated-shaped record field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedPlatform');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Deprecated-shaped record field with platform tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'platform');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Platform-shaped record field name should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'platformDeprecated');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Platform-shaped record field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'platformPlatform');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Platform-shaped record field with platform tail should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordEmptyVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TEmpty = record' + LineEnding +
+      '  end;' + LineEnding +
+      '  TEmptyComment = record' + LineEnding +
+      '    { comment }' + LineEnding +
+      '  end;' + LineEnding +
+      '  TEmptyDeprecated = record' + LineEnding +
+      '  end deprecated;' + LineEnding +
+      '  TEmptyPlatform = record' + LineEnding +
+      '  end platform;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TEmpty') <> nil, 'Empty record should be captured.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TEmptyComment') <> nil,
+      'Empty record with comment should be captured.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TEmptyDeprecated') <> nil,
+      'Empty record with deprecated tail should be captured.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TEmptyPlatform') <> nil,
+      'Empty record with platform tail should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordTwoFieldHintTailVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordTwoFieldHints = record' + LineEnding +
+      '    deprecated, NormalAfterDeprecated: Integer;' + LineEnding +
+      '    deprecatedDeprecated, NormalAfterDeprecatedDeprecated: Integer deprecated;' + LineEnding +
+      '    deprecatedPlatform, NormalAfterDeprecatedPlatform: Integer platform;' + LineEnding +
+      '    NormalBeforeDeprecated, deprecatedSecond: string;' + LineEnding +
+      '    NormalBeforeDeprecatedDeprecated, deprecatedSecondDeprecated: string deprecated;' + LineEnding +
+      '    NormalBeforeDeprecatedPlatform, deprecatedSecondPlatform: string platform;' + LineEnding +
+      '    deprecatedA, deprecatedB: Boolean;' + LineEnding +
+      '    deprecatedADeprecated, deprecatedBDeprecated: Boolean deprecated;' + LineEnding +
+      '    deprecatedAPlatform, deprecatedBPlatform: Boolean platform;' + LineEnding +
+      '    CombinedA, CombinedB: LongInt deprecated;' + LineEnding +
+      '    CombinedPlatformA, CombinedPlatformB: LongInt platform;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TRecordTwoFieldHints');
+    AContext.AssertTrue(lRecord <> nil,
+      'Two-field hint-tail record fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'deprecated');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'First deprecated-shaped grouped field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'NormalAfterDeprecatedDeprecated');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Second field in deprecated-tail group should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'NormalAfterDeprecatedPlatform');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Second field in platform-tail group should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'deprecatedSecond');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Second deprecated-shaped grouped field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedSecondDeprecated');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Second deprecated-shaped grouped field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedSecondPlatform');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Second deprecated-shaped grouped field with platform tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'deprecatedB');
+    AContext.AssertEquals('Boolean', lField.DeclaredTypeText,
+      'Second all-deprecated-shaped grouped field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedBDeprecated');
+    AContext.AssertEquals('Boolean', lField.DeclaredTypeText,
+      'Second all-deprecated-shaped grouped field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedBPlatform');
+    AContext.AssertEquals('Boolean', lField.DeclaredTypeText,
+      'Second all-deprecated-shaped grouped field with platform tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'CombinedB');
+    AContext.AssertEquals('LongInt', lField.DeclaredTypeText,
+      'Second combined grouped field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'CombinedPlatformB');
+    AContext.AssertEquals('LongInt', lField.DeclaredTypeText,
+      'Second combined grouped field with platform tail should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordNestedFieldVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordNestedFields = record' + LineEnding +
+      '    Nested: record' + LineEnding +
+      '      A: Integer;' + LineEnding +
+      '    end;' + LineEnding +
+      '    NestedDeprecated: record' + LineEnding +
+      '      B: string;' + LineEnding +
+      '    end deprecated;' + LineEnding +
+      '    NestedPlatform: record' + LineEnding +
+      '      C: Boolean;' + LineEnding +
+      '    end platform;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TRecordNestedFields');
+    AContext.AssertTrue(lRecord <> nil,
+      'Nested record field fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'Nested');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Nested record field type should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'NestedDeprecated');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Nested record field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'NestedPlatform');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Nested record field with platform tail should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordNestedFieldSemicolonVariants(
+  AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordNestedSemicolonFields = record' + LineEnding +
+      '    NestedSemicolon: record' + LineEnding +
+      '      A: Integer;' + LineEnding +
+      '    end;' + LineEnding +
+      '    NestedSemicolonDeprecated: record' + LineEnding +
+      '      B: string;' + LineEnding +
+      '    end; deprecated;' + LineEnding +
+      '    NestedSemicolonPlatform: record' + LineEnding +
+      '      C: Boolean;' + LineEnding +
+      '    end; platform;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TRecordNestedSemicolonFields');
+    AContext.AssertTrue(lRecord <> nil,
+      'Nested record semicolon fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'NestedSemicolon');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Nested record field with semicolon separator should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'NestedSemicolonDeprecated');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Nested record field with semicolon deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'NestedSemicolonPlatform');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Nested record field with semicolon platform tail should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordNestedGroupedFieldVariants(
+  AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordNestedGroupedFields = record' + LineEnding +
+      '    NestedFirst, AfterNested: record' + LineEnding +
+      '      A: Integer;' + LineEnding +
+      '    end;' + LineEnding +
+      '    NestedFirstDeprecated, AfterNestedDeprecated: record' + LineEnding +
+      '      B: string;' + LineEnding +
+      '    end deprecated;' + LineEnding +
+      '    NestedFirstPlatform, AfterNestedPlatform: record' + LineEnding +
+      '      C: Boolean;' + LineEnding +
+      '    end platform;' + LineEnding +
+      '    deprecatedNested, NormalAfterDeprecatedNested: record' + LineEnding +
+      '      D: Integer;' + LineEnding +
+      '    end;' + LineEnding +
+      '    deprecatedNestedDeprecated, NormalAfterDeprecatedNestedDeprecated: record' + LineEnding +
+      '      E: string;' + LineEnding +
+      '    end deprecated;' + LineEnding +
+      '    deprecatedNestedPlatform, NormalAfterDeprecatedNestedPlatform: record' + LineEnding +
+      '      F: Boolean;' + LineEnding +
+      '    end platform;' + LineEnding +
+      '    deprecatedNestedFirst, deprecatedNestedSecond: record' + LineEnding +
+      '      G: Integer;' + LineEnding +
+      '    end;' + LineEnding +
+      '    deprecatedNestedFirstDeprecated, deprecatedNestedSecondDeprecated: record' + LineEnding +
+      '      H: string;' + LineEnding +
+      '    end deprecated;' + LineEnding +
+      '    deprecatedNestedFirstPlatform, deprecatedNestedSecondPlatform: record' + LineEnding +
+      '      I: Boolean;' + LineEnding +
+      '    end platform;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord,
+      'TRecordNestedGroupedFields');
+    AContext.AssertTrue(lRecord <> nil,
+      'Grouped nested record field fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'NestedFirst');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'First grouped nested record field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'AfterNestedDeprecated');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Second grouped nested record field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'AfterNestedPlatform');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Second grouped nested record field with platform tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedNested');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Hint-shaped first grouped nested record field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'NormalAfterDeprecatedNestedDeprecated');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Grouped nested record field after hint-shaped name with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'NormalAfterDeprecatedNestedPlatform');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Grouped nested record field after hint-shaped name with platform tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedNestedSecond');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Second all-hint-shaped grouped nested record field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedNestedSecondDeprecated');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Second all-hint-shaped grouped nested record field with deprecated tail should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField,
+      'deprecatedNestedSecondPlatform');
+    AContext.AssertTrue(Pos('record', lField.DeclaredTypeText) = 1,
+      'Second all-hint-shaped grouped nested record field with platform tail should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedRecordMixedMemberVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lField: TNXPasSymbol;
+  lRecord: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TRecordMixed = record' + LineEnding +
+      '    Value: Integer;' + LineEnding +
+      '    procedure Run;' + LineEnding +
+      '    procedure RunAgain;' + LineEnding +
+      '    class procedure ClassRun; static;' + LineEnding +
+      '    class var ClassValue: TObject;' + LineEnding +
+      '    var ExplicitValue: string;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lRecord := NXPassrcFindSymbol(lSymbols, pskRecord, 'TRecordMixed');
+    AContext.AssertTrue(lRecord <> nil,
+      'Mixed record member fixture should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'Value');
+    AContext.AssertEquals('Integer', lField.DeclaredTypeText,
+      'Record field before methods should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lRecord, pskRoutine,
+      'Run') <> nil, 'Record method should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lRecord, pskRoutine,
+      'RunAgain') <> nil, 'Second record method should be captured.');
+    AContext.AssertTrue(NXPassrcFindChildSymbol(lRecord, pskRoutine,
+      'ClassRun') <> nil, 'Record class method should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'ClassValue');
+    AContext.AssertEquals('TObject', lField.DeclaredTypeText,
+      'Record class var field should be captured.');
+    lField := NXPassrcFindChildSymbol(lRecord, pskField, 'ExplicitValue');
+    AContext.AssertEquals('string', lField.DeclaredTypeText,
+      'Explicit record var field should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
 procedure TestObjectRecordInterfaceMemberSymbols(AContext: TNXTestContext);
 var
   lDiagnostics: TNXPasDiagnosticList;
@@ -1474,6 +2444,60 @@ begin
     lProperty := NXPassrcFindChildSymbol(lClass, pskProperty, 'Enabled');
     AContext.AssertEquals('Boolean', lProperty.DeclaredTypeText,
       'Property modifiers should not corrupt declared type capture.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedSpecializedStructuredHeritage(AContext: TNXTestContext);
+var
+  lClass: TNXPasSymbol;
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lInterface: TNXPasSymbol;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TGeneric = class' + LineEnding +
+      '  end;' + LineEnding +
+      '  IGeneric = interface' + LineEnding +
+      '  end;' + LineEnding +
+      '  TSpecializedClass = class(specialize TGeneric<Integer>)' + LineEnding +
+      '  end;' + LineEnding +
+      '  ISpecializedInterface = interface(specialize IGeneric<Integer>)' +
+      LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TSpecializedClass');
+    AContext.AssertTrue(lClass <> nil,
+      'Specialized class heritage class should be captured.');
+    AContext.AssertEquals('specialize TGeneric<Integer>',
+      lClass.DeclaredTypeText,
+      'Specialized class heritage text should be preserved.');
+
+    lInterface := NXPassrcFindSymbol(lSymbols, pskInterface,
+      'ISpecializedInterface');
+    AContext.AssertTrue(lInterface <> nil,
+      'Specialized interface heritage interface should be captured.');
+    AContext.AssertEquals('specialize IGeneric<Integer>',
+      lInterface.DeclaredTypeText,
+      'Specialized interface heritage text should be preserved.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -1745,62 +2769,6 @@ begin
       'DeprecatedMessageProp');
     AContext.AssertEquals('AInterface', lProperty.DeclaredTypeText,
       'Deprecated property tail with message should preserve declared type.');
-  finally
-    lTree.Free;
-    lSymbols.Free;
-    lExtractor.Free;
-    lSource.Free;
-    lDiagnostics.Free;
-  end;
-end;
-
-procedure TestPromotedClassLocalTypeAndConstSections(AContext: TNXTestContext);
-var
-  lClass: TNXPasSymbol;
-  lDiagnostics: TNXPasDiagnosticList;
-  lExtractor: TNXPasSymbolExtractor;
-  lSource: TNXPasSourceFile;
-  lSymbols: TNXPasSymbolTable;
-  lTree: TNXPasSyntaxTree;
-begin
-  lDiagnostics := TNXPasDiagnosticList.Create(True);
-  lExtractor := TNXPasSymbolExtractor.Create;
-  lSymbols := TNXPasSymbolTable.Create(True);
-  lTree := nil;
-  lSource := nil;
-  try
-    lTree := NXPassrcParse('unit Sample;' + LineEnding +
-      'interface' + LineEnding +
-      'type' + LineEnding +
-      '  TLocalSections = class' + LineEnding +
-      '  public' + LineEnding +
-      '    type' + LineEnding +
-      '      TDirection = (Left, Right);' + LineEnding +
-      '      TVerticalDirection = (Up, Down);' + LineEnding +
-      '    const' + LineEnding +
-      '      A = 23;' + LineEnding +
-      '      B = 45;' + LineEnding +
-      '    procedure Something;' + LineEnding +
-      '  end;' + LineEnding +
-      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
-    lExtractor.Extract(lTree, lSymbols);
-
-    lClass := NXPassrcFindSymbol(lSymbols, pskClass, 'TLocalSections');
-    AContext.AssertTrue(lClass <> nil,
-      'Deferred class-local declaration section class should be captured.');
-    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskType,
-      'TDirection') <> nil,
-      'Class-local type section should be captured structurally.');
-    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskType,
-      'TVerticalDirection') <> nil,
-      'Second class-local type should be captured structurally.');
-    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskConst, 'A') <> nil,
-      'Class-local const section should be captured structurally.');
-    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskConst, 'B') <> nil,
-      'Second class-local const should be captured structurally.');
-    AContext.AssertTrue(NXPassrcFindChildSymbol(lClass, pskRoutine,
-      'Something') <> nil,
-      'Routine after class-local declaration sections should be captured.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -2441,9 +3409,31 @@ begin
       'const' + LineEnding +
       '  SetConst = [taLeftJustify, taRightJustify];' + LineEnding +
       '  ExprConst = 1 + 2;' + LineEnding +
+      '  DeprecatedMsgConst = 1 deprecated ''message'';' + LineEnding +
       '  DeprecatedConst = 1 deprecated;' + LineEnding +
+      '  FloatDeprecatedConst = 1.5 deprecated;' + LineEnding +
+      '  StringDeprecatedConst = ''text'' deprecated;' + LineEnding +
+      '  NilDeprecatedConst = nil deprecated;' + LineEnding +
+      '  BoolDeprecatedConst = True deprecated;' + LineEnding +
+      '  IdentifierDeprecatedConst = SomeValue deprecated;' + LineEnding +
+      '  SetDeprecatedConst = [taLeftJustify] deprecated;' + LineEnding +
+      '  ExprDeprecatedConst = 1 + 2 deprecated;' + LineEnding +
+      '  IntPlatformConst = 1 platform;' + LineEnding +
+      '  FloatPlatformConst = 1.5 platform;' + LineEnding +
       '  PlatformConst = ''text'' platform;' + LineEnding +
+      '  NilPlatformConst = nil platform;' + LineEnding +
+      '  BoolPlatformConst = True platform;' + LineEnding +
+      '  IdentifierPlatformConst = SomeValue platform;' + LineEnding +
+      '  SetPlatformConst = [taLeftJustify] platform;' + LineEnding +
+      '  ExprPlatformConst = 1 + 2 platform;' + LineEnding +
+      '  IntExperimentalConst = 1 experimental;' + LineEnding +
+      '  FloatExperimentalConst = 1.5 experimental;' + LineEnding +
+      '  StringExperimentalConst = ''text'' experimental;' + LineEnding +
+      '  NilExperimentalConst = nil experimental;' + LineEnding +
       '  ExperimentalConst = True experimental;' + LineEnding +
+      '  IdentifierExperimentalConst = SomeValue experimental;' + LineEnding +
+      '  SetExperimentalConst = [taLeftJustify] experimental;' + LineEnding +
+      '  ExprExperimentalConst = 1 + 2 experimental;' + LineEnding +
       '  TypedNil: PChar = nil;' + LineEnding +
       '  TypedIdent: TAlign = taCenter;' + LineEnding +
       '  TypedSet: TAligns = [taLeftJustify, taRightJustify];' + LineEnding +
@@ -2451,10 +3441,18 @@ begin
       '  RecordConst: TPoint = (x: 1; y: 2);' + LineEnding +
       '  ArrayConst: TMyArray = (1, 2);' + LineEnding +
       '  RangeConst: 0..1 = 1;' + LineEnding +
+      '  UntypedRangeConst = 0..1;' + LineEnding +
       '  ArrayOfRange: array[0..7] of 0..1 = (0, 0, 0, 0);' + LineEnding +
       'resourcestring' + LineEnding +
       '  SimpleResource = ''Something'';' + LineEnding +
+      '  SimpleDeprecatedResource = ''Something'' deprecated;' + LineEnding +
+      '  SimplePlatformResource = ''Something'' platform;' + LineEnding +
+      '  Sum1Resource = ''Something'' + '' else'';' + LineEnding +
       '  SumResource = ''Something'' + '' else'' deprecated;' + LineEnding +
+      '  Sum1PlatformResource = ''Something'' + '' else'' platform;' + LineEnding +
+      '  Sum2Resource = ''Something'' + SomeIdent;' + LineEnding +
+      '  Sum2DeprecatedResource = ''Something'' + SomeIdent deprecated;' + LineEnding +
+      '  Sum2PlatformResource = ''Something'' + SomeIdent platform;' + LineEnding +
       'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
     lExtractor.Extract(lTree, lSymbols);
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
@@ -2462,12 +3460,75 @@ begin
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
       'ExprConst') <> nil, 'Expression const should be captured structurally.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'DeprecatedMsgConst') <> nil,
+      'Deprecated message const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
       'DeprecatedConst') <> nil, 'Deprecated const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'FloatDeprecatedConst') <> nil,
+      'Deprecated float const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'StringDeprecatedConst') <> nil,
+      'Deprecated string const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'NilDeprecatedConst') <> nil,
+      'Deprecated nil const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'BoolDeprecatedConst') <> nil,
+      'Deprecated bool const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'IdentifierDeprecatedConst') <> nil,
+      'Deprecated identifier const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SetDeprecatedConst') <> nil,
+      'Deprecated set const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'ExprDeprecatedConst') <> nil,
+      'Deprecated expression const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'IntPlatformConst') <> nil,
+      'Platform integer const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'FloatPlatformConst') <> nil,
+      'Platform float const should not corrupt parsing.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
       'PlatformConst') <> nil, 'Platform const should not corrupt parsing.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'NilPlatformConst') <> nil, 'Platform nil const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'BoolPlatformConst') <> nil, 'Platform bool const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'IdentifierPlatformConst') <> nil,
+      'Platform identifier const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SetPlatformConst') <> nil, 'Platform set const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'ExprPlatformConst') <> nil,
+      'Platform expression const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'IntExperimentalConst') <> nil,
+      'Experimental integer const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'FloatExperimentalConst') <> nil,
+      'Experimental float const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'StringExperimentalConst') <> nil,
+      'Experimental string const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'NilExperimentalConst') <> nil,
+      'Experimental nil const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
       'ExperimentalConst') <> nil,
       'Experimental const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'IdentifierExperimentalConst') <> nil,
+      'Experimental identifier const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SetExperimentalConst') <> nil,
+      'Experimental set const should not corrupt parsing.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'ExprExperimentalConst') <> nil,
+      'Experimental expression const should not corrupt parsing.');
     lConst := NXPassrcFindSymbol(lSymbols, pskConst, 'TypedNil');
     AContext.AssertEquals('PChar', lConst.DeclaredTypeText,
       'Typed nil const declared type should be captured.');
@@ -2489,13 +3550,35 @@ begin
     AContext.AssertEquals('0..1',
       NXPassrcFindSymbol(lSymbols, pskConst, 'RangeConst').DeclaredTypeText,
       'Range const declared type should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'UntypedRangeConst') <> nil,
+      'Untyped range const should be captured structurally.');
     AContext.AssertEquals('array[0..7] of 0..1',
       NXPassrcFindSymbol(lSymbols, pskConst, 'ArrayOfRange').DeclaredTypeText,
       'Array-of-range const declared type should be captured structurally.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
       'SimpleResource') <> nil, 'Resourcestring should be captured structurally.');
     AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SimpleDeprecatedResource') <> nil,
+      'Deprecated resourcestring should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'SimplePlatformResource') <> nil,
+      'Platform resourcestring should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'Sum1Resource') <> nil, 'Resourcestring sum should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
       'SumResource') <> nil, 'Resourcestring expression should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'Sum1PlatformResource') <> nil,
+      'Platform resourcestring sum should be captured structurally.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'Sum2Resource') <> nil, 'Identifier resourcestring sum should be captured.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'Sum2DeprecatedResource') <> nil,
+      'Deprecated identifier resourcestring sum should be captured.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskConst,
+      'Sum2PlatformResource') <> nil,
+      'Platform identifier resourcestring sum should be captured.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -2736,11 +3819,22 @@ begin
     lTree := NXPassrcParse('unit Sample;' + LineEnding +
       'interface' + LineEnding +
       'var Items: TFoo<TBar>;' + LineEnding +
+      'var SpecializedItems: specialize TFoo<TBar>;' + LineEnding +
+      'var NestedSpecializedItems: specialize TFoo<specialize TBar<Integer>>;' +
+      LineEnding +
       'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
     lExtractor.Extract(lTree, lSymbols);
     AContext.AssertEquals('TFoo<TBar>',
       NXPassrcFindSymbol(lSymbols, pskVariable, 'Items').DeclaredTypeText,
       'Generic-looking declared type text should be preserved.');
+    AContext.AssertEquals('specialize TFoo<TBar>',
+      NXPassrcFindSymbol(lSymbols, pskVariable,
+      'SpecializedItems').DeclaredTypeText,
+      'Specialized declared type text should be preserved.');
+    AContext.AssertEquals('specialize TFoo<specialize TBar<Integer>>',
+      NXPassrcFindSymbol(lSymbols, pskVariable,
+      'NestedSpecializedItems').DeclaredTypeText,
+      'Nested specialized declared type text should be preserved.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -2853,6 +3947,61 @@ begin
     AContext.AssertEquals('function(A: Integer): Integer of object',
       NXPassrcFindSymbol(lSymbols, pskType, 'TMethodFuncArg').DeclaredTypeText,
       'Function of object type with arguments should be captured.');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedTypeAliasCommentVariants(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'type' + LineEnding +
+      '  TByteComment = Byte; { comment }' + LineEnding +
+      '  TStaticArrayComment = array[0..3] of Integer; { comment }' + LineEnding +
+      '  TDynamicArrayComment = array of string; { comment }' + LineEnding +
+      '  TEnumComment = (One, Two); { comment }' + LineEnding +
+      '  TEnumComment2 = (First = 1, Second = 2); { comment }' + LineEnding +
+      '  TClassOfComment = class of TObject; { comment }' + LineEnding +
+      'implementation' + LineEnding + 'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertEquals('Byte',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TByteComment').DeclaredTypeText,
+      'Simple type alias with comment should be captured.');
+    AContext.AssertEquals('array[0..3] of Integer',
+      NXPassrcFindSymbol(lSymbols, pskType,
+      'TStaticArrayComment').DeclaredTypeText,
+      'Static array type alias with comment should be captured.');
+    AContext.AssertEquals('array of string',
+      NXPassrcFindSymbol(lSymbols, pskType,
+      'TDynamicArrayComment').DeclaredTypeText,
+      'Dynamic array type alias with comment should be captured.');
+    AContext.AssertEquals('(One, Two)',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TEnumComment').DeclaredTypeText,
+      'Enumerated type alias with comment should be captured.');
+    AContext.AssertEquals('(First = 1, Second = 2)',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TEnumComment2').DeclaredTypeText,
+      'Assigned enumerated type alias with comment should be captured.');
+    AContext.AssertEquals('class of TObject',
+      NXPassrcFindSymbol(lSymbols, pskType, 'TClassOfComment').DeclaredTypeText,
+      'Class-of type alias with comment should be captured.');
   finally
     lTree.Free;
     lSymbols.Free;
@@ -3183,6 +4332,8 @@ begin
       '// comment before routine declarations' + LineEnding +
       'procedure Commented;' + LineEnding +
       'function CommentedFunction: Integer;' + LineEnding +
+      'procedure InterfaceForward; forward;' + LineEnding +
+      'function InterfaceForwardFunction: Integer; forward;' + LineEnding +
       'type' + LineEnding +
       '  TProcPlain = procedure;' + LineEnding +
       '  TProcVar = procedure(var A: Integer);' + LineEnding +
@@ -3199,9 +4350,11 @@ begin
       '  TProcUntypedVar = procedure(var A);' + LineEnding +
       '  TProcUntypedConst = procedure(const A);' + LineEnding +
       '  TProcUntypedOut = procedure(out A);' + LineEnding +
+      '  TProcUntypedDefault = procedure(A = 1);' + LineEnding +
       '  TProcDefault = procedure(A: Integer = 1);' + LineEnding +
       '  TProcDefaultExpr = procedure(A: Integer = 1 + 2);' + LineEnding +
       '  TProcDefaultSet = procedure(A: TB = []);' + LineEnding +
+      '  TProcNoMultiArgDefaults = procedure(A, B: Integer = 1);' + LineEnding +
       '  TProcVarDefault = procedure(var A: Integer = 1);' + LineEnding +
       '  TProcConstDefault = procedure(const A: Integer = 1);' + LineEnding +
       '  TProcOutDefault = procedure(out A: Integer = 1);' + LineEnding +
@@ -3227,6 +4380,10 @@ begin
       'Commented procedure');
     NXPassrcAssertRoutine(AContext, lSymbols, 'CommentedFunction',
       'Integer', 'Commented function');
+    NXPassrcAssertRoutine(AContext, lSymbols, 'InterfaceForward', '',
+      'interface forward procedure');
+    NXPassrcAssertRoutine(AContext, lSymbols, 'InterfaceForwardFunction',
+      'Integer', 'interface forward function');
     NXPassrcAssertRoutine(AContext, lSymbols, 'CDeclForward', '',
       'cdecl forward procedure');
     NXPassrcAssertRoutine(AContext, lSymbols, 'CDeclForwardFunction',
@@ -3266,12 +4423,16 @@ begin
       'procedure(const A)', 'untyped const parameter');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcUntypedOut',
       'procedure(out A)', 'untyped out parameter');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcUntypedDefault',
+      'procedure(A = 1)', 'untyped default parameter');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefault',
       'procedure(A: Integer = 1)', 'default parameter value');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefaultExpr',
       'procedure(A: Integer = 1 + 2)', 'default parameter expression');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcDefaultSet',
       'procedure(A: TB = [])', 'default set parameter value');
+    NXPassrcAssertTypeText(AContext, lSymbols, 'TProcNoMultiArgDefaults',
+      'procedure(A, B: Integer = 1)', 'multi-name default parameter value');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcVarDefault',
       'procedure(var A: Integer = 1)', 'var default parameter value');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcConstDefault',
@@ -3294,6 +4455,70 @@ begin
       'procedure is nested', 'nested procedure type');
     NXPassrcAssertTypeText(AContext, lSymbols, 'TProcNestedOneArg',
       'procedure(A: Integer) is nested', 'nested procedure type with arg');
+  finally
+    lTree.Free;
+    lSymbols.Free;
+    lExtractor.Free;
+    lSource.Free;
+    lDiagnostics.Free;
+  end;
+end;
+
+procedure TestPromotedGenericRoutineStructuralForms(AContext: TNXTestContext);
+var
+  lDiagnostics: TNXPasDiagnosticList;
+  lExtractor: TNXPasSymbolExtractor;
+  lSource: TNXPasSourceFile;
+  lSymbols: TNXPasSymbolTable;
+  lTree: TNXPasSyntaxTree;
+begin
+  lDiagnostics := TNXPasDiagnosticList.Create(True);
+  lExtractor := TNXPasSymbolExtractor.Create;
+  lSymbols := TNXPasSymbolTable.Create(True);
+  lTree := nil;
+  lSource := nil;
+  try
+    lTree := NXPassrcParse('unit Sample;' + LineEnding +
+      'interface' + LineEnding +
+      'generic function Get<T>(val: T): T;' + LineEnding +
+      'type' + LineEnding +
+      '  TObject = class' + LineEnding +
+      '    generic function Pick<T>(val: T): T;' + LineEnding +
+      '  end;' + LineEnding +
+      'implementation' + LineEnding +
+      'generic function Get<T>(val: T): T;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'generic function TObject.Pick<T>(val: T): T;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'Get') <> nil, 'Generic unit function should be captured.');
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'TObject.Pick') <> nil,
+      'Generic method implementation should be captured.');
+
+    lTree.Free;
+    lTree := nil;
+    lSource.Free;
+    lSource := nil;
+    lSymbols.Clear;
+
+    lTree := NXPassrcParse(
+      'generic function IfThen<T>(val: Boolean; const iftrue: T; ' +
+      'const iffalse: T): T; inline; overload;' + LineEnding +
+      'begin' + LineEnding +
+      'end;' + LineEnding +
+      'begin' + LineEnding +
+      'end.', lDiagnostics, lSource);
+    lExtractor.Extract(lTree, lSymbols);
+    AContext.AssertTrue(NXPassrcFindSymbol(lSymbols, pskRoutine,
+      'IfThen') <> nil,
+      'Program-level generic function should be captured.');
+
   finally
     lTree.Free;
     lSymbols.Free;
@@ -3474,6 +4699,8 @@ begin
     @TestModuleImplementationUsesMetadata);
   lSuite.AddTest('ModuleLifecycleAndProgramLibraryUses',
     @TestModuleLifecycleAndProgramLibraryUses);
+  lSuite.AddTest('PromotedModuleProgramAndExportsStructuralForms',
+    @TestPromotedModuleProgramAndExportsStructuralForms);
   lSuite.AddTest('TypeClassRecordInterfaceSymbols',
     @TestTypeClassRecordInterfaceSymbols);
   lSuite.AddTest('ClassMembersAndPropertySymbols',
@@ -3488,10 +4715,38 @@ begin
     @TestPromotedClassHintKeywordFieldNames);
   lSuite.AddTest('PromotedClassMethodHintAndMessageDirectives',
     @TestPromotedClassMethodHintAndMessageDirectives);
+  lSuite.AddTest('PromotedClassOverloadVisibility',
+    @TestPromotedClassOverloadVisibility);
+  lSuite.AddTest('PromotedClassDottedMethodNames',
+    @TestPromotedClassDottedMethodNames);
+  lSuite.AddTest('PromotedInterfaceUUIDStructuralVariants',
+    @TestPromotedInterfaceUUIDStructuralVariants);
+  lSuite.AddTest('PromotedHelperTypeStructuralVariants',
+    @TestPromotedHelperTypeStructuralVariants);
+  lSuite.AddTest('PromotedRecordFieldTailVariants',
+    @TestPromotedRecordFieldTailVariants);
+  lSuite.AddTest('PromotedRecordVisibilityAndGroupedTails',
+    @TestPromotedRecordVisibilityAndGroupedTails);
+  lSuite.AddTest('PromotedRecordHintKeywordFieldNames',
+    @TestPromotedRecordHintKeywordFieldNames);
+  lSuite.AddTest('PromotedRecordEmptyVariants',
+    @TestPromotedRecordEmptyVariants);
+  lSuite.AddTest('PromotedRecordTwoFieldHintTailVariants',
+    @TestPromotedRecordTwoFieldHintTailVariants);
+  lSuite.AddTest('PromotedRecordNestedFieldVariants',
+    @TestPromotedRecordNestedFieldVariants);
+  lSuite.AddTest('PromotedRecordNestedFieldSemicolonVariants',
+    @TestPromotedRecordNestedFieldSemicolonVariants);
+  lSuite.AddTest('PromotedRecordNestedGroupedFieldVariants',
+    @TestPromotedRecordNestedGroupedFieldVariants);
+  lSuite.AddTest('PromotedRecordMixedMemberVariants',
+    @TestPromotedRecordMixedMemberVariants);
   lSuite.AddTest('ObjectRecordInterfaceMemberSymbols',
     @TestObjectRecordInterfaceMemberSymbols);
   lSuite.AddTest('StructuredTypeHeritageConstructorsProperties',
     @TestStructuredTypeHeritageConstructorsProperties);
+  lSuite.AddTest('PromotedSpecializedStructuredHeritage',
+    @TestPromotedSpecializedStructuredHeritage);
   lSuite.AddTest('ClassFieldMethodStructuralVariants',
     @TestClassFieldMethodStructuralVariants);
   lSuite.AddTest('PropertyInterfaceAndRecordStructuralVariants',
@@ -3500,8 +4755,6 @@ begin
     @TestPromotedPropertyRedeclareStructuralVariants);
   lSuite.AddTest('PromotedPropertyAccessorAndHintTails',
     @TestPromotedPropertyAccessorAndHintTails);
-  lSuite.AddTest('PromotedClassLocalTypeAndConstSections',
-    @TestPromotedClassLocalTypeAndConstSections);
   lSuite.AddTest('ProcedureFunctionDeclarations',
     @TestProcedureFunctionDeclarations);
   lSuite.AddTest('ProcedureParameterModes', @TestProcedureParameterModes);
@@ -3526,12 +4779,16 @@ begin
   lSuite.AddTest('GenericDeclaredTypeText', @TestGenericDeclaredTypeText);
   lSuite.AddTest('TypeAliasStructuralDeclarations',
     @TestTypeAliasStructuralDeclarations);
+  lSuite.AddTest('PromotedTypeAliasCommentVariants',
+    @TestPromotedTypeAliasCommentVariants);
   lSuite.AddTest('TypeAdditionalStructuralVariants',
     @TestTypeAdditionalStructuralVariants);
   lSuite.AddTest('ProcedureTypeDeclarations',
     @TestProcedureTypeDeclarations);
   lSuite.AddTest('ProcedureAdditionalStructuralForms',
     @TestProcedureAdditionalStructuralForms);
+  lSuite.AddTest('PromotedGenericRoutineStructuralForms',
+    @TestPromotedGenericRoutineStructuralForms);
   lSuite.AddTest('DiagnosticsRecoveryForMalformedUses',
     @TestDiagnosticsRecoveryForMalformedUses);
   lSuite.AddTest('DiagnosticsMissingClassEndRecovery',

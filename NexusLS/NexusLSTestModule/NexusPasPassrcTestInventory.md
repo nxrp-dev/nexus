@@ -27,10 +27,10 @@ The original `SourceUnit + OriginalTestMethod` pair is not unique for all passrc
 | Status | Count |
 | --- | ---: |
 | active NexusPas test | 0 |
-| active NexusPas test with adjusted Nexus expectation | 577 |
-| deferred because NexusPas does not yet support the required feature | 1458 |
+| active NexusPas test with adjusted Nexus expectation | 712 |
+| deferred because NexusPas does not yet support the required feature | 1250 |
 | not applicable because it targets passrc-specific internals | 34 |
-| tried and failed because NexusPas does not yet support the required feature | 5 |
+| tried and failed because NexusPas does not yet support the required feature | 78 |
 
 Current active mappings are classified as adjusted Nexus expectations because they assert NexusPas lexer/parser/symbol behavior directly rather than preserving passrc object-model expectations.
 
@@ -39,26 +39,26 @@ Current active mappings are classified as adjusted Nexus expectations because th
 | Source unit | Rows | Published methods | Active adjusted | Deferred | Tried failed | Not applicable |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | tcbaseparser.pas | 1 | 0 | 0 | 0 | 0 | 1 |
-| tcclasstype.pas | 123 | 123 | 81 | 37 | 5 | 0 |
+| tcclasstype.pas | 123 | 123 | 95 | 13 | 15 | 0 |
 | tcexprparser.pas | 110 | 110 | 0 | 110 | 0 | 0 |
-| tcgenerics.pp | 20 | 20 | 2 | 18 | 0 | 0 |
-| tcmoduleparser.pas | 26 | 26 | 15 | 11 | 0 | 0 |
-| tconstparser.pas | 55 | 55 | 25 | 30 | 0 | 0 |
+| tcgenerics.pp | 20 | 20 | 8 | 5 | 7 | 0 |
+| tcmoduleparser.pas | 26 | 26 | 25 | 0 | 1 | 0 |
+| tconstparser.pas | 55 | 55 | 55 | 0 | 0 | 0 |
 | tcpassrcutil.pas | 29 | 29 | 0 | 0 | 0 | 29 |
-| tcprocfunc.pas | 130 | 130 | 124 | 6 | 0 | 0 |
+| tcprocfunc.pas | 130 | 130 | 127 | 0 | 3 | 0 |
 | tcresolvegenerics.pas | 129 | 129 | 0 | 129 | 0 | 0 |
 | tcresolver.pas | 726 | 726 | 0 | 726 | 0 | 0 |
 | tcscanner.pas | 194 | 194 | 154 | 36 | 0 | 4 |
 | tcstatements.pas | 95 | 95 | 0 | 95 | 0 | 0 |
-| tctypeparser.pas | 282 | 282 | 145 | 137 | 0 | 0 |
+| tctypeparser.pas | 282 | 282 | 217 | 13 | 52 | 0 |
 | tcuseanalyzer.pas | 124 | 124 | 1 | 123 | 0 | 0 |
 | tcvarparser.pas | 30 | 30 | 30 | 0 | 0 | 0 |
 
 ## Active NexusPas suite
 
 - Suite: `NexusPas.PassrcPort`
-- Active NexusPas tests currently registered: 54
-- Latest visible summary: 54 passed / 54 total
-- Latest full NexusLSTestModule summary: 206 passed / 206 total
+- Active NexusPas tests currently registered: 71
+- Latest visible summary: 71 passed / 71 total
+- Latest full NexusLSTestModule summary: 277 passed / 1 failed. The failure is outside the passrc-port suite: `NexusLS.Core.AndroidNDKFieldSuggestsDownloadURL`.
 
 Unsupported resolver, expression evaluator, statement parser, overload resolver, generic resolver, use analyzer, compiler-style unit resolver, and passrc-internal tests remain deferred or not applicable in the CSV until NexusPas owns those features.

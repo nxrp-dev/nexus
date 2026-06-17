@@ -8,16 +8,17 @@ Status: Work plan requested
 
 ## Summary
 
-Create the architecture plan for a new NexusNet BitTorrent subsystem under `NexusNet/src/torrent`, with a control/API layer under `NexusNet/src/json-rpc`.
+Create the architecture plan for a new NexusNet BitTorrent subsystem under `NexusNet/src/torrent`.
 
 The goal is a fully functional BitTorrent client/server implementation in Object Pascal / Free Pascal, built as simple Nexus code rather than a dependency-heavy wrapper.
 
 ## Background
 
-`NexusNet` is a new repository folder. The current observed layout is:
+`NexusNet` is a new repository folder. It will contain Nexus networking platforms, with BitTorrent as one protocol/platform under that umbrella.
+
+The current BitTorrent-specific layout is:
 
 ```text
-NexusNet/src/json-rpc/
 NexusNet/src/torrent/
 ```
 
@@ -25,14 +26,13 @@ The desired end state should include both client behavior and server-style behav
 
 - download torrents from metainfo files and magnet links
 - seed and upload content to peers
-- expose a local control surface
 - optionally provide BitTorrent service components such as a tracker once the peer engine is stable
 
 ## Current Architecture Rule
 
 NexusNet should be a small, explicit Pascal subsystem.
 
-Protocol data should be modeled as typed Pascal objects and records where practical. Wire encoding and decoding should live at the boundary. Session orchestration, storage, peer state, and control APIs should be separate responsibilities.
+Protocol data should be modeled as typed Pascal objects and records where practical. Wire encoding and decoding should live at the boundary. Session orchestration, storage, and peer state should be separate responsibilities.
 
 Do not collapse the implementation into one large torrent manager object.
 
@@ -48,7 +48,6 @@ BitTorrent has several separable protocols and runtime loops:
 - storage mapping
 - upload/seeding policy
 - DHT and magnet metadata exchange
-- local control/API commands
 
 If these are introduced without clear ownership, the subsystem will quickly become difficult to verify and maintain.
 
@@ -65,14 +64,9 @@ NexusNet/src/torrent/
   piece store and verifier
   torrent session engine
   seeding/upload policy
-
-NexusNet/src/json-rpc/
-  local control protocol
-  request/result objects
-  service boundary for managing torrents
 ```
 
-The first complete implementation should prioritize correctness and local verifiability over advanced optimizations.
+The first implementation target should be library only, verified through focused tests. GUI client work belongs later in Nexus Lab.
 
 ## Required Review
 
@@ -87,7 +81,6 @@ The work plan should identify:
 - server/seeding responsibilities
 - tracker and DHT staging
 - storage and verification model
-- JSON-RPC control shape
 - test strategy
 - compile and manual verification plan
 - risks and open questions
@@ -145,4 +138,3 @@ The returned plan should propose manual tests for:
 - downloading from a controlled seed
 - seeding to a controlled peer
 - resuming a partial download
-- exposing and using JSON-RPC control commands

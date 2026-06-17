@@ -28,6 +28,7 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusUI'); ArchivePath = 'NexusUI' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusTest'); ArchivePath = 'NexusTest' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLS'); ArchivePath = 'NexusLS' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusNet'); ArchivePath = 'NexusNet' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusSchema'); ArchivePath = 'NexusSchema' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot '.ai'); ArchivePath = '.ai' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
@@ -71,6 +72,11 @@ $SourceFileNames = @(
   '.gitignore',
   '.vscodeignore',
   'AGENTS.md'
+)
+
+$ExcludedFileExtensions = @(
+  '.exe',
+  '.ppu'
 )
 
 $ExcludedDirectoryNames = @(
@@ -118,6 +124,10 @@ function Test-SourceFileIncluded {
   param(
     [System.IO.FileInfo]$SourceFile
   )
+
+  if ($ExcludedFileExtensions -contains $SourceFile.Extension.ToLowerInvariant()) {
+    return $False
+  }
 
   return ($SourceExtensions -contains $SourceFile.Extension.ToLowerInvariant()) -or
     ($SourceFileNames -contains $SourceFile.Name)
