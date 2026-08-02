@@ -9,11 +9,11 @@
   - Do not modify production Nexus source during this pass.
   - The plan artifact lives in `work/plans/`.
   - The application itself should live under the sibling lab workspace, proposed as `C:\gitdev\nexus-lab\MusicArchiveNX`.
-  - NexusUI must present the UI, but the UI must not execute SQL, copy archive files, or own decoder internals.
+  - NexusUI must present the UI, but the UI must not execute SQL, store audio bytes, or own decoder internals.
 
 ## Summary
 
-Build a new NexusLab application, `MusicArchiveNX`, for archiving user-owned music files. The application should keep catalog data in SQLite, keep audio files in managed filesystem storage, preserve original source provenance, detect duplicate imports from file content, provide metadata/category/tag browsing, play recordings, and allow precise time-segment annotations.
+Build a new NexusLab application, `MusicArchiveNX`, for archiving user-owned music files. The application should keep catalog data and imported audio content in SQLite, preserve original source provenance, detect duplicate imports from file content, provide metadata/category/tag browsing, play recordings, and allow precise time-segment annotations.
 
 The first implementation should be application-specific. It should use Nexus and NexusUI where they are already appropriate, but it should not turn the first music archive app into a universal database framework, generic media platform, or broad asset-management subsystem.
 
@@ -49,7 +49,7 @@ The first implementation should be application-specific. It should use Nexus and
 The requested application crosses several responsibilities that can easily collapse into a single overgrown UI/controller object:
 
 - catalog persistence
-- filesystem archive storage
+- SQLite audio BLOB storage
 - folder scanning and import workflow
 - duplicate detection
 - provenance tracking
@@ -59,7 +59,7 @@ The requested application crosses several responsibilities that can easily colla
 - search/filtering
 - NexusUI presentation
 
-The root architecture problem is ownership separation. The UI should present state and send commands. The catalog should own SQL and transactions. The file store should own managed file placement and filesystem integrity. The importer should coordinate a bounded import workflow without becoming the whole application controller. Playback should hide decoder/device internals from UI controls. Annotation and metadata behavior should be persisted through the catalog contract.
+The root architecture problem is ownership separation. The UI should present state and send commands. The catalog should own SQL and transactions. The audio store should own imported audio BLOB storage and streaming. The importer should coordinate a bounded import workflow without becoming the whole application controller. Playback should hide decoder/device internals from UI controls. Annotation and metadata behavior should be persisted through the catalog contract.
 
 ## Target Contract
 
@@ -69,7 +69,7 @@ The root architecture problem is ownership separation. The UI should present sta
 - Responsibilities:
   - initialize NexusUI
   - ensure runtime assets and lab app directories
-  - create and destroy the application state, catalog, file store, importer, playback controller, and main window
+  - create and destroy the application state, catalog, audio store, importer, playback controller, and main window
   - call `Application.Initialize`, load the skin, build the window, and run the event loop
 - State flow:
   - creates long-lived application services
@@ -84,7 +84,7 @@ The root architecture problem is ownership separation. The UI should present sta
 - Owner: `TMusicArchiveController`
 - Responsibilities:
   - expose user commands such as open archive, import folder, select recording, save metadata, assign categories/tags, play/pause/stop/seek, create annotation, delete annotation, search/filter
-  - coordinate catalog, file store, importer, metadata reader, and playback service
+  - coordinate catalog, audio store, importer, metadata reader, and playback service
   - build view models for the main window
   - report command results, recoverable errors, and progress
 - State flow:
@@ -105,31 +105,31 @@ The root architecture problem is ownership separation. The UI should present sta
   - provide recording/category/tag/annotation CRUD
   - provide duplicate lookup by content hash
   - provide search/filter queries
-  - persist import provenance and managed-file metadata
+  - persist import provenance, recording metadata, and audio-content metadata
 - State flow:
   - receives explicit record DTOs from controller/importer
   - returns DTOs or view-query result records, not UI controls
 - Rendering/input/persistence behavior:
   - executes SQL
   - does not manipulate NexusUI
-  - does not copy files
+  - does not store audio bytes
   - does not inspect audio decoders
 
-### Managed Audio File Storage
+### SQLite Audio BLOB Storage
 
-- Owner: `TMusicArchiveFileStore`
+- Owner: `TMusicArchiveBlobStore`
 - Responsibilities:
-  - own the archive root path
-  - compute deterministic managed destinations
-  - copy imported files into managed storage
-  - prevent path traversal and absolute-path escape
-  - quarantine or remove staged files after failed imports
-  - verify managed-file existence, size, and content hash
+  - own imported audio content stored in SQLite BLOB tables
+  - stream source file bytes into the database without requiring whole-track memory buffers
+  - expose read streams or temporary playback extraction for selected recordings, depending on backend requirements
+  - verify stored BLOB size and content hash
+  - keep audio-content writes inside catalog transactions
+  - keep large BLOB behavior explicit through page-size/cache/WAL choices and tests
 - State flow:
-  - receives source file path, stable recording ID, and content hash
-  - returns managed relative path and file facts
+  - receives source file path, stable recording ID, content hash, and file facts
+  - writes audio bytes into recording BLOB storage and returns stored-content facts
 - Rendering/input/persistence behavior:
-  - does not execute catalog SQL
+  - executes only audio-content SQL through the catalog-owned connection/transaction contract
   - does not update UI controls
   - does not decode media metadata beyond raw file facts
 
@@ -142,12 +142,12 @@ The root architecture problem is ownership separation. The UI should present sta
   - validate media through metadata reader
   - calculate content hash
   - check duplicates through catalog
-  - copy accepted files through file store
+  - stream accepted files into SQLite audio storage
   - commit catalog rows through catalog
   - track progress, cancellation, per-file errors, and final summary
 - State flow:
   - receives import options and callback/events
-  - coordinates catalog and file store through explicit interfaces
+  - coordinates catalog and audio store through explicit interfaces
 - Rendering/input/persistence behavior:
   - does not own application-level selection state
   - does not own NexusUI controls
@@ -163,7 +163,7 @@ The root architecture problem is ownership separation. The UI should present sta
 - State flow:
   - returns duplicate status for importer decisions
 - Rendering/input/persistence behavior:
-  - does not copy files
+  - does not store audio bytes
   - does not own SQL connection directly if catalog can provide the lookup
 
 ### Source Provenance
@@ -175,7 +175,7 @@ The root architecture problem is ownership separation. The UI should present sta
   - written during import
   - readable from recording detail UI
 - Rendering/input/persistence behavior:
-  - provenance is not derived from current managed path and is not rewritten when the original file moves
+  - provenance is not derived from stored audio content and is not rewritten when the original file moves
 
 ### Audio Metadata Inspection
 
@@ -194,7 +194,7 @@ The root architecture problem is ownership separation. The UI should present sta
 
 - Owner: `TMusicPlaybackController`
 - Responsibilities:
-  - open managed audio file by path
+  - open selected recording content through the audio store
   - play, pause, stop, seek
   - expose current position, duration, volume, playback state, end-of-track, and errors
   - hide the selected audio backend
@@ -251,7 +251,7 @@ The root architecture problem is ownership separation. The UI should present sta
 - Owner: `TMusicWaveformCache` only when waveform work begins
 - Responsibilities:
   - generate, store, read, and invalidate derived waveform data
-  - key cache rows/files by recording ID, managed file content hash, and algorithm version
+  - key cache rows/files by recording ID, stored content hash, and algorithm version
 - State flow:
   - controller requests waveform data for a selected recording
   - timeline control receives display-ready samples
@@ -272,7 +272,7 @@ The root architecture problem is ownership separation. The UI should present sta
   - sends commands/events back to controller
 - Rendering/input/persistence behavior:
   - no SQL
-  - no file copying
+  - no audio BLOB streaming
   - no decoder internals
   - specialized timeline/waveform controls own rendering and hit testing only
 
@@ -287,6 +287,7 @@ The root architecture problem is ownership separation. The UI should present sta
   - `C:\gitdev\nexus-lab\MusicArchiveNX\tests\...`
 - Use NexusUI from `C:\gitdev\nexus\NexusUI`.
 - Use FPC `SQLDB` and `SQLite3Conn` directly in the app-specific catalog first.
+- Store imported audio content inside SQLite BLOB storage. Do not keep a parallel managed audio-file tree as the primary archive.
 - Add only app-specific audio/media code until a second Nexus app needs the same functionality.
 - Add a specialized NexusUI timeline control only if existing controls cannot support usable annotation selection.
 
@@ -299,6 +300,7 @@ The root architecture problem is ownership separation. The UI should present sta
 - No plugin system.
 - No arbitrary digital-asset-management framework.
 - No Base64 JSON storage of audio files.
+- No managed filesystem audio store as the default archive model.
 - No broad migration of NexusLS SQLite cache code into a shared abstraction unless later evidence proves a shared need.
 - No waveform-first design. Basic annotations can ship with numeric positions and a timeline before waveform rendering exists.
 - No audio-device-dependent tests in the default unit-test run.
@@ -319,7 +321,7 @@ C:\gitdev\nexus-lab\MusicArchiveNX\
     obMusicMainWindow.pas
     obMusicArchiveCatalog.pas
     obMusicArchiveSchema.pas
-    obMusicArchiveFileStore.pas
+    obMusicArchiveBlobStore.pas
     obMusicArchiveImporter.pas
     obMusicDuplicateDetector.pas
     obMusicMetadataReader.pas
@@ -341,7 +343,7 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
   - shared records/enums for IDs, import options, import results, media metadata, playback state, annotation ranges, search criteria
 - Does not own:
   - SQL connection
-  - file copying
+  - audio BLOB storage
   - UI controls
 - Called by:
   - nearly all app-specific units
@@ -361,7 +363,7 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
 - Called by:
   - `MusicArchiveNX.lpr`
 - Calls:
-  - `obNXApplication`, controller, catalog, file store, playback controller, main window
+  - `obNXApplication`, controller, catalog, audio store, playback controller, main window
 - Reason not existing:
   - current lab apps have per-app lifecycle classes; this follows `obSwarmClientApp`.
 
@@ -371,13 +373,13 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
   - current archive session state and command coordination
 - Does not own:
   - SQL strings
-  - raw file-copy routines
+  - raw audio BLOB streaming routines
   - decoder internals
   - NexusUI controls
 - Called by:
   - `TMusicMainWindow`
 - Calls:
-  - catalog, importer, file store, metadata reader, playback controller, search, waveform cache when present
+  - catalog, importer, audio store, metadata reader, playback controller, search, waveform cache when present
 - Reason not existing:
   - SwarmNX has an app-specific controller; the music archive needs its own bounded command coordinator.
 
@@ -401,7 +403,7 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
   - NexusUI control creation, layout, event handlers, and view refresh
 - Does not own:
   - SQL
-  - managed file storage
+  - audio BLOB storage
   - importer recursion
   - decoder state
 - Called by:
@@ -417,7 +419,7 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
   - SQLite connection, schema creation, migrations, transactions, repository methods
 - Does not own:
   - UI controls
-  - file copying
+  - decoder-specific playback streams
   - decoder/device access
 - Called by:
   - controller, importer, duplicate detector/search through explicit methods
@@ -439,20 +441,20 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
 - Reason not existing:
   - NexusSchema has no SQLite target today; app-local schema keeps scope narrow.
 
-### `obMusicArchiveFileStore.pas`
+### `obMusicArchiveBlobStore.pas`
 
 - Owns:
-  - managed archive root, deterministic path naming, staged file copy, path safety, integrity checks
+  - SQLite audio-content BLOB writes, reads, chunking/streaming policy, and stored-content integrity checks
 - Does not own:
-  - SQL insertion
+  - recording metadata SQL beyond the audio-content rows it is explicitly asked to write
   - duplicate policy
   - UI progress rendering
 - Called by:
   - importer and controller maintenance commands
 - Calls:
-  - RTL filesystem/stream units and hash helper
+  - catalog transaction/connection contract, RTL stream units, and hash helper
 - Reason not existing:
-  - torrent file store is torrent-specific and maps piece ranges, not archive file ownership.
+  - `TNXPersistBinary` stores Base64 JSON and is not appropriate for large archive content; `TNXTorrentFileStore` is torrent-specific and maps piece ranges, not database-owned archive content.
 
 ### `obMusicArchiveImporter.pas`
 
@@ -465,7 +467,7 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
 - Called by:
   - controller
 - Calls:
-  - filesystem scanner/helper, metadata reader, duplicate detector, file store, catalog
+  - filesystem scanner/helper, metadata reader, duplicate detector, audio store, catalog
 - Reason not existing:
   - `TNXFileSystemProvider` is interactive directory listing, not recursive import.
 
@@ -562,7 +564,7 @@ The `.lpi` should mirror the SwarmNX shape: project-local `src`, relative paths 
 
 ## Initial Database Schema
 
-Use SQLite for catalog data. Store actual audio files in the filesystem. Store waveform or analysis data as rebuildable cache, either in separate cache files or SQLite cache tables keyed by recording ID, content hash, and generator version.
+Use SQLite for catalog data and imported audio content. Store waveform or analysis data as rebuildable cache, either in SQLite cache tables or separate cache files under the application cache area.
 
 Use integer primary keys for local rows plus stable public IDs for recordings. The stable recording ID should be generated at import time and should not change when the file is renamed, retitled, or moved inside managed storage.
 
@@ -582,7 +584,6 @@ create table recording (
   imported_at_utc text not null,
   original_filename text not null,
   original_source_path text not null,
-  managed_relative_path text not null unique,
   content_hash text not null,
   content_hash_algorithm text not null,
   file_size_bytes integer not null,
@@ -597,6 +598,30 @@ create table recording (
 
 create unique index idx_recording_content_hash
   on recording(content_hash_algorithm, content_hash);
+
+create table recording_content (
+  recording_id integer primary key,
+  content blob not null,
+  content_size_bytes integer not null,
+  content_hash text not null,
+  content_hash_algorithm text not null,
+  stored_at_utc text not null,
+  foreign key(recording_id) references recording(id) on delete cascade,
+  check(content_size_bytes >= 0)
+);
+
+create table recording_content_chunk (
+  recording_id integer not null,
+  chunk_index integer not null,
+  chunk_offset integer not null,
+  content blob not null,
+  content_size_bytes integer not null,
+  primary key(recording_id, chunk_index),
+  foreign key(recording_id) references recording(id) on delete cascade,
+  check(chunk_index >= 0),
+  check(chunk_offset >= 0),
+  check(content_size_bytes > 0)
+);
 
 create table recording_source (
   id integer primary key,
@@ -672,21 +697,31 @@ Categories should initially support a hierarchy through `parent_id` and allow a 
 ## Storage Model
 
 - Catalog:
-  - SQLite database, for example `MusicArchiveNX\data\archive.sqlite` or a user-selected archive root containing `catalog.sqlite`.
-- Managed files:
-  - filesystem storage under an archive root, for example `MusicArchiveNX\archive\audio\`.
-  - managed relative paths should be deterministic and path-safe, for example:
-    - `audio\sha1\ab\abcdef...\original-safe-name.ext`
-    - or `audio\<stable-id>\<original-safe-name.ext>`
-  - The plan prefers hash-partitioned paths for duplicate/integrity visibility, while stable ID remains the recording identity.
+  - SQLite database, for example `MusicArchiveNX\data\archive.sqlite` or a user-selected archive database file.
+  - the database is the archive container: metadata, provenance, categories, tags, annotations, and imported audio bytes live together.
+- Audio content:
+  - imported source files are stored as SQLite BLOB content.
+  - the simple first-pass schema may use one `recording_content.content` BLOB per recording.
+  - if local FPC SQLite bindings or playback needs make whole-row BLOB reads impractical, use `recording_content_chunk` with deterministic chunk sizes such as 1 MiB.
+  - chunked storage is preferred if implementation cannot expose reliable SQLite incremental BLOB I/O.
+  - do not use `TNXPersistBinary` or Base64 JSON for audio content.
 - Source provenance:
-  - always stored separately from managed path.
+  - always stored separately from stored content.
   - original source path and original filename are immutable import facts.
 - Derived data:
-  - waveform files or cache rows are rebuildable.
+  - waveform cache rows or external cache files are rebuildable.
   - invalidate when content hash, file size, algorithm version, or cache schema version changes.
 
-Duplicate detection should be content-based. The importer may first group by file size for efficiency, but the decision must use a full content hash. The first implementation can use SHA-1 because the repository already uses it and this is duplicate detection rather than adversarial security. The plan should leave the algorithm name in the database so SHA-256 can be adopted later without changing identity semantics.
+Duplicate detection should be content-based. The importer may first group by file size for efficiency, but the decision must use a full content hash calculated while reading the source file. The first implementation can use SHA-1 because the repository already uses it and this is duplicate detection rather than adversarial security. The plan should leave the algorithm name in the database so SHA-256 can be adopted later without changing identity semantics.
+
+SQLite BLOB storage is viable for this application, but the implementation must treat music files as large content:
+
+- avoid loading whole recordings into memory for import, export, integrity checks, or playback handoff
+- prefer streaming source-file reads into SQLite
+- use explicit transactions so metadata and BLOB content commit or roll back together
+- set and verify practical SQLite pragmas during implementation, especially page size, WAL mode, synchronous mode, and cache size
+- test database growth, backup/copy behavior, and vacuum expectations with fixture files larger than typical metadata-only records
+- keep an export command in scope for later maintenance so recordings can be recovered from the database as ordinary audio files
 
 ## Import Sequence
 
@@ -708,35 +743,37 @@ Duplicate detection should be content-based. The importer may first group by fil
    - include duplicate in import summary
 10. If new:
    - generate stable recording ID
-   - calculate managed destination
-   - copy file to a staging path in the managed archive root
    - start catalog transaction
    - insert recording and source rows
+   - stream source file bytes into `recording_content` or `recording_content_chunk`
+   - verify stored byte count and stored content hash
    - commit transaction
-   - finalize staging path to managed path
 11. Progress callback reports scanned count, imported count, duplicate count, skipped count, error count, current file, and cancellation state.
 12. UI refreshes view model after import completes or is cancelled.
 
 ## Transaction And Recovery Behavior
 
-- Database record created but file copying fails:
-  - preferred sequence avoids this by copying to a staging path before insert.
-  - if it occurs, rollback the transaction or mark the row `missing` only if the product later needs audit rows for failed imports.
-- File copied but database insertion fails:
-  - copy to staging path first.
-  - on insert failure, rollback transaction and delete staging file.
-  - if deletion fails, leave it under a `staging` or `orphaned` folder and report it in import summary.
+- Database metadata row created but BLOB streaming fails:
+  - rollback the transaction so recording, source, and partial content rows disappear together.
+- BLOB content written but metadata insertion fails:
+  - keep content writes inside the same transaction as metadata; rollback removes the partial content.
+- Chunked content partially written:
+  - rollback the active transaction.
+  - on next open, maintenance may also remove rows from `recording_content_chunk` that do not have a matching `recording` row if any transaction boundary was interrupted by process failure.
 - Import cancelled:
-  - finish the current safe step, rollback any active transaction, delete current staging file, return summary with cancellation flag.
+  - finish the current safe read/write step, rollback any active transaction, return summary with cancellation flag.
 - Imported file already exists:
   - if same content hash, treat as duplicate.
-  - if destination path collision with different content, choose a deterministic suffix based on stable ID or hash; never overwrite silently.
 - Original source file later moves or disappears:
   - no catalog corruption. Provenance remains as historical source data.
-- Managed archive file missing:
-  - integrity check marks recording as missing in a maintenance result; normal browsing shows unavailable status.
-- Managed archive file altered:
-  - integrity check recalculates hash and reports mismatch; do not silently update the stored hash.
+- Stored audio content missing:
+  - foreign-key constraints should normally prevent this.
+  - maintenance reports any recording without matching content as corrupt.
+- Stored audio content altered:
+  - integrity check streams stored BLOB/chunks, recalculates hash, and reports mismatch; do not silently update the stored hash.
+- Database grows unexpectedly large:
+  - maintenance should report total content size and database file size.
+  - vacuum/repack remains an explicit maintenance operation, not an automatic action during ordinary imports.
 
 ## Playback And Annotation Design
 
@@ -762,6 +799,7 @@ Backend candidates to verify during implementation:
 The controller exposes:
 
 - open selected recording
+- stream or temporarily materialize selected recording content for the selected backend
 - play
 - pause
 - stop
@@ -846,15 +884,17 @@ The UI should not copy a foreign framework architecture into NexusUI. It should 
 - Verification:
   - catalog tests for schema creation, version row, CRUD, search, and transaction rollback.
 
-### Phase 3: Managed File Store
+### Phase 3: SQLite Audio BLOB Store
 
-- Implement archive root ownership, safe relative path generation, staged copy, finalization, and integrity checks.
-- Use content hash and stable ID in destination naming.
+- Implement database-owned audio content storage.
+- Decide between single-row BLOB storage and chunked BLOB storage after verifying local SQLite/FPC streaming behavior.
+- Implement streaming import writes, streaming reads, and stored-content integrity checks.
+- Keep BLOB writes inside the same transaction as recording/source metadata.
 - Verification:
-  - deterministic path tests
-  - path traversal rejection
-  - copy success/failure cleanup tests
-  - missing/altered managed-file checks
+  - byte-for-byte round trip tests
+  - large fixture import without whole-file memory buffering
+  - partial write rollback tests
+  - missing/altered stored-content checks
 
 ### Phase 4: Folder Import And Duplicate Detection
 
@@ -869,7 +909,7 @@ The UI should not copy a foreign framework architecture into NexusUI. It should 
   - recursive scanning
   - unsupported extension skip
   - cancelled import cleanup
-  - database/file rollback combinations
+  - metadata/content rollback combinations
 
 ### Phase 5: Browsing And Metadata Editing
 
@@ -937,20 +977,22 @@ The UI should not copy a foreign framework architecture into NexusUI. It should 
 ### Phase 11: Integrity And Recovery
 
 - Add archive maintenance commands:
-  - find missing managed files
+  - find missing recording-content rows
   - find hash mismatches
-  - find orphan staging files
+  - find incomplete chunk sets if chunked content is used
   - optionally re-link source sightings
+  - export selected recordings back to ordinary audio files
 - Verification:
-  - missing archive files
-  - altered archive files
-  - orphan cleanup
+  - missing content rows
+  - altered stored content
+  - incomplete chunks
+  - export round trip
   - source disappeared behavior
 
 ### Phase 12: Tests And Documentation
 
 - Create `MusicArchiveTests.lpr`.
-- Add focused tests for catalog, file store, importer, duplicate detector, annotations, and controller state.
+- Add focused tests for catalog, audio store, importer, duplicate detector, annotations, and controller state.
 - Add short project README for archive layout and dependencies.
 - Produce a NexusLab source/runtime archive after approved implementation is complete.
 
@@ -963,7 +1005,7 @@ The UI should not copy a foreign framework architecture into NexusUI. It should 
   - `MusicArchiveNX playback worker`
 - Ownership boundaries:
   - catalog worker owns `obMusicArchiveCatalog.pas`, `obMusicArchiveSchema.pas`, and catalog tests
-  - import/storage worker owns `obMusicArchiveFileStore.pas`, `obMusicArchiveImporter.pas`, `obMusicDuplicateDetector.pas`, and import/storage tests
+  - import/storage worker owns `obMusicArchiveBlobStore.pas`, `obMusicArchiveImporter.pas`, `obMusicDuplicateDetector.pas`, and import/storage tests
   - UI worker owns `obMusicMainWindow.pas`, `obMusicTimelineControl.pas`, and UI view-model integration after controller contracts exist
   - playback worker owns `obMusicMetadataReader.pas`, `obMusicPlaybackController.pas`, and playback tests
 - Main Codex responsibilities:
@@ -1004,14 +1046,14 @@ Focused greps after implementation:
 
 ```text
 rg -n "TSQLite3Connection|TSQLQuery|ExecuteDirect" C:\gitdev\nexus-lab\MusicArchiveNX\src
-rg -n "CopyFrom|TFileStream|ForceDirectories|DeleteFile|RenameFile" C:\gitdev\nexus-lab\MusicArchiveNX\src
+rg -n "TFileStream|CreateBlobStream|sqlite3_blob|recording_content|recording_content_chunk" C:\gitdev\nexus-lab\MusicArchiveNX\src
 rg -n "Base64|TNXPersistBinary" C:\gitdev\nexus-lab\MusicArchiveNX\src
 ```
 
 Expected grep interpretation:
 
 - SQL references should be confined to catalog/schema tests and catalog implementation.
-- file-copy/storage references should be confined to file store/import tests and implementation.
+- source-file read references should be confined to importer/audio-store tests and implementation.
 - `TNXPersistBinary`/Base64 should not be used for audio storage.
 
 Unit tests:
@@ -1022,13 +1064,13 @@ Unit tests:
 - tag and recording-tag relationship
 - annotation range validation
 - source-provenance preservation
-- deterministic managed file paths
-- path escape rejection
+- audio BLOB round trip
+- chunk ordering and chunk completeness if chunked storage is used
 - duplicate import detection
 - interrupted or failed imports
 - rollback behavior
-- missing archive files
-- altered archive files
+- missing recording-content rows
+- altered stored content
 - unsupported or corrupt media
 - recursive folder scanning
 - cancellation
@@ -1042,7 +1084,7 @@ Integration tests:
 - create temp archive root
 - create catalog
 - import fixture audio files
-- verify database rows and managed files
+- verify database rows and stored audio content
 - re-import same files and verify duplicates
 - edit metadata/category/tags
 - create annotation and verify persistence
@@ -1060,7 +1102,7 @@ Manual tests:
 - play/pause/stop/seek with real audio device
 - create annotation from timeline selection
 - click annotation and seek to its start
-- simulate missing managed file and run integrity check
+- simulate missing recording-content row and run integrity check
 
 Audio-device tests should be separated from normal unit tests because they depend on local hardware and backend availability.
 
@@ -1096,8 +1138,8 @@ The work plan is acceptable if it:
 - identifies missing audio/media/waveform capabilities
 - defines explicit ownership boundaries
 - proposes a normalized SQLite schema
-- keeps audio files in filesystem storage, not Base64 JSON
-- preserves original source provenance separately from managed archive path
+- keeps imported audio files in SQLite BLOB storage, not filesystem storage or Base64 JSON
+- preserves original source provenance separately from stored audio content
 - uses stable recording identity independent of filename/path
 - detects duplicates by content hash
 - covers import transaction and recovery behavior
