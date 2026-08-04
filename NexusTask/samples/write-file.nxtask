@@ -1,0 +1,6 @@
+WriteSample Group {
+  WriteIt WriteTextFile {
+    Path: "artifacts/write-text.txt"
+    Text: "Hello NexusTask"
+  }
+}

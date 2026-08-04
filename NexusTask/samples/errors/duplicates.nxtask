@@ -1,0 +1,14 @@
+Root Group {
+  Name Trace {
+    Message: one
+  }
+
+  Name Trace {
+    Message: two
+  }
+
+  Config Group {
+    Value: one
+    Value: two
+  }
+}

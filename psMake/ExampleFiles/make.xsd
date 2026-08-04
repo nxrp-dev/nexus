@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- WARNING: XML has changed, so this XSD is not current. Close, but not current. -->
+
+<xs:schema
+xmlns:xs="http://www.w3.org/2001/XMLSchema"
+targetNamespace="https://www.indigotulsa.com"
+xmlns="https://www.indigotulsa.com"
+elementFormDefault="qualified"
+version="1.1">
+  <xs:element name="make">
+    <xs:complexType>
+      <xs:all>
+        <xs:element name="configuration">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="compile-csharp">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="action_executable" type="xs:string" />
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="common">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="common_flags" minOccurs="0" maxOccurs="1">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="flag" type="xs:string" minOccurs="0" />
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+
+              <xs:element name="common_source" minOccurs="0" maxOccurs="1">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element name="path" type="xs:string" minOccurs="0" />
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="tasks">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="task" minOccurs="1" maxOccurs="unbounded" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:all>
+
+      <xs:attribute name="type" type="xs:string" default="make" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="task">
+    <xs:complexType>
+      <xs:all>
+        <xs:element name="targets">
+          <xs:complexType>
+            <xs:all>
+              <xs:element ref="run_target" minOccurs="0" />
+              <xs:element ref="compilation_target" minOccurs="0" />
+              <xs:element ref="deployment_target" minOccurs="0" />
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="name" type="xs:string" />
+        <xs:element name="description" type="xs:string" />
+        <xs:element name="action" type="xs:string" />
+
+        <xs:element name="parameters" minOccurs="0">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="parameter">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="parameter_name" type="xs:string" />
+                    <xs:element name="parameter_value" type="xs:string" />
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="flags" minOccurs="0">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="reference" type="xs:string" />
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="exception" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element ref="exceptionAction" />
+              <xs:element name="tasks">
+                <xs:complexType>
+                  <xs:all>
+                    <xs:element ref="task" minOccurs="0" />
+                  </xs:all>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="files" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="solution_file" />
+              <xs:element name="project_file" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="output" type="xs:string" minOccurs="0" />
+
+        <xs:element name="arguments" minOccurs="0">
+          <xs:complexType>
+            <xs:all>
+              <xs:element name="publish_version" minOccurs="0">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="major" type="xs:string" />
+                    <xs:element name="minor" type="xs:string" />
+                    <xs:element name="build" type="xs:string" />
+                    <xs:element name="revision" type="xs:string" />
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:all>
+          </xs:complexType>
+        </xs:element>
+      </xs:all>
+
+      <xs:attribute name="type" type="taskType" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="run_target" default="Debug">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="Debug" />
+        <xs:enumeration value="Release" />
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+
+  <xs:element name="compilation_target" default="Debug">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="Debug" />
+        <xs:enumeration value="Release" />
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+
+  <xs:element name="deployment_target" default="Local">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="Development" />
+        <xs:enumeration value="Local" />
+        <xs:enumeration value="Production" />
+        <xs:enumeration value="Testing" />
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+
+  <xs:element name="exceptionAction" default="Throw">
+    <xs:simpleType>
+      <xs:restriction base="xs:string">
+        <xs:enumeration value="Ignore" />
+        <xs:enumeration value="Terminate" />
+        <xs:enumeration value="Throw" />
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+
+  <xs:simpleType name="taskType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="system" />
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

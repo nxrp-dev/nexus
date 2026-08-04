@@ -1,0 +1,90 @@
+﻿<make>
+	<test>Woohoo!, It Works!!!!</test>
+  <test2>
+    <child1>1</child1>
+    <child2>2</child2>
+    <child3>3</child3>
+  </test2>
+	<TestReference>
+		<parameter>
+			<parameter_name>Object</parameter_name>
+			<parameter_value>References Work: [%/make/test%]</parameter_value>       
+		</parameter>
+		<parameter>
+			<parameter_name>ForegroundColor</parameter_name>
+			<parameter_value>Blue</parameter_value>                   
+		</parameter>
+	</TestReference>
+
+	<tasks>
+		<task type='system'>
+			<targets>
+				<target>debug</target>
+			</targets>
+			<action>Write-Host</action>
+			<name>Testing Write</name>
+			<description>Duh.</description>
+			<parameters>
+				<parameter>
+					<parameter_name>Object</parameter_name>
+					<parameter_value>[%/make/test%]</parameter_value>       
+				</parameter>
+				<parameter>
+					<parameter_name>ForegroundColor</parameter_name>
+					<parameter_value>Blue</parameter_value>                   
+				</parameter>
+			</parameters>
+			<exception>
+			</exception>
+		</task>
+
+		<task type='system'>
+			<targets>
+				<target>debug</target>
+			</targets>
+			<action>Write-Host</action>
+			<name>Testing Auto Variable</name>
+			<description>Duh.</description>
+			<parameters>
+				<parameter>
+					<parameter_name>Object</parameter_name>
+					<parameter_value>http://www.google.com/AtlasEMR/[$Target$]/client/</parameter_value>       
+				</parameter>
+				<parameter>
+					<parameter_name>ForegroundColor</parameter_name>
+					<parameter_value>Blue</parameter_value>                   
+				</parameter>
+			</parameters>
+			<exception>
+			</exception>
+		</task>
+
+		<task type='system'>
+			<targets>
+				<target>debug</target>
+			</targets>
+			<action>Write-Host</action>
+			<name>Testing Write From Foreign Config XML</name>
+			<description>Duh.</description>
+			<parameters>
+				<reference>c:\svndev\IndigoLibrary\test.xml||/test/TestReference/*</reference>
+			</parameters>
+			<exception>
+			</exception>
+		</task>
+
+		<task type='system'>
+			<targets>
+				<target>debug</target>
+			</targets>
+			<action>Write-Host</action>
+			<name>Testing Write</name>
+			<description>Duh.</description>
+			<parameters>
+				<reference>/make/TestReference/*</reference>
+			</parameters>
+			<exception>
+			</exception>
+		</task>
+	</tasks>
+</make>

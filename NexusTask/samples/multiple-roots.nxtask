@@ -1,0 +1,11 @@
+First Group {
+  A Trace {
+    Message: "first"
+  }
+}
+
+Second Group {
+  B Trace {
+    Message: "second"
+  }
+}

@@ -1,0 +1,10 @@
+Pascal Group {
+  Paths Group {
+    DefaultOutput: artifacts
+  }
+
+  CommonOptions Group {
+    Mode: ObjFPC
+    Output: [Pascal.Paths.DefaultOutput]
+  }
+}

@@ -1,0 +1,24 @@
+NexusBuild Group (Debug, Release) {
+  Configuration Group {
+    OutputRoot: artifacts
+    Optimize: false
+    RetryCount: 3
+    WarningThreshold: 0.75
+  }
+
+  Prepare Group {
+    CreateTrace Trace {
+      Message: "Preparing output"
+    }
+  }
+
+  BuildServer Group (Debug, Release) {
+    <"shared.nxtask":Pascal.CommonOptions>
+  }
+
+  Package Group (Release) {
+    EmitPackage Trace {
+      Message: "Packaging release output"
+    }
+  }
+}

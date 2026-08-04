@@ -1,0 +1,1832 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+2020-04-22: No longer maintaining example files. There are working example files
+for Atlas EMR and Contract Health. And these example files, while not current,
+include WebDAV tasks that are not currently included in Atlas EMR or Contract
+Health files, which makes these example files informative in their current state.
+-->
+
+<!--
+Run this from the directory of the make.xml and config.xml files, e.g.
+> C:\svndev\IndigoLibrary\psMake\psMake.ps1 .\make.xml
+
+To create a double-clickable Desktop shortcut to run this file, see
+build-and-deploy.ps1.
+-->
+
+<make>
+  <configuration></configuration>
+
+  <common>
+    <common_flags>
+    </common_flags>
+
+    <common_source>
+    </common_source>
+  </common>
+
+  <tasks>
+    <!-- Setup System. -->
+
+    <task type='system'> <!-- type=system means Passes through to PowerShell. -->
+      <targets>
+        <target>Debug</target> <!-- Only execute this task if target is Debug. -->
+      </targets>
+      <name>System Core Tasks</name>
+      <description></description>
+      <action>Import-Module</action> <!-- PowerShell command. -->
+      <parameters>
+        <parameter>
+          <parameter_name>Name</parameter_name>
+          <parameter_value>C:\svndev\IndigoLibrary\psMake\SystemTasks.psm1</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>System Ancillary</name>
+      <description></description>
+      <action>Import-Module</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Name</parameter_name>
+          <parameter_value>C:\svndev\IndigoLibrary\psMake\Ancillary.psm1</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>System SVN</name>
+      <description></description>
+      <action>Import-Module</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Name</parameter_name>
+          <parameter_value>C:\svndev\IndigoLibrary\psMake\SvnTasks.psm1</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>System CSharp</name>
+      <description></description>
+      <action>Import-Module</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Name</parameter_name>
+          <parameter_value>C:\svndev\IndigoLibrary\psMake\CSharpTasks.psm1</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>System MSBuild</name>
+      <description></description>
+      <action>Import-Module</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Name</parameter_name>
+          <parameter_value>C:\svndev\IndigoLibrary\psMake\MsBuildTasks.psm1</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>System WebDAV</name>
+      <description></description>
+      <action>Import-Module</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Name</parameter_name>
+          <parameter_value>C:\svndev\IndigoLibrary\psMake\WebDAVTasks.psm1</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+    </task>
+
+    <!-- Fetch Latest Code from Source Control. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Revert Source</name>
+      <description>Reverts local changes.</description>
+      <action>Invoke-SVN</action>
+      <arguments>
+        <repository>[%config||config/repository/localpath%]</repository>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <command>revert</command>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to revert source.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Update Source</name>
+      <description>Pulls the latest code from source control.</description>
+      <action>Invoke-SVN</action>
+      <arguments>
+        <repository>[%config||config/repository/localpath%]</repository>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <command>update</command>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to pull latest code from source control.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Increment version number. -->
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name></name>
+      <description></description>
+      <action>Set-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>-Path</parameter_name>
+          <parameter_value>[%config||config/versionvariables/major%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>-Value</parameter_name>
+          <parameter_value>[%config||config/version/major%]</parameter_value>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks></tasks>
+      </exception>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name></name>
+      <description></description>
+      <action>Set-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>-Path</parameter_name>
+          <parameter_value>[%config||config/versionvariables/minor%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>-Value</parameter_name>
+          <parameter_value>[%config||config/version/minor%]</parameter_value>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks></tasks>
+      </exception>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name></name>
+      <description></description>
+      <action>Set-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>-Path</parameter_name>
+          <parameter_value>[%config||config/versionvariables/build%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>-Value</parameter_name>
+          <parameter_value>[%config||config/version/build%]</parameter_value>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks></tasks>
+      </exception>
+    </task>
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name></name>
+      <description></description>
+      <action>Set-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>-Path</parameter_name>
+          <parameter_value>[%config||config/versionvariables/revision%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>-Value</parameter_name>
+          <parameter_value>[%config||config/version/revision%]</parameter_value>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks></tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Update AssemblyInfo for Server</name>
+      <description>Updates version data, etc. based on values in config.xml.</description>
+      <action>Update-Assembly</action>
+      <file>[%config||config/server/assemblyinfo/assemblyinfo_file%]</file>
+      <assemblyinfo>
+        <title>[%config||config/server/assemblyinfo/title%]</title>
+        <description>[%config||config/server/assemblyinfo/description%]</description>
+        <configuration>[%config||config/server/assemblyinfo/configuration%]</configuration>
+        <company>[%config||config/server/assemblyinfo/company%]</company>
+        <product>[%config||config/server/assemblyinfo/product%]</product>
+        <copyright>[%config||config/server/assemblyinfo/copyright%]</copyright>
+        <trademark>[%config||config/server/assemblyinfo/trademark%]</trademark>
+        <culture>[%config||config/server/assemblyinfo/culture%]</culture>
+      </assemblyinfo>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to update server AssemblyInfo file.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Update AssemblyInfo for WebAPI</name>
+      <description>Updates version data, etc. based on values in config.xml.</description>
+      <action>Update-Assembly</action>
+      <file>[%config||config/webapi/assemblyinfo/assemblyinfo_file%]</file>
+      <assemblyinfo>
+        <title>[%config||config/webapi/assemblyinfo/title%]</title>
+        <description>[%config||config/webapi/assemblyinfo/description%]</description>
+        <configuration>[%config||config/webapi/assemblyinfo/configuration%]</configuration>
+        <company>[%config||config/webapi/assemblyinfo/company%]</company>
+        <product>[%config||config/webapi/assemblyinfo/product%]</product>
+        <copyright>[%config||config/webapi/assemblyinfo/copyright%]</copyright>
+        <trademark>[%config||config/webapi/assemblyinfo/trademark%]</trademark>
+        <culture>[%config||config/webapi/assemblyinfo/culture%]</culture>
+      </assemblyinfo>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to update webapi AssemblyInfo file.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Update AssemblyInfo for Client</name>
+      <description>Updates version data, etc. based on values in config.xml.</description>
+      <action>Update-Assembly</action>
+      <file>[%config||config/client/assemblyinfo/assemblyinfo_file%]</file>
+      <assemblyinfo>
+        <title>[%config||config/client/assemblyinfo/title%]</title>
+        <description>[%config||config/client/assemblyinfo/description%]</description>
+        <configuration>[%config||config/client/assemblyinfo/configuration%]</configuration>
+        <company>[%config||config/client/assemblyinfo/company%]</company>
+        <product>[%config||config/client/assemblyinfo/product%]</product>
+        <copyright>[%config||config/client/assemblyinfo/copyright%]</copyright>
+        <trademark>[%config||config/client/assemblyinfo/trademark%]</trademark>
+        <culture>[%config||config/client/assemblyinfo/culture%]</culture>
+      </assemblyinfo>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to update client AssemblyInfo file.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Update Client Project File</name>
+      <description>Updates version data, etc. in csproj file for ClickOnce functionality based on values in config.xml.</description>
+      <action>Update-CSharpProjectFile</action>
+      <file>[%config||config/client/assemblyinfo/projectfile%]</file>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to update client project file.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Check in any changes. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Commit Source</name>
+      <description>Commits local changes to source control.</description>
+      <action>Invoke-SVN</action>
+      <arguments>
+        <repository>[%config||config/repository/localpath%]</repository>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <command>commit</command>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to commit local AssemblyInfo file changes.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Tag trunk with new version. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Create Tag for Trunk</name>
+      <description>Creates new tag for the trunk.</description>
+      <action>Invoke-SVN</action>
+      <arguments>
+        <repository>[%config||config/repository/url%]</repository>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <command>copy</command>
+      </arguments>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to tag trunk with new version.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Check out new version. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Check out Tag</name>
+      <description>Checks out tag from source control.</description>
+      <action>Invoke-SVN</action>
+      <arguments>
+        <repository>[%config||config/repository/url%]</repository>
+        <path>[%config||config/repository/localpath%]</path>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <command>checkout</command>
+      </arguments>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to check out new tag from source control.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Generate Changelog. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Generate Changelog</name>
+      <description>Generates an SVN changelog.</description>
+      <action>Create-Changlog</action>
+      <arguments>
+        <repository>[%config||config/repository/url%]</repository>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <currenttag>[%config||config/repository/currenttag%]</currenttag>
+        <changelogpath>[%config||config/repository/changelogpath%]</changelogpath>
+      </arguments>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to generate changelog.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Build Projects. -->
+
+    <!-- N.b. All projects are housed in the single solution file. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Compile Client</name>
+      <description>Builds the User Interface Client.</description>
+      <action>Build-CSharp</action>
+      <files>
+        <solution_file>[%config||config/client/assemblyinfo/solutionfile%]</solution_file>
+      </files>
+      <output>[%config||config/client/assemblyinfo/outputfile%]</output>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to build solution. Please see attached for build output file.</body>
+            <attachment>[%config||config/client/assemblyinfo/outputfile%]</attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Map WebDAV drives. -->
+
+    <task>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Map Service Deployment Server</name>
+      <description>Maps to the Data Service Deployment Server.</description>
+      <action>Connect-WebDAV</action>
+      <webdavshare>[%config||config/server/assemblyinfo/deployment/webdavshare%]</webdavshare>
+      <drivename>[%config||config/server/assemblyinfo/deployment/mappeddrivename%]</drivename>
+      <username>[%config||config/server/assemblyinfo/deployment/username%]</username>
+      <encryptedpassword>[%config||config/server/assemblyinfo/deployment/encryptedpassword%]</encryptedpassword>
+      <plaintextpassword>[%config||config/server/assemblyinfo/deployment/plaintextpassword%]</plaintextpassword>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to map to Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Map Web API Server</name>
+      <description>Maps to the Web API Deployment Server.</description>
+      <action>Connect-WebDAV</action>
+      <webdavshare>[%config||config/webapi/assemblyinfo/deployment/webdavshare%]</webdavshare>
+      <drivename>[%config||config/webapi/assemblyinfo/deployment/mappeddrivename%]</drivename>
+      <username>[%config||config/webapi/assemblyinfo/deployment/username%]</username>
+      <encryptedpassword>[%config||config/webapi/assemblyinfo/deployment/encryptedpassword%]</encryptedpassword>
+      <plaintextpassword>[%config||config/webapi/assemblyinfo/deployment/plaintextpassword%]</plaintextpassword>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to map to Web API deployment server. Will try to disconnect from Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+
+          <!-- Disconnect from remote server. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Service Deployment Server</name>
+            <description>Disconnects from the Data Service Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Map Client Deployment Server</name>
+      <description>Maps to the Client Deployment Server.</description>
+      <action>Connect-WebDAV</action>
+      <webdavshare>[%config||config/client/assemblyinfo/deployment/webdavshare%]</webdavshare>
+      <drivename>[%config||config/client/assemblyinfo/deployment/mappeddrivename%]</drivename>
+      <username>[%config||config/client/assemblyinfo/deployment/username%]</username>
+      <encryptedpassword>[%config||config/client/assemblyinfo/deployment/encryptedpassword%]</encryptedpassword>
+      <plaintextpassword>[%config||config/client/assemblyinfo/deployment/plaintextpassword%]</plaintextpassword>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to map to Client deployment server. Will try to disconnect from Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+
+          <!-- Disconnect from remote server. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Web API Deployment Server</name>
+            <description>Disconnects from the Web API Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/webapi/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Web API deployment server. Will try to disconnect from the Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Service Deployment Server</name>
+            <description>Disconnects from the Data Service Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Deploy Data Service. -->
+
+    <!-- Using WebDAV. -->
+    <task type='system'>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Deploy Data Service</name>
+      <description>Deploys the Data Service.</description>
+      <action>Copy-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Path</parameter_name>
+          <parameter_value>[%config||config/server/assemblyinfo/binpath%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Destination</parameter_name>
+          <parameter_value>[%config||config/server/assemblyinfo/deployment/deployto%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to deploy data service. Will try to disconnect from Client deployment server and Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+
+          <!-- Disconnect from remote servers. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Client Deployment Server</name>
+            <description>Disconnects from the Client Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/client/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Client deployment server. Will try to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Web API Deployment Server</name>
+            <description>Disconnects from the Web API Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/webapi/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Web API deployment server. Will try to disconnect from the Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Service Deployment Server</name>
+            <description>Disconnects from the Data Service Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Using Publish ClickOnce Mechanism. -->
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Deploy Data Service</name>
+      <description>Deploys the Data Service.</description>
+      <action>Publish-CSharp</action>
+      <control_file>[%config||config/server/assemblyinfo/projectfile%]</control_file>
+      <arguments>
+        <argument>/property:Configuration=Release</argument>
+        <argument>/property:DeployOnBuild=true</argument>
+        <argument>/property:PublishProfile=FolderProfile</argument>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to deploy data service.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Deploy Web API. -->
+
+    <!-- Using WebDAV. -->
+    <task type='system'>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Deploy Web API</name>
+      <description>Deploys the Web API.</description>
+      <action>Copy-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Path</parameter_name>
+          <parameter_value>[%config||config/webapi/assemblyinfo/binpath%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Destination</parameter_name>
+          <parameter_value>[%config||config/webapi/assemblyinfo/deployment/deployto%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to deploy Web API. Will try to disconnect from Client deployment server, Web API deployment server, and Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+
+          <!-- Disconnect from remote servers. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Client Deployment Server</name>
+            <description>Disconnects from the Client Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/client/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Client deployment server. Will try to disconnect from Web API deployment server and Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Web API Deployment Server</name>
+            <description>Disconnects from the Web API Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/webapi/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Web API deployment server. Will try to disconnect from the Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Service Deployment Server</name>
+            <description>Disconnects from the Data Service Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Using Publish ClickOnce Mechanism. -->
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Deploy Web API</name>
+      <description>Deploys the Web API.</description>
+      <action>Publish-CSharp</action>
+      <control_file>[%config||config/webapi/assemblyinfo/projectfile%]</control_file>
+      <arguments>
+        <argument>/property:Configuration=Release</argument>
+        <argument>/property:DeployOnBuild=true</argument>
+        <argument>/property:PublishProfile="API File Publish"</argument>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to deploy Web API.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Deploy Client. -->
+
+    <!-- Using WebDAV. -->
+    <task type='system'>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Deploy Client</name>
+      <description>Deploys the Client.</description>
+      <action>Copy-Item</action>
+      <parameters>
+        <parameter>
+          <parameter_name>Path</parameter_name>
+          <parameter_value>[%config||config/client/assemblyinfo/binpath%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Destination</parameter_name>
+          <parameter_value>[%config||config/client/assemblyinfo/deployment/deployto%]</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>Force</parameter_name>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to deploy client. Will try to disconnect from Client deployment server and Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+
+          <!-- Disconnect from remote servers. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Client Deployment Server</name>
+            <description>Disconnects from the Client Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/client/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Client deployment server. Will try to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Web API Deployment Server</name>
+            <description>Disconnects from the Web API Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/webapi/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Web API deployment server. Will try to disconnect from the Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Service Deployment Server</name>
+            <description>Disconnects from the Data Service Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Using Publish ClickOnce Mechanism. -->
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Deploy Client</name>
+      <description>Deploys the Client.</description>
+      <action>Publish-CSharp</action>
+      <control_file>[%config||config/client/assemblyinfo/projectfile%]</control_file>
+      <arguments>
+        <argument>/property:Configuration=Release</argument>
+        <argument>/property:PublishDir=[%config||config/client/assemblyinfo/deployment/deployto%]</argument>
+        <argument>/target:PublishOnly</argument>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to deploy client.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Make Client Deployment File Set Match IDE File Set -->
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Move Residual Client</name>
+      <description>Makes resulting file set match what IDE would have produced.</description>
+      <action>Move-ResidualItem</action>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <deployto>[%config||config/client/assemblyinfo/deployment/deployto%]</deployto>
+      <appname>[%config||config/client/assemblyinfo/deployment/msbuild_cleanup/appname%]</appname>
+      <file_to_remove>[%config||config/client/assemblyinfo/deployment/msbuild_cleanup/file_to_remove%]</file_to_remove>
+      <file_to_copy>[%config||config/client/assemblyinfo/deployment/msbuild_cleanup/file_to_copy%]</file_to_copy>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to move residual client files.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Disconnect from remote servers. -->
+
+    <task>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Disconnect Client Deployment Server</name>
+      <description>Disconnects from the Client Deployment Server.</description>
+      <action>Disconnect-WebDAV</action>
+      <drivename>[%config||config/client/deployment/mappeddrivename%]</drivename>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to disconnect from Client deployment server. Will try to disconnect from Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+
+          <!-- Disconnect from remote server. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Web API Deployment Server</name>
+            <description>Disconnects from the Web API Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/webapi/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Web API deployment server. Will try to disconnect from the Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Disconnect Service Deployment Server</name>
+            <description>Disconnects from the Data Service Deployment Server.</description>
+            <action>Disconnect-WebDAV</action>
+            <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Disconnect Web API Deployment Server</name>
+      <description>Disconnects from the Web API Deployment Server.</description>
+      <action>Disconnect-WebDAV</action>
+      <drivename>[%config||config/webapi/deployment/mappeddrivename%]</drivename>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to disconnect from Web API deployment server. Will try to disconnect form Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks>
+                <task>
+                  <targets>
+                    <target>Debug</target>
+                  </targets>
+                  <name>Send Notification</name>
+                  <description>Sends notification of failure.</description>
+                  <action>Send-psMakeMail</action>
+                  <to>[%config||config/email/failure/to%]</to>
+                  <subject>[%config||config/email/failure/subject%]</subject>
+                  <body>Failed to disconnect from Data Service deployment server.</body>
+                  <attachment></attachment>
+                  <exception>
+                    <exceptionAction>Throw</exceptionAction>
+                    <tasks></tasks>
+                  </exception>
+                </task>
+              </tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <task>
+      <targets>
+        <target>None</target>
+      </targets>
+      <name>Disconnect Service Deployment Server</name>
+      <description>Disconnects from the Data Service Deployment Server.</description>
+      <action>Disconnect-WebDAV</action>
+      <drivename>[%config||config/server/deployment/mappeddrivename%]</drivename>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to disconnect from Data Service deployment server.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Update Current Tag. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Update Current Tag</name>
+      <description>Updates currenttag in config.xml.</description>
+      <action>Update-Tag</action>
+      <files>
+        <file>[%config||config/filepath%]</file>
+      </files>
+      <version>
+        <major>[%config||config/version/major%]</major>
+        <minor>[%config||config/version/minor%]</minor>
+        <build>[%config||config/version/build%]</build>
+        <revision>[%config||config/version/revision%]</revision>
+      </version>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to update currenttag in config.xml.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Check in config.xml changes. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Commit Source</name>
+      <description>Commits local changes to source control.</description>
+      <action>Invoke-SVN</action>
+      <arguments>
+        <repository>[%config||config/repository/localpath%]</repository>
+        <username>[%config||config/repository/username%]</username>
+        <password>[%config||config/repository/password%]</password>
+        <command>commit</command>
+      </arguments>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to commit changes to config.xml.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Restart IIS. -->
+
+    <task type='system'>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Restart IIS</name>
+      <description>Restarts IIS.</description>
+      <action>Start-Process</action>
+      <parameters>
+        <parameter>
+          <parameter_name>FilePath</parameter_name>
+          <parameter_value>iisreset.exe</parameter_value>
+        </parameter>
+        <parameter>
+          <parameter_name>NoNewWindow</parameter_name>
+        </parameter>
+        <parameter>
+          <parameter_name>Wait</parameter_name>
+        </parameter>
+      </parameters>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to restart IIS.</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+
+    <!-- Send Notification. -->
+
+    <task>
+      <targets>
+        <target>Debug</target>
+      </targets>
+      <name>Send Notification and Changelog.</name>
+      <description>Sends notification of version deployment of the Data Service and client with the changelog for version.</description>
+      <action>Send-psMakeMail</action>
+      <to>[%config||config/email/to%]</to>
+      <subject>[%config||config/email/subject%]</subject>
+      <body>[%config||config/email/body%]</body>
+      <attachment>[%config||config/repository/changelogpath%]</attachment>
+      <exception>
+        <exceptionAction>Throw</exceptionAction>
+        <tasks>
+          <!-- Send Failure Notification. -->
+          <task>
+            <targets>
+              <target>Debug</target>
+            </targets>
+            <name>Send Notification</name>
+            <description>Sends notification of failure.</description>
+            <action>Send-psMakeMail</action>
+            <to>[%config||config/email/failure/to%]</to>
+            <subject>[%config||config/email/failure/subject%]</subject>
+            <body>Failed to send deployment notification to [%config||config/email/deployment/to%].</body>
+            <attachment></attachment>
+            <exception>
+              <exceptionAction>Throw</exceptionAction>
+              <tasks></tasks>
+            </exception>
+          </task>
+        </tasks>
+      </exception>
+    </task>
+  </tasks>
+</make>

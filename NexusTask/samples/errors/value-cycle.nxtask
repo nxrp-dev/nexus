@@ -1,0 +1,9 @@
+Root Group {
+  A Group {
+    Value: [Root.B.Value]
+  }
+
+  B Group {
+    Value: [Root.A.Value]
+  }
+}

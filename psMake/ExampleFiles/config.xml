@@ -1,0 +1,152 @@
+<!--
+2020-04-22: No longer maintaining example files. There are working example files
+for Atlas EMR and Contract Health. And these example files, while not current,
+include WebDAV tasks that are not currently included in Atlas EMR or Contract
+Health files, which makes these example files informative in their current state.
+-->
+
+<config>
+  <filepath>C:\svndev\AtlasEMR\config.xml</filepath>
+
+  <repository>
+    <url>https://indigotechnology.svn.cloudforge.com/atlasemr</url>
+    <localpath>C:\svndev\AtlasEMR\</localpath>
+    <currenttag>1.2.3.4</currenttag>
+    <changelogpath>C:\svndev\AtlasEMR_changelog.txt</changelogpath>
+    <username></username>
+    <password></password>
+  </repository>
+
+  <server>
+    <assemblyinfo>
+      <solutionfile>C:\svndev\AtlasEMR\Server\DataService\DataService.sln</solutionfile>
+      <projectfile>c:\svndev\AtlasEMR\Server\DataService\DataService.csproj</projectfile>
+
+      <assemblyinfo_file>C:\svndev\AtlasEMR\Server\DataService\Properties\AssemblyInfo.cs</assemblyinfo_file>
+
+      <title>AtlasEMR</title>
+      <description></description>
+      <configuration></configuration>
+      <company></company>
+      <product>AtlasEMR</product>
+      <copyright>Copyright ©  2019</copyright>
+      <trademark></trademark>
+      <culture></culture>
+
+      <binpath>C:\svndev\AtlasEMR\Server\DataService\bin\*</binpath>
+      <deployment>
+        <webdavshare>\\indigotechnology.drive.cloudforge.com@SSL\projects\atlasemr</webdavshare>
+        <username>IndigoBuild</username>
+
+        <!-- Choose one of plaintext or encrypted. -->
+        <encryptedpassword></encryptedpassword> <!-- PowerShell SecureString. -->
+        <plaintextpassword>IndigoT3ch2019</plaintextpassword>
+
+        <mappeddrivename>Y</mappeddrivename>
+        <deployto>Y:\AtlasEMR\server\</deployto>
+      </deployment>
+
+      <outputfile>C:\svndev\AtlasEMR_dataservice.out</outputfile>
+    </assemblyinfo>
+  </server>
+
+  <webapi>
+    <assemblyinfo>
+      <solutionfile>C:\svndev\AtlasEMR\AtlasEMR.sln</solutionfile>
+      <projectfile>c:\svndev\IndigoLibrary\OnyxFramework\OnyxWebAPI\OnyxWebAPI.csproj</projectfile>
+
+      <assemblyinfo_file>C:\svndev\IndigoLibrary\OnyxFramework\OnyxWebAPI\Properties\AssemblyInfo.cs</assemblyinfo_file>
+
+      <title>Onyx Web API</title>
+      <description></description>
+      <configuration></configuration>
+      <company></company>
+      <product>Onyx Web API</product>
+      <copyright>Copyright ©  2020</copyright>
+      <trademark></trademark>
+      <culture></culture>
+
+      <binpath>C:\svndev\IndigoLibrary\OnyxFramework\OnyxWebAPI\bin\*</binpath>
+      <deployment>
+        <webdavshare>\\indigotechnology.drive.cloudforge.com@SSL\projects\atlasemr</webdavshare>
+        <username>IndigoBuild</username>
+
+        <!-- Choose one of plaintext or encrypted. -->
+        <encryptedpassword></encryptedpassword> <!-- PowerShell SecureString. -->
+        <plaintextpassword>IndigoT3ch2019</plaintextpassword>
+
+        <mappeddrivename>X</mappeddrivename>
+        <deployto>X:\AtlasEMR\webapi\</deployto>
+      </deployment>
+
+      <outputfile>C:\svndev\AtlasEMR_webapi.out</outputfile>
+    </assemblyinfo>
+  </webapi>
+
+  <client>
+    <assemblyinfo>
+      <solutionfile>C:\svndev\AtlasEMR\Client\AtlasEMR.sln</solutionfile>
+      <projectfile>c:\svndev\AtlasEMR\Client\AtlasEMR.csproj</projectfile>
+
+      <assemblyinfo_file>C:\svndev\AtlasEMR\Client\Properties\AssemblyInfo.cs</assemblyinfo_file>
+
+      <title>AtlasEMR</title>
+      <description></description>
+      <configuration></configuration>
+      <company></company>
+      <product>AtlasEMR</product>
+      <copyright>Copyright ©  2019</copyright>
+      <trademark></trademark>
+      <culture></culture>
+
+      <binpath>C:\svndev\AtlasEMR\Client\bin\Release\*</binpath>
+      <deployment>
+        <webdavshare>\\indigotechnology.drive.cloudforge.com@SSL\projects\atlasemr</webdavshare>
+        <username>IndigoBuild</username>
+
+        <!-- Choose one of plaintext or encrypted. -->
+        <encryptedpassword></encryptedpassword> <!-- PowerShell SecureString. -->
+        <plaintextpassword>IndigoT3ch2019</plaintextpassword>
+
+        <mappeddrivename>W</mappeddrivename>
+        <deployto>C:\publish\AtlasEMR\client\</deployto>
+
+        <msbuild_cleanup>
+          <appname>AtlasEMR</appname>
+          <file_to_remove>AtlasEMR.exe</file_to_remove>
+          <file_to_copy>AtlasEMR.application</file_to_copy>
+        </msbuild_cleanup>
+      </deployment>
+
+      <outputfile>C:\svndev\AtlasEMR_client.out</outputfile>
+    </assemblyinfo>
+  </client>
+
+  <version>
+    <major>1</major>
+    <minor>2</minor>
+    <build>3</build>
+    <revision>4</revision>
+  </version>
+
+  <versionvariables>
+    <major>Env:AtlasEMRMajorVersionNumber</major>
+    <minor>Env:AtlasEMRMinorVersionNumber</minor>
+    <build>Env:AtlasEMRBuildNumber</build>
+    <revision>Env:AtlasEMRRevisionNumber</revision>
+  </versionvariables>
+
+  <email>
+    <failure>
+      <to>jmaner@indigotulsa.com</to>
+      <subject>Atlas EMR Deployment Failed</subject>
+      <body>Atlas EMR deployment failed.</body>
+    </failure>
+
+    <deployment>
+      <to>jmaner@indigotulsa.com</to>
+      <subject>Atlas EMR Deployed</subject>
+      <body>Atlas EMR has been deployed. Please see attached changelog.</body>
+    </deployment>
+  </email>
+</config>

@@ -1,0 +1,15 @@
+Shared Group(Template) {
+  Expanded Trace {
+    Message: "expanded"
+  }
+}
+
+Root Group(Debug) {
+  First Trace {
+    Message: "first"
+  }
+  <Shared>
+  Last Trace {
+    Message: "last"
+  }
+}
