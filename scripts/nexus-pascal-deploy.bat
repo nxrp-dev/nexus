@@ -63,7 +63,7 @@ if exist "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" (
     copy /Y "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" "%RepoRoot%\bin\%TargetTriple%\nexusbuild.exe" >nul
     if errorlevel 1 goto Fail
 ) else (
-    echo WARNING: NexusBuild executable was not found. Build NexusBuild\nexusbuild.lpi before using Nexus project tasks.
+    echo WARNING: NexusBuild executable was not found. Build NexusTools\Build\nexusbuild.lpi before using Nexus project tasks.
 )
 
 if exist "%ExtensionLink%\package.json" (

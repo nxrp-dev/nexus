@@ -44,12 +44,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\nexusbuild"/>
+      <Filename Value="..\..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\nexusbuild"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;..\NexusLib\core\src;C:\lazarus\components\lazutils"/>
-      <UnitOutputDirectory Value="..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\units"/>
+      <OtherUnitFiles Value="src;..\..\NexusLib\core\src;C:\lazarus\components\lazutils"/>
+      <UnitOutputDirectory Value="..\..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

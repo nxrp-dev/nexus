@@ -11,7 +11,7 @@ BuildNexusPascalVSIX Group {
   }
 
   BuildNexusBuild LazBuild {
-    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusBuild/nexusbuild.lpi"
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Build/nexusbuild.lpi"
     Quiet: true
   }
 
