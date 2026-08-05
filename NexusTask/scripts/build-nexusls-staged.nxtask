@@ -55,15 +55,6 @@ BuildNexusPascalVSIX Group {
     ExcludeNames: ".git;.gitignore;.gitattributes"
   }
 
-  InstallNexusNetSDK CopyFile {
-    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusNet"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusNet"
-    Recursive: true
-    Overwrite: true
-    CleanDestination: true
-    ExcludeNames: ".git;.gitignore;.gitattributes"
-  }
-
   InstallNexusTestSDK CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/src"
     Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusTest/src"
