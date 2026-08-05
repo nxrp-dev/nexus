@@ -47,6 +47,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    procedure Clear;
     procedure Add(ASeverity: TNXTaskSeverity; const ACode, AMessage: string;
       ARange: TNXTaskSourceRange);
     procedure AddWithRelated(ASeverity: TNXTaskSeverity; const ACode,
@@ -67,7 +68,6 @@ type
     constructor Create(const AExternalFile, APath, APropertyName: string;
       ASourceRange: TNXTaskSourceRange; const ADeclarationFile: string);
     destructor Destroy; override;
-    function Identity(AKind: TNXTaskReferenceKind; const ABaseFile: string): string;
     property ExternalFile: string read FExternalFile;
     property Path: string read FPath;
     property PropertyName: string read FPropertyName;
@@ -285,6 +285,11 @@ begin
   inherited Destroy;
 end;
 
+procedure TNXTaskDiagnostics.Clear;
+begin
+  FItems.Clear;
+end;
+
 procedure TNXTaskDiagnostics.Add(ASeverity: TNXTaskSeverity; const ACode,
   AMessage: string; ARange: TNXTaskSourceRange);
 begin
@@ -336,20 +341,6 @@ destructor TNXTaskReference.Destroy;
 begin
   FSourceRange.Free;
   inherited Destroy;
-end;
-
-function TNXTaskReference.Identity(AKind: TNXTaskReferenceKind; const ABaseFile: string): string;
-var
-  lFile: string;
-begin
-  if FExternalFile <> '' then
-    lFile := ExpandFileName(FExternalFile)
-  else
-    lFile := ExpandFileName(ABaseFile);
-  if AKind = trkValue then
-    Result := Format('value:%s:%s.%s', [lFile, FPath, FPropertyName])
-  else
-    Result := Format('node:%s:%s', [lFile, FPath]);
 end;
 
 destructor TNXTaskValue.Destroy;

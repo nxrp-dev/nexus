@@ -1,0 +1,5 @@
+Root Group {
+  Paths Values {
+    WindowsPath: "C:\build\shared.nxtask"
+  }
+}

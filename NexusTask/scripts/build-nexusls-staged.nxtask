@@ -1,0 +1,122 @@
+BuildNexusPascalVSIX Group {
+  FetchSource Git {
+    Repository: "https://github.com/nxrp-dev/nexus.git"
+    Directory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus"
+    Submodules: true
+  }
+
+  BuildLanguageServer LazBuild {
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusLS/nexusls.lpi"
+    Quiet: true
+  }
+
+  BuildNexusBuild LazBuild {
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusBuild/nexusbuild.lpi"
+    Quiet: true
+  }
+
+  BuildNexusTestHost Fpc {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/sample/Host/nxtest_host.lpr"
+    SearchPath: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/src"
+    UnitOutputDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost/units"
+    OutputDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost"
+    OutputName: "nxtest_host"
+  }
+
+  FetchExtension Git {
+    Repository: "https://github.com/nxrp-dev/nexus-pascal.git"
+    Directory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+  }
+
+  InstallLanguageServer CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusLS/x86_64-win64/nexusls.exe"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/bin/x86_64-win64/nexusls.exe"
+    Overwrite: true
+  }
+
+  InstallNexusBuild CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusBuild/x86_64-win64/nexusbuild.exe"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/bin/x86_64-win64/nexusbuild.exe"
+    Overwrite: true
+  }
+
+  InstallNexusTestHost CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost/nxtest_host"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/bin/x86_64-win64/nxtest_host.exe"
+    Overwrite: true
+  }
+
+  InstallNexusLibSDK CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusLib"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusLib"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallNexusUISDK CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusUI"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusUI"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallNexusNetSDK CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusNet"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusNet"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallNexusTestSDK CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/src"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusTest/src"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallSynapseSDK CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/lib/synapse"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/thirdparty/synapse"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallDMustacheSDK CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/lib/dmustache"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/thirdparty/dmustache"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallExtensionDependencies Npm {
+    Command: "ci"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+  }
+
+  PinVSCodeTypes Npm {
+    Command: "install --save-dev @types/vscode@1.89.0"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+  }
+
+  BundleExtension Npm {
+    Script: "esbuild"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+  }
+
+  PackageVSIX Npm {
+    Command: "exec --yes --package @vscode/vsce -- vsce package"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+  }
+}

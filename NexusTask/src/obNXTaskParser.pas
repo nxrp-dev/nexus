@@ -170,7 +170,7 @@ begin
         'n': Result.Text := Result.Text + LineEnding;
         't': Result.Text := Result.Text + #9;
       else
-        Result.Text := Result.Text + CurrentChar;
+        Result.Text := Result.Text + '\' + CurrentChar;
       end;
       lEscaped := False;
     end

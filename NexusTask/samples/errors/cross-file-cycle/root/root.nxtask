@@ -1,0 +1,3 @@
+Root Group {
+  Value: ["..\shared\values.nxtask":Shared.Value]
+}

@@ -84,6 +84,7 @@ var
 begin
   FTarget := ATarget;
   FWorkingDirectory := AWorkingDirectory;
+  FDiagnostics.Clear;
   FTrace.Clear;
   FTrace.Add('execute target ' + FTarget);
   lProjected := TNXTaskTargetInspector.ProjectDocument(ADocument, ATarget);

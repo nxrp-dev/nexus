@@ -12,10 +12,15 @@ type
   TNXTaskResolver = class
   private
     FDocuments: TStringList;
+    FReportedDocuments: TStringList;
     FDiagnostics: TNXTaskDiagnostics;
     FValidator: TNXTaskValidator;
     function LoadParsedDocument(const AFileName: string): TNXTaskDocument;
     function ResolveExternalFile(const ABaseFile, AExternalFile: string): string;
+    function RangeForReference(AReference: TNXTaskReference): TNXTaskSourceRange;
+    function ReferenceIdentity(AReference: TNXTaskReference;
+      AKind: TNXTaskReferenceKind): string;
+    function FormatCycleChain(AStack: TStringList; const AIdentity: string): string;
     function FindNodeByPath(ADocument: TNXTaskDocument; const APath: string): TNXTaskNode;
     function FindProperty(AValueReference: TNXTaskReference): TNXTaskProperty;
     procedure MergeDiagnostics(ADocument: TNXTaskDocument);
@@ -39,6 +44,8 @@ begin
   FDocuments := TStringList.Create;
   FDocuments.CaseSensitive := False;
   FDocuments.OwnsObjects := True;
+  FReportedDocuments := TStringList.Create;
+  FReportedDocuments.CaseSensitive := False;
   FDiagnostics := TNXTaskDiagnostics.Create;
   FValidator := TNXTaskValidator.Create;
 end;
@@ -47,6 +54,7 @@ destructor TNXTaskResolver.Destroy;
 begin
   FValidator.Free;
   FDiagnostics.Free;
+  FReportedDocuments.Free;
   FDocuments.Free;
   inherited Destroy;
 end;
@@ -58,6 +66,57 @@ begin
   else
     Result := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(ABaseFile)) +
       AExternalFile);
+end;
+
+function TNXTaskResolver.RangeForReference(
+  AReference: TNXTaskReference): TNXTaskSourceRange;
+begin
+  if AReference.SourceRange <> nil then
+    Result := TNXTaskSourceRange.Create(AReference.SourceRange.FileName,
+      AReference.SourceRange.Line, AReference.SourceRange.Column)
+  else
+    Result := TNXTaskSourceRange.Create(AReference.DeclarationFile, 1, 1);
+end;
+
+function TNXTaskResolver.ReferenceIdentity(AReference: TNXTaskReference;
+  AKind: TNXTaskReferenceKind): string;
+var
+  lFileName: string;
+begin
+  if AReference.ExternalFile <> '' then
+    lFileName := ResolveExternalFile(AReference.DeclarationFile,
+      AReference.ExternalFile)
+  else
+    lFileName := ExpandFileName(AReference.DeclarationFile);
+
+  if AKind = trkValue then
+    Result := Format('value:%s:%s.%s',
+      [lFileName, AReference.Path, AReference.PropertyName])
+  else
+    Result := Format('node:%s:%s', [lFileName, AReference.Path]);
+end;
+
+function TNXTaskResolver.FormatCycleChain(AStack: TStringList;
+  const AIdentity: string): string;
+var
+  lIndex: Integer;
+  lStartIndex: Integer;
+begin
+  Result := '';
+  lStartIndex := AStack.IndexOf(AIdentity);
+  if lStartIndex < 0 then
+    lStartIndex := 0;
+
+  for lIndex := lStartIndex to AStack.Count - 1 do
+  begin
+    if Result <> '' then
+      Result := Result + ' -> ';
+    Result := Result + AStack[lIndex];
+  end;
+
+  if Result <> '' then
+    Result := Result + ' -> ';
+  Result := Result + AIdentity;
 end;
 
 procedure TNXTaskResolver.MergeDiagnostics(ADocument: TNXTaskDocument);
@@ -83,15 +142,25 @@ begin
   lFileName := ExpandFileName(AFileName);
   lIndex := FDocuments.IndexOf(lFileName);
   if lIndex >= 0 then
-    Exit(TNXTaskDocument(FDocuments.Objects[lIndex]));
+  begin
+    Result := TNXTaskDocument(FDocuments.Objects[lIndex]);
+    if FReportedDocuments.IndexOf(lFileName) < 0 then
+    begin
+      MergeDiagnostics(Result);
+      FReportedDocuments.Add(lFileName);
+    end;
+    Exit;
+  end;
 
   if not FileExists(lFileName) then
   begin
-    FDiagnostics.Add(tdsError, 'NXTask.Load.FileNotFound',
+    Result := TNXTaskDocument.Create(lFileName);
+    Result.Diagnostics.Add(tdsError, 'NXTask.Load.FileNotFound',
       'NexusTask file was not found: ' + lFileName,
       TNXTaskSourceRange.Create(lFileName, 1, 1));
-    Result := TNXTaskDocument.Create(lFileName);
     FDocuments.AddObject(lFileName, Result);
+    MergeDiagnostics(Result);
+    FReportedDocuments.Add(lFileName);
     Exit;
   end;
 
@@ -101,6 +170,7 @@ begin
     FValidator.ValidateDocument(Result);
     FDocuments.AddObject(lFileName, Result);
     MergeDiagnostics(Result);
+    FReportedDocuments.Add(lFileName);
   finally
     lParser.Free;
   end;
@@ -150,7 +220,7 @@ begin
   begin
     FDiagnostics.Add(tdsError, 'NXTask.Resolve.MissingNode',
       'Referenced node was not found: ' + AValueReference.Path,
-      TNXTaskSourceRange.Create(AValueReference.DeclarationFile, 1, 1));
+      RangeForReference(AValueReference));
     Exit(nil);
   end;
   Result := lNode.PropertyByName(AValueReference.PropertyName);
@@ -158,7 +228,7 @@ begin
     FDiagnostics.Add(tdsError, 'NXTask.Resolve.MissingProperty',
       'Referenced property was not found: ' + AValueReference.Path + '.' +
       AValueReference.PropertyName,
-      TNXTaskSourceRange.Create(AValueReference.DeclarationFile, 1, 1));
+      RangeForReference(AValueReference));
 end;
 
 function TNXTaskResolver.CloneExpandedNode(AReference: TNXTaskReference;
@@ -174,11 +244,11 @@ begin
     lFileName := ResolveExternalFile(AReference.DeclarationFile, AReference.ExternalFile)
   else
     lFileName := AReference.DeclarationFile;
-  lIdentity := 'node:' + ExpandFileName(lFileName) + ':' + AReference.Path;
+  lIdentity := ReferenceIdentity(AReference, trkNode);
   if AStack.IndexOf(lIdentity) >= 0 then
   begin
     FDiagnostics.Add(tdsError, 'NXTask.Resolve.NodeCycle',
-      'Circular node expansion: ' + lIdentity,
+      'Circular node expansion: ' + FormatCycleChain(AStack, lIdentity),
       TNXTaskSourceRange.Create(AReference.SourceRange.FileName,
         AReference.SourceRange.Line, AReference.SourceRange.Column));
     Exit;
@@ -190,7 +260,7 @@ begin
   begin
     FDiagnostics.Add(tdsError, 'NXTask.Resolve.MissingNode',
       'Referenced node was not found: ' + AReference.Path,
-      TNXTaskSourceRange.Create(AReference.DeclarationFile, 1, 1));
+      RangeForReference(AReference));
     AStack.Delete(AStack.Count - 1);
     Exit;
   end;
@@ -264,21 +334,21 @@ begin
     Exit(AValue.Clone);
 
   lReference := AValue.Reference;
-  lIdentity := lReference.Identity(trkValue, lReference.DeclarationFile);
+  lIdentity := ReferenceIdentity(lReference, trkValue);
   if AStack.IndexOf(lIdentity) >= 0 then
   begin
     FDiagnostics.Add(tdsError, 'NXTask.Resolve.ValueCycle',
-      'Circular scalar reference: ' + lIdentity,
+      'Circular scalar reference: ' + FormatCycleChain(AStack, lIdentity),
       TNXTaskSourceRange.Create(lReference.SourceRange.FileName,
         lReference.SourceRange.Line, lReference.SourceRange.Column));
-    Exit(TNXTaskValue.CreateString('', nil));
+    Exit(nil);
   end;
   AStack.Add(lIdentity);
   lProperty := FindProperty(lReference);
   if lProperty <> nil then
     Result := ResolveValue(lProperty.Value, AStack)
   else
-    Result := TNXTaskValue.CreateString('', nil);
+    Result := nil;
   AStack.Delete(AStack.Count - 1);
 end;
 
@@ -293,8 +363,11 @@ begin
   begin
     lProperty := TNXTaskProperty(ANode.Properties[lIndex]);
     lValue := ResolveValue(lProperty.Value, AStack);
-    lProperty.Value.Free;
-    lProperty.Value := lValue;
+    if lValue <> nil then
+    begin
+      lProperty.Value.Free;
+      lProperty.Value := lValue;
+    end;
   end;
   for lIndex := 0 to ANode.Children.Count - 1 do
     ResolveNodeValues(TNXTaskNode(ANode.Children[lIndex]), AStack);
@@ -306,6 +379,8 @@ var
   lIndex: Integer;
   lStack: TStringList;
 begin
+  FDiagnostics.Clear;
+  FReportedDocuments.Clear;
   lParsed := LoadParsedDocument(AFileName);
   Result := TNXTaskDocument.Create(lParsed.FileName);
 
