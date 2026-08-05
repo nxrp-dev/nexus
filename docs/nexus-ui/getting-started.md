@@ -1,6 +1,6 @@
 # Nexus UI Getting Started
 
-The current working example is `NexusUI/example/LifeStatNXL.lpr`. It is the best
+The current working example is `C:\gitdev\nexus-lab\LifeStatNX\LifeStatNXL.lpr`. It is the best
 place to copy the basic application shape from, because it exercises the active
 runtime, skin loading, menus, tabs, data controls, layout controls, popups, and
 dialogs.
@@ -43,17 +43,17 @@ Use the control units you actually instantiate. The demo imports units such as
 
 ## Build and Run
 
-The Lazarus project file for the demo is `NexusUI/example/LifeStatNXL.lpi`.
+The Lazarus project file for the demo is `C:\gitdev\nexus-lab\LifeStatNX\LifeStatNXL.lpi`.
 Its unit search path includes:
 
-- `..`
-- `..\..\NexusLib\ui\src`
-- `..\..\..\common\sdl\units`
-- `..\..\..\common\sdl_ext`
+- `.`
+- `..\..\nexus\NexusLib\ui\src`
+- `..\..\common\sdl\units`
+- `..\..\common\sdl_ext`
 
 When creating another project, keep the Nexus UI units and SDL units reachable
 through the compiler search path, and copy or deploy the needed runtime DLLs or
-shared libraries with the executable. The example directory currently carries
+shared libraries with the executable. The lab application directory currently carries
 the Windows SDL2, SDL2_image, SDL2_ttf, image codec, and zlib DLLs used by the
 demo.
 

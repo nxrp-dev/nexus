@@ -62,7 +62,7 @@ List what must be true after an approved implementation is completed.
 
 ```text
 lazbuild --build-all NexusTest\NexusTestUI\NexusTestUI.lpi
-lazbuild NexusUI\example\LifeStatNXL.lpi
+lazbuild C:\gitdev\nexus-lab\LifeStatNX\LifeStatNXL.lpi
 fpc NexusUI\testNXPersist.lpr
 ```
 

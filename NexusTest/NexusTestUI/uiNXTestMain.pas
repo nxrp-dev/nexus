@@ -846,7 +846,8 @@ begin
     lModuleFileName := '';
 
   lResourceRoot := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-    '..' + PathDelim + '..' + PathDelim + 'NexusUI' + PathDelim + 'example';
+    '..' + PathDelim + '..' + PathDelim + '..' + PathDelim + '..' +
+    PathDelim + 'nexus-lab' + PathDelim + 'LifeStatNX';
   if DirectoryExists(lResourceRoot) then
     SetCurrentDir(lResourceRoot);
 

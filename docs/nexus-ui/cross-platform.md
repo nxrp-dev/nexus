@@ -22,9 +22,9 @@ most control code independent from SDL2 details.
 
 ## Windows
 
-The example project is currently Windows-oriented. `NexusUI/example` includes
+The LifeStat lab project is currently Windows-oriented. `C:\gitdev\nexus-lab\LifeStatNX` includes
 Windows runtime DLLs for SDL2, SDL2_image, SDL2_ttf, image codecs, and zlib.
-The Lazarus project emits output under `output\LifeStatNXL\$(TargetCPU)-$(TargetOS)`.
+The Lazarus project emits output under `C:\gitdev\nexus-lab\output\LifeStatNXL\$(TargetCPU)-$(TargetOS)`.
 
 ## Other Desktop Targets
 
