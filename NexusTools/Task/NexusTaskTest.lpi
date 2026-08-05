@@ -63,7 +63,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\output\NexusTask\$(TargetCPU)-$(TargetOS)\NexusTaskTest"/>
+      <Filename Value="..\..\output\NexusTask\$(TargetCPU)-$(TargetOS)\NexusTaskTest"/>
     </Target>
     <PathDelim Value="\"/>
     <SearchPaths>

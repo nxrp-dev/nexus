@@ -83,7 +83,7 @@
         <IsPartOfProject Value="True"/>
       </Unit16>
       <Unit17>
-        <Filename Value="..\NexusTest\src\obNXTestRPCRequests.pas"/>
+        <Filename Value="..\..\NexusTest\src\obNXTestRPCRequests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit17>
     </Units>
@@ -91,11 +91,11 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\output\NexusTaskTestModule\$(TargetCPU)-$(TargetOS)\NexusTaskTestModule"/>
+      <Filename Value="..\..\output\NexusTaskTestModule\$(TargetCPU)-$(TargetOS)\NexusTaskTestModule"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;tests;..\NexusTest\src;..\NexusLib\core\src"/>
+      <OtherUnitFiles Value="src;tests;..\..\NexusTest\src;..\..\NexusLib\core\src"/>
       <UnitOutputDirectory Value="output\NexusTaskTestModule\units"/>
     </SearchPaths>
     <Parsing>

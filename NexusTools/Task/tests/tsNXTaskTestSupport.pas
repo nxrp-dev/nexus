@@ -20,14 +20,14 @@ implementation
 function NXTaskSamplePath(const AName: string): string;
 begin
   Result := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0))) +
-    '..\..\..\NexusTask\samples\' + AName);
+    '..\..\..\NexusTools\Task\samples\' + AName);
   if not FileExists(Result) then
     Result := ExpandFileName(IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0))) +
       '..\..\samples\' + AName);
   if not FileExists(Result) then
     Result := ExpandFileName('samples\' + AName);
   if not FileExists(Result) then
-    Result := ExpandFileName('NexusTask\samples\' + AName);
+    Result := ExpandFileName('NexusTools\Task\samples\' + AName);
 end;
 
 function NXTaskFindDiagnostic(ADiagnostics: TNXTaskDiagnostics;

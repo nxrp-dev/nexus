@@ -1,6 +1,6 @@
 # NexusTask Agent Instructions
 
-These instructions apply to the `NexusTask` folder.
+These instructions apply to `NexusTools/Task`.
 
 - Follow `../.ai/standards/pascal.md`.
 - NexusTask manifests are trusted executable build/deployment descriptions, not untrusted data.
