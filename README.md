@@ -4,7 +4,8 @@ Nexus is a Pascal-focused project family for building tools, applications, schem
 
 Current major areas:
 
-- `NexusUI`: a retained-mode Pascal UI framework currently backed by SDL2.
+- `NexusLib/ui`: retained-mode Pascal UI framework source currently backed by SDL2.
+- `NexusUI`: UI examples, resources, attribution, and project notes.
 - `NexusSchema`: schema and generation tooling.
 - `NexusLS`: the Nexus Pascal language server.
 - `NexusTest`: test framework, shared-library test module boundary, and test UI.

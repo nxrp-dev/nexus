@@ -4,10 +4,10 @@ Nexus uses top-level module folders for ownership and shorter lower-case slugs f
 
 ## Module names
 
-- `NexusLib`: shared Pascal support library.
+- `NexusLib`: shared Pascal support library families, including `core`, `ui`, and `net`.
 - `NexusLS`: Pascal language server.
 - `NexusTest`: test framework, module protocol, host, sample tests, and test UI.
-- `NexusUI`: retained-mode UI framework.
+- `NexusUI`: UI examples, resources, attribution, and project notes.
 - `NexusSchema`: schema tooling.
 
 Documentation slugs should stay readable and stable:
@@ -34,6 +34,6 @@ These are current conventions visible in the source tree. They should be followe
 
 Each top-level module owns its own source, examples, tests, and module-specific documentation. Cross-module pages should describe boundaries and dependency direction instead of taking ownership away from the source module.
 
-`NexusLib` should avoid depending on higher-level modules. A dependency from `NexusLib` into `NexusLS`, `NexusTest`, `NexusUI`, or `NexusSchema` would make the shared layer harder to reuse.
+`NexusLib` should avoid depending on higher-level modules. A dependency from `NexusLib` into `NexusLS`, `NexusTest`, `NexusSchema`, or top-level example folders would make the shared layer harder to reuse.
 
 Documentation should not invent maturity. If a module is early, experimental, or a current direction, describe it that way.

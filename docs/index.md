@@ -2,7 +2,8 @@
 
 Nexus is a Pascal project family focused on practical tools and frameworks:
 
-- `NexusUI` for retained-mode UI applications.
+- `NexusLib/ui` for retained-mode UI framework source.
+- `NexusUI` for UI examples, resources, and project notes.
 - `NexusSchema` for schema-driven generation.
 - `NexusLS` for Pascal language-server behavior.
 - `NexusTest` for repeatable test modules and GUI test running.

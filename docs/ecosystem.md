@@ -4,7 +4,8 @@ Nexus is organized as a family of related Pascal projects.
 
 ## Module Map
 
-- `NexusUI`: retained-mode UI framework, controls, layout, rendering, input routing, windows, popups, and skins.
+- `NexusLib/ui`: retained-mode UI framework source, controls, layout, rendering, input routing, windows, popups, and skins.
+- `NexusUI`: UI examples, resources, attribution, and project notes.
 - `NexusSchema`: schema model and generation tooling.
 - `NexusLS`: language-server executable and LSP service implementation.
 - `NexusTest`: test framework, JSON-RPC test-module contract, host client, and test UI.

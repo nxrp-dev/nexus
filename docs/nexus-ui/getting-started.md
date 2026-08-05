@@ -47,7 +47,7 @@ The Lazarus project file for the demo is `NexusUI/example/LifeStatNXL.lpi`.
 Its unit search path includes:
 
 - `..`
-- `..\..\NexusUI`
+- `..\..\NexusLib\ui\src`
 - `..\..\..\common\sdl\units`
 - `..\..\..\common\sdl_ext`
 

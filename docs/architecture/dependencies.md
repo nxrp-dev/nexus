@@ -8,7 +8,7 @@ This page describes the current dependency shape visible in the repository. It i
 - `NexusLS` depends on `NexusLib`.
 - `NexusTest` depends on `NexusLib`.
 - `NexusLS/NexusLSTestModule` depends on both `NexusLS` source and `NexusTest` source.
-- `NexusTest/NexusTestUI` depends on `NexusTest`, `NexusLib`, and `NexusUI`.
+- `NexusTest/NexusTestUI` depends on `NexusTest`, `NexusLib/core`, and `NexusLib/ui`.
 
 The preferred direction is from tools toward shared foundations, not from shared foundations back into tools.
 
@@ -20,7 +20,7 @@ The preferred direction is from tools toward shared foundations, not from shared
 
 `NexusTest` uses Free Pascal runtime support, `DynLibs` for loading test modules from a host, and `NexusLib` for JSON-RPC command processing. The sample Linux/macOS-ish build script compiles the sample test module and host with `NexusTest/src` and `../NexusLib/core/src`.
 
-`NexusTestUI` uses `NexusUI` plus SDL-related unit paths from the common tree. It is a client UI for test exploration, not the core NexusTest contract.
+`NexusTestUI` uses `NexusLib/ui` plus SDL-related unit paths from the common tree. It is a client UI for test exploration, not the core NexusTest contract.
 
 ## Build outputs
 

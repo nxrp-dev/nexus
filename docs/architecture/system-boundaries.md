@@ -4,10 +4,10 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 ## Current modules
 
-- `NexusLib` contains shared Pascal support code used by other Nexus modules. It owns JSON value helpers, JSON-RPC message handling, command-line parsing, persistence helpers, and class registration.
+- `NexusLib` contains shared Pascal support code used by other Nexus modules. It owns core helpers plus library families such as `core`, `ui`, and `net`.
 - `NexusLS` contains the Pascal language server. It owns LSP protocol DTOs, request dispatch, transports, document state, CodeTools integration, diagnostics, navigation, completion, symbols, and language-server test coverage.
 - `NexusTest` contains a first-pass test framework and module contract. It owns test registration, suites, cases, result values, JSON-RPC test commands, a module boundary, sample host/module code, and a small UI.
-- `NexusUI` contains the UI framework and examples.
+- `NexusUI` contains UI examples, resources, attribution, and project notes.
 - `NexusSchema` contains schema-oriented tooling.
 - `docs` contains the MkDocs documentation site.
 
@@ -19,7 +19,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 `NexusTest` is a test execution boundary. Test modules expose a small C-style ABI and exchange UTF-8 JSON-RPC text. Pascal objects, Pascal strings, records, exceptions, and caller-owned allocations do not cross that module boundary.
 
-`NexusUI` is a UI runtime, not the owner of language-server or test-framework semantics. `NexusTestUI` can use NexusUI as a client interface, but that does not move NexusTest ownership into NexusUI.
+`NexusLib/ui` is a UI runtime library, not the owner of language-server or test-framework semantics. `NexusTestUI` can use it as a client interface, but that does not move NexusTest ownership into the UI library.
 
 `NexusSchema` is separate from UI, language-server, and testing concerns. Its documentation and implementation should describe schema inputs and generation behavior, not become a catch-all for other Nexus modules.
 
