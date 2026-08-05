@@ -95,7 +95,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;tests;..\NexusTest\src;..\NexusLib\src"/>
+      <OtherUnitFiles Value="src;tests;..\NexusTest\src;..\NexusLib\core\src"/>
       <UnitOutputDirectory Value="output\NexusTaskTestModule\units"/>
     </SearchPaths>
     <Parsing>

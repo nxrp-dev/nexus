@@ -38,7 +38,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;..\src;..\src\protocol;..\..\NexusLib\src;..\..\lib\synapse"/>
+      <OtherUnitFiles Value="..;..\src;..\src\protocol;..\..\NexusLib\core\src;..\..\lib\synapse"/>
       <UnitOutputDirectory Value="..\..\output\NexusLSTestClient\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

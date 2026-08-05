@@ -48,7 +48,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;..\NexusLib\src;C:\lazarus\components\lazutils"/>
+      <OtherUnitFiles Value="src;..\NexusLib\core\src;C:\lazarus\components\lazutils"/>
       <UnitOutputDirectory Value="..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

@@ -47,7 +47,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;..\src;..\..\NexusLib\src;..\..\NexusUI;..\..\..\common\sdl\units;..\..\..\common\sdl_ext"/>
+      <OtherUnitFiles Value="..;..\src;..\..\NexusLib\core\src;..\..\NexusUI;..\..\..\common\sdl\units;..\..\..\common\sdl_ext"/>
       <UnitOutputDirectory Value="..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
