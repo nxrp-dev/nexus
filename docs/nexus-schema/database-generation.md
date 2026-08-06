@@ -4,7 +4,7 @@ Database generation is currently template-driven. The code does not contain a se
 
 ## Current Firebird Template
 
-`NexusSchema/firebird/DatabaseSchema.create.mustache` renders Firebird-oriented output, including:
+`NexusTools/Schema/firebird/DatabaseSchema.create.mustache` renders Firebird-oriented output, including:
 
 - domains from `.nxs` type mappings
 - tables from schema tables
@@ -67,8 +67,8 @@ The Firebird template renders that foreign key metadata as `alter table ... add 
 
 ## Import Scripts
 
-`NexusSchema/firebird/DatabaseImport.import.mustache` renders insert statements from CSV/JCSV/TSV/TAB data sources. The data source converter reads the first row as headers and remaining rows as values.
+`NexusTools/Schema/firebird/DatabaseImport.import.mustache` renders insert statements from CSV/JCSV/TSV/TAB data sources. The data source converter reads the first row as headers and remaining rows as values.
 
 ## Other Database Targets
 
-The dashed docs previously listed SQL Server and SQLite placeholders. There are no SQL Server or SQLite templates or target-specific generators in the current `NexusSchema/` source tree, so those targets are not documented as implemented.
+The dashed docs previously listed SQL Server and SQLite placeholders. There are no SQL Server or SQLite templates or target-specific generators in the current `NexusTools/Schema/` source tree, so those targets are not documented as implemented.

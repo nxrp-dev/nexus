@@ -2,7 +2,7 @@
 
 Nexus Schema is the schema-driven generation tool in the Nexus project family. It reads `.nxs` schema modules, builds an in-memory metadata model, normalizes shared schema facts, serializes that model as JSON, and renders output through Mustache templates.
 
-The current implementation lives in `NexusSchema/` and is intentionally small:
+The current implementation lives in `NexusTools/Schema/` and is intentionally small:
 
 ```text
 .nxs schema module
@@ -33,7 +33,7 @@ The schema file describes structure and intent. Target-specific output details b
 
 ## Current Outputs
 
-The repository currently includes Firebird-oriented Mustache templates for database creation and import scripts under `NexusSchema/firebird/`. The renderer itself is generic: it emits whatever a Mustache template asks it to emit from the metadata JSON.
+The repository currently includes Firebird-oriented Mustache templates for database creation and import scripts under `NexusTools/Schema/firebird/`. The renderer itself is generic: it emits whatever a Mustache template asks it to emit from the metadata JSON.
 
 CSV, JCSV, TSV, and TAB data files can also be converted into Mustache JSON for data-import rendering.
 

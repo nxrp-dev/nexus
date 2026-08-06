@@ -1,6 +1,6 @@
 # Nexus Schema Getting Started
 
-Nexus Schema is a console tool built from `NexusSchema/NexusSchema.lpr`. It expects a metadata schema file, one or more template switches, and an output folder.
+Nexus Schema is a console tool built from `NexusTools/Schema/NexusSchema.lpr`. It expects a metadata schema file, one or more template switches, and an output folder.
 
 ## Define a Schema
 
@@ -42,9 +42,9 @@ During transformation, reference fields become foreign key metadata and receive 
 
 Output comes from Mustache templates. The repository includes Firebird examples:
 
-- `NexusSchema/firebird/DatabaseSchema.create.mustache`
-- `NexusSchema/firebird/DatabaseImport.import.mustache`
-- `NexusSchema/firebird/AutoProviderList.prv.mustache`
+- `NexusTools/Schema/firebird/DatabaseSchema.create.mustache`
+- `NexusTools/Schema/firebird/DatabaseImport.import.mustache`
+- `NexusTools/Schema/firebird/AutoProviderList.prv.mustache`
 
 The schema tool derives the output extension from the template name. For example, `DatabaseSchema.create.mustache` produces a `.create` output file.
 

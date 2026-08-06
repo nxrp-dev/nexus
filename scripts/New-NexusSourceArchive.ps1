@@ -28,7 +28,6 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusTools'); ArchivePath = 'NexusTools' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusUI'); ArchivePath = 'NexusUI' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLS'); ArchivePath = 'NexusLS' },
-  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusSchema'); ArchivePath = 'NexusSchema' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot '.ai'); ArchivePath = '.ai' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'scripts'); ArchivePath = 'scripts' },

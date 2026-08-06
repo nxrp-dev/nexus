@@ -77,7 +77,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="..\output\NexusSchema\$(TargetCPU)-$(TargetOS)\NexusSchema"/>
+      <Filename Value="..\..\output\NexusSchema\$(TargetCPU)-$(TargetOS)\NexusSchema"/>
     </Target>
     <Parsing>
       <SyntaxOptions>
@@ -85,9 +85,9 @@
       </SyntaxOptions>
     </Parsing>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\lib\dmustache"/>
-      <OtherUnitFiles Value=".;..\lib\dmustache"/>
-      <UnitOutputDirectory Value="..\output\NexusSchema\$(TargetCPU)-$(TargetOS)\units"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\lib\dmustache"/>
+      <OtherUnitFiles Value=".;..\..\lib\dmustache"/>
+      <UnitOutputDirectory Value="..\..\output\NexusSchema\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
       <Debugging>

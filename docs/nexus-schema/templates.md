@@ -65,7 +65,7 @@ Foreign keys expose:
 
 ## Current Repository Templates
 
-The current repository includes these templates under `NexusSchema/firebird/`:
+The current repository includes these templates under `NexusTools/Schema/firebird/`:
 
 | Template | Output role |
 | --- | --- |
