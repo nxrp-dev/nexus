@@ -325,8 +325,11 @@ try {
     $script:FileCount++
   }
 
-  $TestArtifactCount = Copy-TestArtifacts
-  $FileCount += $TestArtifactCount
+  $TestArtifactCount = 0
+  if (($null -eq $IncludeFolders) -or ($IncludeFolders.Count -eq 0)) {
+    $TestArtifactCount = Copy-TestArtifacts
+    $FileCount += $TestArtifactCount
+  }
 
   if (Test-Path -LiteralPath $OutputPath) {
     Remove-Item -LiteralPath $OutputPath -Force
