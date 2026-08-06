@@ -6,7 +6,7 @@ Nexus uses top-level module folders for ownership and shorter lower-case slugs f
 
 - `NexusLib`: shared Pascal support library families, including `core`, `ui`, and `net`.
 - `NexusLS`: Pascal language server.
-- `NexusTest`: test framework, module protocol, host, sample tests, and test UI.
+- `NexusTools/Test`: NexusTest framework, module protocol, host, sample tests, and test UI.
 - `NexusUI`: UI examples, resources, attribution, and project notes.
 - `NexusSchema`: schema tooling.
 

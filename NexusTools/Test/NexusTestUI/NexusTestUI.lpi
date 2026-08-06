@@ -43,12 +43,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\NexusTestUI"/>
+      <Filename Value="..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\NexusTestUI"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;..\src;..\..\NexusLib\core\src;..\..\NexusLib\ui\src;..\..\..\common\sdl\units;..\..\..\common\sdl_ext"/>
-      <UnitOutputDirectory Value="..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\units"/>
+      <OtherUnitFiles Value="..;..\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\ui\src;..\..\..\..\common\sdl\units;..\..\..\..\common\sdl_ext"/>
+      <UnitOutputDirectory Value="..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
       <Debugging>

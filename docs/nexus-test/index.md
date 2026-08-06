@@ -87,7 +87,7 @@ It is especially useful for tooling-heavy Pascal code such as language servers, 
 
 ## Where To Look Next
 
-- `NexusTest/src` contains the framework, registry, runner, result store, command processor, and module client.
-- `NexusTest/sample` contains a sample module and host.
-- `NexusTest/NexusTestUI` contains the GUI runner.
+- `NexusTools/Test/src` contains the framework, registry, runner, result store, command processor, and module client.
+- `NexusTools/Test/sample` contains a sample module and host.
+- `NexusTools/Test/NexusTestUI` contains the GUI runner.
 - `NexusLS/NexusLSTestModule` shows NexusTest being used for real NexusLS coverage.

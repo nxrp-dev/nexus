@@ -12,7 +12,7 @@ Start with `NexusLS` for language-server behavior and `Nexus Pascal` documentati
 
 ## Work on Tests
 
-Start with `NexusTest` if you need to create or run test suites through the shared-library test module boundary or the NexusTest UI.
+Start with `NexusTools/Test` if you need to create or run test suites through the shared-library test module boundary or the NexusTest UI.
 
 ## Work on Schema Generation
 

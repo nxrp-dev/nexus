@@ -6,9 +6,9 @@ This page describes the current dependency shape visible in the repository. It i
 
 - `NexusLib` is the common base layer.
 - `NexusLS` depends on `NexusLib`.
-- `NexusTest` depends on `NexusLib`.
-- `NexusLS/NexusLSTestModule` depends on both `NexusLS` source and `NexusTest` source.
-- `NexusTest/NexusTestUI` depends on `NexusTest`, `NexusLib/core`, and `NexusLib/ui`.
+- `NexusTools/Test` depends on `NexusLib`.
+- `NexusLS/NexusLSTestModule` depends on both `NexusLS` source and `NexusTools/Test` source.
+- `NexusTools/Test/NexusTestUI` depends on NexusTest, `NexusLib/core`, and `NexusLib/ui`.
 
 The preferred direction is from tools toward shared foundations, not from shared foundations back into tools.
 
@@ -18,7 +18,7 @@ The preferred direction is from tools toward shared foundations, not from shared
 
 `NexusLS` uses Free Pascal and Lazarus CodeTools/LazUtils units for Pascal parsing, navigation, completion, syntax checks, and source buffers. Its project file also includes `lib/synapse`, and the source has stdio and TCP/IP transport implementations. Symbol indexing currently has an SQLite-backed cache through FPC database units such as `SQLDB` and `SQLite3Conn`.
 
-`NexusTest` uses Free Pascal runtime support, `DynLibs` for loading test modules from a host, and `NexusLib` for JSON-RPC command processing. The sample Linux/macOS-ish build script compiles the sample test module and host with `NexusTest/src` and `../NexusLib/core/src`.
+`NexusTools/Test` uses Free Pascal runtime support, `DynLibs` for loading test modules from a host, and `NexusLib` for JSON-RPC command processing. The sample Linux/macOS-ish build script compiles the sample test module and host with `NexusTools/Test/src` and `../../NexusLib/core/src`.
 
 `NexusTestUI` uses `NexusLib/ui` plus SDL-related unit paths from the common tree. It is a client UI for test exploration, not the core NexusTest contract.
 

@@ -57,7 +57,7 @@ No Pascal objects, Pascal strings, records, exceptions, or caller/callee-owned a
 
 ## Source dependency
 
-This playground expects `NexusLib/core/src` to be available as a sibling folder to `NexusTest`. The build scripts include both `NexusTest/src` and `../NexusLib/core/src`.
+This playground expects `NexusLib/core/src` to be available from the repository root. The build scripts include both `NexusTools/Test/src` and `../../NexusLib/core/src`.
 
 ## Build
 

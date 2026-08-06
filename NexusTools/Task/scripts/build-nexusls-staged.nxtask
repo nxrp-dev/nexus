@@ -16,8 +16,8 @@ BuildNexusPascalVSIX Group {
   }
 
   BuildNexusTestHost Fpc {
-    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/sample/Host/nxtest_host.lpr"
-    SearchPath: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/src"
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Test/sample/Host/nxtest_host.lpr"
+    SearchPath: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Test/src"
     UnitOutputDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost/units"
     OutputDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost"
     OutputName: "nxtest_host"
@@ -56,8 +56,8 @@ BuildNexusPascalVSIX Group {
   }
 
   InstallNexusTestSDK CopyFile {
-    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTest/src"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusTest/src"
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Test/src"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusTools/Test/src"
     Recursive: true
     Overwrite: true
     CleanDestination: true

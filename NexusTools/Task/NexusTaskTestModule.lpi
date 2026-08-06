@@ -83,7 +83,7 @@
         <IsPartOfProject Value="True"/>
       </Unit16>
       <Unit17>
-        <Filename Value="..\..\NexusTest\src\obNXTestRPCRequests.pas"/>
+        <Filename Value="..\Test\src\obNXTestRPCRequests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit17>
     </Units>
@@ -95,7 +95,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;tests;..\..\NexusTest\src;..\..\NexusLib\core\src"/>
+      <OtherUnitFiles Value="src;tests;..\Test\src;..\..\NexusLib\core\src"/>
       <UnitOutputDirectory Value="output\NexusTaskTestModule\units"/>
     </SearchPaths>
     <Parsing>

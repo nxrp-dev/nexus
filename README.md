@@ -8,7 +8,7 @@ Current major areas:
 - `NexusUI`: UI examples, resources, attribution, and project notes.
 - `NexusSchema`: schema and generation tooling.
 - `NexusLS`: the Nexus Pascal language server.
-- `NexusTest`: test framework, shared-library test module boundary, and test UI.
+- `NexusTools`: framework-related tools, including NexusBuild, NexusTask, and NexusTest.
 - `NexusLib`: shared runtime/library code used by the other Nexus projects.
 
 The documentation site is built with Material for MkDocs. Start with `docs/index.md` or run MkDocs from the repository root.

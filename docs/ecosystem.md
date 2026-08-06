@@ -8,7 +8,7 @@ Nexus is organized as a family of related Pascal projects.
 - `NexusUI`: UI examples, resources, attribution, and project notes.
 - `NexusSchema`: schema model and generation tooling.
 - `NexusLS`: language-server executable and LSP service implementation.
-- `NexusTest`: test framework, JSON-RPC test-module contract, host client, and test UI.
+- `NexusTools`: framework-related tools, including NexusBuild, NexusTask, and NexusTest.
 - `NexusLib`: shared JSON, persistence, command-line, and support code.
 - `scripts`: repository automation used by builds, archives, notifications, and development workflow.
 - `codec`: legacy or supporting code; document it only where it is intentionally part of the current architecture.
