@@ -30,15 +30,15 @@ The implementation should also add an explicit path-entry ownership model so dis
 
 ## Verified Findings
 
-- `NexusLS/src/obNXPascalProject.pas` currently defines `TNXPascalProject = class(TNXPersistObject)` at line 52.
+- `NexusTools/LS/src/obNXPascalProject.pas` currently defines `TNXPascalProject = class(TNXPersistObject)` at line 52.
 - `TNXPascalProject` owns common project fields now: `ProjectFileName`, `ProjectRoot`, `SourceRoot`, `OutputRoot`, and `Variables`.
 - `TNXPascalProject` also owns Pascal-specific fields now: `ProjectKind`, `TargetPlatform`, `Toolchain`, and `FPCBuildOptions`.
 - `ResolvePath` currently resolves variables, then resolves relative paths against `ProjectRoot`.
 - `ApplyToBuildOptions` and `ResolveBuildOptionPaths` mutate the stored `FPCBuildOptions` object while resolving paths.
-- `NexusLS/src/service/obNXLSProjectService.pas` currently creates `.nxp` content in `NXLSMinimalNexusProjectJSON` by manually writing JSON with `class`, `name`, and `projectRoot`.
-- `NexusLS/src/obNXLSLSPModel.pas` currently configures CodeTools from `TNXLSSettings.FPCOptions`, populated from initialization options.
-- `NexusLS/src/obNXLSSettings.pas` currently supports `program`, `codeToolsConfig`, and `fpcOptions`, but no `.nxp` project-file setting.
-- Existing tests cover `TNXPascalProject` variable/path resolution and FPC build-option argument generation in `NexusLS/NexusLSTestModule/tsNXLSCoreTests.pas`.
+- `NexusTools/LS/src/service/obNXLSProjectService.pas` currently creates `.nxp` content in `NXLSMinimalNexusProjectJSON` by manually writing JSON with `class`, `name`, and `projectRoot`.
+- `NexusTools/LS/src/obNXLSLSPModel.pas` currently configures CodeTools from `TNXLSSettings.FPCOptions`, populated from initialization options.
+- `NexusTools/LS/src/obNXLSSettings.pas` currently supports `program`, `codeToolsConfig`, and `fpcOptions`, but no `.nxp` project-file setting.
+- Existing tests cover `TNXPascalProject` variable/path resolution and FPC build-option argument generation in `NexusTools/LS/NexusLSTestModule/tsNXLSCoreTests.pas`.
 - No existing usable `TNXProject` ancestor was found.
 
 ## Architecture Problem
@@ -145,24 +145,24 @@ Expected new files:
 
 Expected modified files:
 
-- `NexusLS/src/obNXPascalProject.pas`
+- `NexusTools/LS/src/obNXPascalProject.pas`
   - make `TNXPascalProject` descend from `TNXProject`
   - keep Pascal-specific target/toolchain/build-option behavior here
   - add Pascal path entry/list classes if they are Pascal-specific
   - add effective FPC argument generation that does not mutate stored options
-- `NexusLS/src/service/obNXLSProjectService.pas`
+- `NexusTools/LS/src/service/obNXLSProjectService.pas`
   - replace hand-written `.nxp` JSON with object construction and `TNXPascalProject.JSON`
   - use project validation for plan/create messaging where practical
-- `NexusLS/src/obNXLSSettings.pas`
+- `NexusTools/LS/src/obNXLSSettings.pas`
   - add a `.nxp` project file setting if LS initialization needs an explicit project-file boundary
-- `NexusLS/src/obNXLSLSPModel.pas`
+- `NexusTools/LS/src/obNXLSLSPModel.pas`
   - load/apply `.nxp` project configuration for CodeTools when configured or discovered
   - continue current initialization-option behavior only as a deliberate fallback until replaced
-- `NexusLS/NexusLSTestModule/tsNXLSCoreTests.pas`
+- `NexusTools/LS/NexusLSTestModule/tsNXLSCoreTests.pas`
   - add or update tests for project serialization, path ownership, and effective FPC arguments
-- `NexusLS/nexusls.lpi`
+- `NexusTools/LS/nexusls.lpi`
   - add new unit references if Lazarus project metadata requires it
-- `NexusLS/NexusLSTestModule/NexusLSTestModule.lpi`
+- `NexusTools/LS/NexusLSTestModule/NexusLSTestModule.lpi`
   - add new unit references if Lazarus project metadata requires it
 
 Possible modified file:
@@ -371,12 +371,12 @@ The project service should use this validation surface for `PlanNexusProjectCrea
 
 - Proposed roles:
   - `NexusLS explorer` for read-only inspection of project-service, LSP initialization, and tests.
-  - `NexusLS worker` for approved implementation in `NexusLS/`.
+  - `NexusLS worker` for approved implementation in `NexusTools/LS/`.
   - `NexusLib worker` only if `obNXProject.pas` is placed under `NexusLib/src/`.
 - Ownership boundaries:
   - Main Codex owns final design decisions, integration, compile/test verification, and final report.
   - `NexusLib worker` owns only `NexusLib/src/obNXProject.pas` and any required project metadata updates.
-  - `NexusLS worker` owns `NexusLS/src/obNXPascalProject.pas`, LS project service/settings/model changes, and LS tests.
+  - `NexusLS worker` owns `NexusTools/LS/src/obNXPascalProject.pas`, LS project service/settings/model changes, and LS tests.
 - Main Codex responsibilities:
   - review sub-agent diffs
   - prevent duplicate path models
@@ -393,18 +393,18 @@ Delegation is useful for implementation after approval because NexusLib base mod
 Compile targets after each structural stage:
 
 ```text
-lazbuild NexusLS\nexusls.lpi
-lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi
+lazbuild NexusTools\LS\nexusls.lpi
+lazbuild NexusTools\LS\NexusLSTestModule\NexusLSTestModule.lpi
 ```
 
 Focused greps after implementation:
 
 ```text
-rg "TNXPascalProject = class\\(TNXPersistObject\\)" NexusLS NexusLib
-rg "NXLSMinimalNexusProjectJSON|lProject.Add\\('class'|lProject.Add\\(\"class\"" NexusLS\src
-rg "ResolveBuildOptionPaths|ApplyToBuildOptions" NexusLS\src
-rg "FPCBuildOptions\\.Files\\.(UnitPaths|IncludePaths|LibraryPaths|FrameworkPaths).*Add|Assign" NexusLS\src
-rg "ProjectFileName|ProjectRoot|Variables|ResolvePath" NexusLS\src NexusLib\src
+rg "TNXPascalProject = class\\(TNXPersistObject\\)" NexusTools\LS NexusLib
+rg "NXLSMinimalNexusProjectJSON|lProject.Add\\('class'|lProject.Add\\(\"class\"" NexusTools\LS\src
+rg "ResolveBuildOptionPaths|ApplyToBuildOptions" NexusTools\LS\src
+rg "FPCBuildOptions\\.Files\\.(UnitPaths|IncludePaths|LibraryPaths|FrameworkPaths).*Add|Assign" NexusTools\LS\src
+rg "ProjectFileName|ProjectRoot|Variables|ResolvePath" NexusTools\LS\src NexusLib\core\src
 ```
 
 Expected test additions:

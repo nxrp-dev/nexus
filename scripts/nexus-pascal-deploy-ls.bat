@@ -12,8 +12,8 @@ set "TargetTriple=x86_64-win64"
 set "SourceDir=%NexusRoot%\output\NexusLS\%TargetTriple%"
 set "TargetDir=%ExtensionRoot%\bin\%TargetTriple%"
 
-if not exist "%NexusRoot%\NexusLS\nexusls.lpi" (
-    echo ERROR: NexusLS project not found at "%NexusRoot%\NexusLS\nexusls.lpi".
+if not exist "%NexusRoot%\NexusTools\LS\nexusls.lpi" (
+    echo ERROR: NexusLS project not found at "%NexusRoot%\NexusTools\LS\nexusls.lpi".
     goto DoneFail
 )
 
@@ -26,7 +26,7 @@ if errorlevel 1 (
 echo Building NexusLS...
 pushd "%NexusRoot%"
 if errorlevel 1 goto DoneFail
-lazbuild NexusLS\nexusls.lpi
+lazbuild NexusTools\LS\nexusls.lpi
 if errorlevel 1 goto Fail
 popd
 

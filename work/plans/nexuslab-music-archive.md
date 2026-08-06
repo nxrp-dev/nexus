@@ -38,7 +38,7 @@ The first implementation should be application-specific. It should use Nexus and
 - `TNXFileDialog` supports open, save, and folder selection through `ShowOpen`, `ShowSave`, and `ShowSelectFolder`.
 - `TNXFileSystemProvider` supports roots, special folders, directory listing, parent path lookup, and file/directory existence checks. It is an interactive directory provider, not a recursive import engine.
 - `TNXPersistObject`, `TNXPersistList`, and `TNXPersistBinary` provide JSON-oriented object persistence and Base64 stream persistence. They are suitable for settings, skins, manifests, and small object graphs, not for storing a music archive catalog or audio files.
-- SQLite is already used through FPC `SQLDB` and `SQLite3Conn` in `NexusLS/src/service/obNXLSSymbolCache.pas`, but that class is specific to language-server symbol caching. It is evidence that SQLite works in the toolchain, not a reusable catalog repository.
+- SQLite is already used through FPC `SQLDB` and `SQLite3Conn` in `NexusTools/LS/src/service/obNXLSSymbolCache.pas`, but that class is specific to language-server symbol caching. It is evidence that SQLite works in the toolchain, not a reusable catalog repository.
 - `NexusSchema` is template-driven and currently documents Firebird-oriented database generation. It has no current SQLite schema or migration generator.
 - Hashing is available through FPC/Synapse-style units already used by the repository. `NexusNet` uses `sha1` for torrent piece and info hashes. This can inform implementation, but the archive app should choose a content hash suited to duplicate identity instead of reusing torrent-specific types.
 - No current Nexus audio playback, decoder, metadata inspection, waveform, or media-library subsystem was found.

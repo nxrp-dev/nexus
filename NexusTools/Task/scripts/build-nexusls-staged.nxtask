@@ -6,7 +6,7 @@ BuildNexusPascalVSIX Group {
   }
 
   BuildLanguageServer LazBuild {
-    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusLS/nexusls.lpi"
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/LS/nexusls.lpi"
     Quiet: true
   }
 

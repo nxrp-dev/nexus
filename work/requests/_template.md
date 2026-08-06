@@ -63,7 +63,7 @@ List what must be true after an approved implementation is completed.
 ```text
 lazbuild --build-all NexusTools\Test\NexusTestUI\NexusTestUI.lpi
 lazbuild C:\gitdev\nexus-lab\LifeStatNX\LifeStatNXL.lpi
-fpc NexusUI\testNXPersist.lpr
+output\NexusTestHost\nxtest_host.exe output\NexusUITestModule\x86_64-win64\NexusUITestModule.dll run-all
 ```
 
 ## Manual Test Requirements

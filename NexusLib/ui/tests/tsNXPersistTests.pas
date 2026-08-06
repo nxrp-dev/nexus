@@ -1,16 +1,21 @@
-unit obNXPersistTests;
+unit tsNXPersistTests;
 
 {$mode objfpc}{$H+}
 
 interface
 
-procedure RunNXPersistTests;
+uses
+  obNXTestRegistry;
+
+procedure RegisterNXPersistTests(ARegistry: TNXTestRegistry);
 
 implementation
 
 uses
   Classes,
   SysUtils,
+  obNXTestContext,
+  obNXTestSuite,
   obNXPersist;
 
 type
@@ -95,38 +100,6 @@ type
     property Title: string read FTitle write FTitle;
   end;
 
-procedure AssertEqual(const AMessage, AExpected, AActual: string);
-begin
-  if AExpected <> AActual then
-    raise Exception.Create(AMessage + LineEnding +
-      'Expected:' + LineEnding + AExpected + LineEnding +
-      'Actual:' + LineEnding + AActual);
-end;
-
-procedure AssertTrue(const AMessage: string; AValue: Boolean);
-begin
-  if not AValue then
-    raise Exception.Create(AMessage);
-end;
-
-procedure SaveTextFile(const AFileName, AText: string);
-var
-  lFolder: string;
-  lFile: TStringList;
-begin
-  lFolder := ExtractFilePath(AFileName);
-  if lFolder <> '' then
-    ForceDirectories(lFolder);
-
-  lFile := TStringList.Create;
-  try
-    lFile.Text := AText;
-    lFile.SaveToFile(AFileName);
-  finally
-    lFile.Free;
-  end;
-end;
-
 procedure LoadPayload(APayload: TNXPersistBinary);
 const
   cPayload: array[0..7] of Byte = (0, 1, 2, 3, 4, 5, Ord('N'), Ord('X'));
@@ -143,7 +116,8 @@ begin
   end;
 end;
 
-procedure AssertPayload(const AMessage: string; APayload: TNXPersistBinary);
+procedure AssertPayload(AContext: TNXTestContext; const AMessage: string;
+  APayload: TNXPersistBinary);
 const
   cPayload: array[0..7] of Byte = (0, 1, 2, 3, 4, 5, Ord('N'), Ord('X'));
 var
@@ -154,11 +128,12 @@ begin
   lStream := TMemoryStream.Create;
   try
     APayload.SaveToStream(lStream);
-    AssertTrue(AMessage + ' size mismatch', lStream.Size = SizeOf(cPayload));
+    AContext.AssertEquals(SizeOf(cPayload), lStream.Size,
+      AMessage + ' size mismatch');
     lStream.Position := 0;
     lStream.ReadBuffer(lBytes[0], SizeOf(lBytes));
-    AssertTrue(AMessage + ' content mismatch',
-      CompareMem(@lBytes[0], @cPayload[0], SizeOf(cPayload)));
+    AContext.AssertTrue(CompareMem(@lBytes[0], @cPayload[0],
+      SizeOf(cPayload)), AMessage + ' content mismatch');
   finally
     lStream.Free;
   end;
@@ -256,56 +231,49 @@ begin
   FFavorite := AValue;
 end;
 
-procedure RunNXPersistTests;
+procedure TestRoundTripAndClone(AContext: TNXTestContext);
 var
   lAnimal: TNXPersistObject;
   lClone: TNXPersistObject;
   lJSON: string;
-  lRoundTripJSON: string;
   lLoaded: TNXPersistObject;
   lRoot: TXXPersistRoot;
 begin
-  TNXPersistObject.RegisterPersistClass(TXXPersistChild);
-  TNXPersistObject.RegisterPersistClass(TXXPersistAnimal);
-  TNXPersistObject.RegisterPersistClass(TXXPersistCat);
-  TNXPersistObject.RegisterPersistClass(TXXPersistDog);
-  TNXPersistObject.RegisterPersistClass(TXXPersistRoot);
-
   lRoot := BuildRoot;
   try
     lJSON := lRoot.JSON;
-    AssertTrue('Favorite should stream out', Pos('"Favorite"', lJSON) > 0);
-    AssertTrue('Favorite descendant data should stream out',
-      Pos('"Lives" : 7', lJSON) > 0);
-    SaveTextFile('test_output' + PathDelim + 'nxpersist.json', lJSON);
+    AContext.AssertTrue(Pos('"Favorite"', lJSON) > 0,
+      'Favorite should stream out.');
+    AContext.AssertTrue(Pos('"Lives" : 7', lJSON) > 0,
+      'Favorite descendant data should stream out.');
 
     lLoaded := TNXPersistObject.CreateObjectFromJSON(lJSON);
     try
-      AssertTrue('Loaded object should be TXXPersistRoot',
-        lLoaded is TXXPersistRoot);
-      lRoundTripJSON := lLoaded.JSON;
-      AssertEqual('Round-trip JSON mismatch', lJSON, lRoundTripJSON);
-      AssertTrue('Root equality failed', lRoot.Equals(TNXPersistObject(lLoaded)));
+      AContext.AssertTrue(lLoaded is TXXPersistRoot,
+        'Loaded object should be TXXPersistRoot.');
+      AContext.AssertEquals(lJSON, lLoaded.JSON, 'Round-trip JSON mismatch.');
+      AContext.AssertTrue(lRoot.Equals(TNXPersistObject(lLoaded)),
+        'Root equality failed.');
 
       lAnimal := TXXPersistRoot(lLoaded).Animals[0];
-      AssertTrue('First animal should reconstruct as TXXPersistCat',
-        lAnimal is TXXPersistCat);
+      AContext.AssertTrue(lAnimal is TXXPersistCat,
+        'First animal should reconstruct as TXXPersistCat.');
 
       lAnimal := TXXPersistRoot(lLoaded).Animals[1];
-      AssertTrue('Second animal should reconstruct as TXXPersistDog',
-        lAnimal is TXXPersistDog);
-      AssertTrue('Favorite should stream-construct as TXXPersistCat',
-        TXXPersistRoot(lLoaded).Favorite is TXXPersistCat);
-      AssertTrue('Favorite descendant value should round-trip',
-        TXXPersistCat(TXXPersistRoot(lLoaded).Favorite).Lives = 7);
-      AssertPayload('Loaded payload', TXXPersistRoot(lLoaded).Payload);
+      AContext.AssertTrue(lAnimal is TXXPersistDog,
+        'Second animal should reconstruct as TXXPersistDog.');
+      AContext.AssertTrue(TXXPersistRoot(lLoaded).Favorite is TXXPersistCat,
+        'Favorite should stream-construct as TXXPersistCat.');
+      AContext.AssertEquals(7, TXXPersistCat(TXXPersistRoot(lLoaded).Favorite).Lives,
+        'Favorite descendant value should round-trip.');
+      AssertPayload(AContext, 'Loaded payload', TXXPersistRoot(lLoaded).Payload);
     finally
       lLoaded.Free;
     end;
 
     lClone := lRoot.CloneSelf;
     try
-      AssertEqual('Clone JSON mismatch', lJSON, lClone.JSON);
+      AContext.AssertEquals(lJSON, lClone.JSON, 'Clone JSON mismatch.');
     finally
       lClone.Free;
     end;
@@ -314,11 +282,26 @@ begin
   end;
 end;
 
-initialization
+procedure RegisterNXPersistClasses;
+begin
   TNXPersistObject.RegisterPersistClass(TXXPersistChild);
   TNXPersistObject.RegisterPersistClass(TXXPersistAnimal);
   TNXPersistObject.RegisterPersistClass(TXXPersistCat);
   TNXPersistObject.RegisterPersistClass(TXXPersistDog);
   TNXPersistObject.RegisterPersistClass(TXXPersistRoot);
+end;
+
+procedure RegisterNXPersistTests(ARegistry: TNXTestRegistry);
+var
+  lSuite: TNXTestSuite;
+begin
+  RegisterNXPersistClasses;
+
+  lSuite := ARegistry.AddSuite('NexusUI.Persist');
+  lSuite.AddTest('RoundTripAndClone', @TestRoundTripAndClone);
+end;
+
+initialization
+  RegisterNXPersistClasses;
 
 end.

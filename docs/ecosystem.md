@@ -4,11 +4,10 @@ Nexus is organized as a family of related Pascal projects.
 
 ## Module Map
 
-- `NexusLib/ui`: retained-mode UI framework source, controls, layout, rendering, input routing, windows, popups, and skins.
-- `NexusUI`: UI examples, resources, attribution, and project notes.
+- `NexusLib/ui`: retained-mode UI framework source, controls, layout, rendering, input routing, windows, popups, skins, tests, docs, resources, and bin.
 - `NexusSchema`: schema model and generation tooling.
-- `NexusLS`: language-server executable and LSP service implementation.
-- `NexusTools`: framework-related tools, including NexusBuild, NexusTask, and NexusTest.
+- `NexusTools/LS`: language-server executable and LSP service implementation.
+- `NexusTools`: framework-related tools, including NexusBuild, NexusTask, NexusTest, and NexusLS.
 - `NexusLib`: shared JSON, persistence, command-line, and support code.
 - `scripts`: repository automation used by builds, archives, notifications, and development workflow.
 - `codec`: legacy or supporting code; document it only where it is intentionally part of the current architecture.

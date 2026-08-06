@@ -34,12 +34,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\..\output\NexusLSTestClient\$(TargetCPU)-$(TargetOS)\NexusLSTestClient"/>
+      <Filename Value="..\..\..\output\NexusLSTestClient\$(TargetCPU)-$(TargetOS)\NexusLSTestClient"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;..\src;..\src\protocol;..\..\NexusLib\core\src;..\..\lib\synapse"/>
-      <UnitOutputDirectory Value="..\..\output\NexusLSTestClient\$(TargetCPU)-$(TargetOS)\units"/>
+      <OtherUnitFiles Value="..;..\src;..\src\protocol;..\..\..\NexusLib\core\src;..\..\..\lib\synapse"/>
+      <UnitOutputDirectory Value="..\..\..\output\NexusLSTestClient\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

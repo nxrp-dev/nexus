@@ -1,6 +1,6 @@
 # NexusLS
 
-NexusLS is the Pascal language-server module in the Nexus repository. It provides an LSP process with stdio and TCP/IP transports, JSON-RPC request dispatch, protocol DTOs, document state, and language services backed by Free Pascal and Lazarus CodeTools.
+NexusLS is the Pascal language-server module in the Nexus repository. It lives under `NexusTools/LS` and provides an LSP process with stdio and TCP/IP transports, JSON-RPC request dispatch, protocol DTOs, document state, and language services backed by Free Pascal and Lazarus CodeTools.
 
 ## Source layout
 
@@ -36,6 +36,6 @@ Some services are still pragmatic and CodeTools-driven. Symbol indexing includes
 
 ## Boundaries
 
-NexusLS depends on `NexusLib` for shared JSON, JSON-RPC, command-line, and class-factory behavior. It should keep LSP protocol and editor behavior inside `NexusLS`.
+NexusLS depends on `NexusLib` for shared JSON, JSON-RPC, command-line, and class-factory behavior. It should keep LSP protocol and editor behavior inside `NexusTools/LS`.
 
 The test client and test module are development support surfaces. They do not redefine the server's public boundary, which remains LSP over the configured transport.

@@ -56,11 +56,10 @@ The Nexus documentation site is built with Material for MkDocs.
 
 NexusUI has a more specific attribution file for its early scaffold, SDL dependencies, Pascal UI influences, and AI-assisted development notes:
 
-- `NexusUI/ATTRIBUTION.md`
+- `NexusLib/ui/docs/ATTRIBUTION.md`
 
 ## AI-Assisted Development
 
 Nexus has been developed with AI-assisted coding and review support, including ChatGPT and Codex, under Kevin Collins' direction, review, and design control.
 
 AI assistance does not own the project and does not replace the author's design judgment, authorship, or licensing decisions.
-

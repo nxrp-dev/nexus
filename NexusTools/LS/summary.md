@@ -46,8 +46,8 @@
 
 ## Verification
 
-- `lazbuild NexusLS\nexusls.lpi` passed.
-- `lazbuild NexusLS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
+- `lazbuild NexusTools\LS\nexusls.lpi` passed.
+- `lazbuild NexusTools\LS\NexusLSTestModule\NexusLSTestModule.lpi` passed.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-suite NexusLS.NexusPasNavigation`
   - 32 run, 32 passed, 0 failed, 0 skipped.
 - `output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-suite NexusPas.Parser`

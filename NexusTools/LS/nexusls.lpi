@@ -5,7 +5,7 @@
     <General>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="NexusLSTestModule"/>
+      <Title Value="NexusLS"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -18,54 +18,58 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
-    <Units Count="9">
+    <Units Count="10">
       <Unit0>
-        <Filename Value="NexusLSTestModule.lpr"/>
+        <Filename Value="nexusls.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="tsNXLSCoreTests.pas"/>
+        <Filename Value="src/tpNXLS.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="tsNXLSProtocolObjectTests.pas"/>
+        <Filename Value="src/obNXLSLogger.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="tsNXPasLexerTests.pas"/>
+        <Filename Value="src/obNXLSTransport.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="tsNXPasParserTests.pas"/>
+        <Filename Value="src/obNXLSStdIOTransport.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="tsNXLSDocumentSymbolTests.pas"/>
+        <Filename Value="src/obNXLSTcpIPTransport.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="tsNXPasEditorTests.pas"/>
+        <Filename Value="src/obNXLSTransportFactory.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="tsNXPasPassrcPortTests.pas"/>
+        <Filename Value="src/obNXLSServer.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
-        <Filename Value="tsNXLSExtensionEmulationTests.pas"/>
+        <Filename Value="src/protocol/obNXLSAllRequests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit8>
+      <Unit9>
+        <Filename Value="src/obNXLSDispatcher.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit9>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\..\output\NexusLSTestModule\$(TargetCPU)-$(TargetOS)\NexusLSTestModule"/>
+      <Filename Value="..\..\output\NexusLS\$(TargetCPU)-$(TargetOS)\nexusls"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\src\service;..\src\parser;..\src\toolchain;..\..\NexusTools\Test\src;..\..\NexusLib\core\src;..\..\lib\synapse;C:\lazarus\components\lazutils"/>
-      <UnitOutputDirectory Value="..\..\output\NexusLSTestModule\$(TargetCPU)-$(TargetOS)\units"/>
+      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;src\toolchain;..\..\NexusLib\core\src;..\..\lib\synapse;C:\lazarus\components\lazutils"/>
+      <UnitOutputDirectory Value="..\..\output\NexusLS\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
@@ -74,7 +78,9 @@
     </Parsing>
     <Linking>
       <Options>
-        <ExecutableType Value="Library"/>
+        <Win32>
+          <GraphicApplication Value="False"/>
+        </Win32>
       </Options>
     </Linking>
   </CompilerOptions>
