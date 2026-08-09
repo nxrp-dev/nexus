@@ -1,6 +1,6 @@
 # Nexus Schema Getting Started
 
-Nexus Schema is a console tool built from `NexusTools/Schema/NexusSchema.lpr`. It expects a metadata schema file, one or more template switches, and an output folder.
+Nexus Schema is a console tool built from `NexusTools/Schema/src/NexusSchema.lpr`. It expects a metadata schema file, one or more template switches, and an output folder.
 
 ## Define a Schema
 

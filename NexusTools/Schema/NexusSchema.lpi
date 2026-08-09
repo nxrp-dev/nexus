@@ -32,44 +32,44 @@
     </RunParams>
     <Units Count="13">
       <Unit0>
-        <Filename Value="NexusSchema.lpr"/>
+        <Filename Value="src\NexusSchema.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="obNexusSchemaParser.pas"/>
+        <Filename Value="src\obNexusSchemaParser.pas"/>
       </Unit1>
       <Unit2>
-        <Filename Value="obNexusSchemaTokenizer.pas"/>
+        <Filename Value="src\obNexusSchemaTokenizer.pas"/>
       </Unit2>
       <Unit3>
-        <Filename Value="obNexusSchemaTypes.pas"/>
+        <Filename Value="src\obNexusSchemaTypes.pas"/>
       </Unit3>
       <Unit4>
-        <Filename Value="obMetaDataJSON.pas"/>
+        <Filename Value="src\obMetaDataJSON.pas"/>
       </Unit4>
       <Unit5>
-        <Filename Value="obMetaDataModuleList.pas"/>
+        <Filename Value="src\obMetaDataModuleList.pas"/>
       </Unit5>
       <Unit6>
-        <Filename Value="obMetaDataModel.pas"/>
+        <Filename Value="src\obMetaDataModel.pas"/>
       </Unit6>
       <Unit7>
-        <Filename Value="obMetaDataTransformations.pas"/>
+        <Filename Value="src\obMetaDataTransformations.pas"/>
       </Unit7>
       <Unit8>
-        <Filename Value="obMustacheRenderer.pas"/>
+        <Filename Value="src\obMustacheRenderer.pas"/>
       </Unit8>
       <Unit9>
-        <Filename Value="obCommandLine.pas"/>
+        <Filename Value="src\obCommandLine.pas"/>
       </Unit9>
       <Unit10>
-        <Filename Value="obXMLObjects.pas"/>
+        <Filename Value="src\obXMLObjects.pas"/>
       </Unit10>
       <Unit11>
-        <Filename Value="obTokenQueue.pas"/>
+        <Filename Value="src\obTokenQueue.pas"/>
       </Unit11>
       <Unit12>
-        <Filename Value="obDataSourceProcessors.pas"/>
+        <Filename Value="src\obDataSourceProcessors.pas"/>
       </Unit12>
     </Units>
   </ProjectOptions>
@@ -86,7 +86,7 @@
     </Parsing>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\..\lib\dmustache"/>
-      <OtherUnitFiles Value=".;..\..\lib\dmustache"/>
+      <OtherUnitFiles Value="src;..\..\lib\dmustache"/>
       <UnitOutputDirectory Value="..\..\output\NexusSchema\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

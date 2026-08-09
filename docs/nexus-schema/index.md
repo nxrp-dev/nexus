@@ -2,7 +2,7 @@
 
 Nexus Schema is the schema-driven generation tool in the Nexus project family. It reads `.nxs` schema modules, builds an in-memory metadata model, normalizes shared schema facts, serializes that model as JSON, and renders output through Mustache templates.
 
-The current implementation lives in `NexusTools/Schema/` and is intentionally small:
+The current implementation lives in `NexusTools/Schema/src/` and is intentionally small:
 
 ```text
 .nxs schema module

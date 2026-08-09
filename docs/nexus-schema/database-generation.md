@@ -71,4 +71,4 @@ The Firebird template renders that foreign key metadata as `alter table ... add 
 
 ## Other Database Targets
 
-The dashed docs previously listed SQL Server and SQLite placeholders. There are no SQL Server or SQLite templates or target-specific generators in the current `NexusTools/Schema/` source tree, so those targets are not documented as implemented.
+The dashed docs previously listed SQL Server and SQLite placeholders. There are no SQL Server or SQLite templates or target-specific generators in the current `NexusTools/Schema/` tree, so those targets are not documented as implemented.
