@@ -1,0 +1,125 @@
+PrepareBundledLazarusToolchain Group {
+  StageVanillaLazarus CopyFile {
+    Source: "C:/nexusdeployment/lazarus"
+    Destination: "C:/nexusdeployment/pruned/lazarus"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  SetPrunedConfigPath WriteTextFile {
+    Path: "C:/nexusdeployment/pruned/lazarus/lazarus.cfg"
+    Text: "--primary-config-path=C:/nexusdeployment/pruned/lazarus"
+  }
+
+  RemoveTopLevelLazarusUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/units"
+    Recursive: true
+  }
+
+  RemoveLclUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/lcl/units"
+    Recursive: true
+  }
+
+  RemoveFpcUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/fpc/3.2.2/units"
+    Recursive: true
+  }
+
+  RemoveAnchorDockingUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/anchordocking/units"
+    Recursive: true
+  }
+
+  RemoveAnchorDockingDesignUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/anchordocking/design/units"
+    Recursive: true
+  }
+
+  RemoveBuildIntfUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/buildintf/units"
+    Recursive: true
+  }
+
+  RemoveCodeToolsUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/codetools/units"
+    Recursive: true
+  }
+
+  RemoveIdeIntfUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/ideintf/units"
+    Recursive: true
+  }
+
+  RemoveLazDebuggerGdbmiUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/lazdebuggergdbmi/units"
+    Recursive: true
+  }
+
+  RemovePas2jsUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/pas2js/units"
+    Recursive: true
+  }
+
+  RemoveSynEditUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/synedit/units"
+    Recursive: true
+  }
+
+  RemoveSynEditDesignUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/synedit/design/units"
+    Recursive: true
+  }
+
+  RemoveTurboPowerIProUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/turbopower_ipro/units"
+    Recursive: true
+  }
+
+  RemoveVirtualTreeViewUnits DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/components/virtualtreeview/units"
+    Recursive: true
+  }
+
+  RemoveDocs DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/docs"
+    Recursive: true
+  }
+
+  RemoveConverter DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/converter"
+    Recursive: true
+  }
+
+  RemoveDocEditor DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/doceditor"
+    Recursive: true
+  }
+
+  RemoveDesigner DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/designer"
+    Recursive: true
+  }
+
+  RemoveExamples DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/examples"
+    Recursive: true
+  }
+
+  RemoveInstall DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/install"
+    Recursive: true
+  }
+
+  RemoveTest DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/test"
+    Recursive: true
+  }
+
+  RemoveTools DeletePath {
+    Path: "C:/nexusdeployment/pruned/lazarus/tools"
+    Recursive: true
+  }
+}

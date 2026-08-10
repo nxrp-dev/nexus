@@ -80,6 +80,23 @@ type
     procedure Execute(ANode: TNXTaskNode; AContext: TNXTaskActionContext); override;
   end;
 
+  TNXTaskDeletePathAction = class(TNXTaskAction)
+  private
+    procedure AddDiagnostic(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const ACode, AMessage: string);
+    function DeleteDirectoryTree(const APath: string): Boolean;
+    function DeleteMatchingFiles(ANode: TNXTaskNode;
+      AContext: TNXTaskActionContext; const ARoot, AMask: string;
+      ARecursive: Boolean): Boolean;
+    function OptionalBoolean(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const AName: string; ADefault: Boolean; out AValue: Boolean): Boolean;
+    function RequiredString(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const AName: string; out AValue: string): Boolean;
+    function ResolvePath(const AWorkingDirectory, APath: string): string;
+  public
+    procedure Execute(ANode: TNXTaskNode; AContext: TNXTaskActionContext); override;
+  end;
+
   TNXTaskGitAction = class(TNXTaskAction)
   private
     function OptionalBoolean(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
@@ -127,6 +144,8 @@ type
   private
     function OptionalBoolean(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
       const AName: string; ADefault: Boolean; out AValue: Boolean): Boolean;
+    function OptionalString(ANode: TNXTaskNode; const AName: string;
+      out AValue: string): Boolean;
     function RequiredString(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
       const AName: string; out AValue: string): Boolean;
     function RunLazBuild(const AExecutable, AWorkingDirectory: string;
@@ -510,6 +529,212 @@ begin
     end
   finally
     lExcludeNames.Free;
+  end;
+end;
+
+procedure TNXTaskDeletePathAction.AddDiagnostic(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const ACode, AMessage: string);
+begin
+  AContext.Diagnostics.Add(tdsError, ACode, AMessage,
+    TNXTaskSourceRange.Create(ANode.SourceRange.FileName, ANode.SourceRange.Line,
+      ANode.SourceRange.Column));
+end;
+
+function TNXTaskDeletePathAction.RequiredString(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const AName: string; out AValue: string): Boolean;
+begin
+  Result := NXTaskPropertyText(ANode, AName, AValue);
+  if not Result then
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.' + AName,
+      'DeletePath action requires string property ' + AName + '.');
+end;
+
+function TNXTaskDeletePathAction.OptionalBoolean(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const AName: string; ADefault: Boolean;
+  out AValue: Boolean): Boolean;
+var
+  lProperty: TNXTaskProperty;
+begin
+  Result := True;
+  AValue := ADefault;
+  lProperty := ANode.PropertyByName(AName);
+  if lProperty = nil then
+    Exit;
+  if lProperty.Value.Kind = tvkBoolean then
+  begin
+    AValue := lProperty.Value.BooleanValue;
+    Exit;
+  end;
+
+  Result := False;
+  AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.' + AName,
+    'DeletePath action requires boolean property ' + AName + '.');
+end;
+
+function TNXTaskDeletePathAction.ResolvePath(const AWorkingDirectory,
+  APath: string): string;
+begin
+  if ExtractFileDrive(APath) <> '' then
+    Result := ExpandFileName(APath)
+  else
+    Result := ExpandFileName(IncludeTrailingPathDelimiter(AWorkingDirectory) +
+      APath);
+end;
+
+function TNXTaskDeletePathAction.DeleteDirectoryTree(const APath: string): Boolean;
+var
+  lChild: string;
+  lSearch: TSearchRec;
+begin
+  Result := True;
+  if not DirectoryExists(APath) then
+    Exit;
+
+  if FindFirst(IncludeTrailingPathDelimiter(APath) + '*', faAnyFile, lSearch) = 0 then
+  begin
+    try
+      repeat
+        if (lSearch.Name <> '.') and (lSearch.Name <> '..') then
+        begin
+          lChild := IncludeTrailingPathDelimiter(APath) + lSearch.Name;
+          if (lSearch.Attr and faDirectory) <> 0 then
+          begin
+            if not DeleteDirectoryTree(lChild) then
+              Result := False;
+          end
+          else if not DeleteFile(lChild) then
+            Result := False;
+        end;
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+  end;
+
+  if not RemoveDir(APath) then
+    Result := False;
+end;
+
+function TNXTaskDeletePathAction.DeleteMatchingFiles(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const ARoot, AMask: string;
+  ARecursive: Boolean): Boolean;
+var
+  lChild: string;
+  lSearch: TSearchRec;
+begin
+  Result := True;
+  if FindFirst(IncludeTrailingPathDelimiter(ARoot) + AMask, faAnyFile, lSearch) = 0 then
+  begin
+    try
+      repeat
+        if (lSearch.Name <> '.') and (lSearch.Name <> '..') and
+          ((lSearch.Attr and faDirectory) = 0) then
+        begin
+          lChild := IncludeTrailingPathDelimiter(ARoot) + lSearch.Name;
+          if DeleteFile(lChild) then
+            AContext.Trace.Add('delete ' + NXTaskQuoteString(lChild))
+          else
+          begin
+            AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.Delete',
+              'DeletePath failed to delete file: ' + lChild);
+            Result := False;
+          end;
+        end;
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+  end;
+
+  if not ARecursive then
+    Exit;
+
+  if FindFirst(IncludeTrailingPathDelimiter(ARoot) + '*', faDirectory, lSearch) = 0 then
+  begin
+    try
+      repeat
+        if (lSearch.Name <> '.') and (lSearch.Name <> '..') and
+          ((lSearch.Attr and faDirectory) <> 0) then
+        begin
+          lChild := IncludeTrailingPathDelimiter(ARoot) + lSearch.Name;
+          if not DeleteMatchingFiles(ANode, AContext, lChild, AMask,
+            ARecursive) then
+            Result := False;
+        end;
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+  end;
+end;
+
+procedure TNXTaskDeletePathAction.Execute(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext);
+var
+  lFullPath: string;
+  lMask: string;
+  lMissingOk: Boolean;
+  lPath: string;
+  lRecursive: Boolean;
+begin
+  if not RequiredString(ANode, AContext, 'Path', lPath) then
+    Exit;
+  if not OptionalBoolean(ANode, AContext, 'Recursive', False, lRecursive) then
+    Exit;
+  if not OptionalBoolean(ANode, AContext, 'MissingOk', True, lMissingOk) then
+    Exit;
+
+  lFullPath := ResolvePath(AContext.WorkingDirectory, lPath);
+  lMask := ExtractFileName(lFullPath);
+
+  try
+    if (Pos('*', lMask) > 0) or (Pos('?', lMask) > 0) then
+    begin
+      if not DirectoryExists(ExtractFileDir(lFullPath)) then
+      begin
+        if not lMissingOk then
+          AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.Missing',
+            'DeletePath root directory does not exist: ' +
+            ExtractFileDir(lFullPath));
+        Exit;
+      end;
+      DeleteMatchingFiles(ANode, AContext, ExtractFileDir(lFullPath), lMask,
+        lRecursive);
+      Exit;
+    end;
+
+    if FileExists(lFullPath) then
+    begin
+      if DeleteFile(lFullPath) then
+        AContext.Trace.Add('delete ' + NXTaskQuoteString(lFullPath))
+      else
+        AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.Delete',
+          'DeletePath failed to delete file: ' + lFullPath);
+    end
+    else if DirectoryExists(lFullPath) then
+    begin
+      if lRecursive then
+      begin
+        if DeleteDirectoryTree(lFullPath) then
+          AContext.Trace.Add('delete ' + NXTaskQuoteString(lFullPath))
+        else
+          AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.Delete',
+            'DeletePath failed to delete directory tree: ' + lFullPath);
+      end
+      else if RemoveDir(lFullPath) then
+        AContext.Trace.Add('delete ' + NXTaskQuoteString(lFullPath))
+      else
+        AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.Directory',
+          'DeletePath directory is not empty or could not be removed: ' +
+          lFullPath);
+    end
+    else if not lMissingOk then
+      AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath.Missing',
+        'DeletePath path does not exist: ' + lFullPath);
+  except
+    on E: Exception do
+      AddDiagnostic(ANode, AContext, 'NXTask.Action.DeletePath',
+        'DeletePath failed: ' + E.Message);
   end;
 end;
 
@@ -1034,6 +1259,12 @@ begin
         ANode.SourceRange.Column));
 end;
 
+function TNXTaskLazBuildAction.OptionalString(ANode: TNXTaskNode;
+  const AName: string; out AValue: string): Boolean;
+begin
+  Result := NXTaskPropertyText(ANode, AName, AValue);
+end;
+
 function TNXTaskLazBuildAction.RunLazBuild(const AExecutable,
   AWorkingDirectory: string; AArguments: TStrings; out AOutput: string): Integer;
 var
@@ -1084,7 +1315,9 @@ var
   lBuildAll: Boolean;
   lExecutable: string;
   lExitCode: Integer;
+  lLazarusDirectory: string;
   lOutput: string;
+  lPrimaryConfigPath: string;
   lProject: string;
   lProjectFile: string;
   lQuiet: Boolean;
@@ -1103,10 +1336,14 @@ begin
     lProjectFile := ExpandFileName(lProject)
   else
     lProjectFile := ExpandFileName(IncludeTrailingPathDelimiter(
-      AContext.WorkingDirectory) + lProject);
+    AContext.WorkingDirectory) + lProject);
 
   lArguments := TStringList.Create;
   try
+    if OptionalString(ANode, 'PrimaryConfigPath', lPrimaryConfigPath) then
+      lArguments.Add('--pcp=' + lPrimaryConfigPath);
+    if OptionalString(ANode, 'LazarusDirectory', lLazarusDirectory) then
+      lArguments.Add('--lazarusdir=' + lLazarusDirectory);
     if lQuiet then
       lArguments.Add('--quiet');
     if lBuildAll then
@@ -1134,6 +1371,7 @@ begin
   ARegistry.RegisterAction('Trace', TNXTaskTraceAction);
   ARegistry.RegisterAction('WriteTextFile', TNXTaskWriteTextFileAction);
   ARegistry.RegisterAction('CopyFile', TNXTaskCopyFileAction);
+  ARegistry.RegisterAction('DeletePath', TNXTaskDeletePathAction);
   ARegistry.RegisterAction('Git', TNXTaskGitAction);
   ARegistry.RegisterAction('Npm', TNXTaskNpmAction);
   ARegistry.RegisterAction('Fpc', TNXTaskFpcAction);

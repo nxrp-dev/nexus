@@ -1,0 +1,10 @@
+TestPrunedLazarusToolchain Group {
+  BuildSmokeProject LazBuild {
+    Executable: "C:/nexusdeployment/pruned/lazarus/lazbuild.exe"
+    PrimaryConfigPath: "C:/nexusdeployment/pruned/lazarus"
+    LazarusDirectory: "C:/nexusdeployment/pruned/lazarus"
+    Project: "C:/gitdev/nexus/NexusTools/Task/fixtures/lazarus-console/PrunedLazarusSmoke.lpi"
+    Quiet: true
+    BuildAll: true
+  }
+}

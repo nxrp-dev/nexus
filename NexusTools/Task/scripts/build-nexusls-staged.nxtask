@@ -82,6 +82,15 @@ BuildNexusPascalVSIX Group {
     ExcludeNames: ".git;.gitignore;.gitattributes"
   }
 
+  InstallBundledLazarus CopyFile {
+    Source: "C:/nexusdeployment/pruned/lazarus"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/toolchain/lazarus"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
   InstallExtensionDependencies Npm {
     Command: "ci"
     WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"

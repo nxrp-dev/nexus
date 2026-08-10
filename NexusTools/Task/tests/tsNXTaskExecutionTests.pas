@@ -573,6 +573,241 @@ begin
   end;
 end;
 
+procedure TestDeletePathDeletesSingleFile(AContext: TNXTestContext);
+var
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTargetPath: string;
+  lTaskFile: string;
+  lText: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-delete-' +
+    GUIDToString(lGuid);
+  lTargetPath := IncludeTrailingPathDelimiter(lBasePath) + 'remove.txt';
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'delete.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    NXTaskWriteTextFile(lTargetPath, 'remove me');
+
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Remove DeletePath {');
+      lFile.Add('    Path: "remove.txt"');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lText := lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        AContext.AssertFalse(lExecutor.Diagnostics.HasErrors,
+          'DeletePath should delete a valid file without diagnostics.');
+        AContext.AssertFalse(FileExists(lTargetPath),
+          'DeletePath should remove the file.');
+        NXTaskAssertContains(AContext, lText, 'delete ',
+          'DeletePath should trace deleted paths.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
+procedure TestDeletePathDeletesDirectoryRecursively(AContext: TNXTestContext);
+var
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTargetPath: string;
+  lTaskFile: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-delete-' +
+    GUIDToString(lGuid);
+  lTargetPath := IncludeTrailingPathDelimiter(lBasePath) + 'remove';
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'delete.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lTargetPath) +
+      'nested\artifact.o', 'object');
+
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Remove DeletePath {');
+      lFile.Add('    Path: "remove"');
+      lFile.Add('    Recursive: true');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        AContext.AssertFalse(lExecutor.Diagnostics.HasErrors,
+          'DeletePath should delete a recursive directory without diagnostics.');
+        AContext.AssertFalse(DirectoryExists(lTargetPath),
+          'DeletePath should remove the directory tree.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
+procedure TestDeletePathDeletesRecursiveWildcardFiles(AContext: TNXTestContext);
+var
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTaskFile: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-delete-' +
+    GUIDToString(lGuid);
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'delete.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'toolchain\a.ppu', 'compiled unit');
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'toolchain\nested\b.ppu', 'nested compiled unit');
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'toolchain\nested\keep.pas', 'unit keep; end.');
+
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Remove DeletePath {');
+      lFile.Add('    Path: "toolchain/*.ppu"');
+      lFile.Add('    Recursive: true');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        AContext.AssertFalse(lExecutor.Diagnostics.HasErrors,
+          'DeletePath should delete recursive wildcard files without diagnostics.');
+        AContext.AssertFalse(FileExists(IncludeTrailingPathDelimiter(lBasePath) +
+          'toolchain\a.ppu'), 'DeletePath should remove root wildcard match.');
+        AContext.AssertFalse(FileExists(IncludeTrailingPathDelimiter(lBasePath) +
+          'toolchain\nested\b.ppu'),
+          'DeletePath should remove nested wildcard match.');
+        AContext.AssertTrue(FileExists(IncludeTrailingPathDelimiter(lBasePath) +
+          'toolchain\nested\keep.pas'),
+          'DeletePath wildcard should not delete nonmatching files.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
+procedure TestDeletePathReportsMissingWhenRequired(AContext: TNXTestContext);
+var
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTaskFile: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-delete-' +
+    GUIDToString(lGuid);
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'delete.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Remove DeletePath {');
+      lFile.Add('    Path: "missing.txt"');
+      lFile.Add('    MissingOk: false');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        NXTaskAssertDiagnostic(AContext, lExecutor.Diagnostics,
+          'NXTask.Action.DeletePath.Missing',
+          'DeletePath should report missing paths when MissingOk is false.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
 procedure TestDiagnosticsResetBetweenExecuteOperations(AContext: TNXTestContext);
 var
   lResolver: TNXTaskResolver;
@@ -966,6 +1201,14 @@ begin
     @TestCopyFileCopiesDirectoryRecursively);
   lSuite.AddTest('CopyFileExcludesNamedRecursiveItems',
     @TestCopyFileExcludesNamedRecursiveItems);
+  lSuite.AddTest('DeletePathDeletesSingleFile',
+    @TestDeletePathDeletesSingleFile);
+  lSuite.AddTest('DeletePathDeletesDirectoryRecursively',
+    @TestDeletePathDeletesDirectoryRecursively);
+  lSuite.AddTest('DeletePathDeletesRecursiveWildcardFiles',
+    @TestDeletePathDeletesRecursiveWildcardFiles);
+  lSuite.AddTest('DeletePathReportsMissingWhenRequired',
+    @TestDeletePathReportsMissingWhenRequired);
   lSuite.AddTest('DiagnosticsResetBetweenExecuteOperations',
     @TestDiagnosticsResetBetweenExecuteOperations);
   lSuite.AddTest('AssertIsNotABuiltInAction', @TestAssertIsNotABuiltInAction);
