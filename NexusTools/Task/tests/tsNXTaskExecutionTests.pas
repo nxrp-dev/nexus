@@ -970,7 +970,7 @@ begin
   lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-lazbuild-' +
     GUIDToString(lGuid);
   lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'lazbuild.nxtask';
-  lProjectPath := ExpandFileName('NexusTools\Task\NexusTaskTest.lpi');
+  lProjectPath := ExpandFileName('NexusTools\Task\NexusTask.lpi');
 
   ForceDirectories(lBasePath);
   try

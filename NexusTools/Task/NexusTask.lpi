@@ -6,7 +6,7 @@
     <General>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="NexusTaskTest"/>
+      <Title Value="NexusTask"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -15,7 +15,7 @@
     </BuildModes>
     <Units Count="11">
       <Unit0>
-        <Filename Value="NexusTaskTest.lpr"/>
+        <Filename Value="NexusTask.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
@@ -63,13 +63,13 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\..\output\NexusTask\$(TargetCPU)-$(TargetOS)\NexusTaskTest"/>
+      <Filename Value="..\..\output\NexusTask\$(TargetCPU)-$(TargetOS)\NexusTask"/>
     </Target>
     <PathDelim Value="\"/>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
       <OtherUnitFiles Value="src"/>
-      <UnitOutputDirectory Value="output\NexusTaskTest\units"/>
+      <UnitOutputDirectory Value="output\NexusTask\units"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

@@ -52,10 +52,10 @@ end;
 
 class procedure TNXTaskCLI.PrintUsage;
 begin
-  WriteLn('NexusTaskTest parse <file>');
-  WriteLn('NexusTaskTest expand <file>');
-  WriteLn('NexusTaskTest inspect <file> -target <target>');
-  WriteLn('NexusTaskTest execute <file> -target <target>');
+  WriteLn('NexusTask parse <file>');
+  WriteLn('NexusTask expand <file>');
+  WriteLn('NexusTask inspect <file> -target <target>');
+  WriteLn('NexusTask execute <file> -target <target>');
 end;
 
 class function TNXTaskCLI.RunParse(const AFileName: string): Integer;
@@ -149,6 +149,7 @@ begin
       end
       else
       begin
+        lExecutor.EchoProgress := True;
         Write(lExecutor.Execute(lDocument, ATarget, ExtractFileDir(ExpandFileName(AFileName))));
         Write(TNXTaskDumper.DumpDiagnostics(lExecutor.Diagnostics));
         if lExecutor.Diagnostics.HasErrors then

@@ -1,4 +1,4 @@
-program NexusTaskTest;
+program NexusTask;
 
 {$mode objfpc}{$H+}
 

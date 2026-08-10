@@ -82,12 +82,17 @@ BuildNexusPascalVSIX Group {
     ExcludeNames: ".git;.gitignore;.gitattributes"
   }
 
+  RemoveBundledLazarus DeletePath {
+    Path: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/toolchain/lazarus"
+    Recursive: true
+    MissingOk: true
+  }
+
   InstallBundledLazarus CopyFile {
     Source: "C:/nexusdeployment/pruned/lazarus"
     Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/toolchain/lazarus"
     Recursive: true
     Overwrite: true
-    CleanDestination: true
     ExcludeNames: ".git;.gitignore;.gitattributes"
   }
 
