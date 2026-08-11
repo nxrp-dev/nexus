@@ -808,6 +808,151 @@ begin
   end;
 end;
 
+procedure TestArchiveZipsAndUnzipsDirectory(AContext: TNXTestContext);
+var
+  lArchivePath: string;
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTaskFile: string;
+  lText: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-archive-' +
+    GUIDToString(lGuid);
+  lArchivePath := IncludeTrailingPathDelimiter(lBasePath) + 'archive.zip';
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'archive.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'source\a.txt', 'root');
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'source\nested\b.txt', 'nested');
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'source\skip.o', 'object');
+
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Pack Archive {');
+      lFile.Add('    Operation: "Zip"');
+      lFile.Add('    Source: "source"');
+      lFile.Add('    Destination: "archive.zip"');
+      lFile.Add('    Recursive: true');
+      lFile.Add('    ExcludeNames: "skip.o"');
+      lFile.Add('  }');
+      lFile.Add('  Unpack Archive {');
+      lFile.Add('    Operation: "Unzip"');
+      lFile.Add('    Source: "archive.zip"');
+      lFile.Add('    Destination: "out"');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lText := lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        AContext.AssertFalse(lExecutor.Diagnostics.HasErrors,
+          'Archive should zip and unzip valid directories without diagnostics.');
+        AContext.AssertTrue(FileExists(lArchivePath),
+          'Archive Zip should create the destination archive.');
+        AContext.AssertEquals('root', NXTaskReadTrimmedTextFile(
+          IncludeTrailingPathDelimiter(lBasePath) + 'out\a.txt'),
+          'Archive Unzip should extract root files.');
+        AContext.AssertEquals('nested', NXTaskReadTrimmedTextFile(
+          IncludeTrailingPathDelimiter(lBasePath) + 'out\nested\b.txt'),
+          'Archive Unzip should extract nested files.');
+        AContext.AssertFalse(FileExists(IncludeTrailingPathDelimiter(lBasePath) +
+          'out\skip.o'), 'Archive Zip should honor ExcludeNames.');
+        NXTaskAssertContains(AContext, lText, 'zip ',
+          'Archive Zip should trace successful archive creation.');
+        NXTaskAssertContains(AContext, lText, 'unzip ',
+          'Archive Unzip should trace successful extraction.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
+procedure TestArchiveRejectsExistingDestinationWithoutOverwrite(
+  AContext: TNXTestContext);
+var
+  lArchivePath: string;
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTaskFile: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-archive-' +
+    GUIDToString(lGuid);
+  lArchivePath := IncludeTrailingPathDelimiter(lBasePath) + 'archive.zip';
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'archive.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    NXTaskWriteTextFile(IncludeTrailingPathDelimiter(lBasePath) +
+      'source\a.txt', 'root');
+    NXTaskWriteTextFile(lArchivePath, 'existing');
+
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Pack Archive {');
+      lFile.Add('    Operation: "Zip"');
+      lFile.Add('    Source: "source"');
+      lFile.Add('    Destination: "archive.zip"');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        NXTaskAssertDiagnostic(AContext, lExecutor.Diagnostics,
+          'NXTask.Action.Archive.Exists',
+          'Archive should reject an existing destination unless Overwrite is true.');
+        AContext.AssertEquals('existing', NXTaskReadTrimmedTextFile(lArchivePath),
+          'Archive should leave an existing destination unchanged.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
 procedure TestDiagnosticsResetBetweenExecuteOperations(AContext: TNXTestContext);
 var
   lResolver: TNXTaskResolver;
@@ -1209,6 +1354,10 @@ begin
     @TestDeletePathDeletesRecursiveWildcardFiles);
   lSuite.AddTest('DeletePathReportsMissingWhenRequired',
     @TestDeletePathReportsMissingWhenRequired);
+  lSuite.AddTest('ArchiveZipsAndUnzipsDirectory',
+    @TestArchiveZipsAndUnzipsDirectory);
+  lSuite.AddTest('ArchiveRejectsExistingDestinationWithoutOverwrite',
+    @TestArchiveRejectsExistingDestinationWithoutOverwrite);
   lSuite.AddTest('DiagnosticsResetBetweenExecuteOperations',
     @TestDiagnosticsResetBetweenExecuteOperations);
   lSuite.AddTest('AssertIsNotABuiltInAction', @TestAssertIsNotABuiltInAction);

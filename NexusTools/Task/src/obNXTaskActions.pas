@@ -5,7 +5,7 @@ unit obNXTaskActions;
 interface
 
 uses
-  Classes, SysUtils, Process, obNXTaskModel, tpNXTask;
+  Classes, SysUtils, Process, Zipper, obNXTaskModel, tpNXTask;
 
 type
   TNXTaskActionContext = class
@@ -93,6 +93,31 @@ type
     function RequiredString(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
       const AName: string; out AValue: string): Boolean;
     function ResolvePath(const AWorkingDirectory, APath: string): string;
+  public
+    procedure Execute(ANode: TNXTaskNode; AContext: TNXTaskActionContext); override;
+  end;
+
+  TNXTaskArchiveAction = class(TNXTaskAction)
+  private
+    procedure AddDiagnostic(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const ACode, AMessage: string);
+    procedure AddDirectoryEntries(ANode: TNXTaskNode;
+      AContext: TNXTaskActionContext; AEntries: TZipFileEntries;
+      AExcludeNames: TStrings; const ASourceRoot, ACurrentPath: string;
+      ARecursive: Boolean);
+    procedure BuildExcludeNames(ANode: TNXTaskNode; AExcludeNames: TStrings);
+    procedure ExecuteUnzip(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const ASource, ADestination: string; AOverwrite: Boolean);
+    procedure ExecuteZip(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const ASource, ADestination: string; ARecursive, AOverwrite: Boolean;
+      AExcludeNames: TStrings);
+    function IsExcludedName(const AName: string; AExcludeNames: TStrings): Boolean;
+    function OptionalBoolean(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const AName: string; ADefault: Boolean; out AValue: Boolean): Boolean;
+    function RequiredString(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const AName: string; out AValue: string): Boolean;
+    function ResolvePath(const AWorkingDirectory, APath: string): string;
+    function ZipEntryName(const ASourceRoot, AFileName: string): string;
   public
     procedure Execute(ANode: TNXTaskNode; AContext: TNXTaskActionContext); override;
   end;
@@ -738,6 +763,289 @@ begin
   end;
 end;
 
+procedure TNXTaskArchiveAction.AddDiagnostic(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const ACode, AMessage: string);
+begin
+  AContext.Diagnostics.Add(tdsError, ACode, AMessage,
+    TNXTaskSourceRange.Create(ANode.SourceRange.FileName, ANode.SourceRange.Line,
+      ANode.SourceRange.Column));
+end;
+
+function TNXTaskArchiveAction.RequiredString(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const AName: string; out AValue: string): Boolean;
+begin
+  Result := NXTaskPropertyText(ANode, AName, AValue);
+  if not Result then
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.' + AName,
+      'Archive action requires string property ' + AName + '.');
+end;
+
+function TNXTaskArchiveAction.OptionalBoolean(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const AName: string; ADefault: Boolean;
+  out AValue: Boolean): Boolean;
+var
+  lProperty: TNXTaskProperty;
+begin
+  Result := True;
+  AValue := ADefault;
+  lProperty := ANode.PropertyByName(AName);
+  if lProperty = nil then
+    Exit;
+  if lProperty.Value.Kind = tvkBoolean then
+  begin
+    AValue := lProperty.Value.BooleanValue;
+    Exit;
+  end;
+
+  Result := False;
+  AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.' + AName,
+    'Archive action requires boolean property ' + AName + '.');
+end;
+
+function TNXTaskArchiveAction.ResolvePath(const AWorkingDirectory,
+  APath: string): string;
+begin
+  if ExtractFileDrive(APath) <> '' then
+    Result := ExpandFileName(APath)
+  else
+    Result := ExpandFileName(IncludeTrailingPathDelimiter(AWorkingDirectory) +
+      APath);
+end;
+
+procedure TNXTaskArchiveAction.BuildExcludeNames(ANode: TNXTaskNode;
+  AExcludeNames: TStrings);
+var
+  lIndex: Integer;
+  lName: string;
+  lParts: TStringList;
+  lText: string;
+begin
+  AExcludeNames.Clear;
+  if not NXTaskPropertyText(ANode, 'ExcludeNames', lText) then
+    Exit;
+
+  lParts := TStringList.Create;
+  try
+    lParts.StrictDelimiter := True;
+    lParts.Delimiter := ';';
+    lParts.DelimitedText := lText;
+    for lIndex := 0 to lParts.Count - 1 do
+    begin
+      lName := Trim(lParts[lIndex]);
+      if lName <> '' then
+        AExcludeNames.Add(lName);
+    end;
+  finally
+    lParts.Free;
+  end;
+end;
+
+function TNXTaskArchiveAction.IsExcludedName(const AName: string;
+  AExcludeNames: TStrings): Boolean;
+begin
+  Result := (AExcludeNames <> nil) and (AExcludeNames.IndexOf(AName) >= 0);
+end;
+
+function TNXTaskArchiveAction.ZipEntryName(const ASourceRoot,
+  AFileName: string): string;
+begin
+  Result := ExtractRelativePath(IncludeTrailingPathDelimiter(ASourceRoot),
+    AFileName);
+  Result := StringReplace(Result, '\', '/', [rfReplaceAll]);
+end;
+
+procedure TNXTaskArchiveAction.AddDirectoryEntries(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; AEntries: TZipFileEntries;
+  AExcludeNames: TStrings; const ASourceRoot, ACurrentPath: string;
+  ARecursive: Boolean);
+var
+  lChild: string;
+  lSearch: TSearchRec;
+begin
+  if FindFirst(IncludeTrailingPathDelimiter(ACurrentPath) + '*', faAnyFile,
+    lSearch) = 0 then
+  begin
+    try
+      repeat
+        if (lSearch.Name <> '.') and (lSearch.Name <> '..') then
+        begin
+          if IsExcludedName(lSearch.Name, AExcludeNames) then
+            Continue;
+          lChild := IncludeTrailingPathDelimiter(ACurrentPath) + lSearch.Name;
+          if (lSearch.Attr and faDirectory) <> 0 then
+          begin
+            if ARecursive then
+              AddDirectoryEntries(ANode, AContext, AEntries, AExcludeNames,
+                ASourceRoot, lChild, ARecursive);
+          end
+          else
+            AEntries.AddFileEntry(lChild, ZipEntryName(ASourceRoot, lChild));
+        end;
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+  end;
+end;
+
+procedure TNXTaskArchiveAction.ExecuteZip(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const ASource, ADestination: string;
+  ARecursive, AOverwrite: Boolean; AExcludeNames: TStrings);
+var
+  lEntries: TZipFileEntries;
+  lSourceRoot: string;
+  lZipper: TZipper;
+begin
+  if FileExists(ADestination) and not AOverwrite then
+  begin
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.Exists',
+      'Archive destination already exists: ' + ADestination);
+    Exit;
+  end;
+
+  if ExtractFileDir(ADestination) <> '' then
+    ForceDirectories(ExtractFileDir(ADestination));
+
+  if FileExists(ADestination) and AOverwrite then
+    DeleteFile(ADestination);
+
+  lEntries := TZipFileEntries.Create(TZipFileEntry);
+  try
+    if FileExists(ASource) then
+      lEntries.AddFileEntry(ASource, ExtractFileName(ASource))
+    else if DirectoryExists(ASource) then
+    begin
+      lSourceRoot := IncludeTrailingPathDelimiter(ASource);
+      AddDirectoryEntries(ANode, AContext, lEntries, AExcludeNames, lSourceRoot,
+        lSourceRoot, ARecursive);
+    end
+    else
+    begin
+      AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.Source',
+        'Archive source does not exist: ' + ASource);
+      Exit;
+    end;
+
+    lZipper := TZipper.Create;
+    try
+      lZipper.FileName := ADestination;
+      lZipper.ZipFiles(lEntries);
+    finally
+      lZipper.Free;
+    end;
+  finally
+    lEntries.Free;
+  end;
+
+  AContext.Trace.Add('zip ' + NXTaskQuoteString(ASource) + ' ' +
+    NXTaskQuoteString(ADestination));
+end;
+
+procedure TNXTaskArchiveAction.ExecuteUnzip(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const ASource, ADestination: string;
+  AOverwrite: Boolean);
+var
+  lEntry: TFullZipFileEntry;
+  lIndex: Integer;
+  lTarget: string;
+  lUnZipper: TUnZipper;
+begin
+  if not FileExists(ASource) then
+  begin
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.Source',
+      'Archive source does not exist: ' + ASource);
+    Exit;
+  end;
+  if FileExists(ADestination) then
+  begin
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.Destination',
+      'Archive unzip destination is a file: ' + ADestination);
+    Exit;
+  end;
+
+  ForceDirectories(ADestination);
+  lUnZipper := TUnZipper.Create;
+  try
+    lUnZipper.FileName := ASource;
+    lUnZipper.OutputPath := ADestination;
+    lUnZipper.Examine;
+    if not AOverwrite then
+    begin
+      for lIndex := 0 to lUnZipper.Entries.Count - 1 do
+      begin
+        lEntry := lUnZipper.Entries[lIndex];
+        if lEntry.IsDirectory then
+          Continue;
+        lTarget := IncludeTrailingPathDelimiter(ADestination) +
+          StringReplace(lEntry.DiskFileName, '/', DirectorySeparator,
+          [rfReplaceAll]);
+        if FileExists(lTarget) then
+        begin
+          AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.Exists',
+            'Archive extraction destination already exists: ' + lTarget);
+          Exit;
+        end;
+      end;
+    end;
+    lUnZipper.UnZipAllFiles;
+  finally
+    lUnZipper.Free;
+  end;
+
+  AContext.Trace.Add('unzip ' + NXTaskQuoteString(ASource) + ' ' +
+    NXTaskQuoteString(ADestination));
+end;
+
+procedure TNXTaskArchiveAction.Execute(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext);
+var
+  lDestination: string;
+  lExcludeNames: TStringList;
+  lFullDestination: string;
+  lFullSource: string;
+  lOperation: string;
+  lOverwrite: Boolean;
+  lRecursive: Boolean;
+  lSource: string;
+begin
+  if not RequiredString(ANode, AContext, 'Operation', lOperation) then
+    Exit;
+  if not RequiredString(ANode, AContext, 'Source', lSource) then
+    Exit;
+  if not RequiredString(ANode, AContext, 'Destination', lDestination) then
+    Exit;
+  if not OptionalBoolean(ANode, AContext, 'Overwrite', False, lOverwrite) then
+    Exit;
+  if not OptionalBoolean(ANode, AContext, 'Recursive', True, lRecursive) then
+    Exit;
+
+  lFullSource := ResolvePath(AContext.WorkingDirectory, lSource);
+  lFullDestination := ResolvePath(AContext.WorkingDirectory, lDestination);
+
+  lExcludeNames := TStringList.Create;
+  try
+    lExcludeNames.CaseSensitive := False;
+    BuildExcludeNames(ANode, lExcludeNames);
+    try
+      if SameText(lOperation, 'Zip') then
+        ExecuteZip(ANode, AContext, lFullSource, lFullDestination, lRecursive,
+          lOverwrite, lExcludeNames)
+      else if SameText(lOperation, 'Unzip') then
+        ExecuteUnzip(ANode, AContext, lFullSource, lFullDestination,
+          lOverwrite)
+      else
+        AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive.Operation',
+          'Archive action Operation must be Zip or Unzip.');
+    except
+      on E: Exception do
+        AddDiagnostic(ANode, AContext, 'NXTask.Action.Archive',
+          'Archive action failed: ' + E.Message);
+    end;
+  finally
+    lExcludeNames.Free;
+  end;
+end;
+
 function TNXTaskGitAction.RunGit(const AWorkingDirectory: string;
   AArguments: array of string; out AOutput: string): Integer;
 var
@@ -1372,6 +1680,7 @@ begin
   ARegistry.RegisterAction('WriteTextFile', TNXTaskWriteTextFileAction);
   ARegistry.RegisterAction('CopyFile', TNXTaskCopyFileAction);
   ARegistry.RegisterAction('DeletePath', TNXTaskDeletePathAction);
+  ARegistry.RegisterAction('Archive', TNXTaskArchiveAction);
   ARegistry.RegisterAction('Git', TNXTaskGitAction);
   ARegistry.RegisterAction('Npm', TNXTaskNpmAction);
   ARegistry.RegisterAction('Fpc', TNXTaskFpcAction);
