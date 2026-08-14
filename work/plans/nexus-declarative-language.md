@@ -14,7 +14,9 @@
 
 ## Summary
 
-Reconstruct NexusSchema as a generic declarative-language compiler with a separate schema consumer. The generic compiler will parse and compile only the structural language described by the contract. The NexusSchema consumer will interpret the compiled structure as schema metadata and feed the existing metadata transformation, JSON, Mustache rendering, and output pipeline.
+Build a new standalone `NexusScript` project under `NexusTools/Script`. NexusScript will provide the generic declarative-language compiler described by the contract, its generic tests, and a schema consumer/parity target that proves it can replace the current NexusSchema front end.
+
+The production NexusSchema parser, executable path, project files, fixtures, and tests remain unchanged while NexusScript is constructed. NexusSchema cutover begins only after the completed NexusScript compiler and schema consumer independently compile migrated equivalents of the production schema inputs and demonstrate parity through the existing metadata, JSON, and rendering pipeline.
 
 The intended pipeline is:
 
@@ -25,13 +27,17 @@ source
   -> symbol binding
   -> composition and value resolution
   -> compiled declarative document
-  -> schema consumer
+  -> NexusScript schema consumer
   -> existing metadata/transformation/rendering pipeline
 ```
 
 The generic compiler must not know about tables, fields, templates, SQL, Mustache, or schema validation.
 
-This is a clean reconstruction. The implementation will follow the current contract rather than preserve the shape or syntax of the historical schema-specific parser. Existing repository scripts will be migrated to the new language. No compatibility parser or shim will be retained unless the human owner separately identifies and approves a current compatibility requirement.
+This is a clean side-by-side reconstruction. The implementation will follow the current contract rather than preserve the shape or syntax of the historical schema-specific parser. NexusScript will reach functional replacement parity before any production NexusSchema parsing path is modified. No compatibility parser or shim will be retained after cutover unless the human owner separately identifies and approves a current compatibility requirement.
+
+The controlling safety rule is:
+
+> No production NexusSchema parsing path is modified until the NexusScript compiler and schema consumer are independently functional and verified at the parity gate defined by this plan.
 
 ## Verified Findings
 
@@ -48,7 +54,7 @@ This is a clean reconstruction. The implementation will follow the current contr
   - `obMetaDataJSON.pas` serializes metadata;
   - `obMustacheRenderer.pas` renders generated outputs;
   - `obDataSourceProcessors.pas` handles delimited data sources.
-- The command-line entry point in `NexusTools/Schema/src/NexusSchema.lpr` currently constructs the legacy parser, transforms metadata, writes JSON, and renders templates. This is the principal integration seam for the new compiler and schema consumer.
+- The command-line entry point in `NexusTools/Schema/src/NexusSchema.lpr` currently constructs the legacy parser, transforms metadata, writes JSON, and renders templates. This is the eventual cutover seam, not a construction-stage edit target.
 - Existing repository inputs `NexusTools/Schema/StormSpecific.nxs`, `NexusTools/Schema/inForceMain.nxs`, and test fixtures use the historical syntax and must be migrated for an end-to-end cutover.
 - The existing `NexusSchemaTestModule` provides the correct focused verification project but currently has only tokenizer, parser, JSON-root, and Firebird-render smoke coverage.
 - The worktree contains unrelated modified and untracked files outside this plan. They must be preserved and excluded from Nexus declarative-language commits.
@@ -67,9 +73,9 @@ The correction is not to generalize the existing metadata parser through additio
 
 ## Target Contract
 
-### Generic compiler ownership
+### NexusScript ownership
 
-- Owner: shared Nexus library code, placed according to repository ownership rules rather than under a schema-specific consumer unit.
+- Owner: the standalone `NexusTools/Script` project.
 - Responsibilities:
   - tokenize source while retaining source positions and ranges;
   - parse generic definitions, properties, values, arrays, references, composition selectors, modules, strings, escapes, and comments;
@@ -95,16 +101,18 @@ The generic compiler must not:
 - know about SQL, Firebird, data import, Mustache, or generated output files;
 - preserve historical syntax or APIs without an explicitly approved current requirement.
 
-### Schema consumer ownership
+### Temporary parity consumer ownership
 
-- Owner: `NexusTools/Schema`.
+- Owner during construction and parity proof: a clearly separated schema-parity area under `NexusTools/Script`, outside the generic compiler/runtime units.
 - Responsibilities:
   - receive a successfully compiled generic document;
   - recognize the schema vocabulary expected by the current NexusSchema product;
   - validate schema-specific kinds, properties, nesting, references, and required values;
-  - translate the generic compiled structure into `TMetaDataModuleList` and the existing schema metadata objects;
+  - translate the generic compiled structure into `TMetaDataModuleList` and the existing schema metadata objects without modifying the production NexusSchema front end;
   - report schema diagnostics using source/provenance supplied by the generic compiler;
   - pass valid metadata through the existing transformations, JSON serialization, data processing, and Mustache rendering pipeline.
+
+The parity consumer is construction scaffolding for proving replacement behavior; it is not part of the generic NexusScript language core. At cutover, move the completed schema interpretation into `NexusTools/Schema` ownership while NexusSchema consumes the stable NexusScript compiler API.
 
 ### State and ownership flow
 
@@ -119,7 +127,7 @@ source text/file
 
 - The compiler session owns source buffers, tokens, parse nodes, module records, and diagnostics for its lifetime.
 - The compiled result owns the domain-neutral effective definitions, values, resolved references, and provenance exposed to consumers.
-- The schema consumer does not take hidden ownership of the compiled result; its ownership boundary must be explicit in its API.
+- The NexusScript schema consumer does not take hidden ownership of the compiled result; its ownership boundary must be explicit in its API.
 - Module documents are compiled once per physical source identity within a compilation session and exposed through importer aliases without textual inclusion.
 - Failure paths must release partially constructed documents, module state, and consumer metadata without relying on process termination.
 
@@ -127,20 +135,16 @@ source text/file
 
 Expected implementation areas include:
 
-- shared source-position, diagnostic, token, syntax, value, definition, reference, module, and compiled-document types;
-- generic lexer/token stream;
-- generic parser;
-- scope and symbol construction;
-- composition resolver;
-- value/reference resolver;
-- compilation session and module loader;
-- NexusSchema consumer/adapter;
-- `NexusTools/Schema/src/NexusSchema.lpr` integration;
-- `NexusTools/Schema/NexusSchema.lpi` and test-project unit lists/search paths;
-- `NexusTools/Schema/tests/tsNXSchemaCoreTests.pas` or coherently split focused test units;
-- migration of `StormSpecific.nxs`, `inForceMain.nxs`, and generated test fixtures;
-- NexusSchema architecture and language documentation affected by the cutover;
-- removal of obsolete front-end units after all call sites are migrated.
+- new `NexusTools/Script` folder-level instructions referencing the applicable Pascal standards;
+- NexusScript executable and Lazarus project under `NexusTools/Script`;
+- NexusScript test module/project under `NexusTools/Script/tests`;
+- source-position, diagnostic, token, syntax, value, definition, reference, module, and compiled-document types owned by NexusScript;
+- generic lexer/token stream, parser, scope/symbol construction, composition resolver, value/reference resolver, and module compilation session;
+- temporary schema consumer and parity harness isolated from the NexusScript generic compiler/runtime;
+- new-language parity fixtures corresponding to `StormSpecific.nxs`, `inForceMain.nxs`, and focused test inputs, stored outside the production NexusSchema fixture paths during construction;
+- parity comparison of metadata JSON and representative rendered outputs;
+- final NexusSchema integration only after the parity gate passes;
+- production fixture migration, obsolete front-end removal, and affected documentation only during the approved cutover stages.
 
 Candidate legacy removals, subject to focused call-site verification, are:
 
@@ -149,7 +153,7 @@ Candidate legacy removals, subject to focused call-site verification, are:
 - `NexusTools/Schema/src/obTokenQueue.pas`;
 - the schema-specific implementation and API of `NexusTools/Schema/src/obNexusSchemaParser.pas`.
 
-The final unit names and shared library folder should follow the repository's `tp...` ownership for shared type definitions and `ob...` ownership for compiler objects. Definitions must have one real owner; do not add alias or re-export units to preserve the legacy surface.
+The final unit names under `NexusTools/Script` should follow the repository's `tp...` ownership for shared type definitions and `ob...` ownership for compiler objects. Definitions must have one real owner; do not add alias or re-export units to preserve the legacy surface.
 
 ## Out Of Scope
 
@@ -162,6 +166,7 @@ The final unit names and shared library folder should follow the repository's `t
 - Compatibility aliases for removed parser/tokenizer classes or units.
 - Opportunistic redesign of schema metadata, transformations, JSON shape, templates, CLI switches, or data-source processing.
 - Changes to unrelated Nexus tools, NexusUI, NexusLS, NexusTask, installer work, or existing unrelated worktree changes.
+- Any edit to the production NexusSchema parser, tokenizer, executable path, project files, tests, or existing `.nxs` fixtures before the NexusScript parity gate passes.
 
 ## Staged Implementation Plan
 
@@ -305,9 +310,9 @@ Module loader mechanics must implement the observable contract without treating 
 
 Verification checkpoint: relative imports, quoted/unquoted paths, aliases, root selectors, nested alias visibility, alias collisions, repeated physical imports, missing files, invalid selectors, and dependency cycles.
 
-### Stage 9: Implement the NexusSchema consumer
+### Stage 9: Implement the temporary schema parity consumer
 
-Create a schema-owned adapter that consumes only the generic compiled API.
+Create an isolated schema parity consumer under `NexusTools/Script` that consumes only the generic compiled API. Keep it outside the generic NexusScript compiler/runtime units. During this stage, it may use the existing downstream schema metadata, transformation, JSON, data-source, and rendering units as read-only dependencies, but it must not modify the production NexusSchema parser or executable path.
 
 The adapter will:
 
@@ -322,36 +327,70 @@ Review the current parser, metadata model, transformations, example inputs, and 
 
 Verification checkpoint: consumer tests asserting metadata modules, tables/templates, fields, attributes, data registrations, and references from representative new-language documents.
 
-### Stage 10: Integrate the command-line pipeline and migrate sources
+### Stage 10: Prove replacement parity independently
 
-Update `NexusSchema.lpr` to:
+Build a NexusScript parity harness that exercises the new compiler and schema consumer without routing production NexusSchema through them.
 
-1. create the generic compilation session;
-2. compile the requested metadata source and modules;
-3. stop with useful diagnostics on language errors;
-4. invoke the schema consumer;
-5. stop with useful diagnostics on schema errors;
-6. continue through the existing metadata transform, JSON, data, Mustache, and output stages.
+Create new-language parity fixtures under `NexusTools/Script` corresponding to the current production NexusSchema inputs. Keep the original `.nxs` files unchanged so the existing executable remains usable and provides the comparison baseline.
 
-Migrate the repository's `.nxs` examples and test fixtures to the new language. Do not retain dual parsing paths. Update Lazarus project unit lists and search paths to use the real shared compiler and consumer units directly.
+For each parity case:
 
-Verification checkpoint: both example inputs compile through the new front end, schema metadata serializes, Firebird output renders, and command-line failures return clear source diagnostics.
+1. run the unchanged NexusSchema path against the original input;
+2. run NexusScript and its schema consumer against the corresponding new-language input;
+3. normalize intentionally unstable output such as generated paths or ordering only when the existing contract does not make it significant;
+4. compare schema metadata JSON structurally;
+5. compare representative rendered outputs;
+6. investigate and correct the replacement rather than altering NexusSchema to make parity easier.
 
-### Stage 11: Remove the legacy front end
+Parity requires more than successful execution. The new path must demonstrate equivalent schema meaning for the current repository inputs, including representative tables, fields, references, attributes, template expansion, data registration, and rendered Firebird output.
 
-After all call sites have moved:
+Verification checkpoint: a recorded parity matrix passes for both repository schema inputs and focused fixtures. The matrix identifies the original input, NexusScript equivalent, baseline artifacts, replacement artifacts, comparison method, and result.
+
+### Stage 11: Parity gate and cutover approval
+
+Before any production NexusSchema edit, Main Codex reviews the complete replacement and reports:
+
+- NexusScript compiler and generic test results;
+- schema-consumer test results;
+- parity matrix results;
+- any intentional output differences and their justification;
+- focused proof that the generic compiler contains no schema-domain semantics;
+- the exact production NexusSchema files proposed for cutover.
+
+The human owner must approve the cutover after reviewing this evidence. General implementation approval for Stages 1-10 does not by itself waive this parity gate.
+
+If parity is incomplete, continue correcting NexusScript without modifying the production NexusSchema parsing path.
+
+### Stage 12: Cut NexusSchema over to NexusScript
+
+After explicit cutover approval:
+
+- move the proven schema-consumer behavior from the temporary parity area into `NexusTools/Schema` ownership, preserving the stable generic compiler boundary;
+- update `NexusSchema.lpr` to invoke the completed NexusScript compiler and the schema-owned consumer;
+- update NexusSchema project search paths and unit lists to use the completed replacement directly;
+- migrate the production `.nxs` examples and NexusSchema test fixtures to the new language;
+- replace legacy parser/tokenizer tests with integration tests that exercise the completed compiler/consumer boundary;
+- preserve the existing metadata transformation, JSON, data-source, Mustache, CLI, and output behavior except for approved differences established at parity review;
+- do not retain parallel production parsing paths.
+
+Verification checkpoint: the production NexusSchema project and test module compile, migrated inputs run through the production executable, and their artifacts match the already approved NexusScript parity results.
+
+### Stage 13: Remove the legacy NexusSchema front end
+
+After production cutover verification passes:
 
 - remove the old tokenizer, token queue, schema-specific token types, and parser implementation;
 - remove obsolete project entries and `uses` references;
 - remove tests that assert historical syntax or tokenization;
-- replace them with contract-level and consumer-level assertions;
 - run focused searches proving the old units and APIs are gone.
 
 Do not keep wrappers, aliases, deprecated classes, or compatibility units solely to avoid updating repository call sites.
 
-### Stage 12: Documentation and final architecture review
+### Stage 14: Documentation and final architecture review
 
-Update NexusSchema documentation to describe:
+Document NexusScript as the owner of the declarative compiler and its generic language behavior. Update NexusSchema documentation to describe its consumer role and production use of NexusScript after cutover.
+
+Documentation must describe:
 
 - the generic compiler pipeline;
 - the compiled-document/consumer boundary;
@@ -368,19 +407,19 @@ Perform a final integration review of:
 - composition flattening and rebinding;
 - module caching and failure cleanup;
 - consumer-only schema semantics;
+- the side-by-side parity evidence and cutover boundary;
 - removal of legacy code and documentation.
 
 ## Sub-Agent Delegation
 
-After direct implementation approval, assign the coherent compiler and NexusSchema cutover to one named `NexusSchema worker` by default.
+After direct implementation approval, assign Stages 1-10 to one named `NexusScript worker` by default. Do not assign that worker production NexusSchema write ownership before the parity gate and separate cutover approval.
 
 ### Worker ownership
 
-- shared generic language/compiler units selected by the approved repository placement;
-- `NexusTools/Schema/src/` compiler-consumer integration;
-- `NexusTools/Schema/tests/` focused tests;
-- NexusSchema project files and migrated `.nxs` fixtures;
-- affected NexusSchema documentation.
+- `NexusTools/Script/` project, source, tests, parity fixtures, and parity harness;
+- generic compiler plus the isolated temporary schema parity consumer;
+- NexusScript documentation;
+- read-only inspection of `NexusTools/Schema/` during construction and parity.
 
 ### Main Codex responsibilities
 
@@ -388,14 +427,18 @@ After direct implementation approval, assign the coherent compiler and NexusSche
 - preserve unrelated worktree changes and define the allowed write set;
 - review model ownership before accepting downstream stages;
 - inspect every worker diff and reject domain leakage or compatibility scaffolding;
-- make tightly scoped integration corrections when required;
+- enforce the production NexusSchema no-touch boundary before parity approval;
+- review and report the parity matrix before requesting cutover approval;
+- make tightly scoped integration corrections when required after cutover approval;
 - run or coordinate final compile, tests, focused searches, manual CLI checks, archive creation, and reporting.
 
 ### Delegation shape
 
-Use one worker for the full coherent implementation rather than assigning concurrent writers to lexer, parser, resolver, and model units. Those units share evolving interfaces and ownership rules; parallel edits would create a high-conflict integration seam.
+Use one worker for the coherent NexusScript construction rather than assigning concurrent writers to lexer, parser, resolver, and model units. Those units share evolving interfaces and ownership rules; parallel edits would create a high-conflict integration seam.
 
-If the compiler API and schema consumer boundary stabilize cleanly, a second bounded `NexusSchema test reviewer` may inspect coverage or add tests in files not being edited by the primary worker. Do not allow overlapping writes to the same test or project files.
+If the compiler API and schema consumer boundary stabilize cleanly, a second bounded `NexusScript test reviewer` may inspect coverage or add tests in files not being edited by the primary worker. Do not allow overlapping writes to the same test or project files.
+
+After cutover approval, the NexusScript worker may receive a refreshed assignment for the bounded NexusSchema integration/removal stages, or a separate `NexusSchema cutover worker` may own only `NexusTools/Schema/`. Main Codex must define non-overlapping file ownership before either assignment.
 
 No sub-agent implementation begins before direct human approval of this plan.
 
@@ -403,14 +446,21 @@ No sub-agent implementation begins before direct human approval of this plan.
 
 ### Compile checkpoints
 
-Compile frequently after structural stages, with these final required builds:
+Compile NexusScript frequently during construction. Before the parity gate, the required builds are:
+
+```text
+lazbuild NexusTools\Script\tests\NexusScriptTestModule.lpi
+lazbuild NexusTools\Script\NexusScript.lpi
+```
+
+The existing NexusSchema projects must remain buildable from the unchanged production path throughout Stages 1-10. Compile them as regression checks without editing them:
 
 ```text
 lazbuild NexusTools\Schema\tests\NexusSchemaTestModule.lpi
 lazbuild NexusTools\Schema\NexusSchema.lpi
 ```
 
-If the shared compiler receives its own focused test project during implementation, compile and run that project as an additional required checkpoint.
+After cutover approval, both NexusScript and NexusSchema projects are required final builds.
 
 ### Automated language tests
 
@@ -446,27 +496,32 @@ Cover at minimum:
 - metadata JSON root and representative content;
 - end-to-end Firebird Mustache rendering.
 
-### Command-line verification
+### Independent parity verification
 
-Run the NexusSchema executable against both migrated repository inputs using their current template/output paths. Confirm:
+Before cutover, run the unchanged NexusSchema executable against the original repository inputs and NexusScript against the corresponding new-language parity fixtures. Confirm:
 
-- valid inputs complete successfully;
-- expected JSON and rendered files are produced;
-- output contains representative expected tables/fields rather than merely existing;
-- invalid syntax reports filename and source location;
-- unresolved references and composition/module cycles fail deterministically;
-- missing module files report the importing source and declared path.
+- both paths complete successfully for valid equivalents;
+- both paths produce metadata JSON and representative rendered output;
+- structural JSON comparison passes after only documented normalization;
+- representative tables, fields, references, attributes, and rendered statements match;
+- NexusScript invalid syntax reports filename and source location;
+- NexusScript unresolved references and composition/module cycles fail deterministically;
+- NexusScript missing module files report the importing source and declared path;
+- the production NexusSchema sources and executable path remain unchanged.
+
+After cutover approval, repeat the accepted parity cases through the production NexusSchema executable using migrated inputs.
 
 ### Focused searches
 
 Use focused repository searches to prove:
 
 - generic compiler units contain no schema-domain vocabulary such as `Table`, `Field`, `Template`, Firebird, SQL, Mustache, or metadata-model classes except inside neutral test fixture text;
-- no production call sites use `obNexusSchemaTokenizer`, `obNexusSchemaTypes`, `obTokenQueue`, or the legacy parser API;
 - no lexer path converts newlines into semicolons;
 - the generic parser/compiler never constructs `TMetaDataModuleList` or schema metadata classes;
-- no compatibility parser, alias unit, or re-export was left behind;
-- all repository `.nxs` sources use the new syntax.
+- before parity approval, `git diff` shows no modification to the production NexusSchema parser, tokenizer, executable path, project files, tests, or existing `.nxs` fixtures;
+- after cutover, no production call sites use `obNexusSchemaTokenizer`, `obNexusSchemaTypes`, `obTokenQueue`, or the legacy parser API;
+- after cutover, no compatibility parser, alias unit, or re-export remains;
+- after cutover, all production NexusSchema `.nxs` sources use the new syntax.
 
 ### Final checkpoint
 
@@ -476,7 +531,7 @@ After compilation, tests, CLI verification, focused searches, and documentation 
 scripts\New-NexusSourceArchive.ps1
 ```
 
-Verify that the archive contains the new compiler, schema consumer, tests, migrated inputs, project files, and documentation. Report any verification step that could not be run.
+Verify that the archive contains NexusScript, its compiler, schema consumer, tests, parity evidence, the cut-over NexusSchema project, migrated production inputs, and documentation. Report any verification step that could not be run.
 
 ## Risks And Implementation Decisions
 
@@ -484,16 +539,16 @@ The language contract is authoritative. Deleted design-history uncertainty must 
 
 The following are implementation decisions to resolve while preserving the contract:
 
-- Place reusable compiler types and objects under the correct shared Nexus library ownership. Do not leave the generic compiler owned by `NexusTools/Schema` merely because that is its first consumer.
+- Keep the new compiler and construction harness owned by `NexusTools/Script` as NexusScript. Do not place them under `NexusTools/Schema` merely because schema parity is the first replacement target.
 - Choose concrete Pascal classes/records, collections, and ownership patterns for source and compiled models without exposing storage accidents as language behavior.
 - Choose deterministic diagnostic codes and recovery boundaries without weakening compile-time errors required by the contract.
 - Choose a physical-source canonicalization and module-cache key suitable for Windows and supported target platforms.
 - Choose a deterministic module dependency-cycle diagnostic and stop compilation safely.
-- Migrate existing `.nxs` sources and tests directly rather than adding compatibility machinery.
+- Create separate NexusScript parity fixtures during construction; migrate existing production `.nxs` sources and tests only after parity and cutover approval.
 
 If implementation encounters a genuine contract-level ambiguity that materially changes observable source behavior, stop and present that specific ambiguity with a minimal example. Do not reopen settled syntax or resurrect removed alternatives merely because the implementation requires an internal choice.
 
-The current dirty worktree is an integration risk. Before implementation commits, inspect status and stage only files owned by the approved work. Never discard or rewrite unrelated changes.
+The current dirty worktree is an integration risk. Before implementation commits, inspect status and stage only files owned by the approved work. Never discard or rewrite unrelated changes. During Stages 1-10, the allowed production write set excludes `NexusTools/Schema`.
 
 ## Approval Gate
 
