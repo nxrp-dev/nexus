@@ -177,15 +177,50 @@ Supported members:
 - `Root`: optional semantic Boolean, default `False`;
 - `Parents`: optional scalar array of allowed parent kinds;
 - `UnknownProperties`: optional `Allow` or `Reject`, default `Reject`;
-- `UnknownChildren`: optional `Allow` or `Reject`, default `Reject`;
+- `UnknownChildren`: optional `Allow` or `Reject`; when `Children` is present,
+  its default is `Reject`;
 - `Properties`: optional named array of inline `Property` rules;
 - `Children`: optional named array of inline `Child` rules.
 
 A kind is legal at document root only when `Root` is true. A nested definition
-must be permitted by both its own `Parents` rule, when present, and a matching
-parent `Child` rule. This two-sided check prevents one declaration from
-silently contradicting the other. Validator-definition normalization rejects
-contradictory or dangling relationships before subject validation.
+is checked independently from both directions that are actually declared:
+
+- `Parents`, when present on the child kind, constrains the kinds under which
+  that definition may appear;
+- `Children`, when present on the parent kind, constrains accepted child kinds
+  and applies its cardinality rules;
+- when both apply, the nested definition must satisfy both;
+- absence of either declaration imposes no constraint from that side and does
+  not require a reciprocal declaration.
+
+If `Children` and `UnknownChildren` are both absent, the parent kind imposes no
+parent-side restriction on child kinds. If `Children` is present, unmatched
+child kinds are governed by `UnknownChildren`, whose default is `Reject`. An
+explicitly supplied `UnknownChildren` policy remains a parent-side constraint
+even when `Children` is absent. Validator-definition normalization does not
+reject missing reciprocal declarations or attempt to prove that the
+independent parent and child constraints have a nonempty intersection.
+
+For example, this rule alone restricts `Field` to `Table` parents:
+
+```text
+Definition Field {
+    Parents: [Table];
+}
+```
+
+This separate rule alone permits and counts `Field` children under `Table`:
+
+```text
+Definition Table {
+    Children: [
+        Child Fields {
+            Kinds: [Field];
+            Minimum: 1;
+        }
+    ];
+}
+```
 
 #### `Property`
 
@@ -423,10 +458,13 @@ Validation proceeds deterministically in source/effective order:
 
 1. Normalize the validator definition and reject malformed rule vocabulary,
    duplicate/overlapping rules, invalid enum text, invalid bounds, unknown rule
-   members, and contradictory relationships.
+   members, and references to unknown rule kinds. Do not require reciprocal
+   `Parents` and `Children` declarations or reject independent constraints
+   merely because their intersection permits no placement.
 2. Visit subject root definitions in compiled order.
-3. Resolve the applicable `Definition` rule by exact kind and verify root or
-   containing-context legality.
+3. Resolve the applicable `Definition` rule by exact kind. Verify root
+   legality, then independently apply the child's `Parents` constraint and the
+   parent's `Children`/`UnknownChildren` constraint when each is present.
 4. Check required and unknown properties in rule order, then subject order.
 5. Validate each present property value: source form, effective category,
    scalar interpretation, reference constraints, and array constraints.
@@ -569,26 +607,30 @@ vocabulary appears in generic compiler/parser units.
 - Parse the compiled validator document into the normalized rule model.
 - Require exactly one root `Language` definition.
 - Validate all recognized rule kinds, members, source/effective value shapes,
-  enum values, bounds, uniqueness, overlaps, and cross-kind relationships.
+  enum values, bounds, uniqueness, overlaps, and referenced kind names without
+  requiring reciprocal `Parents`/`Children` relationships.
 - Return deterministic invalid-validator diagnostics and no partial usable
   model on failure.
 
 Acceptance: focused malformed-validator tests cover every vocabulary kind,
 unknown members, missing members, bad enums, negative/reversed cardinality,
-overlapping child rules, and unknown referenced kinds.
+overlapping child rules, and unknown referenced kinds. Positive normalization
+tests cover `Parents`-only, `Children`-only, and nonreciprocal declarations.
 
 ### Stage 4: Validate definitions, properties, and children
 
 - Implement ordered effective-definition traversal.
-- Validate known kinds, root/parent legality, unknown properties and children,
-  required properties, and direct-child cardinality.
+- Validate known kinds, root legality, independent child-side `Parents` rules,
+  independent parent-side `Children`/`UnknownChildren` rules, unknown
+  properties, required properties, and direct-child cardinality.
 - Traverse inline and reference-materialized structural definitions contained
   in arrays as collection children while never following reference target links
   as containment.
 
 Acceptance: focused tests cover roots, nested definitions, array definitions,
-composition-introduced members, unknowns, requirements, cardinality, and stable
-diagnostic order.
+composition-introduced members, unknowns, requirements, cardinality,
+`Parents`-only acceptance/rejection, `Children`-only acceptance/rejection, the
+intersection when both are present, and stable diagnostic order.
 
 ### Stage 5: Validate values and arrays
 
