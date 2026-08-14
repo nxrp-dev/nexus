@@ -139,13 +139,20 @@ Create exactly one work plan per request. Do not create alternate copies, duplic
 
 ## Work Request Rule
 
-Every Codex work request must start with exactly:
+Treat a clear request for a work plan as a work-plan directive based on its
+meaning and context. No exact phrase is required.
+
+The following remains a valid conventional opening, but it is not a magic
+phrase or an authorization prerequisite:
 
 ```text
 This is a demand for a work plan.
 ```
 
-That phrase is the only directive-style statement required.
+A direct request from the human owner may supply the planning input in the
+conversation instead of through a pre-existing `work/requests/` file. In that
+case, choose one descriptive filename for the plan under `work/plans/` and
+identify the conversation request and supporting documents under `Inputs`.
 
 Work requests may include strong design rules and desired final-state language, but must not include authorization language such as:
 - proceed
@@ -155,7 +162,10 @@ Work requests may include strong design rules and desired final-state language, 
 - do the work
 - apply this
 
-The work request describes architectural direction and asks Codex to explain its plan before any code changes.
+The work request describes architectural direction and asks Codex to explain
+its plan before any implementation changes. Creating, committing, and pushing
+the plan artifact remains part of the planning handoff and does not authorize
+implementation.
 
 ## POC Rule
 
