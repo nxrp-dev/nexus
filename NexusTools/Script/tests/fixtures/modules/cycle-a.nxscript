@@ -1,0 +1,2 @@
+module B "cycle-b.nxscript";
+Thing A {}

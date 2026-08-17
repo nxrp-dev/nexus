@@ -1,0 +1,3 @@
+include "absent.nxscript";
+
+Thing Entry {}

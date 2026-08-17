@@ -448,7 +448,7 @@ parity cases to pass; do not rely on process exit code alone.
 ### Archive
 
 Run `scripts\New-NexusSourceArchive.ps1`. Inspect the ZIP and require the
-compiler, model, tests, parity files, `.nx` fixtures, this plan, and no generated
+compiler, model, tests, parity files, `.nxscript` fixtures, this plan, and no generated
 binaries.
 
 ## Risks And Questions

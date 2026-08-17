@@ -1,0 +1,4 @@
+include "child.nxscript";
+include "leaf.nxscript";
+
+Thing Entry {}

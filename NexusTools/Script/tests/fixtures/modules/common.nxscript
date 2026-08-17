@@ -1,0 +1,16 @@
+Thing CommonRoot {
+  Constant Values {
+    Suffix: world;
+    Items: [First: one, two];
+  }
+}
+
+Thing OtherRoot {
+  Value: other;
+}
+
+Thing SharedRoot {
+  Thing Base {
+    Shared: inherited;
+  }
+}

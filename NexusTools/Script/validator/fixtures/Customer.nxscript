@@ -1,0 +1,13 @@
+doctype "Schema.nxscript";
+
+Table Customer {
+    TableName: CUSTOMER;
+    Fields: [
+        Field ID {
+            Type: Integer;
+        },
+        Field ParentID {
+            Type: Integer;
+        }
+    ];
+}

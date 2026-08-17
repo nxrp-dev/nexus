@@ -18,6 +18,13 @@ Build a new standalone `NexusScript` project under `NexusTools/Script`. NexusScr
 
 The production NexusSchema parser, executable path, project files, fixtures, and tests remain unchanged while NexusScript is constructed. NexusSchema cutover begins only after the completed NexusScript compiler and schema consumer independently compile migrated equivalents of the production schema inputs and demonstrate parity through the existing metadata, JSON, and rendering pipeline.
 
+NexusScript documents may explicitly declare an optional
+`doctype Path;` association. The declaration identifies another ordinary
+NexusScript document for consumers without importing its namespace or causing
+automatic validation. Filenames and filename components carry no validator or
+consumer semantics; `.nxscript` remains the conventional extension rather than
+a compiler-enforced requirement.
+
 The intended pipeline is:
 
 ```text

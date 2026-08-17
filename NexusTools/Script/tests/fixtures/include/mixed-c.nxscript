@@ -1,0 +1,3 @@
+module Entry "mixed-a.nxscript";
+
+Thing C {}

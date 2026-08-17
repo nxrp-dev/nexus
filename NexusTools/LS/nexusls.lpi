@@ -68,7 +68,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;src\toolchain;..\..\NexusLib\core\src;..\..\lib\synapse;C:\lazarus\components\lazutils"/>
+      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;src\toolchain;..\..\NexusLib\core\src;..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
       <UnitOutputDirectory Value="..\..\output\NexusLS\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

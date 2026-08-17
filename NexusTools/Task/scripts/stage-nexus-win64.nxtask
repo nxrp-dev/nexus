@@ -1,0 +1,173 @@
+StageNexusWin64 Group {
+  CleanStage DeletePath {
+    Path: "../../../dist/nexus-win64"
+    Recursive: true
+    MissingOk: true
+  }
+
+  BuildLanguageServer LazBuild {
+    Project: "../../../NexusTools/LS/nexusls.lpi"
+    Quiet: true
+  }
+
+  BuildNexusBuild LazBuild {
+    Project: "../../../NexusTools/Build/nexusbuild.lpi"
+    Quiet: true
+  }
+
+  BuildNexusSchema LazBuild {
+    Project: "../../../NexusTools/Schema/NexusSchema.lpi"
+    Quiet: true
+  }
+
+  BuildNexusTestHost Fpc {
+    Source: "../../../NexusTools/Test/sample/Host/nxtest_host.lpr"
+    SearchPath: "../../../NexusTools/Test/src"
+    UnitOutputDirectory: "../../../output/NexusTestHost/units"
+    OutputDirectory: "../../../output/NexusTestHost"
+    OutputName: "nxtest_host"
+  }
+
+  InstallLanguageServer CopyFile {
+    Source: "../../../output/NexusLS/x86_64-win64/nexusls.exe"
+    Destination: "../../../dist/nexus-win64/bin/nexusls.exe"
+    Overwrite: true
+  }
+
+  InstallNexusBuild CopyFile {
+    Source: "../../../output/NexusBuild/x86_64-win64/nexusbuild.exe"
+    Destination: "../../../dist/nexus-win64/bin/nexusbuild.exe"
+    Overwrite: true
+  }
+
+  InstallNexusTask CopyFile {
+    Source: "../../../output/NexusTask/x86_64-win64/NexusTask.exe"
+    Destination: "../../../dist/nexus-win64/bin/NexusTask.exe"
+    Overwrite: true
+  }
+
+  InstallNexusSchema CopyFile {
+    Source: "../../../output/NexusSchema/x86_64-win64/NexusSchema.exe"
+    Destination: "../../../dist/nexus-win64/bin/NexusSchema.exe"
+    Overwrite: true
+  }
+
+  InstallNexusTestHost CopyFile {
+    Source: "../../../output/NexusTestHost/nxtest_host.exe"
+    Destination: "../../../dist/nexus-win64/bin/nxtest_host.exe"
+    Overwrite: true
+  }
+
+  InstallNexusLibSDK CopyFile {
+    Source: "../../../NexusLib"
+    Destination: "../../../dist/nexus-win64/sdk/NexusLib"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes;bin;tests;docs;output"
+  }
+
+  InstallNexusTestSDK CopyFile {
+    Source: "../../../NexusTools/Test/src"
+    Destination: "../../../dist/nexus-win64/sdk/NexusTools/Test/src"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes;bin;tests;docs;output"
+  }
+
+  InstallSynapseSDK CopyFile {
+    Source: "../../../lib/synapse"
+    Destination: "../../../dist/nexus-win64/sdk/thirdparty/synapse"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallDMustacheSDK CopyFile {
+    Source: "../../../lib/dmustache"
+    Destination: "../../../dist/nexus-win64/sdk/thirdparty/dmustache"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallFclPasSrcSDK CopyFile {
+    Source: "../../../lib/fcl-passrc"
+    Destination: "../../../dist/nexus-win64/sdk/thirdparty/fcl-passrc"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  RemoveSdkObjectFiles DeletePath {
+    Path: "../../../dist/nexus-win64/sdk/*.o"
+    Recursive: true
+    MissingOk: true
+  }
+
+  RemoveSdkPpuFiles DeletePath {
+    Path: "../../../dist/nexus-win64/sdk/*.ppu"
+    Recursive: true
+    MissingOk: true
+  }
+
+  InstallLazarusToolchain CopyFile {
+    Source: "C:/nexusdeployment/pruned/lazarus"
+    Destination: "../../../dist/nexus-win64/toolchain/lazarus"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  InstallFpcUnits CopyFile {
+    Source: "C:/nexusdeployment/lazarus/fpc/3.2.2/units"
+    Destination: "../../../dist/nexus-win64/toolchain/lazarus/fpc/3.2.2/units"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
+    ExcludeNames: ".git;.gitignore;.gitattributes"
+  }
+
+  RemoveLazarusUninstallerData DeletePath {
+    Path: "../../../dist/nexus-win64/toolchain/lazarus/unins000.*"
+    Recursive: false
+    MissingOk: true
+  }
+
+  RemoveStagedLazarusConfig DeletePath {
+    Path: "../../../dist/nexus-win64/toolchain/lazarus/lazarus.cfg"
+    MissingOk: true
+  }
+
+  RemoveLazarusEnvironmentOptions DeletePath {
+    Path: "../../../dist/nexus-win64/toolchain/lazarus/environmentoptions.xml"
+    MissingOk: true
+  }
+
+  RemoveLazarusFpcDefines DeletePath {
+    Path: "../../../dist/nexus-win64/toolchain/lazarus/fpcdefines.xml"
+    MissingOk: true
+  }
+
+  RemoveStagedFpcConfig DeletePath {
+    Path: "../../../dist/nexus-win64/toolchain/lazarus/fpc/3.2.2/bin/x86_64-win64/fpc.cfg"
+    MissingOk: true
+  }
+
+  InstallLicense CopyFile {
+    Source: "../../../LICENSE"
+    Destination: "../../../dist/nexus-win64/LICENSE"
+    Overwrite: true
+  }
+
+  InstallLicenseNotice CopyFile {
+    Source: "../../../LICENSE-NOTICE.md"
+    Destination: "../../../dist/nexus-win64/LICENSE-NOTICE.md"
+    Overwrite: true
+  }
+}

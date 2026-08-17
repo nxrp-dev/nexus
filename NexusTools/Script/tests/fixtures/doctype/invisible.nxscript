@@ -1,0 +1,5 @@
+doctype "type.nxscript";
+
+Thing Root {
+    Invalid: @Rules.TypeRule;
+}

@@ -1,0 +1,7 @@
+doctype "ArtifactValidator.nxscript";
+
+Schema Example {
+    Setting Prefix {
+        Value: DEMO;
+    }
+}

@@ -1,0 +1,3 @@
+include "cycle-a.nxscript";
+
+Thing B {}

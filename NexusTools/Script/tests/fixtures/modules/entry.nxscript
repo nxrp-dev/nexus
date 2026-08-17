@@ -1,0 +1,10 @@
+module Common CommonRoot "common.nxscript";
+module Whole "common.nxscript";
+module Shared SharedRoot "common.nxscript";
+
+Thing Root {
+  Greeting: "hello " + @Common.Values.Suffix;
+  ModuleItems: @Common.Values.Items;
+  Other: @Whole.OtherRoot.Value;
+  Thing Derived (Shared.Base) {}
+}

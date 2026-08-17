@@ -1,5 +1,6 @@
 site/
 output/
+dist/
 *.compiled
 *.dll
 *.exe

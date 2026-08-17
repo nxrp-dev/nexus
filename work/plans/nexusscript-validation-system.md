@@ -7,15 +7,16 @@
 - Current compiler implementation under `NexusTools/Script/src`.
 - Current schema parity consumer and tests under `NexusTools/Script/parity` and
   `NexusTools/Script/tests`.
-- Current naming standard: `Name[.Validator].nxscript`; the filename convention
-  is a tooling standard and is not enforced by the NexusScript compiler.
+- Current document association: an optional `doctype Path;` declaration
+  identifies another compiled NexusScript document for consumer use without
+  importing its namespace or automatically invoking validation.
 - Existing constraints:
   - validation consumes the compiled generic model, not source syntax;
   - validator vocabulary is ordinary NexusScript vocabulary interpreted by the
     validator engine;
   - no validator or domain vocabulary enters the generic parser/compiler;
   - no executable predicates, callbacks, scripting, or meta-validator layer;
-  - validator-file discovery and NexusLS/VS Code integration are deferred;
+  - automatic validator dispatch and NexusLS/VS Code integration are deferred;
   - unrelated working-tree changes must remain untouched.
 
 ## Summary
@@ -41,21 +42,21 @@ subject source                 validator source
 
 The engine has intentionally hard-coded knowledge of the validator vocabulary.
 That is consumer semantics, not generic NexusScript syntax. Domain validators
-such as `Schema.Validator.nxscript` contain data only. Schema, Build, Installer,
+such as `Schema.nxscript` contain data only. Schema, Build, Installer,
 UI, and custom domain vocabulary remains absent from both the compiler and the
 Validator engine.
 
 The first implementation will prove this chain:
 
 ```text
-Customer.Schema.nxscript
-  -> Schema.Validator.nxscript
+Customer.nxscript
+  -- doctype Schema --> Schema.nxscript
 
-Schema.Validator.nxscript
-  -> Validator.Validator.nxscript
+Schema.nxscript
+  -- doctype Validator --> Validator.nxscript
 
-Validator.Validator.nxscript
-  -> Validator.Validator.nxscript
+Validator.nxscript
+  -- doctype Validator --> Validator.nxscript
 ```
 
 ## Verified Findings
@@ -306,7 +307,7 @@ The rule inspects `ResolvedProperty` and `ResolvedDefinition`; it never resolves
 The examples below establish the intended structure; the implementation stage
 will place complete executable fixtures under the validator tests.
 
-#### `Validator.Validator.nxscript`
+#### `Validator.nxscript`
 
 ```text
 Language Validator {
@@ -367,7 +368,7 @@ The checked-in fixture will fully describe every member of all seven kinds;
 the abbreviated tail above avoids making the plan itself the authoritative
 validator file.
 
-#### `Schema.Validator.nxscript`
+#### `Schema.nxscript`
 
 ```text
 Language Schema {
@@ -428,7 +429,7 @@ This example treats definition-valued entries in `Fields` as structurally
 contained by `Table` for validation purposes even though they reside in a
 property array. The traversal rules below define that relationship explicitly.
 
-#### `Customer.Schema.nxscript`
+#### `Customer.nxscript`
 
 ```text
 module Core "Core.Schema.nxscript";
@@ -530,7 +531,7 @@ special parser mode.
 
 The bootstrap test is:
 
-1. compile `Validator.Validator.nxscript` normally;
+1. compile `Validator.nxscript` normally;
 2. normalize it with the hard-coded Validator engine vocabulary;
 3. use the normalized rules to validate that same compiled document;
 4. require zero validator-definition and subject diagnostics;
@@ -544,8 +545,8 @@ consumer implementation, not a second validator or a language exception.
 ## Scope
 
 - Validator engine and normalized rule model outside the generic compiler.
-- Complete `Validator.Validator.nxscript` fixture.
-- Initial `Schema.Validator.nxscript` and small valid/invalid schema fixtures.
+- Complete `Validator.nxscript` fixture.
+- Initial `Schema.nxscript` and small valid/invalid schema fixtures.
 - Definition, property, value, array, reference, cardinality, unknown-member,
   effective-structure, and provenance diagnostics described above.
 - Focused tests and a validator test project/module integrated with the existing
@@ -556,7 +557,7 @@ consumer implementation, not a second validator or a language exception.
 
 ## Out Of Scope
 
-- Validator discovery from the penultimate filename component.
+- Automatic validator invocation based on a document's `doctype` association.
 - Enforcement of `.nxscript` by the compiler.
 - NexusLS, VS Code registration, completion, or syntax selection.
 - Automatic selection or chaining of validators.
@@ -576,7 +577,7 @@ consumer implementation, not a second validator or a language exception.
 
 ### Stage 1: Freeze executable vocabulary fixtures
 
-- Add a complete `Validator.Validator.nxscript` fixture covering every allowed
+- Add a complete `Validator.nxscript` fixture covering every allowed
   validator kind, property, containment relationship, enum value, and default.
 - Add the representative schema validator and minimal subject fixtures.
 - Document normalization defaults and exact case-sensitivity behavior using the
@@ -658,11 +659,10 @@ produce deterministic finite results.
 
 ### Stage 7: Prove bootstrap and domain separation
 
-- Validate `Validator.Validator.nxscript` against itself.
-- Validate `Schema.Validator.nxscript` against
-  `Validator.Validator.nxscript`.
+- Validate `Validator.nxscript` against itself.
+- Validate `Schema.nxscript` against `Validator.nxscript`.
 - Validate valid and invalid schema subjects against
-  `Schema.Validator.nxscript`.
+  `Schema.nxscript`.
 - Add a non-Schema miniature domain fixture to prove that the engine does not
   contain Schema vocabulary.
 - Search generic compiler and Validator engine units for forbidden domain terms.
@@ -676,7 +676,8 @@ engine.
 
 - Document the public API, ownership, diagnostic ordering, vocabulary defaults,
   effective/provenance rules, and bootstrap process.
-- Document `Name[.Validator].nxscript` only as the future discovery convention.
+- Document `doctype` as the explicit association available to future consumer
+  dispatch without making the generic compiler invoke validation.
 - Identify, but do not implement, the future NexusLS/CLI validator resolver seam.
 
 Acceptance: a consumer can compile two files, call the Validator engine, report

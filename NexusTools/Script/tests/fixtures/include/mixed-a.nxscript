@@ -1,0 +1,3 @@
+include "mixed-b.nxscript";
+
+Thing A {}

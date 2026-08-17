@@ -1,0 +1,120 @@
+module Core inForce "inForceMain.Schema.nxscript";
+include "inForceMain.Schema.nxscript";
+
+Schema Storm {
+
+
+  Type StormTypes {
+    Fields: [
+      Field DOM_ACCESS_CODE {
+        Type: "varchar(10)";
+      }
+    ];
+  }
+
+  Table STORAGE_FACILITY (Core.TMPL_ADDRESS, Core.TMPL_TRACKED) {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table STORAGE_FACILITY_BLDG (Core.TMPL_TRACKED) {
+    Fields: [
+      Field STORAGE_FACILITY_ID {
+        Type: @Storm.STORAGE_FACILITY;
+      },
+      Field FLOORS {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table STORAGE_UNIT_TYPE (Core.TMPL_TYPE, Core.TMPL_DIMENSIONS, Core.TMPL_TRACKED) {
+    Fields: [
+      Field CLIMATE_CONTROLLED {
+        Type: DOM_BOOLEAN;
+      },
+      Field ACCESS_TYPE {
+        Type: DOM_TYPE; //DRIVE UP, INTERIOR (ENUM)
+      }
+    ];
+  }
+
+  Table STORAGE_UNIT (Core.TMPL_TRACKED) {
+    Fields: [
+      Field STORAGE_UNIT_DOOR_NUMBER {
+        Type: DOM_DIGITS;
+      },
+      Field STORAGE_FACILITY_BLDG_ID {
+        Type: @Storm.STORAGE_FACILITY_BLDG;
+      },
+      Field STORAGE_UNIT_TYPE_ID {
+        Type: @Storm.STORAGE_UNIT_TYPE;
+      },
+      Field TENANT_ID {
+        Type: @Storm.TENANT;
+      },
+      Field MOVE_IN_DATE {
+        Type: DOM_DATE;
+      },
+      Field EXPECTED_MOVE_OUT_DATE {
+        Type: DOM_DATE;
+      }
+    ];
+  // STATUS
+  }
+
+  Table TENANT (Core.TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @Core.PERSON;
+      },
+      Field ACCOUNT_NUMBER {
+        Type: DOM_ACCOUNT_NUMBER;
+      },
+      Field GATE_ACCESS_CODE {
+        Type: DOM_ACCESS_CODE;
+      },
+      Field STORAGE_FACILITY_ID {
+        Type: @Storm.STORAGE_FACILITY;
+      },
+      Field REFERRAL_SOURCE_TYPE_ID {
+        Type: @Storm.REFERRAL_SOURCE_TYPE;
+      },
+      Field REFERRAL_SOURCE_COMMENT {
+        Type: DOM_COMMENT;
+      }
+    ];
+  }
+
+  Table TENANT_UNIT (Core.TMPL_TRACKED) {
+    Attributes: [@Core.ATTR_HISTORY];
+    Fields: [
+      Field TENANT_ID {
+        Type: @Storm.TENANT;
+      },
+      Field STORAGE_UNIT_ID {
+        Type: @Storm.STORAGE_UNIT;
+      },
+      Field MOVE_IN_DATE {
+        Type: DOM_DATE;
+      },
+      Field EXPECTED_MOVE_OUT_DATE {
+        Type: DOM_DATE;
+      }
+    ];
+  }
+
+  //STORAGE_UNIT_RENTAL_HISTORY = Table (TMPL_TRACKED) {
+  //  STORAGE_UNIT_ID : @STORAGE_UNIT
+  //  TENANT_ID: @TENANT
+  //  MOVE_IN_DATE: DOM_DATE
+  //  MOVE_OUT_DATE: DOM_DATE
+  //}
+
+  // News
+  Table REFERRAL_SOURCE_TYPE (Core.TMPL_TYPE, Core.TMPL_TRACKED) {
+  }
+}

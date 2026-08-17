@@ -1330,6 +1330,112 @@ begin
   end;
 end;
 
+procedure TestInnoSetupRequiresScript(AContext: TNXTestContext);
+var
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTaskFile: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-inno-' +
+    GUIDToString(lGuid);
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'inno.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Package InnoSetup {');
+      lFile.Add('    Quiet: true');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        NXTaskAssertDiagnostic(AContext, lExecutor.Diagnostics,
+          'NXTask.Action.InnoSetup.Script',
+          'InnoSetup should require a script path.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
+procedure TestInnoSetupRunsConfiguredExecutable(AContext: TNXTestContext);
+var
+  lBasePath: string;
+  lDocument: TNXTaskDocument;
+  lExecutor: TNXTaskExecutor;
+  lFile: TStringList;
+  lGuid: TGuid;
+  lResolver: TNXTaskResolver;
+  lTaskFile: string;
+  lText: string;
+begin
+  CreateGUID(lGuid);
+  lBasePath := IncludeTrailingPathDelimiter(GetTempDir) + 'nxtask-inno-' +
+    GUIDToString(lGuid);
+  lTaskFile := IncludeTrailingPathDelimiter(lBasePath) + 'inno.nxtask';
+
+  ForceDirectories(lBasePath);
+  try
+    lFile := TStringList.Create;
+    try
+      lFile.LineBreak := #10;
+      lFile.Add('Root Group {');
+      lFile.Add('  Package InnoSetup {');
+      lFile.Add('    Executable: "C:/Windows/System32/where.exe"');
+      lFile.Add('    Script: "cmd.exe"');
+      lFile.Add('    Quiet: false');
+      lFile.Add('  }');
+      lFile.Add('}');
+      lFile.SaveToFile(lTaskFile);
+    finally
+      lFile.Free;
+    end;
+
+    lResolver := TNXTaskResolver.Create;
+    lExecutor := TNXTaskExecutor.Create;
+    try
+      lDocument := lResolver.MaterializeFile(lTaskFile);
+      try
+        lText := lExecutor.Execute(lDocument, 'Debug', lBasePath);
+        AContext.AssertFalse(lExecutor.Diagnostics.HasErrors,
+          'InnoSetup should run a configured executable without diagnostics.');
+        NXTaskAssertContains(AContext, lText, 'inno ',
+          'InnoSetup should trace successful compiler invocations.');
+      finally
+        lDocument.Free;
+      end;
+    finally
+      lExecutor.Free;
+      lResolver.Free;
+    end;
+  finally
+    NXTaskRemoveTree(lBasePath);
+  end;
+end;
+
 procedure RegisterNXTaskExecutionTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -1367,6 +1473,9 @@ begin
   lSuite.AddTest('NpmRunsPackageScript', @TestNpmRunsPackageScript);
   lSuite.AddTest('NpmRejectsCommandAndScript', @TestNpmRejectsCommandAndScript);
   lSuite.AddTest('FpcBuildsProgram', @TestFpcBuildsProgram);
+  lSuite.AddTest('InnoSetupRequiresScript', @TestInnoSetupRequiresScript);
+  lSuite.AddTest('InnoSetupRunsConfiguredExecutable',
+    @TestInnoSetupRunsConfiguredExecutable);
 end;
 
 end.

@@ -1,0 +1,53 @@
+doctype "Validator.nxscript";
+
+Language Schema {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Table {
+            Root: True;
+            UnknownProperties: Reject;
+            Properties: [
+                Property TableName {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text];
+                        Scalar: Text;
+                    }
+                },
+                Property Fields {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Minimum: 1;
+                            Names: Required;
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [Field];
+                            Mixed: False;
+                        }
+                    }
+                }
+            ];
+        },
+        Definition Field {
+            Parents: [Table];
+            UnknownProperties: Reject;
+            Properties: [
+                Property Type {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Reference {
+                    Value Value {
+                        SourceForms: [Reference];
+                        EffectiveCategories: [Definition];
+                        Reference Reference {
+                            Targets: [Definition];
+                            DefinitionKinds: [Table];
+                        }
+                    }
+                }
+            ];
+        }
+    ];
+}

@@ -1,0 +1,6 @@
+doctype "type.nxscript";
+module Rules "type.nxscript";
+
+Thing Root {
+    Imported: @Rules.TypeRule.Meaning;
+}

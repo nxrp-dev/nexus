@@ -1,0 +1,4 @@
+BuildNexusInstallerWin64 Group {
+  <"stage-nexus-win64.nxtask":StageNexusWin64>
+  <"package-nexus-win64-inno.nxtask":PackageNexusWin64Inno>
+}

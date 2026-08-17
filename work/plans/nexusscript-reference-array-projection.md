@@ -64,8 +64,8 @@ The controlling rule is:
 - Named scalar items and scalar property references retain scalar effective
   values; references resolving to definitions own structural materializations.
 - The schema parity fixtures now contain all fields as inline definitions in
-  ordered `Fields` arrays: 493 in `inForceMain.nx` and 22 in
-  `StormSpecific.nx`.
+  ordered `Fields` arrays: 493 in `inForceMain.Schema.nxscript` and 22 in
+  `StormSpecific.Schema.nxscript`.
 - Both full parity cases currently stop at `NXS5004` through
   `@inForce.PERSON`. The compiler reaches a recursive table relationship while
   deep-materializing the table's non-scalar `Fields` array.
@@ -369,7 +369,7 @@ status.
 ### Archive
 
 Run `scripts\New-NexusSourceArchive.ps1`, then inspect the ZIP and verify it
-contains the compiler, tests, parity consumer, both `.nx` fixtures, this plan,
+contains the compiler, tests, parity consumer, both `.nxscript` fixtures, this plan,
 and no generated binaries.
 
 ## Risks And Questions

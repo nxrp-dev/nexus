@@ -1,0 +1,9 @@
+PackageNexusWin64Inno Group {
+  PackageInstaller InnoSetup {
+    Script: "../../../NexusTools/Installer/win64/NexusSetup.iss"
+    Defines: "NexusVersion=0.1.0;SourceRoot=../../../dist/nexus-win64;OutputRoot=../../../dist/installers"
+    OutputDirectory: "../../../dist/installers"
+    OutputBaseFilename: "NexusSetup-x64-0.1.0"
+    Quiet: false
+  }
+}

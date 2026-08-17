@@ -44,6 +44,7 @@ type
     class var FCommandLineFlags: TList;
     class var FValues: TStringList;
     class var FSupplied: TStringList;
+    class var FExplicitValues: TStringList;
     class var FUnknownFlags: TStringList;
     class var FInvalidArguments: TStringList;
     class var FAllowUnknownFlags: Boolean;
@@ -89,6 +90,7 @@ type
     class function GetValueDefault(const AName, ADefaultValue: string): string; static;
     class function HasValue(const AName: string): Boolean; static;
     class function Supplied(const AName: string): Boolean; static;
+    class function SuppliedWithValue(const AName: string): Boolean; static;
     class function HelpText: string; static;
     class function FlagHelpText(const AName: string): string; static;
 
@@ -138,6 +140,9 @@ begin
   FSupplied := TStringList.Create;
   FSupplied.CaseSensitive := True;
 
+  FExplicitValues := TStringList.Create;
+  FExplicitValues.CaseSensitive := True;
+
   FUnknownFlags := TStringList.Create;
   FUnknownFlags.CaseSensitive := True;
 
@@ -162,6 +167,7 @@ begin
   FreeAndNil(FCommandLineFlags);
   FreeAndNil(FInvalidArguments);
   FreeAndNil(FUnknownFlags);
+  FreeAndNil(FExplicitValues);
   FreeAndNil(FSupplied);
   FreeAndNil(FValues);
 end;
@@ -281,6 +287,7 @@ class procedure TNXCommandLine.ClearValues;
 begin
   FValues.Clear;
   FSupplied.Clear;
+  FExplicitValues.Clear;
   FUnknownFlags.Clear;
   FInvalidArguments.Clear;
   FParsed := False;
@@ -415,6 +422,7 @@ begin
 
     FValues.Values[lName] := lValue;
     FSupplied.Values[lName] := 'true';
+    FExplicitValues.Values[lName] := BoolToStr(lHasValue, True);
 
     if (lFlag = nil) and HasRegisteredFlags then
       FUnknownFlags.Values[lName] := lValue;
@@ -496,6 +504,13 @@ class function TNXCommandLine.Supplied(const AName: string): Boolean;
 begin
   Validate;
   Result := SuppliedRaw(AName);
+end;
+
+class function TNXCommandLine.SuppliedWithValue(
+  const AName: string): Boolean;
+begin
+  Validate;
+  Result := SameText(FExplicitValues.Values[CleanName(AName)], 'true');
 end;
 
 class function TNXCommandLine.SuppliedRaw(const AName: string): Boolean;

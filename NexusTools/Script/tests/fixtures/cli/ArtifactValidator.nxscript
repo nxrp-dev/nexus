@@ -1,0 +1,15 @@
+Language Artifact {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Schema {
+            Root: True;
+            UnknownProperties: Allow;
+            UnknownChildren: Allow;
+        },
+        Definition Setting {
+            Parents: [Schema];
+            UnknownProperties: Allow;
+            UnknownChildren: Allow;
+        }
+    ];
+}

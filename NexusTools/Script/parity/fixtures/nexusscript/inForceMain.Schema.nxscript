@@ -1,0 +1,2147 @@
+Schema inForce {
+
+  Setting MODULE_POSTFIX {
+    Value: "_TBL";
+  }
+  Setting MODULE_ID_POSTFIX {
+    Value: "_ID";
+  }
+  Setting GENERATOR_PREFIX {
+    Value: "GEN_";
+  }
+  Setting NEXUS_SCHEMA_PRIMARY_KEY_TYPE {
+    Value: "DOM_INDEX";
+  }
+
+  Data DATA_ADDRESS_TYPE {
+    Name: ADDRESS_TYPE;
+    Path: "X:\projects\inForce\Database\DML\address_type.csv";
+  }
+  //data COUNTY <X:\projects\inForce\Database\DML\county.csv>
+  Data DATA_LICENSE_TYPE {
+    Name: LICENSE_TYPE;
+    Path: "X:\projects\inForce\Database\DML\license_type.csv";
+  }
+  Data DATA_PHONE_TYPE {
+    Name: PHONE_TYPE;
+    Path: "X:\projects\inForce\Database\DML\phone_type.csv";
+  }
+  Data DATA_SERVICE_BILLING_TYPE {
+    Name: SERVICE_BILLING_TYPE;
+    Path: "X:\projects\inForce\Database\DML\service_billing_type.csv";
+  }
+  Data DATA_STATE {
+    Name: STATE;
+    Path: "X:\projects\inForce\Database\DML\state.csv";
+  }
+  Data DATA_ZIPCODE {
+    Name: ZIPCODE;
+    Path: "X:\projects\inForce\Database\DML\zipcode.csv";
+  }
+  Data DATA_PERSON_TYPE {
+    Name: PERSON_TYPE;
+    Path: "X:\projects\inForce\Database\DML\person_type.csv";
+  }
+  Data DATA_PERSON {
+    Name: PERSON;
+    Path: "X:\projects\inForce\Database\DML\1_person.csv";
+  }
+  Data DATA_LOGIN {
+    Name: LOGIN;
+    Path: "X:\projects\inForce\Database\DML\2_login.csv";
+  }
+
+  Type CoreTypes {
+    Fields: [
+      Field DOM_CUSTOM_235 {
+        Type: "varchar(235)";
+      },
+      Field DOM_ACCOUNT_NUMBER {
+        Type: "varchar(100)";
+      },
+      Field DOM_ADDRESS {
+        Type: "varchar(200)";
+      },
+      Field DOM_AGE {
+        Type: "smallint";
+      },
+      Field DOM_BOOLEAN {
+        Type: "smallint";
+      },
+      Field DOM_CAPTION {
+        Type: "varchar(50)";
+      },
+      Field DOM_CHAR {
+        Type: "char(1)";
+      },
+      Field DOM_CITY {
+        Type: "varchar(100)";
+      },
+      Field DOM_CODE {
+        Type: "varchar(6)";
+      },
+      Field DOM_COLOR {
+        Type: "integer";
+      },
+      Field DOM_COLUMNS {
+        Type: "smallint";
+      },
+      Field DOM_COMMENT {
+        Type: "blob sub_type 1 segment size 100";
+      },
+      Field DOM_COUNT {
+        Type: "integer";
+      },
+      Field DOM_COUNTY {
+        Type: "varchar(100)";
+      },
+      Field DOM_COUNTRY {
+        Type: "varchar(100)";
+      },
+      Field DOM_CPC {
+        Type: "varchar(30)";
+      },
+      Field DOM_DATE {
+        Type: "Date";
+      },
+      Field DOM_DAY {
+        Type: "smallint";
+      },
+      Field DOM_DESCRIPTION {
+        Type: "blob sub_type 1 segment size 100";
+      },
+      Field DOM_DIGITS {
+        Type: "smallint";
+      },
+      Field DOM_DL_NUMBER {
+        Type: "varchar(100)";
+      },
+      Field DOM_DOMAIN {
+        Type: "varchar(100)";
+      },
+      Field DOM_EMAIL {
+        Type: "varchar(200)";
+      },
+      Field DOM_ENUMERATOR_NAME {
+        Type: "varchar(100)";
+      },
+      Field DOM_FILE_ATTACHMENT {
+        Type: "blob sub_type 0 segment size 80";
+      },
+      Field DOM_FLOAT {
+        Type: "float";
+      },
+      Field DOM_GENDER {
+        Type: "varchar(1)";
+      },
+      Field DOM_HOURS {
+        Type: "Numeric(8,2)";
+      },
+      Field DOM_INCHES {
+        Type: "Numeric(4,2)";
+      },
+      Field DOM_INDEX {
+        Type: "integer";
+      },
+      Field DOM_INTEGER {
+        Type: "integer";
+      },
+      Field DOM_LOCATION {
+        Type: "varchar(40)";
+      },
+      Field DOM_MONEY {
+        Type: "Double Precision";
+      },
+      Field DOM_NAME {
+        Type: "varchar(100)";
+      },
+      Field DOM_NAME_PREFIX {
+        Type: "varchar(10)";
+      },
+      Field DOM_NAME_SUFFIX {
+        Type: "varchar(15)";
+      },
+      Field DOM_PASSWORD {
+        Type: "varchar(50)";
+      },
+      Field DOM_PERCENT {
+        Type: "Numeric(4,2)";
+      },
+      Field DOM_PHONE {
+        Type: "varchar(13)";
+      },
+      Field DOM_PRIMARY_INDEX {
+        Type: "integer";
+      },
+      Field DOM_REPORT_TMPL {
+        Type: "blob sub_type 0 segment size 400";
+      },
+      Field DOM_SHORT_GUID {
+        Type: "char(32)";
+      },
+      Field DOM_SIZE {
+        Type: "integer";
+      },
+      Field DOM_SSN {
+        Type: "varchar(13)";
+      },
+      Field DOM_STATE {
+        Type: "char(2)";
+      },
+      Field DOM_SUFFIX {
+        Type: "varchar(15)";
+      },
+      Field DOM_TAX_ID {
+        Type: "varchar(15)";
+      },
+      Field DOM_TIME {
+        Type: "time";
+      },
+      Field DOM_TIMESTAMP {
+        Type: "timestamp";
+      },
+      Field DOM_TYPE {
+        Type: "smallint";
+      },
+      Field DOM_UPC {
+        Type: "varchar(20)";
+      },
+      Field DOM_URL {
+        Type: "varchar(255)";
+      },
+      Field DOM_USERNAME {
+        Type: "varchar(20)";
+      },
+      Field DOM_YEAR {
+        Type: "smallint";
+      },
+      Field DOM_ZIPCODE {
+        Type: "varchar(10)";
+      }
+    ];
+  }
+
+  Attributes ATTR_HISTORY {
+    Attribute IS_HISTORY {
+      Value: "True";
+    }
+  }
+
+  Template TMPL_ADDRESS {
+    Fields: [
+      Field ADDRESS_TYPE_ID {
+        Type: @inForce.ADDRESS_TYPE;
+      },
+      Field ADDRESS_LINE_1 {
+        Type: DOM_ADDRESS;
+      },
+      Field ADDRESS_LINE_2 {
+        Type: DOM_ADDRESS;
+      },
+      Field CITY {
+        Type: DOM_CITY;
+      },
+      Field STATE {
+        Type: DOM_STATE;
+      },
+      Field COUNTY {
+        Type: DOM_COUNTY;
+      },
+      Field COUNTRY {
+        Type: DOM_COUNTRY;
+      },
+      Field ZIPCODE {
+        Type: DOM_ZIPCODE;
+      }
+    ];
+  }
+
+  Template TMPL_CONTACT_INFORMATION {
+    Fields: [
+      Field ADDRESS_LINE_1 {
+        Type: DOM_ADDRESS;
+      },
+      Field ADDRESS_LINE_2 {
+        Type: DOM_ADDRESS;
+      },
+      Field CITY {
+        Type: DOM_CITY;
+      },
+      Field STATE {
+        Type: DOM_STATE;
+      },
+      Field COUNTY {
+        Type: DOM_COUNTY;
+      },
+      Field COUNTRY {
+        Type: DOM_COUNTRY;
+      },
+      Field ZIPCODE {
+        Type: DOM_ZIPCODE;
+      },
+      Field PHONE {
+        Type: DOM_PHONE;
+      }
+    ];
+  }
+
+  Template TMPL_DATED {
+    Fields: [
+      Field EFFECTIVE_DATE {
+        Type: DOM_TIMESTAMP;
+      },
+      Field EXPIRATION_DATE {
+        Type: DOM_TIMESTAMP;
+      }
+    ];
+  }
+
+  Template TMPL_DIMENSIONS {
+    Fields: [
+      Field HEIGHT {
+        Type: DOM_SIZE;
+      },
+      Field WIDTH {
+        Type: DOM_SIZE;
+      },
+      Field DEPTH {
+        Type: DOM_SIZE;
+      }
+    ];
+  }
+
+  Template TMPL_DISCOUNT {
+    Fields: [
+      Field FLAT_COST {
+        Type: DOM_MONEY;
+      },
+      Field PERCENT {
+        Type: DOM_PERCENT;
+      }
+    ];
+  }
+
+  Template TMPL_EMAIL {
+    Fields: [
+      Field EMAIL {
+        Type: DOM_EMAIL;
+      },
+      Field EMAIL_TYPE_ID {
+        Type: @inForce.EMAIL_TYPE;
+      }
+    ];
+  }
+
+  Template TMPL_FILE {
+    Fields: [
+      Field FILE_VERSION {
+        Type: DOM_COUNT;
+      },
+      Field FILENAME {
+        Type: DOM_NAME;
+      },
+      Field FILE_ATTACHMENT {
+        Type: DOM_FILE_ATTACHMENT;
+      }
+    ];
+  }
+
+
+  Template TMPL_NOTE {
+    Fields: [
+      Field NOTE {
+        Type: DOM_COMMENT;
+      }
+    ];
+  }
+
+  Template TMPL_PHONE {
+    Fields: [
+      Field PHONE {
+        Type: DOM_PHONE;
+      },
+      Field PHONE_TYPE_ID {
+        Type: @inForce.PHONE_TYPE;
+      }
+    ];
+  }
+
+  Template TMPL_TRACKED {
+    Fields: [
+      Field CREATED_BY {
+        Type: @inForce.PERSON;
+      },
+      Field CREATED_DATE {
+        Type: DOM_TIMESTAMP;
+      },
+      Field MODIFIED_BY {
+        Type: @inForce.PERSON;
+      },
+      Field MODIFIED_DATE {
+        Type: DOM_TIMESTAMP;
+      }
+    ];
+  }
+
+  Template TMPL_TYPE {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field DESCRIPTION {
+        Type: DOM_DESCRIPTION;
+      },
+      Field SORT_ORDER {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table ACTIVITY (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field START_DATE {
+        Type: DOM_DATE;
+      },
+      Field START_TIME {
+        Type: DOM_TIME;
+      },
+      Field ACTIVITY_TYPE_ID {
+        Type: @inForce.ACTIVITY_TYPE;
+      },
+      Field ASSIGNED_PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field END_DATE {
+        Type: DOM_DATE;
+      },
+      Field END_TIME {
+        Type: DOM_TIME;
+      },
+      Field CONTACT_PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field SCHEDULE_ID {
+        Type: @inForce.SCHEDULE;
+      },
+      Field SUMMARY {
+        Type: DOM_COMMENT;
+      },
+      Field LOCATION {
+        Type: DOM_DESCRIPTION;
+      },
+      Field PRIORITY_ID {
+        Type: @inForce.PRIORITY_TYPE;
+      },
+      Field COLOR {
+        Type: DOM_COLOR;
+      },
+      Field DETAIL {
+        Type: DOM_COMMENT;
+      },
+      Field ACTIVITY_STATUS_ID {
+        Type: @inForce.ACTIVITY_STATUS;
+      }
+    ];
+  }
+
+  Table ACTIVITY_ACTION (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field ACTIVITY_ID {
+        Type: @inForce.ACTIVITY;
+      },
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field NOTES {
+        Type: DOM_COMMENT;
+      }
+    ];
+  }
+
+  Table ACTIVITY_STATUS (TMPL_TYPE, TMPL_TRACKED) {
+    Fields: [
+      Field REQUIRES_ACTION {
+        Type: DOM_BOOLEAN;
+      }
+    ];
+  }
+
+  Table ACTIVITY_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table ADDRESS_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table CALL_STATUS_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table CATEGORY (TMPL_TYPE, TMPL_TRACKED) {
+    Fields: [
+      Field PARENT_ID {
+        Type: @inForce.CATEGORY;
+      }
+    ];
+  }
+
+  Table CATEGORY_INDEX {
+    Fields: [
+      Field PARENT_ID {
+        Type: @inForce.CATEGORY;
+      },
+      Field CHILD_ID {
+        Type: @inForce.CATEGORY;
+      }
+    ];
+  }
+
+  Table COMPANY (TMPL_TRACKED) {
+    Fields: [
+      Field URL {
+        Type: DOM_URL;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field PRIMARY_CONTACT_ID {
+        Type: @inForce.PERSON;
+      },
+      Field PARENT_COMPANY_ID {
+        Type: @inForce.COMPANY;
+      }
+    ];
+  }
+
+  Table COMPANY_ADDRESS (TMPL_ADDRESS, TMPL_TRACKED) {
+    Fields: [
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      }
+    ];
+  }
+
+  Table COMPANY_EMAIL (TMPL_EMAIL, TMPL_TRACKED) {
+    Fields: [
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      }
+    ];
+  }
+
+  Table COMPANY_INDEX {
+    Fields: [
+      Field PARENT_COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field CHILD_COMPANY_ID {
+        Type: @inForce.COMPANY;
+      }
+    ];
+  }
+
+  Table COMPANY_NOTE (TMPL_NOTE, TMPL_TRACKED) {
+    Fields: [
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      }
+    ];
+  }
+
+  Table COMPANY_PHONE (TMPL_PHONE, TMPL_TRACKED) {
+    Fields: [
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      }
+    ];
+  }
+
+  Table COUNTY {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field STATE {
+        Type: DOM_STATE;
+      }
+    ];
+  }
+
+  Table COUNTRY {
+    Fields: [
+      Field CODE {
+        Type: DOM_CODE;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table EMAIL_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table FILE (TMPL_FILE, TMPL_TRACKED) {
+  }
+
+  Table FILE_HISTORY (TMPL_TRACKED) {
+    Fields: [
+      Field FILE_ID {
+        Type: @inForce.FILE;
+      },
+      Field FILE_ATTACHMENT {
+        Type: DOM_FILE_ATTACHMENT;
+      },
+      Field FILE_VERSION {
+        Type: DOM_COUNT;
+      },
+      Field FILENAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table INVOICE (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field ASSIGNED_PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field CUSTOMER_PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field CUSTOMER_COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field SUBTOTAL {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL_TAX {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field NOTES {
+        Type: DOM_COMMENT;
+      },
+      Field LOCATION_ID {
+        Type: @inForce.LOCATION;
+      }
+    ];
+  }
+
+  Table INVOICE_FILE {
+    Fields: [
+      Field INVOICE_ID {
+        Type: @inForce.INVOICE;
+      },
+      Field FILE_ID {
+        Type: @inForce.FILE;
+      }
+    ];
+  }
+
+  Table INVOICE_ITEM {
+    Fields: [
+      Field INVOICE_ID {
+        Type: @inForce.INVOICE;
+      }
+    ];
+  }
+
+  Table INVOICE_LINE {
+    Fields: [
+      Field INVOICE_ID {
+        Type: @inForce.INVOICE;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field QUANTITY {
+        Type: DOM_COUNT;
+      },
+      Field DESCRIPTION {
+        Type: DOM_COMMENT;
+      },
+      Field COST {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL_COST {
+        Type: DOM_MONEY;
+      },
+      Field ITEM_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field DISCOUNT_PERCENT {
+        Type: DOM_PERCENT;
+      },
+      Field SORT_ORDER {
+        Type: DOM_INTEGER;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field LAST_QUANTITY {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table INVOICE_PACKAGE {
+    Fields: [
+      Field INVOICE_ID {
+        Type: @inForce.INVOICE;
+      }
+    ];
+  }
+
+  Table INVOICE_SERVICE {
+    Fields: [
+      Field INVOICE_ID {
+        Type: @inForce.INVOICE;
+      }
+    ];
+  }
+
+  Table ITEM (TMPL_TYPE) {
+    Fields: [
+      Field BASE_PRICE {
+        Type: DOM_MONEY;
+      },
+      Field UPC {
+        Type: DOM_UPC;
+      },
+      Field CUSTOM_PC {
+        Type: DOM_CPC;
+      },
+      Field DISPLAY_MEASUREMENT_ID {
+        Type: @inForce.MEASUREMENT;
+      },
+      Field STORE_MEASUREMENT_ID {
+        Type: @inForce.MEASUREMENT;
+      },
+      Field LOW_LIMIT {
+        Type: DOM_FLOAT;
+      },
+      Field OUT_OF_STOCK_TOLERANCE {
+        Type: DOM_FLOAT;
+      }
+    ];
+  }
+
+  Table MEASUREMENT_FAMILY (TMPL_TYPE) {
+  }
+
+  Table MEASUREMENT (TMPL_TYPE) {
+    Fields: [
+      Field MEASUREMENT_FAMILY_ID {
+        Type: @inForce.MEASUREMENT_FAMILY;
+      },
+      Field BASE_MULTIPLIER {
+        Type: DOM_FLOAT;
+      }
+    ];
+  }
+
+  Table INVENTORY {
+    Fields: [
+      Field ITEM {
+        Type: @inForce.ITEM;
+      },
+      Field QUANTITY {
+        Type: DOM_FLOAT;
+      }
+    ];
+  }
+
+  Table ITEM_BULK_DISCOUNT (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field PERCENT {
+        Type: DOM_PERCENT;
+      },
+      Field QUANTITY_FROM {
+        Type: DOM_COUNT;
+      },
+      Field QUANTITY_TO {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table LEAD (TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field SUMMARY {
+        Type: DOM_NAME;
+      },
+      Field PROBABILITY {
+        Type: DOM_COUNT;
+      },
+      Field ESTIMATED_CLOSE {
+        Type: DOM_DATE;
+      },
+      Field LEAD_STATUS_ID {
+        Type: @inForce.LEAD_STATUS;
+      },
+      Field LEAD_STAGE_ID {
+        Type: @inForce.LEAD_STAGE;
+      },
+      Field EMPLOYEE_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table LEAD_ACTIVITY (TMPL_TRACKED) {
+    Fields: [
+      Field LEAD_ID {
+        Type: @inForce.LEAD;
+      },
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field PROBABILITY {
+        Type: DOM_PERCENT;
+      },
+      Field ESTIMATED_CLOSE {
+        Type: DOM_DATE;
+      },
+      Field LEAD_STAGE_ID {
+        Type: @inForce.LEAD_STAGE;
+      },
+      Field EMPLOYEE_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table LEAD_ITEM (TMPL_TRACKED) {
+    Fields: [
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field QTY {
+        Type: DOM_COUNT;
+      },
+      Field COST {
+        Type: DOM_MONEY;
+      },
+      Field PRICE {
+        Type: DOM_MONEY;
+      },
+      Field DISCOUNT {
+        Type: DOM_PERCENT;
+      },
+      Field ADJUSTED_PRICE {
+        Type: DOM_MONEY;
+      },
+      Field SUB_TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field LEAD_ID {
+        Type: @inForce.LEAD;
+      },
+      Field ITEM_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table LEAD_NOTE (TMPL_NOTE, TMPL_TRACKED) {
+    Fields: [
+      Field LEAD_ID {
+        Type: @inForce.LEAD;
+      }
+    ];
+  }
+
+  Table LEAD_STAGE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table LEAD_STATUS (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table LICENSE_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table LOCATION (TMPL_TYPE, TMPL_TRACKED) {
+    Fields: [
+      Field ADDRESS {
+        Type: DOM_ADDRESS;
+      },
+      Field CITY {
+        Type: DOM_CITY;
+      },
+      Field STATE {
+        Type: DOM_STATE;
+      },
+      Field ZIPCODE {
+        Type: DOM_ZIPCODE;
+      },
+      Field PHONE {
+        Type: DOM_PHONE;
+      },
+      Field FAX {
+        Type: DOM_PHONE;
+      },
+      Field EMAIL {
+        Type: DOM_EMAIL;
+      }
+    ];
+  }
+
+  Table LOCATION_LIMIT {
+    Fields: [
+      Field LOCATION_ID {
+        Type: @inForce.LOCATION;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field LOW_LIMIT {
+        Type: DOM_COUNT;
+      },
+      Field HIGH_LIMIT {
+        Type: DOM_COUNT;
+      },
+      Field CURRENT_QTY {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table LOGIN {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field LOGIN_NAME {
+        Type: DOM_NAME;
+      },
+      Field LOGIN_PASSWORD {
+        Type: DOM_PASSWORD;
+      }
+    ];
+  }
+
+  Table SYSTEM_MODULE (TMPL_TRACKED) {}
+
+  Table PACKAGE (TMPL_TRACKED, TMPL_DATED) {
+    Fields: [
+      Field BASE_PRICE {
+        Type: DOM_MONEY;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field DESCRIPTION {
+        Type: DOM_COMMENT;
+      }
+    ];
+  }
+
+  Table PACKAGE_BULK_DISCOUNT (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field PERCENT {
+        Type: DOM_PERCENT;
+      },
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field QUANTITY_FROM {
+        Type: DOM_COUNT;
+      },
+      Field QUANTITY_TO {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table PACKAGE_ITEM {
+    Fields: [
+      Field QUANTITY {
+        Type: DOM_COUNT;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field PRICE {
+        Type: DOM_MONEY;
+      }
+    ];
+  }
+
+  Table PACKAGE_SERVICE {
+    Fields: [
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field QUANTITY {
+        Type: DOM_COUNT;
+      },
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field PRICE {
+        Type: DOM_MONEY;
+      }
+    ];
+  }
+
+  Table PERSON (TMPL_TRACKED) {
+    Fields: [
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field URL {
+        Type: DOM_URL;
+      },
+      Field GENDER {
+        Type: DOM_GENDER;
+      },
+      Field FIRST_NAME {
+        Type: DOM_NAME;
+      },
+      Field NAME_PREFIX {
+        Type: DOM_NAME_PREFIX;
+      },
+      Field MIDDLE_NAME {
+        Type: DOM_NAME;
+      },
+      Field LAST_NAME {
+        Type: DOM_NAME;
+      },
+      Field NAME_SUFFIX {
+        Type: DOM_NAME_SUFFIX;
+      },
+      Field PERSON_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field PERSON_CATEGORY_ID {
+        Type: @inForce.PERSON_CATEGORY;
+      }
+    ];
+  }
+
+  Table PERSON_ADDRESS (TMPL_ADDRESS, TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table PERSON_CATEGORY (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table PERSON_COUNTY (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field COUNTY_ID {
+        Type: @inForce.COUNTY;
+      },
+      Field STATUS {
+        Type: DOM_TYPE;
+      }
+    ];
+  }
+
+  Table PERSON_EMAIL (TMPL_EMAIL, TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table PERSON_FILE {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field FILE_ID {
+        Type: @inForce.FILE;
+      }
+    ];
+  }
+
+  Table PERSON_GROUP (TMPL_TYPE, TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_GROUP_TYPE_ID {
+        Type: @inForce.PERSON_GROUP_TYPE;
+      },
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table PERSON_GROUP_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table PERSON_NOTE (TMPL_NOTE, TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table PERSON_PHONE (TMPL_PHONE, TMPL_TRACKED) {
+    Fields: [
+      Field PERSON_ID {
+        Type: @inForce.PERSON;
+      }
+    ];
+  }
+
+  Table PERSON_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table PHONE_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table POS_LINE (TMPL_TRACKED) {
+    Fields: [
+      Field POS_TICKET_ID {
+        Type: @inForce.POS_TICKET;
+      },
+      Field EMPLOYEE_ID {
+        Type: @inForce.PERSON;
+      },
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field PRICE {
+        Type: DOM_MONEY;
+      },
+      Field QUANTITY {
+        Type: DOM_COUNT;
+      },
+      Field DISCOUNT {
+        Type: DOM_MONEY;
+      },
+      Field LINE_TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field ITEM_TYPE {
+        Type: DOM_TYPE;
+      }
+    ];
+  }
+
+  Table POS_PAYMENT {
+    Fields: [
+      Field POS_TICKET_ID {
+        Type: @inForce.POS_TICKET;
+      },
+      Field POS_PAYMENT_TYPE_ID {
+        Type: @inForce.POS_PAYMENT_TYPE;
+      },
+      Field AMOUNT {
+        Type: DOM_MONEY;
+      }
+    ];
+  }
+
+  Table POS_PAYMENT_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table POS_TICKET (TMPL_TRACKED) {
+    Fields: [
+      Field CONTACT_ID {
+        Type: @inForce.CONTACT;
+      },
+      Field RETAIL_TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field SERVICE_TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field PACKAGE_TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field RETAIL_TAX {
+        Type: DOM_MONEY;
+      },
+      Field SUBTOTAL {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL {
+        Type: DOM_MONEY;
+      }
+    ];
+  }
+
+  Table PRIORITY_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table PROGRAM_OPTION {
+    Fields: [
+      Field RETAIL_TAX {
+        Type: DOM_PERCENT;
+      },
+      Field SECURITY_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field DOMAIN_NAME {
+        Type: DOM_NAME;
+      },
+      Field ADMIN_USERNAME {
+        Type: DOM_NAME;
+      },
+      Field ADMIN_PASSWORD {
+        Type: DOM_PASSWORD;
+      },
+      Field INVOICE_TEMPLATE_ID {
+        Type: @inForce.INVOICE_TEMPLATE;
+      },
+      Field QUOTE_TEMPLATE_ID {
+        Type: @inForce.QUOTE_TEMPLATE;
+      }
+    ];
+  }
+
+  Table PURCHASE_ORDER (TMPL_TRACKED) {
+    Fields: [
+      Field VENDOR_ID {
+        Type: @inForce.VENDOR;
+      },
+      Field LOCATION_ID {
+        Type: DOM_INCHES;
+      }
+    ];
+  }
+
+  Table PURCHASE_ORDER_LINE {
+    Fields: [
+      Field PURCHASE_ORDER_ID {
+        Type: @inForce.PURCHASE_ORDER;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field QUANTITY {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table QUOTE (TMPL_DATED, TMPL_TRACKED) {
+    Fields: [
+      Field ASSIGNED_PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field CUSTOMER_PERSON_ID {
+        Type: @inForce.PERSON;
+      },
+      Field CUSTOMER_COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field SUBTOTAL {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL_TAX {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL {
+        Type: DOM_MONEY;
+      },
+      Field NOTES {
+        Type: DOM_COMMENT;
+      },
+      Field LOCATION_ID {
+        Type: @inForce.LOCATION;
+      }
+    ];
+  }
+
+  Table QUOTE_FILE {
+    Fields: [
+      Field QUOTE_ID {
+        Type: @inForce.QUOTE;
+      },
+      Field FILE_ID {
+        Type: @inForce.FILE;
+      }
+    ];
+  }
+
+  Table QUOTE_LINE {
+    Fields: [
+      Field ITEM_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field DISCOUNT_PERCENT {
+        Type: DOM_PERCENT;
+      },
+      Field QUOTE_ID {
+        Type: @inForce.QUOTE;
+      },
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field SORT_ORDER {
+        Type: DOM_INTEGER;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field PACKAGE_ID {
+        Type: @inForce.PACKAGE;
+      },
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field QUANTITY {
+        Type: DOM_COUNT;
+      },
+      Field DESCRIPTION {
+        Type: DOM_COMMENT;
+      },
+      Field COST {
+        Type: DOM_MONEY;
+      },
+      Field TOTAL_COST {
+        Type: DOM_MONEY;
+      },
+      Field LAST_QUANTITY {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table SCHEDULE {
+    Fields: [
+      Field START_TIME {
+        Type: DOM_TIMESTAMP;
+      },
+      Field FINISH_TIME {
+        Type: DOM_TIMESTAMP;
+      },
+      Field CAPTION {
+        Type: DOM_CAPTION;
+      },
+      Field RECURRENCE {
+        Type: DOM_INTEGER;
+      },
+      Field USER_ID {
+        Type: @inForce.PERSON;
+      },
+      Field LOCATION {
+        Type: DOM_LOCATION;
+      },
+      Field COLOR {
+        Type: DOM_COLOR;
+      },
+      Field PARENT_ID {
+        Type: @inForce.SCHEDULE;
+      },
+      Field NOTES {
+        Type: DOM_COMMENT;
+      },
+      Field OPTIONS {
+        Type: DOM_TYPE;
+      },
+      Field EVENT_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field RECUR_INFO {
+        Type: DOM_COMMENT;
+      },
+      Field STATE {
+        Type: DOM_TYPE;
+      },
+      Field REMINDER {
+        Type: DOM_BOOLEAN;
+      },
+      Field ACTUAL_START {
+        Type: DOM_TIMESTAMP;
+      },
+      Field RESOURCE_ID {
+        Type: @inForce.RESOURCE;
+      },
+      Field REMINDER_MINUTES {
+        Type: DOM_INTEGER;
+      },
+      Field REMINDER_DATE {
+        Type: DOM_DATE;
+      },
+      Field ACTUAL_FINISH {
+        Type: DOM_TIMESTAMP;
+      },
+      Field TASK_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field CONTACT_ID {
+        Type: @inForce.PERSON;
+      },
+      Field RESOURCES_MULTIPLE {
+        Type: DOM_COMMENT;
+      },
+      Field START_MINS {
+        Type: DOM_COUNT;
+      },
+      Field MASTER_SCHEDULE_ID {
+        Type: @inForce.SCHEDULE;
+      },
+      Field COMPLETE_MINS {
+        Type: DOM_COUNT;
+      },
+      Field BREAK_MINS {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table SECURITY_CATEGORY (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table SECURITY_RIGHT (TMPL_TYPE, TMPL_TRACKED) {
+    Fields: [
+      Field SECURITY_CATEGORY_ID {
+        Type: @inForce.SECURITY_CATEGORY;
+      }
+    ];
+  }
+
+  Table SECURITY_ROLE (TMPL_TRACKED) {}
+
+  Table SECURITY_ROLE_RIGHT {
+    Fields: [
+      Field SECURITY_ROLE_ID {
+        Type: @inForce.SECURITY_ROLE;
+      },
+      Field INSERT_NEW {
+        Type: DOM_BOOLEAN;
+      },
+      Field EDIT_ALL {
+        Type: DOM_BOOLEAN;
+      },
+      Field DELETE_ALL {
+        Type: DOM_BOOLEAN;
+      },
+      Field VIEW_ALL {
+        Type: DOM_BOOLEAN;
+      },
+      Field EDIT_SELF {
+        Type: DOM_BOOLEAN;
+      },
+      Field DELETE_SELF {
+        Type: DOM_BOOLEAN;
+      },
+      Field VIEW_SELF {
+        Type: DOM_BOOLEAN;
+      },
+      Field EDIT_GROUPS {
+        Type: DOM_BOOLEAN;
+      },
+      Field DELETE_GROUPS {
+        Type: DOM_BOOLEAN;
+      },
+      Field VIEW_GROUPS {
+        Type: DOM_BOOLEAN;
+      }
+    ];
+  }
+
+  Table SERVICE (TMPL_TRACKED) {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field DESCRIPTION {
+        Type: DOM_COMMENT;
+      },
+      Field SERVICE_TIME {
+        Type: DOM_INTEGER;
+      },
+      Field SERVICE_BILLING_TYPE_ID {
+        Type: @inForce.SERVICE_BILLING_TYPE;
+      },
+      Field START_MINS {
+        Type: DOM_COUNT;
+      },
+      Field BREAK_MINS {
+        Type: DOM_COUNT;
+      },
+      Field COMPLETE_MINS {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table SERVICE_BILLING_TYPE (TMPL_TYPE, TMPL_TRACKED) {}
+
+  Table SERVICE_EMPLOYEE_TIME {
+    Fields: [
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field EMPLOYEE_ID {
+        Type: @inForce.PERSON;
+      },
+      Field SERVICE_TIME {
+        Type: DOM_TIME;
+      },
+      Field START_MINS {
+        Type: DOM_COUNT;
+      },
+      Field BREAK_MINS {
+        Type: DOM_COUNT;
+      },
+      Field COMPLETE_MINS {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table SERVICE_PRICE (TMPL_TRACKED, TMPL_DATED) {
+    Fields: [
+      Field SERVICE_ID {
+        Type: @inForce.SERVICE;
+      },
+      Field PRICE {
+        Type: DOM_MONEY;
+      },
+      Field QUANTITY_FROM {
+        Type: DOM_COUNT;
+      },
+      Field QUANTITY_TO {
+        Type: DOM_COUNT;
+      },
+      Field SERVICE_BILLING_TYPE_ID {
+        Type: @inForce.SERVICE_BILLING_TYPE;
+      }
+    ];
+  }
+
+  Table SHIFT (TMPL_TRACKED) {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field MONDAY_FROM {
+        Type: DOM_TIMESTAMP;
+      },
+      Field MONDAY_TO {
+        Type: DOM_TIMESTAMP;
+      }
+    ];
+  }
+
+  Table STATE {
+    Fields: [
+      Field CODE {
+        Type: DOM_STATE;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table VENDOR (TMPL_TRACKED) {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field URL {
+        Type: DOM_URL;
+      },
+      Field CONTACT_NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table VENDOR_ADDRESS (TMPL_ADDRESS, TMPL_TRACKED) {
+    Fields: [
+      Field VENDOR_ID {
+        Type: @inForce.VENDOR;
+      }
+    ];
+  }
+
+  Table VENDOR_EMAIL (TMPL_EMAIL, TMPL_TRACKED) {
+    Fields: [
+      Field VENDOR_ID {
+        Type: @inForce.VENDOR;
+      }
+    ];
+  }
+
+  Table VENDOR_ITEM_PRICE {
+    Fields: [
+      Field ITEM_ID {
+        Type: @inForce.ITEM;
+      },
+      Field QUANTITY_FROM {
+        Type: DOM_COUNT;
+      },
+      Field QUANTITY_TO {
+        Type: DOM_COUNT;
+      },
+      Field PRICE {
+        Type: DOM_MONEY;
+      },
+      Field VENDOR_ID {
+        Type: @inForce.VENDOR;
+      }
+    ];
+  }
+
+  Table VENDOR_NOTE (TMPL_NOTE, TMPL_TRACKED) {
+    Fields: [
+      Field VENDOR_ID {
+        Type: @inForce.VENDOR;
+      }
+    ];
+  }
+
+  Table VENDOR_PHONE (TMPL_PHONE, TMPL_TRACKED) {
+    Fields: [
+      Field VENDOR_ID {
+        Type: @inForce.VENDOR;
+      }
+    ];
+  }
+
+  Table WORK_ORDER {
+    Fields: [
+      Field INVOICE_ID {
+        Type: @inForce.INVOICE;
+      },
+      Field QUOTE_ID {
+        Type: @inForce.QUOTE;
+      },
+      Field CLIENT_ID {
+        Type: DOM_INDEX;
+      },
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field CURRENT_STEP_ID {
+        Type: DOM_INTEGER;
+      }
+    ];
+  }
+
+  Table WORK_ORDER_CUSTOM_Q_TYPE {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table WORK_ORDER_FILE {
+    Fields: [
+      Field WORK_ORDER_ID {
+        Type: @inForce.WORK_ORDER;
+      },
+      Field FILE_ID {
+        Type: @inForce.FILE;
+      }
+    ];
+  }
+
+  Table WORK_ORDER_HISTORY (TMPL_TRACKED) {
+    Fields: [
+      Field WORK_ORDER_STEP_ID {
+        Type: DOM_TYPE;
+      },
+      Field WORK_ORDER_ID {
+        Type: @inForce.WORK_ORDER;
+      }
+    ];
+  }
+
+  Table WORK_ORDER_NOTE (TMPL_NOTE, TMPL_TRACKED) {
+    Fields: [
+      Field WORK_ORDER_ID {
+        Type: @inForce.WORK_ORDER;
+      },
+      Field CURRENT_STEP_ID {
+        Type: DOM_INTEGER;
+      }
+    ];
+  }
+
+  Table WORK_ORDER_QUEUE {
+    Fields: [
+      Field WORK_ORDER_ID {
+        Type: @inForce.WORK_ORDER;
+      },
+      Field ASSIGNMENT_TYPE_ID {
+        Type: DOM_TYPE;
+      },
+      Field ASSIGNED_TO_ID {
+        Type: DOM_INDEX;
+      },
+      Field ASSIGNED_DATETIME {
+        Type: DOM_TIMESTAMP;
+      },
+      Field WORK_ORDER_STEP_ID {
+        Type: DOM_INDEX;
+      }
+    ];
+  }
+
+  Table WORK_ORDER_STEP {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field ASSIGNMENT_TYPE {
+        Type: DOM_TYPE;
+      },
+      Field PARENT_WORK_ORDER_ORDER_STEP_ID {
+        Type: DOM_INDEX;
+      },
+      Field SORT_ORDER {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table ZIPCODE {
+    Fields: [
+      Field ZIPCODE {
+        Type: DOM_ZIPCODE;
+      },
+      Field CITY {
+        Type: DOM_CITY;
+      },
+      Field STATE {
+        Type: DOM_STATE;
+      }
+    ];
+  }
+
+  Table USER_GROUP {
+    Fields: [
+      Field USER_GROUP {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table USER {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field PASSWD {
+        Type: DOM_PASSWORD;
+      },
+      Field NOTES {
+        Type: DOM_COMMENT;
+      },
+      Field GROUP_ID {
+        Type: @inForce.USER_GROUP;
+      }
+    ];
+  }
+
+  Table ADDRESS (TMPL_TRACKED) {
+    Fields: [
+      Field ADDRESS_TYPE_ID {
+        Type: @inForce.ADDRESS_TYPE;
+      },
+      Field ADDRESS_LINE_1 {
+        Type: DOM_ADDRESS;
+      },
+      Field ADDRESS_LINE_2 {
+        Type: DOM_ADDRESS;
+      },
+      Field CITY {
+        Type: DOM_CITY;
+      },
+      Field STATE {
+        Type: DOM_STATE;
+      },
+      Field ZIPCODE {
+        Type: DOM_ZIPCODE;
+      }
+    ];
+  }
+
+  Table CONTACT (TMPL_CONTACT_INFORMATION) {
+    Fields: [
+      Field COMPANY_ID {
+        Type: @inForce.COMPANY;
+      },
+      Field URL {
+        Type: DOM_URL;
+      },
+      Field GENDER {
+        Type: DOM_GENDER;
+      },
+      Field FIRST_NAME {
+        Type: DOM_NAME;
+      },
+      Field NAME_PREFIX {
+        Type: DOM_NAME_PREFIX;
+      },
+      Field MIDDLE_NAME {
+        Type: DOM_NAME;
+      },
+      Field LAST_NAME {
+        Type: DOM_NAME;
+      },
+      Field NAME_SUFFIX {
+        Type: DOM_NAME_SUFFIX;
+      }
+    ];
+  }
+
+  Table PHONE (TMPL_TRACKED) {
+    Fields: [
+      Field PHONE {
+        Type: DOM_PHONE;
+      },
+      Field PHONE_TYPE_ID {
+        Type: @inForce.PHONE_TYPE;
+      }
+    ];
+  }
+
+  Table PRIORITY {
+    Fields: [
+      Field PRIORITY {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table CALL_STATUS {
+    Fields: [
+      Field CALL_STATUS {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table NOTE (TMPL_TRACKED) {
+    Fields: [
+      Field NOTE {
+        Type: DOM_COMMENT;
+      }
+    ];
+  }
+
+  Table CONTACT_ADDRESS {
+    Fields: [
+      Field CONTACT_ID {
+        Type: @inForce.CONTACT;
+      },
+      Field ADDRESS_ID {
+        Type: @inForce.ADDRESS;
+      }
+    ];
+  }
+
+  Table EMAIL (TMPL_TRACKED) {
+    Fields: [
+      Field EMAIL {
+        Type: DOM_EMAIL;
+      },
+      Field EMAIL_TYPE_ID {
+        Type: @inForce.EMAIL_TYPE;
+      }
+    ];
+  }
+
+  Table CONTACT_EMAIL {
+    Fields: [
+      Field CONTACT_ID {
+        Type: @inForce.CONTACT;
+      },
+      Field EMAIL_ID {
+        Type: @inForce.EMAIL;
+      }
+    ];
+  }
+
+  Table CONTACT_NOTE {
+    Fields: [
+      Field CONTACT_ID {
+        Type: @inForce.CONTACT;
+      },
+      Field NOTE_ID {
+        Type: @inForce.NOTE;
+      }
+    ];
+  }
+
+  Table CONTACT_PHONE {
+    Fields: [
+      Field CONTACT_ID {
+        Type: @inForce.CONTACT;
+      },
+      Field PHONE_ID {
+        Type: @inForce.PHONE;
+      }
+    ];
+  }
+
+  Table USER_ADDRESS {
+    Fields: [
+      Field USER_ID {
+        Type: @inForce.USER;
+      },
+      Field ADDRESS {
+        Type: @inForce.ADDRESS;
+      }
+    ];
+  }
+
+  Table USER_HOURS {
+    Fields: [
+      Field USER_ID {
+        Type: @inForce.USER;
+      }
+    ];
+  }
+
+  Table USER_PHONE {
+    Fields: [
+      Field USER_ID {
+        Type: @inForce.USER;
+      },
+      Field PHONE_ID {
+        Type: @inForce.PHONE;
+      }
+    ];
+  }
+
+  Table QUOTE_PACKAGE (TMPL_TRACKED) {
+  }
+
+  Table QUOTE_SERVICE (TMPL_TRACKED) {
+  }
+
+  Table REPORT_CATEGORY (TMPL_TYPE, TMPL_TRACKED) {
+    Fields: [
+      Field PARENT_ID {
+        Type: @inForce.REPORT_CATEGORY;
+      },
+      Field REPORT_TYPE {
+        Type: DOM_TYPE;
+      }
+    ];
+  }
+
+  Table REPORT_TABLE {
+    Fields: [
+      Field ALIAS {
+        Type: DOM_NAME;
+      },
+      Field TABLE_NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table REPORT (TMPL_TRACKED) {
+    Fields: [
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field REPORT_CATEGORY_ID {
+        Type: @inForce.REPORT_CATEGORY;
+      },
+      Field REPORT_TEMPLATE {
+        Type: DOM_REPORT_TMPL;
+      },
+      Field DELETED {
+        Type: DOM_TIMESTAMP;
+      },
+      Field FILE_SIZE {
+        Type: DOM_COUNT;
+      },
+      Field ITEM_TYPE {
+        Type: DOM_TYPE;
+      }
+    ];
+  }
+
+  Table REPORT_FIELD {
+    Fields: [
+      Field REPORT_TABLE_ID {
+        Type: @inForce.REPORT_TABLE;
+      },
+      Field AUTOSEARCH {
+        Type: DOM_CHAR;
+      },
+      Field DATA_TYPE {
+        Type: DOM_NAME;
+      },
+      Field FIELD_ALIAS {
+        Type: DOM_NAME;
+      },
+      Field FIELD_NAME {
+        Type: DOM_NAME;
+      },
+      Field MANDATORY {
+        Type: DOM_CHAR;
+      },
+      Field SEARCHABLE {
+        Type: DOM_CHAR;
+      },
+      Field SELECTABLE {
+        Type: DOM_CHAR;
+      },
+      Field SORTABLE {
+        Type: DOM_CHAR;
+      },
+      Field TABLE_NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table REPORT_JOIN {
+    Fields: [
+      Field FIELD_DETAIL {
+        Type: DOM_NAME;
+      },
+      Field FIELD_MASTER {
+        Type: DOM_NAME;
+      },
+      Field JOIN_TYPE {
+        Type: DOM_NAME;
+      },
+      Field OPERATORS {
+        Type: DOM_NAME;
+      },
+      Field TABLE_DETAIL {
+        Type: DOM_NAME;
+      },
+      Field TABLE_MASTER {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table INVOICE_TEMPLATE (TMPL_TRACKED) {}
+  Table QUOTE_TEMPLATE (TMPL_TRACKED) {}
+  Table RESOURCE (TMPL_TRACKED) {}
+
+
+
+  Table CUSTOM (TMPL_TRACKED) {
+    Fields: [
+      Field BASE_TABLE_ID {
+        Type: @inForce.REPORT_TABLE;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field PRIMARY_KEY_NAME {
+        Type: DOM_NAME;
+      },
+      Field FOREIGN_KEY_NAME {
+        Type: DOM_NAME;
+      }
+    ];
+  }
+
+  Table CUSTOM_PIVOT (TMPL_TRACKED) {
+    Fields: [
+      Field BASE_TABLE_ID {
+        Type: @inForce.REPORT_TABLE;
+      },
+      Field NAME {
+        Type: DOM_NAME;
+      },
+      Field PRIMARY_KEY_NAME {
+        Type: DOM_NAME;
+      },
+      Field FOREIGN_KEY_NAME {
+        Type: DOM_NAME;
+      },
+      Field PIVOT_TABLE_ID {
+        Type: @inForce.REPORT_TABLE;
+      },
+      Field BASE_FIELD_ID {
+        Type: @inForce.REPORT_FIELD;
+      },
+      Field PIVOT_TABLE_VALUE {
+        Type: DOM_INDEX;
+      }
+    ];
+  }
+
+  Table CUSTOM_FIELDS (TMPL_TRACKED) {
+    Fields: [
+      Field CUSTOM_ID {
+        Type: @inForce.CUSTOM;
+      },
+      Field DISPLAY_NAME {
+        Type: DOM_NAME;
+      },
+      Field DOM_NAME {
+        Type: DOM_NAME;
+      },
+      Field FIELD_NAME {
+        Type: DOM_NAME;
+      },
+      Field FIELD_TYPE {
+        Type: DOM_NAME;
+      },
+      Field FIELD_SIZE {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+  Table CUSTOM_PIVOT_FIELDS (TMPL_TRACKED) {
+    Fields: [
+      Field CUSTOM_PIVOT_ID {
+        Type: @inForce.CUSTOM_PIVOT;
+      },
+      Field DISPLAY_NAME {
+        Type: DOM_NAME;
+      },
+      Field DOM_NAME {
+        Type: DOM_NAME;
+      },
+      Field FIELD_NAME {
+        Type: DOM_NAME;
+      },
+      Field FIELD_TYPE {
+        Type: DOM_NAME;
+      },
+      Field FIELD_SIZE {
+        Type: DOM_COUNT;
+      }
+    ];
+  }
+
+}

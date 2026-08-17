@@ -179,6 +179,25 @@ type
     procedure Execute(ANode: TNXTaskNode; AContext: TNXTaskActionContext); override;
   end;
 
+  TNXTaskInnoSetupAction = class(TNXTaskAction)
+  private
+    procedure AddDiagnostic(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const ACode, AMessage: string);
+    procedure AddDefines(AArguments: TStrings; const AText: string);
+    procedure AddSplitArguments(AArguments: TStrings; const AText: string);
+    function OptionalBoolean(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const AName: string; ADefault: Boolean; out AValue: Boolean): Boolean;
+    function OptionalString(ANode: TNXTaskNode; const AName: string;
+      out AValue: string): Boolean;
+    function RequiredString(ANode: TNXTaskNode; AContext: TNXTaskActionContext;
+      const AName: string; out AValue: string): Boolean;
+    function ResolvePath(const AWorkingDirectory, APath: string): string;
+    function RunInnoSetup(const AExecutable, AWorkingDirectory: string;
+      AArguments: TStrings; out AOutput: string): Integer;
+  public
+    procedure Execute(ANode: TNXTaskNode; AContext: TNXTaskActionContext); override;
+  end;
+
 function NXTaskPropertyText(ANode: TNXTaskNode; const AName: string;
   out AValue: string): Boolean;
 var
@@ -1673,6 +1692,234 @@ begin
         ANode.SourceRange.Column));
 end;
 
+procedure TNXTaskInnoSetupAction.AddDiagnostic(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const ACode, AMessage: string);
+begin
+  AContext.Diagnostics.Add(tdsError, ACode, AMessage,
+    TNXTaskSourceRange.Create(ANode.SourceRange.FileName, ANode.SourceRange.Line,
+      ANode.SourceRange.Column));
+end;
+
+function TNXTaskInnoSetupAction.RequiredString(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const AName: string; out AValue: string): Boolean;
+begin
+  Result := NXTaskPropertyText(ANode, AName, AValue);
+  if not Result then
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.InnoSetup.' + AName,
+      'InnoSetup action requires string property ' + AName + '.');
+end;
+
+function TNXTaskInnoSetupAction.OptionalString(ANode: TNXTaskNode;
+  const AName: string; out AValue: string): Boolean;
+begin
+  Result := NXTaskPropertyText(ANode, AName, AValue);
+end;
+
+function TNXTaskInnoSetupAction.OptionalBoolean(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext; const AName: string; ADefault: Boolean;
+  out AValue: Boolean): Boolean;
+var
+  lProperty: TNXTaskProperty;
+begin
+  Result := True;
+  AValue := ADefault;
+  lProperty := ANode.PropertyByName(AName);
+  if lProperty = nil then
+    Exit;
+  if lProperty.Value.Kind = tvkBoolean then
+  begin
+    AValue := lProperty.Value.BooleanValue;
+    Exit;
+  end;
+
+  Result := False;
+  AddDiagnostic(ANode, AContext, 'NXTask.Action.InnoSetup.' + AName,
+    'InnoSetup action requires boolean property ' + AName + '.');
+end;
+
+function TNXTaskInnoSetupAction.ResolvePath(const AWorkingDirectory,
+  APath: string): string;
+begin
+  if APath = '' then
+    Result := ''
+  else if ExtractFileDrive(APath) <> '' then
+    Result := ExpandFileName(APath)
+  else
+    Result := ExpandFileName(IncludeTrailingPathDelimiter(AWorkingDirectory) +
+      APath);
+end;
+
+procedure TNXTaskInnoSetupAction.AddSplitArguments(AArguments: TStrings;
+  const AText: string);
+var
+  lChar: Char;
+  lIndex: Integer;
+  lInQuote: Boolean;
+  lToken: string;
+begin
+  lInQuote := False;
+  lToken := '';
+  for lIndex := 1 to Length(AText) do
+  begin
+    lChar := AText[lIndex];
+    if lChar = '"' then
+      lInQuote := not lInQuote
+    else if (lChar <= ' ') and not lInQuote then
+    begin
+      if lToken <> '' then
+      begin
+        AArguments.Add(lToken);
+        lToken := '';
+      end;
+    end
+    else
+      lToken := lToken + lChar;
+  end;
+  if lToken <> '' then
+    AArguments.Add(lToken);
+end;
+
+procedure TNXTaskInnoSetupAction.AddDefines(AArguments: TStrings;
+  const AText: string);
+var
+  lIndex: Integer;
+  lPart: string;
+  lParts: TStringList;
+begin
+  lParts := TStringList.Create;
+  try
+    lParts.StrictDelimiter := True;
+    lParts.Delimiter := ';';
+    lParts.DelimitedText := AText;
+    for lIndex := 0 to lParts.Count - 1 do
+    begin
+      lPart := Trim(lParts[lIndex]);
+      if lPart <> '' then
+        AArguments.Add('/D' + lPart);
+    end;
+  finally
+    lParts.Free;
+  end;
+end;
+
+function TNXTaskInnoSetupAction.RunInnoSetup(const AExecutable,
+  AWorkingDirectory: string; AArguments: TStrings; out AOutput: string): Integer;
+var
+  lIndex: Integer;
+  lProcess: TProcess;
+  lBuffer: array[0..2047] of Byte;
+  lBytesRead: LongInt;
+  lOutput: TStringStream;
+begin
+  lProcess := TProcess.Create(nil);
+  lOutput := TStringStream.Create('');
+  try
+    lProcess.Executable := AExecutable;
+    if AWorkingDirectory <> '' then
+      lProcess.CurrentDirectory := AWorkingDirectory;
+    for lIndex := 0 to AArguments.Count - 1 do
+      lProcess.Parameters.Add(AArguments[lIndex]);
+    lProcess.Options := [poUsePipes, poStderrToOutPut];
+    lProcess.Execute;
+    while lProcess.Running do
+    begin
+      while lProcess.Output.NumBytesAvailable > 0 do
+      begin
+        lBytesRead := lProcess.Output.Read(lBuffer, SizeOf(lBuffer));
+        if lBytesRead > 0 then
+          lOutput.Write(lBuffer, lBytesRead);
+      end;
+      Sleep(10);
+    end;
+    while lProcess.Output.NumBytesAvailable > 0 do
+    begin
+      lBytesRead := lProcess.Output.Read(lBuffer, SizeOf(lBuffer));
+      if lBytesRead > 0 then
+        lOutput.Write(lBuffer, lBytesRead);
+    end;
+    Result := lProcess.ExitStatus;
+    AOutput := Trim(lOutput.DataString);
+  finally
+    lOutput.Free;
+    lProcess.Free;
+  end;
+end;
+
+procedure TNXTaskInnoSetupAction.Execute(ANode: TNXTaskNode;
+  AContext: TNXTaskActionContext);
+var
+  lArguments: TStringList;
+  lDefines: string;
+  lExecutable: string;
+  lExitCode: Integer;
+  lExtraArguments: string;
+  lOutput: string;
+  lOutputBaseFilename: string;
+  lOutputDirectory: string;
+  lQuiet: Boolean;
+  lScript: string;
+  lScriptFile: string;
+  lWorkingDirectory: string;
+begin
+  if not RequiredString(ANode, AContext, 'Script', lScript) then
+    Exit;
+  if not OptionalBoolean(ANode, AContext, 'Quiet', True, lQuiet) then
+    Exit;
+
+  if not OptionalString(ANode, 'Executable', lExecutable) then
+  begin
+    {$ifdef MSWINDOWS}
+    if FileExists('C:\Program Files (x86)\Inno Setup 6\ISCC.exe') then
+      lExecutable := 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+    else if FileExists('C:\Program Files\Inno Setup 6\ISCC.exe') then
+      lExecutable := 'C:\Program Files\Inno Setup 6\ISCC.exe'
+    else
+      lExecutable := 'ISCC.exe';
+    {$else}
+    lExecutable := 'iscc';
+    {$endif}
+  end;
+
+  OptionalString(ANode, 'Arguments', lExtraArguments);
+  OptionalString(ANode, 'Defines', lDefines);
+  OptionalString(ANode, 'OutputDirectory', lOutputDirectory);
+  OptionalString(ANode, 'OutputBaseFilename', lOutputBaseFilename);
+  if OptionalString(ANode, 'WorkingDirectory', lWorkingDirectory) then
+    lWorkingDirectory := ResolvePath(AContext.WorkingDirectory, lWorkingDirectory)
+  else
+    lWorkingDirectory := AContext.WorkingDirectory;
+
+  if (ExtractFileDrive(lScript) = '') and (ExtractFileDir(lScript) = '') then
+    lScriptFile := lScript
+  else
+    lScriptFile := ResolvePath(AContext.WorkingDirectory, lScript);
+  lOutputDirectory := ResolvePath(AContext.WorkingDirectory, lOutputDirectory);
+
+  lArguments := TStringList.Create;
+  try
+    if lQuiet then
+      lArguments.Add('/Q');
+    AddSplitArguments(lArguments, lExtraArguments);
+    AddDefines(lArguments, lDefines);
+    if lOutputDirectory <> '' then
+      lArguments.Add('/O' + lOutputDirectory);
+    if lOutputBaseFilename <> '' then
+      lArguments.Add('/F' + lOutputBaseFilename);
+    lArguments.Add(lScriptFile);
+
+    lExitCode := RunInnoSetup(lExecutable, lWorkingDirectory, lArguments,
+      lOutput);
+  finally
+    lArguments.Free;
+  end;
+
+  if lExitCode = 0 then
+    AContext.Trace.Add('inno ' + NXTaskQuoteString(lScriptFile))
+  else
+    AddDiagnostic(ANode, AContext, 'NXTask.Action.InnoSetup',
+      Format('Inno Setup failed with exit code %d: %s', [lExitCode, lOutput]));
+end;
+
 procedure NXTaskRegisterDefaultActions(ARegistry: TNXTaskActionRegistry);
 begin
   ARegistry.RegisterAction('Group', TNXTaskGroupAction);
@@ -1685,6 +1932,7 @@ begin
   ARegistry.RegisterAction('Npm', TNXTaskNpmAction);
   ARegistry.RegisterAction('Fpc', TNXTaskFpcAction);
   ARegistry.RegisterAction('LazBuild', TNXTaskLazBuildAction);
+  ARegistry.RegisterAction('InnoSetup', TNXTaskInnoSetupAction);
 end;
 
 end.

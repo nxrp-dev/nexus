@@ -1,5 +1,9 @@
 # Work Plan: NexusScript Doctype Association
 
+> Historical plan: the named form described below was superseded by
+> `doctype Path;`. The current dependency contract and implementation are
+> defined by `nexusscript-document-dependencies.md`.
+
 ## Inputs
 
 - Source request: direct human-owner request for a work plan, supplied through

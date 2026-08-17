@@ -1,0 +1,3 @@
+doctype "cycle-a.nxscript";
+
+Thing B {}

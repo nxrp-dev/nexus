@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <PathDelim Value="\"/>
+    <General><MainUnit Value="0"/><Title Value="NexusScriptTestModule"/><UseAppBundle Value="False"/></General>
+    <Units Count="9">
+      <Unit0><Filename Value="NexusScriptTestModule.lpr"/><IsPartOfProject Value="True"/></Unit0>
+      <Unit1><Filename Value="..\src\tpNexusScript.pas"/></Unit1>
+      <Unit2><Filename Value="..\src\obNexusScriptModel.pas"/></Unit2>
+      <Unit3><Filename Value="..\src\obNexusScriptCompiler.pas"/></Unit3>
+      <Unit4><Filename Value="tsNexusScriptTests.pas"/></Unit4>
+      <Unit5><Filename Value="..\src\obNexusScriptSession.pas"/></Unit5>
+      <Unit6><Filename Value="..\parity\obNexusScriptSchemaConsumer.pas"/></Unit6>
+      <Unit7><Filename Value="..\validator\obNexusScriptValidator.pas"/></Unit7>
+      <Unit8><Filename Value="..\cli\obNexusScriptCommand.pas"/></Unit8>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/><PathDelim Value="\"/>
+    <Target><Filename Value="..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\NexusScriptTestModule"/></Target>
+    <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
+    <SearchPaths><OtherUnitFiles Value=".;..\src;..\parity;..\validator;..\cli;..\..\Schema\src;..\..\Test\src;..\..\..\NexusLib\core\src;..\..\..\lib\dmustache"/><UnitOutputDirectory Value="..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\units"/></SearchPaths>
+    <Linking><Options><ExecutableType Value="Library"/></Options></Linking>
+  </CompilerOptions>
+</CONFIG>
