@@ -32,7 +32,7 @@ one compiled input artifact + one validated NexusScript TemplateSet manifest
 
 Every manifest entry renders against the exact same JSON artifact produced once
 from the compiled input document. The manifest mechanism is generic: it knows
-about template source paths, output path templates, ordering, diagnostics, and
+about template source paths, effective output paths, ordering, diagnostics, and
 staged output writes, but nothing about Pascal, Schema vocabulary, source-code
 units, or any other generated language.
 
@@ -126,7 +126,10 @@ The validator vocabulary is deliberately small:
 - `Template` definitions are direct ordered children of `TemplateSet`;
 - zero or more `Template` children are valid;
 - every `Template` requires effective-text `Source` and `Output` properties;
-- unknown definitions, properties, and children are rejected;
+- auxiliary properties on `TemplateSet` are allowed so ordinary NexusScript
+  references and text composition can calculate entry values;
+- unknown properties and children on `Template` are rejected;
+- unknown child definition kinds are rejected;
 - `Template` entries are permitted only within a `TemplateSet`;
 - no unrelated execution, language, encoding, or pipeline properties exist.
 
@@ -143,7 +146,7 @@ Language TemplateSetManifest {
     Definitions: [
         Definition TemplateSet {
             Root: true;
-            UnknownProperties: Reject;
+            UnknownProperties: Allow;
             UnknownChildren: Reject;
             Children: [
                 Child Templates { Kinds: [Template]; }
@@ -182,14 +185,16 @@ path-only doctype syntax and direct child definitions, the manifest is:
 doctype "TemplateSet.Validator.nxscript";
 
 TemplateSet PascalSchema {
+    UnitName: SchemaTypes;
+
     Template Unit {
         Source: "pascal/schema-unit.mustache";
-        Output: "{{UnitName}}.pas";
+        Output: @PascalSchema.UnitName + ".pas";
     }
 
     Template Classes {
         Source: "pascal/schema-classes.mustache";
-        Output: "{{UnitName}}Classes.pas";
+        Output: @PascalSchema.UnitName + "Classes.pas";
     }
 }
 ```
@@ -204,10 +209,11 @@ syntax.
   `TemplateSet` for rendering.
 - Entries execute in final compiled child-definition order.
 - Each entry name is retained for diagnostics.
-- `Source` is an effective NexusScript text value. It is not itself rendered as
-  Mustache during this initial feature.
-- `Output` is first obtained as effective NexusScript text and then rendered as
-  Mustache against the input artifact JSON.
+- `Source` and `Output` are read directly from their compiled `EffectiveText`.
+- Dynamic paths use ordinary NexusScript references and text composition. The
+  manifest runtime does not reinterpret either property as Mustache.
+- Auxiliary `TemplateSet` properties have no manifest-specific meaning. They
+  exist for normal NexusScript reference and composition semantics.
 - Each template body is independently rendered against that same JSON.
 - One entry always maps one source template to one output file.
 - An empty `TemplateSet` succeeds and produces an empty output directory.
@@ -276,7 +282,7 @@ It owns:
 - locating the single `TemplateSet` root;
 - reading its ordered direct `Template` children;
 - resolving all source templates relative to the entry manifest file;
-- rendering and validating output paths;
+- reading and validating effective output paths;
 - collecting per-entry rendered content before any final write;
 - collision checks;
 - staging the complete output tree and renaming it into place;
@@ -287,7 +293,7 @@ render operation, such as:
 
 - entry name and source range;
 - declared and resolved template source path;
-- declared output expression and rendered relative output path;
+- effective relative output path;
 - final canonical destination;
 - rendered content.
 
@@ -305,11 +311,6 @@ It extracts the existing single-template operation from
 ```text
 Render one Mustache template against one JSON artifact and return text.
 ```
-
-It also provides the corresponding render-from-text operation needed for an
-`Output` expression, using the same Mustache engine and JSON. This is still one
-render primitive with two input sources, not multi-file behavior inside
-Mustache.
 
 The initial implementation may preserve the current temporary-file bridge to
 `RenderMustacheFile`. A direct `TSynMustache` text wrapper is acceptable only if
@@ -333,7 +334,7 @@ branch only at the final output stage:
    3. validate it with `TNexusScriptValidator`;
    4. normalize its one `TemplateSet` and ordered entries;
    5. require the requested output path not to exist;
-   6. render and validate every output path against the input JSON;
+   6. read and validate every compiled effective output path;
    7. resolve and preflight every template source;
    8. detect all destination collisions;
    9. render every template to memory or staging storage;
@@ -358,21 +359,20 @@ manifest session exists only to compile and validate the manifest itself.
   relative traversal; the containment restriction applies to generated
   outputs, not template inputs.
 
-### Rendered output paths
+### Effective output paths
 
-For each `Output` expression:
+For each compiled `Output.EffectiveText` value:
 
-1. render it through Mustache against the shared JSON;
-2. reject empty or whitespace-only results;
-3. reject rooted paths, drive-qualified paths, UNC paths, device paths, and
+1. reject empty or whitespace-only results;
+2. reject rooted paths, drive-qualified paths, UNC paths, device paths, and
    leading directory separators;
-4. normalize separators and dot segments;
-5. reject any result that denotes a directory rather than a file;
-6. combine it with the supplied output root;
-7. canonicalize the combined destination;
-8. require the destination to remain strictly beneath the canonical output
+3. normalize separators and dot segments;
+4. reject any result that denotes a directory rather than a file;
+5. combine it with the supplied output root;
+6. canonicalize the combined destination;
+7. require the destination to remain strictly beneath the canonical output
    root using a directory-boundary-aware comparison;
-9. retain both declared and rendered values for diagnostics.
+8. retain the effective value and source range for diagnostics.
 
 The runtime must not validate containment using a string prefix alone.
 
@@ -386,13 +386,13 @@ Before rendering template bodies or creating final output files, reject:
   `Generated` and `Generated/Unit.pas`;
 - any other preflight condition that makes the planned tree impossible.
 
-Diagnostics name both conflicting manifest entries and both rendered paths.
+Diagnostics name both conflicting manifest entries and both effective paths.
 
 ## Staged Output Behavior
 
 Rendering failures must occur before any final output mutation. Therefore all
-output path rendering, source loading, collision checks, and template-body
-rendering complete first.
+effective output-path validation, source loading, collision checks, and
+template-body rendering complete first.
 
 Manifest mode requires the requested output directory not to exist. Supporting
 merge or replacement of an existing populated directory is deferred.
@@ -421,10 +421,9 @@ Errors must identify the narrowest relevant source:
 - root-count errors identify the manifest;
 - entry errors name `TemplateSetName.TemplateEntryName`;
 - source failures show declared and canonical template paths;
-- output-expression failures show the declared expression and rendered result;
+- output-path failures show the compiled effective value and source range;
 - collisions identify both entries;
-- Mustache failures identify whether the template body or output expression
-  failed;
+- Mustache failures identify the template body that failed;
 - staging or final-rename failures identify the affected paths.
 
 Do not catch and replace useful compiler/validator diagnostics with a generic
@@ -433,7 +432,7 @@ Do not catch and replace useful compiler/validator diagnostics with a generic
 ## Determinism
 
 - Normalize entries in final compiled child-definition order.
-- Render output expressions in that order.
+- Read and validate compiled effective output paths in that order.
 - Preflight and render template bodies in that order.
 - Write staged files in that order.
 - Report the first ordinary entry failure encountered in that order.
@@ -450,7 +449,7 @@ initial contract.
 ### Add
 
 - `NexusTools/Script/cli/obNexusScriptTemplateRenderer.pas`
-  - reusable one-template/text Mustache rendering primitive.
+  - reusable one-template Mustache rendering primitive.
 - `NexusTools/Script/cli/obNexusScriptTemplateManifest.pas`
   - manifest compilation, validation, normalization, path checks, render plan,
     staging, final directory rename, and diagnostics.
@@ -515,7 +514,9 @@ contract or capability gap before expanding scope.
 - Multiple direct child entries preserve order.
 - Missing `Source` or `Output` fails.
 - An empty `TemplateSet` passes.
-- Unknown kinds and properties fail.
+- Auxiliary properties on `TemplateSet` pass and can participate in ordinary
+  reference and text-composition resolution.
+- Unknown child kinds and unknown properties on `Template` fail.
 - Wrong-kind child entries fail.
 - Illegal nested/root placement fails.
 - More than one effective `TemplateSet` root is rejected by the manifest
@@ -537,11 +538,15 @@ contract or capability gap before expanding scope.
 - Every entry receives byte-identical JSON context.
 - One-entry manifest output matches direct `/template` rendering exactly.
 - Multiple templates produce expected independent contents.
-- Output filenames interpolate scalar Mustache values.
-- Nested rendered relative output paths create the expected directory tree.
+- Output filenames resolve through ordinary NexusScript scalar references and
+  text composition.
+- `Source` and `Output` use their compiled `EffectiveText` values directly.
+- Nested effective relative output paths create the expected directory tree.
 - Entry order and write order are stable.
-- Missing source, unreadable source, invalid Mustache, and output-expression
-  failure identify the entry and leave no final files.
+- Missing source, unreadable source, and invalid template-body Mustache identify
+  the entry and leave no final files.
+- An unresolved reference or invalid text composition fails during normal
+  manifest compilation, before manifest runtime processing or final writes.
 - Every source path uses the entry manifest directory even when its effective
   value came through composition.
 
@@ -552,9 +557,10 @@ contract or capability gap before expanding scope.
 - leading slash/backslash rejected;
 - `..` traversal outside root rejected;
 - normalization that remains beneath root accepted;
-- empty rendered path rejected;
+- empty effective path rejected;
 - duplicate literal output rejected;
-- duplicate outputs created by different Mustache expressions rejected;
+- duplicate outputs created by different NexusScript reference/composition
+  expressions rejected;
 - case-equivalent collision follows destination-filesystem semantics;
 - file/descendant structural collision rejected;
 - an already existing output directory is rejected before rendering.
@@ -599,7 +605,6 @@ duplicates it.
 
 - Move the private one-template rendering behavior into the focused renderer
   unit.
-- Add render-from-text for output expressions through the same Mustache engine.
 - Route existing `/template` behavior through the extracted primitive without
   changing its CLI or bytes.
 
@@ -611,6 +616,7 @@ Acceptance: all existing single-template and parity tests remain exact.
 - require and validate its doctype;
 - locate exactly one `TemplateSet` root;
 - normalize ordered direct child entries;
+- read `Source` and `Output` directly from compiled `EffectiveText`;
 - add entry-aware diagnostics.
 
 Acceptance: manifest interpretation reads only compiled NexusScript and invokes
@@ -619,7 +625,8 @@ no Schema conversion or second parser.
 ### Stage 5: Implement preflight and rendering
 
 - Resolve every source template relative to the entry manifest file.
-- Render output expressions against the shared JSON.
+- Validate each compiled effective output path without applying Mustache or any
+  other second interpolation pass.
 - enforce lexical and canonical output containment;
 - detect duplicate and structural destination collisions;
 - render every template through the one-render primitive before final writes.
@@ -675,6 +682,7 @@ mode generates the expected complete tree.
 - implicit manifest validator lookup by filename convention;
 - absolute output destinations or opt-outs from containment;
 - embedding multi-file behavior in Mustache;
+- Mustache interpolation of manifest `Source` or `Output` values;
 - Pascal-specific names, defaults, units, classes, or code-generation logic;
 - changing NexusScript core syntax, dependency semantics, or ValueExpression;
 - changing the Schema artifact representation as part of this feature;
