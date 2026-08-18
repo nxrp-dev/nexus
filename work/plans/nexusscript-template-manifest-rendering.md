@@ -33,7 +33,7 @@ one compiled input artifact + one validated NexusScript TemplateSet manifest
 Every manifest entry renders against the exact same JSON artifact produced once
 from the compiled input document. The manifest mechanism is generic: it knows
 about template source paths, output path templates, ordering, diagnostics, and
-transactional writes, but nothing about Pascal, Schema vocabulary, source-code
+staged output writes, but nothing about Pascal, Schema vocabulary, source-code
 units, or any other generated language.
 
 ## Current Behavior and Implementation Points
@@ -97,42 +97,46 @@ not replace them.
 
 ### Standard validator
 
-Add one maintained standard validator:
+Promote the existing self-validator out of fixture storage:
+
+```text
+NexusTools/Script/validator/Validator.Validator.nxscript
+```
+
+Then add one maintained standard manifest validator beside it:
 
 ```text
 NexusTools/Script/validator/TemplateSet.Validator.nxscript
 ```
 
-It is ordinary NexusScript and associates with the existing self-validator:
+It is ordinary NexusScript and associates with the standard self-validator:
 
 ```nxscript
-doctype "fixtures/Validator.nxscript";
+doctype "Validator.Validator.nxscript";
 ```
 
-The relative path reflects the current repository location of the
-self-validator. Moving standard validators out of `fixtures` is a separate
-repository-layout decision and is not required for this feature.
+Existing validator fixtures and documentation must be updated to refer to the
+promoted file. Runtime-standard validators must not depend on a file whose
+location describes it as test data.
 
 The validator vocabulary is deliberately small:
 
 - one root kind: `TemplateSet`;
 - one entry kind: `Template`;
-- `TemplateSet.Templates` is required;
-- `Templates` is an ordered, named array of inline `Template` definitions;
-- at least one template entry is required initially;
+- `Template` definitions are direct ordered children of `TemplateSet`;
+- zero or more `Template` children are valid;
 - every `Template` requires effective-text `Source` and `Output` properties;
 - unknown definitions, properties, and children are rejected;
 - `Template` entries are permitted only within a `TemplateSet`;
 - no unrelated execution, language, encoding, or pipeline properties exist.
 
-This uses the established NexusScript collection model rather than inventing a
-dictionary or relying on direct-child definitions for an explicitly named
-collection.
+This uses ordinary named child definitions. A wrapper property would add no
+meaning because the root has only one kind of child collection.
 
 Conceptual validator shape:
 
 ```nxscript
-doctype "fixtures/Validator.nxscript";
+doctype "Validator.Validator.nxscript";
 
 Language TemplateSetManifest {
     UnknownDefinitions: Reject;
@@ -141,20 +145,8 @@ Language TemplateSetManifest {
             Root: true;
             UnknownProperties: Reject;
             UnknownChildren: Reject;
-            Properties: [
-                Property Templates {
-                    Required: true;
-                    Value Value {
-                        EffectiveCategories: [Array];
-                        Array Array {
-                            Minimum: 1;
-                            Names: Required;
-                            EntryEffectiveCategories: [Definition];
-                            DefinitionKinds: [Template];
-                            Mixed: false;
-                        }
-                    }
-                }
+            Children: [
+                Child Templates { Kinds: [Template]; }
             ];
         },
 
@@ -177,29 +169,28 @@ Language TemplateSetManifest {
 }
 ```
 
-The exact validator must be validated against `Validator.nxscript`; the example
-above is direction, not permission to bypass that verification.
+The exact validator must be validated against
+`Validator.Validator.nxscript`; the example above is direction, not permission
+to bypass that verification.
 
 ### Example manifest
 
-The request's illustrative named doctype form is no longer valid. The current
-path-only syntax and named-array convention produce:
+The request's illustrative named doctype form is no longer valid. With current
+path-only doctype syntax and direct child definitions, the manifest is:
 
 ```nxscript
 doctype "TemplateSet.Validator.nxscript";
 
 TemplateSet PascalSchema {
-    Templates: [
-        Template Unit {
-            Source: "pascal/schema-unit.mustache";
-            Output: "{{UnitName}}.pas";
-        },
+    Template Unit {
+        Source: "pascal/schema-unit.mustache";
+        Output: "{{UnitName}}.pas";
+    }
 
-        Template Classes {
-            Source: "pascal/schema-classes.mustache";
-            Output: "{{UnitName}}Classes.pas";
-        }
-    ];
+    Template Classes {
+        Source: "pascal/schema-classes.mustache";
+        Output: "{{UnitName}}Classes.pas";
+    }
 }
 ```
 
@@ -211,7 +202,7 @@ syntax.
 
 - The entry compiled manifest document must contain exactly one effective root
   `TemplateSet` for rendering.
-- Entries execute in the final compiled `Templates` array order.
+- Entries execute in final compiled child-definition order.
 - Each entry name is retained for diagnostics.
 - `Source` is an effective NexusScript text value. It is not itself rendered as
   Mustache during this initial feature.
@@ -219,6 +210,7 @@ syntax.
   Mustache against the input artifact JSON.
 - Each template body is independently rendered against that same JSON.
 - One entry always maps one source template to one output file.
+- An empty `TemplateSet` succeeds and produces an empty output directory.
 
 The generic NexusScript compiler and Validator remain unaware of these runtime
 meanings.
@@ -282,12 +274,12 @@ It owns:
 
 - compilation and unconditional doctype validation of the manifest;
 - locating the single `TemplateSet` root;
-- reading ordered `Template` definitions from `Templates`;
-- resolving source templates relative to the declaring manifest document;
+- reading its ordered direct `Template` children;
+- resolving all source templates relative to the entry manifest file;
 - rendering and validating output paths;
 - collecting per-entry rendered content before any final write;
 - collision checks;
-- staged transactional output commit;
+- staging the complete output tree and renaming it into place;
 - entry-aware diagnostics.
 
 Its internal item/list types should contain only data actually needed for one
@@ -297,8 +289,7 @@ render operation, such as:
 - declared and resolved template source path;
 - declared output expression and rendered relative output path;
 - final canonical destination;
-- rendered content;
-- commit/rollback state while writing.
+- rendered content.
 
 Do not publish a generic graph, stage, processor, generator, or task API.
 
@@ -341,12 +332,13 @@ branch only at the final output stage:
    2. require its doctype document;
    3. validate it with `TNexusScriptValidator`;
    4. normalize its one `TemplateSet` and ordered entries;
-   5. render and validate every output path against the input JSON;
-   6. resolve and preflight every template source;
-   7. detect all destination collisions;
-   8. render every template to memory or staging storage;
-   9. only after all rendering succeeds, commit the complete output set;
-   10. return no artifact on stdout.
+   5. require the requested output path not to exist;
+   6. render and validate every output path against the input JSON;
+   7. resolve and preflight every template source;
+   8. detect all destination collisions;
+   9. render every template to memory or staging storage;
+   10. only after all rendering succeeds, publish the complete output tree;
+   11. return no artifact on stdout.
 
 Manifest artifact documents are not passed through the Schema conversion. The
 manifest session exists only to compile and validate the manifest itself.
@@ -355,11 +347,10 @@ manifest session exists only to compile and validate the manifest itself.
 
 ### Template source paths
 
-- Resolve `Source` relative to the source document that declares the effective
-  property, using retained NexusScript provenance.
-- This matters when a manifest uses module composition: an inherited source
-  path remains relative to its declaring module; a local override becomes
-  relative to the overriding document.
+- Resolve every `Source` relative to the entry manifest file, regardless of
+  whether the effective value originated locally or through composition.
+- The manifest therefore has one obvious asset base. Module/property provenance
+  does not alter filesystem interpretation.
 - Canonicalize before loading.
 - Missing or unreadable sources fail during preflight and identify the entry,
   declared source, and resolved source.
@@ -381,9 +372,7 @@ For each `Output` expression:
 7. canonicalize the combined destination;
 8. require the destination to remain strictly beneath the canonical output
    root using a directory-boundary-aware comparison;
-9. check existing ancestor links/reparse points so a lexically contained path
-   cannot escape through the filesystem;
-10. retain both declared and rendered values for diagnostics.
+9. retain both declared and rendered values for diagnostics.
 
 The runtime must not validate containment using a string prefix alone.
 
@@ -395,43 +384,33 @@ Before rendering template bodies or creating final output files, reject:
 - destinations equivalent under the destination filesystem's path comparison;
 - a file destination that is an ancestor of another destination, such as
   `Generated` and `Generated/Unit.pas`;
-- a destination colliding with an existing directory;
 - any other preflight condition that makes the planned tree impossible.
 
 Diagnostics name both conflicting manifest entries and both rendered paths.
 
-## Transactional Output Behavior
+## Staged Output Behavior
 
 Rendering failures must occur before any final output mutation. Therefore all
 output path rendering, source loading, collision checks, and template-body
 rendering complete first.
+
+Manifest mode requires the requested output directory not to exist. Supporting
+merge or replacement of an existing populated directory is deferred.
 
 For final writes:
 
 1. create a unique staging directory on the same filesystem as the output
    root;
 2. write the complete planned relative tree beneath staging;
-3. verify every staged file can be reopened and has the expected byte length;
-4. if the output root does not exist, atomically rename the staged root into
-   place;
-5. if the output root exists, preserve unrelated files and use an operation
-   journal:
-   - move each existing destination to a same-filesystem backup tree;
-   - move each staged file into its final location in deterministic order;
-   - record every created directory and moved file;
-   - on failure, reverse the journal, remove newly installed files, restore
-     replaced files, and remove empty directories created by the operation;
-6. delete backup and staging data only after successful commit;
-7. report rollback failure separately and retain recovery paths if automatic
-   restoration cannot complete.
+3. after every staged write succeeds, rename the completed staging directory to
+   the requested output directory;
+4. if rendering, staging, or rename fails, remove staging and leave the
+   requested output path absent;
+5. if cleanup itself fails, report the retained staging path explicitly.
 
-This promises no partial generated set after an ordinary reported failure. It
-does not claim simultaneous atomic visibility of several independent files to
-other processes, which ordinary cross-file filesystem APIs cannot guarantee.
-
-Existing files at declared destinations are replaced, matching current
-single-output behavior, but unrelated files beneath an existing output
-directory are untouched.
+Because staging and destination are siblings on the same filesystem, final
+publication is one directory rename rather than a sequence of output-file
+writes. An empty manifest stages and publishes an empty directory normally.
 
 ## Diagnostics
 
@@ -446,17 +425,17 @@ Errors must identify the narrowest relevant source:
 - collisions identify both entries;
 - Mustache failures identify whether the template body or output expression
   failed;
-- staging, commit, and rollback failures identify the affected paths.
+- staging or final-rename failures identify the affected paths.
 
 Do not catch and replace useful compiler/validator diagnostics with a generic
 “manifest failed” message.
 
 ## Determinism
 
-- Normalize entries in final compiled array order.
+- Normalize entries in final compiled child-definition order.
 - Render output expressions in that order.
 - Preflight and render template bodies in that order.
-- Stage and commit files in that order.
+- Write staged files in that order.
 - Report the first ordinary entry failure encountered in that order.
 - Collision diagnostics use the later entry as primary and the earlier entry
   as related context.
@@ -474,7 +453,9 @@ initial contract.
   - reusable one-template/text Mustache rendering primitive.
 - `NexusTools/Script/cli/obNexusScriptTemplateManifest.pas`
   - manifest compilation, validation, normalization, path checks, render plan,
-    staging, commit, rollback, and diagnostics.
+    staging, final directory rename, and diagnostics.
+- `NexusTools/Script/validator/Validator.Validator.nxscript`
+  - promoted standard location of the existing self-validator.
 - `NexusTools/Script/validator/TemplateSet.Validator.nxscript`
   - standard declarative manifest validator.
 - `NexusTools/Script/tests/fixtures/manifest/Valid.TemplateSet.nxscript`
@@ -493,12 +474,23 @@ initial contract.
   - register new units if required by the test project.
 - `NexusTools/Script/tests/tsNexusScriptTests.pas`
   - preserve current CLI assertions and add the focused tests below.
+- `NexusTools/Script/validator/fixtures/Schema.nxscript`
+  - update its doctype path to the promoted standard self-validator.
+- `NexusTools/Script/validator/VALIDATION.md`
+  - document the promoted standard validator location.
 - `NexusTools/Script/README.md`
   - document single-template compatibility and manifest invocation.
 - the authoritative NexusScript contract
   - add only the standard TemplateSet consumer/CLI contract if that document
     is intended to cover standard consumers; do not change core language
     syntax or semantics.
+
+### Remove after promotion
+
+- `NexusTools/Script/validator/fixtures/Validator.nxscript`
+  - remove the fixture-path copy after all references use the standard
+    `validator/Validator.Validator.nxscript` file; do not retain duplicate
+    authoritative copies.
 
 ### Expected unchanged files
 
@@ -516,13 +508,15 @@ contract or capability gap before expanding scope.
 
 ### Validator and manifest model
 
+- `Validator.Validator.nxscript` validates itself from its standard location.
+- Existing Schema/Customer validation passes through the promoted validator.
 - `TemplateSet.Validator.nxscript` validates against the self-validator.
 - A minimal one-entry manifest passes.
-- Multiple named entries preserve order.
-- Missing `Templates`, `Source`, or `Output` fails.
-- Empty `Templates` fails.
+- Multiple direct child entries preserve order.
+- Missing `Source` or `Output` fails.
+- An empty `TemplateSet` passes.
 - Unknown kinds and properties fail.
-- Unnamed, scalar, mixed, or wrong-kind entries fail.
+- Wrong-kind child entries fail.
 - Illegal nested/root placement fails.
 - More than one effective `TemplateSet` root is rejected by the manifest
   adapter.
@@ -548,6 +542,8 @@ contract or capability gap before expanding scope.
 - Entry order and write order are stable.
 - Missing source, unreadable source, invalid Mustache, and output-expression
   failure identify the entry and leave no final files.
+- Every source path uses the entry manifest directory even when its effective
+  value came through composition.
 
 ### Path safety and collisions
 
@@ -559,34 +555,30 @@ contract or capability gap before expanding scope.
 - empty rendered path rejected;
 - duplicate literal output rejected;
 - duplicate outputs created by different Mustache expressions rejected;
-- case-equivalent collision tested according to approved comparison policy;
+- case-equivalent collision follows destination-filesystem semantics;
 - file/descendant structural collision rejected;
-- existing-directory collision rejected;
-- existing symlink/reparse-point escape rejected.
+- an already existing output directory is rejected before rendering.
 
-### Transaction behavior
+### Staged output behavior
 
 - render failure before commit leaves an absent output root absent.
-- render failure leaves an existing output tree byte-for-byte unchanged.
-- staging write failure leaves final outputs unchanged.
-- commit failure after one or more moves restores replaced files and removes
-  newly created files.
-- successful commit replaces declared existing files and preserves unrelated
-  files.
-- staging and backup directories are removed after success.
-- forced rollback failure reports recovery paths rather than deleting evidence.
+- staging write failure leaves the requested output root absent.
+- successful directory rename publishes the complete tree.
+- an empty manifest publishes an empty directory.
+- an existing output path fails without changing it.
+- staging directories are removed after success or ordinary failure.
 
-Use isolated temporary roots and deterministic failure injection around the
-manifest writer. Do not simulate transaction failures by writing into the real
-repository or generated distribution directories.
+Use isolated temporary roots. Do not exercise failures in the real repository
+or generated distribution directories.
 
 ## Ordered Implementation Stages
 
-### Stage 1: Approve the manifest and CLI contract
+### Stage 1: Record the manifest and CLI contract
 
-- Confirm the `Templates` named-array shape.
-- Confirm `/manifest` and required directory-valued `/output`.
-- Confirm overwrite and collision comparison policies.
+- Record direct ordered `Template` children and valid empty sets.
+- Record `/manifest` and required directory-valued `/output`.
+- Record the initially absent output-directory rule and
+  destination-filesystem collision semantics.
 - Add the concise contract/example to the approved documentation location.
 
 Acceptance: no syntax or observable CLI question listed under Decisions remains
@@ -594,6 +586,8 @@ implicit.
 
 ### Stage 2: Add and self-validate the standard validator
 
+- Promote `Validator.nxscript` from fixture storage to
+  `validator/Validator.Validator.nxscript` and update references.
 - Implement `TemplateSet.Validator.nxscript` using current validator vocabulary.
 - Add positive and negative compilation/validation fixtures.
 - Prove self-validation and subject validation through normal sessions.
@@ -616,7 +610,7 @@ Acceptance: all existing single-template and parity tests remain exact.
 - Compile a manifest in its own `TNexusScriptCompilationSession`.
 - require and validate its doctype;
 - locate exactly one `TemplateSet` root;
-- normalize ordered entries and retained source provenance;
+- normalize ordered direct child entries;
 - add entry-aware diagnostics.
 
 Acceptance: manifest interpretation reads only compiled NexusScript and invokes
@@ -624,24 +618,25 @@ no Schema conversion or second parser.
 
 ### Stage 5: Implement preflight and rendering
 
-- Resolve source templates relative to effective declaration provenance.
+- Resolve every source template relative to the entry manifest file.
 - Render output expressions against the shared JSON.
-- enforce output containment and filesystem-link checks;
+- enforce lexical and canonical output containment;
 - detect duplicate and structural destination collisions;
 - render every template through the one-render primitive before final writes.
 
 Acceptance: every deterministic manifest/template/path failure occurs without
 creating final output files.
 
-### Stage 6: Implement staged transactional commit
+### Stage 6: Implement staged directory publication
 
-- Write and verify the complete staging tree.
-- Add absent-root atomic rename.
-- Add existing-root backup journal, ordered commit, and reverse rollback.
-- Add deterministic failure injection and cleanup tests.
+- Reject an existing output path before rendering.
+- Write the complete tree beneath a same-filesystem sibling staging directory.
+- Rename the completed staging directory to the requested output directory.
+- Remove staging after ordinary failures and report a retained staging path if
+  cleanup cannot complete.
 
-Acceptance: ordinary reported failures leave no partial generated set and no
-silent loss of pre-existing destination files.
+Acceptance: success publishes the complete tree in one rename; failure leaves
+the requested output path absent.
 
 ### Stage 7: Integrate the CLI
 
@@ -658,7 +653,7 @@ mode generates the expected complete tree.
 
 - Clean-build NexusScript and its test module.
 - Run the complete registered NexusScript suite.
-- Run focused self-validator, manifest, CLI, path-safety, transaction, and
+- Run focused self-validator, manifest, CLI, path-safety, staged-output, and
   Schema parity tests.
 - Search generic compiler/session/validator units for TemplateSet, Mustache,
   output-directory, Pascal, and manifest vocabulary leakage.
@@ -673,6 +668,7 @@ mode generates the expected complete tree.
 - per-entry validators or semantic consumers;
 - conditional entries, target expressions, loops, or task graphs;
 - parallel rendering or writing;
+- merging into or replacing an existing output directory;
 - directory-copy/static-file entries;
 - executable hooks, callbacks, or post-processing commands;
 - template discovery by filename extension;
@@ -686,34 +682,28 @@ mode generates the expected complete tree.
 
 ## Decisions Requiring Approval
 
+The review direction resolves the original plan's manifest shape, empty-set,
+path-base, collision, output-directory, and validator-location questions. One
+observable choice remains for approval with the revised plan:
+
 1. **CLI option:** approve `/manifest=<file>` as the explicit selector rather
    than overloading `/template` or inferring from filenames.
-2. **Manifest shape:** approve `TemplateSet.Templates` as a required named array
-   of `Template` definitions rather than direct child definitions.
-3. **Empty sets:** approve requiring at least one entry. Allowing an empty set
-   is harmless but has no demonstrated initial use.
-4. **Existing destinations:** approve replacing only files declared by the
-   manifest while preserving unrelated files, matching current single-output
-   overwrite behavior.
-5. **Collision comparison:** choose always-case-insensitive comparison for
-   portable manifests, or destination-filesystem semantics. The proposed
-   implementation default is destination-filesystem semantics, with Windows
-   comparisons case-insensitive.
-6. **Output directory identity:** confirm `/output` is interpreted as a
-   directory only when `/manifest` is present; its existing file meaning remains
-   untouched in other modes.
-7. **Standard validator location:** approve keeping
-   `TemplateSet.Validator.nxscript` under `NexusTools/Script/validator` while it
-   refers to the current self-validator under `validator/fixtures`, or separately
-   promote standard validators out of fixture storage before implementation.
 
-No implementation should begin until these observable choices are approved.
+The revised plan otherwise specifies:
+
+- direct ordered `Template` children;
+- valid empty sets;
+- all template sources relative to the entry manifest;
+- destination-filesystem collision semantics;
+- `/output` as a required directory only in manifest mode;
+- rejection of any existing output path;
+- promotion of the self-validator to a standard non-fixture location.
 
 ## Delegation
 
 No sub-agent delegation is proposed. The initial work crosses one tight seam:
-CLI compatibility, manifest normalization, path security, and transactional
-writing must agree exactly. If implementation is later approved, isolated
+CLI compatibility, manifest normalization, path safety, and staged directory
+publication must agree exactly. If implementation is later approved, isolated
 fixture creation may be delegated only after the contract decisions above are
 settled.
 
