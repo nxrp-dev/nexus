@@ -1,14 +1,18 @@
-# Work Plan: Mechanical JSON Serialization of Compiled NexusScript
+# Work Plan: Finalized NexusScript Tree and Mechanical JSON Emission
 
 ## Inputs and Authorization
 
-- Human-owner requirement: NexusScript source is already structurally
-  JSON-friendly.
-- Human-owner clarification: compilation resolves references, inheritance,
-  composition, includes, effective names, and effective values. JSON generation
-  only serializes that completed result.
-- Current NexusScript compiler, compiled model, compilation session, CLI,
-  Mustache rendering, NexusManifest batching, and tests.
+- Human-owner requirement: NexusScript source is deliberately JSON-friendly.
+- Human-owner requirement: the compiler resolves relationships, references,
+  inheritance, composition, effective names, effective values, and artifact
+  dependencies before JSON emission.
+- Human-owner requirement: the JSON emitter serializes the finalized tree and
+  performs no compilation or interpretation.
+- Human-owner clarification: source/provenance information is intended to be
+  available to Mustache if needed, but adding or perfecting that output is
+  deferred from this correction.
+- Current NexusScript compiler, model, session, CLI, Mustache rendering,
+  NexusManifest batching, and tests.
 - Repository architecture-change protocol and Pascal standards.
 
 This is a work plan only. It authorizes no implementation, build, test, archive,
@@ -16,89 +20,192 @@ or unrelated repository change.
 
 ## Goal
 
-Implement one generic NexusScript JSON serializer with this boundary:
+Establish this boundary:
 
 ```text
 NexusScript source
-    -> generic compilation
+    -> compiler and compilation session
+       - parse declarations
        - resolve references
        - flatten composition and inheritance
-       - materialize definition-valued entries
-       - calculate effective values and names
-       - assemble ordered artifact documents
-    -> fully effective compiled tree
-    -> mechanical JSON serialization
+       - materialize structural values
+       - calculate effective scalar values and names
+       - assemble included artifact documents
+       - produce one uniform finalized tree
+    -> mechanical JSON emitter
+    -> raw JSON, Mustache, or NexusManifest outputs
 ```
 
-The JSON serializer does not interpret the document. It writes the effective
-tree that the compiler has already produced.
+The emitter receives no unresolved or alternate compiler representation. It
+does not decide what compilation meant.
 
-## Architectural Rule
+## Architectural Boundary
 
-The serializer must not:
+### Compiler responsibility
 
-- resolve or traverse source references;
-- interpret provenance;
-- apply composition or inheritance;
-- copy template members;
-- infer relationships;
-- classify definition kinds;
-- derive foreign keys, constraints, attributes, or other domain concepts;
-- consult a validator or doctype;
-- inspect filenames;
-- special-case Schema or any other language;
-- expose compiler bookkeeping as artifact data.
+The compiler owns every operation that converts source relationships into final
+structure:
 
-If the effective compiled tree still contains a relationship requiring
-interpretation, unresolved composition, or an unevaluated value, compilation
-is incomplete. Correct the compiler or report a compiler error; do not repair
-it in the serializer.
-
-## Verified Compiler Responsibilities
-
-The existing compiler already owns:
-
-- scalar reference resolution and `EffectiveText`;
-- text composition;
-- structural reference resolution and provenance;
-- materialization of inline and referenced definitions in arrays;
-- effective local names for array entries;
+- property-reference resolution;
+- structural-reference resolution;
+- whole-array reference resolution;
+- definition materialization;
 - composition flattening and precedence;
-- inherited reference rebinding;
+- inherited-reference rebinding;
 - array composition and projection;
-- module compilation;
-- ordered artifact-document assembly for includes.
+- effective array-entry names;
+- effective scalar text;
+- module resolution;
+- ordered include/artifact assembly;
+- rejection of incomplete or invalid results.
 
-The JSON work must consume these completed results rather than reimplementing
-them.
+The compiler must expose one uniform final tree after those operations finish.
+No caller should need to inspect `EffectiveValue`, `StructuralDefinition`,
+`ResolvedDefinition`, `ResolvedProperty`, composition contributors, source
+reference kinds, or evaluation flags to discover the final value.
 
-## JSON Mapping
+### Emitter responsibility
 
-The mapping is direct and generic.
+The JSON emitter knows only the finalized tree's public structure:
 
-### Documents
+- documents;
+- definitions;
+- definition kinds and effective names;
+- properties;
+- scalar values;
+- arrays;
+- structural values and child definitions.
 
-- Serialize `TNexusScriptCompilationSession.ArtifactDocuments` in their
-  existing deterministic order.
-- The entry document is first, followed by included artifact documents under
-  the session's existing rules.
-- Definitions from successive artifact documents append to the corresponding
-  definition-kind arrays.
+It recursively writes those nodes to JSON. It performs no validation beyond
+ordinary JSON construction failures such as duplicate member names that the
+final-tree contract should already prevent.
+
+The emitter must not:
+
+- inspect compiler reference or provenance fields;
+- follow an alternate/effective-value pointer;
+- resolve, materialize, compose, merge, or copy definitions;
+- interpret definition kinds or property names;
+- consult a validator or doctype;
+- infer domain relationships;
+- manufacture Schema, Build, Mustache, or other consumer data;
+- expose Pascal class names or compiler bookkeeping.
+
+## Finalized Effective Tree
+
+### Purpose
+
+The current compiled model retains source form, provenance, resolved targets,
+and alternate effective values because the compiler and validator need them.
+That is not a clean emitter API.
+
+Add a finalized tree produced by the compiler/session after successful
+compilation. It is a projection of the already-completed result, but the
+projection is owned by compilation—not by JSON emission.
+
+### Minimal model
+
+Add pure structural types, conceptually:
+
+```text
+TNexusScriptEffectiveDocument
+  Definitions[]
+
+TNexusScriptEffectiveDefinition
+  Kind
+  Name
+  Properties[]
+  Children[]
+
+TNexusScriptEffectiveProperty
+  Name
+  Value
+
+TNexusScriptEffectiveValue
+  Category = Scalar | Array | Definition
+  ScalarText
+  Items[]
+  Definition
+```
+
+Use project naming and ownership conventions in the actual Pascal declarations.
+Place the real definitions in a generic Script model unit, not in the CLI or
+JSON unit.
+
+The tree contains no reference category. A resolved property reference is a
+scalar, array, or structural value. A definition reference that is legal in
+the final language result is already a structural value. Composition is already
+reflected in the definition members.
+
+### Construction
+
+Add one compiler-owned finalization pass after normal compilation succeeds.
+This pass may inspect all compiler internals because resolving their meaning is
+its responsibility.
+
+For every compiled value, finalization selects the already-computed result:
+
+- completed scalar -> scalar node;
+- completed array, including a whole-array reference -> array node;
+- materialized inline or referenced definition -> structural node;
+- composed definition -> ordinary definition containing its effective members.
+
+If the compiler cannot produce exactly one of those final categories, final
+compilation fails. The JSON emitter never receives the incomplete result and
+never diagnoses reference/materialization state.
+
+### Ownership
+
+- The compilation session owns finalized artifact documents.
+- Finalized documents own definitions.
+- Definitions own their properties and children.
+- Properties and arrays own their effective values/items.
+- Structural values own finalized copies appropriate to their effective
+  location; the final tree contains no shared ownership or back-reference that
+  could recurse during emission.
+- The emitter borrows the completed tree for the duration of serialization.
+
+### Source and provenance information
+
+The intended long-term design permits source/provenance information to remain
+in the finalized tree and therefore be available in emitted JSON for unusual
+Mustache needs.
+
+This work does not design, remove, relocate, or serialize that information.
+Build the finalized model so optional source/provenance members can be added
+later without changing the structural node categories or making the emitter
+interpret compiler state. Do not add a sidecar architecture.
+
+For this correction, only the effective declarative content is required in the
+finalized tree and JSON.
+
+## Mechanical JSON Contract
+
+### Documents and includes
+
+- Serialize the session's finalized artifact documents in existing
+  `ArtifactDocuments` order.
+- The entry document is first; included documents follow under existing session
+  rules.
+- Append definitions from later artifact documents to the corresponding
+  exact-kind arrays.
 - Module-only and doctype-only documents remain absent because the session
-  already excludes them from `ArtifactDocuments`.
+  already excludes them from the artifact set.
 
 ### Definitions
 
-At any document or definition scope:
+At document scope and within every definition:
 
-- group effective definitions by their declared `Kind`;
-- use the exact kind text as the JSON member name—no pluralization,
-  singularization, aliasing, or naming table;
-- the member value is an ordered JSON array;
-- each definition becomes one JSON object;
-- each definition object contains one `Name` selected by the precedence below;
-- definition properties become direct members of that object;
-- child definitions are grouped by kind through the same recursive rule.
+- group definitions by exact `Kind`;
+- use the exact kind text as the JSON member name;
+- make the member value an ordered JSON array;
+- make each definition a JSON object;
+- emit `Name` using the finalized definition's effective output name;
+- emit properties as direct members;
+- emit child definitions recursively through the same exact-kind array rule.
+
+No pluralization, aliases, envelopes, grouping tables, or domain-name mapping
+are permitted.
 
 Example:
 
@@ -131,99 +238,85 @@ becomes:
 }
 ```
 
-This is the complete structural convention. `Project` and `Target` have no
-built-in meaning; any kinds follow the same rule.
+### Effective names
 
-The emitted `Name` is selected in this order:
+Finalization—not the emitter—selects the definition object's output name:
 
-1. an explicit array-entry local name;
-2. an effective scalar property named `Name`;
-3. the definition or definition-valued entry's effective name.
+1. explicit array-entry local name;
+2. effective scalar `Name` property when one is intentionally declared;
+3. effective definition name.
 
-When the scalar `Name` property supplies the emitted member, do not emit it a
-second time as an ordinary property. This accommodates ordinary documents that
-distinguish source identity from an effective output name without exposing two
-JSON members with the same name.
+When an effective `Name` property supplies the output name, it is consumed into
+the finalized definition name and does not remain as a duplicate property.
 
-### Properties and scalar values
+This rule preserves both ordinary definition identity and the existing ability
+to give a structurally placed definition an effective local/output name.
 
-- A property name becomes its JSON member name exactly.
-- A completed scalar value becomes its `EffectiveText` JSON string.
-- Empty effective text remains an empty JSON string.
-- NexusScript has no core semantic primitive type system, so ordinary scalar
-  spelling is not guessed into JSON Boolean, number, or null values.
-- Text composition and scalar property references are indistinguishable from
-  other completed scalar values at serialization time.
+### Properties and scalars
+
+- Emit each property under its exact name.
+- Emit a scalar node as its finalized text.
+- Preserve empty text as an empty JSON string.
+- Do not infer JSON Boolean, number, or null values from spelling. NexusScript
+  core scalars are text.
+- A scalar reference or text composition has already become an ordinary scalar
+  node and receives no special treatment.
 
 ### Arrays
 
-- A property whose effective value is an array becomes a JSON array.
-- Preserve effective compiled item order.
-- An unnamed scalar entry becomes a JSON string.
-- A named scalar entry becomes an object containing `Name` and `Value`.
-- A definition-valued entry becomes the ordinary definition object described
+- Emit an array node as an ordered JSON array.
+- Emit an unnamed scalar entry as a JSON string.
+- Emit a named scalar entry as `{ "Name": name, "Value": text }`.
+- Emit a definition-valued entry as the ordinary definition object described
   above.
-- Use the array entry's `EffectiveName` as the definition object's `Name`, so
-  local naming overrides are already reflected.
-- The definition object's properties and children come from its materialized
-  `StructuralDefinition`.
-- Mixed arrays remain valid and serialize item by item without imposing a
-  narrower type rule.
+- The entry's effective local name is already the finalized definition name.
+- Emit mixed arrays item by item without validator involvement.
 
-Example:
+### Structural properties
+
+When a property has a finalized structural value, emit the definition object
+directly as that property's JSON value. Do not wrap it in reference metadata and
+do not group it again by kind because the property name already supplies the
+JSON member name.
+
+Example finalized structure:
 
 ```nxscript
-Values: [One, Second: Two];
-Fields: [CustomerID: @Core.ID, @Core.Name];
+Alias: @Root.Base;
 ```
 
-conceptually becomes:
+where compilation materializes `Base`, emits conceptually as:
 
 ```json
-{
-  "Values": [
-    "One",
-    { "Name": "Second", "Value": "Two" }
-  ],
-  "Fields": [
-    { "Name": "CustomerID" },
-    { "Name": "Name" }
+"Alias": {
+  "Name": "Alias",
+  "Text": "original",
+  "Inner": [
+    {
+      "Name": "Inner",
+      "Value": "nested"
+    }
   ]
 }
 ```
 
-The actual definition-valued objects also contain all effective properties and
-children materialized by compilation.
+The emitter sees only a structural property named `Alias`; it does not know
+that the source used a reference.
 
-### Direct definition references
+### Member collisions
 
-- A property reference that resolves to scalar text serializes as that scalar
-  effective text.
-- A definition-valued array reference serializes as its materialized effective
-  definition.
-- A property that resolves only to a definition and has no effective JSON value
-  is a compiler/result-model issue. The serializer must not emit a reference
-  object, recursively copy the target, or invent a textual fallback.
-- Add a focused pre-serialization validation that rejects such incomplete
-  values with the compiled source location. If current language semantics say
-  the value should materialize, fix materialization in the compiler before
-  serialization.
+The finalized tree must reject before emission:
 
-### Name collisions
+- two properties with the same effective name;
+- a property whose name collides with an emitted child-kind collection name;
+- a remaining property named `Name` after effective-name finalization;
+- any other two members that would occupy the same JSON object key.
 
-The source language's unified member namespace prevents a property from
-colliding with a child definition's name, but JSON child collections are keyed
-by child kind. Therefore explicitly check whether a property name equals a
-child-kind collection member at the same effective scope.
+Return a compiler/finalization diagnostic with source location. Do not add
+`Properties` or `Children` wrappers to avoid collisions and do not rename JSON
+members.
 
-If such a source is currently legal, stop and return the minimal example for a
-language-contract decision. Do not silently rename either JSON member and do
-not add `Properties`/`Children` wrapper objects merely to avoid the question.
-
-The ordinary `Name` property follows the explicit precedence above and is not a
-collision.
-
-## Serializer Ownership and API
+## JSON Emitter
 
 Add:
 
@@ -231,34 +324,30 @@ Add:
 NexusTools/Script/src/obNexusScriptJSON.pas
 ```
 
-Expose one narrow function that accepts the ordered artifact documents and
-returns JSON text. Keep traversal helpers private.
+Expose one narrow function accepting finalized artifact documents and returning
+JSON text. Keep recursive writing helpers private.
 
-Use `fpjson` for JSON ownership and escaping. Build an owned JSON tree and
-serialize it only after the entire artifact succeeds.
+Use `fpjson` for object ownership, arrays, strings, escaping, and formatting.
+Construct the complete owned JSON tree before returning text.
 
-Do not introduce:
-
-- a consumer interface;
-- a serializer registry;
-- callbacks or plugins;
-- a visitor framework;
-- a JSON mode or format switch;
-- validator-dependent output.
+The JSON unit must depend only on the finalized generic model and ordinary
+runtime/JSON units. It must not depend on the compiler implementation,
+validator, CLI, NexusSchema, metadata, Mustache, or source model.
 
 ## CLI Integration
 
 Modify `NexusTools/Script/cli/obNexusScriptCommand.pas` so it:
 
 1. compiles the input once;
-2. optionally validates only when `/validate` is requested;
-3. serializes `ArtifactDocuments` once;
-4. emits that JSON directly without a rendering option;
-5. gives that exact JSON string to `/template`;
-6. gives that exact same JSON string to every `/manifest` entry.
+2. optionally validates when `/validate` is requested;
+3. obtains the session's finalized artifact tree;
+4. serializes it once;
+5. emits that JSON directly without a rendering option;
+6. gives that exact JSON string to `/template`;
+7. gives that exact same JSON string to every `/manifest` entry.
 
-Preserve all existing stdout/file, Mustache, and NexusManifest behavior after
-the JSON string has been produced.
+Preserve current stdout/file, Mustache, and NexusManifest behavior after JSON
+creation.
 
 ## Remove the Incorrect Path
 
@@ -268,52 +357,66 @@ Delete:
 NexusTools/Script/parity/obNexusScriptSchemaConsumer.pas
 ```
 
-Remove from the NexusScript executable and actual-output test path:
+Remove from the NexusScript executable and actual-output tests:
 
 - `TNexusScriptSchemaConsumer`;
 - `TMetaDataModuleList`;
 - `TMetaDataTransform`;
 - `MetaDataToMustacheJSON`;
-- all NexusSchema metadata and transformation units.
+- all NexusSchema interpretation.
 
 Delete `TestSchemaConsumer` and the metadata-producing `LoadNexusScript`
-helper. Do not retain or rename the consumer.
-
-Remove the current inForce and Storm assertions from the generic serializer
-acceptance suite because they exercise the rejected Schema conversion path.
-Update `parity/PARITY.md` to state that legacy Schema artifact parity is
-deferred and is not evidence for or against the mechanical JSON serializer.
-Do not replace those tests with a weaker comparison in this work.
+helper. Remove the current inForce and Storm assertions from the generic
+serializer suite because they test the rejected conversion path. Mark their
+legacy artifact-parity status as deferred in `parity/PARITY.md`; do not replace
+them with a weaker comparison.
 
 ## Tests
 
-### Mechanical serialization
+### Compiler finalization tests
 
-Add focused tests for:
+Prove that the finalized tree contains no alternate compiler state:
 
-- multiple root definitions grouped by exact kind;
-- root and child definition order;
-- direct scalar properties;
-- empty effective text;
-- quoted text and JSON escaping;
-- text composition and scalar references appearing only as final text;
-- nested child definitions grouped recursively by exact kind;
-- unnamed and named scalar array entries;
-- inline definition-valued array entries;
-- referenced definition-valued array entries;
-- effective local-name overrides;
-- composed definitions containing their final effective properties, children,
-  and arrays exactly once;
-- module references fully resolved before serialization;
-- included artifact documents appended in session order;
-- rejection of incomplete non-materialized values;
-- property/child-kind and emitted-`Name` collision behavior.
+- direct scalar;
+- text composition;
+- scalar property reference;
+- whole-array reference;
+- inline definition-valued array entry;
+- referenced definition-valued array entry;
+- direct structural property reference;
+- local array-entry name override;
+- flattened composition and inherited-reference rebinding;
+- array composition/projection;
+- module-resolved values;
+- entry and included artifact-document order;
+- rejection of any value lacking one final category;
+- member-collision diagnostics.
 
-Use domain-neutral kinds and properties in serializer tests.
+Assertions inspect only finalized public nodes, not JSON.
 
-### Mustache usability
+### Mechanical emitter tests
 
-Use a small unchanged template against the direct JSON:
+Supply constructed finalized trees directly and verify:
+
+- exact kind names become ordered arrays;
+- definitions contain `Name` and direct properties;
+- child kinds recurse;
+- scalar strings and empty strings;
+- unnamed and named scalar arrays;
+- structural property objects;
+- definition-valued array objects;
+- mixed arrays;
+- multiple artifact documents append by exact kind;
+- quotes, backslashes, control characters, and Unicode escape correctly.
+
+These tests must not instantiate the compiler, validator, or source model. They
+prove the emitter is mechanical.
+
+### End-to-end generic tests
+
+- Compile a domain-neutral NexusScript fixture.
+- Compare its finalized tree to the expected structure.
+- Serialize it and use a small Mustache template directly:
 
 ```mustache
 {{#Project}}
@@ -324,24 +427,33 @@ Use a small unchanged template against the direct JSON:
 {{/Project}}
 ```
 
-Verify raw JSON, `/template`, and every manifest entry observe the same compiled
-content.
+- Verify raw output, `/template`, and every `/manifest` entry use the identical
+  serialized JSON string.
+- Preserve existing CLI validation and NexusManifest order, path, overwrite,
+  traversal, and stop-on-error tests.
+
+Schema behavior is outside this work.
 
 ## Exact Files
 
 ### Add
 
+- generic finalized-tree model unit under `NexusTools/Script/src/`, using the
+  repository's final agreed unit name
 - `NexusTools/Script/src/obNexusScriptJSON.pas`
-- domain-neutral JSON fixtures under `NexusTools/Script/tests/fixtures/json/`
+- domain-neutral finalization/JSON fixtures under
+  `NexusTools/Script/tests/fixtures/json/`
 
 ### Modify
 
 - `NexusTools/Script/NexusScript.lpi`
 - `NexusTools/Script/README.md`
+- `NexusTools/Script/src/obNexusScriptCompiler.pas`
+- `NexusTools/Script/src/obNexusScriptSession.pas`
 - `NexusTools/Script/cli/obNexusScriptCommand.pas`
 - `NexusTools/Script/tests/NexusScriptTestModule.lpi`
 - `NexusTools/Script/tests/tsNexusScriptTests.pas`
-- affected CLI and manifest Mustache fixtures
+- affected domain-neutral CLI and manifest fixtures
 - `NexusTools/Script/parity/PARITY.md`
 - `work/plans/nexusscript-command-line-interface.md`
 - `work/plans/nexusscript-template-manifest-rendering.md`
@@ -350,73 +462,76 @@ content.
 
 - `NexusTools/Script/parity/obNexusScriptSchemaConsumer.pas`
 
-Do not modify NexusScript language syntax, validators, NexusSchema production
-code, or existing Schema sources as part of this work.
+Do not modify NexusScript syntax, validators, NexusSchema production code,
+legacy Schema sources, or Mustache templates.
 
 ## Ordered Implementation Stages
 
-1. Add domain-neutral JSON fixtures and lock the direct mapping above with
-   focused tests.
-2. Implement `obNexusScriptJSON.pas` for definitions, properties, children,
-   scalars, and arrays.
-3. Add definition-valued entries, effective local names, completed reference
-   values, and artifact-document aggregation.
-4. Resolve or return any genuine effective-model incompleteness discovered by
-   serialization; do not add serializer interpretation.
-5. Replace CLI JSON construction with one generic serializer call.
-6. Verify raw, `/template`, and `/manifest` reuse the identical JSON string.
-7. Delete the Schema consumer and every Schema metadata dependency from the
-   NexusScript output path.
-8. Correct README and the superseded CLI/manifest plan sections.
-9. Clean-build, run the full NexusScript suite, perform focused searches, and
-   create the standard source archive.
+1. Add the minimal finalized effective-tree model and explicit ownership.
+2. Add compiler finalization for scalar, array, and structural results.
+3. Cover references, effective-value indirection, composition, materialization,
+   modules, includes, names, and collisions entirely inside finalization.
+4. Add finalization tests proving callers need no compiler-internal inspection.
+5. Add the mechanical JSON emitter and isolated constructed-tree tests.
+6. Add one domain-neutral end-to-end compilation and Mustache fixture.
+7. Replace CLI artifact creation with final-tree serialization once per
+   invocation and reuse it for raw, `/template`, and `/manifest` output.
+8. Delete the Schema consumer and all NexusScript-side metadata dependencies.
+9. Remove/defer the invalid Schema parity assertions and correct documentation
+   and superseded plans.
+10. Clean-build, run the full suite, perform focused searches, and create the
+    standard full-source archive.
 
-Compile after stages 2, 5, and 7.
+Compile after stages 3, 5, 7, and 8.
 
 ## Verification
 
-Run clean builds of `NexusScript.lpi` and `NexusScriptTestModule.lpi`, then the
-complete registered NexusScript suite.
+Run clean builds of `NexusScript.lpi` and `NexusScriptTestModule.lpi`, followed
+by the complete registered NexusScript suite.
 
 Focused searches must prove:
 
 - `TNexusScriptSchemaConsumer` no longer exists;
-- the CLI and serializer have no `obMetaData*` or NexusSchema dependency;
-- the serializer contains no Schema-domain vocabulary or kind/property
-  dispatch;
-- the serializer never accesses source reference text to resolve values;
-- raw, `/template`, and `/manifest` share one serialized JSON string;
-- domain-neutral tests cover every JSON mapping rule.
+- the CLI and JSON unit have no `obMetaData*` or NexusSchema dependency;
+- the JSON unit does not reference compiler source/compiled-model internals,
+  references, effective-value indirection, provenance, composition, modules,
+  validators, or doctypes;
+- finalization, not JSON emission, is the only code that converts compiled
+  alternate forms into final categories;
+- raw, `/template`, and `/manifest` reuse one JSON string;
+- emitter tests operate on constructed finalized trees without a compiler.
 
 After approved implementation, run `scripts/New-NexusSourceArchive.ps1` and
-verify the serializer is present and the consumer is absent.
+verify the finalized model and JSON emitter are present and the consumer is
+absent.
 
 ## Stop Conditions
 
-Stop and return a minimal compiled example if:
+Stop and return a minimal example if:
 
-- a supposedly compiled value still requires relationship resolution;
-- a definition-valued entry is not materialized;
-- property and emitted child-kind collection names collide;
-- correct serialization would require consulting a validator or domain kind;
-- existing compiler behavior contradicts the direct mapping above.
+- the compiler cannot reduce a valid compiled value to one final category;
+- final structural ownership would require a recursive/shared graph;
+- property and child-kind JSON member names collide under legal source;
+- effective `Name` precedence conflicts with settled array-local naming;
+- correct finalization would require validator or domain knowledge;
+- source/provenance retention becomes necessary to complete this work rather
+  than remaining a deferred emitted capability.
 
-Fix compiler completeness only when the settled language contract determines
-the result. Return genuine contract ambiguity to the human owner.
+Do not move any such decision into the emitter.
 
 ## Non-Goals
 
 - No Schema interpretation or legacy JSON reconstruction.
-- No relationship, inheritance, or composition work in the serializer.
-- No validator involvement.
-- No alternate JSON modes.
+- No compiler logic in the emitter.
+- No validator involvement in finalization or emission.
+- No source/provenance JSON design in this pass.
 - No consumer/plugin/registry architecture.
-- No output conveniences such as comma markers or derived domain fields.
-- No template redesign beyond focused generic test fixtures.
-- No unrelated language, validation, CLI, or NexusManifest change.
+- No alternate output modes.
+- No output conveniences or derived domain fields.
+- No unrelated language, validation, CLI, or NexusManifest changes.
 
 ## Sub-Agent Plan
 
-No delegation is requested. The effective-model boundary, serializer, CLI, and
-removal of the incorrect path form one tightly coupled integration seam, and
+No delegation is requested. Final-tree ownership, compiler finalization, JSON
+emission, and CLI replacement form one tightly coupled integration seam, and
 the worktree contains overlapping uncommitted NexusScript changes.
