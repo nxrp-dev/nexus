@@ -201,12 +201,21 @@ Every selected output mode consumes the same resulting JSON string.
 - `NexusTools/Script/tests/NexusScriptTestModule.lpi`
   - include the emitter for focused tests.
 - `NexusTools/Script/tests/tsNexusScriptTests.pas`
-  - add direct emitter and CLI/Mustache integration coverage.
+  - remove the Schema-producer and legacy Schema-artifact tests, then add
+    direct emitter and CLI/Mustache integration coverage.
 - `NexusTools/Script/README.md`
   - document the generic JSON contract and a minimal Mustache example.
+- `NexusTools/Script/parity/PARITY.md`
+  - remove claims that the Schema-specific producer is a NexusScript parity
+    boundary or that its derived metadata JSON remains supported.
 
-The existing Schema parity consumer and its parity tests remain available for
-their existing purpose; they are not the new generic artifact path.
+### Delete
+
+- `NexusTools/Script/parity/obNexusScriptSchemaConsumer.pas`
+
+Remove `TNexusScriptSchemaConsumer` and all associated source, project, CLI,
+test, documentation, and dependency references. Do not retain, rename, move,
+or replace it with a compatibility adapter.
 
 ## Out Of Scope
 
@@ -214,7 +223,6 @@ their existing purpose; they are not the new generic artifact path.
   includes, or compiler-model redesign;
 - validator behavior or validator documents;
 - NexusSchema production code, metadata transformations, or templates;
-- deletion or redesign of the existing Schema parity consumer;
 - Mustache engine changes;
 - changes to `/template` or `/manifest` semantics beyond supplying the generic
   JSON context;
@@ -250,7 +258,15 @@ their existing purpose; they are not the new generic artifact path.
 - Emit JSON once after compilation and optional validation.
 - Preserve existing stdout/file writing, `/template`, and `/manifest` control
   flow so all three modes consume the identical emitted JSON string.
-- Keep the Schema parity consumer and parity-specific tests separate.
+- Delete `obNexusScriptSchemaConsumer.pas`.
+- Remove `TNexusScriptSchemaConsumer`, `TMetaDataModuleList`,
+  `TMetaDataTransform`, `MetaDataToMustacheJSON`, and their NexusSchema unit
+  dependencies from the NexusScript executable path.
+- Remove `TestSchemaConsumer`, the inForce/Storm Schema-artifact assertions,
+  and any test helper whose only purpose is producing the old derived Schema
+  metadata JSON.
+- Remove the deleted unit from both project files and correct `PARITY.md` so it
+  no longer describes that producer as parity support.
 
 ### Stage 4: Complete tests and documentation
 
@@ -267,10 +283,11 @@ their existing purpose; they are not the new generic artifact path.
 ## Sub-Agent Delegation
 
 No implementation delegation is proposed. The emitter contract, CLI switch,
-project references, and tests form one small integration seam, and the current
-worktree contains overlapping uncommitted NexusScript CLI, test, README,
-validator, and fixture changes. Main Codex should perform the approved work
-locally, preserving those changes and reviewing every overlap before editing.
+Schema-producer deletion, project references, and tests form one small
+integration seam, and the current worktree contains overlapping uncommitted
+NexusScript CLI, test, README, validator, and fixture changes. Main Codex should
+perform the approved work locally, preserving those changes and reviewing
+every overlap before editing.
 
 ## Verification Plan
 
@@ -286,8 +303,10 @@ After implementation is explicitly approved:
 - search the new emitter and generic CLI path for Schema metadata units,
   Schema vocabulary, validator calls, filename dispatch, and duplicated
   compiler logic;
-- confirm `TNexusScriptSchemaConsumer` is absent from the generic CLI path but
-  remains available to parity-specific code;
+- confirm `obNexusScriptSchemaConsumer.pas`, `TNexusScriptSchemaConsumer`, and
+  every reference to them are absent from the repository;
+- confirm the removed Schema-artifact tests and documentation claims are
+  absent;
 - confirm no replacement compiled/effective model was introduced;
 - create the required fresh source archive with
   `scripts/New-NexusSourceArchive.ps1` and verify the new emitter and tests are
@@ -301,9 +320,9 @@ After implementation is explicitly approved:
   definition kind, collides with the direct Mustache-friendly representation.
   Implementation must report the concrete case rather than choose an
   unapproved aliasing rule.
-- Existing Schema parity output will not be reproduced by a domain-neutral
-  emitter because it contains derived Schema fields. That compatibility is
-  explicitly outside this work.
+- Existing derived Schema metadata output will not be reproduced by the
+  domain-neutral emitter. Its producer and its output-specific tests are
+  intentionally deleted; no compatibility path is retained.
 - The worktree already contains overlapping NexusScript changes. Approved
   implementation must begin by reviewing those diffs and must not overwrite or
   stage unrelated work.
