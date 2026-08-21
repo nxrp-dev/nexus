@@ -17,7 +17,12 @@
   - output constants are ordinary compiled NexusScript data, not a new
     compiler-level constant mechanism;
   - all models in one manifest contribute to one generic JSON root, which is
-    serialized once and supplied unchanged to every template.
+    serialized once and supplied unchanged to every template;
+  - successful compilation establishes structural validity for a document
+    without a doctype, while `/validate` additionally applies any doctype the
+    document actually declares;
+  - manifest entries create neither compiler nor JSON namespaces: all emitted
+    roots share one global context and must therefore be mutually unique.
 - Current implementation:
   - `NexusTools/Script/cli/obNexusScriptCommand.pas`;
   - `NexusTools/Script/validator/NexusManifest.Language.nxscript`;
@@ -84,6 +89,10 @@ NexusManifest
   execution order.
 - `TNexusScriptCompilationSession.ArtifactDocuments` already provides an
   ordered, include-aware artifact document set for one model source.
+- Compilation of a canonical source is context-free under a stable filesystem:
+  its doctype, module, and include dependencies are declared by that source and
+  resolved relative to it, not supplied by the manifest entry that selected
+  it.
 - `TNexusScriptJSONEmitter.AddDocument` already combines completed compiled
   documents at the JSON root and rejects duplicate root names. No serializer
   change is needed to combine independent model and constants documents.
@@ -174,7 +183,10 @@ The manifest contract is:
 
 The `Model` child's NexusScript name is a manifest-entry identity used in
 diagnostics. It does not rename, wrap, alias, or otherwise alter roots emitted
-by its source document.
+by its source document. The manifest introduces no compiler namespace and no
+JSON namespace. Every root emitted by every selected artifact document enters
+one global JSON object, so all root names must be mutually unique across the
+entire manifest context.
 
 ### Constants model
 
@@ -226,11 +238,15 @@ Rules:
 - `/template` and `/manifest` remain mutually exclusive;
 - `/manifest` continues to require `/output` as its output base directory;
 - the manifest is always compiled and validated through its explicit doctype;
-- `/validate` continues to validate the ordinary `/input` in non-manifest
-  modes;
-- in manifest mode, `/validate` applies to every declared `Model`: each model
-  must have an explicit doctype and pass validation, otherwise the command
-  fails with the `NexusManifestName.ModelName` identity;
+- successful compilation is sufficient structural validation for an ordinary
+  input or manifest model that declares no doctype;
+- in raw and single-template modes, `/validate` applies the ordinary `/input`'s
+  declared doctype when one exists and does not reject a successfully compiled
+  input merely because it has no doctype;
+- in manifest mode, `/validate` applies the same rule to every declared
+  `Model`: validate through its doctype when one exists; otherwise successful
+  compilation is sufficient. Any model validation failure uses the
+  `NexusManifestName.ModelName` identity;
 - without `/validate`, model documents compile normally and their doctype
   documents remain compilation dependencies without automatic subject
   validation, matching ordinary input behavior.
@@ -247,18 +263,22 @@ For manifest mode:
 2. Locate its single `NexusManifest` root and separate direct `Model` and
    `Template` children by compiled `Kind` while preserving child order.
 3. Resolve every `Model.Source.EffectiveText` relative to the manifest file.
-4. Reject duplicate canonical direct model source paths with a focused
-   manifest-entry diagnostic.
+4. Enforce one canonical-source invariant: a canonical artifact source file
+   contributes at most one artifact document to the final context. Declaring
+   the same canonical `Model.Source` directly more than once is additionally a
+   manifest configuration error reported against the later entry.
 5. Compile every model in its own `TNexusScriptCompilationSession` so model
    namespaces and dependency semantics remain independent.
 6. Retain every session until serialization is complete because sessions own
    their compiled documents.
 7. If `/validate` is present, validate each entry compiler document through
-   its explicit doctype before serialization.
-8. Traverse each session's ordered `ArtifactDocuments`. Deduplicate an artifact
-   document only when the same canonical source file is reached transitively
-   from more than one declared model. Do not deduplicate different files that
-   happen to declare the same root name.
+   its declared doctype when present; accept successful compilation as
+   sufficient when the entry document has no doctype.
+8. Traverse each session's ordered `ArtifactDocuments` and enforce the same
+   canonical-source invariant. When the same canonical artifact source is
+   reached transitively from more than one declared model, contribute it once.
+   Do not deduplicate different files that happen to declare the same root
+   name; those remain a root collision.
 9. Add each selected compiled document to one
    `TNexusScriptJSONEmitter`. Existing duplicate-root rejection remains the
    only root collision rule.
@@ -269,7 +289,8 @@ For manifest mode:
 No model can reference definitions in another manifest `Model` merely because
 both appear in the manifest. Cross-document language references still require
 ordinary NexusScript `module` declarations inside the model source. A manifest
-assembles render context; it does not create a compiler namespace.
+assembles render context; it does not create a compiler namespace, alias, root
+wrapper, or per-model JSON scope.
 
 ### Paths and failures
 
@@ -399,7 +420,7 @@ the exact missing facility before expanding the approved scope.
 - Add validator fixtures for valid mixed child order, missing model, missing
   template, missing model source, wrong model placement, and unknown child
   kinds.
-- Prove the updated manifest language validates against the foundational
+- Confirm the updated manifest language validates against the foundational
   `Language` definition before changing execution.
 
 ### Stage 2: Correct CLI ownership and execution order
@@ -413,9 +434,10 @@ the exact missing facility before expanding the approved scope.
   object only if that keeps session ownership and failure cleanup clearer than
   expanding `TNexusScriptCommand`. Do not create a general pipeline framework.
 - Compile every declared model independently and retain its session.
-- Implement canonical direct-source duplicate detection and transitive
-  artifact-document deduplication.
-- Apply `/validate` to every manifest model according to the target contract.
+- Implement the canonical-source invariant, including direct duplicate model
+  rejection and transitive artifact-document deduplication.
+- Apply the target `/validate` semantics consistently to raw input,
+  single-template input, and every manifest model.
 - Assemble one emitter, serialize once, and reuse the exact JSON string for all
   templates.
 - Compile after the mode split and after session-ownership changes.
@@ -426,10 +448,10 @@ the exact missing facility before expanding the approved scope.
   scalar properties and no special compiler behavior.
 - Remove the four `Setting` children only from the isolated working inForce
   model.
-- Add focused fixtures proving the domain model and constants model compile in
+- Add focused fixtures confirming the domain model and constants model compile in
   separate sessions, cannot reference one another implicitly, and appear as
   sibling root members in the emitted context.
-- Prove duplicate constant/domain root names fail instead of overriding.
+- Confirm duplicate constant/domain root names fail instead of overriding.
 
 ### Stage 4: Convert the isolated manifestation workspace
 
@@ -449,7 +471,7 @@ the exact missing facility before expanding the approved scope.
 - Remove the `RenderManifest(const AJSON, ...)` API shape so no manifest path
   can receive prebuilt undeclared input JSON.
 - Remove tests and documentation requiring `/input` with `/manifest`.
-- Add focused searches proving no manifest execution branch serializes input
+- Add focused searches confirming no manifest execution branch serializes input
   before compiling the manifest or uses an external artifact string as its
   context owner.
 
@@ -503,6 +525,10 @@ output\NexusTestHost\nxtest_host.exe output\NexusScript\tests\x86_64-win64\Nexus
 - raw or `/template` mode without `/input` fails clearly.
 - `/manifest` without `/output` fails clearly.
 - help accurately describes mode-dependent requirements.
+- With `/validate`, a successfully compiled raw or single-template input that
+  has no doctype succeeds.
+- With `/validate`, a raw or single-template input that declares a doctype is
+  validated against it and fails when it violates that contract.
 
 ### Model assembly
 
@@ -512,6 +538,8 @@ output\NexusTestHost\nxtest_host.exe output\NexusScript\tests\x86_64-win64\Nexus
 - Modules and includes declared inside a model retain current semantics.
 - The same transitively included canonical artifact document is emitted once.
 - Duplicate direct model source entries fail with the second model identity.
+- With `/validate`, a successfully compiled manifest model without a doctype
+  contributes normally, while a model with a doctype must pass it.
 - Different source files declaring the same root fail through existing emitter
   collision handling; neither value overrides the other.
 - Model declaration order does not alter values or provide precedence.
@@ -542,7 +570,7 @@ output\NexusTestHost\nxtest_host.exe output\NexusScript\tests\x86_64-win64\Nexus
 
 ### Focused searches
 
-Prove that:
+Use focused searches as sanity checks confirming that:
 
 - `obNexusScriptJSON.pas` contains no manifest, constants, Schema, Firebird,
   path, template, or merge dispatch;
@@ -585,8 +613,11 @@ Also verify the archive does not contain
   until its compiled documents have been serialized, then be freed on all
   success and failure paths.
 - Separate model sessions can reach the same artifact document transitively.
-  Deduplication must use canonical source identity without turning same-name
-  roots from different files into silent aliases.
+  The single canonical-source invariant must cover both direct declarations
+  and transitive reachability without turning same-name roots from different
+  files into silent aliases. This is valid because compilation of a canonical
+  source has no manifest-entry-specific binding context under the current
+  compiler contract.
 - Making `/input` conditionally required changes command-line validation. The
   implementation must preserve exact error behavior for raw and single-template
   modes while deliberately rejecting the old mixed manifest invocation.
@@ -599,9 +630,13 @@ Also verify the archive does not contain
   for referenced-field type materialization belongs to the later SQL parity
   design, not to this manifest or constants implementation.
 - Model-level validation in manifest mode is deliberately controlled by the
-  existing `/validate` flag. If later builds require unconditional validation,
-  that should be an explicit manifest-contract revision rather than silently
-  changing this plan during implementation.
+  existing `/validate` flag. Under that flag, a declared doctype is applied and
+  the absence of a doctype is not itself an error because successful
+  compilation already establishes structural validity. The same rule must
+  apply to ordinary `/input` so validation semantics do not depend on CLI mode.
+  If later builds require unconditional doctype validation, that should be an
+  explicit contract revision rather than silently changing this plan during
+  implementation.
 
 No unresolved design question blocks implementation. The plan deliberately
 chooses a self-contained manifest, manifest-wide shared context, strict
