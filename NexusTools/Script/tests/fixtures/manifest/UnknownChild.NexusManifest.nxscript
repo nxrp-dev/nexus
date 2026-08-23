@@ -1,0 +1,14 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest UnknownChild {
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Unknown Surprise {}
+
+    Template Output {
+        Source: "templates/first.mustache";
+        Output: "result.txt";
+    }
+}

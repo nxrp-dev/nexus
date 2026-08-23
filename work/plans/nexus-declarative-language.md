@@ -53,7 +53,7 @@ The controlling safety rule is:
 - `NexusTools/Schema/src/obNexusSchemaTypes.pas` defines schema-specific keywords and operators rather than a generic language token model.
 - `NexusTools/Schema/src/obNexusSchemaTokenizer.pas` converts physical newlines into semicolon tokens, while the new contract requires explicit semicolons.
 - Current reference parsing supports only the historical schema field-reference shape and stores table/field names directly in metadata fields.
-- The current tokenizer and parser do not provide the generic nested definition model, unified member namespace, arrays, composition flattening, effective-scope reference rebinding, general module aliases/root selectors, compile-time text composition, or compiled reference provenance required by the contract.
+- The current tokenizer and parser do not provide the generic nested definition model, unified member namespace, arrays, composition flattening, effective-scope reference rebinding, module imports/root selectors, compile-time text composition, or compiled reference provenance required by the contract.
 - The legacy front-end units are directly referenced only by the NexusSchema executable, NexusSchema tests, project files, and their own token queue dependency.
 - The downstream schema pipeline is already separable:
   - `obMetaDataModel.pas` and `obMetaDataModuleList.pas` own schema metadata;
@@ -90,7 +90,7 @@ The correction is not to generalize the existing metadata parser through additio
   - construct scopes and enforce `Scope + Name` identity;
   - enforce the unified property/child-definition namespace;
   - resolve local and qualified references using the contract's scope rules;
-  - compile modules into separate documents and expose imported scopes through aliases;
+  - compile modules into separate documents and expose imported roots under their declared identities;
   - flatten inherited composition with the contract's precedence and collision behavior;
   - resolve inherited references recursively against the effective composed definition after flattening and precedence;
   - evaluate compile-time text composition and property dependency graphs;
@@ -135,7 +135,7 @@ source text/file
 - The compiler session owns source buffers, tokens, parse nodes, module records, and diagnostics for its lifetime.
 - The compiled result owns the domain-neutral effective definitions, values, resolved references, and provenance exposed to consumers.
 - The NexusScript schema consumer does not take hidden ownership of the compiled result; its ownership boundary must be explicit in its API.
-- Module documents are compiled once per physical source identity within a compilation session and exposed through importer aliases without textual inclusion.
+- Module documents are compiled once per physical source identity within a compilation session and expose their declared roots without textual inclusion or renaming.
 - Failure paths must release partially constructed documents, module state, and consumer metadata without relying on process termination.
 
 ## Scope
@@ -213,7 +213,7 @@ Verification checkpoint: compile and run lexer tests covering every token, escap
 Define one generic source representation for:
 
 - document;
-- module declaration with alias, optional root selector, and path;
+- module declaration with an optional root selector and path;
 - definition with kind, name, optional composition selectors, properties, and child definitions;
 - property;
 - scalar, quoted text, array, reference, and text-composition value expressions;
@@ -236,7 +236,7 @@ Enforce:
 - unique local property names;
 - unique local child-definition names;
 - property/child local name collision errors;
-- module alias collision with other root-addressable names;
+- imported-root collision with other root-addressable names;
 - nested reuse of names in different scopes.
 
 Represent symbol identity directly rather than using display strings as the long-term identity mechanism. Retain source declarations for diagnostics and navigation.
@@ -251,7 +251,7 @@ Implement the contract's lookup rules exactly:
 - qualified references compare the current scope name, then enclosing scope names, for the first segment;
 - after the first segment matches, remaining segments resolve strictly downward;
 - no implicit sibling lookup;
-- module aliases are available throughout nested scopes as the explicit module-level exception;
+- imported roots are available throughout nested scopes as the explicit module-level exception;
 - every reference must resolve during compilation.
 
 Store the originating source expression, resolved symbol target, target source location, and consumer-visible provenance. A property target may contribute an effective value; a definition target remains a resolved structural reference without scalar substitution.
@@ -307,15 +307,15 @@ Add a compilation session that:
 - resolves each declared module path according to one consistent filesystem policy;
 - compiles imported documents separately;
 - tracks physical source identity to avoid redundant compilation;
-- exposes an imported root or selected nested definition under the importer alias;
-- resolves root selectors strictly downward;
-- allows multiple aliases for the same compiled physical document;
+- exposes imported roots under their declared names;
+- optionally filters the import to one declared root without renaming it;
+- rejects duplicate imported-root names and collisions with local roots;
 - detects dependency cycles and reports a deterministic chain;
 - preserves document boundaries and source locations.
 
 Module loader mechanics must implement the observable contract without treating deleted design-history questions as latent requirements. If an implementation choice would materially alter source-visible behavior and the contract does not determine the answer, pause with that one concrete ambiguity instead of creating a general unresolved-design phase.
 
-Verification checkpoint: relative imports, quoted/unquoted paths, aliases, root selectors, nested alias visibility, alias collisions, repeated physical imports, missing files, invalid selectors, and dependency cycles.
+Verification checkpoint: relative imports, quoted/unquoted paths, natural root names, root selectors, nested import visibility, root collisions, repeated physical imports, missing files, invalid selectors, and dependency cycles.
 
 ### Stage 9: Implement the temporary schema parity consumer
 
@@ -488,7 +488,7 @@ Cover at minimum:
 - unresolved-reference errors;
 - forward value references and dependency cycles;
 - composition selectors, precedence, replacement, ambiguity, cycles, and rebinding;
-- module aliases, root selectors, nested visibility, collisions, repeated imports, failures, and dependency cycles;
+- module imports, root selectors, nested visibility, collisions, repeated imports, failures, and dependency cycles;
 - source ranges and diagnostic locations for representative failures.
 
 ### Automated schema-consumer tests

@@ -1,0 +1,20 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest GeneratedFiles {
+    Directory: generated;
+
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Template First {
+        Source: "templates/first.mustache";
+        Output: @GeneratedFiles.Directory + "/first.txt";
+    }
+
+    Template Second {
+        BaseName: second;
+        Source: "templates/second.mustache";
+        Output: @BaseName + ".txt";
+    }
+}

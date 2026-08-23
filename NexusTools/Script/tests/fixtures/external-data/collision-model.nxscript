@@ -1,0 +1,4 @@
+data FIRST "collision-a/shared.csv";
+data SECOND "collision-b/shared.tsv";
+
+Thing CollisionModel {}

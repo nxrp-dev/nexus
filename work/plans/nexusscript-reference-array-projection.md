@@ -156,7 +156,7 @@ Introduce an explicit reference-projection operation rather than changing
 `CloneDefinition` or `CloneDefinitionAs` globally.
 
 - composition continues to flatten complete effective members;
-- module aliases continue to expose complete compiled module definitions;
+- module imports continue to expose complete compiled roots under their declared names;
 - ordinary compiled-model cloning continues to preserve complete values;
 - inline definitions in their owning arrays remain complete;
 - only structural values created by definition-reference evaluation apply the

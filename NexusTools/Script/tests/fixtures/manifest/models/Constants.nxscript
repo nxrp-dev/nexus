@@ -1,0 +1,3 @@
+Constants Firebird {
+    SUFFIX: "_TBL";
+}

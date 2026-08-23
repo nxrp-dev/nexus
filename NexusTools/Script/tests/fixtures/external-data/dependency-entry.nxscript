@@ -1,0 +1,5 @@
+include "include.nxscript";
+module ModuleRoot "module.nxscript";
+data ENTRY_DATA "state.csv";
+
+Thing DependencyEntry {}

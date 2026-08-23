@@ -14,6 +14,8 @@ implementation
 uses
   Classes,
   SysUtils,
+  fpjson,
+  jsonparser,
   obNXTestContext,
   obNXTestSuite,
   obNXCommandLine,
@@ -21,14 +23,10 @@ uses
   obNexusScriptModel,
   obNexusScriptCompiler,
   obNexusScriptSession,
+  obNexusScriptJSON,
+  obNexusScriptExternalSource,
   obNexusScriptCommand,
-  obNexusScriptValidator,
-  obNexusScriptSchemaConsumer,
-  obMetaDataModuleList,
-  obNexusSchemaParser,
-  obMetaDataTransformations,
-  obMetaDataJSON,
-  obMustacheRenderer;
+  obNexusScriptValidator;
 
 procedure TestStructureAndValues(AContext: TNXTestContext);
 var
@@ -91,6 +89,15 @@ begin
       'NexusTools\Script\tests\fixtures\include\' + AFileName);
 end;
 
+function ModuleFixturePath(const AFileName: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\tests\fixtures\modules\' + AFileName);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\tests\fixtures\modules\' + AFileName);
+end;
+
 function CLIFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
@@ -98,6 +105,48 @@ begin
   if not FileExists(Result) then
     Result := ExpandFileName(
       'NexusTools\Script\tests\fixtures\cli\' + AFileName);
+end;
+
+function JSONFixturePath(const AFileName: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\tests\fixtures\json\' + AFileName);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\tests\fixtures\json\' + AFileName);
+end;
+
+function ManifestFixturePath(const AFileName: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\tests\fixtures\manifest\' + AFileName);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\tests\fixtures\manifest\' + AFileName);
+end;
+
+function ExternalDataFixturePath(const AFileName: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\tests\fixtures\external-data\' + AFileName);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\tests\fixtures\external-data\' + AFileName);
+end;
+
+function SchemaGenerationPath(const ARelativePath: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\parity\schema-generation\' + ARelativePath);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\parity\schema-generation\' + ARelativePath);
+end;
+
+function NewOutputDirectory(const APrefix: string): string;
+begin
+  Result := GetTempFileName(GetTempDir, APrefix);
+  DeleteFile(Result);
 end;
 
 function StreamText(AStream: TMemoryStream): string;
@@ -179,7 +228,7 @@ begin
       'Doctype source range should retain its source identity.');
 
     AContext.AssertTrue(lCompiler.CompileText('unquoted.nxscript',
-      'module Shared "module.nxscript"; doctype folder/type.nxscript; ' +
+      'module "module.nxscript"; doctype folder/type.nxscript; ' +
       'Thing Root {}'),
       'Unquoted doctype path should parse beside a module.');
     AContext.AssertEquals('folder/type.nxscript',
@@ -415,7 +464,7 @@ begin
       AValidator.Diagnostics[0].MessageText;
 end;
 
-procedure TestValidatorSelfValidation(AContext: TNXTestContext);
+procedure TestLanguageSelfValidation(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
   lValidator: TNexusScriptValidator;
@@ -424,12 +473,12 @@ begin
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(
-      ValidatorFixturePath('Validator.nxscript')),
-      'Validator definition should compile: ' + lSession.LastError);
+      ValidatorFixturePath('Language.nxscript')),
+      'Language definition should compile: ' + lSession.LastError);
     AContext.AssertTrue(lValidator.Validate(
       lSession.EntryCompiler.CompiledDocument,
       lSession.EntryCompiler.CompiledDocument),
-      'Validator definition should validate itself: ' +
+      'Language definition should validate itself: ' +
       ValidationFailure(lValidator));
   finally
     lValidator.Free;
@@ -443,24 +492,24 @@ var
   lValidator: TNexusScriptValidator;
   lSubjectDocument: TNexusScriptCompiledDocument;
   lSchemaDocument: TNexusScriptCompiledDocument;
-  lValidatorDocument: TNexusScriptCompiledDocument;
+  lLanguageDocument: TNexusScriptCompiledDocument;
 begin
   lSubjectSession := TNexusScriptCompilationSession.Create;
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lSubjectSession.CompileFile(
-      ValidatorFixturePath('Customer.nxscript')),
+      ValidatorFixturePath('Customer.Schema.nxscript')),
       'Schema subject should compile: ' + lSubjectSession.LastError);
     lSubjectDocument := lSubjectSession.EntryCompiler.CompiledDocument;
     lSchemaDocument := lSubjectDocument.DoctypeDocument;
     AContext.AssertTrue(lSchemaDocument <> nil,
       'Subject should retain its compiled Schema doctype.');
-    lValidatorDocument := lSchemaDocument.DoctypeDocument;
-    AContext.AssertTrue(lValidatorDocument <> nil,
-      'Schema should retain its compiled Validator doctype.');
+    lLanguageDocument := lSchemaDocument.DoctypeDocument;
+    AContext.AssertTrue(lLanguageDocument <> nil,
+      'Schema should retain its compiled Language doctype.');
     AContext.AssertTrue(lValidator.Validate(lSchemaDocument,
-      lValidatorDocument),
-      'Schema validator should satisfy the validator contract: ' +
+      lLanguageDocument),
+      'Schema language should satisfy the Language contract: ' +
       ValidationFailure(lValidator));
     AContext.AssertTrue(lValidator.Validate(lSubjectDocument, lSchemaDocument),
       'Schema subject should satisfy its validator: ' +
@@ -594,7 +643,7 @@ begin
   end;
 end;
 
-procedure TestInvalidValidatorDefinition(AContext: TNXTestContext);
+procedure TestInvalidLanguageDefinition(AContext: TNXTestContext);
 var
   lValidatorCompiler: TNexusScriptCompiler;
   lSubjectCompiler: TNexusScriptCompiler;
@@ -622,7 +671,7 @@ begin
   end;
 end;
 
-procedure TestSelfValidatorFiniteValues(AContext: TNXTestContext);
+procedure TestLanguageFiniteValues(AContext: TNXTestContext);
 var
   lMetaSession: TNexusScriptCompilationSession;
   lSubjectCompiler: TNexusScriptCompiler;
@@ -633,13 +682,14 @@ begin
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lMetaSession.CompileFile(
-      ValidatorFixturePath('Validator.nxscript')),
-      'Meta-validator should compile: ' + lMetaSession.LastError);
+      ValidatorFixturePath('Language.nxscript')),
+      'Foundational Language definition should compile: ' +
+      lMetaSession.LastError);
 
     AContext.AssertTrue(lSubjectCompiler.CompileText('bad-policy.nxscript',
       'Language Bad { UnknownDefinitions: Maybe; Definitions: [' +
       'Definition Thing { Root: True; }]; }'),
-      'Invalid-policy validator subject should compile generically.');
+      'Invalid-policy language definition should compile generically.');
     AContext.AssertTrue(not lValidator.Validate(
       lSubjectCompiler.CompiledDocument,
       lMetaSession.EntryCompiler.CompiledDocument),
@@ -651,7 +701,7 @@ begin
       'Language Bad { Definitions: [Definition Thing { Root: True; ' +
       'Properties: [Property Items { Value Value { Array Array {' +
       'Names: Banana; } } }]; }]; }'),
-      'Invalid-name-policy validator subject should compile generically.');
+      'Invalid-name-policy language definition should compile generically.');
     AContext.AssertTrue(not lValidator.Validate(
       lSubjectCompiler.CompiledDocument,
       lMetaSession.EntryCompiler.CompiledDocument),
@@ -663,7 +713,7 @@ begin
       'Language Bad { Definitions: [Definition Thing { Root: True; ' +
       'Properties: [Property Data { Value Value {' +
       'SourceForms: [Text, Banana]; } }]; }]; }'),
-      'Invalid-source-form validator subject should compile generically.');
+      'Invalid-source-form language definition should compile generically.');
     AContext.AssertTrue(not lValidator.Validate(
       lSubjectCompiler.CompiledDocument,
       lMetaSession.EntryCompiler.CompiledDocument),
@@ -674,93 +724,6 @@ begin
     lValidator.Free;
     lSubjectCompiler.Free;
     lMetaSession.Free;
-  end;
-end;
-
-procedure LoadLegacy(const AFileName: string; AMetaData: TMetaDataModuleList);
-var
-  lParser: TNexusSchemaParser;
-  lCurrentDirectory: string;
-begin
-  lCurrentDirectory := GetCurrentDir;
-  SetCurrentDir(ExtractFileDir(AFileName));
-  lParser := TNexusSchemaParser.Create(AMetaData);
-  try
-    lParser.ExecuteFile(AFileName);
-  finally
-    lParser.Free;
-    SetCurrentDir(lCurrentDirectory);
-  end;
-end;
-
-function FirstDifference(const AExpected, AActual: string): string;
-var
-  lIndex: Integer;
-begin
-  lIndex := 1;
-  while (lIndex <= Length(AExpected)) and (lIndex <= Length(AActual)) and
-    (AExpected[lIndex] = AActual[lIndex]) do
-    Inc(lIndex);
-  Result := 'first difference at ' + IntToStr(lIndex) + '; expected=' +
-    Copy(AExpected, lIndex, 120) + '; actual=' + Copy(AActual, lIndex, 120);
-end;
-
-function RenderJSON(const AJSON: string): string;
-var
-  lJSONFile: string;
-  lOutputFile: string;
-  lText: TStringList;
-begin
-  lJSONFile := GetTempFileName(GetTempDir, 'nsj');
-  lOutputFile := GetTempFileName(GetTempDir, 'nso');
-  lText := TStringList.Create;
-  try
-    lText.Text := AJSON;
-    lText.SaveToFile(lJSONFile);
-    RenderMustacheFile(lJSONFile,
-      ExpandFileName('NexusTools\Schema\firebird\DatabaseSchema.create.mustache'),
-      lOutputFile);
-    lText.LoadFromFile(lOutputFile);
-    Result := lText.Text;
-  finally
-    lText.Free;
-    DeleteFile(lOutputFile);
-    DeleteFile(lJSONFile);
-  end;
-end;
-
-procedure LoadNexusScript(const AFileName: string;
-  AMetaData: TMetaDataModuleList);
-var
-  lSession: TNexusScriptCompilationSession;
-  lConsumer: TNexusScriptSchemaConsumer;
-  lArtifactDocument: TNexusScriptArtifactDocument;
-begin
-  lSession := TNexusScriptCompilationSession.Create;
-  lConsumer := TNexusScriptSchemaConsumer.Create;
-  try
-    if not lSession.CompileFile(AFileName) then
-      raise Exception.Create(lSession.LastError);
-    for lArtifactDocument in lSession.ArtifactDocuments do
-      if not lConsumer.Consume(lArtifactDocument.SourceDocument,
-        lArtifactDocument.CompiledDocument, AMetaData) then
-        raise Exception.Create('Schema consumer rejected ' +
-          lArtifactDocument.CompiledDocument.SourceName);
-  finally
-    lConsumer.Free;
-    lSession.Free;
-  end;
-end;
-
-procedure TransformMetaData(AMetaData: TMetaDataModuleList);
-var
-  lTransform: TMetaDataTransform;
-begin
-  lTransform := TMetaDataTransform.Create;
-  try
-    lTransform.Transform(AMetaData);
-  finally
-    lTransform.Free;
   end;
 end;
 
@@ -776,6 +739,8 @@ begin
       'Generated help should include input.');
     AContext.AssertTrue(Pos('/template', TNXCommandLine.HelpText) > 0,
       'Generated help should include template.');
+    AContext.AssertTrue(Pos('/manifest', TNXCommandLine.HelpText) > 0,
+      'Generated help should include manifest.');
 
     TNXCommandLine.ParseArguments([]);
     try
@@ -784,8 +749,8 @@ begin
     except
       on E: Exception do lError := E.Message;
     end;
-    AContext.AssertTrue(Pos('input', LowerCase(lError)) > 0,
-      'Missing input should be rejected.');
+    AContext.AssertEquals('', lError,
+      'Syntax validation should allow mode-dependent input selection.');
 
     TNXCommandLine.ParseArguments(['/input=script.nxscript', '/unknown']);
     try
@@ -819,35 +784,311 @@ begin
   finally
     TNXCommandLine.ClearRegisteredFlags;
   end;
+  AContext.AssertTrue(Pos('input', LowerCase(CLIError([]))) > 0,
+    'Execution without input or manifest should fail clearly.');
+end;
+
+procedure TestNexusManifestLanguage(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lValidator: TNexusScriptValidator;
+  lDocument: TNexusScriptCompiledDocument;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lValidator := TNexusScriptValidator.Create;
+  try
+    AContext.AssertTrue(lSession.CompileFile(ExpandFileName(
+      ExtractFileDir(ManifestFixturePath('Valid.NexusManifest.nxscript')) +
+      '\..\..\..\validator\NexusManifest.Language.nxscript')),
+      'NexusManifest language should compile with the foundational Language definition.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'NexusManifest language should validate against Language.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('Valid.NexusManifest.nxscript')),
+      'Manifest with auxiliary properties should compile.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Manifest with root and entry auxiliary properties should validate.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('MissingOutput.NexusManifest.nxscript')),
+      'Structurally invalid manifest should still compile.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(not lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Manifest missing Output should fail validation.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('MissingModel.NexusManifest.nxscript')),
+      'Manifest missing Model should compile structurally.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(not lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Manifest missing Model should fail validation.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('MissingTemplate.NexusManifest.nxscript')),
+      'Manifest missing Template should compile structurally.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(not lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Manifest missing Template should fail validation.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('MissingModelSource.NexusManifest.nxscript')),
+      'Manifest missing Model.Source should compile structurally.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(not lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Manifest missing Model.Source should fail validation.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('UnknownChild.NexusManifest.nxscript')),
+      'Manifest with unknown child should compile structurally.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(not lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Manifest with unknown child should fail validation.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('WrongModelPlacement.NexusManifest.nxscript')),
+      'Manifest with nested Model should compile structurally.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(not lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'Model outside the manifest root should fail validation.');
+  finally
+    lValidator.Free;
+    lSession.Free;
+  end;
+end;
+
+procedure TestCommandTemplateManifest(AContext: TNXTestContext);
+var
+  lOutputDirectory: string;
+  lError: string;
+begin
+  AContext.AssertTrue(Pos('mutually exclusive', LowerCase(CLIError([
+    '/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
+    '/template=' + CLIFixturePath('Name.mustache'),
+    '/manifest=' + ManifestFixturePath('Valid.NexusManifest.nxscript'),
+    '/output=unused']))) > 0,
+    'Template and manifest options should be mutually exclusive.');
+  AContext.AssertTrue(Pos('output directory', LowerCase(CLIError([
+    '/manifest=' + ManifestFixturePath('Valid.NexusManifest.nxscript')]))) > 0,
+    'Manifest rendering should require an output directory.');
+  AContext.AssertTrue(Pos('mutually exclusive', LowerCase(CLIError([
+    '/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
+    '/manifest=' + ManifestFixturePath('Valid.NexusManifest.nxscript'),
+    '/output=unused']))) > 0,
+    'Input and manifest options should be mutually exclusive.');
+
+  lOutputDirectory := NewOutputDirectory('nsm');
+  try
+    AContext.AssertEquals('', ExecuteCLI([
+      '/manifest=' + ManifestFixturePath('Valid.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]),
+      'Manifest rendering should not write to stdout.');
+    AContext.AssertEquals('First Example', Trim(FileText(
+      lOutputDirectory + '\generated\first.txt')),
+      'First manifest entry should use the shared JSON artifact.');
+    AContext.AssertEquals('Second Example', Trim(FileText(
+      lOutputDirectory + '\second.txt')),
+      'Local reference composition should provide the second output path.');
+  finally
+    DeleteFile(lOutputDirectory + '\generated\first.txt');
+    DeleteFile(lOutputDirectory + '\second.txt');
+    RemoveDir(lOutputDirectory + '\generated');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nso');
+  try
+    ExecuteCLI([
+      '/manifest=' + ManifestFixturePath('Ordered.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertEquals('Second Example', Trim(FileText(
+      lOutputDirectory + '\shared.txt')),
+      'Compiled child order should determine ordinary overwrite order.');
+  finally
+    DeleteFile(lOutputDirectory + '\shared.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsf');
+  try
+    lError := CLIError([
+      '/manifest=' + ManifestFixturePath('Failure.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(Pos('GeneratedFiles.Missing', lError) > 0,
+      'A render failure should identify the current manifest entry.');
+    AContext.AssertTrue(FileExists(lOutputDirectory + '\first.txt'),
+      'A later failure should not roll back an earlier successful write.');
+  finally
+    DeleteFile(lOutputDirectory + '\first.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsl');
+  try
+    ExecuteCLI([
+      '/manifest=' + ManifestFixturePath('Literal.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(FileExists(lOutputDirectory + '\{{Name}}.txt'),
+      'Output EffectiveText should not receive Mustache interpolation.');
+  finally
+    DeleteFile(lOutputDirectory + '\{{Name}}.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nst');
+  try
+    lError := CLIError([
+      '/manifest=' + ManifestFixturePath('Traversal.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(Pos('GeneratedFiles.Escape', lError) > 0,
+      'Unsafe output diagnostics should identify the manifest entry.');
+    AContext.AssertTrue(Pos('escapes', LowerCase(lError)) > 0,
+      'Traversal outside the output directory should be rejected.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsm');
+  try
+    ExecuteCLI([
+      '/manifest=' + ManifestFixturePath('MultiModel.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertEquals('Example_TBL', Trim(FileText(
+      lOutputDirectory + '\combined.txt')),
+      'Independent models should contribute sibling roots to one context.');
+  finally
+    DeleteFile(lOutputDirectory + '\combined.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsa');
+  try
+    ExecuteCLI([
+      '/manifest=' + ManifestFixturePath(
+      'MultiModelAlternative.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertEquals('Example_ALT', Trim(FileText(
+      lOutputDirectory + '\combined.txt')),
+      'A complete alternative constants model should change template data.');
+  finally
+    DeleteFile(lOutputDirectory + '\combined.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsi');
+  try
+    ExecuteCLI([
+      '/manifest=' + ManifestFixturePath('IncludedOnce.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertEquals('one/common/two', Trim(FileText(
+      lOutputDirectory + '\included.txt')),
+      'A shared canonical include should contribute once across model sessions.');
+  finally
+    DeleteFile(lOutputDirectory + '\included.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsd');
+  try
+    lError := CLIError([
+      '/manifest=' + ManifestFixturePath('DuplicateModel.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue((Pos('DuplicateModel.Second', lError) > 0) and
+      (Pos('more than once', LowerCase(lError)) > 0),
+      'A duplicate direct canonical model source should identify the later entry.');
+    AContext.AssertTrue(not FileExists(lOutputDirectory + '\result.txt'),
+      'Duplicate model failure should occur before output.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsr');
+  try
+    lError := CLIError([
+      '/manifest=' + ManifestFixturePath('DuplicateRoot.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue((Pos('DuplicateRoot.Second', lError) > 0) and
+      (Pos('duplicate artifact root', LowerCase(lError)) > 0),
+      'Different files with the same root should fail without aliasing.');
+    AContext.AssertTrue(not FileExists(lOutputDirectory + '\result.txt'),
+      'Root collision should occur before output.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsv');
+  try
+    ExecuteCLI([
+      '/manifest=' + ManifestFixturePath('ValidatedModels.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory, '/validate']);
+    AContext.AssertTrue(FileExists(lOutputDirectory + '\result.txt'),
+      'Validation should accept plain models and validate typed models.');
+  finally
+    DeleteFile(lOutputDirectory + '\result.txt');
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsv');
+  try
+    lError := CLIError([
+      '/manifest=' + ManifestFixturePath('InvalidModel.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory, '/validate']);
+    AContext.AssertTrue((Pos('InvalidModel.Broken', lError) > 0) and
+      (Pos('NSV', lError) > 0),
+      'A typed model validation failure should identify its manifest entry.');
+    AContext.AssertTrue(not FileExists(lOutputDirectory + '\result.txt'),
+      'Model validation failure should occur before output.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nsc');
+  try
+    lError := CLIError([
+      '/manifest=' + ManifestFixturePath('MissingModelFile.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(Pos('MissingModelFile.Missing', lError) > 0,
+      'A model compilation failure should identify its manifest entry.');
+    AContext.AssertTrue(not FileExists(lOutputDirectory + '\result.txt'),
+      'Model compilation failure should occur before output.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
 end;
 
 procedure TestCommandJSONArtifact(AContext: TNXTestContext);
 var
-  lMetaData: TMetaDataModuleList;
-  lExpected: string;
   lActual: string;
+  lIncluded: string;
+  lModuleJSON: string;
+  lUnsupported: string;
   lOutputFile: string;
 begin
-  lMetaData := TMetaDataModuleList.Create;
-  try
-    LoadNexusScript(CLIFixturePath('Valid.nxscript'), lMetaData);
-    TransformMetaData(lMetaData);
-    lExpected := MetaDataToMustacheJSON(lMetaData);
-  finally
-    lMetaData.Free;
-  end;
-
-  lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.nxscript')]);
-  AContext.AssertEquals(lExpected, lActual,
-    'Default command output should be the existing JSON artifact.');
+  lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.Artifact.nxscript')]);
+  AContext.AssertTrue(Pos('"Example"', lActual) > 0,
+    'Default command output should contain the named root definition.');
+  AContext.AssertTrue(Pos('"Kind" : "Schema"', lActual) > 0,
+    'Default command output should contain definition metadata.');
 
   lOutputFile := GetTempFileName(GetTempDir, 'nsc');
   try
-    lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.nxscript'),
+    lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
       '/output=' + lOutputFile]);
     AContext.AssertEquals('', lActual,
       'File output should leave stdout empty.');
-    AContext.AssertEquals(lExpected, FileText(lOutputFile),
+    AContext.AssertEquals(ExecuteCLI([
+      '/input=' + CLIFixturePath('Valid.Artifact.nxscript')]),
+      FileText(lOutputFile),
       'File output should match stdout JSON exactly.');
   finally
     DeleteFile(lOutputFile);
@@ -859,9 +1100,23 @@ begin
   AContext.AssertTrue(Pos('compilation failed', LowerCase(CLIError([
     '/input=' + CLIFixturePath('Invalid.nxscript')]))) > 0,
     'Invalid NexusScript should fail before output.');
-  AContext.AssertTrue(Pos('unable to produce', LowerCase(CLIError([
-    '/input=' + CLIFixturePath('Unsupported.nxscript')]))) > 0,
-    'Unsupported documents should not produce misleading JSON.');
+  lUnsupported := ExecuteCLI([
+    '/input=' + CLIFixturePath('Unsupported.nxscript')]);
+  AContext.AssertTrue(Pos('"Unsupported"', lUnsupported) > 0,
+    'The generic emitter should serialize arbitrary definition kinds.');
+
+  lIncluded := ExecuteCLI([
+    '/input=' + IncludeFixturePath('entry.nxscript')]);
+  AContext.AssertTrue((Pos('"Entry"', lIncluded) > 0) and
+    (Pos('"Child"', lIncluded) > 0) and
+    (Pos('"Leaf"', lIncluded) > 0),
+    'The CLI should aggregate every artifact document into one JSON root.');
+
+  lModuleJSON := ExecuteCLI([
+    '/input=' + ModuleFixturePath('entry.nxscript')]);
+  AContext.AssertTrue((Pos('"Greeting" : "hello world"', lModuleJSON) > 0) and
+    (Pos('"Other" : "other"', lModuleJSON) > 0),
+    'Module references should serialize only their completed domain values.');
 end;
 
 procedure TestCommandTemplateArtifact(AContext: TNXTestContext);
@@ -869,14 +1124,14 @@ var
   lActual: string;
   lOutputFile: string;
 begin
-  lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.nxscript'),
+  lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
     '/template=' + CLIFixturePath('Name.mustache')]);
   AContext.AssertEquals('Example', Trim(lActual),
     'A template should transform the normal JSON artifact.');
 
   lOutputFile := GetTempFileName(GetTempDir, 'nst');
   try
-    lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.nxscript'),
+    lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
       '/template=' + CLIFixturePath('Name.mustache'),
       '/output=' + lOutputFile]);
     AContext.AssertEquals('', lActual,
@@ -888,9 +1143,22 @@ begin
   end;
 
   AContext.AssertTrue(Pos('file not found', LowerCase(CLIError([
-    '/input=' + CLIFixturePath('Valid.nxscript'),
+    '/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
     '/template=' + CLIFixturePath('Missing.mustache')]))) > 0,
     'Missing templates should fail clearly.');
+
+  lActual := ExecuteCLI([
+    '/input=' + JSONFixturePath('NexusSchemaShape.nxscript'),
+    '/template=' + JSONFixturePath('NexusSchemaShape.mustache')]);
+  AContext.AssertEquals('Example(Main):PERSON,ADDRESS', Trim(lActual),
+    'A NexusSchema-shaped model should render through ordinary sections, ' +
+    'dotted lookup, and -last.');
+
+  lActual := ExecuteCLI([
+    '/input=' + JSONFixturePath('Product.nxscript'),
+    '/template=' + JSONFixturePath('Product.mustache')]);
+  AContext.AssertEquals('Nexus:ID=UUID,Created=Timestamp', Trim(lActual),
+    'An unrelated domain should consume the same generic JSON shape.');
 end;
 
 procedure TestCommandValidation(AContext: TNXTestContext);
@@ -898,129 +1166,553 @@ var
   lActual: string;
   lError: string;
 begin
-  lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.nxscript'),
+  lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
     '/validate']);
-  AContext.AssertTrue(Pos('"NexusSchema"', lActual) > 0,
+  AContext.AssertTrue(Pos('"Example"', lActual) > 0,
     'Successful doctype validation should allow artifact generation.');
 
-  lError := CLIError(['/input=' +
+  lActual := ExecuteCLI(['/input=' +
     FixturePath('nexusscript\inForceMain.Schema.nxscript'), '/validate']);
-  AContext.AssertTrue(Pos('doctype', LowerCase(lError)) > 0,
-    'Validation without a doctype should fail explicitly.');
+  AContext.AssertTrue(Pos('"inForce"', lActual) > 0,
+    'Successful compilation should validate a document without a doctype.');
 
   lError := CLIError(['/input=' +
-    CLIFixturePath('InvalidValidation.nxscript'), '/validate']);
+    CLIFixturePath('InvalidValidation.Schema.nxscript'), '/validate']);
   AContext.AssertTrue(Pos('NSV', lError) > 0,
     'Validation failure should report validator diagnostics.');
 
-  lError := CLIError(['/input=' + CLIFixturePath('Valid.nxscript'),
+  lError := CLIError(['/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
     '/validate=true']);
   AContext.AssertTrue(Pos('does not accept', LowerCase(lError)) > 0,
     'Validate should reject an assigned value.');
 end;
 
-procedure TestInForceArtifactParity(AContext: TNXTestContext);
-var
-  lBaseline: TMetaDataModuleList;
-  lReplacement: TMetaDataModuleList;
-  lExpected: string;
-  lActual: string;
+function RequireJSONObject(AData: TJSONData;
+  const ADescription: string): TJSONObject;
 begin
-  lBaseline := TMetaDataModuleList.Create;
-  lReplacement := TMetaDataModuleList.Create;
-  try
-    LoadLegacy(FixturePath('legacy\inForceMain.nxs'), lBaseline);
-    LoadNexusScript(FixturePath('nexusscript\inForceMain.Schema.nxscript'), lReplacement);
-    TransformMetaData(lBaseline);
-    TransformMetaData(lReplacement);
-    lExpected := MetaDataToMustacheJSON(lBaseline);
-    lActual := MetaDataToMustacheJSON(lReplacement);
-    AContext.AssertTrue(lExpected = lActual,
-      'inForce metadata JSON should match exactly: ' +
-      FirstDifference(lExpected, lActual));
-    AContext.AssertEquals(RenderJSON(lExpected), RenderJSON(lActual),
-      'inForce Firebird rendering should match exactly.');
-  finally
-    lReplacement.Free;
-    lBaseline.Free;
-  end;
+  if not (AData is TJSONObject) then
+    raise Exception.Create(ADescription + ' must be a JSON object.');
+  Result := TJSONObject(AData);
 end;
 
-procedure TestStormArtifactParity(AContext: TNXTestContext);
-var
-  lBaseline: TMetaDataModuleList;
-  lReplacement: TMetaDataModuleList;
-  lExpected: string;
-  lActual: string;
+function RequireJSONArray(AData: TJSONData;
+  const ADescription: string): TJSONArray;
 begin
-  lBaseline := TMetaDataModuleList.Create;
-  lReplacement := TMetaDataModuleList.Create;
-  try
-    LoadLegacy(FixturePath('legacy\StormSpecific.nxs'), lBaseline);
-    LoadNexusScript(FixturePath('nexusscript\StormSpecific.Schema.nxscript'), lReplacement);
-    TransformMetaData(lBaseline);
-    TransformMetaData(lReplacement);
-    lExpected := MetaDataToMustacheJSON(lBaseline);
-    lActual := MetaDataToMustacheJSON(lReplacement);
-    AContext.AssertTrue(lExpected = lActual,
-      'Storm metadata JSON should match exactly: ' +
-      FirstDifference(lExpected, lActual));
-    AContext.AssertEquals(RenderJSON(lExpected), RenderJSON(lActual),
-      'Storm Firebird rendering should match exactly.');
-    lActual := ExecuteCLI(['/input=' +
-      FixturePath('nexusscript\StormSpecific.Schema.nxscript')]);
-    AContext.AssertTrue(lExpected = lActual,
-      'The CLI should aggregate the complete include artifact set: ' +
-      FirstDifference(lExpected, lActual));
-  finally
-    lReplacement.Free;
-    lBaseline.Free;
-  end;
+  if not (AData is TJSONArray) then
+    raise Exception.Create(ADescription + ' must be a JSON array.');
+  Result := TJSONArray(AData);
 end;
 
-procedure TestSchemaConsumer(AContext: TNXTestContext);
+function RequireJSONMember(AObject: TJSONObject; const AName: string): TJSONData;
+begin
+  Result := AObject.Find(AName);
+  if Result = nil then
+    raise Exception.CreateFmt('Missing JSON member %s.', [AName]);
+end;
+
+procedure TestJSONEmitter(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
-  lConsumer: TNexusScriptSchemaConsumer;
-  lMetaData: TMetaDataModuleList;
+  lOtherCompiler: TNexusScriptCompiler;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lRoot: TJSONObject;
+  lCatalog: TJSONObject;
+  lMetaData: TJSONObject;
+  lReference: TJSONObject;
+  lValues: TJSONArray;
+  lNested: TJSONArray;
+  lNamed: TJSONObject;
+  lStructure: TJSONObject;
+  lError: string;
 begin
   lCompiler := TNexusScriptCompiler.Create;
-  lConsumer := TNexusScriptSchemaConsumer.Create;
-  lMetaData := TMetaDataModuleList.Create;
+  lOtherCompiler := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  lData := nil;
   try
-    AContext.AssertTrue(lCompiler.CompileText('schema.Schema.nxscript',
-      'Schema Demo { Type Types { Fields: [Field DOM_NAME { Type: "varchar(100)"; }]; } ' +
-      'Template Named { Fields: [Field NAME { Type: DOM_NAME; }]; } ' +
-      'Table MANAGER {} ' +
-      'Table PERSON (Named) { Fields: [' +
-      'DISPLAY_NAME: Field INTERNAL_NAME { Type: DOM_NAME; }, ' +
-      'Field MANAGER_ID { Reference: @Demo.MANAGER; }]; } ' +
-      'Attributes History { Attribute Tracked { Value: True; } } ' +
-      'Data People { Path: "people.csv"; } }'),
-      'Schema parity source should compile.');
-    AContext.AssertTrue(lConsumer.Consume(lCompiler.SourceDocument,
-      lCompiler.CompiledDocument, lMetaData),
-      'Schema consumer should accept one schema root.');
-    AContext.AssertEquals(1, lMetaData.Count,
-      'One metadata module should be produced.');
-    AContext.AssertEquals(2, lMetaData[0].Tables.Count,
-      'Two tables should be produced.');
-    AContext.AssertEquals(2, lMetaData[0].Tables[1].Fields.Count,
-      'Only local fields should be present before transformation.');
-    AContext.AssertEquals('DISPLAY_NAME',
-      lMetaData[0].Tables[1].Fields[0].Name,
-      'Locally renamed inline field should emit its effective name first.');
-    AContext.AssertEquals('MANAGER_ID',
-      lMetaData[0].Tables[1].Fields[1].Name,
-      'Unrenamed inline field should retain its declared name and order.');
-    AContext.AssertTrue(lMetaData[0].Tables[1].Fields[1].IsReference,
-      'Definition reference should become a schema field reference.');
-    AContext.AssertEquals('people.csv', lMetaData.Data[0].Value,
-      'Data registration should retain its path.');
+    AContext.AssertTrue(lCompiler.CompileText('artifact.nxscript',
+      'Thing Catalog { Name: DomainName; Count: 17; ' +
+      'EmptyText: ""; EmptyArray: []; ' +
+      'Escaped: "quote^" and newline^n"; Unicode: "caf'#233' lambda '#955'"; ' +
+      'Label: @Name + "-resolved"; ' +
+      'Values: [plain, Selected: named, Group: [inner, Deep: value], ' +
+      'Node Row { Name: DomainRow; }]; Copy: @Values; ' +
+      'GroupCopy: @Values.Group; SelectedCopy: @Values.Selected; ' +
+      'Thing Child { Name: ChildDomain; } Thing Empty {} Alias: @Child; }'),
+      'Generic artifact source should compile.');
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+
+    AContext.AssertTrue(lOtherCompiler.CompileText('other.nxscript',
+      'Other Additional { Value: included; }'),
+      'A second artifact document should compile.');
+    lEmitter.AddDocument(lOtherCompiler.CompiledDocument);
+
+    lData := GetJSON(lEmitter.JSON);
+    lRoot := RequireJSONObject(lData, 'Artifact root');
+    AContext.AssertTrue(lRoot.Find('Additional') <> nil,
+      'Multiple artifact documents should contribute root members.');
+    lCatalog := RequireJSONObject(RequireJSONMember(lRoot, 'Catalog'),
+      'Catalog');
+    lMetaData := RequireJSONObject(RequireJSONMember(lCatalog, '_nx'),
+      'Catalog metadata');
+    AContext.AssertEquals('Thing', RequireJSONMember(lMetaData, 'Kind').AsString,
+      'Definition metadata should retain kind.');
+    AContext.AssertEquals('Catalog',
+      RequireJSONMember(lMetaData, 'Name').AsString,
+      'Definition metadata should retain identity.');
+    AContext.AssertTrue(not RequireJSONMember(lMetaData,
+      'IsReference').AsBoolean,
+      'Direct definitions should identify themselves as non-references.');
+    AContext.AssertEquals('DomainName',
+      RequireJSONMember(lCatalog, 'Name').AsString,
+      'A domain Name property must remain distinct from metadata.');
+    AContext.AssertTrue(RequireJSONMember(lCatalog, 'Count').JSONType = jtString,
+      'Scalar-looking source text should remain a JSON string.');
+    AContext.AssertEquals('', RequireJSONMember(lCatalog, 'EmptyText').AsString,
+      'Empty text should remain an empty JSON string.');
+    AContext.AssertEquals(0, RequireJSONArray(
+      RequireJSONMember(lCatalog, 'EmptyArray'), 'EmptyArray').Count,
+      'Empty arrays should remain empty JSON arrays.');
+    AContext.AssertEquals('quote" and newline' + #10,
+      RequireJSONMember(lCatalog, 'Escaped').AsString,
+      'JSON escaping should preserve completed text exactly.');
+    AContext.AssertEquals('caf'#233' lambda '#955,
+      RequireJSONMember(lCatalog, 'Unicode').AsString,
+      'Unicode text should survive JSON serialization and parsing.');
+    AContext.AssertEquals('DomainName-resolved',
+      RequireJSONMember(lCatalog, 'Label').AsString,
+      'Text composition should emit completed text.');
+
+    lValues := RequireJSONArray(RequireJSONMember(lCatalog, 'Values'),
+      'Values');
+    AContext.AssertEquals(4, lValues.Count,
+      'Array order and entry count should be preserved.');
+    AContext.AssertEquals('plain', lValues.Items[0].AsString,
+      'Unnamed scalar entries should remain scalar strings.');
+    lNamed := RequireJSONObject(lValues.Items[1], 'Named scalar entry');
+    AContext.AssertEquals('Selected', RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lNamed, '_nx'),
+      'Named scalar metadata'), 'Name').AsString,
+      'Named scalar entries should expose their name through _nx.');
+    AContext.AssertEquals('named',
+      RequireJSONMember(lNamed, 'Value').AsString,
+      'Named scalar entries should retain their value.');
+    lNamed := RequireJSONObject(lValues.Items[2], 'Named array entry');
+    AContext.AssertEquals('Group', RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lNamed, '_nx'),
+      'Named array metadata'), 'Name').AsString,
+      'Named nested arrays should expose their name through _nx.');
+    lNested := RequireJSONArray(RequireJSONMember(lNamed, 'Value'),
+      'Named nested array value');
+    AContext.AssertEquals('inner', lNested.Items[0].AsString,
+      'Nested arrays should retain order and scalar values.');
+    lStructure := RequireJSONObject(lValues.Items[3],
+      'Structural array entry');
+    AContext.AssertEquals('Row', RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lStructure, '_nx'),
+      'Structural entry metadata'), 'Name').AsString,
+      'Structural array entries should use definition metadata.');
+    AContext.AssertEquals('DomainRow',
+      RequireJSONMember(lStructure, 'Name').AsString,
+      'Structural domain members should be emitted directly.');
+    AContext.AssertEquals(4, RequireJSONArray(
+      RequireJSONMember(lCatalog, 'Copy'), 'Array reference').Count,
+      'Whole-array references should emit their completed array.');
+    AContext.AssertEquals(2, RequireJSONArray(
+      RequireJSONMember(lCatalog, 'GroupCopy'),
+      'Named nested-array reference').Count,
+      'References to named nested arrays should emit completed arrays.');
+    AContext.AssertEquals('named',
+      RequireJSONMember(lCatalog, 'SelectedCopy').AsString,
+      'References to named scalar entries should emit completed text.');
+    lMetaData := RequireJSONObject(RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lCatalog, 'Alias'), 'Alias'),
+      '_nx'), 'Alias metadata');
+    AContext.AssertEquals('Alias', RequireJSONMember(lMetaData,
+      'Name').AsString,
+      'Structural references should use the receiving property name.');
+    AContext.AssertTrue(RequireJSONMember(lMetaData,
+      'IsReference').AsBoolean,
+      'Structural references should identify themselves explicitly.');
+    lReference := RequireJSONObject(RequireJSONMember(lMetaData,
+      'Reference'), 'Alias reference metadata');
+    AContext.AssertEquals('Thing', RequireJSONMember(lReference,
+      'Kind').AsString,
+      'Reference metadata should retain the resolved target kind.');
+    AContext.AssertEquals('Child', RequireJSONMember(lReference,
+      'Name').AsString,
+      'Reference metadata should retain the resolved target identity.');
+    AContext.AssertTrue(lCatalog.Find('Child') <> nil,
+      'Direct child definitions should become named object members.');
+    AContext.AssertEquals(1, RequireJSONObject(
+      RequireJSONMember(lCatalog, 'Empty'), 'Empty definition').Count,
+      'An empty definition should contain only its _nx metadata.');
+
+    AContext.AssertTrue(lOtherCompiler.CompileText('duplicate.nxscript',
+      'Thing Catalog {}'), 'Duplicate-root source should compile alone.');
+    lError := '';
+    try
+      lEmitter.AddDocument(lOtherCompiler.CompiledDocument);
+    except
+      on E: ENexusScriptJSON do
+        lError := E.Message;
+    end;
+    AContext.AssertTrue(Pos('duplicate artifact root', LowerCase(lError)) > 0,
+      'Duplicate root names across documents should fail explicitly.');
+
+    AContext.AssertTrue(lOtherCompiler.CompileText('reserved.nxscript',
+      'Thing Reserved { _nx: collision; }'),
+      'Reserved-member source should compile generically.');
+    lError := '';
+    try
+      lEmitter.AddDocument(lOtherCompiler.CompiledDocument);
+    except
+      on E: ENexusScriptJSON do
+        lError := E.Message;
+    end;
+    AContext.AssertTrue(Pos('reserved member _nx', LowerCase(lError)) > 0,
+      'A domain _nx member should fail instead of colliding silently.');
+
+    AContext.AssertTrue(lOtherCompiler.CompileText('reserved-child.nxscript',
+      'Thing ReservedChild { Thing _nx {} }'),
+      'Reserved-child source should compile generically.');
+    lError := '';
+    try
+      lEmitter.AddDocument(lOtherCompiler.CompiledDocument);
+    except
+      on E: ENexusScriptJSON do
+        lError := E.Message;
+    end;
+    AContext.AssertTrue(Pos('reserved member _nx', LowerCase(lError)) > 0,
+      'A child named _nx should fail instead of colliding silently.');
   finally
-    lMetaData.Free;
-    lConsumer.Free;
+    lData.Free;
+    lEmitter.Free;
+    lOtherCompiler.Free;
     lCompiler.Free;
+  end;
+end;
+
+procedure TestExternalDataDeclarations(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptJSONEmitter;
+  lJSON: string;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('data.nxscript',
+      'data STATE "data/state.csv"; Thing Root {}'),
+      'A header-level data declaration should compile.');
+    AContext.AssertEquals(1, lCompiler.SourceDocument.DataSources.Count,
+      'The declaration should remain separate from definitions.');
+    AContext.AssertEquals('STATE',
+      lCompiler.SourceDocument.DataSources[0].Name,
+      'The declaration should retain its logical identity.');
+    AContext.AssertEquals('data/state.csv',
+      lCompiler.SourceDocument.DataSources[0].Path,
+      'The declaration should retain its declared path.');
+
+    AContext.AssertTrue(not lCompiler.CompileText('duplicate-data.nxscript',
+      'data STATE "one.csv"; data state "two.csv"; Thing Root {}'),
+      'Data source identities should be case-insensitively unique.');
+    AContext.AssertEquals('NXS2018', lCompiler.Diagnostics[0].Code,
+      'Duplicate data source diagnostics should be deterministic.');
+
+    AContext.AssertTrue(not lCompiler.CompileText('misplaced-data.nxscript',
+      'Thing Root {} data STATE "state.csv";'),
+      'Data declarations after definitions should fail.');
+    AContext.AssertEquals('NXS2017', lCompiler.Diagnostics[0].Code,
+      'Misplaced data source diagnostics should be deterministic.');
+  finally
+    lCompiler.Free;
+  end;
+
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    AContext.AssertTrue(lSession.CompileFile(
+      ExternalDataFixturePath('dependency-entry.nxscript')),
+      'External dependency fixture should compile: ' + lSession.LastError);
+    AContext.AssertEquals(3, lSession.ExternalSources.Count,
+      'Entry, include, and module declarations should all participate.');
+    AContext.AssertEquals('ENTRY_DATA', lSession.ExternalSources[0].Name,
+      'Entry declarations should retain deterministic first position.');
+    AContext.AssertEquals('INCLUDE_DATA', lSession.ExternalSources[1].Name,
+      'Include declarations should follow entry declarations.');
+    AContext.AssertEquals('MODULE_DATA', lSession.ExternalSources[2].Name,
+      'Module declarations should follow include declarations.');
+    AContext.AssertEquals('csv', lSession.ExternalSources[0].SourceType,
+      'The normalized extension should define the initial source type.');
+
+    lEmitter := TNexusScriptJSONEmitter.Create;
+    try
+      lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+      lJSON := lEmitter.JSON;
+    AContext.AssertTrue(Pos('ENTRY_DATA', lJSON) = 0,
+        'External dependencies must not enter generic model JSON.');
+    finally
+      lEmitter.Free;
+    end;
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ExternalDataFixturePath('doctype-entry.nxscript')),
+      'A doctype dependency fixture should compile: ' + lSession.LastError);
+    AContext.AssertEquals(0, lSession.ExternalSources.Count,
+      'Doctype documents must not contribute model-owned data sources.');
+  finally
+    lSession.Free;
+  end;
+end;
+
+procedure TestExternalDataCompilation(AContext: TNXTestContext);
+var
+  lSource: TNexusScriptExternalSource;
+  lRange: TNexusScriptRange;
+  lJSON: string;
+  lData: TJSONData;
+  lRoot: TJSONObject;
+  lDataSource: TJSONObject;
+  lMetaData: TJSONObject;
+  lFields: TJSONArray;
+  lRecords: TJSONArray;
+  lRecord: TJSONArray;
+  lError: string;
+
+  function CompileFixture(const AName, AFileName, ASourceType,
+    ACompilerName: string): string;
+  begin
+    lSource := TNexusScriptExternalSource.Create(AName, AFileName,
+      ExternalDataFixturePath(AFileName), ASourceType, 'test.nxscript',
+      lRange);
+    try
+      Result := TNexusScriptExternalSourceCompilerRegistry.Compile(
+        ACompilerName, lSource);
+    finally
+      lSource.Free;
+    end;
+  end;
+begin
+  FillChar(lRange, SizeOf(lRange), 0);
+  lData := nil;
+  lJSON := CompileFixture('STATE', 'state.csv', 'csv', 'CommaDelimited');
+  try
+    lData := GetJSON(lJSON);
+    lRoot := RequireJSONObject(lData, 'External source root');
+    lDataSource := RequireJSONObject(RequireJSONMember(lRoot, 'DataSource'),
+      'DataSource');
+    lMetaData := RequireJSONObject(RequireJSONMember(lDataSource, '_nx'),
+      'DataSource metadata');
+    AContext.AssertEquals('STATE',
+      RequireJSONMember(lMetaData, 'Name').AsString,
+      'External source identity should be available through _nx.');
+    lFields := RequireJSONArray(RequireJSONMember(lDataSource, 'Fields'),
+      'Fields');
+    AContext.AssertEquals(2, lFields.Count,
+      'The header should compile into an ordered field array.');
+    AContext.AssertEquals('STATE_ID', lFields.Items[0].AsString,
+      'Field order should be preserved.');
+    lRecords := RequireJSONArray(RequireJSONMember(lDataSource, 'Records'),
+      'Records');
+    AContext.AssertEquals(2, lRecords.Count,
+      'Every nonblank data row should become one record.');
+    lRecord := RequireJSONArray(lRecords.Items[0], 'First record');
+    AContext.AssertEquals('CA', lRecord.Items[0].AsString,
+      'Record values should preserve field position.');
+    AContext.AssertEquals('California', lRecord.Items[1].AsString,
+      'Record values should remain parsed strings.');
+  finally
+    lData.Free;
+  end;
+
+  AContext.AssertTrue(Pos('Washington', CompileFixture('STATE', 'state.jcsv',
+    'jcsv', 'CommaDelimited')) > 0,
+    'JCSV should use the comma-delimited compiler.');
+  lJSON := CompileFixture('QUOTED', 'quoted.csv', 'csv', 'CommaDelimited');
+  AContext.AssertTrue((Pos('A, value', lJSON) > 0) and
+    (Pos('He said \"Hello\"', lJSON) > 0),
+    'Quoted delimiters and doubled quotes should preserve field values.');
+  AContext.AssertTrue(Pos('North', CompileFixture('COUNTY', 'county.tsv',
+    'tsv', 'TabDelimited')) > 0,
+    'TSV should use the tab-delimited compiler.');
+  AContext.AssertTrue(Pos('East', CompileFixture('COUNTY', 'county.tab',
+    'tab', 'TabDelimited')) > 0,
+    'TAB should use the tab-delimited compiler.');
+
+  lError := '';
+  try
+    CompileFixture('BAD', 'duplicate-header.csv', 'csv', 'CommaDelimited');
+  except
+    on E: Exception do lError := E.Message;
+  end;
+  AContext.AssertTrue(Pos('duplicate field name', LowerCase(lError)) > 0,
+    'Duplicate headers should fail clearly.');
+
+  lError := '';
+  try
+    CompileFixture('BAD', 'short-row.csv', 'csv', 'CommaDelimited');
+  except
+    on E: Exception do lError := E.Message;
+  end;
+  AContext.AssertTrue(Pos('field count mismatch', LowerCase(lError)) > 0,
+    'Row-width mismatches should fail clearly.');
+
+  lError := '';
+  try
+    CompileFixture('BAD', 'malformed.csv', 'csv', 'CommaDelimited');
+  except
+    on E: Exception do lError := E.Message;
+  end;
+  AContext.AssertTrue(Pos('malformed quoted field', LowerCase(lError)) > 0,
+    'Unclosed quoted fields should fail with a focused diagnostic.');
+end;
+
+procedure TestCommandExternalDataManifest(AContext: TNXTestContext);
+var
+  lOutputDirectory: string;
+  lPreloadDirectory: string;
+  lStateFile: string;
+  lCountyFile: string;
+  lStateSQL: string;
+  lCountySQL: string;
+  lError: string;
+begin
+  lOutputDirectory := NewOutputDirectory('nxd');
+  lPreloadDirectory := lOutputDirectory + '\preload';
+  lStateFile := lPreloadDirectory + '\state.sql';
+  lCountyFile := lPreloadDirectory + '\county.sql';
+  try
+    ExecuteCLI(['/manifest=' +
+      ManifestFixturePath('ExternalData.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(FileExists(lStateFile),
+      'A CSV dependency should produce a derived output.');
+    AContext.AssertTrue(FileExists(lCountyFile),
+      'A TSV dependency should produce a derived output.');
+    lStateSQL := FileText(lStateFile);
+    lCountySQL := FileText(lCountyFile);
+    AContext.AssertTrue((Pos('source=STATE type=csv', lStateSQL) > 0) and
+      (Pos('fields=STATE_ID,DESCRIPTION', lStateSQL) > 0) and
+      (Pos('record=CA|California', lStateSQL) > 0),
+      'The CSV template should receive only its completed source context.');
+    AContext.AssertTrue((Pos('source=COUNTY type=tsv', lCountySQL) > 0) and
+      (Pos('fields=COUNTY_ID,DESCRIPTION', lCountySQL) > 0) and
+      (Pos('record=001|North', lCountySQL) > 0),
+      'The TSV template should use the matching compiler and source context.');
+  finally
+    DeleteFile(lStateFile);
+    DeleteFile(lCountyFile);
+    RemoveDir(lPreloadDirectory);
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nxm');
+  try
+    lError := CLIError(['/manifest=' +
+      ManifestFixturePath('MissingSourceRule.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(Pos('no sourcetemplate matches',
+      LowerCase(lError)) > 0,
+      'A declared source without a matching rule should fail before output.');
+    AContext.AssertTrue(not DirectoryExists(lOutputDirectory),
+      'Missing source mappings should not create the output root.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nxs');
+  lStateFile := lOutputDirectory + '\state.sql';
+  lCountyFile := lOutputDirectory + '\county.sql';
+  try
+    ExecuteCLI(['/manifest=' +
+      ManifestFixturePath('ExternalDataSQL.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    lStateSQL := FileText(lStateFile);
+    AContext.AssertTrue((Pos('insert into STATE_TBL', lStateSQL) > 0) and
+      (Pos('STATE_ID,', lStateSQL) > 0) and
+      (Pos('''CA'',', lStateSQL) > 0),
+      'The isolated parity SQL template should consume the new context.');
+  finally
+    DeleteFile(lStateFile);
+    DeleteFile(lCountyFile);
+    RemoveDir(lOutputDirectory);
+  end;
+
+  lOutputDirectory := NewOutputDirectory('nxc');
+  try
+    lError := CLIError(['/manifest=' +
+      ManifestFixturePath('SourceCollision.NexusManifest.nxscript'),
+      '/output=' + lOutputDirectory]);
+    AContext.AssertTrue(Pos('output collision', LowerCase(lError)) > 0,
+      'Derived outputs with the same basename should fail preflight.');
+    AContext.AssertTrue(not DirectoryExists(lOutputDirectory),
+      'Collision preflight should not create the output root.');
+  finally
+    RemoveDir(lOutputDirectory);
+  end;
+end;
+
+procedure TestSchemaGenerationMockData(AContext: TNXTestContext);
+const
+  cPreloadFiles: array[0..8] of string = (
+    'address_type.sql',
+    'license_type.sql',
+    'phone_type.sql',
+    'service_billing_type.sql',
+    'state.sql',
+    'zipcode.sql',
+    'person_type.sql',
+    '1_person.sql',
+    '2_login.sql'
+  );
+var
+  lInForceOutput: string;
+  lStormOutput: string;
+  lFileName: string;
+  lInForceFile: string;
+  lStormFile: string;
+
+  procedure RemoveGeneratedOutput(const ADirectory: string);
+  var
+    lGeneratedFile: string;
+  begin
+    for lGeneratedFile in cPreloadFiles do
+      DeleteFile(ADirectory + '\preload\' + lGeneratedFile);
+    DeleteFile(ADirectory + '\DatabaseSchema.sql');
+    DeleteFile(ADirectory + '\AutoProviderList.prv');
+    RemoveDir(ADirectory + '\preload');
+    RemoveDir(ADirectory);
+  end;
+begin
+  lInForceOutput := NewOutputDirectory('nxi');
+  lStormOutput := NewOutputDirectory('nxt');
+  try
+    ExecuteCLI(['/manifest=' + SchemaGenerationPath(
+      'manifests\inForce.Firebird.NexusManifest.nxscript'),
+      '/output=' + lInForceOutput]);
+    ExecuteCLI(['/manifest=' + SchemaGenerationPath(
+      'manifests\Storm.Firebird.NexusManifest.nxscript'),
+      '/output=' + lStormOutput]);
+
+    for lFileName in cPreloadFiles do
+    begin
+      lInForceFile := lInForceOutput + '\preload\' + lFileName;
+      lStormFile := lStormOutput + '\preload\' + lFileName;
+      AContext.AssertTrue(FileExists(lInForceFile),
+        'inForce should generate mock preload output ' + lFileName + '.');
+      AContext.AssertTrue(FileExists(lStormFile),
+        'Storm should inherit mock preload output ' + lFileName + '.');
+      AContext.AssertEquals(FileText(lInForceFile), FileText(lStormFile),
+        'Imported mock preload output should be deterministic for ' +
+        lFileName + '.');
+    end;
+    AContext.AssertTrue(Pos('insert into STATE_TBL', FileText(
+      lInForceOutput + '\preload\state.sql')) > 0,
+      'The mock state data should render through the copied SQL template.');
+  finally
+    RemoveGeneratedOutput(lStormOutput);
+    RemoveGeneratedOutput(lInForceOutput);
   end;
 end;
 
@@ -1029,6 +1721,8 @@ var
   lSession: TNexusScriptCompilationSession;
   lRoot: TNexusScriptCompiledDefinition;
   lFixture: string;
+  lEmitter: TNexusScriptJSONEmitter;
+  lJSON: string;
 begin
   lSession := TNexusScriptCompilationSession.Create;
   try
@@ -1045,7 +1739,7 @@ begin
       'Module-qualified property should evaluate.');
     AContext.AssertEquals('other',
       lRoot.FindProperty('Other').Value.EffectiveText,
-      'Document-root module alias should expose every root definition.');
+      'A module should expose every imported root by its declared name.');
     AContext.AssertEquals(2, lRoot.FindProperty('ModuleItems').Value.
       EffectiveValue.Items.Count,
       'Module-qualified array references should expose an owned result.');
@@ -1054,7 +1748,28 @@ begin
       'Module-qualified array results should retain entry names and order.');
     AContext.AssertEquals('inherited',
       lRoot.FindChild('Derived').FindProperty('Shared').Value.EffectiveText,
-      'Nested composition should resolve through a module alias.');
+      'Nested composition should resolve through an imported root.');
+    lEmitter := TNexusScriptJSONEmitter.Create;
+    try
+      lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+      lJSON := lEmitter.JSON;
+      AContext.AssertTrue(Pos('"Root"', lJSON) > 0,
+        'The entry root should be emitted.');
+      AContext.AssertTrue(Pos('"CommonRoot"', lJSON) = 0,
+        'Module-only imported roots should not be emitted as artifacts.');
+    finally
+      lEmitter.Free;
+    end;
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ModuleFixturePath('selected.nxscript')),
+      'Selected-root module script should compile: ' + lSession.LastError);
+    AContext.AssertTrue(lSession.EntryCompiler.CompiledDocument.
+      FindDefinition('CommonRoot') <> nil,
+      'A selected root should retain its declared name.');
+    AContext.AssertTrue(lSession.EntryCompiler.CompiledDocument.
+      FindDefinition('OtherRoot') = nil,
+      'A root selector should not import unselected roots.');
   finally
     lSession.Free;
   end;
@@ -1063,8 +1778,20 @@ end;
 procedure TestModuleFailures(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
+  lCompiler: TNexusScriptCompiler;
   lFixture: string;
 begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(not lCompiler.CompileText('alias.nxscript',
+      'module Alias Root "module.nxscript"; Thing Entry {}'),
+      'Module aliases should not parse.');
+    AContext.AssertEquals('NXS2002', lCompiler.Diagnostics[0].Code,
+      'Removed alias syntax should use the module declaration diagnostic.');
+  finally
+    lCompiler.Free;
+  end;
+
   lSession := TNexusScriptCompilationSession.Create;
   try
     lFixture := ExpandFileName('..\..\..\NexusTools\Script\tests\fixtures\modules\cycle-a.nxscript');
@@ -1074,6 +1801,27 @@ begin
       'Module dependency cycle should fail.');
     AContext.AssertTrue(Pos('cycle', LowerCase(lSession.LastError)) > 0,
       'Cycle failure should be deterministic.');
+
+    AContext.AssertTrue(not lSession.CompileFile(
+      ModuleFixturePath('duplicate-import.nxscript')),
+      'Repeated imports with duplicate root names should fail.');
+    AContext.AssertTrue(Pos('duplicate imported root',
+      LowerCase(lSession.LastError)) > 0,
+      'Duplicate imported roots should fail explicitly.');
+
+    AContext.AssertTrue(not lSession.CompileFile(
+      ModuleFixturePath('collision.nxscript')),
+      'Imported roots should not replace local roots.');
+    AContext.AssertTrue(Pos('collides with local root',
+      LowerCase(lSession.LastError)) > 0,
+      'Imported/local root collisions should fail explicitly.');
+
+    AContext.AssertTrue(not lSession.CompileFile(
+      ModuleFixturePath('nested-selector.nxscript')),
+      'A module selector should not flatten a nested definition into a root.');
+    AContext.AssertTrue(Pos('root selector not found',
+      LowerCase(lSession.LastError)) > 0,
+      'Only declared document roots should be selectable.');
   finally
     lSession.Free;
   end;
@@ -1219,7 +1967,7 @@ begin
       lRoot.FindProperty('InlineTargetAgain').Value.ResolvedValue =
         lItems.Items[3],
       'Repeated inline reference should retain stable array-item identity.');
-    AContext.AssertTrue(lItems.Items[3].Evaluated,
+    AContext.AssertTrue(lItems.Items[3].EvaluationState = nsvesCompleted,
       'Named inline item should remain completed after repeated references.');
     AContext.AssertEquals('InlineTarget',
       lRoot.FindProperty('InlineTarget').Value.StructuralDefinition.Name,
@@ -1230,6 +1978,94 @@ begin
     AContext.AssertTrue(not lCompiler.CompileText('array-reference-duplicate.nxscript',
       'Thing Root { Thing Target {} Values: [@Root.Target, @Root.Target]; }'),
       'Duplicate referenced-definition effective names should fail.');
+  finally
+    lCompiler.Free;
+  end;
+end;
+
+procedure TestQualifiedArrayEntryLookup(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lDemo: TNexusScriptCompiledDefinition;
+  lTables: TNexusScriptCompiledValue;
+  lAddress: TNexusScriptCompiledDefinition;
+  lTarget: TNexusScriptCompiledValue;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('array-entry-earlier.nxscript',
+      'Thing Demo { Tables: [' +
+      'Table PERSON { Code: person; }, ' +
+      'Table ADDRESS { Target: @Demo.Tables.PERSON; ' +
+      'TargetCode: @Demo.Tables.PERSON.Code; }]; }'),
+      'An entry should resolve an earlier entry through its explicit array path.');
+    lDemo := lCompiler.CompiledDocument.FindDefinition('Demo');
+    lTables := lDemo.FindProperty('Tables').Value;
+    lAddress := lTables.Items[1].StructuralDefinition;
+    lTarget := lAddress.FindProperty('Target').Value;
+    AContext.AssertTrue(lTarget.ResolvedValue = lTables.Items[0],
+      'Qualified lookup should retain the exact effective array entry.');
+    AContext.AssertEquals('PERSON', lTarget.OriginalDefinitionName,
+      'Qualified lookup should retain referenced entry identity.');
+    AContext.AssertEquals('Target', lTarget.StructuralDefinition.Name,
+      'Structural projection should retain the receiving property name.');
+    AContext.AssertEquals('person',
+      lAddress.FindProperty('TargetCode').Value.EffectiveText,
+      'Qualified lookup should continue downward through the selected entry.');
+
+    AContext.AssertTrue(lCompiler.CompileText(
+      'array-entry-structural-self-reference.nxscript',
+      'Thing Root { Items: [Node A { Link: @Items.A; }]; }'),
+      'A structural array entry should support a recursive structural reference.');
+    lDemo := lCompiler.CompiledDocument.FindDefinition('Root');
+    lTables := lDemo.FindProperty('Items').Value;
+    lTarget := lTables.Items[0].StructuralDefinition.FindProperty('Link').Value;
+    AContext.AssertTrue(lTarget.ResolvedDefinition <> nil,
+      'A recursive structural reference should retain target provenance.');
+    AContext.AssertEquals('A', lTarget.OriginalDefinitionName,
+      'A recursive structural reference should retain target identity.');
+
+    AContext.AssertTrue(lCompiler.CompileText(
+      'array-entry-structural-composition.nxscript',
+      'Thing Root { Thing Base { Values: [Base: one]; } ' +
+      'Items: [Node A (Base) { Values: [Local: two]; }]; }'),
+      'A structural array entry should apply its composition selectors.');
+    lDemo := lCompiler.CompiledDocument.FindDefinition('Root');
+    lTables := lDemo.FindProperty('Items').Value;
+    AContext.AssertEquals(2, lTables.Items[0].StructuralDefinition.
+      FindProperty('Values').Value.Items.Count,
+      'Inline structural composition should retain base and local array values.');
+
+    AContext.AssertTrue(lCompiler.CompileText(
+      'array-entry-target-owner.nxscript',
+      'Thing Root { Thing Base { Code: composed; } Items: [' +
+      'Node Consumer { Target: @Items.Target; }, ' +
+      'Node Target (Base) {}]; }'),
+      'A referenced structural entry should evaluate in its array owner scope.');
+    lDemo := lCompiler.CompiledDocument.FindDefinition('Root');
+    lTables := lDemo.FindProperty('Items').Value;
+    lTarget := lTables.Items[0].StructuralDefinition.FindProperty('Target').Value;
+    AContext.AssertEquals('composed', lTarget.StructuralDefinition.
+      FindProperty('Code').Value.EffectiveText,
+      'A later structural target should retain owner-scoped composition.');
+
+    AContext.AssertTrue(lCompiler.CompileText('array-entry-later.nxscript',
+      'Thing Demo { Tables: [' +
+      'Table ADDRESS { Target: @Demo.Tables.PERSON; }, ' +
+      'Table PERSON { Code: person; }]; }'),
+      'Named array lookup should not depend on entry source order.');
+    lDemo := lCompiler.CompiledDocument.FindDefinition('Demo');
+    lTables := lDemo.FindProperty('Tables').Value;
+    lAddress := lTables.Items[0].StructuralDefinition;
+    AContext.AssertTrue(lAddress.FindProperty('Target').Value.ResolvedValue =
+      lTables.Items[1],
+      'Forward lookup should retain the exact effective array entry.');
+
+    AContext.AssertTrue(not lCompiler.CompileText(
+      'array-entry-implicit-sibling.nxscript',
+      'Thing Demo { Tables: [' +
+      'Table PERSON {}, Table ADDRESS { Target: @PERSON; }]; }'),
+      'Named array entries must not acquire implicit sibling lookup.');
   finally
     lCompiler.Free;
   end;
@@ -1491,6 +2327,173 @@ begin
   end;
 end;
 
+procedure TestComposedArrayEntryLookup(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lLibraryCompiler: TNexusScriptCompiler;
+  lRoot: TNexusScriptCompiledDefinition;
+  lDerived: TNexusScriptCompiledDefinition;
+  lItems: TNexusScriptCompiledValue;
+  lReference: TNexusScriptCompiledValue;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lLibraryCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText(
+      'composed-array-entry-lookup.nxscript',
+      'Thing Root { ' +
+      'Thing Base { Items: [' +
+      'Node A { Code: base; }, B: @Items.A, C: @Items.A.Code]; } ' +
+      'Thing Higher { Items: [' +
+      'Node A { Code: higher; }, D: high]; } ' +
+      'Thing Derived (Base, Higher) { Items: [' +
+      'Node A { Code: local; }, E: local]; } }'),
+      'Contributor entry bodies should evaluate after the effective array is prepared.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lDerived := lRoot.FindChild('Derived');
+    lItems := lDerived.FindProperty('Items').Value;
+    AContext.AssertEquals(5, lItems.Items.Count,
+      'The effective array should contain only final winning entries.');
+    AContext.AssertEquals('A', lItems.Items[0].EffectiveName,
+      'The local structural winner should retain the inherited position.');
+    AContext.AssertEquals('local', lItems.Items[0].StructuralDefinition.
+      FindProperty('Code').Value.EffectiveText,
+      'The local structural entry should replace inherited contributors.');
+    lReference := lItems.Items[1];
+    AContext.AssertTrue(lReference.ResolvedValue = lItems.Items[0],
+      'A contributor reference should resolve to the effective winning entry.');
+    AContext.AssertEquals('B', lReference.StructuralDefinition.Name,
+      'The effective structural projection should retain its receiving entry name.');
+    AContext.AssertEquals('local', lReference.StructuralDefinition.
+      FindProperty('Code').Value.EffectiveText,
+      'The contributor projection should materialize the effective winner.');
+    AContext.AssertEquals('local', lItems.Items[2].EffectiveText,
+      'Downward lookup from a contributor should observe the effective winner.');
+    AContext.AssertEquals('D', lItems.Items[3].EffectiveName,
+      'A new inherited entry should retain contributor order.');
+    AContext.AssertEquals('E', lItems.Items[4].EffectiveName,
+      'A new local entry should append after inherited entries.');
+
+    AContext.AssertTrue(lLibraryCompiler.CompileText('library.nxscript',
+      'Thing Base { Items: [' +
+      'Node A { Code: library; }, B: @Items.A]; }'),
+      'The imported array contributor should compile independently.');
+    lCompiler.AddImportedDocument(lLibraryCompiler.CompiledDocument);
+    FreeAndNil(lLibraryCompiler);
+    AContext.AssertTrue(lCompiler.CompileText('imported-composition.nxscript',
+      'Thing Root { Thing Derived (Base) { Items: [' +
+      'Node A { Code: local; }]; } }'),
+      'A prepared imported contributor should compose into a local array.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lItems := lRoot.FindChild('Derived').FindProperty('Items').Value;
+    AContext.AssertTrue(lItems.Items[1].ResolvedValue = lItems.Items[0],
+      'An imported contributor reference should rebind to the local winner.');
+    AContext.AssertEquals('local', lItems.Items[1].StructuralDefinition.
+      FindProperty('Code').Value.EffectiveText,
+      'An imported contributor projection should materialize the local winner.');
+
+    AContext.AssertTrue(lCompiler.CompileText(
+      'whole-array-reference-rebinding.nxscript',
+      'Thing Root { Items: [' +
+      'Node A { Code: root; }, B: @Items.A]; ' +
+      'Thing Base { Items: @Root.Items; } ' +
+      'Thing Derived (Base) { Items: [' +
+      'Node A { Code: local; }]; } }'),
+      'A completed whole-array reference should compose into a derived array.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lItems := lRoot.FindChild('Derived').FindProperty('Items').Value;
+    AContext.AssertTrue(lItems.Items[1].ResolvedValue = lItems.Items[0],
+      'A whole-array contributor reference should rebind to the final winner.');
+    AContext.AssertEquals('local', lItems.Items[1].StructuralDefinition.
+      FindProperty('Code').Value.EffectiveText,
+      'A whole-array contributor projection should materialize the final winner.');
+  finally
+    lLibraryCompiler.Free;
+    lCompiler.Free;
+  end;
+end;
+
+procedure TestArrayEntryFailureState(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lRoot: TNexusScriptCompiledDefinition;
+  lItemsProperty: TNexusScriptCompiledProperty;
+  lItems: TNexusScriptCompiledValue;
+  lDiagnostic: TNexusScriptDiagnostic;
+  lHasCycle: Boolean;
+  lHasUnresolved: Boolean;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(not lCompiler.CompileText('array-entry-self-cycle.nxscript',
+      'Thing Root { Items: [A: @Items.A]; Later: @Items.A; }'),
+      'A named array entry must not recursively resolve itself.');
+    lHasCycle := False;
+    lHasUnresolved := False;
+    for lDiagnostic in lCompiler.Diagnostics do
+    begin
+      lHasCycle := lHasCycle or SameText(lDiagnostic.Code, 'NXS5002');
+      lHasUnresolved := lHasUnresolved or
+        SameText(lDiagnostic.Code, 'NXS5001');
+    end;
+    AContext.AssertTrue(lHasCycle,
+      'A recursive named entry should report NXS5002.');
+    AContext.AssertTrue(not lHasUnresolved,
+      'A matched recursive entry should not be misreported as unresolved.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lItemsProperty := lRoot.FindProperty('Items');
+    lItems := lItemsProperty.Value;
+    AContext.AssertTrue(lItems.Items[0].EvaluationState = nsvesFailed,
+      'A cyclic entry must remain failed rather than completed.');
+    AContext.AssertTrue(lItems.EvaluationState = nsvesFailed,
+      'An array containing a cyclic entry must remain failed.');
+    AContext.AssertTrue(not lItemsProperty.Resolving,
+      'Property resolving state must clear after failed evaluation.');
+    AContext.AssertTrue(lRoot.FindProperty('Later').Value.EvaluationState =
+      nsvesFailed,
+      'A later lookup must not expose the failed entry as completed.');
+
+    AContext.AssertTrue(not lCompiler.CompileText(
+      'array-entry-mutual-cycle.nxscript',
+      'Thing Root { Items: [A: @Items.B, B: @Items.A]; }'),
+      'Mutually recursive named entries must fail deterministically.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lItems := lRoot.FindProperty('Items').Value;
+    AContext.AssertTrue(
+      (lItems.Items[0].EvaluationState = nsvesFailed) and
+      (lItems.Items[1].EvaluationState = nsvesFailed),
+      'Both sides of a named-entry cycle must remain failed.');
+
+    AContext.AssertTrue(not lCompiler.CompileText(
+      'array-entry-unresolved-state.nxscript',
+      'Thing Root { Items: [A: @Missing]; Later: @Items.A; }'),
+      'An unresolved named entry must fail compilation.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lItems := lRoot.FindProperty('Items').Value;
+    AContext.AssertTrue(lItems.Items[0].EvaluationState = nsvesFailed,
+      'An unresolved entry must remain failed rather than completed.');
+    AContext.AssertTrue(lRoot.FindProperty('Later').Value.EvaluationState =
+      nsvesFailed,
+      'Later lookup must propagate an unresolved entry failure.');
+
+    AContext.AssertTrue(not lCompiler.CompileText(
+      'array-entry-sibling-failure.nxscript',
+      'Thing Root { Items: [A: good, B: @Missing]; Later: @Items.A; }'),
+      'A failed array must not expose a separately completed entry.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    lItems := lRoot.FindProperty('Items').Value;
+    AContext.AssertTrue(lItems.Items[0].EvaluationState = nsvesCompleted,
+      'The independent sibling should demonstrate a completed partial result.');
+    AContext.AssertTrue(lItems.EvaluationState = nsvesFailed,
+      'The containing array must remain failed when another entry fails.');
+    AContext.AssertTrue(lRoot.FindProperty('Later').Value.EvaluationState =
+      nsvesFailed,
+      'Later lookup must not expose a completed entry from a failed array.');
+  finally
+    lCompiler.Free;
+  end;
+end;
+
 procedure TestQualifiedOwner(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
@@ -1549,9 +2552,14 @@ begin
   lSuite.AddTest('Composition', @TestComposition);
   lSuite.AddTest('StructuralReferences', @TestStructuralReferences);
   lSuite.AddTest('ArrayEntries', @TestArrayEntries);
+  lSuite.AddTest('QualifiedArrayEntryLookup',
+    @TestQualifiedArrayEntryLookup);
   lSuite.AddTest('ReferenceArrayProjection', @TestReferenceArrayProjection);
   lSuite.AddTest('WholeArrayReferences', @TestWholeArrayReferences);
   lSuite.AddTest('ArrayComposition', @TestArrayComposition);
+  lSuite.AddTest('ComposedArrayEntryLookup',
+    @TestComposedArrayEntryLookup);
+  lSuite.AddTest('ArrayEntryFailureState', @TestArrayEntryFailureState);
   lSuite.AddTest('QualifiedOwner', @TestQualifiedOwner);
   lSuite.AddTest('CompileFailures', @TestCompileFailures);
   lSuite.AddTest('ModuleCompilation', @TestModuleCompilation);
@@ -1560,21 +2568,27 @@ begin
   lSuite.AddTest('DoctypeLoading', @TestDoctypeLoading);
   lSuite.AddTest('IncludeParsing', @TestIncludeParsing);
   lSuite.AddTest('IncludeLoading', @TestIncludeLoading);
-  lSuite.AddTest('ValidatorSelfValidation', @TestValidatorSelfValidation);
+  lSuite.AddTest('LanguageSelfValidation', @TestLanguageSelfValidation);
   lSuite.AddTest('SchemaValidation', @TestSchemaValidation);
   lSuite.AddTest('IndependentContainmentRules',
     @TestIndependentContainmentRules);
   lSuite.AddTest('ValidatorDiagnostics', @TestValidatorDiagnostics);
   lSuite.AddTest('ValidatorReferences', @TestValidatorReferences);
-  lSuite.AddTest('InvalidValidatorDefinition', @TestInvalidValidatorDefinition);
-  lSuite.AddTest('SelfValidatorFiniteValues', @TestSelfValidatorFiniteValues);
-  lSuite.AddTest('SchemaConsumer', @TestSchemaConsumer);
+  lSuite.AddTest('InvalidLanguageDefinition', @TestInvalidLanguageDefinition);
+  lSuite.AddTest('LanguageFiniteValues', @TestLanguageFiniteValues);
+  lSuite.AddTest('JSONEmitter', @TestJSONEmitter);
+  lSuite.AddTest('ExternalDataDeclarations', @TestExternalDataDeclarations);
+  lSuite.AddTest('ExternalDataCompilation', @TestExternalDataCompilation);
   lSuite.AddTest('CommandLineParsing', @TestCommandLineParsing);
   lSuite.AddTest('CommandJSONArtifact', @TestCommandJSONArtifact);
   lSuite.AddTest('CommandTemplateArtifact', @TestCommandTemplateArtifact);
+  lSuite.AddTest('NexusManifestLanguage', @TestNexusManifestLanguage);
+  lSuite.AddTest('CommandTemplateManifest', @TestCommandTemplateManifest);
+  lSuite.AddTest('CommandExternalDataManifest',
+    @TestCommandExternalDataManifest);
+  lSuite.AddTest('SchemaGenerationMockData',
+    @TestSchemaGenerationMockData);
   lSuite.AddTest('CommandValidation', @TestCommandValidation);
-  lSuite.AddTest('InForceArtifactParity', @TestInForceArtifactParity);
-  lSuite.AddTest('StormArtifactParity', @TestStormArtifactParity);
 end;
 
 end.

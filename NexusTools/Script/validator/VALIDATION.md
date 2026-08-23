@@ -1,11 +1,11 @@
-# NexusScript Validator
+# NexusScript Validation
 
 The Validator is a final NexusScript consumer. It accepts an already compiled
-subject document and an already compiled validator-definition document through
+subject document and an already compiled language-definition document through
 `TNexusScriptValidator.Validate`. It does not parse source, resolve references,
 select validators from filenames, or mutate either document.
 
-Validator definitions are ordinary NexusScript. The engine assigns meaning to
+Language definitions are ordinary NexusScript. The engine assigns meaning to
 seven consumer-defined kinds:
 
 - `Language`
@@ -32,14 +32,32 @@ vocabulary. It does not provide predicates, expressions, or pattern matching.
 
 Diagnostics are validator-owned and contain severity, code, message, primary
 source range, and related source ranges. Codes beginning `NSV1` describe an
-invalid validator definition. Codes beginning `NSV2` or `NSV3` describe an
+invalid language definition. Codes beginning `NSV2` or `NSV3` describe an
 invalid subject.
 
-The bootstrap fixture is `fixtures/Validator.nxscript`. It is
-compiled normally, normalized by the engine's concrete validator vocabulary,
+The foundational definition is `fixtures/Language.nxscript`. It has no
+`doctype`, is compiled normally, normalized by the engine's concrete language
+vocabulary,
 and then validated against its own normalized rules. No parser mode or second
 meta-validator is involved.
 
+Language-definition filenames follow the ordinary three-part convention. The
+second component identifies the language definition named by the document's
+explicit relative `doctype`:
+
+```text
+Language.nxscript
+    Schema.Language.nxscript
+        Customer.Schema.nxscript
+
+Language.nxscript
+    NexusManifest.Language.nxscript
+        GeneratedFiles.NexusManifest.nxscript
+```
+
+`Language.nxscript` is foundational and therefore has no self-doctype.
+
 Documents associate their semantic document type explicitly with `doctype`.
-The Validator API does not infer, locate, or enforce validator filenames; a
+The Validator API does not infer, locate, or enforce language-definition
+filenames; a
 caller may pass a compiled document's `DoctypeDocument` to `Validate`.

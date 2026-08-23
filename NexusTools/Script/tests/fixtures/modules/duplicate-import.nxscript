@@ -1,0 +1,4 @@
+module "common.nxscript";
+module "common.nxscript";
+
+Thing Root {}

@@ -1,0 +1,79 @@
+doctype "fixtures/Language.nxscript";
+
+Language NexusManifest {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition NexusManifest {
+            Root: True;
+            UnknownProperties: Allow;
+            UnknownChildren: Reject;
+            Children: [
+                Child Models { Kinds: [Model]; Minimum: 1; },
+                Child Templates { Kinds: [Template]; },
+                Child SourceTemplates { Kinds: [SourceTemplate]; }
+            ];
+        },
+
+        Definition Model {
+            Parents: [NexusManifest];
+            UnknownProperties: Allow;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                }
+            ];
+        },
+
+        Definition Template {
+            Parents: [NexusManifest];
+            UnknownProperties: Allow;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property Output {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                }
+            ];
+        },
+
+        Definition SourceTemplate {
+            Parents: [NexusManifest];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Types {
+                    Required: True;
+                    Value Value {
+                        SourceForms: [Array];
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Minimum: 1;
+                            EntryEffectiveCategories: [Text];
+                        }
+                    }
+                },
+                Property Compiler {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property Source {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property OutputDirectory {
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property OutputExtension {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                }
+            ];
+        }
+    ];
+}

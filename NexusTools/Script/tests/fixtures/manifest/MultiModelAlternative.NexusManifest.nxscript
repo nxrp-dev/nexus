@@ -1,0 +1,16 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest MultiModelAlternative {
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Model Constants {
+        Source: "models/AlternativeConstants.nxscript";
+    }
+
+    Template Combined {
+        Source: "templates/combined.mustache";
+        Output: "combined.txt";
+    }
+}

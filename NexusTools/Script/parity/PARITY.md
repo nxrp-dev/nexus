@@ -1,35 +1,24 @@
-# NexusScript schema parity matrix
+# NexusScript artifact boundary
 
-The production NexusSchema sources remain unchanged. The controlled legacy
-fixtures contain all active production definitions and fields, and the paired
-NexusScript fixtures express the same schema through the generic language.
+NexusScript no longer has a Schema producer or a Schema-metadata parity gate.
+Its artifact boundary is the generic completed-model JSON documented in
+`../README.md`. The CLI, tests, and project files do not route output through
+NexusSchema metadata classes or transformations.
 
-| Baseline fixture | NexusScript fixture | Comparison | Result |
-|---|---|---|---|
-| `fixtures/legacy/inForceMain.nxs` | `fixtures/nexusscript/inForceMain.Schema.nxscript` | transformed Mustache metadata JSON, preserving order | exact match |
-| `fixtures/legacy/inForceMain.nxs` | `fixtures/nexusscript/inForceMain.Schema.nxscript` | `DatabaseSchema.create.mustache` output | exact match |
-| `fixtures/legacy/StormSpecific.nxs` | `fixtures/nexusscript/StormSpecific.Schema.nxscript` plus imported inForce fixture | transformed Mustache metadata JSON, preserving order | exact match |
-| `fixtures/legacy/StormSpecific.nxs` | `fixtures/nexusscript/StormSpecific.Schema.nxscript` plus imported inForce fixture | `DatabaseSchema.create.mustache` output | exact match |
+The fixtures in this directory remain compiler-language fixtures only. They do
+not define the JSON contract and are not evidence that NexusScript output must
+match the historical NexusSchema metadata representation.
 
-The comparisons are automated by `NexusScriptTestModule` tests
-`InForceArtifactParity` and `StormArtifactParity`. The unchanged legacy parser
-constructs the baseline metadata; NexusScript and the isolated schema consumer
-construct the replacement metadata; the unchanged `TMetaDataTransform` and
-Mustache renderer process both sides.
+`schema-generation/` is the isolated NexusScript-owned workspace for pursuing
+generated-output symmetry. Its manifests assemble independently compiled
+domain and output-constants documents with working Mustache copies. This is a
+local adaptation surface, not a Schema producer and not a claim that the
+current generic model already renders SQL equivalent to NexusSchema.
 
-Definition references remain genuine `@` references. Reference projections
-omit non-scalar arrays while retaining resolved-target provenance, allowing
-the recursive schema relationships to compile without consumer-side
-dereferencing or a text-reference fallback. Both artifact-parity tests pass.
-
-## Controlled legacy corrections
-
-- `inForceMain.nxs` is byte-for-byte equivalent to the active production
-  content.
-- `StormSpecific.nxs` changes its external absolute `uses` path to the adjacent
-  controlled `inForceMain.nxs` fixture.
-- The second identical local `MOVE_IN_DATE` declaration in `TENANT_UNIT` is
-  removed. NexusScript's unified namespace correctly rejects that duplicate.
-
-No other normalization is applied. JSON arrays and member order are compared as
-emitted rather than sorted.
+External tabular compilation and source-driven manifest rendering are now part
+of NexusScript's generic tooling. Repository-local fixtures verify type-based
+CSV/JCSV/TSV/TAB dispatch and one derived output per declared source. The
+schema-generation workspace also contains synthetic replacements for the nine
+missing inForce files so both inForce and Storm exercise complete preload SQL
+generation. The historical files remain unavailable, so the mock outputs are
+functional evidence only, not NexusSchema data-parity evidence.

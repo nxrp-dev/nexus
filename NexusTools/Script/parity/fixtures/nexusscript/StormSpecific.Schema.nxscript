@@ -1,4 +1,4 @@
-module Core inForce "inForceMain.Schema.nxscript";
+module "inForceMain.Schema.nxscript";
 include "inForceMain.Schema.nxscript";
 
 Schema Storm {
@@ -12,7 +12,7 @@ Schema Storm {
     ];
   }
 
-  Table STORAGE_FACILITY (Core.TMPL_ADDRESS, Core.TMPL_TRACKED) {
+  Table STORAGE_FACILITY (inForce.TMPL_ADDRESS, inForce.TMPL_TRACKED) {
     Fields: [
       Field NAME {
         Type: DOM_NAME;
@@ -20,7 +20,7 @@ Schema Storm {
     ];
   }
 
-  Table STORAGE_FACILITY_BLDG (Core.TMPL_TRACKED) {
+  Table STORAGE_FACILITY_BLDG (inForce.TMPL_TRACKED) {
     Fields: [
       Field STORAGE_FACILITY_ID {
         Type: @Storm.STORAGE_FACILITY;
@@ -31,7 +31,7 @@ Schema Storm {
     ];
   }
 
-  Table STORAGE_UNIT_TYPE (Core.TMPL_TYPE, Core.TMPL_DIMENSIONS, Core.TMPL_TRACKED) {
+  Table STORAGE_UNIT_TYPE (inForce.TMPL_TYPE, inForce.TMPL_DIMENSIONS, inForce.TMPL_TRACKED) {
     Fields: [
       Field CLIMATE_CONTROLLED {
         Type: DOM_BOOLEAN;
@@ -42,7 +42,7 @@ Schema Storm {
     ];
   }
 
-  Table STORAGE_UNIT (Core.TMPL_TRACKED) {
+  Table STORAGE_UNIT (inForce.TMPL_TRACKED) {
     Fields: [
       Field STORAGE_UNIT_DOOR_NUMBER {
         Type: DOM_DIGITS;
@@ -66,10 +66,10 @@ Schema Storm {
   // STATUS
   }
 
-  Table TENANT (Core.TMPL_TRACKED) {
+  Table TENANT (inForce.TMPL_TRACKED) {
     Fields: [
       Field PERSON_ID {
-        Type: @Core.PERSON;
+        Type: @inForce.PERSON;
       },
       Field ACCOUNT_NUMBER {
         Type: DOM_ACCOUNT_NUMBER;
@@ -89,8 +89,8 @@ Schema Storm {
     ];
   }
 
-  Table TENANT_UNIT (Core.TMPL_TRACKED) {
-    Attributes: [@Core.ATTR_HISTORY];
+  Table TENANT_UNIT (inForce.TMPL_TRACKED) {
+    Attributes: [@inForce.ATTR_HISTORY];
     Fields: [
       Field TENANT_ID {
         Type: @Storm.TENANT;
@@ -115,6 +115,6 @@ Schema Storm {
   //}
 
   // News
-  Table REFERRAL_SOURCE_TYPE (Core.TMPL_TYPE, Core.TMPL_TRACKED) {
+  Table REFERRAL_SOURCE_TYPE (inForce.TMPL_TYPE, inForce.TMPL_TRACKED) {
   }
 }

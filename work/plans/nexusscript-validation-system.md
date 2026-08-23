@@ -41,22 +41,22 @@ subject source                 validator source
 ```
 
 The engine has intentionally hard-coded knowledge of the validator vocabulary.
-That is consumer semantics, not generic NexusScript syntax. Domain validators
-such as `Schema.nxscript` contain data only. Schema, Build, Installer,
+That is consumer semantics, not generic NexusScript syntax. Language definitions
+such as `Schema.Language.nxscript` contain data only. Schema, Build, Installer,
 UI, and custom domain vocabulary remains absent from both the compiler and the
 Validator engine.
 
 The first implementation will prove this chain:
 
 ```text
-Customer.nxscript
-  -- doctype Schema --> Schema.nxscript
+Customer.Schema.nxscript
+  -- doctype Schema --> Schema.Language.nxscript
 
-Schema.nxscript
-  -- doctype Validator --> Validator.nxscript
+Schema.Language.nxscript
+  -- doctype Language --> Language.nxscript
 
-Validator.nxscript
-  -- doctype Validator --> Validator.nxscript
+Language.nxscript
+  -- no doctype; foundational language definition
 ```
 
 ## Verified Findings
@@ -307,10 +307,10 @@ The rule inspects `ResolvedProperty` and `ResolvedDefinition`; it never resolves
 The examples below establish the intended structure; the implementation stage
 will place complete executable fixtures under the validator tests.
 
-#### `Validator.nxscript`
+#### `Language.nxscript`
 
 ```text
-Language Validator {
+Language Language {
     Definitions: [
         Definition Language {
             Root: True;
@@ -368,7 +368,7 @@ The checked-in fixture will fully describe every member of all seven kinds;
 the abbreviated tail above avoids making the plan itself the authoritative
 validator file.
 
-#### `Schema.nxscript`
+#### `Schema.Language.nxscript`
 
 ```text
 Language Schema {
@@ -429,10 +429,10 @@ This example treats definition-valued entries in `Fields` as structurally
 contained by `Table` for validation purposes even though they reside in a
 property array. The traversal rules below define that relationship explicitly.
 
-#### `Customer.nxscript`
+#### `Customer.Schema.nxscript`
 
 ```text
-module Core "Core.Schema.nxscript";
+module "Core.Schema.nxscript";
 
 Table Customer {
     TableName: CUSTOMER;
@@ -442,13 +442,13 @@ Table Customer {
         },
         Field ParentID {
             Type: Integer;
-            Reference: @Core.Parent;
+            Reference: @Parent;
         }
     ];
 }
 ```
 
-The module-qualified `Reference` property above resolves to a `Table Parent`
+The imported-root `Reference` property above resolves to a `Table Parent`
 definition in the companion `Core.Schema.nxscript` fixture and is checked
 through retained target provenance. No schema-specific interpretation is
 performed by the NexusScript compiler.
@@ -531,7 +531,7 @@ special parser mode.
 
 The bootstrap test is:
 
-1. compile `Validator.nxscript` normally;
+1. compile `Language.nxscript` normally;
 2. normalize it with the hard-coded Validator engine vocabulary;
 3. use the normalized rules to validate that same compiled document;
 4. require zero validator-definition and subject diagnostics;
@@ -545,8 +545,8 @@ consumer implementation, not a second validator or a language exception.
 ## Scope
 
 - Validator engine and normalized rule model outside the generic compiler.
-- Complete `Validator.nxscript` fixture.
-- Initial `Schema.nxscript` and small valid/invalid schema fixtures.
+- Complete `Language.nxscript` fixture.
+- Initial `Schema.Language.nxscript` and small valid/invalid schema fixtures.
 - Definition, property, value, array, reference, cardinality, unknown-member,
   effective-structure, and provenance diagnostics described above.
 - Focused tests and a validator test project/module integrated with the existing
@@ -577,7 +577,7 @@ consumer implementation, not a second validator or a language exception.
 
 ### Stage 1: Freeze executable vocabulary fixtures
 
-- Add a complete `Validator.nxscript` fixture covering every allowed
+- Add a complete `Language.nxscript` fixture covering every allowed
   validator kind, property, containment relationship, enum value, and default.
 - Add the representative schema validator and minimal subject fixtures.
 - Document normalization defaults and exact case-sensitivity behavior using the
@@ -653,16 +653,16 @@ whole-array references, composed arrays, and all boundary cardinalities.
 - Prove that validation never parses or re-resolves reference source text and
   does not recursively traverse reference graphs.
 
-Acceptance: property targets, definition targets, wrong target kinds, aliases,
+Acceptance: property targets, definition targets, wrong target kinds, imported roots,
 renamed collection entries, and cyclic-but-compiler-valid relationship graphs
 produce deterministic finite results.
 
 ### Stage 7: Prove bootstrap and domain separation
 
-- Validate `Validator.nxscript` against itself.
-- Validate `Schema.nxscript` against `Validator.nxscript`.
+- Validate `Language.nxscript` against itself.
+- Validate `Schema.Language.nxscript` against `Language.nxscript`.
 - Validate valid and invalid schema subjects against
-  `Schema.nxscript`.
+  `Schema.Language.nxscript`.
 - Add a non-Schema miniature domain fixture to prove that the engine does not
   contain Schema vocabulary.
 - Search generic compiler and Validator engine units for forbidden domain terms.

@@ -1,0 +1,3 @@
+doctype "../../../validator/fixtures/Schema.Language.nxscript";
+
+Schema Invalid {}

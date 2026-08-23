@@ -1,4 +1,4 @@
-Language Validator {
+Language Language {
     UnknownDefinitions: Reject;
     Definitions: [
         Definition Language {

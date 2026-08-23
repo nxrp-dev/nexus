@@ -1,2 +1,2 @@
-module B "cycle-b.nxscript";
+module "cycle-b.nxscript";
 Thing A {}

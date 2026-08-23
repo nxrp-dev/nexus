@@ -1,0 +1,59 @@
+<?xml version="1.0"?>
+<Provider_Server_Header ClassName="TProviderServer">
+  <Provider_Server>
+    <Categories>
+      <Items>
+{{#Storm}}
+{{#_nx}}
+        <TProviderCategory Name="AUTO_{{Name}}">
+          <Providers>
+            <Items>
+{{#Tables}}
+{{#_nx}}
+              <TProviderDefinition Name="{{Name}}Edit" ResolveToDataset="False" CustomResolution="False" UpdateMode="upWhereAll" ProviderOptions="poFetchDetailsOnDemand" KeyFields="{{Name}}{{Firebird.MODULE_ID_POSTFIX}}">
+                <SQLStatement KeyFields="{{Name}}{{Firebird.MODULE_ID_POSTFIX}}">
+                  <Items>
+                    <TSQLElement Name="SQL92" SelectSQL="select * from {{Name}}{{Firebird.MODULE_POSTFIX}} where {{Name}}{{Firebird.MODULE_ID_POSTFIX}} = :{{Name}}{{Firebird.MODULE_ID_POSTFIX}}"/>
+                  </Items>
+                </SQLStatement>
+                <Header IsSingtleton="False" IsLookupTable="False"/>
+              </TProviderDefinition>
+{{/_nx}}
+{{/Tables}}
+            </Items>
+          </Providers>
+        </TProviderCategory>
+{{/_nx}}
+{{/Storm}}
+{{#inForce}}
+{{#_nx}}
+        <TProviderCategory Name="AUTO_{{Name}}">
+          <Providers>
+            <Items>
+{{#Tables}}
+{{#_nx}}
+              <TProviderDefinition Name="{{Name}}Edit" ResolveToDataset="False" CustomResolution="False" UpdateMode="upWhereAll" ProviderOptions="poFetchDetailsOnDemand" KeyFields="{{Name}}{{Firebird.MODULE_ID_POSTFIX}}">
+                <SQLStatement KeyFields="{{Name}}{{Firebird.MODULE_ID_POSTFIX}}">
+                  <Items>
+                    <TSQLElement Name="SQL92" SelectSQL="select * from {{Name}}{{Firebird.MODULE_POSTFIX}} where {{Name}}{{Firebird.MODULE_ID_POSTFIX}} = :{{Name}}{{Firebird.MODULE_ID_POSTFIX}}"/>
+                  </Items>
+                </SQLStatement>
+                <Header IsSingtleton="False" IsLookupTable="False"/>
+              </TProviderDefinition>
+{{/_nx}}
+{{/Tables}}
+            </Items>
+          </Providers>
+        </TProviderCategory>
+{{/_nx}}
+{{/inForce}}
+      </Items>
+    </Categories>
+    <Databases>
+      <Items>
+        <TPluginModule Name="SQL92" PluginClassName="TDatabaseDefinition"/>
+        <TPluginModule Name="SQL92" FileName="X:\projects\inForceServer\libFirebirdPlugin.bpl.1" PluginClassName="TFirebirdDefinition"/>
+      </Items>
+    </Databases>
+    </Provider_Server>
+</Provider_Server_Header>

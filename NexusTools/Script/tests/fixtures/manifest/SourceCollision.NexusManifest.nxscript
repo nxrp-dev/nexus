@@ -1,0 +1,21 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest SourceCollision {
+  Model Domain {
+    Source: "../external-data/collision-model.nxscript";
+  }
+
+  SourceTemplate CSVData {
+    Types: [csv];
+    Compiler: CommaDelimited;
+    Source: "../external-data/import.mustache";
+    OutputExtension: ".sql";
+  }
+
+  SourceTemplate TabData {
+    Types: [tsv];
+    Compiler: TabDelimited;
+    Source: "../external-data/import.mustache";
+    OutputExtension: ".sql";
+  }
+}

@@ -21,7 +21,7 @@ archive, deletion, or runtime execution.
 ## Objective
 
 Define one NexusScript-based Build language, describe it declaratively in
-`Build.Validator.nxscript`, and move build-script interpretation onto the
+`Build.Language.nxscript`, and move build-script interpretation onto the
 existing generic NexusScript compiler and Validator.
 
 The completed architecture replaces:
@@ -48,7 +48,7 @@ Build source (`*.Build.nxscript`, decorative convention only)
        - composition
        - source/provenance
        - dependency-cycle handling
-    -> validation against Build.Validator.nxscript
+    -> validation against Build.Language.nxscript
     -> Build document adapter
     -> semantic planning and target selection
     -> ordered action execution
@@ -57,7 +57,7 @@ Build source (`*.Build.nxscript`, decorative convention only)
 The generic NexusScript compiler must not know about builds, targets, actions,
 files, Git, npm, FPC, Lazarus, Inno Setup, psMake, or NexusBuild.
 
-`Build.Validator.nxscript` defines the structural Build vocabulary. Pascal code
+`Build.Language.nxscript` defines the structural Build vocabulary. Pascal code
 implements behavior that cannot be expressed as structural validation, such as
 path resolution, process invocation, target selection, filesystem checks, exit
 status, and action-specific runtime planning.
@@ -72,7 +72,7 @@ composition system, source-range model, or generic tree model.
 An executable Build document explicitly associates with the Build validator:
 
 ```text
-doctype "Build.Validator.nxscript";
+doctype "Build.Language.nxscript";
 ```
 
 The filename convention remains decorative. Build selection comes from the
@@ -157,7 +157,7 @@ conditions.
 
 Build reuse uses settled NexusScript facilities:
 
-- `module` exposes definitions under an explicit alias;
+- `module` exposes imported roots under their declared names;
 - definition composition reuses and specializes groups or actions;
 - ordinary references reuse scalar configuration values;
 - normal NexusScript cycle, collision, precedence, and provenance rules apply.
@@ -165,8 +165,8 @@ Build reuse uses settled NexusScript facilities:
 Example:
 
 ```text
-module Common "Common.Build.nxscript";
-doctype "Build.Validator.nxscript";
+module "Common.Build.nxscript";
+doctype "Build.Language.nxscript";
 
 Build Release {
     Group Prepare (Common.Prepare) {}
@@ -260,7 +260,7 @@ with no current required use will not be generalized speculatively.
 
 ## Build Validator Design
 
-Create `NexusTools/Build/validator/Build.Validator.nxscript` with:
+Create `NexusTools/Build/validator/Build.Language.nxscript` with:
 
 - `doctype` association to the existing NexusScript self-validator;
 - `UnknownDefinitions: Reject`;
@@ -280,7 +280,7 @@ Create `NexusTools/Build/validator/Build.Validator.nxscript` with:
 contract. No reciprocal declaration is required merely to satisfy the
 self-validator.
 
-The validator will be validated against `Validator.nxscript`, and positive and
+The validator will be validated against `Language.nxscript`, and positive and
 negative Build documents will be validated against it.
 
 Do not add regex, predicates, callbacks, expressions, or Build-specific logic
@@ -301,7 +301,7 @@ ranges, provenance, and dependency cycles. It remains domain-neutral.
 ### NexusScript Validator
 
 Owns declarative structural validation of the compiled Build document against
-`Build.Validator.nxscript`.
+`Build.Language.nxscript`.
 
 ### NexusBuild
 
@@ -373,7 +373,7 @@ become NexusScript parsers.
 Acceptance: every syntax form has NexusScript semantics, every runtime concept
 has one owner, and no old parser construct survives without a current use.
 
-### Stage 2: Write and self-validate Build.Validator.nxscript
+### Stage 2: Write and self-validate Build.Language.nxscript
 
 - Add the validator under `NexusTools/Build/validator`.
 - Describe the exact initial definition/action vocabulary.
@@ -533,7 +533,7 @@ declarative Build validator, and one Build execution path.
 ## Documentation Deliverables
 
 - concise Build language contract;
-- `Build.Validator.nxscript` as the machine-valid structural contract;
+- `Build.Language.nxscript` as the machine-valid structural contract;
 - action/property reference generated or maintained from the same approved
   vocabulary;
 - migration table from NexusTask and current NexusBuild fields;

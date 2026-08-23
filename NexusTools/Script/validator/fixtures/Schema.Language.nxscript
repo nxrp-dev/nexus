@@ -1,4 +1,4 @@
-doctype "Validator.nxscript";
+doctype "Language.nxscript";
 
 Language Schema {
     UnknownDefinitions: Reject;

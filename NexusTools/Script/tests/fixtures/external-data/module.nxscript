@@ -1,0 +1,3 @@
+data MODULE_DATA "module.csv";
+
+Thing ModuleRoot {}

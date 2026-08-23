@@ -1,0 +1,21 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest OrderedFiles {
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Template First {
+        Source: "templates/first.mustache";
+        Output: "shared.txt";
+    }
+
+    Model Auxiliary {
+        Source: "models/Auxiliary.nxscript";
+    }
+
+    Template Second {
+        Source: "templates/second.mustache";
+        Output: "shared.txt";
+    }
+}

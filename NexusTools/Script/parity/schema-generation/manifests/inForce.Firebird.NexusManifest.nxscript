@@ -1,0 +1,29 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest inForceFirebird {
+  Model Domain {
+    Source: "../models/inForceMain.Schema.nxscript";
+  }
+
+  Model Constants {
+    Source: "../constants/Firebird.Constants.nxscript";
+  }
+
+  Template DatabaseSchema {
+    Source: "../mustache/DatabaseSchema.create.mustache";
+    Output: "DatabaseSchema.sql";
+  }
+
+  SourceTemplate DatabaseImport {
+    Types: [csv, jcsv];
+    Compiler: CommaDelimited;
+    Source: "../mustache/DatabaseImport.import.mustache";
+    OutputDirectory: "preload";
+    OutputExtension: ".sql";
+  }
+
+  Template AutoProviderList {
+    Source: "../mustache/AutoProviderList.prv.mustache";
+    Output: "AutoProviderList.prv";
+  }
+}

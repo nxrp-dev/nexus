@@ -25,7 +25,7 @@ Make two focused dependency-language changes:
 The three dependency relationships remain distinct:
 
 ```text
-module   -> compile and expose an explicit namespace alias
+module   -> compile and expose imported roots under their declared names
 doctype  -> compile and retain one associated contract document
 include  -> compile and add the document to the artifact set
 ```
@@ -38,8 +38,8 @@ public extension architecture is introduced.
 ### Doctype
 
 ```text
-doctype "Schema.Validator.nxscript";
-doctype Schema.Validator.nxscript;
+doctype "Schema.Language.nxscript";
+doctype Schema.Language.nxscript;
 ```
 
 - zero or one declaration;
@@ -47,7 +47,7 @@ doctype Schema.Validator.nxscript;
 - top-level header syntax only;
 - quoted and unquoted path handling matches module paths;
 - may be interleaved with modules and includes before the first definition;
-- the old `doctype Schema "Schema.Validator.nxscript";` form is invalid.
+- the old `doctype Schema "Schema.Language.nxscript";` form is invalid.
 
 ### Include
 
@@ -66,7 +66,7 @@ If the same physical document must supply both symbols and artifact content,
 both relationships are written:
 
 ```text
-module Core "Core.nxscript";
+module "Core.nxscript";
 include "Core.nxscript";
 ```
 
@@ -161,7 +161,7 @@ In `obNexusScriptSession.pas`, every include declaration will:
 1. resolve relative to the declaring document;
 2. canonicalize through the same existing filename path;
 3. call the same `CompileDocument` recursion used by modules and doctype;
-4. add no compiler import or namespace alias;
+4. add no compiler import or reference-visible root;
 5. rely on the shared cache for repeated physical paths;
 6. rely on the shared active-file stack for module/doctype/include cycles.
 
@@ -235,7 +235,7 @@ specified artifact ordering. Preserve the decorative filename convention as
 non-semantic.
 
 Add `include "inForceMain.Schema.nxscript";` to the Storm parity fixture while
-retaining its `module Core ...` declaration. The two declarations intentionally
+retaining its `module "inForceMain.Schema.nxscript";` declaration. The two declarations intentionally
 express separate relationships.
 
 ## Implementation Stages
@@ -332,7 +332,7 @@ contains the implementation and fixtures without compiled binaries.
 
 ### Relationship isolation
 
-- included definitions are unresolved without a module alias;
+- included definitions are unresolved without a module import;
 - module-only documents do not enter the artifact set;
 - doctype-only documents do not enter the artifact set;
 - the same physical document may be both module-imported and included;

@@ -1,0 +1,14 @@
+{{#DataSource}}
+{{#Records}}
+insert into {{_nx.Name}}_TBL (
+{{#Fields}}
+  {{.}}{{^-last}},{{/-last}}
+{{/Fields}}
+) values (
+{{#.}}
+  '{{{.}}}'{{^-last}},{{/-last}}
+{{/.}}
+);
+{{/Records}}
+commit;
+{{/DataSource}}

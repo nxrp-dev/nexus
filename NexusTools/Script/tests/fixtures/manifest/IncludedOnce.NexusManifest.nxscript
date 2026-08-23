@@ -1,0 +1,16 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest IncludedOnce {
+    Model First {
+        Source: "models/IncludeA.nxscript";
+    }
+
+    Model Second {
+        Source: "models/IncludeB.nxscript";
+    }
+
+    Template Output {
+        Source: "templates/included.mustache";
+        Output: "included.txt";
+    }
+}

@@ -1,0 +1,7 @@
+Catalog Product {
+    Name: Nexus;
+    Fields: [
+        Field ID { Type: UUID; },
+        Field Created { Type: Timestamp; }
+    ];
+}

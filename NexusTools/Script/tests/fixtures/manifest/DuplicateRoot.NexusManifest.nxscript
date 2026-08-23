@@ -1,0 +1,16 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest DuplicateRoot {
+    Model First {
+        Source: "models/DuplicateRootA.nxscript";
+    }
+
+    Model Second {
+        Source: "models/DuplicateRootB.nxscript";
+    }
+
+    Template Output {
+        Source: "templates/first.mustache";
+        Output: "result.txt";
+    }
+}

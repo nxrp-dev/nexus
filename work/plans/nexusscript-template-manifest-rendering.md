@@ -22,7 +22,7 @@ compiled input + one Mustache template -> one output
 Add only a batching layer:
 
 ```text
-compiled input + one NexusScript TemplateSet manifest
+compiled input + one NexusScript NexusManifest manifest
     -> invoke the existing single-template operation once per Template entry
 ```
 
@@ -63,23 +63,23 @@ validator-engine, artifact, or Mustache-library change is required.
 
 ### Structure
 
-The manifest has exactly one root `TemplateSet`. It contains zero or more
+The manifest has exactly one root `NexusManifest`. It contains zero or more
 direct child definitions of kind `Template`. Each `Template` requires:
 
 - `Source`, whose compiled value has effective text;
 - `Output`, whose compiled value has effective text.
 
-Both `TemplateSet` and `Template` permit auxiliary properties. They have no
+Both `NexusManifest` and `Template` permit auxiliary properties. They have no
 manifest-specific meaning; they exist so normal NexusScript references and text
 composition can be used at either scope. Unknown child definition kinds are
-rejected. A `Template` is valid only beneath `TemplateSet`.
+rejected. A `Template` is valid only beneath `NexusManifest`.
 
 Example:
 
 ```nxscript
-doctype "TemplateSet.Validator.nxscript";
+doctype "NexusManifest.Language.nxscript";
 
-TemplateSet GeneratedFiles {
+NexusManifest GeneratedFiles {
     Template First {
         Source: "templates/first.mustache";
         Output: "generated/first.txt";
@@ -101,7 +101,7 @@ rules. The batching feature does not add or reinterpret expression syntax.
 Add:
 
 ```text
-NexusTools/Script/validator/TemplateSet.Validator.nxscript
+NexusTools/Script/validator/NexusManifest.Language.nxscript
 ```
 
 It is an ordinary validator document using the existing validator vocabulary
@@ -109,12 +109,12 @@ and the existing self-validator at its current location. Its intended rules
 are:
 
 ```nxscript
-doctype "fixtures/Validator.nxscript";
+doctype "fixtures/Language.nxscript";
 
-Language TemplateSetManifest {
+Language NexusManifest {
     UnknownDefinitions: Reject;
     Definitions: [
-        Definition TemplateSet {
+        Definition NexusManifest {
             Root: True;
             UnknownProperties: Allow;
             UnknownChildren: Reject;
@@ -124,7 +124,7 @@ Language TemplateSetManifest {
         },
 
         Definition Template {
-            Parents: [TemplateSet];
+            Parents: [NexusManifest];
             UnknownProperties: Allow;
             UnknownChildren: Reject;
             Properties: [
@@ -147,7 +147,7 @@ existing self-validator. Existing validators are not moved, renamed, copied,
 or reorganized.
 
 The validator establishes the minimal declarative shape. The CLI adapter also
-requires exactly one compiled `TemplateSet` root and reports a focused error if
+requires exactly one compiled `NexusManifest` root and reports a focused error if
 that runtime cardinality is not met.
 
 ## CLI Contract
@@ -186,7 +186,7 @@ After the existing input JSON has been produced once:
 1. Compile the manifest in a separate `TNexusScriptCompilationSession`.
 2. Require an explicit resolved doctype and validate the compiled manifest with
    `TNexusScriptValidator`.
-3. Locate the single compiled root `TemplateSet`.
+3. Locate the single compiled root `NexusManifest`.
 4. Iterate its direct compiled `Children` in list order.
 5. For each `Template` child:
    1. read `Source.Value.EffectiveText` and `Output.Value.EffectiveText`
@@ -200,11 +200,11 @@ After the existing input JSON has been produced once:
 6. Stop at the first compilation, validation, rendering, or writing failure.
 
 Wrap per-entry failures with the compiled identity
-`TemplateSetName.TemplateName` while retaining the underlying message. Files
+`NexusManifestName.TemplateName` while retaining the underlying message. Files
 written by earlier entries remain written. No rollback or all-or-nothing claim
 is made.
 
-An empty valid `TemplateSet` succeeds without rendering or writing anything.
+An empty valid `NexusManifest` succeeds without rendering or writing anything.
 
 ## Path Handling
 
@@ -227,8 +227,8 @@ output. They do not introduce a general path-security subsystem.
 
 ### Add
 
-- `NexusTools/Script/validator/TemplateSet.Validator.nxscript`
-  - minimal `TemplateSet`/`Template` validator described above.
+- `NexusTools/Script/validator/NexusManifest.Language.nxscript`
+  - minimal `NexusManifest`/`Template` validator described above.
 - focused fixtures under `NexusTools/Script/tests/fixtures/manifest/`
   - manifests, Mustache files, and invalid cases used only by the tests below.
 
@@ -281,7 +281,7 @@ missing current facility before expanding scope.
 - Missing `Source` or `Output`, a wrong root kind, an unknown child kind, or a
   nested `Template` in an invalid location fails validation or adapter
   cardinality checks as appropriate.
-- Auxiliary properties on both `TemplateSet` and `Template` are accepted.
+- Auxiliary properties on both `NexusManifest` and `Template` are accepted.
 - A missing or invalid manifest doctype fails even when `/validate` is absent.
 
 ### Batching and compiled values
@@ -317,7 +317,7 @@ tests do not affect repository files.
 
 ### Stage 1: Add the minimal validator and fixtures
 
-- Add `TemplateSet.Validator.nxscript` without moving existing validators.
+- Add `NexusManifest.Language.nxscript` without moving existing validators.
 - Add valid and invalid manifest fixtures.
 - Prove the new validator is accepted by the existing self-validator and that
   its subject rules accept auxiliary properties while enforcing required

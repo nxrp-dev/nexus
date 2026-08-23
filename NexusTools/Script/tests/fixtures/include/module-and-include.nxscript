@@ -1,6 +1,6 @@
-module Shared "leaf.nxscript";
+module "leaf.nxscript";
 include "leaf.nxscript";
 
 Thing Entry {
-    Value: @Shared.Leaf;
+    Value: @Leaf;
 }

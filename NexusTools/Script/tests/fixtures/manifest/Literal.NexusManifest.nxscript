@@ -1,0 +1,12 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest GeneratedFiles {
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Template Literal {
+        Source: "templates/first.mustache";
+        Output: "{{Name}}.txt";
+    }
+}

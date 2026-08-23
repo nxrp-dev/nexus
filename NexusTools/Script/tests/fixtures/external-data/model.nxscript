@@ -1,0 +1,4 @@
+data STATE "state.csv";
+data COUNTY "county.tsv";
+
+Thing ExternalDataModel {}

@@ -1,0 +1,3 @@
+module CommonRoot.Values "common.nxscript";
+
+Thing Root {}

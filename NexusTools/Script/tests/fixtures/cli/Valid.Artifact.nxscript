@@ -1,4 +1,4 @@
-doctype "ArtifactValidator.nxscript";
+doctype "Artifact.Language.nxscript";
 
 Schema Example {
     Setting Prefix {

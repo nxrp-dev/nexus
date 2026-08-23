@@ -34,6 +34,7 @@ type
     FActiveFiles: TStringList;
     FEntryCompiler: TNexusScriptCompiler;
     FArtifactDocuments: TNexusScriptArtifactDocumentList;
+    FExternalSources: TNexusScriptExternalSourceList;
     FLastError: string;
     function CompileDocument(const AFileName: string): TNexusScriptCompiler;
     function ResolveDependencyPath(const ASourceName,
@@ -41,6 +42,11 @@ type
     procedure AddArtifactDocument(ACompiler: TNexusScriptCompiler;
       ASeen: TStringList);
     procedure BuildArtifactDocuments;
+    procedure AddExternalSources(ACompiler: TNexusScriptCompiler;
+      ASeenDocuments, ASourceNames: TStringList);
+    procedure BuildExternalSources;
+    function ResolveExternalSourcePath(const ASourceName,
+      ADeclaredPath: string): string;
     function SelectDefinition(ACompiler: TNexusScriptCompiler;
       const ASelector: string): TNexusScriptCompiledDefinition;
   public
@@ -50,6 +56,8 @@ type
     property EntryCompiler: TNexusScriptCompiler read FEntryCompiler;
     property ArtifactDocuments: TNexusScriptArtifactDocumentList
       read FArtifactDocuments;
+    property ExternalSources: TNexusScriptExternalSourceList
+      read FExternalSources;
     property LastError: string read FLastError;
   end;
 
@@ -74,6 +82,7 @@ begin
   FActiveFiles := TStringList.Create;
   FActiveFiles.CaseSensitive := False;
   FArtifactDocuments := TNexusScriptArtifactDocumentList.Create(True);
+  FExternalSources := TNexusScriptExternalSourceList.Create(True);
 end;
 
 destructor TNexusScriptCompilationSession.Destroy;
@@ -82,10 +91,21 @@ var
 begin
   for lIndex := 0 to FCompilers.Count - 1 do
     FCompilers.Objects[lIndex].Free;
+  FExternalSources.Free;
   FArtifactDocuments.Free;
   FActiveFiles.Free;
   FCompilers.Free;
   inherited Destroy;
+end;
+
+function TNexusScriptCompilationSession.ResolveExternalSourcePath(
+  const ASourceName, ADeclaredPath: string): string;
+begin
+  if (ExtractFileDrive(ADeclaredPath) <> '') or
+    ((ADeclaredPath <> '') and IsPathDelimiter(ADeclaredPath, 1)) then
+    Result := ExpandFileName(ADeclaredPath)
+  else
+    Result := ResolveDependencyPath(ASourceName, ADeclaredPath);
 end;
 
 function TNexusScriptCompilationSession.ResolveDependencyPath(
@@ -140,39 +160,106 @@ begin
   end;
 end;
 
+procedure TNexusScriptCompilationSession.AddExternalSources(
+  ACompiler: TNexusScriptCompiler; ASeenDocuments,
+  ASourceNames: TStringList);
+var
+  lCanonicalDocument: string;
+  lDataSource: TNexusScriptSourceData;
+  lFileName: string;
+  lExistingFileName: string;
+  lSourceType: string;
+  lExtension: string;
+  lInclude: TNexusScriptSourceInclude;
+  lModule: TNexusScriptSourceModule;
+  lDependencyName: string;
+  lIndex: Integer;
+begin
+  lCanonicalDocument := ExpandFileName(ACompiler.SourceDocument.SourceName);
+  if ASeenDocuments.IndexOf(lCanonicalDocument) >= 0 then
+    Exit;
+  ASeenDocuments.Add(lCanonicalDocument);
+
+  for lDataSource in ACompiler.SourceDocument.DataSources do
+  begin
+    lFileName := ResolveExternalSourcePath(lCanonicalDocument,
+      lDataSource.Path);
+    lIndex := ASourceNames.IndexOfName(lDataSource.Name);
+    if lIndex >= 0 then
+    begin
+      lExistingFileName := ASourceNames.ValueFromIndex[lIndex];
+      if SameFileName(lExistingFileName, lFileName) then
+        Continue;
+      raise Exception.CreateFmt(
+        'External data source %s resolves to both %s and %s',
+        [lDataSource.Name, lExistingFileName, lFileName]);
+    end;
+    ASourceNames.Add(lDataSource.Name + '=' + lFileName);
+    lExtension := ExtractFileExt(lFileName);
+    if lExtension <> '' then
+      Delete(lExtension, 1, 1);
+    lSourceType := LowerCase(lExtension);
+    FExternalSources.Add(TNexusScriptExternalSource.Create(
+      lDataSource.Name, lDataSource.Path, lFileName, lSourceType,
+      lCanonicalDocument, lDataSource.SourceRange));
+  end;
+
+  for lInclude in ACompiler.SourceDocument.Includes do
+  begin
+    lDependencyName := ResolveDependencyPath(lCanonicalDocument,
+      lInclude.Path);
+    lIndex := FCompilers.IndexOf(lDependencyName);
+    if lIndex < 0 then
+      raise Exception.CreateFmt('Compiled include is unavailable: %s',
+        [lDependencyName]);
+    AddExternalSources(TNexusScriptCompiler(FCompilers.Objects[lIndex]),
+      ASeenDocuments, ASourceNames);
+  end;
+
+  for lModule in ACompiler.SourceDocument.Modules do
+  begin
+    lDependencyName := ResolveDependencyPath(lCanonicalDocument,
+      lModule.Path);
+    lIndex := FCompilers.IndexOf(lDependencyName);
+    if lIndex < 0 then
+      raise Exception.CreateFmt('Compiled module is unavailable: %s',
+        [lDependencyName]);
+    AddExternalSources(TNexusScriptCompiler(FCompilers.Objects[lIndex]),
+      ASeenDocuments, ASourceNames);
+  end;
+end;
+
+procedure TNexusScriptCompilationSession.BuildExternalSources;
+var
+  lSeenDocuments: TStringList;
+  lSourceNames: TStringList;
+begin
+  FExternalSources.Clear;
+  if FEntryCompiler = nil then
+    Exit;
+  lSeenDocuments := TStringList.Create;
+  lSourceNames := TStringList.Create;
+  try
+    lSeenDocuments.CaseSensitive := False;
+    lSeenDocuments.Sorted := True;
+    lSeenDocuments.Duplicates := dupIgnore;
+    lSourceNames.CaseSensitive := False;
+    lSourceNames.NameValueSeparator := '=';
+    AddExternalSources(FEntryCompiler, lSeenDocuments, lSourceNames);
+  finally
+    lSourceNames.Free;
+    lSeenDocuments.Free;
+  end;
+end;
+
 function TNexusScriptCompilationSession.SelectDefinition(
   ACompiler: TNexusScriptCompiler;
   const ASelector: string): TNexusScriptCompiledDefinition;
-var
-  lParts: TStringList;
-  lIndex: Integer;
 begin
   Result := nil;
   if ACompiler.CompiledDocument = nil then
     Exit;
-  if ASelector = '' then
-  begin
-    if ACompiler.CompiledDocument.Definitions.Count = 1 then
-      Result := ACompiler.CompiledDocument.Definitions[0];
-    Exit;
-  end;
-  lParts := TStringList.Create;
-  try
-    lParts.Delimiter := '.';
-    lParts.StrictDelimiter := True;
-    lParts.DelimitedText := ASelector;
-    if lParts.Count = 0 then
-      Exit;
-    Result := ACompiler.CompiledDocument.FindDefinition(lParts[0]);
-    for lIndex := 1 to lParts.Count - 1 do
-    begin
-      if Result = nil then
-        Exit;
-      Result := Result.FindChild(lParts[lIndex]);
-    end;
-  finally
-    lParts.Free;
-  end;
+  Result := ACompiler.CompiledDocument.FindDefinition(ASelector);
 end;
 
 function TNexusScriptCompilationSession.CompileDocument(
@@ -239,8 +326,7 @@ begin
       if lImportedCompiler = nil then
         Exit;
       if lModule.RootSelector = '' then
-        lCompiler.AddImportedDocument(lModule.AliasName,
-          lImportedCompiler.CompiledDocument)
+        lCompiler.AddImportedDocument(lImportedCompiler.CompiledDocument)
       else
       begin
         lImportedDefinition := SelectDefinition(lImportedCompiler,
@@ -251,7 +337,7 @@ begin
             lModule.RootSelector + ' in ' + lImportedName;
           Exit;
         end;
-        lCompiler.AddImportedDefinition(lModule.AliasName, lImportedDefinition);
+        lCompiler.AddImportedDefinition(lImportedDefinition);
       end;
     end;
     for lInclude in lCompiler.SourceDocument.Includes do
@@ -292,10 +378,20 @@ begin
   FLastError := '';
   FEntryCompiler := nil;
   FArtifactDocuments.Clear;
+  FExternalSources.Clear;
   FEntryCompiler := CompileDocument(AFileName);
   Result := FEntryCompiler <> nil;
   if Result then
-    BuildArtifactDocuments;
+    try
+      BuildArtifactDocuments;
+      BuildExternalSources;
+    except
+      on E: Exception do
+      begin
+        FLastError := E.Message;
+        Result := False;
+      end;
+    end;
 end;
 
 end.

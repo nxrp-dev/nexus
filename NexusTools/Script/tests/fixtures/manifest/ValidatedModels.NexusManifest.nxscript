@@ -1,0 +1,16 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest ValidatedModels {
+    Model Plain {
+        Source: "models/Auxiliary.nxscript";
+    }
+
+    Model Typed {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Template Output {
+        Source: "templates/first.mustache";
+        Output: "result.txt";
+    }
+}

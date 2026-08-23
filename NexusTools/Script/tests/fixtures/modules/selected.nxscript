@@ -1,0 +1,5 @@
+module CommonRoot "common.nxscript";
+
+Thing Selected {
+  Greeting: "hello " + @CommonRoot.Values.Suffix;
+}

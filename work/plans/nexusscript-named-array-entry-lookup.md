@@ -57,7 +57,7 @@ a change to NexusScript scope rules.
 - The established lookup contract requires:
   - single-segment references to inspect the current scope only;
   - the first segment of a qualified reference to match the current scope, an
-    enclosing scope, or an explicit module alias;
+    enclosing scope, or an imported root;
   - all remaining segments to resolve strictly downward;
   - no implicit sibling lookup;
   - every reference to resolve during compilation.

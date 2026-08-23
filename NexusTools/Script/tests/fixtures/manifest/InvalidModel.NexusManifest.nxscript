@@ -1,0 +1,12 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest InvalidModel {
+    Model Broken {
+        Source: "../cli/InvalidValidation.Schema.nxscript";
+    }
+
+    Template Output {
+        Source: "templates/first.mustache";
+        Output: "result.txt";
+    }
+}

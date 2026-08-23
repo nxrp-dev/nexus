@@ -25,6 +25,27 @@ type
     nsvDefinition
   );
 
+  TNexusScriptArtifactValueKind = (
+    nsavInvalid,
+    nsavText,
+    nsavArray,
+    nsavDefinition
+  );
+
+  TNexusScriptValueEvaluationState = (
+    nsvesPending,
+    nsvesResolving,
+    nsvesCompleted,
+    nsvesFailed
+  );
+
+  TNexusScriptArrayPreparationState = (
+    nsapsUnprepared,
+    nsapsPreparing,
+    nsapsPrepared,
+    nsapsFailed
+  );
+
 implementation
 
 end.

@@ -1,0 +1,12 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest MissingModelFile {
+    Model Missing {
+        Source: "models/missing.nxscript";
+    }
+
+    Template Output {
+        Source: "templates/first.mustache";
+        Output: "result.txt";
+    }
+}

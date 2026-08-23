@@ -1,0 +1,3 @@
+doctype "doctype-data.nxscript";
+
+Thing DoctypeEntry {}

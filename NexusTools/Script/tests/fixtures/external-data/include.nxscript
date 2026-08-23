@@ -1,0 +1,3 @@
+data INCLUDE_DATA "include.tsv";
+
+Thing IncludedRoot {}

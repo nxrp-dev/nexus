@@ -30,7 +30,7 @@ doctype Schema "Schema.nxscript";
 
 The declaration associates the current document with another normally compiled
 NexusScript document. The association is retained on the compiled document as
-metadata. It creates no module alias, exposes no definitions to ordinary
+metadata. It creates no module import, exposes no definitions to ordinary
 reference/composition lookup, and invokes no consumer.
 
 The resulting flow is:
@@ -66,7 +66,7 @@ consumer-selection meaning.
 - The session's active canonical-file list already terminates recursive module
   loading and can cover doctype edges without a separate recursion mechanism.
 - Module loading calls `AddImportedDocument` or `AddImportedDefinition`, which
-  creates addressable module aliases in the importer. Doctype loading must not
+  creates addressable imported roots in the importer. Doctype loading must not
   call either operation.
 - `TNexusScriptValidator.Validate` already accepts two compiled documents. A
   caller can use the subject document's doctype association as its second
@@ -147,7 +147,7 @@ The API and documentation must state that compiled documents obtained from a
 session do not outlive that session.
 
 Do not represent the doctype as a synthetic compiled definition. It must not
-appear in `Definitions`, `FindDefinition`, module aliases, scopes, references,
+appear in `Definitions`, `FindDefinition`, imported roots, scopes, references,
 composition, arrays, or consumer traversal.
 
 ### Loading and cycle behavior
@@ -165,7 +165,7 @@ edges use:
 
 The edge behavior then diverges:
 
-- module edge: expose the imported document/root through the declared alias;
+- module edge: expose imported roots under their declared names;
 - doctype edge: set compiled-document metadata only.
 
 Cycle detection must cover module-only, doctype-only, and mixed dependency
@@ -190,12 +190,12 @@ Thing Root {
 }
 ```
 
-the reference fails unless an independent `module Schema ...;` declaration
-creates that alias. The doctype name is metadata, not a scope entry. The same
+the reference fails unless an independent `module ...;` declaration imports
+that root. The doctype name is metadata, not a scope entry. The same
 rule applies to composition selectors.
 
-A document may independently use the same word as a doctype name and a module
-alias because doctypes do not participate in the addressable namespace.
+A doctype does not participate in the addressable namespace, so only imported
+and local root names participate in root collision checks.
 
 ### Validator integration
 
@@ -322,8 +322,8 @@ physical document is reached through multiple edges.
 - Prove a subject cannot reference or compose those definitions through the
   doctype name.
 - Prove an ordinary module beside the doctype remains addressable.
-- Prove declaring a module alias equal to the doctype name has ordinary module
-  behavior and no collision with metadata.
+- Prove module imports beside a doctype retain ordinary root-name behavior and
+  do not collide with doctype metadata.
 
 Acceptance: only explicit module imports affect reference/composition lookup;
 all existing module tests remain unchanged.
@@ -391,7 +391,7 @@ permitted by the active agent policy.
 - Namespace tests:
   - doctype definitions unavailable to references and composition;
   - modules beside doctypes remain available;
-  - equal doctype name and module alias do not collide.
+  - doctype metadata does not participate in imported-root collisions.
 - Validator-side tests:
   - subject-associated Schema document passed to `Validate`;
   - Schema-associated Validator document passed to `Validate`;

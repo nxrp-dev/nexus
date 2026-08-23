@@ -1,0 +1,23 @@
+doctype "../../../validator/NexusManifest.Language.nxscript";
+
+NexusManifest ExternalData {
+  Model Domain {
+    Source: "../external-data/model.nxscript";
+  }
+
+  SourceTemplate CSVData {
+    Types: [csv, jcsv];
+    Compiler: CommaDelimited;
+    Source: "../external-data/import.mustache";
+    OutputDirectory: "preload";
+    OutputExtension: ".sql";
+  }
+
+  SourceTemplate TabData {
+    Types: [tsv, tab];
+    Compiler: TabDelimited;
+    Source: "../external-data/import.mustache";
+    OutputDirectory: "preload";
+    OutputExtension: ".sql";
+  }
+}

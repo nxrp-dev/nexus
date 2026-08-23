@@ -40,7 +40,7 @@ type
     constructor Create;
     destructor Destroy; override;
     function Validate(ASubject,
-      AValidatorDefinition: TNexusScriptCompiledDocument): Boolean;
+      ALanguageDefinition: TNexusScriptCompiledDocument): Boolean;
     property Diagnostics: TNexusScriptValidationDiagnosticList
       read FDiagnostics;
   end;
@@ -189,7 +189,7 @@ type
     constructor Create(ADiagnostics: TNexusScriptValidationDiagnosticList);
     destructor Destroy; override;
     function Execute(ASubject,
-      AValidatorDefinition: TNexusScriptCompiledDocument): Boolean;
+      ALanguageDefinition: TNexusScriptCompiledDocument): Boolean;
   end;
 
 const
@@ -225,14 +225,14 @@ begin
 end;
 
 function TNexusScriptValidator.Validate(ASubject,
-  AValidatorDefinition: TNexusScriptCompiledDocument): Boolean;
+  ALanguageDefinition: TNexusScriptCompiledDocument): Boolean;
 var
   lEngine: TNSValidatorEngine;
 begin
   FDiagnostics.Clear;
   lEngine := TNSValidatorEngine.Create(FDiagnostics);
   try
-    Result := lEngine.Execute(ASubject, AValidatorDefinition);
+    Result := lEngine.Execute(ASubject, ALanguageDefinition);
   finally
     lEngine.Free;
   end;
@@ -878,14 +878,14 @@ begin
   FLanguage := TNSLanguageRule.Create;
   if (ADocument = nil) or (ADocument.Definitions.Count <> 1) then
   begin
-    AddDiagnostic('NSV1001', 'Validator must contain exactly one root Language definition.',
+    AddDiagnostic('NSV1001', 'Language definition must contain exactly one root Language definition.',
       Default(TNexusScriptRange));
     Exit;
   end;
   lLanguageDefinition := ADocument.Definitions[0];
   if not SameText(lLanguageDefinition.Kind, 'Language') then
   begin
-    AddDiagnostic('NSV1002', 'Validator root must have kind Language.',
+    AddDiagnostic('NSV1002', 'Language definition root must have kind Language.',
       lLanguageDefinition.SourceRange);
     Exit;
   end;
@@ -1246,11 +1246,11 @@ begin
 end;
 
 function TNSValidatorEngine.Execute(ASubject,
-  AValidatorDefinition: TNexusScriptCompiledDocument): Boolean;
+  ALanguageDefinition: TNexusScriptCompiledDocument): Boolean;
 var
   lDefinition: TNexusScriptCompiledDefinition;
 begin
-  Result := Normalize(AValidatorDefinition);
+  Result := Normalize(ALanguageDefinition);
   if not Result then Exit;
   if ASubject = nil then
   begin

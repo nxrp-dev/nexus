@@ -27,10 +27,9 @@ type
     function CompileText(const ASourceName, AText: string): Boolean;
     function CompileFile(const AFileName: string): Boolean;
     procedure ClearImports;
-    procedure AddImportedDefinition(const AAliasName: string;
+    procedure AddImportedDefinition(
       ADefinition: TNexusScriptCompiledDefinition);
-    procedure AddImportedDocument(const AAliasName: string;
-      ADocument: TNexusScriptCompiledDocument);
+    procedure AddImportedDocument(ADocument: TNexusScriptCompiledDocument);
     property Diagnostics: TNexusScriptDiagnosticList read FDiagnostics;
     property SourceDocument: TNexusScriptSourceDocument read FSourceDocument;
     property CompiledDocument: TNexusScriptCompiledDocument read FCompiledDocument;
@@ -71,6 +70,7 @@ type
     procedure ParseModule(ADocument: TNexusScriptSourceDocument);
     procedure ParseDoctype(ADocument: TNexusScriptSourceDocument);
     procedure ParseInclude(ADocument: TNexusScriptSourceDocument);
+    procedure ParseData(ADocument: TNexusScriptSourceDocument);
   public
     constructor Create(ACompiler: TNexusScriptCompiler;
       const ASourceName, AText: string);
@@ -467,7 +467,6 @@ begin
   lPieces := TStringList.Create;
   try
     lModule.SourceRange := lRange;
-    lModule.AliasName := Require(nstWord, 'module alias').Text;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
     begin
       if Current.Kind = nstDot then
@@ -586,6 +585,34 @@ begin
   end;
 end;
 
+procedure TNexusScriptParser.ParseData(
+  ADocument: TNexusScriptSourceDocument);
+var
+  lDataSource: TNexusScriptSourceData;
+  lName: TNexusScriptToken;
+  lPath: TNexusScriptToken;
+  lRange: TNexusScriptRange;
+begin
+  lRange := Current.SourceRange;
+  Inc(FIndex);
+  lName := Require(nstWord, 'data source name');
+  lPath := Require(nstQuoted, 'quoted data source path');
+  Require(nstSemicolon, ';');
+  if (lName.Kind <> nstWord) or (lPath.Kind <> nstQuoted) then
+    Exit;
+  if ADocument.FindDataSource(lName.Text) <> nil then
+  begin
+    FCompiler.AddError('NXS2018', 'Duplicate data source ' + lName.Text,
+      lRange);
+    Exit;
+  end;
+  lDataSource := TNexusScriptSourceData.Create;
+  lDataSource.Name := lName.Text;
+  lDataSource.Path := lPath.Text;
+  lDataSource.SourceRange := lRange;
+  ADocument.DataSources.Add(lDataSource);
+end;
+
 function TNexusScriptParser.Parse: TNexusScriptSourceDocument;
 var
   lDefinition: TNexusScriptSourceDefinition;
@@ -617,6 +644,14 @@ begin
         FCompiler.AddError('NXS2016',
           'Include declaration must precede definitions', Current.SourceRange);
       ParseInclude(Result);
+      Continue;
+    end;
+    if (Current.Kind = nstWord) and SameText(Current.Text, 'data') then
+    begin
+      if lHasDefinition then
+        FCompiler.AddError('NXS2017',
+          'Data declaration must precede definitions', Current.SourceRange);
+      ParseData(Result);
       Continue;
     end;
     lHasDefinition := True;
@@ -694,6 +729,9 @@ end;
 function CloneDefinition(ASource: TNexusScriptCompiledDefinition;
   AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition; forward;
 
+function CloneDefinitionForRebinding(ASource: TNexusScriptCompiledDefinition;
+  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition; forward;
+
 function CloneDefinitionAs(ASource: TNexusScriptCompiledDefinition;
   AParent: TNexusScriptCompiledDefinition;
   const AName: string): TNexusScriptCompiledDefinition; forward;
@@ -714,7 +752,14 @@ begin
   Result.ResolvedDefinition := AValue.ResolvedDefinition;
   Result.ResolvedProperty := AValue.ResolvedProperty;
   Result.ResolvedValue := AValue.ResolvedValue;
-  Result.Evaluated := AValue.Evaluated;
+  if AValue.EvaluationState = nsvesCompleted then
+    Result.EvaluationState := nsvesCompleted
+  else if AValue.EvaluationState = nsvesFailed then
+    Result.EvaluationState := nsvesFailed;
+  if AValue.ArrayPreparationState = nsapsPrepared then
+    Result.ArrayPreparationState := nsapsPrepared
+  else if AValue.ArrayPreparationState = nsapsFailed then
+    Result.ArrayPreparationState := nsapsFailed;
   if AValue.EffectiveValue <> nil then
     Result.EffectiveValue := CloneValue(AValue.EffectiveValue);
   if AValue.StructuralDefinition <> nil then
@@ -726,6 +771,32 @@ begin
     Result.CompositionContributors.Add(CloneValue(lContributor));
 end;
 
+function CloneValueForRebinding(
+  AValue: TNexusScriptCompiledValue): TNexusScriptCompiledValue;
+var
+  lItem: TNexusScriptCompiledValue;
+  lContributor: TNexusScriptCompiledValue;
+begin
+  Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
+  Result.SourceText := AValue.SourceText;
+  Result.EntryName := AValue.EntryName;
+  Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
+  Result.InlineSourceDefinition := AValue.InlineSourceDefinition;
+  if Result.EntryName <> '' then
+    Result.EffectiveName := Result.EntryName
+  else if Result.Kind = nsvDefinition then
+    Result.EffectiveName := Result.OriginalDefinitionName;
+  if (Result.Kind = nsvDefinition) and
+    (AValue.StructuralDefinition <> nil) then
+    Result.StructuralDefinition := CloneDefinitionForRebinding(
+      AValue.StructuralDefinition, nil);
+  for lItem in AValue.Items do
+    Result.Items.Add(CloneValueForRebinding(lItem));
+  for lContributor in AValue.CompositionContributors do
+    Result.CompositionContributors.Add(
+      CloneValueForRebinding(lContributor));
+end;
+
 function CloneDefinition(ASource: TNexusScriptCompiledDefinition;
   AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition;
 var
@@ -734,13 +805,30 @@ var
 begin
   Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, ASource.Name,
     ASource.SourceRange);
-  Result.ModuleAlias := ASource.ModuleAlias;
+  Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValue(lProperty.Value), lProperty.SourceRange));
   for lChild in ASource.Children do
     Result.Children.Add(CloneDefinition(lChild, Result));
+end;
+
+function CloneDefinitionForRebinding(ASource: TNexusScriptCompiledDefinition;
+  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition;
+var
+  lProperty: TNexusScriptCompiledProperty;
+  lChild: TNexusScriptCompiledDefinition;
+begin
+  Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, ASource.Name,
+    ASource.SourceRange);
+  Result.ImportedRoot := ASource.ImportedRoot;
+  Result.Parent := AParent;
+  for lProperty in ASource.Properties do
+    Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
+      CloneValueForRebinding(lProperty.Value), lProperty.SourceRange));
+  for lChild in ASource.Children do
+    Result.Children.Add(CloneDefinitionForRebinding(lChild, Result));
 end;
 
 function CloneDefinitionAs(ASource: TNexusScriptCompiledDefinition;
@@ -752,7 +840,7 @@ var
 begin
   Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, AName,
     ASource.SourceRange);
-  Result.ModuleAlias := ASource.ModuleAlias;
+  Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
@@ -768,7 +856,7 @@ var
 begin
   if AValue.Kind = nsvArray then
   begin
-    if not AValue.Evaluated then
+    if AValue.ArrayPreparationState <> nsapsPrepared then
       for lContributor in AValue.CompositionContributors do
         if not IsScalarProjectionValue(lContributor) then
           Exit(False);
@@ -803,7 +891,14 @@ begin
   Result.ResolvedDefinition := AValue.ResolvedDefinition;
   Result.ResolvedProperty := AValue.ResolvedProperty;
   Result.ResolvedValue := AValue.ResolvedValue;
-  Result.Evaluated := AValue.Evaluated;
+  if AValue.EvaluationState = nsvesCompleted then
+    Result.EvaluationState := nsvesCompleted
+  else if AValue.EvaluationState = nsvesFailed then
+    Result.EvaluationState := nsvesFailed;
+  if AValue.ArrayPreparationState = nsapsPrepared then
+    Result.ArrayPreparationState := nsapsPrepared
+  else if AValue.ArrayPreparationState = nsapsFailed then
+    Result.ArrayPreparationState := nsapsFailed;
   if AValue.EffectiveValue <> nil then
     Result.EffectiveValue := CloneValue(AValue.EffectiveValue);
   if AValue.StructuralDefinition <> nil then
@@ -825,10 +920,12 @@ var
 begin
   Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, AName,
     ASource.SourceRange);
-  Result.ModuleAlias := ASource.ModuleAlias;
+  Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
   for lProperty in ASource.Properties do
   begin
+    if lProperty.Resolving then
+      Continue;
     if (lProperty.Value.Kind = nsvArray) and
       not IsScalarProjectionValue(lProperty.Value) then
       Continue;
@@ -858,8 +955,19 @@ var
         Exit(lSource);
   end;
 
-  procedure EvaluateProperty(AScope: TNexusScriptCompiledDefinition;
-    AProperty: TNexusScriptCompiledProperty); forward;
+  function EvaluateProperty(AScope: TNexusScriptCompiledDefinition;
+    AProperty: TNexusScriptCompiledProperty): Boolean; forward;
+
+  function EvaluateValue(AScope: TNexusScriptCompiledDefinition;
+    AValue: TNexusScriptCompiledValue;
+    const AReceiverName: string): Boolean; forward;
+
+  function PrepareArrayValue(AScope: TNexusScriptCompiledDefinition;
+    AValue: TNexusScriptCompiledValue;
+    out AArrayValue: TNexusScriptCompiledValue): Boolean; forward;
+
+  function BindDefinition(
+    ADefinition: TNexusScriptCompiledDefinition): Boolean; forward;
 
   function FindNestedScope(AScope: TNexusScriptCompiledDefinition;
     const AName: string): TNexusScriptCompiledDefinition;
@@ -913,7 +1021,14 @@ var
       begin
         if AScope = nil then
           Exit(FCompiledDocument.FindDefinition(lParts[0]));
-        Exit(AScope.FindChild(lParts[0]));
+        Result := AScope.FindChild(lParts[0]);
+        if Result = nil then
+        begin
+          Result := FCompiledDocument.FindDefinition(lParts[0]);
+          if (Result <> nil) and not Result.ImportedRoot then
+            Result := nil;
+        end;
+        Exit;
       end;
       lScope := FindStructuralPropertyScope(AScope, lParts[0]);
       if lScope <> nil then
@@ -932,7 +1047,7 @@ var
       if lScope = nil then
       begin
         lScope := FCompiledDocument.FindDefinition(lParts[0]);
-        if (lScope <> nil) and not lScope.ModuleAlias then
+        if (lScope <> nil) and not lScope.ImportedRoot then
           lScope := nil;
       end;
       if lScope = nil then
@@ -949,13 +1064,15 @@ var
     end;
   end;
 
-  procedure Compose(ADefinition: TNexusScriptCompiledDefinition);
+  procedure Compose(ADefinition: TNexusScriptCompiledDefinition;
+    ASource: TNexusScriptSourceDefinition = nil);
   var
     lSource: TNexusScriptSourceDefinition;
     lSelector: string;
     lBase: TNexusScriptCompiledDefinition;
     lProperty: TNexusScriptCompiledProperty;
     lChild: TNexusScriptCompiledDefinition;
+    lChildSource: TNexusScriptSourceDefinition;
     lLocalProperties: TNexusScriptCompiledPropertyList;
     lLocalChildren: TNexusScriptCompiledDefinitionList;
 
@@ -983,10 +1100,12 @@ var
       lContributor: TNexusScriptCompiledValue;
     begin
       if ASource.CompositionContributors.Count = 0 then
-        ATarget.CompositionContributors.Add(CloneValue(ASource))
+        ATarget.CompositionContributors.Add(
+          CloneValueForRebinding(ASource))
       else
         for lContributor in ASource.CompositionContributors do
-          ATarget.CompositionContributors.Add(CloneValue(lContributor));
+          ATarget.CompositionContributors.Add(
+            CloneValueForRebinding(lContributor));
     end;
 
     procedure ApplyProperty(AProperty: TNexusScriptCompiledProperty);
@@ -1010,9 +1129,10 @@ var
       if (lExisting <> nil) and CanHaveArrayResult(lExisting.Value) and
         CanHaveArrayResult(AProperty.Value) then
       begin
-        lMergedValue := CloneValue(AProperty.Value);
+        lMergedValue := CloneValueForRebinding(AProperty.Value);
         lMergedValue.CompositionContributors.Clear;
-        lMergedValue.Evaluated := False;
+        lMergedValue.EvaluationState := nsvesPending;
+        lMergedValue.ArrayPreparationState := nsapsUnprepared;
         AppendCompositionLayers(lMergedValue, lExisting.Value);
         AppendCompositionLayers(lMergedValue, AProperty.Value);
         RemoveProperty(AProperty.Name);
@@ -1022,7 +1142,8 @@ var
       end;
       RemoveProperty(AProperty.Name);
       ADefinition.Properties.Add(TNexusScriptCompiledProperty.Create(
-        AProperty.Name, CloneValue(AProperty.Value), AProperty.SourceRange));
+        AProperty.Name, CloneValueForRebinding(AProperty.Value),
+        AProperty.SourceRange));
     end;
   begin
     if ADefinition.Composed then
@@ -1034,7 +1155,9 @@ var
       Exit;
     end;
     ADefinition.Composing := True;
-    lSource := SourceFor(ADefinition);
+    lSource := ASource;
+    if lSource = nil then
+      lSource := SourceFor(ADefinition);
     if lSource = nil then
     begin
       ADefinition.Composing := False;
@@ -1097,7 +1220,27 @@ var
     ADefinition.Composing := False;
     ADefinition.Composed := True;
     for lChild in ADefinition.Children do
-      Compose(lChild);
+    begin
+      lChildSource := nil;
+      if lSource <> nil then
+        lChildSource := lSource.FindChild(lChild.Name);
+      Compose(lChild, lChildSource);
+    end;
+  end;
+
+  function ResolveNamedArrayItem(AScope: TNexusScriptCompiledDefinition;
+    AValue: TNexusScriptCompiledValue; const AName: string;
+    out AArrayValue: TNexusScriptCompiledValue;
+    out AItem: TNexusScriptCompiledValue): Boolean;
+  begin
+    AArrayValue := nil;
+    AItem := nil;
+    if not PrepareArrayValue(AScope, AValue, AArrayValue) then
+      Exit(False);
+    if AArrayValue = nil then
+      Exit(False);
+    AItem := AArrayValue.FindNamedItem(AName);
+    Result := AItem <> nil;
   end;
 
   function ResolveMember(AScope: TNexusScriptCompiledDefinition;
@@ -1115,35 +1258,80 @@ var
       lMemberProperty: TNexusScriptCompiledProperty;
       lMemberDefinition: TNexusScriptCompiledDefinition;
       lArrayItem: TNexusScriptCompiledValue;
+      lArrayValue: TNexusScriptCompiledValue;
     begin
       Result := False;
       lMemberProperty := ACurrentScope.FindProperty(lParts[AIndex]);
       if lMemberProperty <> nil then
       begin
-        EvaluateProperty(ACurrentScope, lMemberProperty);
         if AIndex = lParts.Count - 1 then
         begin
           AProperty := lMemberProperty;
           APropertyOwner := ACurrentScope;
           Exit(True);
         end;
-        if lMemberProperty.Value.Kind = nsvArray then
+        lArrayValue := nil;
+        if (lMemberProperty.Value.Kind in [nsvArray, nsvReference]) or
+          (lMemberProperty.Value.CompositionContributors.Count > 0) then
         begin
-          lArrayItem := lMemberProperty.Value.FindNamedItem(
-            lParts[AIndex + 1]);
-          if lArrayItem = nil then
-            Exit;
-          if AIndex + 1 = lParts.Count - 1 then
+          if not lMemberProperty.Resolving then
+            if not EvaluateProperty(ACurrentScope, lMemberProperty) then
+            begin
+              AProperty := lMemberProperty;
+              APropertyOwner := ACurrentScope;
+              Exit(True);
+            end;
+          if not ResolveNamedArrayItem(ACurrentScope,
+            lMemberProperty.Value, lParts[AIndex + 1], lArrayValue,
+            lArrayItem) then
           begin
-            ADirectValue := lArrayItem;
-            Exit(True);
+            if (lMemberProperty.Value.ArrayPreparationState = nsapsFailed) or
+              (lMemberProperty.Value.EvaluationState = nsvesFailed) then
+            begin
+              AProperty := lMemberProperty;
+              APropertyOwner := ACurrentScope;
+              Exit(True);
+            end;
+            if lArrayValue <> nil then
+              Exit;
+          end
+          else
+          begin
+            if AIndex + 1 = lParts.Count - 1 then
+            begin
+              APropertyOwner := ACurrentScope;
+              ADirectValue := lArrayItem;
+              Exit(True);
+            end;
+            if (lArrayItem.EvaluationState = nsvesResolving) and
+              (lArrayItem.Kind = nsvDefinition) and
+              (lArrayItem.StructuralDefinition <> nil) then
+              Exit(ResolveDown(lArrayItem.StructuralDefinition,
+                AIndex + 2));
+            if not EvaluateValue(ACurrentScope, lArrayItem,
+              lArrayItem.EntryName) then
+            begin
+              ADirectValue := lArrayItem;
+              Exit(True);
+            end;
+            if lArrayItem.StructuralDefinition = nil then
+              Exit;
+            Exit(ResolveDown(lArrayItem.StructuralDefinition, AIndex + 2));
           end;
-          if lArrayItem.StructuralDefinition = nil then
-            Exit;
-          Exit(ResolveDown(lArrayItem.StructuralDefinition, AIndex + 2));
+        end;
+        if not EvaluateProperty(ACurrentScope, lMemberProperty) then
+        begin
+          AProperty := lMemberProperty;
+          APropertyOwner := ACurrentScope;
+          Exit(True);
         end;
         if lMemberProperty.Value.StructuralDefinition <> nil then
           Exit(ResolveDown(lMemberProperty.Value.StructuralDefinition,
+            AIndex + 1));
+        if (lMemberProperty.Value.EffectiveValue <> nil) and
+          (lMemberProperty.Value.EffectiveValue.StructuralDefinition <> nil) then
+          Exit(ResolveDown(
+            lMemberProperty.Value.EffectiveValue.StructuralDefinition,
             AIndex + 1));
         Exit;
       end;
@@ -1168,10 +1356,23 @@ var
       lParts.StrictDelimiter := True;
       lParts.DelimitedText := APath;
       if lParts.Count = 1 then
-        Exit(ResolveDown(AScope, 0));
-      if AScope.FindProperty(lParts[0]) <> nil then
       begin
-        Exit(ResolveDown(AScope, 0));
+        if ResolveDown(AScope, 0) then
+          Exit(True);
+        lScope := FCompiledDocument.FindDefinition(lParts[0]);
+        if (lScope <> nil) and lScope.ImportedRoot then
+        begin
+          ADefinition := lScope;
+          Exit(True);
+        end;
+        Exit(False);
+      end;
+      lScope := AScope;
+      while lScope <> nil do
+      begin
+        if lScope.FindProperty(lParts[0]) <> nil then
+          Exit(ResolveDown(lScope, 0));
+        lScope := lScope.Parent;
       end;
       lScope := AScope;
       while (lScope <> nil) and not SameText(lScope.Name, lParts[0]) do
@@ -1179,7 +1380,7 @@ var
       if lScope = nil then
       begin
         lScope := FCompiledDocument.FindDefinition(lParts[0]);
-        if (lScope <> nil) and not lScope.ModuleAlias then
+        if (lScope <> nil) and not lScope.ImportedRoot then
           lScope := nil;
       end;
       if lScope = nil then
@@ -1190,28 +1391,247 @@ var
     end;
   end;
 
-  procedure EvaluateValue(AScope: TNexusScriptCompiledDefinition;
-    AValue: TNexusScriptCompiledValue;
-    const AReceiverName: string); forward;
-
-  procedure BindDefinition(
-    ADefinition: TNexusScriptCompiledDefinition); forward;
-
-  procedure EvaluateProperty(AScope: TNexusScriptCompiledDefinition;
-    AProperty: TNexusScriptCompiledProperty);
+  function EvaluateProperty(AScope: TNexusScriptCompiledDefinition;
+    AProperty: TNexusScriptCompiledProperty): Boolean;
   begin
     if AProperty.Resolving then
     begin
       AddError('NXS5002', 'Value dependency cycle at ' + AProperty.Name,
         AProperty.SourceRange);
-      Exit;
+      Exit(False);
     end;
-    if AProperty.Value.Evaluated then
-      Exit;
+    if AProperty.Value.EvaluationState = nsvesCompleted then
+      Exit(True);
+    if AProperty.Value.EvaluationState = nsvesFailed then
+      Exit(False);
     AProperty.Resolving := True;
-    EvaluateValue(AScope, AProperty.Value, AProperty.Name);
-    AProperty.Value.Evaluated := True;
-    AProperty.Resolving := False;
+    try
+      Result := EvaluateValue(AScope, AProperty.Value, AProperty.Name);
+    finally
+      AProperty.Resolving := False;
+    end;
+  end;
+
+  function ValueDiagnosticName(AValue: TNexusScriptCompiledValue): string;
+  begin
+    Result := AValue.EffectiveName;
+    if Result = '' then
+      Result := AValue.EntryName;
+    if Result = '' then
+      Result := AValue.OriginalDefinitionName;
+    if Result = '' then
+      Result := AValue.SourceText;
+    if Result = '' then
+      Result := 'array';
+  end;
+
+  function EstablishEntryIdentity(AScope: TNexusScriptCompiledDefinition;
+    AValue: TNexusScriptCompiledValue): Boolean;
+  var
+    lProperty: TNexusScriptCompiledProperty;
+    lDefinition: TNexusScriptCompiledDefinition;
+    lPropertyOwner: TNexusScriptCompiledDefinition;
+    lDirectValue: TNexusScriptCompiledValue;
+  begin
+    if AValue.EffectiveName <> '' then
+      Exit(True);
+    if AValue.EntryName <> '' then
+    begin
+      AValue.EffectiveName := AValue.EntryName;
+      Exit(True);
+    end;
+    if AValue.Kind = nsvDefinition then
+    begin
+      AValue.EffectiveName := AValue.OriginalDefinitionName;
+      Exit(True);
+    end;
+    if AValue.Kind <> nsvReference then
+      Exit(True);
+    lDefinition := AValue.ResolvedDefinition;
+    if lDefinition = nil then
+    begin
+      if not ResolveMember(AScope, AValue.SourceText, lProperty,
+        lDefinition, lPropertyOwner, lDirectValue) then
+      begin
+        AddError('NXS5001', 'Unresolved reference @' + AValue.SourceText,
+          AValue.SourceRange);
+        AValue.EvaluationState := nsvesFailed;
+        Exit(False);
+      end;
+      AValue.ResolvedProperty := lProperty;
+      AValue.ResolvedDefinition := lDefinition;
+      AValue.ResolvedValue := lDirectValue;
+    end;
+    if lDefinition <> nil then
+    begin
+      AValue.EffectiveName := lDefinition.Name;
+      AValue.OriginalDefinitionName := lDefinition.Name;
+    end;
+    Result := True;
+  end;
+
+  function PrepareArrayValue(AScope: TNexusScriptCompiledDefinition;
+    AValue: TNexusScriptCompiledValue;
+    out AArrayValue: TNexusScriptCompiledValue): Boolean;
+  var
+    lItem: TNexusScriptCompiledValue;
+    lContributor: TNexusScriptCompiledValue;
+    lContributorArray: TNexusScriptCompiledValue;
+    lTargetArray: TNexusScriptCompiledValue;
+    lMergedItem: TNexusScriptCompiledValue;
+    lExistingItem: TNexusScriptCompiledValue;
+    lProperty: TNexusScriptCompiledProperty;
+    lDefinition: TNexusScriptCompiledDefinition;
+    lPropertyOwner: TNexusScriptCompiledDefinition;
+    lDirectValue: TNexusScriptCompiledValue;
+    lNames: TStringList;
+    lExistingIndex: Integer;
+    lAllContributorArrays: Boolean;
+    lSucceeded: Boolean;
+  begin
+    AArrayValue := nil;
+    case AValue.ArrayPreparationState of
+      nsapsPrepared:
+        begin
+          if AValue.Kind = nsvArray then
+            AArrayValue := AValue
+          else if (AValue.EffectiveValue <> nil) and
+            (AValue.EffectiveValue.Kind = nsvArray) then
+            AArrayValue := AValue.EffectiveValue;
+          Exit(True);
+        end;
+      nsapsPreparing:
+        begin
+          AddError('NXS5002', 'Value dependency cycle at ' +
+            ValueDiagnosticName(AValue), AValue.SourceRange);
+          AValue.ArrayPreparationState := nsapsFailed;
+          Exit(False);
+        end;
+      nsapsFailed:
+        Exit(False);
+    end;
+
+    AValue.ArrayPreparationState := nsapsPreparing;
+    Result := False;
+    try
+      if AValue.CompositionContributors.Count > 0 then
+      begin
+        lAllContributorArrays := True;
+        for lContributor in AValue.CompositionContributors do
+        begin
+          if not PrepareArrayValue(AScope, lContributor,
+            lContributorArray) then
+            Exit;
+          if lContributorArray = nil then
+            lAllContributorArrays := False;
+        end;
+        if lAllContributorArrays then
+        begin
+          AValue.Kind := nsvArray;
+          AValue.EffectiveValue.Free;
+          AValue.EffectiveValue := nil;
+          AValue.Items.Clear;
+          for lContributor in AValue.CompositionContributors do
+          begin
+            if not PrepareArrayValue(AScope, lContributor,
+              lContributorArray) then
+              Exit;
+            for lItem in lContributorArray.Items do
+            begin
+              lMergedItem := CloneValueForRebinding(lItem);
+              lExistingIndex := -1;
+              if lMergedItem.EffectiveName <> '' then
+              begin
+                lExistingItem := AValue.FindNamedItem(
+                  lMergedItem.EffectiveName);
+                if lExistingItem <> nil then
+                  lExistingIndex := AValue.Items.IndexOf(lExistingItem);
+              end;
+              if lExistingIndex >= 0 then
+                AValue.Items[lExistingIndex] := lMergedItem
+              else
+                AValue.Items.Add(lMergedItem);
+            end;
+          end;
+        end
+        else
+          AValue.CompositionContributors.Clear;
+      end;
+
+      if AValue.Kind = nsvArray then
+      begin
+        lNames := TStringList.Create;
+        try
+          lNames.CaseSensitive := False;
+          lSucceeded := True;
+          for lItem in AValue.Items do
+          begin
+            if not EstablishEntryIdentity(AScope, lItem) then
+              lSucceeded := False;
+            if lItem.EffectiveName <> '' then
+            begin
+              if lNames.IndexOf(lItem.EffectiveName) >= 0 then
+              begin
+                AddError('NXS5005', 'Duplicate array entry name ' +
+                  lItem.EffectiveName, lItem.SourceRange);
+                lSucceeded := False;
+              end
+              else
+                lNames.Add(lItem.EffectiveName);
+            end;
+          end;
+          if not lSucceeded then
+            Exit;
+        finally
+          lNames.Free;
+        end;
+        AArrayValue := AValue;
+        Result := True;
+        Exit;
+      end;
+
+      if AValue.Kind = nsvReference then
+      begin
+        lProperty := nil;
+        lDefinition := nil;
+        lPropertyOwner := nil;
+        lDirectValue := nil;
+        if not ResolveMember(AScope, AValue.SourceText, lProperty,
+          lDefinition, lPropertyOwner, lDirectValue) then
+        begin
+          AddError('NXS5001', 'Unresolved reference @' + AValue.SourceText,
+            AValue.SourceRange);
+          Exit;
+        end;
+        AValue.ResolvedProperty := lProperty;
+        AValue.ResolvedDefinition := lDefinition;
+        AValue.ResolvedValue := lDirectValue;
+        lTargetArray := nil;
+        if lProperty <> nil then
+        begin
+          if not PrepareArrayValue(lPropertyOwner, lProperty.Value,
+            lTargetArray) then
+            Exit;
+        end
+        else if lDirectValue <> nil then
+        begin
+          if not PrepareArrayValue(AScope, lDirectValue, lTargetArray) then
+            Exit;
+        end;
+        if lTargetArray <> nil then
+        begin
+          AValue.EffectiveValue.Free;
+          AValue.EffectiveValue := CloneValue(lTargetArray);
+          AArrayValue := AValue.EffectiveValue;
+        end;
+      end;
+      Result := True;
+    finally
+      if Result then
+        AValue.ArrayPreparationState := nsapsPrepared
+      else
+        AValue.ArrayPreparationState := nsapsFailed;
+    end;
   end;
 
   function PrepareReferenceProjection(
@@ -1230,8 +1650,9 @@ var
           Continue;
         Exit;
       end;
-      if not lProperty.Value.Evaluated then
-        EvaluateProperty(ADefinition, lProperty);
+      if lProperty.Value.EvaluationState <> nsvesCompleted then
+        if not EvaluateProperty(ADefinition, lProperty) then
+          Exit;
       if (lProperty.Value.Kind = nsvArray) and
         not IsScalarProjectionValue(lProperty.Value) then
         Continue;
@@ -1261,83 +1682,54 @@ var
         Exit(True);
   end;
 
-  procedure EvaluateValue(AScope: TNexusScriptCompiledDefinition;
-    AValue: TNexusScriptCompiledValue; const AReceiverName: string);
+  function EvaluateValue(AScope: TNexusScriptCompiledDefinition;
+    AValue: TNexusScriptCompiledValue;
+    const AReceiverName: string): Boolean;
   var
     lItem: TNexusScriptCompiledValue;
     lProperty: TNexusScriptCompiledProperty;
     lDefinition: TNexusScriptCompiledDefinition;
     lPropertyOwner: TNexusScriptCompiledDefinition;
     lOriginalDefinition: TNexusScriptCompiledDefinition;
-    lNames: TStringList;
     lEffectiveName: string;
     lDirectValue: TNexusScriptCompiledValue;
-    lContributor: TNexusScriptCompiledValue;
-    lMergedItem: TNexusScriptCompiledValue;
-    lExistingItem: TNexusScriptCompiledValue;
-    lExistingIndex: Integer;
-    lContributorArray: TNexusScriptCompiledValue;
-    lAllContributorArrays: Boolean;
+    lArrayValue: TNexusScriptCompiledValue;
+    lSucceeded: Boolean;
   begin
-    if AValue.Evaluated then
-      Exit;
+    case AValue.EvaluationState of
+      nsvesCompleted:
+        Exit(True);
+      nsvesResolving:
+        begin
+          AddError('NXS5002', 'Value dependency cycle at ' +
+            ValueDiagnosticName(AValue), AValue.SourceRange);
+          AValue.EvaluationState := nsvesFailed;
+          Exit(False);
+        end;
+      nsvesFailed:
+        Exit(False);
+    end;
+
+    AValue.EvaluationState := nsvesResolving;
+    Result := False;
     try
       if AValue.CompositionContributors.Count > 0 then
-      begin
-        lAllContributorArrays := True;
-        for lContributor in AValue.CompositionContributors do
-        begin
-          EvaluateValue(AScope, lContributor, AReceiverName);
-          if lContributor.Kind = nsvArray then
-            lContributorArray := lContributor
-          else
-            lContributorArray := lContributor.EffectiveValue;
-          if (lContributorArray = nil) or
-            (lContributorArray.Kind <> nsvArray) then
-            lAllContributorArrays := False;
-        end;
-        if lAllContributorArrays then
-        begin
-          AValue.Kind := nsvArray;
-          AValue.Items.Clear;
-          for lContributor in AValue.CompositionContributors do
-          begin
-            if lContributor.Kind = nsvArray then
-              lContributorArray := lContributor
-            else
-              lContributorArray := lContributor.EffectiveValue;
-            for lItem in lContributorArray.Items do
-            begin
-              lMergedItem := CloneValue(lItem);
-              lExistingIndex := -1;
-              if lMergedItem.EffectiveName <> '' then
-              begin
-                lExistingItem := AValue.FindNamedItem(
-                  lMergedItem.EffectiveName);
-                if lExistingItem <> nil then
-                  lExistingIndex := AValue.Items.IndexOf(lExistingItem);
-              end;
-              if lExistingIndex >= 0 then
-                AValue.Items[lExistingIndex] := lMergedItem
-              else
-                AValue.Items.Add(lMergedItem);
-            end;
-          end;
-        end
-        else
-          AValue.CompositionContributors.Clear;
-      end;
+        if not PrepareArrayValue(AScope, AValue, lArrayValue) then
+          Exit;
       case AValue.Kind of
       nsvText:
         begin
           AValue.EffectiveText := AValue.SourceText;
           AValue.HasEffectiveText := True;
+          Result := True;
         end;
       nsvDefinition:
         begin
           lOriginalDefinition := AValue.StructuralDefinition;
           lOriginalDefinition.Parent := AScope;
-          BindDefinition(lOriginalDefinition);
+          Compose(lOriginalDefinition, AValue.InlineSourceDefinition);
+          if not BindDefinition(lOriginalDefinition) then
+            Exit;
           lEffectiveName := AValue.EntryName;
           if lEffectiveName = '' then
             lEffectiveName := AValue.OriginalDefinitionName;
@@ -1345,17 +1737,16 @@ var
             lOriginalDefinition, AScope, lEffectiveName);
           lOriginalDefinition.Free;
           AValue.EffectiveName := lEffectiveName;
+          Result := True;
         end;
       nsvReference:
         begin
-          lDefinition := AValue.ResolvedDefinition;
-          lProperty := AValue.ResolvedProperty;
+          lProperty := nil;
+          lDefinition := nil;
           lPropertyOwner := nil;
-          lDirectValue := AValue.ResolvedValue;
-          if (lDefinition = nil) and (lProperty = nil) and
-            (lDirectValue = nil) and
-            not ResolveMember(AScope, AValue.SourceText, lProperty,
-              lDefinition, lPropertyOwner, lDirectValue) then
+          lDirectValue := nil;
+          if not ResolveMember(AScope, AValue.SourceText, lProperty,
+            lDefinition, lPropertyOwner, lDirectValue) then
           begin
             AddError('NXS5001', 'Unresolved reference @' + AValue.SourceText,
               AValue.SourceRange);
@@ -1363,33 +1754,71 @@ var
           end;
           AValue.ResolvedProperty := lProperty;
           AValue.ResolvedDefinition := lDefinition;
+          AValue.ResolvedValue := lDirectValue;
           if lDirectValue <> nil then
           begin
-            AValue.ResolvedValue := lDirectValue;
+            if (lDirectValue.EvaluationState = nsvesResolving) and
+              (lDirectValue.Kind = nsvDefinition) and
+              (lDirectValue.StructuralDefinition <> nil) then
+            begin
+              AValue.ResolvedDefinition :=
+                lDirectValue.StructuralDefinition;
+              AValue.StructuralDefinition := CloneReferenceProjection(
+                lDirectValue.StructuralDefinition, AScope, AReceiverName);
+              AValue.OriginalDefinitionName :=
+                lDirectValue.OriginalDefinitionName;
+              AValue.EffectiveName := AReceiverName;
+              Result := True;
+              Exit;
+            end;
+            if lPropertyOwner = nil then
+              lPropertyOwner := AScope;
+            if not EvaluateValue(lPropertyOwner, lDirectValue,
+              lDirectValue.EntryName) then
+              Exit;
             AValue.EffectiveText := lDirectValue.EffectiveText;
             AValue.HasEffectiveText := lDirectValue.HasEffectiveText;
             AValue.ResolvedProperty := lDirectValue.ResolvedProperty;
             AValue.ResolvedDefinition := lDirectValue.ResolvedDefinition;
+            AValue.EffectiveValue.Free;
+            AValue.EffectiveValue := nil;
+            if lDirectValue.EffectiveValue <> nil then
+              AValue.EffectiveValue := CloneValue(
+                lDirectValue.EffectiveValue)
+            else if lDirectValue.Kind = nsvArray then
+              AValue.EffectiveValue := CloneValue(lDirectValue);
             if lDirectValue.StructuralDefinition <> nil then
+            begin
               AValue.StructuralDefinition := CloneReferenceProjection(
                 lDirectValue.StructuralDefinition, AScope, AReceiverName);
+              AValue.OriginalDefinitionName :=
+                lDirectValue.OriginalDefinitionName;
+            end;
+            Result := True;
             Exit;
           end;
           if lProperty <> nil then
           begin
-            EvaluateProperty(lPropertyOwner, lProperty);
+            if not EvaluateProperty(lPropertyOwner, lProperty) then
+              Exit;
             AValue.EffectiveText := lProperty.Value.EffectiveText;
             AValue.HasEffectiveText := lProperty.Value.HasEffectiveText;
+            AValue.EffectiveValue.Free;
+            AValue.EffectiveValue := nil;
             if lProperty.Value.EffectiveValue <> nil then
               AValue.EffectiveValue := CloneValue(
                 lProperty.Value.EffectiveValue)
             else if lProperty.Value.Kind = nsvArray then
               AValue.EffectiveValue := CloneValue(lProperty.Value);
+            Result := True;
           end;
           if lDefinition <> nil then
           begin
             if AValue.StructuralDefinition <> nil then
+            begin
+              Result := True;
               Exit;
+            end;
             if (lMaterializingDefinitions.IndexOf(lDefinition) >= 0) or
               DefinitionIsBinding(lDefinition) then
             begin
@@ -1402,6 +1831,7 @@ var
                   lDefinition, AScope, lEffectiveName);
                 AValue.EffectiveName := lEffectiveName;
                 AValue.OriginalDefinitionName := lDefinition.Name;
+                Result := True;
               end
               else
                 AddError('NXS5004', 'Structural reference cycle at @' +
@@ -1410,14 +1840,16 @@ var
             end;
             lMaterializingDefinitions.Add(lDefinition);
             try
-              BindDefinition(lDefinition);
+              if not BindDefinition(lDefinition) then
+                Exit;
               lEffectiveName := AReceiverName;
               if lEffectiveName = '' then
                 lEffectiveName := lDefinition.Name;
-              AValue.StructuralDefinition := CloneReferenceProjection(lDefinition,
-                AScope, lEffectiveName);
+              AValue.StructuralDefinition := CloneReferenceProjection(
+                lDefinition, AScope, lEffectiveName);
               AValue.EffectiveName := lEffectiveName;
               AValue.OriginalDefinitionName := lDefinition.Name;
+              Result := True;
             finally
               lMaterializingDefinitions.Delete(
                 lMaterializingDefinitions.Count - 1);
@@ -1428,58 +1860,57 @@ var
         begin
           AValue.EffectiveText := '';
           AValue.HasEffectiveText := True;
+          lSucceeded := True;
           for lItem in AValue.Items do
           begin
-            EvaluateValue(AScope, lItem, AReceiverName);
+            if not EvaluateValue(AScope, lItem, AReceiverName) then
+              lSucceeded := False;
             if not lItem.HasEffectiveText then
             begin
               AddError('NXS5003',
                 'Definition reference cannot be composed as text',
                 lItem.SourceRange);
               AValue.HasEffectiveText := False;
+              lSucceeded := False;
             end
             else
-              AValue.EffectiveText := AValue.EffectiveText + lItem.EffectiveText;
+              AValue.EffectiveText := AValue.EffectiveText +
+                lItem.EffectiveText;
           end;
+          Result := lSucceeded;
         end;
       nsvArray:
         begin
-          lNames := TStringList.Create;
-          try
-            lNames.CaseSensitive := False;
-            for lItem in AValue.Items do
-            begin
-              EvaluateValue(AScope, lItem, lItem.EntryName);
-              if lItem.EffectiveName = '' then
-                lItem.EffectiveName := lItem.EntryName;
-              if lItem.EffectiveName <> '' then
-              begin
-                if lNames.IndexOf(lItem.EffectiveName) >= 0 then
-                  AddError('NXS5005', 'Duplicate array entry name ' +
-                    lItem.EffectiveName, lItem.SourceRange)
-                else
-                  lNames.Add(lItem.EffectiveName);
-              end;
-            end;
-          finally
-            lNames.Free;
-          end;
+          if not PrepareArrayValue(AScope, AValue, lArrayValue) then
+            Exit;
+          lSucceeded := True;
+          for lItem in lArrayValue.Items do
+            if not EvaluateValue(AScope, lItem, lItem.EntryName) then
+              lSucceeded := False;
+          Result := lSucceeded;
         end;
       end;
     finally
-      AValue.Evaluated := True;
+      if Result then
+        AValue.EvaluationState := nsvesCompleted
+      else
+        AValue.EvaluationState := nsvesFailed;
     end;
   end;
 
-  procedure BindDefinition(ADefinition: TNexusScriptCompiledDefinition);
+  function BindDefinition(
+    ADefinition: TNexusScriptCompiledDefinition): Boolean;
   var
     lProperty: TNexusScriptCompiledProperty;
     lChild: TNexusScriptCompiledDefinition;
   begin
+    Result := True;
     for lProperty in ADefinition.Properties do
-      EvaluateProperty(ADefinition, lProperty);
+      if not EvaluateProperty(ADefinition, lProperty) then
+        Result := False;
     for lChild in ADefinition.Children do
-      BindDefinition(lChild);
+      if not BindDefinition(lChild) then
+        Result := False;
   end;
 
 var
@@ -1503,7 +1934,7 @@ begin
   begin
     if FCompiledDocument.FindDefinition(lImportedDefinition.Name) <> nil then
     begin
-      AddError('NXS3003', 'Duplicate module alias ' +
+      AddError('NXS3003', 'Duplicate imported root ' +
         lImportedDefinition.Name, lImportedDefinition.SourceRange);
       Continue;
     end;
@@ -1514,7 +1945,7 @@ begin
   end;
   for lSourceDefinition in FSourceDocument.Definitions do
     if FCompiledDocument.FindDefinition(lSourceDefinition.Name) <> nil then
-      AddError('NXS3004', 'Module alias collides with root definition ' +
+      AddError('NXS3004', 'Imported root collides with local root definition ' +
         lSourceDefinition.Name, lSourceDefinition.SourceRange)
     else
       FCompiledDocument.Definitions.Add(CopyDefinition(lSourceDefinition, nil));
@@ -1537,28 +1968,23 @@ begin
   FImportedDefinitions.Clear;
 end;
 
-procedure TNexusScriptCompiler.AddImportedDefinition(const AAliasName: string;
+procedure TNexusScriptCompiler.AddImportedDefinition(
   ADefinition: TNexusScriptCompiledDefinition);
 var
-  lAlias: TNexusScriptCompiledDefinition;
+  lImportedDefinition: TNexusScriptCompiledDefinition;
 begin
-  lAlias := CloneDefinitionAs(ADefinition, nil, AAliasName);
-  lAlias.ModuleAlias := True;
-  FImportedDefinitions.Add(lAlias);
+  lImportedDefinition := CloneDefinition(ADefinition, nil);
+  lImportedDefinition.ImportedRoot := True;
+  FImportedDefinitions.Add(lImportedDefinition);
 end;
 
-procedure TNexusScriptCompiler.AddImportedDocument(const AAliasName: string;
+procedure TNexusScriptCompiler.AddImportedDocument(
   ADocument: TNexusScriptCompiledDocument);
 var
-  lAlias: TNexusScriptCompiledDefinition;
   lDefinition: TNexusScriptCompiledDefinition;
 begin
-  lAlias := TNexusScriptCompiledDefinition.Create('module', AAliasName,
-    Default(TNexusScriptRange));
-  lAlias.ModuleAlias := True;
   for lDefinition in ADocument.Definitions do
-    lAlias.Children.Add(CloneDefinition(lDefinition, lAlias));
-  FImportedDefinitions.Add(lAlias);
+    AddImportedDefinition(lDefinition);
 end;
 
 function TNexusScriptCompiler.CompileText(const ASourceName,

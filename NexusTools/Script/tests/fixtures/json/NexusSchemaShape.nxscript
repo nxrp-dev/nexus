@@ -1,0 +1,13 @@
+Artifact NexusSchema {
+    Container MetaData {
+        Modules: [
+            Module Main {
+                Name: Example;
+                Tables: [
+                    Table Person { Name: PERSON; },
+                    Table Address { Name: ADDRESS; }
+                ];
+            }
+        ];
+    }
+}

@@ -1,0 +1,261 @@
+---------------------------------------------------------------------------------------------------------
+--[ Types ----------------------------------------------------------------------------------------------]--
+{{#Storm}}
+--[ {{#_nx}}{{Name}}{{/_nx}} ----------------------------------------------------------------------------------------------]--
+{{#StormTypes.Fields}}
+create domain {{#_nx}}{{Name}}{{/_nx}} as {{Type}};
+{{/StormTypes.Fields}}
+{{/Storm}}
+{{#inForce}}
+--[ {{#_nx}}{{Name}}{{/_nx}} ----------------------------------------------------------------------------------------------]--
+{{#CoreTypes.Fields}}
+create domain {{#_nx}}{{Name}}{{/_nx}} as {{Type}};
+{{/CoreTypes.Fields}}
+{{/inForce}}
+commit;
+
+{{#Storm}}
+--[ {{#_nx}}{{Name}}{{/_nx}} ----------------------------------------------------------------------------------------------]--
+{{#Tables}}
+{{#_nx}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+create table {{Name}}{{Firebird.MODULE_POSTFIX}} (
+  {{Name}}{{Firebird.MODULE_ID_POSTFIX}} {{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL{{#Fields}},
+  {{#_nx}}{{Name}}{{/_nx}} {{#Type._nx.IsReference}}{{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}{{/Type._nx.IsReference}}{{^Type._nx.IsReference}}{{Type}}{{/Type._nx.IsReference}}{{/Fields}}
+);
+commit;
+
+create generator {{Firebird.GENERATOR_PREFIX}}{{Name}}{{Firebird.MODULE_ID_POSTFIX}};
+commit;
+
+alter table {{Name}}{{Firebird.MODULE_POSTFIX}} add primary key ({{Name}}{{Firebird.MODULE_ID_POSTFIX}});
+commit;
+
+set term ^ ;
+create trigger BI_{{Name}}_GT for {{Name}}{{Firebird.MODULE_POSTFIX}}
+active before insert position 0 as
+begin
+  if (new.{{Name}}{{Firebird.MODULE_ID_POSTFIX}} is null) then
+    new.{{Name}}{{Firebird.MODULE_ID_POSTFIX}} = GEN_ID({{Firebird.GENERATOR_PREFIX}}{{Name}}{{Firebird.MODULE_ID_POSTFIX}}, 1);
+end^
+set term ; ^
+commit;
+
+{{#Attributes}}{{#IS_HISTORY}}
+create table {{Name}}_H{{Firebird.MODULE_POSTFIX}} (
+  {{Name}}_H{{Firebird.MODULE_ID_POSTFIX}} {{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL,
+  {{Name}}{{Firebird.MODULE_ID_POSTFIX}} {{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL{{#Fields}},
+  {{#_nx}}{{Name}}{{/_nx}} {{#Type._nx.IsReference}}{{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}{{/Type._nx.IsReference}}{{^Type._nx.IsReference}}{{Type}}{{/Type._nx.IsReference}}{{/Fields}}
+);
+commit;
+
+create generator {{Firebird.GENERATOR_PREFIX}}{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}};
+commit;
+
+alter table {{Name}}_H{{Firebird.MODULE_POSTFIX}} add primary key ({{Name}}_H{{Firebird.MODULE_ID_POSTFIX}});
+commit;
+
+set term ^ ;
+create trigger BI_{{Name}}_H_GT for {{Name}}_H{{Firebird.MODULE_POSTFIX}}
+active before insert position 0 as
+begin
+  if (new.{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}} is null) then
+    new.{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}} = GEN_ID({{Firebird.GENERATOR_PREFIX}}{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}}, 1);
+end^
+set term ; ^
+commit;
+
+set term ^ ;
+create trigger AI_{{Name}}_HT FOR {{Name}}{{Firebird.MODULE_POSTFIX}}
+active after insert or update position 0
+as
+begin
+  insert into {{Name}}_H{{Firebird.MODULE_POSTFIX}} (
+{{#Fields}}
+    {{#_nx}}{{Name}}{{/_nx}}{{^-last}},{{/-last}}
+{{/Fields}}
+  ) values (
+{{#Fields}}
+    New.{{#_nx}}{{Name}}{{/_nx}}{{^-last}},{{/-last}}
+{{/Fields}}
+  );
+end^
+set term ; ^
+commit;
+
+CREATE INDEX IDX_{{Name}}_H_{{Name}} ON {{Name}}_H{{Firebird.MODULE_POSTFIX}}({{Name}}{{Firebird.MODULE_ID_POSTFIX}});
+commit;
+{{/IS_HISTORY}}{{/Attributes}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/_nx}}
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/Storm}}
+{{#inForce}}
+--[ {{#_nx}}{{Name}}{{/_nx}} ----------------------------------------------------------------------------------------------]--
+{{#Tables}}
+{{#_nx}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+create table {{Name}}{{Firebird.MODULE_POSTFIX}} (
+  {{Name}}{{Firebird.MODULE_ID_POSTFIX}} {{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL{{#Fields}},
+  {{#_nx}}{{Name}}{{/_nx}} {{#Type._nx.IsReference}}{{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}{{/Type._nx.IsReference}}{{^Type._nx.IsReference}}{{Type}}{{/Type._nx.IsReference}}{{/Fields}}
+);
+commit;
+
+create generator {{Firebird.GENERATOR_PREFIX}}{{Name}}{{Firebird.MODULE_ID_POSTFIX}};
+commit;
+
+alter table {{Name}}{{Firebird.MODULE_POSTFIX}} add primary key ({{Name}}{{Firebird.MODULE_ID_POSTFIX}});
+commit;
+
+set term ^ ;
+create trigger BI_{{Name}}_GT for {{Name}}{{Firebird.MODULE_POSTFIX}}
+active before insert position 0 as
+begin
+  if (new.{{Name}}{{Firebird.MODULE_ID_POSTFIX}} is null) then
+    new.{{Name}}{{Firebird.MODULE_ID_POSTFIX}} = GEN_ID({{Firebird.GENERATOR_PREFIX}}{{Name}}{{Firebird.MODULE_ID_POSTFIX}}, 1);
+end^
+set term ; ^
+commit;
+
+{{#Attributes}}{{#IS_HISTORY}}
+create table {{Name}}_H{{Firebird.MODULE_POSTFIX}} (
+  {{Name}}_H{{Firebird.MODULE_ID_POSTFIX}} {{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL,
+  {{Name}}{{Firebird.MODULE_ID_POSTFIX}} {{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}} NOT NULL{{#Fields}},
+  {{#_nx}}{{Name}}{{/_nx}} {{#Type._nx.IsReference}}{{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}{{/Type._nx.IsReference}}{{^Type._nx.IsReference}}{{Type}}{{/Type._nx.IsReference}}{{/Fields}}
+);
+commit;
+
+create generator {{Firebird.GENERATOR_PREFIX}}{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}};
+commit;
+
+alter table {{Name}}_H{{Firebird.MODULE_POSTFIX}} add primary key ({{Name}}_H{{Firebird.MODULE_ID_POSTFIX}});
+commit;
+
+set term ^ ;
+create trigger BI_{{Name}}_H_GT for {{Name}}_H{{Firebird.MODULE_POSTFIX}}
+active before insert position 0 as
+begin
+  if (new.{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}} is null) then
+    new.{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}} = GEN_ID({{Firebird.GENERATOR_PREFIX}}{{Name}}_H{{Firebird.MODULE_ID_POSTFIX}}, 1);
+end^
+set term ; ^
+commit;
+
+set term ^ ;
+create trigger AI_{{Name}}_HT FOR {{Name}}{{Firebird.MODULE_POSTFIX}}
+active after insert or update position 0
+as
+begin
+  insert into {{Name}}_H{{Firebird.MODULE_POSTFIX}} (
+{{#Fields}}
+    {{#_nx}}{{Name}}{{/_nx}}{{^-last}},{{/-last}}
+{{/Fields}}
+  ) values (
+{{#Fields}}
+    New.{{#_nx}}{{Name}}{{/_nx}}{{^-last}},{{/-last}}
+{{/Fields}}
+  );
+end^
+set term ; ^
+commit;
+
+CREATE INDEX IDX_{{Name}}_H_{{Name}} ON {{Name}}_H{{Firebird.MODULE_POSTFIX}}({{Name}}{{Firebird.MODULE_ID_POSTFIX}});
+commit;
+{{/IS_HISTORY}}{{/Attributes}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/_nx}}
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/inForce}}
+
+{{#Storm}}
+--[ {{#_nx}}{{Name}}{{/_nx}}  --------------------------------------------------------------------------------------]--
+{{#Tables}}
+{{#_nx}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+{{#Fields}}{{#Type._nx.IsReference}}
+alter table {{Name}}{{Firebird.MODULE_POSTFIX}} add constraint FK_{{Name}}_{{#_nx}}{{Name}}{{/_nx}} foreign key ({{#_nx}}{{Name}}{{/_nx}}) references {{Type._nx.Reference.Name}}{{Firebird.MODULE_POSTFIX}} ({{Type._nx.Reference.Name}}{{Firebird.MODULE_ID_POSTFIX}});
+{{/Type._nx.IsReference}}{{/Fields}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/_nx}}
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/Storm}}
+{{#inForce}}
+--[ {{#_nx}}{{Name}}{{/_nx}}  --------------------------------------------------------------------------------------]--
+{{#Tables}}
+{{#_nx}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+{{#Fields}}{{#Type._nx.IsReference}}
+alter table {{Name}}{{Firebird.MODULE_POSTFIX}} add constraint FK_{{Name}}_{{#_nx}}{{Name}}{{/_nx}} foreign key ({{#_nx}}{{Name}}{{/_nx}}) references {{Type._nx.Reference.Name}}{{Firebird.MODULE_POSTFIX}} ({{Type._nx.Reference.Name}}{{Firebird.MODULE_ID_POSTFIX}});
+{{/Type._nx.IsReference}}{{/Fields}}
+------------------------------------------------------------------------------------------------------------------------------
+{{/_nx}}
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/inForce}}
+commit;
+
+{{#Storm}}
+--[ {{#_nx}}{{Name}}{{/_nx}} ----------------------------------------------------------------------------------------------]--
+{{#Tables}}
+{{#_nx}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+INSERT INTO REPORT_TABLE_TBL(TABLE_NAME, ALIAS)
+  VALUES('{{Name}}{{Firebird.MODULE_POSTFIX}}', '{{Name}}');
+
+{{#Fields}}
+INSERT INTO REPORT_FIELD_TBL
+       (REPORT_TABLE_ID, TABLE_NAME, FIELD_NAME, DATA_TYPE, SELECTABLE, SEARCHABLE, SORTABLE, AUTOSEARCH, MANDATORY, FIELD_ALIAS)
+VALUES((SELECT REPORT_TABLE_ID FROM REPORT_TABLE_TBL WHERE TABLE_NAME = '{{Name}}{{Firebird.MODULE_POSTFIX}}'), '{{Name}}{{Firebird.MODULE_POSTFIX}}', '{{#_nx}}{{Name}}{{/_nx}}', '{{#Type._nx.IsReference}}{{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}{{/Type._nx.IsReference}}{{^Type._nx.IsReference}}{{Type}}{{/Type._nx.IsReference}}', 'T', 'T', 'T', 'F', 'F', 'F');
+
+commit;
+--
+--
+{{/Fields}}
+
+{{#Fields}}{{#Type._nx.IsReference}}
+INSERT INTO REPORT_JOIN_TBL
+       (TABLE_MASTER, TABLE_DETAIL, JOIN_TYPE, FIELD_MASTER, FIELD_DETAIL, OPERATORS)
+VALUES('{{Name}}{{Firebird.MODULE_POSTFIX}}', '{{Type._nx.Reference.Name}}{{Firebird.MODULE_POSTFIX}}', 'INNER', '{{#_nx}}{{Name}}{{/_nx}}', '{{Type._nx.Reference.Name}}{{Firebird.MODULE_ID_POSTFIX}}', '=');
+
+commit;
+--
+--
+{{/Type._nx.IsReference}}{{/Fields}}
+{{/_nx}}
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/Storm}}
+{{#inForce}}
+--[ {{#_nx}}{{Name}}{{/_nx}} ----------------------------------------------------------------------------------------------]--
+{{#Tables}}
+{{#_nx}}
+-- {{Name}} -------------------------------------------------------------------------------------------------------------
+INSERT INTO REPORT_TABLE_TBL(TABLE_NAME, ALIAS)
+  VALUES('{{Name}}{{Firebird.MODULE_POSTFIX}}', '{{Name}}');
+
+{{#Fields}}
+INSERT INTO REPORT_FIELD_TBL
+       (REPORT_TABLE_ID, TABLE_NAME, FIELD_NAME, DATA_TYPE, SELECTABLE, SEARCHABLE, SORTABLE, AUTOSEARCH, MANDATORY, FIELD_ALIAS)
+VALUES((SELECT REPORT_TABLE_ID FROM REPORT_TABLE_TBL WHERE TABLE_NAME = '{{Name}}{{Firebird.MODULE_POSTFIX}}'), '{{Name}}{{Firebird.MODULE_POSTFIX}}', '{{#_nx}}{{Name}}{{/_nx}}', '{{#Type._nx.IsReference}}{{Firebird.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}{{/Type._nx.IsReference}}{{^Type._nx.IsReference}}{{Type}}{{/Type._nx.IsReference}}', 'T', 'T', 'T', 'F', 'F', 'F');
+
+commit;
+--
+--
+{{/Fields}}
+
+{{#Fields}}{{#Type._nx.IsReference}}
+INSERT INTO REPORT_JOIN_TBL
+       (TABLE_MASTER, TABLE_DETAIL, JOIN_TYPE, FIELD_MASTER, FIELD_DETAIL, OPERATORS)
+VALUES('{{Name}}{{Firebird.MODULE_POSTFIX}}', '{{Type._nx.Reference.Name}}{{Firebird.MODULE_POSTFIX}}', 'INNER', '{{#_nx}}{{Name}}{{/_nx}}', '{{Type._nx.Reference.Name}}{{Firebird.MODULE_ID_POSTFIX}}', '=');
+
+commit;
+--
+--
+{{/Type._nx.IsReference}}{{/Fields}}
+{{/_nx}}
+{{/Tables}}
+--[----------------------------------------------------------------------------------------------------------------------------]--
+{{/inForce}}
