@@ -8,6 +8,10 @@
 - Related discussion: bracket syntax was selected over repeated `#Tag` and
   `tags(...)`; tags classify the declaration on which they appear and do not
   participate in composition.
+- Human-owner clarification: tags follow NexusScript's existing identifier
+  rule. An ordinary contiguous word is accepted directly; text requiring
+  whitespace or language punctuation is quoted and decoded through the
+  existing escape rules. No separate tag-only identifier grammar is added.
 - Current implementation and tests under `NexusTools/Script`.
 - Existing constraints:
   - keep the compiler and compiled model domain-neutral;
@@ -46,10 +50,13 @@ meaning to individual tag names.
   `NexusTools/Script/src/obNexusScriptCompiler.pas` already has distinct
   `nstLeftBracket` and `nstRightBracket` tokens. No tokenizer token kind is
   required for the selected syntax.
-- The tokenizer uses a broad `nstWord` bucket rather than a strict identifier
-  token. Characters such as `=` remain inside one word token. Merely requiring
-  `nstWord` would therefore accept `Environment=Production`, contrary to the
-  requested valueless-identifier contract.
+- NexusScript intentionally treats a contiguous non-whitespace lexical word
+  as an identifier-like value and uses `nstQuoted` when whitespace or language
+  punctuation must be preserved. Tags must reuse those existing word and
+  quoted-text forms rather than introduce a narrower tag-only character rule.
+- Characters that remain part of an ordinary word retain no special tag
+  meaning. For example, `Environment=Production` is one opaque, valueless tag;
+  it is not parsed as a key/value pair.
 - `ParseDefinition` currently parses `Kind`, `Name`, an optional parenthesized
   composition-selector list, and then requires `{`. The tag clause belongs
   between the optional composition list and that brace.
@@ -118,9 +125,9 @@ contributor definition's tags to its receiver. JSON must expose the resulting
 metadata without changing the domain object or the output of existing untagged
 documents.
 
-The tokenizer also does not currently define a strict identifier language.
-The tag grammar therefore needs an explicit spelling rule rather than relying
-on `nstWord` to enforce the request's rejection of key/value and quoted forms.
+Tag spelling does not require a new lexical category. The parser must accept
+the existing word and quoted-text token forms, retain their decoded text, and
+assign no additional meaning to punctuation that remains inside a word.
 
 ## Target Contract
 
@@ -131,7 +138,8 @@ The definition header becomes:
 ```text
 Definition := Kind Name [CompositionClause] [TagClause] Body
 CompositionClause := '(' Path { ',' Path } ')'
-TagClause := '[' TagIdentifier { ',' TagIdentifier } ']'
+TagClause := '[' Tag { ',' Tag } ']'
+Tag := Word | QuotedText
 Body := '{' { Member } '}'
 ```
 
@@ -142,12 +150,11 @@ The tag clause:
 
 - is optional;
 - must contain at least one tag;
-- contains only unquoted tag identifiers separated by commas;
+- contains existing NexusScript word or quoted-text forms separated by commas;
 - does not allow a trailing comma;
-- does not allow assignments, values, modifiers, nested arrays, or quoted
-  strings;
-- initially rejects dotted names unless the final identifier decision can
-  admit the spelling without assigning namespace or path semantics.
+- does not interpret assignments, values, modifiers, or nested arrays;
+- treats quoted punctuation, including a dot, as literal tag text and assigns
+  no namespace or path semantics to it.
 
 The same grammar applies to root, nested, and inline definitions.
 
@@ -159,18 +166,14 @@ The same grammar applies to root, nested, and inline definitions.
 - Tags have set semantics; declaration order has no meaning to consumers.
 - Source order is retained in the source model, compiled model, and JSON to
   produce deterministic output without normalization or sorting.
-- NexusScript preserves spelling exactly and performs no casing conversion.
-
-The recommended initial spelling rule is a deliberately narrow bare identifier:
-
-```text
-[A-Za-z_][A-Za-z0-9_]*
-```
-
-It covers every requested example, rejects `Environment=Production`, quoted
-labels, whitespace, and dotted names, and avoids accidentally treating the
-tokenizer's permissive word bucket as an identifier contract. This exact
-character rule requires human-owner confirmation before implementation.
+- NexusScript preserves ordinary word spelling exactly and performs no casing
+  conversion.
+- Quoted tags use the existing tokenizer's decoded text, including its current
+  escape behavior, as their stored identity.
+- A quoted and unquoted spelling that decode to the same text are duplicates;
+  `[Production, "Production"]` is invalid.
+- Suggestive punctuation has no tag-level semantics. For example,
+  `[Environment=Production]` declares one tag with that exact text.
 
 ### Source-model ownership
 
@@ -262,16 +265,16 @@ the existing identity members:
 Add deterministic parser/compiler diagnostics for:
 
 - an empty tag clause;
-- an invalid tag spelling or disallowed quoted/dotted/value form;
 - a case-sensitive duplicate tag on the same definition;
+- a token that is neither an existing word nor quoted-text form;
 - malformed separators or a missing closing bracket, using existing parser
   recovery conventions where appropriate.
 
 Reserve unused definition-diagnostic codes in the `NXS30xx` family for the
-tag-specific empty, invalid, and duplicate cases. Tests will lock down the
-chosen codes and source ranges. Existing `NXS2001` expected-token handling can
-remain responsible for purely structural delimiter errors when it produces a
-single clear diagnostic.
+tag-specific empty and duplicate cases if dedicated codes are needed. Tests
+will lock down the chosen codes and source ranges. Existing `NXS2001`
+expected-token handling can remain responsible for invalid token forms and
+structural delimiter errors when it produces a single clear diagnostic.
 
 ### Validator behavior
 
@@ -290,7 +293,7 @@ mutually-exclusive tags is added.
   - construction and destruction.
 - `NexusTools/Script/src/obNexusScriptCompiler.pas`
   - definition-header tag parsing and diagnostics;
-  - tag identifier validation;
+  - reuse of existing word/quoted-text and escape behavior;
   - inline-definition recognition;
   - source-to-compiled copying;
   - tag preservation in every definition clone/projection path;
@@ -301,16 +304,15 @@ mutually-exclusive tags is added.
   - focused parser, model, compilation, composition, clone/projection, JSON,
     validator, and regression tests.
 - `NexusTools/Script/README.md`
-  - definition-header grammar, local-only semantics, identifier and case
-    rules, and `_nx.Tags` JSON representation.
+  - definition-header grammar, local-only semantics, existing word/quoted-text
+    spelling rules, case rules, and `_nx.Tags` JSON representation.
 - Fresh validated source archive after an approved implementation pass, as
   required by the architecture protocol.
 
 ## Out Of Scope
 
 - General-purpose annotations or attributes.
-- Key/value tags or arbitrary metadata values.
-- Quoted tag labels.
+- Key/value interpretation or arbitrary metadata values.
 - Tag expressions, queries, negation, removal, or modifiers.
 - Tag inheritance, composition union, or precedence.
 - Namespaced/dotted-tag semantics.
@@ -331,18 +333,23 @@ mutually-exclusive tags is added.
 
 ### Stage 1: Lock down grammar and failure behavior
 
-1. Confirm the initial tag identifier character rule with the human owner.
-2. Add focused failing compiler tests for:
+1. Add focused failing compiler tests for:
    - one tag and multiple tags;
    - exact spelling and declaration-order retention in the source model;
+   - quoted tags containing whitespace and language punctuation;
+   - existing escape decoding in quoted tags;
    - tags after a composition clause;
    - tagged root, nested, and inline definitions;
    - `Production` and `PRODUCTION` as distinct tags;
+   - duplicate detection between quoted and unquoted forms that decode to the
+     same text;
+   - `Environment=Production` retained as one opaque tag with no key/value
+     interpretation;
    - exact duplicate rejection;
    - empty-list rejection;
-   - quoted, assignment-like, dotted, malformed-comma, trailing-comma, and
-     missing-bracket rejection.
-3. Assign stable diagnostics and verify the reported source ranges point to
+   - nested-array, malformed-comma, trailing-comma, and missing-bracket
+     rejection.
+2. Assign stable diagnostics and verify the reported source ranges point to
    the tag or clause that caused the error.
 
 ### Stage 2: Add source syntax and source-model ownership
@@ -351,8 +358,9 @@ mutually-exclusive tags is added.
    `TNexusScriptSourceDefinition`.
 2. Parse the optional tag clause in `ParseDefinition` after composition and
    before the body.
-3. Validate tag spellings without changing the global meaning of `nstWord` or
-   the behavior of ordinary identifiers and values.
+3. Accept `nstWord` and `nstQuoted` through their existing tokenizer behavior;
+   store the token text without a tag-specific character validator or a new
+   escaping implementation.
 4. Replace the fixed inline-definition lookahead with recognition that accepts
    `{`, `(`, or `[` after `Kind Name`, while allowing `ParseDefinition` to
    validate the complete header.
@@ -417,7 +425,6 @@ definition form is missed.
 
 Main Codex remains responsible for:
 
-- confirming the unresolved identifier rule with the human owner;
 - giving the worker the approved plan and current worktree constraints;
 - reviewing every edit and checking ownership and local-only semantics;
 - making any required integration correction;
@@ -446,9 +453,12 @@ report success.
 - A root definition retains one and multiple source and compiled tags.
 - Source and compiled lists preserve exact spelling and declaration order.
 - `Production` and `PRODUCTION` remain two entries.
+- Quoted whitespace and punctuation survive existing escape decoding and
+  compilation unchanged.
+- `Environment=Production` remains one opaque, valueless tag.
+- Quoted and unquoted forms that decode to the same text are duplicates.
 - An exact duplicate fails with the selected deterministic diagnostic.
-- Empty, quoted, assignment-like, dotted, malformed, and unterminated clauses
-  fail as specified.
+- Empty, nested-array, malformed, and unterminated clauses fail as specified.
 - Tags work after composition and on nested and inline definitions.
 - A receiver never acquires its contributor definition's tags.
 - A structurally composed child retains the tags declared on that child.
@@ -488,22 +498,13 @@ generic JSON reaches the CLI through the existing emitter.
 
 ## Risks And Questions
 
-### Required human decision: tag identifier spelling
+### Existing lexical behavior
 
-The request defines tags as symbolic identifiers but the current tokenizer's
-`nstWord` is intentionally broader than a conventional identifier and includes
-`=` and other punctuation. The implementation must not silently equate
-`nstWord` with the tag contract.
-
-Recommended initial rule:
-
-```text
-[A-Za-z_][A-Za-z0-9_]*
-```
-
-This is sufficient for all stated uses and cleanly leaves dotted names for a
-future design. The human owner must confirm this rule or provide the intended
-alternative before implementation.
+Tags deliberately reuse `nstWord` and `nstQuoted`. A word such as
+`Environment=Production` is therefore one opaque tag, while punctuation that
+the tokenizer already separates must be quoted when it is intended as literal
+text. The implementation must not reinterpret either form as key/value,
+namespace, path, expression, or modifier syntax.
 
 ### Inline-definition recognition
 
@@ -537,7 +538,5 @@ artifact exactly, not merely assert that it remains valid JSON.
 
 This plan creates no implementation authorization. No source, test, fixture,
 or documentation implementation changes; builds; test runs; sub-agent work;
-launches; or archive creation begin until the human owner:
-
-1. confirms the initial tag identifier spelling rule; and
-2. explicitly authorizes implementation of this work plan.
+launches; or archive creation begin until the human owner explicitly
+authorizes implementation of this work plan.
