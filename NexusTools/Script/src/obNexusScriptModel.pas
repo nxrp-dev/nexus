@@ -82,6 +82,7 @@ type
     FProperties: TNexusScriptSourcePropertyList;
     FChildren: TNexusScriptSourceDefinitionList;
     FCompositionSelectors: TStringList;
+    FTags: TStringList;
     FParent: TNexusScriptSourceDefinition;
     FSourceRange: TNexusScriptRange;
   public
@@ -95,6 +96,7 @@ type
     property Properties: TNexusScriptSourcePropertyList read FProperties;
     property Children: TNexusScriptSourceDefinitionList read FChildren;
     property CompositionSelectors: TStringList read FCompositionSelectors;
+    property Tags: TStringList read FTags;
     property Parent: TNexusScriptSourceDefinition read FParent write FParent;
     property SourceRange: TNexusScriptRange read FSourceRange;
   end;
@@ -271,6 +273,7 @@ type
     FName: string;
     FProperties: TNexusScriptCompiledPropertyList;
     FChildren: TNexusScriptCompiledDefinitionList;
+    FTags: TStringList;
     FParent: TNexusScriptCompiledDefinition;
     FSourceRange: TNexusScriptRange;
     FComposing: Boolean;
@@ -286,6 +289,7 @@ type
     property Name: string read FName;
     property Properties: TNexusScriptCompiledPropertyList read FProperties;
     property Children: TNexusScriptCompiledDefinitionList read FChildren;
+    property Tags: TStringList read FTags;
     property Parent: TNexusScriptCompiledDefinition read FParent write FParent;
     property SourceRange: TNexusScriptRange read FSourceRange;
     property Composing: Boolean read FComposing write FComposing;
@@ -379,10 +383,13 @@ begin
   FProperties := TNexusScriptSourcePropertyList.Create(True);
   FChildren := TNexusScriptSourceDefinitionList.Create(True);
   FCompositionSelectors := TStringList.Create;
+  FTags := TStringList.Create;
+  FTags.CaseSensitive := True;
 end;
 
 destructor TNexusScriptSourceDefinition.Destroy;
 begin
+  FTags.Free;
   FCompositionSelectors.Free;
   FChildren.Free;
   FProperties.Free;
@@ -552,10 +559,13 @@ begin
   FSourceRange := ASourceRange;
   FProperties := TNexusScriptCompiledPropertyList.Create(True);
   FChildren := TNexusScriptCompiledDefinitionList.Create(True);
+  FTags := TStringList.Create;
+  FTags.CaseSensitive := True;
 end;
 
 destructor TNexusScriptCompiledDefinition.Destroy;
 begin
+  FTags.Free;
   FChildren.Free;
   FProperties.Free;
   inherited Destroy;

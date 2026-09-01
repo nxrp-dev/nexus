@@ -126,7 +126,9 @@ function TNexusScriptJSONEmitter.DefinitionJSON(
 var
   lMetaData: TJSONObject;
   lReference: TJSONObject;
+  lTags: TJSONArray;
   lIsReference: Boolean;
+  lTag: string;
   lProperty: TNexusScriptCompiledProperty;
   lChild: TNexusScriptCompiledDefinition;
 begin
@@ -153,6 +155,13 @@ begin
       lReference.Add('Kind', ADefinition.Kind);
       lReference.Add('Name', AReferenceValue.OriginalDefinitionName);
       lMetaData.Add('Reference', lReference);
+    end;
+    if ADefinition.Tags.Count > 0 then
+    begin
+      lTags := TJSONArray.Create;
+      for lTag in ADefinition.Tags do
+        lTags.Add(lTag);
+      lMetaData.Add('Tags', lTags);
     end;
     Result.Add('_nx', lMetaData);
     for lProperty in ADefinition.Properties do

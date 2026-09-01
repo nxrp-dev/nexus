@@ -53,6 +53,126 @@ begin
   end;
 end;
 
+procedure TestDefinitionTags(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lImportCompiler: TNexusScriptCompiler;
+  lFailureCompiler: TNexusScriptCompiler;
+  lValidatorCompiler: TNexusScriptCompiler;
+  lValidator: TNexusScriptValidator;
+  lSourceRoot: TNexusScriptSourceDefinition;
+  lRoot: TNexusScriptCompiledDefinition;
+  lRelease: TNexusScriptCompiledDefinition;
+  lImportedRoot: TNexusScriptCompiledDefinition;
+  lInline: TNexusScriptCompiledDefinition;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lImportCompiler := TNexusScriptCompiler.Create;
+  lFailureCompiler := TNexusScriptCompiler.Create;
+  lValidatorCompiler := TNexusScriptCompiler.Create;
+  lValidator := TNexusScriptValidator.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('tags.nxscript',
+      'Thing Root [Production, PRODUCTION, "Cross Reference", ' +
+      '"Line^nBreak", "Build.Production", Environment=Production] { ' +
+      'Tags: domain; ' +
+      'Thing Base [Windows] { Thing MailSettings [Shared] {} } ' +
+      'Thing Release (Base) [Production] {} ' +
+      'Thing Nested [NestedTag] {} Alias: @Nested; ' +
+      'Items: [Node Inline [InlineTag] { Value: yes; }]; }'),
+      'Tagged definitions should compile.');
+    lSourceRoot := lCompiler.SourceDocument.FindDefinition('Root');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    AContext.AssertEquals(6, lSourceRoot.Tags.Count,
+      'Source tags should retain their count.');
+    AContext.AssertEquals('Production', lSourceRoot.Tags[0],
+      'Source tags should retain declaration order and spelling.');
+    AContext.AssertEquals('PRODUCTION', lSourceRoot.Tags[1],
+      'Tag identity should be case-sensitive.');
+    AContext.AssertEquals('Cross Reference', lSourceRoot.Tags[2],
+      'Quoted tag whitespace should be decoded and retained.');
+    AContext.AssertEquals('Line' + #10 + 'Break', lSourceRoot.Tags[3],
+      'Quoted tags should use existing escape decoding.');
+    AContext.AssertEquals('Build.Production', lSourceRoot.Tags[4],
+      'Quoted language punctuation should remain literal tag text.');
+    AContext.AssertEquals('Environment=Production', lSourceRoot.Tags[5],
+      'Punctuation within a word should have no tag semantics.');
+    AContext.AssertTrue(lRoot.Tags <> lSourceRoot.Tags,
+      'Source and compiled definitions should own distinct tag lists.');
+    AContext.AssertEquals(lSourceRoot.Tags.Text, lRoot.Tags.Text,
+      'Compilation should preserve local tags exactly.');
+    AContext.AssertEquals('domain',
+      lRoot.FindProperty('Tags').Value.EffectiveText,
+      'A domain Tags property should remain independent from metadata.');
+
+    lRelease := lRoot.FindChild('Release');
+    AContext.AssertEquals(1, lRelease.Tags.Count,
+      'Composition should retain only receiver tags.');
+    AContext.AssertEquals('Production', lRelease.Tags[0],
+      'Composition should not copy contributor tags.');
+    AContext.AssertEquals('Shared',
+      lRelease.FindChild('MailSettings').Tags[0],
+      'A composed child clone should retain its own local tags.');
+    AContext.AssertEquals('NestedTag', lRoot.FindProperty('Alias').Value.
+      StructuralDefinition.Tags[0],
+      'Structural references should preserve represented-definition tags.');
+    lInline := lRoot.FindProperty('Items').Value.Items[0].StructuralDefinition;
+    AContext.AssertEquals('InlineTag', lInline.Tags[0],
+      'Tagged inline definitions should be recognized and preserved.');
+
+    lImportCompiler.AddImportedDocument(lCompiler.CompiledDocument);
+    AContext.AssertTrue(lImportCompiler.CompileText('import-consumer.nxscript',
+      'Thing Consumer {}'), 'Tagged imported definitions should compile.');
+    lImportedRoot := lImportCompiler.CompiledDocument.FindDefinition('Root');
+    AContext.AssertEquals(lRoot.Tags.Text, lImportedRoot.Tags.Text,
+      'Imported-definition clones should preserve tags.');
+    AContext.AssertTrue(lImportedRoot.Tags <> lRoot.Tags,
+      'Imported definitions should own independent tag lists.');
+
+    AContext.AssertTrue(lValidatorCompiler.CompileText('tag-language.nxscript',
+      'Language Test { Definitions: [Definition Thing { Root: True; ' +
+      'UnknownProperties: Allow; }]; }'),
+      'Tag-neutral validator language should compile.');
+    AContext.AssertTrue(lValidator.Validate(lCompiler.CompiledDocument,
+      lValidatorCompiler.CompiledDocument),
+      'Tags should add no validator policy semantics.');
+
+    AContext.AssertTrue(not lFailureCompiler.CompileText('empty-tags.nxscript',
+      'Thing Root [] {}'), 'An empty tag clause should fail.');
+    AContext.AssertEquals('NXS3005', lFailureCompiler.Diagnostics[0].Code,
+      'Empty tag clauses should use a stable diagnostic.');
+    AContext.AssertEquals(13, lFailureCompiler.Diagnostics[0].SourceRange.
+      StartPosition.Column,
+      'The empty-clause diagnostic should point at the closing bracket.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('duplicate-tag.nxscript',
+      'Thing Root [Production, "Production"] {}'),
+      'Quoted and unquoted duplicate tags should fail.');
+    AContext.AssertEquals('NXS3006', lFailureCompiler.Diagnostics[0].Code,
+      'Duplicate tags should use a stable diagnostic.');
+    AContext.AssertEquals(25, lFailureCompiler.Diagnostics[0].SourceRange.
+      StartPosition.Column,
+      'The duplicate diagnostic should point at the repeated tag.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('nested-tags.nxscript',
+      'Thing Root [Production, [Nested]] {}'),
+      'Nested tag arrays should fail.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('missing-comma.nxscript',
+      'Thing Root [Production Win64] {}'),
+      'Missing tag separators should fail.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('trailing-comma.nxscript',
+      'Thing Root [Production,] {}'),
+      'Trailing tag commas should fail.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('missing-bracket.nxscript',
+      'Thing Root [Production {}'),
+      'An unterminated tag clause should fail.');
+  finally
+    lValidator.Free;
+    lValidatorCompiler.Free;
+    lFailureCompiler.Free;
+    lImportCompiler.Free;
+    lCompiler.Free;
+  end;
+end;
+
 function FixturePath(const ARelativePath: string): string;
 begin
   Result := ExpandFileName('..\..\..\NexusTools\Script\parity\fixtures\' +
@@ -1394,6 +1514,72 @@ begin
   end;
 end;
 
+procedure TestDefinitionTagJSON(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lCatalog: TJSONObject;
+  lMetaData: TJSONObject;
+  lTags: TJSONArray;
+  lInline: TJSONObject;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  lData := nil;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('tag-json.nxscript',
+      'Thing Catalog [Production, "Cross Reference"] { Tags: domain; ' +
+      'Thing Nested [NestedTag] {} Thing Empty {} ' +
+      'Items: [Node Inline [InlineTag] {}]; Alias: @Nested; }'),
+      'Tagged JSON source should compile.');
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lData := GetJSON(lEmitter.JSON);
+    lCatalog := RequireJSONObject(RequireJSONMember(
+      RequireJSONObject(lData, 'Artifact root'), 'Catalog'), 'Catalog');
+    lMetaData := RequireJSONObject(RequireJSONMember(lCatalog, '_nx'),
+      'Catalog metadata');
+    lTags := RequireJSONArray(RequireJSONMember(lMetaData, 'Tags'),
+      'Catalog tags');
+    AContext.AssertEquals(2, lTags.Count,
+      'Tagged metadata should emit every tag.');
+    AContext.AssertEquals('Production', lTags.Items[0].AsString,
+      'JSON tags should retain declaration order.');
+    AContext.AssertEquals('Cross Reference', lTags.Items[1].AsString,
+      'JSON tags should retain decoded text.');
+    AContext.AssertEquals('domain', RequireJSONMember(lCatalog,
+      'Tags').AsString,
+      'A domain Tags property should coexist with _nx.Tags.');
+    lMetaData := RequireJSONObject(RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lCatalog, 'Nested'), 'Nested'),
+      '_nx'), 'Nested metadata');
+    AContext.AssertEquals('NestedTag', RequireJSONArray(
+      RequireJSONMember(lMetaData, 'Tags'), 'Nested tags').Items[0].AsString,
+      'Nested definitions should emit tags.');
+    lInline := RequireJSONObject(RequireJSONArray(RequireJSONMember(lCatalog,
+      'Items'), 'Items').Items[0], 'Inline definition');
+    AContext.AssertEquals('InlineTag', RequireJSONArray(RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lInline, '_nx'), 'Inline metadata'),
+      'Tags'), 'Inline tags').Items[0].AsString,
+      'Inline definitions should emit tags.');
+    lMetaData := RequireJSONObject(RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lCatalog, 'Alias'), 'Alias'),
+      '_nx'), 'Alias metadata');
+    AContext.AssertEquals('NestedTag', RequireJSONArray(
+      RequireJSONMember(lMetaData, 'Tags'), 'Alias tags').Items[0].AsString,
+      'Structural reference projections should emit target tags.');
+    lMetaData := RequireJSONObject(RequireJSONMember(
+      RequireJSONObject(RequireJSONMember(lCatalog, 'Empty'), 'Empty'),
+      '_nx'), 'Empty metadata');
+    AContext.AssertTrue(lMetaData.Find('Tags') = nil,
+      'Untagged definitions should omit _nx.Tags.');
+  finally
+    lData.Free;
+    lEmitter.Free;
+    lCompiler.Free;
+  end;
+end;
+
 procedure TestExternalDataDeclarations(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
@@ -2549,6 +2735,7 @@ var
 begin
   lSuite := ARegistry.AddSuite('NexusScript.Compiler');
   lSuite.AddTest('StructureAndValues', @TestStructureAndValues);
+  lSuite.AddTest('DefinitionTags', @TestDefinitionTags);
   lSuite.AddTest('Composition', @TestComposition);
   lSuite.AddTest('StructuralReferences', @TestStructuralReferences);
   lSuite.AddTest('ArrayEntries', @TestArrayEntries);
@@ -2577,6 +2764,7 @@ begin
   lSuite.AddTest('InvalidLanguageDefinition', @TestInvalidLanguageDefinition);
   lSuite.AddTest('LanguageFiniteValues', @TestLanguageFiniteValues);
   lSuite.AddTest('JSONEmitter', @TestJSONEmitter);
+  lSuite.AddTest('DefinitionTagJSON', @TestDefinitionTagJSON);
   lSuite.AddTest('ExternalDataDeclarations', @TestExternalDataDeclarations);
   lSuite.AddTest('ExternalDataCompilation', @TestExternalDataCompilation);
   lSuite.AddTest('CommandLineParsing', @TestCommandLineParsing);

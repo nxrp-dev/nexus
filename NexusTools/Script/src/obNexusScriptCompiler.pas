@@ -307,11 +307,25 @@ var
   lEntryName: string;
 
   function StartsInlineDefinition: Boolean;
+  var
+    lTokenIndex: Integer;
   begin
     Result := (Current.Kind = nstWord) and
       (FIndex + 2 < FTokens.Count) and
       (FTokens[FIndex + 1].Kind = nstWord) and
       (FTokens[FIndex + 2].Kind in [nstLeftBrace, nstLeftParenthesis]);
+    if Result or (Current.Kind <> nstWord) or
+      (FIndex + 3 >= FTokens.Count) or
+      (FTokens[FIndex + 1].Kind <> nstWord) or
+      (FTokens[FIndex + 2].Kind <> nstLeftBracket) then
+      Exit;
+    lTokenIndex := FIndex + 3;
+    while (lTokenIndex < FTokens.Count) and
+      (FTokens[lTokenIndex].Kind <> nstRightBracket) do
+      Inc(lTokenIndex);
+    Result := (lTokenIndex + 1 < FTokens.Count) and
+      (FTokens[lTokenIndex].Kind = nstRightBracket) and
+      (FTokens[lTokenIndex + 1].Kind = nstLeftBrace);
   end;
 
   function ParsePart: TNexusScriptSourceValue;
@@ -395,6 +409,7 @@ function TNexusScriptParser.ParseDefinition(
 var
   lKindToken: TNexusScriptToken;
   lNameToken: TNexusScriptToken;
+  lTagToken: TNexusScriptToken;
   lMemberToken: TNexusScriptToken;
   lValue: TNexusScriptSourceValue;
   lChild: TNexusScriptSourceDefinition;
@@ -414,6 +429,54 @@ begin
       begin
         Require(nstRightParenthesis, ')');
         Break;
+      end;
+    end;
+  end;
+  if Match(nstLeftBracket) then
+  begin
+    if Match(nstRightBracket) then
+      FCompiler.AddError('NXS3005', 'Definition tag clause cannot be empty',
+        FTokens[FIndex - 1].SourceRange)
+    else
+    begin
+      while Current.Kind <> nstEndOfFile do
+      begin
+        lTagToken := Current;
+        if not (lTagToken.Kind in [nstWord, nstQuoted]) then
+        begin
+          FCompiler.AddError('NXS2001', 'Expected definition tag',
+            lTagToken.SourceRange);
+          while not (Current.Kind in [nstRightBracket, nstLeftBrace,
+            nstEndOfFile]) do
+            Inc(FIndex);
+          Match(nstRightBracket);
+          Break;
+        end;
+        Inc(FIndex);
+        if Result.Tags.IndexOf(lTagToken.Text) >= 0 then
+          FCompiler.AddError('NXS3006', 'Duplicate definition tag ' +
+            lTagToken.Text, lTagToken.SourceRange)
+        else
+          Result.Tags.Add(lTagToken.Text);
+        if Match(nstRightBracket) then
+          Break;
+        if not Match(nstComma) then
+        begin
+          FCompiler.AddError('NXS2001', 'Expected comma or ]',
+            Current.SourceRange);
+          while not (Current.Kind in [nstRightBracket, nstLeftBrace,
+            nstEndOfFile]) do
+            Inc(FIndex);
+          Match(nstRightBracket);
+          Break;
+        end;
+        if Current.Kind = nstRightBracket then
+        begin
+          FCompiler.AddError('NXS2001', 'Expected definition tag',
+            Current.SourceRange);
+          Inc(FIndex);
+          Break;
+        end;
       end;
     end;
   end;
@@ -719,6 +782,7 @@ begin
   Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, ASource.Name,
     ASource.SourceRange);
   Result.Parent := AParent;
+  Result.Tags.AddStrings(ASource.Tags);
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CopyValue(lProperty.Value), lProperty.SourceRange));
@@ -807,6 +871,7 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
+  Result.Tags.AddStrings(ASource.Tags);
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValue(lProperty.Value), lProperty.SourceRange));
@@ -824,6 +889,7 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
+  Result.Tags.AddStrings(ASource.Tags);
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValueForRebinding(lProperty.Value), lProperty.SourceRange));
@@ -842,6 +908,7 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
+  Result.Tags.AddStrings(ASource.Tags);
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValue(lProperty.Value), lProperty.SourceRange));
@@ -922,6 +989,7 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
+  Result.Tags.AddStrings(ASource.Tags);
   for lProperty in ASource.Properties do
   begin
     if lProperty.Resolving then

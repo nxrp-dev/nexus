@@ -126,6 +126,33 @@ Diagnostics are written to stderr so redirected stdout contains only the
 artifact. Filename components such as `.Schema` are decorative and have no
 execution meaning.
 
+## Definition tags
+
+A definition header may include a nonempty tag clause after its name and
+optional composition clause:
+
+```nexusscript
+Build Release (CommonBuild) [Production, Win64, "Cross Reference"] {
+}
+```
+
+Tags are valueless, case-sensitive classification identifiers. They use the
+same spelling rules as other NexusScript words: contiguous text that does not
+contain language punctuation may be written directly, while text requiring
+whitespace or punctuation is quoted and uses the ordinary string escapes.
+For example, `Environment=Production` is one opaque tag; it does not declare a
+key/value pair. Duplicate decoded spellings on one definition are rejected.
+
+Tags classify only the definition that declares them. Composition does not
+copy or merge contributor tags. A child definition copied by composition keeps
+its own tags because the copy still represents that child declaration.
+Structural references and imported or projected copies likewise retain the
+tags of the definition they represent.
+
+Tagged definitions expose their retained tags in source order as `_nx.Tags`.
+Untagged definitions omit that member. A domain property named `Tags` remains
+an ordinary, separate property.
+
 ## JSON model
 
 The JSON root is an object. Each compiled root definition is a member keyed by
