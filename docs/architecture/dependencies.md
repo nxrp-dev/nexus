@@ -23,6 +23,8 @@ The preferred direction is from tools toward shared foundations, not from shared
 
 `NexusLib/lsp` uses `lib/synapse` for its shared TCP/IP transport. Both language-server executables select shared stdio or TCP/IP transports and inject their own application model into the shared host.
 
+`NexusLib/net/src/xmpp` uses bundled Synapse for TCP, DNS SRV, and the OpenSSL 3 TLS wrapper. The XMPP-specific Unicode adapter dynamically loads the operating-system ICU C API for NFC, Unicode properties, case mapping, bidi data, and UTS #46 IDNA; checked-in IANA Unicode 6.3 PRECIS ranges provide the protocol-specific derived-property classification. OpenSSL 3 supplies SHA-256, HMAC, PBKDF2, secure random bytes, TLS, and certificate verification. Neither ICU nor OpenSSL is vendored by NexusXMPP.
+
 `NexusTools/Test` uses Free Pascal runtime support, `DynLibs` for loading test modules from a host, and `NexusLib` for JSON-RPC command processing. The sample Linux/macOS-ish build script compiles the sample test module and host with `NexusTools/Test/src` and `../../NexusLib/core/src`.
 
 `NexusTestUI` uses `NexusLib/ui` plus SDL-related unit paths from the common tree. It is a client UI for test exploration, not the core NexusTest contract.
