@@ -6,7 +6,8 @@ unit obNXXMPPStreamManagement;
 interface
 
 uses
-  Classes, SysUtils, obNXXMPPError, tpNXXMPPTypes;
+  Classes, SysUtils, obNXXMPPError, obNXXMPPStanza, tpNXXMPPTypes,
+  utNXXMPPXML;
 
 type
   TNXXMPPStreamManagement = class
@@ -26,9 +27,12 @@ type
     procedure Enable(const AResumeID: UTF8String);
     procedure IncomingHandled;
     procedure OutgoingSent(const AXML: UTF8String; AReplayable: Boolean);
+    function ProcessResumeResponse(AStanza: TNXXMPPStanza): Boolean;
     function ReplayCount: Integer;
     function ReplayXML(AIndex: Integer): UTF8String;
     function RequestAcknowledgementXML: UTF8String;
+    function ResumeRequestXML: UTF8String;
+    procedure ResumeRejected;
     procedure Reset;
     property Enabled: Boolean read FEnabled;
     property HandledIncoming: Cardinal read FHandledIncoming;
@@ -118,6 +122,41 @@ end;
 function TNXXMPPStreamManagement.RequestAcknowledgementXML: UTF8String;
 begin
   Result := '<r xmlns=''urn:xmpp:sm:3''/>';
+end;
+
+function TNXXMPPStreamManagement.ResumeRequestXML: UTF8String;
+begin
+  if not FEnabled or (FResumeID = '') then
+    raise ENXXMPPError.Create(xesProtocol, 'stream-not-resumable',
+      'The prior stream has no resumable session identifier.');
+  Result := '<resume xmlns=''urn:xmpp:sm:3'' h=''' +
+    UTF8String(UIntToStr(FHandledIncoming)) + ''' previd=''' +
+    NXXMPPEscapeAttribute(FResumeID) + '''/>';
+end;
+
+procedure TNXXMPPStreamManagement.ResumeRejected;
+begin
+  Reset;
+end;
+
+function TNXXMPPStreamManagement.ProcessResumeResponse(
+  AStanza: TNXXMPPStanza): Boolean;
+var
+  lHandled: QWord;
+begin
+  Result := Assigned(AStanza) and
+    (AStanza.NamespaceURI = 'urn:xmpp:sm:3') and
+    (AStanza.LocalName = 'resumed');
+  if not Result then
+  begin
+    ResumeRejected;
+    Exit;
+  end;
+  if not TryStrToQWord(string(AStanza.Attribute('h')), lHandled) or
+    (lHandled > High(Cardinal)) then
+    raise ENXXMPPError.Create(xesProtocol, 'invalid-sm-acknowledgement',
+      'The resumed stream acknowledgement counter is invalid.');
+  Acknowledge(Cardinal(lHandled));
 end;
 
 function TNXXMPPStreamManagement.ReplayCount: Integer;

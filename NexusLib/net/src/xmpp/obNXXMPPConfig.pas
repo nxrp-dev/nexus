@@ -23,6 +23,8 @@ type
     FJID: UTF8String;
     FPassword: UTF8String;
     FPendingIQCapacity: Integer;
+    FReconnectAttempts: Integer;
+    FReconnectDelayMS: Cardinal;
     FResource: UTF8String;
   public
     constructor Create;
@@ -42,6 +44,10 @@ type
     property Password: UTF8String read FPassword write FPassword;
     property PendingIQCapacity: Integer read FPendingIQCapacity
       write FPendingIQCapacity;
+    property ReconnectAttempts: Integer read FReconnectAttempts
+      write FReconnectAttempts;
+    property ReconnectDelayMS: Cardinal read FReconnectDelayMS
+      write FReconnectDelayMS;
     property Resource: UTF8String read FResource write FResource;
   end;
 
@@ -54,6 +60,8 @@ begin
   FEventCapacity := cNXXMPPDefaultEventCapacity;
   FPendingIQCapacity := cNXXMPPDefaultPendingIQCapacity;
   FConnectionTimeoutMS := cNXXMPPDefaultTimeoutMS;
+  FReconnectAttempts := 3;
+  FReconnectDelayMS := 1000;
 end;
 
 function TNXXMPPClientConfig.Clone: TNXXMPPClientConfig;
@@ -70,6 +78,8 @@ begin
   Result.FJID := FJID;
   Result.FPassword := FPassword;
   Result.FPendingIQCapacity := FPendingIQCapacity;
+  Result.FReconnectAttempts := FReconnectAttempts;
+  Result.FReconnectDelayMS := FReconnectDelayMS;
   Result.FResource := FResource;
 end;
 
@@ -91,7 +101,8 @@ begin
     raise ENXXMPPError.Create(xesConfiguration, 'incomplete-endpoint',
       'An endpoint override requires both host and port.');
   if (FCommandCapacity < 1) or (FEventCapacity < 1) or
-    (FPendingIQCapacity < 1) or (FConnectionTimeoutMS < 1) then
+    (FPendingIQCapacity < 1) or (FConnectionTimeoutMS < 1) or
+    (FReconnectAttempts < 0) then
     raise ENXXMPPError.Create(xesConfiguration, 'invalid-client-limit',
       'XMPP capacities and timeouts must be positive.');
 end;

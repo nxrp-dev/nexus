@@ -6,10 +6,23 @@ unit obNXXMPPRequestManager;
 interface
 
 uses
-  Classes, SysUtils, Contnrs, obNXXMPPError, obNXXMPPStanza,
+  Classes, SysUtils, Contnrs, SyncObjs, obNXXMPPError, obNXXMPPStanza,
   tpNXXMPPTypes;
 
 type
+  TNXXMPPIQCapacity = class
+  private
+    FCapacity: Integer;
+    FCriticalSection: TCriticalSection;
+    FReserved: Integer;
+  public
+    constructor Create(ACapacity: Integer);
+    destructor Destroy; override;
+    procedure Release;
+    function TryReserve: Boolean;
+    function Reserved: Integer;
+  end;
+
   TNXXMPPIQCompletionHandler = procedure(AStanza: TNXXMPPStanza;
     const AError: UTF8String) of object;
 
@@ -32,8 +45,10 @@ type
     FCapacity: Integer;
     FNextID: QWord;
     FPending: TObjectList;
+    FReservation: TNXXMPPIQCapacity;
   public
-    constructor Create(ACapacity: Integer = cNXXMPPDefaultPendingIQCapacity);
+    constructor Create(ACapacity: Integer = cNXXMPPDefaultPendingIQCapacity;
+      AReservation: TNXXMPPIQCapacity = nil);
     destructor Destroy; override;
     function BeginRequest(const AExpectedFrom: UTF8String; ATimeoutMS: Cardinal;
       AHandler: TNXXMPPIQCompletionHandler): UTF8String;
@@ -45,6 +60,55 @@ type
   end;
 
 implementation
+
+constructor TNXXMPPIQCapacity.Create(ACapacity: Integer);
+begin
+  inherited Create;
+  if ACapacity < 1 then
+    raise ENXXMPPError.Create(xesConfiguration, 'invalid-iq-capacity',
+      'The pending IQ capacity must be positive.');
+  FCapacity := ACapacity;
+  FCriticalSection := TCriticalSection.Create;
+end;
+
+destructor TNXXMPPIQCapacity.Destroy;
+begin
+  FCriticalSection.Free;
+  inherited Destroy;
+end;
+
+function TNXXMPPIQCapacity.TryReserve: Boolean;
+begin
+  FCriticalSection.Acquire;
+  try
+    Result := FReserved < FCapacity;
+    if Result then
+      Inc(FReserved);
+  finally
+    FCriticalSection.Release;
+  end;
+end;
+
+procedure TNXXMPPIQCapacity.Release;
+begin
+  FCriticalSection.Acquire;
+  try
+    if FReserved > 0 then
+      Dec(FReserved);
+  finally
+    FCriticalSection.Release;
+  end;
+end;
+
+function TNXXMPPIQCapacity.Reserved: Integer;
+begin
+  FCriticalSection.Acquire;
+  try
+    Result := FReserved;
+  finally
+    FCriticalSection.Release;
+  end;
+end;
 
 type
   TNXXMPPPendingIQ = class
@@ -77,13 +141,15 @@ begin
     FHandler(FStanza, FError);
 end;
 
-constructor TNXXMPPRequestManager.Create(ACapacity: Integer);
+constructor TNXXMPPRequestManager.Create(ACapacity: Integer;
+  AReservation: TNXXMPPIQCapacity);
 begin
   inherited Create;
   if ACapacity < 1 then
     raise ENXXMPPError.Create(xesConfiguration, 'invalid-iq-capacity',
       'The pending IQ capacity must be positive.');
   FCapacity := ACapacity;
+  FReservation := AReservation;
   FPending := TObjectList.Create(True);
 end;
 
@@ -130,6 +196,8 @@ begin
       (lPending.ExpectedFrom <> AStanza.FromJID) then
       Exit;
     FPending.Extract(lPending);
+    if Assigned(FReservation) then
+      FReservation.Release;
     Result := TNXXMPPIQCompletionEvent.Create(lPending.Handler, AStanza, '');
     lPending.Free;
     Exit;
@@ -151,6 +219,8 @@ begin
     if ANow >= lPending.Deadline then
     begin
       FPending.Extract(lPending);
+      if Assigned(FReservation) then
+        FReservation.Release;
       AEvents.Add(TNXXMPPIQCompletionEvent.Create(lPending.Handler, nil,
         'IQ request timed out.'));
       lPending.Free;
@@ -167,6 +237,8 @@ begin
   while FPending.Count > 0 do
   begin
     lPending := TNXXMPPPendingIQ(FPending.Extract(FPending[0]));
+    if Assigned(FReservation) then
+      FReservation.Release;
     if Assigned(AEvents) then
       AEvents.Add(TNXXMPPIQCompletionEvent.Create(lPending.Handler, nil,
         AReason));

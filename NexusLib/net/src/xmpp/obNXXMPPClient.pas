@@ -10,6 +10,7 @@ uses
   obNXXMPPCommand, obNXXMPPConfig, obNXXMPPConnection,
   obNXXMPPDispatcher, obNXXMPPError, obNXXMPPEvents, obNXXMPPModule,
   obNXXMPPQueue, obNXXMPPRequestManager, obNXXMPPStanza,
+  obNXXMPPRoster,
   tpNXXMPPTypes, utNXXMPPXML;
 
 type
@@ -27,6 +28,7 @@ type
     FConnection: TNXXMPPConnection;
     FDispatcher: TNXXMPPDispatcher;
     FEvents: TNXXMPPObjectQueue;
+    FIQCapacity: TNXXMPPIQCapacity;
     FModules: TObjectList;
     FModulesFrozen: Boolean;
     FOnError: TNXXMPPErrorEvent;
@@ -45,6 +47,8 @@ type
       APayload: UTF8String; AHandler: TNXXMPPIQCompletionHandler;
       ATimeoutMS: Cardinal = cNXXMPPDefaultTimeoutMS): Boolean;
     function SendMessage(const AToJID, ABody: UTF8String): Boolean;
+    function RequestRoster(ARoster: TNXXMPPRosterModule;
+      ATimeoutMS: Cardinal = cNXXMPPDefaultTimeoutMS): Boolean;
     function SendPresence(const AType: UTF8String = ''): Boolean;
     function SendRaw(const AXML: UTF8String): Boolean;
     function State: TNXXMPPConnectionState;
@@ -68,6 +72,7 @@ destructor TNXXMPPClient.Destroy;
 begin
   Disconnect;
   FEvents.Free;
+  FIQCapacity.Free;
   FCommands.Free;
   FDispatcher.Free;
   FModules.Free;
@@ -97,14 +102,16 @@ begin
   FreeAndNil(FEvents);
   FreeAndNil(FCommands);
   FreeAndNil(FDispatcher);
+  FreeAndNil(FIQCapacity);
   FEvents := TNXXMPPObjectQueue.Create(FConfig.EventCapacity);
   FCommands := TNXXMPPObjectQueue.Create(FConfig.CommandCapacity);
   FDispatcher := TNXXMPPDispatcher.Create;
+  FIQCapacity := TNXXMPPIQCapacity.Create(FConfig.PendingIQCapacity);
   for lIndex := 0 to FModules.Count - 1 do
     TNXXMPPModule(FModules[lIndex]).RegisterHandlers(FDispatcher);
   FModulesFrozen := True;
   FConnection := TNXXMPPConnection.Create(FConfig.Clone, FCommands,
-    FEvents, FDispatcher);
+    FEvents, FDispatcher, FIQCapacity);
   for lIndex := 0 to FModules.Count - 1 do
     TNXXMPPModule(FModules[lIndex]).Sender := @FConnection.SendModuleXML;
   FConnection.Start;
@@ -151,6 +158,15 @@ begin
     '</body></message>');
 end;
 
+function TNXXMPPClient.RequestRoster(ARoster: TNXXMPPRosterModule;
+  ATimeoutMS: Cardinal): Boolean;
+begin
+  if not Assigned(ARoster) or (FModules.IndexOf(ARoster) < 0) then
+    Exit(False);
+  Result := SendIQ(xitGet, '', '', TNXXMPPRosterModule.RequestPayload,
+    @ARoster.CompleteRequest, ATimeoutMS);
+end;
+
 function TNXXMPPClient.SendPresence(const AType: UTF8String): Boolean;
 begin
   if AType = '' then
@@ -166,13 +182,18 @@ function TNXXMPPClient.SendIQ(AType: TNXXMPPIQType; const AToJID,
 begin
   if not (AType in [xitGet, xitSet]) or (APayload = '') then
     Exit(False);
+  if not Assigned(FIQCapacity) or not FIQCapacity.TryReserve then
+    Exit(False);
   Result := EnqueueCommand(TNXXMPPCommand.CreateIQ(AType, AToJID,
     AExpectedFrom, APayload, ATimeoutMS, AHandler));
+  if not Result then
+    FIQCapacity.Release;
 end;
 
 function TNXXMPPClient.PumpEvents(AMaxCount: Integer): Integer;
 var
   lEvent: TNXXMPPEvent;
+  lIndex: Integer;
 begin
   Result := 0;
   if (AMaxCount < 1) or not Assigned(FEvents) then
@@ -191,8 +212,12 @@ begin
               FOnState(Self, lEvent.State);
           end;
         xekStanza:
-          if Assigned(FOnStanza) then
-            FOnStanza(Self, lEvent.Stanza);
+          begin
+            for lIndex := 0 to FModules.Count - 1 do
+              TNXXMPPModule(FModules[lIndex]).PumpStanza(lEvent.Stanza);
+            if Assigned(FOnStanza) then
+              FOnStanza(Self, lEvent.Stanza);
+          end;
         xekError:
           if Assigned(FOnError) then
             FOnError(Self, lEvent.ErrorStage, lEvent.Condition,

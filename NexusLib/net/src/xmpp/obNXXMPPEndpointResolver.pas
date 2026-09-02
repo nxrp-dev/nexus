@@ -15,6 +15,8 @@ type
       ASecurity: TNXXMPPTransportSecurity;
       out AServiceUnavailable: Boolean): TNXXMPPEndpointArray;
   public
+    class function OrderEndpoints(const ACandidates: TNXXMPPEndpointArray;
+      ASeed: Cardinal): TNXXMPPEndpointArray; static;
     class function OrderSRVRecords(ARecords: TStrings;
       ASecurity: TNXXMPPTransportSecurity;
       ASeed: Cardinal): TNXXMPPEndpointArray; static;
@@ -81,6 +83,22 @@ class function TNXXMPPEndpointResolver.OrderSRVRecords(ARecords: TStrings;
   ASeed: Cardinal): TNXXMPPEndpointArray;
 var
   lCandidates: TNXXMPPEndpointArray;
+  lIndex: Integer;
+begin
+  Result := nil;
+  if not Assigned(ARecords) then
+    Exit;
+  SetLength(lCandidates, ARecords.Count);
+  for lIndex := 0 to ARecords.Count - 1 do
+    lCandidates[lIndex] := ParseRecord(ARecords[lIndex], ASecurity);
+  Result := OrderEndpoints(lCandidates, ASeed);
+end;
+
+class function TNXXMPPEndpointResolver.OrderEndpoints(
+  const ACandidates: TNXXMPPEndpointArray;
+  ASeed: Cardinal): TNXXMPPEndpointArray;
+var
+  lCandidates: TNXXMPPEndpointArray;
   lChosen: Integer;
   lCount: Integer;
   lIndex: Integer;
@@ -91,16 +109,13 @@ var
   lTotalWeight: Cardinal;
 begin
   Result := nil;
-  if not Assigned(ARecords) then
-    Exit;
-  SetLength(lCandidates, ARecords.Count);
-  SetLength(lRemaining, ARecords.Count);
-  for lIndex := 0 to ARecords.Count - 1 do
+  lCandidates := Copy(ACandidates);
+  SetLength(lRemaining, Length(lCandidates));
+  for lIndex := 0 to High(lCandidates) do
   begin
-    lCandidates[lIndex] := ParseRecord(ARecords[lIndex], ASecurity);
     lRemaining[lIndex] := True;
   end;
-  SetLength(Result, ARecords.Count);
+  SetLength(Result, Length(lCandidates));
   lCount := 0;
   while lCount < Length(lCandidates) do
   begin
@@ -194,6 +209,7 @@ var
   lDirectUnavailable: Boolean;
   lStartTLS: TNXXMPPEndpointArray;
   lStartTLSUnavailable: Boolean;
+  lCombined: TNXXMPPEndpointArray;
 begin
   Result := nil;
   if ADomain = '' then
@@ -205,7 +221,7 @@ begin
     lStartTLSUnavailable);
   if (Length(lDirect) = 0) and (Length(lStartTLS) = 0) then
   begin
-    if lDirectUnavailable or lStartTLSUnavailable then
+    if lStartTLSUnavailable then
       Exit;
     SetLength(Result, 1);
     Result[0].Host := string(ADomain);
@@ -213,11 +229,12 @@ begin
     Result[0].Security := xtsStartTLS;
     Exit;
   end;
-  SetLength(Result, Length(lDirect) + Length(lStartTLS));
+  SetLength(lCombined, Length(lDirect) + Length(lStartTLS));
   for lIndex := 0 to High(lDirect) do
-    Result[lIndex] := lDirect[lIndex];
+    lCombined[lIndex] := lDirect[lIndex];
   for lIndex := 0 to High(lStartTLS) do
-    Result[Length(lDirect) + lIndex] := lStartTLS[lIndex];
+    lCombined[Length(lDirect) + lIndex] := lStartTLS[lIndex];
+  Result := OrderEndpoints(lCombined, Cardinal(GetTickCount64));
 end;
 
 end.

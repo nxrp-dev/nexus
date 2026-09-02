@@ -4,7 +4,7 @@ program NexusNetXMPPTests;
 {$codepage utf8}
 
 uses
-  Classes, SysUtils, Contnrs,
+  Classes, SysUtils, Contnrs, blcksock, ssl_openssl3, synsock,
   tpNXXMPPTypes,
   obNXXMPPICU,
   obNXXMPPError,
@@ -40,13 +40,181 @@ type
 
   TModuleRecorder = class
   public
+    ChangedCount: Integer;
+    LastJID: UTF8String;
+    LastSubscription: UTF8String;
     XML: UTF8String;
+    procedure Changed(ASender: TObject;
+      const AJID, ASubscription: UTF8String);
     procedure Send(const AXML: UTF8String);
   end;
+
+  TClientRecorder = class
+  public
+    CallbackThreadID: TThreadID;
+    ErrorCount: Integer;
+    StateCount: Integer;
+    procedure Error(ASender: TObject; AStage: TNXXMPPErrorStage;
+      const ACondition, AMessage: UTF8String);
+    procedure State(ASender: TObject; AState: TNXXMPPConnectionState);
+  end;
+
+  TTLSLoopbackServer = class(TThread)
+  private
+    FCertificateFile: string;
+    FListener: TTCPBlockSocket;
+    FPort: Word;
+    FPrivateKeyFile: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const ACertificateFile, APrivateKeyFile: string);
+    destructor Destroy; override;
+    property Port: Word read FPort;
+  end;
+
+  TBlockingLoopbackServer = class(TThread)
+  private
+    FListener: TTCPBlockSocket;
+    FPort: Word;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property Port: Word read FPort;
+  end;
+
+  TTransportReader = class(TThread)
+  private
+    FTransport: TNXXMPPTransport;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(ATransport: TNXXMPPTransport);
+  end;
+
+constructor TBlockingLoopbackServer.Create;
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FListener := TTCPBlockSocket.Create;
+  FListener.Bind('127.0.0.1', '0');
+  FListener.Listen;
+  if FListener.LastError <> 0 then
+    raise Exception.Create('Could not create the blocking loopback server.');
+  FPort := FListener.GetLocalSinPort;
+end;
+
+destructor TBlockingLoopbackServer.Destroy;
+begin
+  FListener.CloseSocket;
+  if not Finished then
+    WaitFor;
+  FListener.Free;
+  inherited Destroy;
+end;
+
+procedure TBlockingLoopbackServer.Execute;
+var
+  lClient: TTCPBlockSocket;
+begin
+  lClient := TTCPBlockSocket.Create;
+  try
+    lClient.Socket := FListener.Accept;
+    if lClient.Socket <> INVALID_SOCKET then
+      lClient.RecvBufferStr(1, 5000);
+  finally
+    lClient.Free;
+  end;
+end;
+
+constructor TTransportReader.Create(ATransport: TNXXMPPTransport);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FTransport := ATransport;
+end;
+
+procedure TTransportReader.Execute;
+begin
+  try
+    FTransport.Receive(10000);
+  except
+    on ENXXMPPError do ;
+  end;
+end;
+
+constructor TTLSLoopbackServer.Create(const ACertificateFile,
+  APrivateKeyFile: string);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FCertificateFile := ACertificateFile;
+  FPrivateKeyFile := APrivateKeyFile;
+  FListener := TTCPBlockSocket.Create;
+  FListener.Bind('127.0.0.1', '0');
+  if FListener.LastError <> 0 then
+    raise Exception.Create('Could not bind the TLS loopback listener.');
+  FListener.Listen;
+  if FListener.LastError <> 0 then
+    raise Exception.Create('Could not listen on the TLS loopback socket.');
+  FPort := FListener.GetLocalSinPort;
+end;
+
+destructor TTLSLoopbackServer.Destroy;
+begin
+  FListener.CloseSocket;
+  if not Finished then
+    WaitFor;
+  FListener.Free;
+  inherited Destroy;
+end;
+
+procedure TTLSLoopbackServer.Execute;
+var
+  lClient: TTCPBlockSocket;
+begin
+  lClient := TTCPBlockSocket.Create;
+  try
+    lClient.Socket := FListener.Accept;
+    if lClient.Socket = INVALID_SOCKET then
+      Exit;
+    lClient.ConnectionTimeout := 2000;
+    lClient.SSL.CertificateFile := FCertificateFile;
+    lClient.SSL.PrivateKeyFile := FPrivateKeyFile;
+    lClient.SSL.SSLType := LT_TLSv1_2;
+    lClient.SSLAcceptConnection;
+  finally
+    lClient.Free;
+  end;
+end;
+
+procedure TClientRecorder.Error(ASender: TObject; AStage: TNXXMPPErrorStage;
+  const ACondition, AMessage: UTF8String);
+begin
+  CallbackThreadID := GetCurrentThreadID;
+  Inc(ErrorCount);
+end;
+
+procedure TClientRecorder.State(ASender: TObject;
+  AState: TNXXMPPConnectionState);
+begin
+  CallbackThreadID := GetCurrentThreadID;
+  Inc(StateCount);
+end;
 
 procedure TModuleRecorder.Send(const AXML: UTF8String);
 begin
   XML := AXML;
+end;
+
+procedure TModuleRecorder.Changed(ASender: TObject;
+  const AJID, ASubscription: UTF8String);
+begin
+  Inc(ChangedCount);
+  LastJID := AJID;
+  LastSubscription := ASubscription;
 end;
 
 procedure TDispatchRecorder.Complete(AStanza: TNXXMPPStanza;
@@ -213,6 +381,7 @@ end;
 
 procedure TestDispatcherAndRequests;
 var
+  lCapacity: TNXXMPPIQCapacity;
   lCompletion: TNXXMPPIQCompletionEvent;
   lDispatcher: TNXXMPPDispatcher;
   lEvents: TObjectList;
@@ -225,7 +394,16 @@ begin
   lDispatcher := TNXXMPPDispatcher.Create;
   lManager := TNXXMPPRequestManager.Create(2);
   lEvents := TObjectList.Create(True);
+  lCapacity := TNXXMPPIQCapacity.Create(1);
   try
+    AssertTrue(lCapacity.TryReserve,
+      'The public IQ capacity should reserve available capacity.');
+    AssertTrue(not lCapacity.TryReserve,
+      'The public IQ capacity should reject synchronous overflow.');
+    lCapacity.Release;
+    AssertTrue(lCapacity.TryReserve,
+      'Released IQ capacity should become synchronously available.');
+    lCapacity.Release;
     lDispatcher.RegisterIQResponder(xitGet, 'urn:test', 'query',
       @lRecorder.Handle);
     try
@@ -272,6 +450,7 @@ begin
     AssertTrue(lRecorder.LastError <> '',
       'A timeout completion should carry an error.');
   finally
+    lCapacity.Free;
     lEvents.Free;
     lManager.Free;
     lDispatcher.Free;
@@ -281,6 +460,7 @@ end;
 
 procedure TestEndpointOrderingAndCrypto;
 var
+  lCombined: TNXXMPPEndpointArray;
   lEndpoints: TNXXMPPEndpointArray;
   lRecords: TStringList;
 begin
@@ -299,12 +479,123 @@ begin
   finally
     lRecords.Free;
   end;
+  SetLength(lCombined, 2);
+  lCombined[0].Host := 'direct.example';
+  lCombined[0].Priority := 20;
+  lCombined[0].Weight := 1;
+  lCombined[0].Security := xtsDirectTLS;
+  lCombined[1].Host := 'starttls.example';
+  lCombined[1].Priority := 10;
+  lCombined[1].Weight := 1;
+  lCombined[1].Security := xtsStartTLS;
+  lCombined := TNXXMPPEndpointResolver.OrderEndpoints(lCombined, 1);
+  AssertTrue((lCombined[0].Host = 'starttls.example') and
+    (lCombined[0].Security = xtsStartTLS),
+    'Direct TLS and STARTTLS endpoints should share one priority order.');
   TNXXMPPOpenSSL.RequireAvailable;
   AssertEquals('ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
     HexValue(TNXXMPPOpenSSL.SHA256('abc')),
     'OpenSSL should provide SHA-256.');
   AssertTrue(Length(TNXXMPPOpenSSL.RandomBytes(32)) = 32,
     'OpenSSL should provide secure random bytes.');
+end;
+
+procedure TestTLSVerification;
+var
+  lCAFile: string;
+  lFixturePath: string;
+  lServer: TTLSLoopbackServer;
+  lTransport: TNXXMPPTransport;
+begin
+  lFixturePath := IncludeTrailingPathDelimiter(GetCurrentDir) +
+    'NexusLib\net\tests\fixtures\xmpp\';
+  lCAFile := lFixturePath + 'ca.crt';
+  AssertTrue(FileExists(lCAFile) and
+    FileExists(lFixturePath + 'server.crt') and
+    FileExists(lFixturePath + 'server.key'),
+    'The synthetic TLS fixtures should be available.');
+
+  lServer := TTLSLoopbackServer.Create(lFixturePath + 'server.crt',
+    lFixturePath + 'server.key');
+  lTransport := TNXXMPPTransport.Create;
+  try
+    lServer.Start;
+    lTransport.Connect('127.0.0.1', lServer.Port, 2000);
+    lTransport.Secure('localhost', lCAFile);
+    AssertTrue(lTransport.Socket.SSL.SSLEnabled,
+      'A trusted loopback certificate with the right identity should pass.');
+  finally
+    lTransport.Free;
+    lServer.Free;
+  end;
+
+  lServer := TTLSLoopbackServer.Create(lFixturePath + 'server.crt',
+    lFixturePath + 'server.key');
+  lTransport := TNXXMPPTransport.Create;
+  try
+    lServer.Start;
+    lTransport.Connect('127.0.0.1', lServer.Port, 2000);
+    try
+      lTransport.Secure('wrong.example', lCAFile);
+      raise Exception.Create('A wrong TLS service identity should fail.');
+    except
+      on E: ENXXMPPError do
+        AssertTrue(E.Condition = 'tls-failed',
+          'A wrong TLS identity should fail in the TLS owner.');
+    end;
+  finally
+    lTransport.Free;
+    lServer.Free;
+  end;
+
+  lServer := TTLSLoopbackServer.Create(lFixturePath + 'server.crt',
+    lFixturePath + 'server.key');
+  lTransport := TNXXMPPTransport.Create;
+  try
+    lServer.Start;
+    lTransport.Connect('127.0.0.1', lServer.Port, 2000);
+    try
+      lTransport.Secure('localhost', lFixturePath + 'untrusted-ca.crt');
+      raise Exception.Create('An untrusted TLS issuer should fail.');
+    except
+      on E: ENXXMPPError do
+        AssertTrue(E.Condition = 'tls-failed',
+          'An untrusted TLS issuer should fail in the TLS owner.');
+    end;
+  finally
+    lTransport.Free;
+    lServer.Free;
+  end;
+end;
+
+procedure TestBlockedReadInterruption;
+var
+  lElapsed: QWord;
+  lReader: TTransportReader;
+  lServer: TBlockingLoopbackServer;
+  lStarted: QWord;
+  lTransport: TNXXMPPTransport;
+begin
+  lServer := TBlockingLoopbackServer.Create;
+  lTransport := TNXXMPPTransport.Create;
+  lReader := nil;
+  try
+    lServer.Start;
+    lTransport.Connect('127.0.0.1', lServer.Port, 2000);
+    lReader := TTransportReader.Create(lTransport);
+    lReader.Start;
+    Sleep(100);
+    lStarted := GetTickCount64;
+    lTransport.Interrupt;
+    lReader.WaitFor;
+    lElapsed := GetTickCount64 - lStarted;
+    AssertTrue(lElapsed < 2000,
+      'The independent shutdown path should wake a blocked socket read.');
+  finally
+    lReader.Free;
+    lTransport.Free;
+    lServer.Free;
+  end;
 end;
 
 procedure TestSCRAMSHA256;
@@ -325,6 +616,39 @@ begin
       'SCRAM should reproduce the RFC 7677 client proof.');
     lSCRAM.VerifyServerFinal(
       'v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=');
+    lSCRAM.Start('user', 'clientnonce');
+    try
+      lSCRAM.Continue('r=wrongnonce,s=QSXCR+Q6sek8bf92,i=4096',
+        'pencil');
+      raise Exception.Create('A mismatched SCRAM nonce should fail.');
+    except
+      on E: ENXXMPPError do
+        AssertTrue(E.Condition = 'invalid-scram-nonce',
+          'A mismatched SCRAM nonce should have an exact condition.');
+    end;
+    lSCRAM.Start('user', 'clientnonce');
+    try
+      lSCRAM.Continue(
+        'r=clientnonceserver,s=QSXCR+Q6sek8bf92,i=1', 'pencil');
+      raise Exception.Create('A weak SCRAM iteration count should fail.');
+    except
+      on E: ENXXMPPError do
+        AssertTrue(E.Condition = 'scram-iteration-policy',
+          'Weak SCRAM iteration counts should be rejected by policy.');
+    end;
+    lSCRAM.Start('user', 'rOprNGfwEbeRWgbNEkqO');
+    lSCRAM.Continue(
+      'r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,' +
+      's=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096', 'pencil');
+    try
+      lSCRAM.VerifyServerFinal('v=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
+        'AAAAAAAAAAA=');
+      raise Exception.Create('A mismatched SCRAM signature should fail.');
+    except
+      on E: ENXXMPPError do
+        AssertTrue(E.Condition = 'scram-signature-mismatch',
+          'A mismatched SCRAM signature should be rejected.');
+    end;
   finally
     lSCRAM.Free;
   end;
@@ -374,6 +698,7 @@ end;
 
 procedure TestStreamManagement;
 var
+  lResponse: TNXXMPPStanza;
   lSM: TNXXMPPStreamManagement;
 begin
   lSM := TNXXMPPStreamManagement.Create(2);
@@ -385,12 +710,35 @@ begin
     lSM.OutgoingSent('<presence/>', True);
     AssertTrue(lSM.ReplayCount = 2,
       'Replayable unacknowledged stanzas should be retained.');
-    lSM.Acknowledge(2);
+    lResponse := TNXXMPPStanza.Create(
+      '<resumed xmlns=''urn:xmpp:sm:3'' h=''2'' previd=''resume-token''/>',
+      '');
+    try
+      AssertTrue(lSM.ProcessResumeResponse(lResponse),
+        'An accepted resumption response should continue the managed stream.');
+    finally
+      lResponse.Free;
+    end;
     AssertTrue(lSM.ReplayCount = 1,
       'An acknowledgement should release the acknowledged prefix.');
+    AssertEquals('<presence/>', lSM.ReplayXML(0),
+      'Only the eligible unacknowledged suffix should be replayed.');
     AssertEquals('<a xmlns=''urn:xmpp:sm:3'' h=''1''/>',
       lSM.AcknowledgementXML,
       'The acknowledgement should report handled inbound stanzas.');
+    AssertTrue(Pos('previd=''resume-token''',
+      string(lSM.ResumeRequestXML)) > 0,
+      'A resumable stream should build a resume request with its token.');
+    lResponse := TNXXMPPStanza.Create(
+      '<failed xmlns=''urn:xmpp:sm:3''/>', '');
+    try
+      AssertTrue(not lSM.ProcessResumeResponse(lResponse),
+        'A failed resumption response should reject the prior stream.');
+    finally
+      lResponse.Free;
+    end;
+    AssertTrue(not lSM.Enabled and (lSM.ReplayCount = 0),
+      'Rejected resumption should discard the obsolete replay state.');
   finally
     lSM.Free;
   end;
@@ -440,6 +788,7 @@ begin
   lRoster := TNXXMPPRosterModule.Create;
   try
     lRoster.Sender := @lRecorder.Send;
+    lRoster.OnChanged := @lRecorder.Changed;
     lRoster.RegisterHandlers(lDispatcher);
     lStanza := TNXXMPPStanza.Create(
       '<iq xmlns=''jabber:client'' type=''set'' id=''r1''>' +
@@ -452,6 +801,24 @@ begin
         'A roster push should update the in-memory roster.');
       AssertTrue(Pos('type=''result''', string(lRecorder.XML)) > 0,
         'A roster push should receive the required acknowledgement.');
+      lRoster.PumpStanza(lStanza);
+      AssertTrue((lRecorder.ChangedCount = 1) and
+        (lRecorder.LastJID = 'peer@example.com') and
+        (lRecorder.LastSubscription = 'both'),
+        'A pumped roster push should publish its subscription state.');
+    finally
+      lStanza.Free;
+    end;
+    lStanza := TNXXMPPStanza.Create(
+      '<iq xmlns=''jabber:client'' type=''result'' id=''initial''>' +
+      '<query xmlns=''jabber:iq:roster''><item jid=''two@example.com'' ' +
+      'name=''Two'' subscription=''from''/></query></iq>', '');
+    try
+      lRoster.CompleteRequest(lStanza, '');
+      AssertEquals('Two', lRoster.Item('two@example.com'),
+        'Initial roster retrieval should populate roster items.');
+      AssertEquals('from', lRoster.ItemSubscription('two@example.com'),
+        'Roster retrieval should retain subscription state.');
     finally
       lStanza.Free;
     end;
@@ -462,6 +829,55 @@ begin
   end;
 end;
 
+procedure TestClientLifecycleAndCapacity;
+var
+  lClient: TNXXMPPClient;
+  lCycle: Integer;
+  lDeadline: QWord;
+  lMainThreadID: TThreadID;
+  lRecorder: TClientRecorder;
+begin
+  lClient := TNXXMPPClient.Create;
+  lRecorder := TClientRecorder.Create;
+  try
+    lClient.Config.JID := 'user@example.com';
+    lClient.Config.Password := 'password';
+    lClient.Config.CAFile := ParamStr(0);
+    lClient.Config.EndpointHost := '127.0.0.1';
+    lClient.Config.EndpointPort := 1;
+    lClient.Config.ConnectionTimeoutMS := 100;
+    lClient.Config.PendingIQCapacity := 1;
+    lClient.Config.ReconnectAttempts := 0;
+    lClient.OnError := @lRecorder.Error;
+    lClient.OnState := @lRecorder.State;
+    lMainThreadID := GetCurrentThreadID;
+    for lCycle := 1 to 2 do
+    begin
+      lClient.Connect;
+      AssertTrue(lClient.SendIQ(xitGet, '', '', '<query xmlns=''urn:test''/>',
+        nil), 'The first public IQ request should reserve capacity.');
+      AssertTrue(not lClient.SendIQ(xitGet, '', '',
+        '<query xmlns=''urn:test''/>', nil),
+        'The second public IQ request should reject capacity synchronously.');
+      lDeadline := GetTickCount64 + 5000;
+      while (lClient.State <> xcsFailed) and
+        (GetTickCount64 < lDeadline) do
+        Sleep(10);
+      AssertTrue(lClient.State = xcsFailed,
+        'A refused loopback endpoint should produce a terminal failure.');
+      lClient.Disconnect;
+      lClient.PumpEvents;
+    end;
+    AssertTrue((lRecorder.ErrorCount = 2) and (lRecorder.StateCount > 0),
+      'Repeated failed connection cycles should deliver pumped events.');
+    AssertTrue(lRecorder.CallbackThreadID = lMainThreadID,
+      'Client callbacks should execute on the PumpEvents caller thread.');
+  finally
+    lRecorder.Free;
+    lClient.Free;
+  end;
+end;
+
 begin
   TestICU;
   TestPRECIS;
@@ -469,11 +885,14 @@ begin
   TestStreamFramerAndStanza;
   TestDispatcherAndRequests;
   TestEndpointOrderingAndCrypto;
+  TestTLSVerification;
+  TestBlockedReadInterruption;
   TestSCRAMSHA256;
   TestBoundedQueue;
   TestNegotiationAndStates;
   TestStreamManagement;
   TestDiscoModule;
   TestRosterModule;
+  TestClientLifecycleAndCapacity;
   WriteLn('NexusNet XMPP tests passed.');
 end.

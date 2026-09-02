@@ -10,17 +10,29 @@ uses
 
 type
   TConsoleEvents = class
+  private
+    FOnlineInitialized: Boolean;
+    FRoster: TNXXMPPRosterModule;
   public
     procedure Error(ASender: TObject; AStage: TNXXMPPErrorStage;
       const ACondition, AMessage: UTF8String);
+    procedure RosterChanged(ASender: TObject;
+      const AJID, ASubscription: UTF8String);
     procedure Stanza(ASender: TObject; AStanza: TNXXMPPStanza);
     procedure State(ASender: TObject; AState: TNXXMPPConnectionState);
+    property Roster: TNXXMPPRosterModule read FRoster write FRoster;
   end;
 
 procedure TConsoleEvents.Error(ASender: TObject; AStage: TNXXMPPErrorStage;
   const ACondition, AMessage: UTF8String);
 begin
   WriteLn('Error [', ACondition, ']: ', AMessage);
+end;
+
+procedure TConsoleEvents.RosterChanged(ASender: TObject;
+  const AJID, ASubscription: UTF8String);
+begin
+  WriteLn('Roster: ', AJID, ' [', ASubscription, ']');
 end;
 
 procedure TConsoleEvents.Stanza(ASender: TObject; AStanza: TNXXMPPStanza);
@@ -32,6 +44,13 @@ procedure TConsoleEvents.State(ASender: TObject;
   AState: TNXXMPPConnectionState);
 begin
   WriteLn('State: ', NXXMPPConnectionStateName(AState));
+  if (AState = xcsOnline) and Assigned(FRoster) and
+    not FOnlineInitialized then
+  begin
+    FOnlineInitialized := True;
+    TNXXMPPClient(ASender).RequestRoster(FRoster);
+    TNXXMPPClient(ASender).SendPresence;
+  end;
 end;
 
 var
@@ -39,6 +58,7 @@ var
   lDisco: TNXXMPPDiscoModule;
   lEvents: TConsoleEvents;
   lKey: Char;
+  lRoster: TNXXMPPRosterModule;
 begin
   if (GetEnvironmentVariable('NEXUS_XMPP_JID') = '') or
     (GetEnvironmentVariable('NEXUS_XMPP_PASSWORD') = '') or
@@ -68,7 +88,10 @@ begin
     lDisco.AddFeature('http://jabber.org/protocol/disco#info');
     lDisco.AddFeature('urn:xmpp:sm:3');
     lClient.AddModule(lDisco);
-    lClient.AddModule(TNXXMPPRosterModule.Create);
+    lRoster := TNXXMPPRosterModule.Create;
+    lRoster.OnChanged := @lEvents.RosterChanged;
+    lEvents.Roster := lRoster;
+    lClient.AddModule(lRoster);
     lClient.OnError := @lEvents.Error;
     lClient.OnStanza := @lEvents.Stanza;
     lClient.OnState := @lEvents.State;

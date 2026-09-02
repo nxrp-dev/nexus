@@ -6,7 +6,8 @@ unit obNXXMPPModule;
 interface
 
 uses
-  Classes, SysUtils, obNXXMPPDispatcher, obNXXMPPError, tpNXXMPPTypes;
+  Classes, SysUtils, obNXXMPPDispatcher, obNXXMPPError, obNXXMPPStanza,
+  tpNXXMPPTypes;
 
 type
   TNXXMPPModuleSender = procedure(const AXML: UTF8String) of object;
@@ -17,11 +18,16 @@ type
   protected
     procedure Send(const AXML: UTF8String);
   public
+    procedure PumpStanza(AStanza: TNXXMPPStanza); virtual;
     procedure RegisterHandlers(ADispatcher: TNXXMPPDispatcher); virtual; abstract;
     property Sender: TNXXMPPModuleSender read FSender write FSender;
   end;
 
 implementation
+
+procedure TNXXMPPModule.PumpStanza(AStanza: TNXXMPPStanza);
+begin
+end;
 
 procedure TNXXMPPModule.Send(const AXML: UTF8String);
 begin

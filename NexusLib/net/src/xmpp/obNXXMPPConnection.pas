@@ -26,6 +26,7 @@ type
     FFrames: TStringList;
     FFramer: TNXXMPPStreamFramer;
     FJID: TNXXMPPJID;
+    FIQCapacity: TNXXMPPIQCapacity;
     FRequests: TNXXMPPRequestManager;
     FState: TNXXMPPConnectionState;
     FStreamManagement: TNXXMPPStreamManagement;
@@ -35,6 +36,8 @@ type
     procedure EnqueueEvent(AEvent: TNXXMPPEvent);
     procedure HandleIncoming(AStanza: TNXXMPPStanza);
     function IsDisconnectRequested: Boolean;
+    function OpenSecuredStream(
+      const AEndpoint: TNXXMPPEndpoint): TNXXMPPStanza;
     procedure OnlineLoop;
     procedure PerformAuthentication(AFeatures: TNXXMPPStanza);
     procedure PerformBinding(AFeatures: TNXXMPPStanza);
@@ -42,17 +45,19 @@ type
     procedure ProcessCommands;
     function ReadElement: TNXXMPPStanza;
     function ReadFrame: UTF8String;
+    function RecoverConnection: Boolean;
     procedure ResetStream;
     procedure SendOpen;
     procedure SendStanza(const AXML: UTF8String; AReplayable: Boolean);
     procedure SendUnhandledIQError(AStanza: TNXXMPPStanza);
     procedure Transition(AState: TNXXMPPConnectionState);
+    function TryResume(const AEndpoint: TNXXMPPEndpoint): Boolean;
   protected
     procedure Execute; override;
   public
     constructor Create(AConfig: TNXXMPPClientConfig;
       ACommands, AEvents: TNXXMPPObjectQueue;
-      ADispatcher: TNXXMPPDispatcher);
+      ADispatcher: TNXXMPPDispatcher; AIQCapacity: TNXXMPPIQCapacity);
     destructor Destroy; override;
     procedure RequestDisconnect;
     procedure SendModuleXML(const AXML: UTF8String);
@@ -62,7 +67,8 @@ type
 implementation
 
 constructor TNXXMPPConnection.Create(AConfig: TNXXMPPClientConfig;
-  ACommands, AEvents: TNXXMPPObjectQueue; ADispatcher: TNXXMPPDispatcher);
+  ACommands, AEvents: TNXXMPPObjectQueue; ADispatcher: TNXXMPPDispatcher;
+  AIQCapacity: TNXXMPPIQCapacity);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
@@ -70,10 +76,12 @@ begin
   FCommands := ACommands;
   FEvents := AEvents;
   FDispatcher := ADispatcher;
+  FIQCapacity := AIQCapacity;
   FCriticalSection := TCriticalSection.Create;
   FFrames := TStringList.Create;
   FFramer := TNXXMPPStreamFramer.Create;
-  FRequests := TNXXMPPRequestManager.Create(FConfig.PendingIQCapacity);
+  FRequests := TNXXMPPRequestManager.Create(FConfig.PendingIQCapacity,
+    FIQCapacity);
   FStreamManagement := TNXXMPPStreamManagement.Create(FConfig.CommandCapacity);
   FTransport := TNXXMPPTransport.Create;
   FState := xcsDisconnected;
@@ -394,21 +402,22 @@ begin
   end;
 end;
 
-procedure TNXXMPPConnection.PerformNegotiation(
-  const AEndpoint: TNXXMPPEndpoint);
+function TNXXMPPConnection.OpenSecuredStream(
+  const AEndpoint: TNXXMPPEndpoint): TNXXMPPStanza;
 var
-  lFeatures: TNXXMPPStanza;
   lProceed: TNXXMPPStanza;
 begin
+  Result := nil;
+  ResetStream;
   SendOpen;
-  lFeatures := ReadElement;
+  Result := ReadElement;
   try
-    if lFeatures.LocalName <> 'features' then
+    if Result.LocalName <> 'features' then
       raise ENXXMPPError.Create(xesStream, 'missing-stream-features',
         'The server did not provide stream features.');
     if AEndpoint.Security = xtsStartTLS then
     begin
-      if not TNXXMPPNegotiation.OffersStartTLS(lFeatures.RawXML) then
+      if not TNXXMPPNegotiation.OffersStartTLS(Result.RawXML) then
         raise ENXXMPPError.Create(xesTLS, 'starttls-unavailable',
           'The server did not offer STARTTLS.');
       FTransport.Send('<starttls xmlns=' +
@@ -424,15 +433,28 @@ begin
       end;
       Transition(xcsSecuring);
       FTransport.Secure(FJID.DomainPart, FConfig.CAFile);
-      lFeatures.Free;
-      lFeatures := nil;
+      FreeAndNil(Result);
       ResetStream;
       SendOpen;
-      lFeatures := ReadElement;
-      if lFeatures.LocalName <> 'features' then
+      Result := ReadElement;
+      if Result.LocalName <> 'features' then
         raise ENXXMPPError.Create(xesStream, 'missing-stream-features',
           'The secured stream did not provide features.');
     end;
+  except
+    FreeAndNil(Result);
+    raise;
+  end;
+end;
+
+procedure TNXXMPPConnection.PerformNegotiation(
+  const AEndpoint: TNXXMPPEndpoint);
+var
+  lFeatures: TNXXMPPStanza;
+  lProceed: TNXXMPPStanza;
+begin
+  lFeatures := OpenSecuredStream(AEndpoint);
+  try
     PerformAuthentication(lFeatures);
   finally
     lFeatures.Free;
@@ -447,6 +469,7 @@ begin
     PerformBinding(lFeatures);
     if TNXXMPPNegotiation.OffersStreamManagement(lFeatures.RawXML) then
     begin
+      FStreamManagement.ResumeRejected;
       FTransport.Send('<enable xmlns=''urn:xmpp:sm:3'' resume=''true''/>');
       lProceed := ReadElement;
       try
@@ -462,6 +485,81 @@ begin
   end;
 end;
 
+function TNXXMPPConnection.TryResume(
+  const AEndpoint: TNXXMPPEndpoint): Boolean;
+var
+  lFeatures: TNXXMPPStanza;
+  lIndex: Integer;
+  lResponse: TNXXMPPStanza;
+begin
+  Result := False;
+  if not FStreamManagement.Enabled or
+    (FStreamManagement.ResumeID = '') then
+    Exit;
+  lFeatures := OpenSecuredStream(AEndpoint);
+  try
+    if not TNXXMPPNegotiation.OffersStreamManagement(lFeatures.RawXML) then
+    begin
+      FStreamManagement.ResumeRejected;
+      Exit;
+    end;
+  finally
+    lFeatures.Free;
+  end;
+  Transition(xcsResuming);
+  FTransport.Send(RawByteString(FStreamManagement.ResumeRequestXML));
+  lResponse := ReadElement;
+  try
+    if not FStreamManagement.ProcessResumeResponse(lResponse) then
+      Exit;
+    for lIndex := 0 to FStreamManagement.ReplayCount - 1 do
+      FTransport.Send(RawByteString(FStreamManagement.ReplayXML(lIndex)));
+    Result := True;
+  finally
+    lResponse.Free;
+  end;
+end;
+
+function TNXXMPPConnection.RecoverConnection: Boolean;
+var
+  lAttempt: Integer;
+  lEndpoint: TNXXMPPEndpoint;
+  lWaited: Cardinal;
+begin
+  Result := False;
+  for lAttempt := 1 to FConfig.ReconnectAttempts do
+  begin
+    lWaited := 0;
+    while (lWaited < FConfig.ReconnectDelayMS) and
+      not IsDisconnectRequested do
+    begin
+      Sleep(50);
+      Inc(lWaited, 50);
+    end;
+    if IsDisconnectRequested then
+      Exit;
+    try
+      FTransport.Close;
+      lEndpoint := ConnectEndpoint;
+      if not TryResume(lEndpoint) then
+      begin
+        FTransport.Close;
+        lEndpoint := ConnectEndpoint;
+        PerformNegotiation(lEndpoint);
+      end;
+      Transition(xcsOnline);
+      Exit(True);
+    except
+      on ENXXMPPError do
+      begin
+        FTransport.Close;
+        if State <> xcsResuming then
+          Transition(xcsResuming);
+      end;
+    end;
+  end;
+end;
+
 procedure TNXXMPPConnection.SendUnhandledIQError(AStanza: TNXXMPPStanza);
 var
   lTo: RawByteString;
@@ -470,11 +568,11 @@ begin
   if AStanza.FromJID <> '' then
     lTo := ' to=''' + RawByteString(NXXMPPEscapeAttribute(AStanza.FromJID)) +
       '''';
-  FTransport.Send('<iq type=''error'' id=''' +
+  SendStanza('<iq type=''error'' id=''' +
     RawByteString(NXXMPPEscapeAttribute(AStanza.ID)) + '''' + lTo +
     '>' + RawByteString(AStanza.ChildXML) +
     '<error type=''cancel''><service-unavailable ' +
-    'xmlns=''urn:ietf:params:xml:ns:xmpp-stanzas''/></error></iq>');
+    'xmlns=''urn:ietf:params:xml:ns:xmpp-stanzas''/></error></iq>', False);
 end;
 
 procedure TNXXMPPConnection.HandleIncoming(AStanza: TNXXMPPStanza);
@@ -535,8 +633,13 @@ begin
             (Copy(lCommand.XML, 1, 9) = '<presence'));
         xckIQ:
           begin
-            lID := FRequests.BeginRequest(lCommand.ExpectedFrom,
-              lCommand.TimeoutMS, lCommand.Handler);
+            try
+              lID := FRequests.BeginRequest(lCommand.ExpectedFrom,
+                lCommand.TimeoutMS, lCommand.Handler);
+            except
+              FIQCapacity.Release;
+              raise;
+            end;
             lXML := '<iq type=''' +
               UTF8String(NXXMPPIQTypeName(lCommand.IQType)) + ''' id=''' +
               NXXMPPEscapeAttribute(lID) + '''';
@@ -619,7 +722,25 @@ begin
       lEndpoint := ConnectEndpoint;
       PerformNegotiation(lEndpoint);
       Transition(xcsOnline);
-      OnlineLoop;
+      while not IsDisconnectRequested do
+      begin
+        try
+          OnlineLoop;
+          Break;
+        except
+          on E: ENXXMPPError do
+          begin
+            if IsDisconnectRequested then
+              Break;
+            FRequests.CancelAll('The IQ request was interrupted by a ' +
+              'connection loss.', lCompletions);
+            EnqueueCompletionEvents(lCompletions);
+            Transition(xcsResuming);
+            if not RecoverConnection and not IsDisconnectRequested then
+              raise;
+          end;
+        end;
+      end;
       Transition(xcsClosing);
       try
         FTransport.Send('</stream:stream>');

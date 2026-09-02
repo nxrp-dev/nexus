@@ -92,13 +92,14 @@ begin
       Result := ATo in [xcsConnecting, xcsClosing];
     xcsConnecting:
       Result := ATo in [xcsConnecting, xcsSecuring, xcsAuthenticating,
-        xcsClosing];
+        xcsResuming, xcsClosing];
     xcsSecuring:
-      Result := ATo in [xcsConnecting, xcsAuthenticating, xcsClosing];
+      Result := ATo in [xcsConnecting, xcsAuthenticating, xcsResuming,
+        xcsClosing];
     xcsAuthenticating:
-      Result := ATo in [xcsBinding, xcsClosing];
+      Result := ATo in [xcsBinding, xcsResuming, xcsClosing];
     xcsBinding:
-      Result := ATo in [xcsOnline, xcsClosing];
+      Result := ATo in [xcsOnline, xcsResuming, xcsClosing];
     xcsOnline:
       Result := ATo in [xcsResuming, xcsClosing];
     xcsResuming:
