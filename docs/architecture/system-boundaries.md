@@ -4,8 +4,9 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 ## Current modules
 
-- `NexusLib` contains shared Pascal support code used by other Nexus modules. It owns core helpers plus library families such as `core`, `ui`, and `net`.
-- `NexusTools/LS` contains the Pascal language server. It owns LSP protocol DTOs, request dispatch, transports, document state, CodeTools integration, diagnostics, navigation, completion, symbols, and language-server test coverage.
+- `NexusLib` contains shared Pascal support code used by other Nexus modules. It owns core helpers plus library families such as `core`, `lsp`, `ui`, and `net`. `NexusLib/lsp` owns only standard LSP values and language-neutral transport, dispatch, outbound-request, and server-host mechanics.
+- `NexusTools/LS` contains the Pascal language server. It owns Pascal documents, CodeTools integration, custom project/toolchain/refactoring protocol values, concrete requests, diagnostics, navigation, completion, symbols, and Pascal language-server test coverage.
+- `NexusTools/Script` owns the NexusScript language core, artifact production, CLI, and the separate `NexusScriptLS` process. Its language server currently owns only lifecycle and full-text open-document state; editor intelligence is not implemented in this restructuring pass.
 - `NexusTools/Test` contains NexusTest, a first-pass test framework and module contract. It owns test registration, suites, cases, result values, JSON-RPC test commands, a module boundary, sample host/module code, and a small UI.
 - `NexusSchema` contains schema-oriented tooling.
 - `docs` contains the MkDocs documentation site.
@@ -14,7 +15,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 `NexusLib` is the shared base layer. It should stay small and general enough to be reused by `NexusTools/LS`, `NexusTools/Test`, and other tools without absorbing their workflows.
 
-`NexusTools/LS` is a tool process. Its public boundary is the Language Server Protocol over stdio or TCP/IP transport. It should keep editor protocol concerns inside its protocol and service units, while relying on `NexusLib` for reusable JSON-RPC and factory behavior.
+`NexusTools/LS` and `NexusScriptLS` are independent tool processes. Each owns its request registration, application model, documents, and language behavior while consuming the same language-neutral `NexusLib/lsp` process infrastructure. Neither server depends on the other.
 
 `NexusTest` is a test execution boundary. Test modules expose a small C-style ABI and exchange UTF-8 JSON-RPC text. Pascal objects, Pascal strings, records, exceptions, and caller-owned allocations do not cross that module boundary.
 

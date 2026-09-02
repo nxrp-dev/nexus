@@ -79,15 +79,11 @@ This repository is an Object Pascal / Free Pascal project. Treat the codebase as
 
 ## Sub-Agent Rules
 
-- For approved architecture implementation work, follow `.ai/protocols/subagents.md`.
-- Sub-agents are helpers, not authorities. Main Codex remains responsible for orchestration, integration, verification, and final reporting.
-- Treat a user message prefixed with `spawn:` as an explicit request to spawn or reuse an appropriate sub-agent process for that work.
-- If not spawning after a `spawn:` request, state the compelling reason.
-- When delegation is requested and implementation is approved, delegate implementation edits to a named sub-agent by default unless there is a concrete integration-seam reason not to.
-- If keeping implementation local despite requested delegation, state the specific reason.
-- Prefer persistent expertise roles with bounded live agent lifetimes.
-- Keep sub-agents in their assigned folder or subsystem ownership.
-- Close and replace unreliable, stale, or scope-drifting sub-agents instead of preserving flawed context.
+- Never spawn, resume, message, or delegate work to a sub-agent unless the human owner explicitly requests sub-agent use in the current conversation.
+- A work plan, implementation approval, architecture scope, task size, or apparent opportunity for parallel work is not permission to use sub-agents.
+- Do not propose or recommend sub-agent delegation on your own.
+- Treat a user message prefixed with `spawn:` as an explicit request to use a sub-agent for that work.
+- When the human owner explicitly requests sub-agent use, follow `.ai/protocols/subagents.md` and keep Main Codex responsible for integration, verification, and final reporting.
 
 ## Review Rules
 

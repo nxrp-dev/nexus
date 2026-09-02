@@ -359,20 +359,9 @@ Validator, Schema, Build, Installer, or UI meaning.
 
 ## Sub-Agent Delegation
 
-- Proposed role after approval: a `NexusScript doctype worker` owning
-  `NexusTools/Script/src`, doctype fixtures, and focused tests.
-- Ownership boundary: no edits to NexusSchema, NexusLS, NexusTask, Installer,
-  Build, UI, or unrelated working-tree files. Validator edits are limited to
-  fixture/test call sites and documentation; the engine API remains unchanged.
-- Main Codex responsibilities: review parser/model/session ownership, inspect
-  namespace isolation, integrate fixture changes, run full verification and
-  boundary searches, and inspect the archive.
-- Coordination risk: model, parser, and session changes form one tight ownership
-  seam and should not be edited concurrently by separate workers.
-
-No sub-agent is started during planning. Implementation delegation begins only
-after direct human approval and only if delegation is explicitly requested or
-permitted by the active agent policy.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

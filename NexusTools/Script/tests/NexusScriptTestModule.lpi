@@ -4,24 +4,28 @@
     <Version Value="12"/>
     <PathDelim Value="\"/>
     <General><MainUnit Value="0"/><Title Value="NexusScriptTestModule"/><UseAppBundle Value="False"/></General>
-    <Units Count="9">
+    <Units Count="14">
       <Unit0><Filename Value="NexusScriptTestModule.lpr"/><IsPartOfProject Value="True"/></Unit0>
-      <Unit1><Filename Value="..\src\tpNexusScript.pas"/></Unit1>
-      <Unit2><Filename Value="..\src\obNexusScriptModel.pas"/></Unit2>
-      <Unit3><Filename Value="..\src\obNexusScriptCompiler.pas"/></Unit3>
+      <Unit1><Filename Value="..\core\tpNexusScript.pas"/></Unit1>
+      <Unit2><Filename Value="..\core\obNexusScriptModel.pas"/></Unit2>
+      <Unit3><Filename Value="..\core\obNexusScriptCompiler.pas"/></Unit3>
       <Unit4><Filename Value="tsNexusScriptTests.pas"/></Unit4>
-      <Unit5><Filename Value="..\src\obNexusScriptSession.pas"/></Unit5>
-      <Unit6><Filename Value="..\src\obNexusScriptJSON.pas"/></Unit6>
-      <Unit7><Filename Value="..\validator\obNexusScriptValidator.pas"/></Unit7>
-        <Unit8><Filename Value="..\cli\obNexusScriptCommand.pas"/></Unit8>
-        <Unit9><Filename Value="..\src\obNexusScriptExternalSource.pas"/></Unit9>
+      <Unit5><Filename Value="..\core\obNexusScriptSession.pas"/></Unit5>
+      <Unit6><Filename Value="..\artifact\obNexusScriptJSON.pas"/></Unit6>
+      <Unit7><Filename Value="..\core\obNexusScriptValidator.pas"/></Unit7>
+      <Unit8><Filename Value="..\cli\obNexusScriptCommand.pas"/></Unit8>
+      <Unit9><Filename Value="..\artifact\obNexusScriptExternalSource.pas"/></Unit9>
+      <Unit10><Filename Value="..\artifact\obNexusScriptArtifactModel.pas"/></Unit10>
+      <Unit11><Filename Value="..\artifact\obNexusScriptArtifactContext.pas"/></Unit11>
+      <Unit12><Filename Value="..\artifact\obNexusScriptManifest.pas"/></Unit12>
+      <Unit13><Filename Value="..\core\obNexusScriptLanguageDefinition.pas"/></Unit13>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/><PathDelim Value="\"/>
     <Target><Filename Value="..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\NexusScriptTestModule"/></Target>
     <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
-    <SearchPaths><OtherUnitFiles Value=".;..\src;..\validator;..\cli;..\..\Test\src;..\..\..\NexusLib\core\src;..\..\..\lib\dmustache"/><UnitOutputDirectory Value="..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\units"/></SearchPaths>
+    <SearchPaths><OtherUnitFiles Value=".;..\core;..\artifact;..\cli;..\..\Test\src;..\..\..\NexusLib\core\src;..\..\..\lib\dmustache"/><UnitOutputDirectory Value="..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\units"/></SearchPaths>
     <Linking><Options><ExecutableType Value="Library"/></Options></Linking>
   </CompilerOptions>
 </CONFIG>

@@ -408,30 +408,9 @@ mutually-exclusive tags is added.
 
 ## Sub-Agent Delegation
 
-After explicit implementation approval, assign the complete approved plan to
-one `NexusScript definition-tags worker` with ownership limited to:
-
-- `NexusTools/Script/src/obNexusScriptModel.pas`;
-- `NexusTools/Script/src/obNexusScriptCompiler.pas`;
-- `NexusTools/Script/src/obNexusScriptJSON.pas`;
-- `NexusTools/Script/tests/tsNexusScriptTests.pas`;
-- `NexusTools/Script/README.md`.
-
-One worker should own the whole change because parser recognition, model
-ownership, clone preservation, JSON emission, and focused tests share a tight
-representation seam. Splitting these files across simultaneous workers would
-create unnecessary overlap and increase the risk that one clone path or inline
-definition form is missed.
-
-Main Codex remains responsible for:
-
-- giving the worker the approved plan and current worktree constraints;
-- reviewing every edit and checking ownership and local-only semantics;
-- making any required integration correction;
-- running the full build, test, grep, and archive workflow;
-- reporting deviations, verification evidence, and the final artifact path.
-
-No worker is spawned and no implementation activity begins during planning.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

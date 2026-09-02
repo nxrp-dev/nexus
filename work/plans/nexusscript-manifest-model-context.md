@@ -488,19 +488,9 @@ the exact missing facility before expanding the approved scope.
 
 ## Sub-Agent Delegation
 
-No implementation delegation is proposed for this pass.
-
-The manifest validator, conditional CLI modes, manifest-session ownership,
-multi-session artifact assembly, constants extraction, existing manifest
-fixtures, and schema-generation working files form one tightly coupled
-integration seam. The current worktree also contains overlapping uncommitted
-changes in the exact CLI, validator, tests, README, fixtures, and working
-workspace this plan must modify. Parallel workers would create unsafe write
-overlap and make preservation of the interrupted work harder to verify.
-
-Main Codex should perform the approved implementation locally, inspect each
-overlap before editing, compile at structural checkpoints, and remain
-responsible for final integration and verification.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

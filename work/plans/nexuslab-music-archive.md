@@ -998,32 +998,9 @@ The UI should not copy a foreign framework architecture into NexusUI. It should 
 
 ## Sub-Agent Delegation
 
-- Proposed roles:
-  - `MusicArchiveNX catalog worker`
-  - `MusicArchiveNX UI worker`
-  - `MusicArchiveNX import/storage worker`
-  - `MusicArchiveNX playback worker`
-- Ownership boundaries:
-  - catalog worker owns `obMusicArchiveCatalog.pas`, `obMusicArchiveSchema.pas`, and catalog tests
-  - import/storage worker owns `obMusicArchiveBlobStore.pas`, `obMusicArchiveImporter.pas`, `obMusicDuplicateDetector.pas`, and import/storage tests
-  - UI worker owns `obMusicMainWindow.pas`, `obMusicTimelineControl.pas`, and UI view-model integration after controller contracts exist
-  - playback worker owns `obMusicMetadataReader.pas`, `obMusicPlaybackController.pas`, and playback tests
-- Main Codex responsibilities:
-  - keep the plan and boundaries current
-  - create or review app skeleton
-  - coordinate interfaces between workers
-  - prevent overlapping writes
-  - run final builds/tests
-  - inspect worker diffs before accepting them
-  - create the required archive after approved implementation
-- Coordination risks:
-  - controller contracts touch every subsystem, so Main Codex should define initial DTOs and interfaces before delegating broad edits
-  - UI and playback should not both edit timeline contracts at the same time
-  - importer and catalog transaction boundaries should be reviewed together
-- Delegation recommendation:
-  - start Phase 1 locally or with one `MusicArchiveNX UI worker` because the skeleton establishes folder/project shape
-  - delegate catalog and import/storage once shared types are stable
-  - keep playback as a later isolated worker because backend selection needs local verification
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

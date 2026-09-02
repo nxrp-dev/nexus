@@ -459,12 +459,9 @@ folder conventions. Do not rename existing NexusScript concepts.
 
 ## Sub-Agent Delegation
 
-No sub-agent delegation is proposed. The change crosses one tightly coupled
-language/session/CLI/test seam in a currently dirty NexusScript worktree.
-Keeping implementation coordinated in one place reduces overlapping edits and
-protects the existing uncommitted parity work. Main Codex remains responsible
-for all inspection, implementation after approval, integration, verification,
-and reporting.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

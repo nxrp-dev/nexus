@@ -24,31 +24,31 @@
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="src/tpNXLS.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/tpNXLS.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="src/obNXLSLogger.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSLogger.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="src/obNXLSTransport.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSTransport.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
       <Unit4>
-        <Filename Value="src/obNXLSStdIOTransport.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSStdIOTransport.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
       <Unit5>
-        <Filename Value="src/obNXLSTcpIPTransport.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSTcpIPTransport.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit5>
       <Unit6>
-        <Filename Value="src/obNXLSTransportFactory.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSTransportFactory.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit6>
       <Unit7>
-        <Filename Value="src/obNXLSServer.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSServer.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit7>
       <Unit8>
@@ -56,7 +56,7 @@
         <IsPartOfProject Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="src/obNXLSDispatcher.pas"/>
+        <Filename Value="../../NexusLib/lsp/src/obNXLSDispatcher.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit9>
     </Units>
@@ -68,7 +68,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;src\toolchain;..\..\NexusLib\core\src;..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
+      <OtherUnitFiles Value="src;src\protocol;src\service;src\parser;src\toolchain;..\..\NexusLib\lsp\src;..\..\NexusLib\lsp\src\protocol;..\..\NexusLib\core\src;..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
       <UnitOutputDirectory Value="..\..\output\NexusLS\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

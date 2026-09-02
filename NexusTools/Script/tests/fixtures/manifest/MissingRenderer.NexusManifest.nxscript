@@ -1,0 +1,7 @@
+doctype "../../../artifact/languages/NexusManifest.Language.nxscript";
+
+NexusManifest MissingRenderer {
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+}

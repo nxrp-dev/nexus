@@ -63,19 +63,14 @@ Describe the implementation stages.
 
 ## Sub-Agent Delegation
 
-Describe whether approved implementation should be delegated.
+State that implementation remains local unless the human owner explicitly
+requested sub-agent use. Do not propose, recommend, or infer delegation from
+task size, separable ownership, architecture scope, or potential parallelism.
+Plan approval and implementation approval do not authorize sub-agents.
 
-Include:
-
-- proposed named role or roles
-- assigned folders or file ownership
-- tasks that remain with main Codex
-- coordination and overlap risks
-- whether one worker should receive the whole approved plan or the work should be split by ownership
-
-If delegation was requested, the default plan is that workers perform implementation edits and Main Codex coordinates, reviews, integrates, verifies, and reports.
-
-State any concrete reason not to delegate. Do not use vague caution as the reason.
+Only when the human owner explicitly requested sub-agent use, include the
+requested roles, ownership, sequencing, overlap risks, and Main Codex
+responsibilities.
 
 ## Verification Plan
 
@@ -101,7 +96,7 @@ State that no implementation begins until the human owner explicitly authorizes 
 - Do not hide uncertainty.
 - Do not expand scope beyond the request.
 - If the request is ambiguous, identify the ambiguity in the plan.
-- Include a sub-agent delegation recommendation when implementation could be safely assigned.
-- If delegation was requested, make worker implementation the default unless a concrete integration-seam reason prevents it.
+- Never include a sub-agent recommendation unless the human owner explicitly requested sub-agent use.
+- Otherwise state that implementation remains local and that no sub-agent use is authorized by the plan.
 - Include compile, focused grep, and manual verification expectations.
 - State any questions that must be answered before implementation.

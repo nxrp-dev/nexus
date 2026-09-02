@@ -8,8 +8,8 @@ uses
   Classes,
   obNXJSONRPCObjects,
   obNXJSONValues,
-  obNXLSProtocolObjects,
-  obNXLSProtocolParams;
+  obNXLSProjectProtocol,
+  obNXLSToolchainProtocol;
 
 type
   TNXLSToolchainField = class(TNXLSProjectField)

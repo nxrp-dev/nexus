@@ -9,6 +9,7 @@ uses
   obNXJSONValues,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
+  obNXLSRefactoringProtocol,
   obNXLSServiceContext;
 
 type

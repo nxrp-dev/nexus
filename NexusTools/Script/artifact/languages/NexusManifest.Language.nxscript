@@ -1,4 +1,4 @@
-doctype "fixtures/Language.nxscript";
+doctype "../../tests/fixtures/validation/Language.nxscript";
 
 Language NexusManifest {
     UnknownDefinitions: Reject;
@@ -9,8 +9,10 @@ Language NexusManifest {
             UnknownChildren: Reject;
             Children: [
                 Child Models { Kinds: [Model]; Minimum: 1; },
-                Child Templates { Kinds: [Template]; },
-                Child SourceTemplates { Kinds: [SourceTemplate]; }
+                Child Renderers {
+                    Kinds: [Template, SourceTemplate];
+                    Minimum: 1;
+                }
             ];
         },
 

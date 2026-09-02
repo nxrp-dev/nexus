@@ -11,7 +11,10 @@ uses
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
-  obNXLSProtocolObjects;
+  obNXLSProtocolObjects,
+  obNXLSRefactoringProtocol,
+  obNXLSProjectProtocol,
+  obNXLSToolchainProtocol;
 
 type
   TNXLSCompleteCodeRequest = class(TNXJSONRPCRequest)

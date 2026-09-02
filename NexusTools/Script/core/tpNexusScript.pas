@@ -25,13 +25,6 @@ type
     nsvDefinition
   );
 
-  TNexusScriptArtifactValueKind = (
-    nsavInvalid,
-    nsavText,
-    nsavArray,
-    nsavDefinition
-  );
-
   TNexusScriptValueEvaluationState = (
     nsvesPending,
     nsvesResolving,

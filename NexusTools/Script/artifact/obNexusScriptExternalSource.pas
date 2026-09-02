@@ -7,7 +7,7 @@ interface
 uses
   Classes,
   SysUtils,
-  obNexusScriptModel;
+  obNexusScriptArtifactModel;
 
 type
   ENexusScriptExternalSource = class(Exception);

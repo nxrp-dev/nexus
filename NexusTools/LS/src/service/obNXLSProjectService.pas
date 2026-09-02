@@ -5,8 +5,7 @@ unit obNXLSProjectService;
 interface
 
 uses
-  obNXLSProtocolObjects,
-  obNXLSProtocolParams;
+  obNXLSProjectProtocol;
 
 type
   TNXLSProjectService = class

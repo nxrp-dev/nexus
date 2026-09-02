@@ -21,8 +21,7 @@ uses
   obNXClassFactory,
   obNXJSONValues,
   obNXJSONRPCObjects,
-  obNXLSLogger,
-  obNXLSAllRequests;
+  obNXLSLogger;
 
 function CreateErrorResponse(const AID: TJSONData; const ACode: Integer; const AMessage: string): string;
 var

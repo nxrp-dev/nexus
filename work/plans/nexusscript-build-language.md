@@ -574,13 +574,11 @@ Any choice that changes observable Build-language behavior must be documented
 with a minimal example and approved in the Build contract. Repository layout,
 unit names, and internal adapter class shapes remain implementation choices.
 
-## Delegation
+## Sub-Agent Delegation
 
-No sub-agent delegation is proposed for the initial contract and validator
-pass. The Build vocabulary, validator, adapter boundary, and migration mapping
-form one tight semantic seam and should be reviewed coherently. If later
-implementation is approved, isolated fixture migration or action-level tests
-may be delegated only after the contract and ownership boundaries are fixed.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Approval Gate
 

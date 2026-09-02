@@ -414,13 +414,11 @@ to module and doctype.
   `NexusTools/Schema`.
 - Legacy NexusSchema data-source batch generation.
 
-## Sub-Agent Plan
+## Sub-Agent Delegation
 
-No delegation is requested for planning. If implementation is later approved
-and delegation is explicitly requested, one bounded NexusScript dependency
-worker may own parser/model/session changes and focused fixtures. Main Codex
-will retain artifact-path integration, contract review, complete regression
-verification, and archive inspection.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Approval Gate
 

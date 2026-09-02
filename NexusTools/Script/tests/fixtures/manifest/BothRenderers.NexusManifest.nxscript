@@ -1,0 +1,19 @@
+doctype "../../../artifact/languages/NexusManifest.Language.nxscript";
+
+NexusManifest BothRenderers {
+    Model Domain {
+        Source: "../cli/Valid.Artifact.nxscript";
+    }
+
+    Template File {
+        Source: "templates/first.mustache";
+        Output: "both.txt";
+    }
+
+    SourceTemplate Data {
+        Types: [csv];
+        Compiler: CommaDelimited;
+        Source: "../external-data/import.mustache";
+        OutputExtension: ".sql";
+    }
+}

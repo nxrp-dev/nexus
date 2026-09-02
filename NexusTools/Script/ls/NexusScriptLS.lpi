@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <PathDelim Value="\"/>
+    <General>
+      <MainUnit Value="0"/>
+      <Title Value="NexusScriptLS"/>
+      <UseAppBundle Value="False"/>
+    </General>
+    <Units Count="6">
+      <Unit0><Filename Value="NexusScriptLS.lpr"/><IsPartOfProject Value="True"/></Unit0>
+      <Unit1><Filename Value="src\model\obNexusScriptLSModel.pas"/></Unit1>
+      <Unit2><Filename Value="src\model\obNexusScriptLSDocument.pas"/></Unit2>
+      <Unit3><Filename Value="src\protocol\obNexusScriptLSLifecycleRequests.pas"/></Unit3>
+      <Unit4><Filename Value="src\protocol\obNexusScriptLSDocumentSyncRequests.pas"/></Unit4>
+      <Unit5><Filename Value="src\protocol\obNexusScriptLSAllRequests.pas"/></Unit5>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target><Filename Value="..\..\..\output\NexusScriptLS\$(TargetCPU)-$(TargetOS)\NexusScriptLS"/></Target>
+    <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
+    <SearchPaths>
+      <OtherUnitFiles Value="src\model;src\protocol;..\core;..\..\..\NexusLib\lsp\src;..\..\..\NexusLib\lsp\src\protocol;..\..\..\NexusLib\core\src;..\..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
+      <UnitOutputDirectory Value="..\..\..\output\NexusScriptLS\$(TargetCPU)-$(TargetOS)\units"/>
+    </SearchPaths>
+  </CompilerOptions>
+</CONFIG>

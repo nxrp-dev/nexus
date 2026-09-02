@@ -101,7 +101,9 @@ type
     function PascalUnitResolver: TNXPasUnitResolver; override;
     procedure SendClientNotification(ANotification: TNXJSONRPCOutboundNotification); override;
     function SendClientRequest(ARequest: TNXJSONRPCOutboundCommand): Int64; override;
-    function ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean; virtual;
+    function ServerName: string; override;
+    procedure AttachTransport(ATransport: TNXLSTransport); override;
+    function ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean; override;
 
     property InitializeReceived: Boolean read FInitializeReceived;
     property Initialized: Boolean read FInitialized;
@@ -589,6 +591,16 @@ end;
 function TNXLSLSPModel.ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean;
 begin
   Result := FOutboundDispatcher.ReceiveResponse(AMessage);
+end;
+
+function TNXLSLSPModel.ServerName: string;
+begin
+  Result := 'NexusLS';
+end;
+
+procedure TNXLSLSPModel.AttachTransport(ATransport: TNXLSTransport);
+begin
+  FTransport := ATransport;
 end;
 
 class function TNXLSLSPModel.Current: TNXLSLSPModel;

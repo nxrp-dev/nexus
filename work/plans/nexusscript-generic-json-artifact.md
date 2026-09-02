@@ -520,16 +520,9 @@ move, or replace it with a compatibility adapter.
 
 ## Sub-Agent Delegation
 
-No implementation delegation is proposed. The compiled-value boundary,
-serializer, CLI replacement, Schema-producer deletion, and tests form one
-tightly coupled integration seam. The current worktree also contains
-overlapping uncommitted CLI, test, README, validator, manifest, fixture, and
-plan changes. Splitting these edits would create unsafe write overlap and blur
-responsibility for preserving the interrupted work.
-
-Main Codex should perform the approved implementation locally, review every
-overlap, compile at the stated checkpoints, run the complete suite, and report
-all integration decisions.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

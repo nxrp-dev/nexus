@@ -4,6 +4,12 @@ NexusScript compiles source documents and serializes their completed domain
 model as generic JSON. A Mustache template may transform that same JSON into
 the final artifact.
 
+The subsystem is physically divided by ownership: `core/` contains the
+language model, compiler, dependency session, normalization, and validation;
+`artifact/` contains JSON, external-data, and manifest production; `cli/`
+contains command-line process behavior; and `ls/` contains the dedicated
+NexusScriptLS process shell. Core does not depend on any front end.
+
 ```text
 NexusScript /input=Customer.Schema.nxscript
 NexusScript /input=Customer.Schema.nxscript /output=Customer.json
@@ -53,7 +59,7 @@ that exact JSON string. Processing stops on the first template failure without
 rolling back files written by earlier templates.
 
 ```nexusscript
-doctype "NexusManifest.Language.nxscript";
+doctype "path/to/NexusManifest.Language.nxscript";
 
 NexusManifest FirebirdBuild {
     Model Domain { Source: "models/Domain.nxscript"; }

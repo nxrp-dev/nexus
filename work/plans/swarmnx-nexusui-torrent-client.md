@@ -162,17 +162,9 @@ The correct first step is a thin but honest client:
 
 ## Sub-Agent Delegation
 
-- Proposed roles:
-  - `SwarmNX UI agent`: scaffold and shape the NexusUI app surface.
-  - `SwarmNX integration agent`: wire the app controller to NexusNet torrent classes.
-- Ownership boundaries:
-  - UI agent stays in `C:\gitdev\nexus-lab\SwarmNX`.
-  - Integration agent may read NexusNet but should not change it unless a verified compile/integration bug blocks the app.
-- Main Codex responsibilities:
-  - verify guidance, own architecture fit, integrate edits, compile, run tests where practical, and produce the archive.
-- Coordination risks:
-  - `nexus-lab` is outside the current writable root, so implementation may require explicit write approval.
-  - Sub-agents must not invent library behavior that NexusNet does not provide.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

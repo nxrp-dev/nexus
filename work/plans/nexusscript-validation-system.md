@@ -685,20 +685,9 @@ diagnostics, and free all objects without relying on filename inference.
 
 ## Sub-Agent Delegation
 
-- Proposed role after approval: a `NexusScript Validator worker` owning the new
-  validator folder, fixtures, and focused tests.
-- Ownership boundary: the worker must not edit generic parser/compiler units,
-  NexusSchema production code, NexusLS, or unrelated projects. Any proposed
-  shared diagnostic change returns to Main Codex for explicit integration
-  review before editing `NexusTools/Script/src`.
-- Main Codex responsibilities: review normalized vocabulary against this plan,
-  integrate any shared diagnostic seam, run builds/tests and forbidden-term
-  searches, inspect ownership, and report deviations.
-- Coordination risk: validator tests consume compiled-model internals, so model
-  API changes and validator implementation must not be edited concurrently.
-
-No sub-agent is started during planning. Implementation delegation begins only
-after direct human approval.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

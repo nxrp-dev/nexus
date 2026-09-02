@@ -472,16 +472,9 @@ resuming that separately approved migration.
 
 ## Sub-Agent Delegation
 
-No sub-agent delegation is recommended for this implementation. The change is
-a tight integration seam across recursive lookup, effective-array preparation,
-recursive evaluation, compiled-value state, and their shared regression suite.
-Splitting those edits would create overlapping ownership in the same compiler,
-model, and test files, while the worktree already contains related uncommitted
-work.
-
-Main Codex should perform the approved implementation, preserve unrelated
-changes, compile after each structural stage, review the final diff, and stop
-for human direction if the required mechanism exceeds this contract.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

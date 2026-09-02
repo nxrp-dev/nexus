@@ -8,7 +8,8 @@ uses
   Classes,
   SysUtils,
   fpjson,
-  obNexusScriptModel;
+  obNexusScriptModel,
+  obNexusScriptArtifactModel;
 
 type
   ENexusScriptJSON = class(Exception);

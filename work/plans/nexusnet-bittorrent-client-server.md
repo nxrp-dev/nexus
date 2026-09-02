@@ -359,33 +359,9 @@ Public torrents should not be the main verification path. They are useful later 
 
 ## Sub-Agent Delegation
 
-Sub-agents are useful after implementation approval, but not before.
-
-Proposed roles:
-
-- `NexusNet protocol worker`
-  - owns bencode, metainfo, tracker payload parsing, and peer message encode/decode
-- `NexusNet storage worker`
-  - owns piece map, file store, hashing, resume state, and related tests
-- `NexusNet session worker`
-  - owns torrent session orchestration, peer scheduling, and seeding policy after protocol/storage contracts exist
-- `NexusNet library API worker`
-  - owns the public service/status object boundary after the session API is stable
-
-Main Codex responsibilities:
-
-- keep the contracts simple and integrated
-- prevent duplicate state models
-- sequence work so workers do not edit the same files concurrently
-- review all implementation output
-- run final verification
-- create the required archive after an approved architecture implementation pass
-
-Recommended initial implementation delegation:
-
-- Do not start with four workers.
-- Use one `NexusNet protocol worker` for Stage 1 and Stage 2 after approval.
-- Add storage/session/library API workers only when the preceding contracts compile and tests pass.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Risks And Questions
 

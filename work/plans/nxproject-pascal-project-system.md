@@ -369,24 +369,9 @@ The project service should use this validation surface for `PlanNexusProjectCrea
 
 ## Sub-Agent Delegation
 
-- Proposed roles:
-  - `NexusLS explorer` for read-only inspection of project-service, LSP initialization, and tests.
-  - `NexusLS worker` for approved implementation in `NexusTools/LS/`.
-  - `NexusLib worker` only if `obNXProject.pas` is placed under `NexusLib/src/`.
-- Ownership boundaries:
-  - Main Codex owns final design decisions, integration, compile/test verification, and final report.
-  - `NexusLib worker` owns only `NexusLib/src/obNXProject.pas` and any required project metadata updates.
-  - `NexusLS worker` owns `NexusTools/LS/src/obNXPascalProject.pas`, LS project service/settings/model changes, and LS tests.
-- Main Codex responsibilities:
-  - review sub-agent diffs
-  - prevent duplicate path models
-  - ensure stored project state and generated effective options stay separate
-  - run final verification and create the archive after approved implementation
-- Coordination risks:
-  - `TNXProject` and `TNXPascalProject` inheritance changes cross unit boundaries, so edits must be sequenced.
-  - Do not allow two workers to edit `obNXPascalProject.pas` or test files at the same time.
-
-Delegation is useful for implementation after approval because NexusLib base model work and NexusLS Pascal integration can be separated after the base contract is settled.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

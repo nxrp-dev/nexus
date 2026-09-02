@@ -8,6 +8,7 @@ uses
   Classes,
   obNXJSONValues,
   obNXJSONRPCMessages,
+  obNXLSServer,
   obNXLSProtocolBase,
   obNXLSProtocolParams,
   obNXLSDocumentSyncParams,
@@ -38,7 +39,7 @@ type
     property Open: Boolean read FOpen;
   end;
 
-  TNXLSLSPContext = class
+  TNXLSLSPContext = class(TNXLSServerApplication)
   public
     procedure BeginInitialize(AParams: TNXLSInitializeParams); virtual; abstract;
     procedure MarkInitialized; virtual; abstract;

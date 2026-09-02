@@ -394,21 +394,9 @@ Create and validate the required source archive.
 
 ## Sub-Agent Delegation
 
-- Proposed role: reuse the named `NexusScript parity worker` for the coherent
-  compiler/model/test implementation.
-- Worker ownership:
-  - `NexusTools/Script/src` model and compiler changes;
-  - focused tests;
-  - parity execution and verified documentation update.
-- Main Codex responsibilities:
-  - review effective-value ownership and contributor lifecycle;
-  - verify inherited references bind in the final effective scope;
-  - reject projection-helper reuse in complete array copying;
-  - independently run clean builds, every test, focused searches, and archive
-    validation.
-- Coordination risk: the model, composition loop, binder, and tests share tight
-  ownership seams. One worker should receive the complete approved slice rather
-  than splitting writes between agents.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

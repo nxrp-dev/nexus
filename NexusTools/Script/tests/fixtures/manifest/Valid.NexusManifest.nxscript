@@ -1,4 +1,4 @@
-doctype "../../../validator/NexusManifest.Language.nxscript";
+doctype "../../../artifact/languages/NexusManifest.Language.nxscript";
 
 NexusManifest GeneratedFiles {
     Directory: generated;

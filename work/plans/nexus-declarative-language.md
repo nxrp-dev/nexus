@@ -419,35 +419,9 @@ Perform a final integration review of:
 
 ## Sub-Agent Delegation
 
-After direct implementation approval, assign Stages 1-10 to one named `NexusScript worker` by default. Do not assign that worker production NexusSchema write ownership before the parity gate and separate cutover approval.
-
-### Worker ownership
-
-- `NexusTools/Script/` project, source, tests, parity fixtures, and parity harness;
-- generic compiler plus the isolated temporary schema parity consumer;
-- NexusScript documentation;
-- read-only inspection of `NexusTools/Schema/` during construction and parity.
-
-### Main Codex responsibilities
-
-- provide the worker the complete approved plan and current constraints;
-- preserve unrelated worktree changes and define the allowed write set;
-- review model ownership before accepting downstream stages;
-- inspect every worker diff and reject domain leakage or compatibility scaffolding;
-- enforce the production NexusSchema no-touch boundary before parity approval;
-- review and report the parity matrix before requesting cutover approval;
-- make tightly scoped integration corrections when required after cutover approval;
-- run or coordinate final compile, tests, focused searches, manual CLI checks, archive creation, and reporting.
-
-### Delegation shape
-
-Use one worker for the coherent NexusScript construction rather than assigning concurrent writers to lexer, parser, resolver, and model units. Those units share evolving interfaces and ownership rules; parallel edits would create a high-conflict integration seam.
-
-If the compiler API and schema consumer boundary stabilize cleanly, a second bounded `NexusScript test reviewer` may inspect coverage or add tests in files not being edited by the primary worker. Do not allow overlapping writes to the same test or project files.
-
-After cutover approval, the NexusScript worker may receive a refreshed assignment for the bounded NexusSchema integration/removal stages, or a separate `NexusSchema cutover worker` may own only `NexusTools/Schema/`. Main Codex must define non-overlapping file ownership before either assignment.
-
-No sub-agent implementation begins before direct human approval of this plan.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

@@ -12,7 +12,9 @@ uses
   obNXCommandLine,
   obNXLSTransport,
   obNXLSTransportFactory,
-  obNXLSServer;
+  obNXLSServer,
+  obNXLSLSPModel,
+  obNXLSAllRequests;
 
 procedure RegisterCommandLineFlags;
 begin
@@ -39,6 +41,7 @@ end;
 var
   lMode: string;
   lTransport: TNXLSTransport;
+  lModel: TNXLSLSPModel;
   lServer: TNXLSServer;
 
 begin
@@ -50,7 +53,9 @@ begin
 
     lMode := GetCommunicationMode;
     lTransport := TNXLSTransportFactory.CreateTransport(lMode);
-    lServer := TNXLSServer.Create(lTransport);
+    lModel := TNXLSLSPModel.Create;
+    TNXLSLSPModel.SetCurrent(lModel);
+    lServer := TNXLSServer.Create(lTransport, lModel);
     try
       lServer.Execute;
     finally

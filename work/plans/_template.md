@@ -27,10 +27,10 @@
 
 ## Sub-Agent Delegation
 
-- Proposed roles:
-- Ownership boundaries:
-- Main Codex responsibilities:
-- Coordination risks:
+- Implementation remains local unless the human owner explicitly requested
+  sub-agent use. Do not propose or infer delegation in this plan.
+- If sub-agent use was explicitly requested, record only the requested roles,
+  ownership boundaries, sequencing, overlap risks, and Main Codex responsibilities.
 
 ## Verification Plan
 

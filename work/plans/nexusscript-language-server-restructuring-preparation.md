@@ -10,7 +10,7 @@
   - Only verified language-neutral LSP protocol and process infrastructure is shared. Pascal and NexusScript analysis, documents, requests, services, and indexes remain server-owned.
 - Existing constraints:
   - `.ai/protocols/architecture-change.md` and `.ai/protocols/codex-workplan-format.md` require a planning-only pass, exactly one matching plan, an explicit approval gate, and a committed/pushed planning artifact.
-  - `.ai/protocols/subagents.md` forbids implementation delegation before approval and requires non-overlapping ownership when approved work is delegated.
+  - `.ai/protocols/subagents.md` forbids sub-agent use unless the human owner explicitly requests it; plan or implementation approval alone does not authorize delegation.
   - Root and folder `AGENTS.md` rules require narrow changes, Pascal standards, explicit ownership, removal of obsolete abstractions instead of compatibility layers, and no Schema vocabulary in the NexusScript language engine.
   - Current NexusScript CLI/artifact behavior and current Pascal NexusLS behavior must survive the reorganization.
   - Planning inspection was performed at repository commit `9e83b6c1ca3dcf30eee5ff7181e4628508225ab3`, which matched `origin/main` when inspected.
@@ -344,18 +344,9 @@ Checkpoint: all final verification passes, all old locations are absent, and the
 
 ## Sub-Agent Delegation
 
-- No sub-agent is used while preparing or reviewing this plan.
-- After explicit implementation approval, use two sequential named worker roles because the write sets are naturally separated but meet at project wiring:
-  - `Shared LSP worker`: owns `NexusLib/lsp`, the shared-test module, and necessary adaptations under `NexusTools/LS`. It performs Stages 2-3.
-  - `NexusScript restructuring worker`: owns `NexusTools/Script`, including core/artifact/CLI moves and the NexusScriptLS shell. It performs Stages 4-6 only after the shared host contract is integrated.
-- Do not run these workers concurrently. Both stages edit project/search-path assumptions, and NexusScriptLS must target the accepted shared host API rather than a competing draft.
-- Main Codex responsibilities:
-  - establish and communicate the exact approved plan and clean-worktree baseline;
-  - review the shared application/host ownership contract before accepting Stage 3;
-  - integrate project files, documentation, and repository-wide path cleanup in Stage 7;
-  - run the complete build/test/grep matrix and inspect every worker diff;
-  - create the required post-implementation architecture archive and report results.
-- Workers must not preserve old files, add forwarding units, expand into editor features, or edit the other worker's owned subsystem without reassignment by Main Codex.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

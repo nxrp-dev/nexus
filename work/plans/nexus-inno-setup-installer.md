@@ -320,12 +320,9 @@ Expected modified files:
 
 ## Sub-Agent Delegation
 
-Delegation is optional. If used, one worker should own installer packaging and staging:
-
-- role: `InstallerPackagingWorker`
-- folders: `NexusTools\Installer`, installer scripts, staging/package task scripts
-
-Main Codex should keep final review and validation. The extension update should be separate because it is in another repository.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

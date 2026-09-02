@@ -379,13 +379,11 @@ not search for validator files independently.
 - Changes to NexusScript syntax, doctype semantics, Validator vocabulary, or
   existing metadata conversion semantics.
 
-## Sub-Agent Plan
+## Sub-Agent Delegation
 
-No delegation is requested for planning. If implementation is later approved
-and delegation is explicitly requested, one bounded CLI worker may own the new
-CLI unit, project wiring, and focused tests. Main Codex retains responsibility
-for integration review, generic-boundary verification, complete test execution,
-and archive inspection.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Approval Gate
 

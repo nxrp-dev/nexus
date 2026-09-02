@@ -5,8 +5,8 @@ unit obNXLSToolchainService;
 interface
 
 uses
-  obNXLSProtocolObjects,
-  obNXLSProtocolParams;
+  obNXLSProjectProtocol,
+  obNXLSToolchainProtocol;
 
 type
   TNXLSToolchainService = class

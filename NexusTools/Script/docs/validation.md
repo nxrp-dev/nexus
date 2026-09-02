@@ -3,7 +3,9 @@
 The Validator is a final NexusScript consumer. It accepts an already compiled
 subject document and an already compiled language-definition document through
 `TNexusScriptValidator.Validate`. It does not parse source, resolve references,
-select validators from filenames, or mutate either document.
+select validators from filenames, or mutate either document. Language
+definitions are normalized through the public read-only
+`TNexusScriptLanguageDefinition` model, which the Validator consumes directly.
 
 Language definitions are ordinary NexusScript. The engine assigns meaning to
 seven consumer-defined kinds:
@@ -30,14 +32,15 @@ effective scalar text. On an `Array` rule it restricts every scalar entry.
 Comparisons are case-insensitive, matching the Validator engine's finite
 vocabulary. It does not provide predicates, expressions, or pattern matching.
 
-Diagnostics are validator-owned and contain severity, code, message, primary
-source range, and related source ranges. Codes beginning `NSV1` describe an
-invalid language definition. Codes beginning `NSV2` or `NSV3` describe an
-invalid subject.
+Normalization diagnostics exposed by `TNexusScriptLanguageDefinition` contain
+code, message, and source range. The Validator copies those failures into its
+own diagnostics, which also contain severity and related source ranges. Codes
+beginning `NSV1` describe an invalid language definition. Codes beginning
+`NSV2` or `NSV3` describe an invalid subject.
 
-The foundational definition is `fixtures/Language.nxscript`. It has no
-`doctype`, is compiled normally, normalized by the engine's concrete language
-vocabulary,
+The foundational definition is `../tests/fixtures/validation/Language.nxscript`. It has no
+`doctype`, is compiled normally, normalized by the public model's concrete
+language vocabulary,
 and then validated against its own normalized rules. No parser mode or second
 meta-validator is involved.
 
@@ -56,6 +59,9 @@ Language.nxscript
 ```
 
 `Language.nxscript` is foundational and therefore has no self-doctype.
+
+The production manifest language definition is owned by the artifact
+consumer at `../artifact/languages/NexusManifest.Language.nxscript`.
 
 Documents associate their semantic document type explicitly with `doctype`.
 The Validator API does not infer, locate, or enforce language-definition

@@ -313,22 +313,9 @@ Create and validate the required source archive after all verification.
 
 ## Sub-Agent Delegation
 
-- Proposed role: reuse the named `NexusScript parity worker` for the coherent
-  `NexusTools/Script` implementation slice.
-- Worker ownership:
-  - generic projection implementation;
-  - focused compiler tests;
-  - parity fixture execution and `PARITY.md` result update.
-- Main Codex responsibilities:
-  - inspect the worker's classification and ownership model;
-  - reject any schema-specific or general-clone leakage;
-  - run independent clean builds and the full test host;
-  - verify source searches, production boundaries, fixture integrity, and the
-    final archive.
-- Coordination risk: compiler and tests are tightly coupled, so one worker
-  should receive the full implementation rather than splitting writes across
-  multiple agents. Production NexusSchema remains outside the worker's write
-  scope.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Verification Plan
 

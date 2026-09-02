@@ -363,11 +363,11 @@ tests do not affect repository files.
 - parallel execution, conditions, dependencies, hooks, or post-processing;
 - changes to the existing `/template` contract or Mustache implementation.
 
-## Delegation
+## Sub-Agent Delegation
 
-No sub-agent delegation is proposed. The implementation is one narrow CLI seam
-whose parsing, compiled-model enumeration, render call, write call, and tests
-should be kept together.
+This plan does not authorize or recommend sub-agent use. Implementation remains
+local unless the human owner explicitly requests sub-agent use in the current
+conversation. Plan approval and implementation approval do not authorize delegation.
 
 ## Approval Gate
 

@@ -98,7 +98,8 @@ The work plan should explain:
 7. risks and open questions
 8. compile/test plan
 9. manual interoperability plan
-10. sub-agent delegation plan if implementation is later approved
+10. confirmation that implementation remains local unless the human owner
+    explicitly requests sub-agent use
 
 ## Constraints
 

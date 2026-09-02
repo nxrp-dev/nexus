@@ -1,7 +1,0 @@
-doctype "../../../validator/NexusManifest.Language.nxscript";
-
-NexusManifest MissingTemplate {
-    Model Domain {
-        Source: "../cli/Valid.Artifact.nxscript";
-    }
-}

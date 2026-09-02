@@ -5,20 +5,30 @@ unit obNXLSServer;
 interface
 
 uses
-  obNXLSTransport,
-  obNXLSLSPModel;
+  obNXJSONRPCMessages,
+  obNXLSTransport;
 
 type
+  TNXLSServerApplication = class
+  public
+    function ServerName: string; virtual; abstract;
+    procedure AttachTransport(ATransport: TNXLSTransport); virtual; abstract;
+    function ReceiveClientResponse(AMessage: TNXJSONRPCMessage): Boolean; virtual; abstract;
+  end;
+
   TNXLSServer = class
   private
     FTransport: TNXLSTransport;
-    FModel: TNXLSLSPModel;
+    FApplication: TNXLSServerApplication;
   public
-    constructor Create(ATransport: TNXLSTransport);
+    { After validating both arguments, takes ownership of them even if
+      application attachment raises an exception. }
+    constructor Create(ATransport: TNXLSTransport;
+      AApplication: TNXLSServerApplication);
     destructor Destroy; override;
     procedure Execute;
     property Transport: TNXLSTransport read FTransport;
-    property Model: TNXLSLSPModel read FModel;
+    property Application: TNXLSServerApplication read FApplication;
   end;
 
 implementation
@@ -27,7 +37,6 @@ uses
   SysUtils,
   fpjson,
   jsonparser,
-  obNXJSONRPCMessages,
   obNXLSDispatcher,
   obNXLSLogger;
 
@@ -75,19 +84,23 @@ begin
   end;
 end;
 
-constructor TNXLSServer.Create(ATransport: TNXLSTransport);
+constructor TNXLSServer.Create(ATransport: TNXLSTransport;
+  AApplication: TNXLSServerApplication);
 begin
   inherited Create;
+  if ATransport = nil then
+    raise Exception.Create('Transport is required.');
+  if AApplication = nil then
+    raise Exception.Create('Language server application is required.');
+
   FTransport := ATransport;
-  FModel := TNXLSLSPModel.Create;
-  FModel.Transport := FTransport;
-  TNXLSLSPModel.SetCurrent(FModel);
+  FApplication := AApplication;
+  FApplication.AttachTransport(FTransport);
 end;
 
 destructor TNXLSServer.Destroy;
 begin
-  TNXLSLSPModel.SetCurrent(nil);
-  FModel.Free;
+  FApplication.Free;
   FTransport.Free;
   inherited Destroy;
 end;
@@ -103,12 +116,10 @@ var
   lResponseJSON: TJSONData;
   lIdx: Integer;
 begin
-  if FTransport = nil then
-    raise Exception.Create('Transport has not been assigned.');
-
   FTransport.Open;
   try
-    TNXLSLogger.Info('NexusLS started using ' + FTransport.GetFactoryName + ' transport.');
+    TNXLSLogger.Info(FApplication.ServerName + ' started using ' +
+      FTransport.GetFactoryName + ' transport.');
 
     while FTransport.ReadMessage(lMessage) do
     begin
@@ -164,7 +175,7 @@ begin
 
               rpcmtSuccessResponse,
               rpcmtErrorResponse:
-                FModel.ReceiveClientResponse(lRPCMessage);
+                FApplication.ReceiveClientResponse(lRPCMessage);
             end;
           end;
 

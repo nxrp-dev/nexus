@@ -23,9 +23,12 @@ uses
   obNexusScriptModel,
   obNexusScriptCompiler,
   obNexusScriptSession,
+  obNexusScriptArtifactModel,
+  obNexusScriptArtifactContext,
   obNexusScriptJSON,
   obNexusScriptExternalSource,
   obNexusScriptCommand,
+  obNexusScriptLanguageDefinition,
   obNexusScriptValidator;
 
 procedure TestStructureAndValues(AContext: TNXTestContext);
@@ -131,6 +134,7 @@ begin
 
     AContext.AssertTrue(lValidatorCompiler.CompileText('tag-language.nxscript',
       'Language Test { Definitions: [Definition Thing { Root: True; ' +
+      'UnknownProperties: Allow; }, Definition Node { ' +
       'UnknownProperties: Allow; }]; }'),
       'Tag-neutral validator language should compile.');
     AContext.AssertTrue(lValidator.Validate(lCompiler.CompiledDocument,
@@ -184,10 +188,10 @@ end;
 
 function ValidatorFixturePath(const AFileName: string): string;
 begin
-  Result := ExpandFileName('..\..\..\NexusTools\Script\validator\fixtures\' +
+  Result := ExpandFileName('..\..\..\NexusTools\Script\tests\fixtures\validation\' +
     AFileName);
   if not FileExists(Result) then
-    Result := ExpandFileName('NexusTools\Script\validator\fixtures\' +
+    Result := ExpandFileName('NexusTools\Script\tests\fixtures\validation\' +
       AFileName);
 end;
 
@@ -493,37 +497,43 @@ end;
 procedure TestIncludeLoading(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
+  lArtifactContext: TNexusScriptArtifactContext;
 begin
   lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
   try
     AContext.AssertTrue(lSession.CompileFile(IncludeFixturePath('entry.nxscript')),
       'Transitive includes should compile: ' + lSession.LastError);
-    AContext.AssertEquals(3, lSession.ArtifactDocuments.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(3, lArtifactContext.ArtifactDocuments.Count,
       'Entry and transitive includes should form one deduplicated artifact set.');
     AContext.AssertEquals('entry.nxscript', ExtractFileName(
-      lSession.ArtifactDocuments[0].CompiledDocument.SourceName),
+      lArtifactContext.ArtifactDocuments[0].CompiledDocument.SourceName),
       'Entry document should be first.');
     AContext.AssertEquals('child.nxscript', ExtractFileName(
-      lSession.ArtifactDocuments[1].CompiledDocument.SourceName),
+      lArtifactContext.ArtifactDocuments[1].CompiledDocument.SourceName),
       'Includes should follow declaration-order depth-first traversal.');
     AContext.AssertEquals('leaf.nxscript', ExtractFileName(
-      lSession.ArtifactDocuments[2].CompiledDocument.SourceName),
+      lArtifactContext.ArtifactDocuments[2].CompiledDocument.SourceName),
       'A repeated canonical include should appear only once.');
 
     AContext.AssertTrue(lSession.CompileFile(
       IncludeFixturePath('multiple.nxscript')),
       'Session reuse should compile a new artifact graph: ' +
       lSession.LastError);
-    AContext.AssertEquals(3, lSession.ArtifactDocuments.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(3, lArtifactContext.ArtifactDocuments.Count,
       'Session reuse should replace rather than append artifact state.');
     AContext.AssertEquals('second.nxscript', ExtractFileName(
-      lSession.ArtifactDocuments[2].CompiledDocument.SourceName),
+      lArtifactContext.ArtifactDocuments[2].CompiledDocument.SourceName),
       'Independent includes should retain declaration order.');
   finally
+    lArtifactContext.Free;
     lSession.Free;
   end;
 
   lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
   try
     AContext.AssertTrue(not lSession.CompileFile(
       IncludeFixturePath('invisible.nxscript')),
@@ -532,23 +542,28 @@ begin
       IncludeFixturePath('module-and-include.nxscript')),
       'One document may be both a module and an include: ' +
       lSession.LastError);
-    AContext.AssertEquals(2, lSession.ArtifactDocuments.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(2, lArtifactContext.ArtifactDocuments.Count,
       'The included dependency should join the artifact set once.');
     AContext.AssertTrue(lSession.CompileFile(
       IncludeFixturePath('module-only.nxscript')),
       'A module-only dependency should compile: ' + lSession.LastError);
-    AContext.AssertEquals(1, lSession.ArtifactDocuments.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(1, lArtifactContext.ArtifactDocuments.Count,
       'Module dependencies should not automatically become artifacts.');
     AContext.AssertTrue(lSession.CompileFile(
       IncludeFixturePath('doctype-only.nxscript')),
       'A doctype-only dependency should compile: ' + lSession.LastError);
-    AContext.AssertEquals(1, lSession.ArtifactDocuments.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(1, lArtifactContext.ArtifactDocuments.Count,
       'Doctype dependencies should not automatically become artifacts.');
   finally
+    lArtifactContext.Free;
     lSession.Free;
   end;
 
   lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
   try
     AContext.AssertTrue(not lSession.CompileFile(
       IncludeFixturePath('missing.nxscript')),
@@ -571,6 +586,7 @@ begin
     AContext.AssertTrue(Pos('cycle', LowerCase(lSession.LastError)) > 0,
       'Mixed dependency cycle failure should be deterministic.');
   finally
+    lArtifactContext.Free;
     lSession.Free;
   end;
 end;
@@ -587,14 +603,24 @@ end;
 procedure TestLanguageSelfValidation(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
+  lLanguageDefinition: TNexusScriptLanguageDefinition;
   lValidator: TNexusScriptValidator;
 begin
   lSession := TNexusScriptCompilationSession.Create;
+  lLanguageDefinition := TNexusScriptLanguageDefinition.Create;
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(
       ValidatorFixturePath('Language.nxscript')),
       'Language definition should compile: ' + lSession.LastError);
+    AContext.AssertTrue(lLanguageDefinition.Normalize(
+      lSession.EntryCompiler.CompiledDocument),
+      'Public language definition should normalize the foundational language.');
+    AContext.AssertEquals(0, lLanguageDefinition.DiagnosticCount,
+      'Successful public normalization should have no diagnostics.');
+    AContext.AssertTrue(
+      lLanguageDefinition.FindDefinitionRule('Language') <> nil,
+      'Public language definition should expose read-only rule lookup.');
     AContext.AssertTrue(lValidator.Validate(
       lSession.EntryCompiler.CompiledDocument,
       lSession.EntryCompiler.CompiledDocument),
@@ -602,6 +628,7 @@ begin
       ValidationFailure(lValidator));
   finally
     lValidator.Free;
+    lLanguageDefinition.Free;
     lSession.Free;
   end;
 end;
@@ -767,10 +794,12 @@ procedure TestInvalidLanguageDefinition(AContext: TNXTestContext);
 var
   lValidatorCompiler: TNexusScriptCompiler;
   lSubjectCompiler: TNexusScriptCompiler;
+  lLanguageDefinition: TNexusScriptLanguageDefinition;
   lValidator: TNexusScriptValidator;
 begin
   lValidatorCompiler := TNexusScriptCompiler.Create;
   lSubjectCompiler := TNexusScriptCompiler.Create;
+  lLanguageDefinition := TNexusScriptLanguageDefinition.Create;
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lValidatorCompiler.CompileText('invalid-validator.nxscript',
@@ -779,6 +808,13 @@ begin
       'Malformed validator should remain valid generic NexusScript.');
     AContext.AssertTrue(lSubjectCompiler.CompileText('subject.nxscript',
       'Thing Root {}'), 'Subject should compile.');
+    AContext.AssertTrue(not lLanguageDefinition.Normalize(
+      lValidatorCompiler.CompiledDocument),
+      'Public normalization should reject invalid language vocabulary.');
+    AContext.AssertEquals(0, lLanguageDefinition.DefinitionRuleCount,
+      'Failed normalization should not expose partial rules.');
+    AContext.AssertEquals('NSV1007', lLanguageDefinition.Diagnostics[0].Code,
+      'Public normalization should retain validator diagnostic codes.');
     AContext.AssertTrue(not lValidator.Validate(lSubjectCompiler.CompiledDocument,
       lValidatorCompiler.CompiledDocument),
       'Unknown validator vocabulary should fail normalization.');
@@ -786,6 +822,7 @@ begin
       'Invalid rule diagnostic should be deterministic.');
   finally
     lValidator.Free;
+    lLanguageDefinition.Free;
     lSubjectCompiler.Free;
     lValidatorCompiler.Free;
   end;
@@ -919,7 +956,7 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(ExpandFileName(
       ExtractFileDir(ManifestFixturePath('Valid.NexusManifest.nxscript')) +
-      '\..\..\..\validator\NexusManifest.Language.nxscript')),
+      '\..\..\..\artifact\languages\NexusManifest.Language.nxscript')),
       'NexusManifest language should compile with the foundational Language definition.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(lValidator.Validate(lDocument,
@@ -932,7 +969,23 @@ begin
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(lValidator.Validate(lDocument,
       lDocument.DoctypeDocument),
-      'Manifest with root and entry auxiliary properties should validate.');
+      'A manifest with only Template renderers should validate.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('ExternalData.NexusManifest.nxscript')),
+      'Manifest with only SourceTemplate renderers should compile.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'A manifest with only SourceTemplate renderers should validate.');
+
+    AContext.AssertTrue(lSession.CompileFile(
+      ManifestFixturePath('BothRenderers.NexusManifest.nxscript')),
+      'Manifest with both renderer kinds should compile.');
+    lDocument := lSession.EntryCompiler.CompiledDocument;
+    AContext.AssertTrue(lValidator.Validate(lDocument,
+      lDocument.DoctypeDocument),
+      'A manifest with both renderer kinds should validate.');
 
     AContext.AssertTrue(lSession.CompileFile(
       ManifestFixturePath('MissingOutput.NexusManifest.nxscript')),
@@ -951,12 +1004,12 @@ begin
       'Manifest missing Model should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
-      ManifestFixturePath('MissingTemplate.NexusManifest.nxscript')),
-      'Manifest missing Template should compile structurally.');
+      ManifestFixturePath('MissingRenderer.NexusManifest.nxscript')),
+      'Manifest missing a renderer should compile structurally.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
       lDocument.DoctypeDocument),
-      'Manifest missing Template should fail validation.');
+      'Manifest missing both renderer kinds should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
       ManifestFixturePath('MissingModelSource.NexusManifest.nxscript')),
@@ -1584,6 +1637,7 @@ procedure TestExternalDataDeclarations(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
   lSession: TNexusScriptCompilationSession;
+  lArtifactContext: TNexusScriptArtifactContext;
   lEmitter: TNexusScriptJSONEmitter;
   lJSON: string;
 begin
@@ -1617,19 +1671,21 @@ begin
   end;
 
   lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
   try
     AContext.AssertTrue(lSession.CompileFile(
       ExternalDataFixturePath('dependency-entry.nxscript')),
       'External dependency fixture should compile: ' + lSession.LastError);
-    AContext.AssertEquals(3, lSession.ExternalSources.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(3, lArtifactContext.ExternalSources.Count,
       'Entry, include, and module declarations should all participate.');
-    AContext.AssertEquals('ENTRY_DATA', lSession.ExternalSources[0].Name,
+    AContext.AssertEquals('ENTRY_DATA', lArtifactContext.ExternalSources[0].Name,
       'Entry declarations should retain deterministic first position.');
-    AContext.AssertEquals('INCLUDE_DATA', lSession.ExternalSources[1].Name,
+    AContext.AssertEquals('INCLUDE_DATA', lArtifactContext.ExternalSources[1].Name,
       'Include declarations should follow entry declarations.');
-    AContext.AssertEquals('MODULE_DATA', lSession.ExternalSources[2].Name,
+    AContext.AssertEquals('MODULE_DATA', lArtifactContext.ExternalSources[2].Name,
       'Module declarations should follow include declarations.');
-    AContext.AssertEquals('csv', lSession.ExternalSources[0].SourceType,
+    AContext.AssertEquals('csv', lArtifactContext.ExternalSources[0].SourceType,
       'The normalized extension should define the initial source type.');
 
     lEmitter := TNexusScriptJSONEmitter.Create;
@@ -1645,9 +1701,11 @@ begin
     AContext.AssertTrue(lSession.CompileFile(
       ExternalDataFixturePath('doctype-entry.nxscript')),
       'A doctype dependency fixture should compile: ' + lSession.LastError);
-    AContext.AssertEquals(0, lSession.ExternalSources.Count,
+    lArtifactContext.Build;
+    AContext.AssertEquals(0, lArtifactContext.ExternalSources.Count,
       'Doctype documents must not contribute model-owned data sources.');
   finally
+    lArtifactContext.Free;
     lSession.Free;
   end;
 end;

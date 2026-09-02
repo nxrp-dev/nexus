@@ -147,28 +147,6 @@ type
 
   TNexusScriptSourceDataList = TObjectList<TNexusScriptSourceData>;
 
-  TNexusScriptExternalSource = class
-  private
-    FName: string;
-    FDeclaredPath: string;
-    FFileName: string;
-    FSourceType: string;
-    FDeclaringDocument: string;
-    FSourceRange: TNexusScriptRange;
-  public
-    constructor Create(const AName, ADeclaredPath, AFileName,
-      ASourceType, ADeclaringDocument: string;
-      const ASourceRange: TNexusScriptRange);
-    property Name: string read FName;
-    property DeclaredPath: string read FDeclaredPath;
-    property FileName: string read FFileName;
-    property SourceType: string read FSourceType;
-    property DeclaringDocument: string read FDeclaringDocument;
-    property SourceRange: TNexusScriptRange read FSourceRange;
-  end;
-
-  TNexusScriptExternalSourceList = TObjectList<TNexusScriptExternalSource>;
-
   TNexusScriptSourceDocument = class
   private
     FSourceName: string;
@@ -211,9 +189,6 @@ type
     FCompositionContributors: TNexusScriptCompiledValueList;
     FEvaluationState: TNexusScriptValueEvaluationState;
     FArrayPreparationState: TNexusScriptArrayPreparationState;
-  protected
-    function GetArtifactKind: TNexusScriptArtifactValueKind;
-    function GetArtifactValue: TNexusScriptCompiledValue;
   public
     constructor Create(AKind: TNexusScriptValueKind;
       const ASourceRange: TNexusScriptRange);
@@ -247,8 +222,6 @@ type
       read FEvaluationState write FEvaluationState;
     property ArrayPreparationState: TNexusScriptArrayPreparationState
       read FArrayPreparationState write FArrayPreparationState;
-    property ArtifactKind: TNexusScriptArtifactValueKind read GetArtifactKind;
-    property ArtifactValue: TNexusScriptCompiledValue read GetArtifactValue;
   end;
 
   TNexusScriptCompiledProperty = class
@@ -438,19 +411,6 @@ begin
   inherited Destroy;
 end;
 
-constructor TNexusScriptExternalSource.Create(const AName, ADeclaredPath,
-  AFileName, ASourceType, ADeclaringDocument: string;
-  const ASourceRange: TNexusScriptRange);
-begin
-  inherited Create;
-  FName := AName;
-  FDeclaredPath := ADeclaredPath;
-  FFileName := AFileName;
-  FSourceType := ASourceType;
-  FDeclaringDocument := ADeclaringDocument;
-  FSourceRange := ASourceRange;
-end;
-
 procedure TNexusScriptSourceDocument.SetDoctype(
   AValue: TNexusScriptSourceDoctype);
 begin
@@ -509,30 +469,6 @@ begin
   for lItem in FItems do
     if SameText(lItem.EffectiveName, AName) then
       Exit(lItem);
-end;
-
-function TNexusScriptCompiledValue.GetArtifactValue:
-  TNexusScriptCompiledValue;
-begin
-  Result := Self;
-  while Result.EffectiveValue <> nil do
-    Result := Result.EffectiveValue;
-end;
-
-function TNexusScriptCompiledValue.GetArtifactKind:
-  TNexusScriptArtifactValueKind;
-var
-  lValue: TNexusScriptCompiledValue;
-begin
-  lValue := GetArtifactValue;
-  if lValue.StructuralDefinition <> nil then
-    Result := nsavDefinition
-  else if lValue.Kind = nsvArray then
-    Result := nsavArray
-  else if lValue.HasEffectiveText then
-    Result := nsavText
-  else
-    Result := nsavInvalid;
 end;
 
 constructor TNexusScriptCompiledProperty.Create(const AName: string;
