@@ -2,366 +2,366 @@
 
 ## Inputs
 
-- Source request: `C:\Users\kcollins\Downloads\codex-luna-xmpp-gui-bot-host-workplan-request (1).md`.
-- Related discussion/review notes:
-  - The first host is a visible Windows NexusUI application, not a service or daemon.
-  - The host launches and owns `codex app-server` over its default stdio JSONL transport; attaching and WebSocket transport are excluded.
-  - Every supported App Server request, response, notification, parameter, result, event, and tagged union is modeled by Pascal RTTI/Props classes. Published properties are the wire contract. Production code does not construct or interpret App Server messages through free-form JSON.
-  - The existing Nexus JSON-RPC implementation must gain an explicit headerless-envelope policy because App Server omits the `jsonrpc` member. Existing standards-compliant consumers must retain their current behavior.
-  - The initial bot is non-writing, cannot accept authority from XMPP text, and does not autonomously approve commands, changes, network access, permissions, or user-input requests.
-  - The initial routing rule is an exact, case-sensitive leading `@BotNick` followed by whitespace or end-of-message. The prefix and separating whitespace are removed, and empty remaining input is rejected.
-  - A successful turn prefers the last completed `agentMessage` marked `final_answer`. If the installed schema permits an absent phase and no agent message in the turn supplies a phase, the last completed agent message is used. Messages explicitly marked `commentary` are never sent to XMPP.
-  - Unknown App Server notifications are logged and ignored. Unknown server-initiated requests receive a typed error response. Known methods with invalid typed payloads are protocol failures.
-- Existing constraints:
-  - Follow repository `AGENTS.md`, `NexusTools/AGENTS.md`, `NexusLib/net/AGENTS.md`, `NexusLib/net/src/xmpp/AGENTS.md`, `NexusLib/ui/AGENTS.md`, `.ai/standards/pascal.md`, `.ai/protocols/architecture-change.md`, and `.ai/protocols/subagents.md`.
-  - Preserve NexusXMPP connection-thread ownership, bounded queues, retained event ownership, and caller-thread callbacks through `TNXXMPPClient.PumpEvents`.
-  - Preserve RTTI/Props as the protocol data-contract mechanism.
-  - Keep the implementation narrow and local to one Codex/Luna-backed bot. No sub-agent use has been authorized.
+- Human-owner request: replace the existing BotHost plan with a new plan for creating the Codex bot.
+- Original work-plan request: `C:\Users\kcollins\Downloads\codex-luna-xmpp-gui-bot-host-workplan-request (1).md`.
+- Superseded plan: this file before the current revision.
+- Related discussion and corrections:
+  - NexusXMPP raises normal Pascal events directly on its connection thread.
+  - `TNXXMPPClient` retains a bounded command queue for work submitted to that thread; it no longer has an application-facing event queue or `PumpEvents` path.
+  - A Pascal event is the correct direct notification mechanism. Raising one does not imply dispatch to the GUI thread.
+  - BotHost may use shared observable state for GUI display. Register-sized dirty/revision observations may race benignly because the GUI needs a current view, not every intermediate transition.
+  - Retained structured state read concurrently by the GUI requires explicit ownership and a consistent snapshot operation.
+  - No current requirement justifies changing NexusUI or adding an application-cycle, idle, timer, generalized application-message, or protocol-pump facility.
+  - RTTI classes and their published properties are the App Server JSON-RPC data contract. Free-form JSON is not an alternate protocol model.
+- External protocol reference: current official Codex App Server documentation describes bidirectional headerless JSON-RPC 2.0 over newline-delimited stdio and provides schema-generation commands.
+- Repository constraints:
+  - Follow repository and folder `AGENTS.md`, `.ai/standards/pascal.md`, and `.ai/protocols/architecture-change.md`.
+  - Preserve the owner's uncommitted NexusXMPP work.
+  - Keep the first bot deliberately narrow, local, visible, and non-writing.
+  - No sub-agent use is authorized.
 
 ## Summary
 
-Create `NexusTools/BotHost` as a focused NexusUI application that owns one NexusXMPP client, one MUC participation session, and one local Codex App Server child process. The application accepts only explicitly addressed live room messages, serializes them through one bounded FIFO into one Codex thread, and posts only an eligible completed final answer back to the room. Its GUI presents connection, room, process, thread, turn, queue, routing, approval, and failure state without becoming a human chat client.
+Create `NexusTools/BotHost` as a visible Windows NexusUI application that owns one NexusXMPP client and one local `codex app-server` child process. It joins one configured MUC room, accepts only exact leading mentions of its current nickname, serializes admitted prompts into one Codex thread with one active turn, and sends only the selected completed final answer back to the room.
 
-The implementation reuses NexusLib's RTTI/Props JSON and JSON-RPC message model but does not reuse the LSP transport or server machinery. App Server uses JSONL rather than LSP `Content-Length` framing, acts as the server while the host is the bidirectional client, and omits the JSON-RPC version member. A small explicit JSON-RPC envelope policy will address the one shared incompatibility. The Codex-specific request correlation, process ownership, schema-derived RTTI types, and JSONL framing remain owned by the BotHost tool.
+The application thread will not mediate XMPP and App Server traffic. NexusXMPP raises events directly on the connection thread. The App Server owner raises Pascal events directly on its worker thread. BotHost event handlers copy borrowed data when retention is required and submit work through the destination subsystem's bounded command API.
 
-The implementation also adds one narrow NexusUI application-cycle callback. `TNXApplication.Run` currently provides no place for an application to pump NexusXMPP or drain background process events on the GUI thread. The callback will expose that lifecycle point without putting protocol work in rendering or adding a timer framework.
+NexusUI displays BotHost-owned observable state and accepts operator commands. It does not pump either protocol, parse JSON, route stanzas, or require a new framework callback. This replaces the incorrect application-cycle and cross-thread result-queue architecture in the prior plan.
 
 ## Verified Findings
 
-### Nexus JSON-RPC and RTTI/Props
-
-- `TNXJSONRPCMessage` is a `TNXJSONObject` with RTTI-published `jsonrpc` and `id` properties. Commands add published `method` and `params`; responses add published `result` and `error`.
-- `TNXJSONObject.ToJSONData` enumerates RTTI-published JSON-value properties and omits unassigned properties. Headerless serialization is therefore already mechanically possible when `jsonrpc` remains unassigned.
-- `TNXJSONObject.FromJSONData` populates known RTTI properties and ignores fields that have no modeled property. Host behavior must never retrieve those ignored fields through a dynamic side channel.
-- `TNXJSONRPCVariant` and typed array classes provide the existing mechanism for schema unions and collections. App Server tagged unions can select a concrete RTTI class by their schema discriminator while all modeled data remains published properties.
-- `TNXJSONRPC.ValidateMessage` currently rejects a missing `jsonrpc = "2.0"` member. `CreateSuccessResponse` and `CreateErrorResponse` always add that member.
-- `TNXLSOutboundDispatcher` also assigns `jsonrpc = "2.0"` before every request and notification. It is LSP-specific and must remain unchanged for standard JSON-RPC.
-- NexusLib's LSP transports implement `Content-Length` framing and server hosting. They are not App Server JSONL child-process transports and should not be imported into BotHost merely to reuse their names or lifecycle.
-- The current JSON-RPC class factory already maps registered method names to concrete RTTI message classes. This is the appropriate dispatch basis for modeled App Server methods.
-
 ### NexusXMPP
 
-- `TNXXMPPClient` owns configuration, the connection thread, modules, and bounded command/event queues. Modules are fixed while connected.
-- `TNXXMPPClient.PumpEvents` drains retained events and invokes application/module callbacks on the caller thread.
-- `TNXXMPPClientConfig` already carries JID, password, endpoint override, CA file, reconnect limits, and bounded XMPP capacities. The bot host should populate this object rather than duplicate XMPP transport settings.
-- `TNXXMPPMUCModule` exposes typed `Join`, `Leave`, `SendGroupMessage`, `SendGroupReply`, room-state, occupant, and room-message APIs. It owns current room nickname/state and classifies delayed messages as `xmdcMUCHistory`.
-- `TNXXMPPMessage` exposes the typed body, sender JID, message type, delivery context, identifiers, reply metadata, and validation result needed by the initial router.
-- The current MUC API is sufficient for the first host loop. No raw XMPP stanza construction or NexusXMPP extension is planned.
-- Current live-test conventions use environment variables for credentials and an explicit CA file. Secrets are not embedded in source.
+- `TNXXMPPClient` owns one bounded command queue and the connection object. There is no retained application event queue in the current implementation.
+- `TNXXMPPClient.DoOnStanza` gives modules the stanza and then calls `OnStanza` directly on the connection thread.
+- `TNXXMPPMUCModule` creates a typed `TNXXMPPMessage`, calls `OnRoomMessage` directly, and frees the message after the callback. A consumer must copy fields it retains.
+- `TNXXMPPMUCModule.SendGroupMessage` verifies joined-room state and submits owned XML through the module/client command path. It does not itself write the socket.
+- Existing MUC APIs cover join, leave, room state, occupant state, received room messages, and group-message transmission. BotHost needs no raw stanza construction.
+- History is identified by `TNXXMPPMessage.DeliveryContext`, allowing the router to accept only live messages.
+
+### Nexus JSON-RPC and RTTI/Props
+
+- `TNXJSONRPCMessage` and descendants model envelopes through RTTI-visible properties.
+- `TNXJSONObject` serialization omits unassigned properties, so an unassigned `jsonrpc` can produce the App Server envelope without a parallel JSON implementation.
+- `TNXJSONRPC.ValidateMessage` currently requires `jsonrpc = "2.0"`, and success/error helpers emit it. A narrow explicit envelope policy is required.
+- Existing LSP users must retain current strict behavior by default.
+- Existing class registration, typed arrays, nullable values, and typed variants are the intended App Server building blocks.
 
 ### NexusUI
 
-- `TNXApplication` owns the SDL-backed platform, canvas, root window, windows, popups, fonts, event handling, rendering, and main run loop.
-- `TNXApplication.Run` currently performs `ProcessMessages` followed immediately by `Render` in a tight loop. It has no application-owned cycle/idle callback.
-- Protocol pumping from control rendering would violate the GUI/state boundary. A small application-cycle event invoked by `Run` is the required NexusUI seam.
-- NexusUI already provides buttons, labels, edit boxes with password masking, panels, split panels, memos, lists/grids, status bars, windows, and retained layout behavior sufficient for the proposed control and observability surface.
+- `TNXApplication.Run` owns platform processing and rendering and has no application-cycle callback.
+- No such callback is needed. Protocol work remains on the two protocol-owner threads.
+- Existing retained controls are sufficient for configuration, buttons, status, and diagnostic display.
+- The application renders continuously. BotHost display controls can compare an observable revision and obtain a synchronized snapshot during ordinary rendering without changing NexusUI.
 
-### Process hosting and installed App Server
+### App Server and process integration
 
-- The installed `codex` command resolves through `C:\Users\kcollins\AppData\Roaming\npm\codex.ps1` in the current environment.
-- No generated Codex App Server schema snapshot or typed App Server protocol units currently exist in the repository.
-- Existing `TProcess` uses in NexusTools are synchronous command runners. None provides the owned asynchronous stdin/stdout/stderr lifecycle needed here.
-- Repository planning rules prohibit launching programs while preparing this plan. The exact installed Codex version, generated schema, invocation through the resolved PowerShell shim, stable method set, and Windows pipe behavior therefore become the first implementation gate and must be recorded before protocol code is written.
+- No typed Codex App Server binding or long-lived child-process owner currently exists in the repository.
+- App Server is bidirectional: the host sends requests/notifications, receives responses/notifications, and answers supported server-initiated requests.
+- Its default stdio transport is JSONL, not LSP `Content-Length` framing.
+- Free Pascal pipe streams expose available-byte queries used by existing Lazarus/FPC process code. Implementation must verify the installed Windows behavior before fixing the process loop.
+- The installed Codex schema and executable version have not been captured. That is the first implementation gate.
 
 ### Working-tree boundary
 
-- The repository currently contains uncommitted NexusXMPP Phase 2 work, including the MUC and typed message units used by this plan. Implementation must preserve that work and must not reset, rewrite, or accidentally omit it from project search paths.
+- The working tree contains uncommitted NexusXMPP Phase 2 work, including the MUC and direct-event implementation consumed by this plan.
+- BotHost work must not reset, overwrite, or accidentally sweep those changes into a BotHost commit.
 
 ## Architecture Problem
 
-The required components exist independently but there is no owner for the end-to-end state machine. NexusXMPP can join and exchange typed room messages, NexusUI can present a native control surface, and Nexus JSON-RPC can map typed Pascal objects to JSON. None currently owns a child App Server process, headerless JSON-RPC dialect, version-specific App Server contracts, turn correlation, message admission policy, or serialized room-to-model workflow.
+The prior plan treated protocol results as data that had to be queued to and dispatched by the application thread. That duplicated event delivery, forced NexusUI to become a protocol pump, and obscured the ownership already present in both protocols.
 
-Putting those responsibilities directly in a NexusUI window would mix process pipes, protocol correlation, XMPP policy, queueing, and rendering. Running blocking pipe reads on the UI thread would freeze the application. Calling NexusXMPP from a process-reader thread would violate its caller-thread callback contract. Reusing LSP transport code would import the wrong framing and server/client assumptions. Using free-form JSON would discard the project's RTTI contract and make schema drift invisible until runtime.
+There are two protocol owners:
 
-The correction is one application-level coordinator with focused subordinate owners: a Codex App Server process/session adapter, a room-message router, a bounded pending-message queue, an XMPP-facing session, an application event journal, and a NexusUI view. The coordinator is the only component allowed to move a message from one subsystem to another. Background readers retain and enqueue data; the NexusUI application cycle drains it and performs all coordinator, XMPP-pump, and GUI work on the application thread.
+1. The NexusXMPP connection thread owns XMPP transport and protocol state.
+2. One App Server worker thread owns the child process, JSONL streams, JSON-RPC correlation, Codex thread state, turn state, and pending prompt FIFO.
+
+Each raises ordinary Pascal events on its own thread. BotHost wires them together:
+
+- An XMPP room-message event copies required fields, applies routing, and submits an owned prompt command to the App Server owner.
+- An App Server final-answer event submits the answer through `TNXXMPPMUCModule.SendGroupMessage`, which queues it to the XMPP owner.
+
+The GUI is an observer and command source, not the bridge. It reads current BotHost state and invokes start, stop, connect, join, and leave operations. Complex display data is retained by a small BotHost-owned synchronized state object; a register-sized revision tells the GUI when a new snapshot may be useful.
 
 ## Target Contract
 
-### Project and unit ownership
+### Thread and event contract
 
-- Add `NexusTools/BotHost/NexusBotHost.lpr` and `.lpi` as the Windows NexusUI executable.
-- Keep BotHost-specific code below `NexusTools/BotHost/src`:
-  - `obNXBotHostConfig.pas`: persisted non-secret configuration, runtime secret acquisition, validation, and defaults.
-  - `obNXBotHostRouter.pas`: pure live-message admission and mention removal.
-  - `obNXBotHostQueue.pas`: bounded FIFO of owned admitted room requests.
-  - `obNXBotHostEvent.pas`: immutable sequence/timestamp/category/state event records used by the GUI journal.
-  - `obNXCodexAppServerTransport.pas`: child process, stdin writer, stdout JSONL reader, stderr reader, bounded cross-thread event transfer, exit detection, and termination.
-  - `obNXCodexAppServer.pas`: initialization, request IDs, pending request ownership, model discovery, thread/turn lifecycle, final-answer selection, cancellation, server-request decisions, and typed protocol dispatch.
-  - `protocol/obNXCodexAppServerTypes.pas`, `obNXCodexAppServerRequests.pas`, and `obNXCodexAppServerEvents.pas`: schema-derived RTTI/Props contracts and method registration. Split further only if the installed schema makes one of these units unreasonably large.
-  - `obNXBotHost.pas`: the single coordinator joining XMPP, routing, queue, App Server, and application events.
-  - `uiNXBotHostMain.pas`: NexusUI construction, layout, control handlers, and projection of coordinator state.
-- Add `NexusTools/BotHost/tests` with its own Nexus test module and a small fake App Server child executable for deterministic pipe/lifecycle tests.
-- Modify NexusLib only for the explicit JSON-RPC envelope policy and the narrow NexusUI application-cycle hook.
+- The NexusUI application thread owns controls and operator input.
+- The NexusXMPP connection thread remains the sole owner of its socket, parser, protocol state, and modules.
+- One App Server worker thread owns `TProcess`, stdin/stdout/stderr handling, JSONL framing, typed protocol objects while dispatched, request IDs, response correlation, the Codex thread, active turn, and pending prompt FIFO.
+- NexusXMPP events execute synchronously on the XMPP connection thread.
+- App Server events execute synchronously on the App Server worker thread.
+- Event handlers must be short and may copy data, update BotHost observable state, or submit a command to the other subsystem. They do not wait for the destination subsystem.
+- Callback-owned XMPP and App Server objects are borrowed for the callback duration. Retained prompt, answer, identifier, sender, room, error, or diagnostic data is copied before callback return.
+- There is no XMPP result queue, App Server result queue, UI protocol pump, application-cycle callback, idle callback, or generalized cross-thread message layer.
 
-### JSON-RPC envelope policy
+### App Server worker and command flow
 
-- Introduce an explicit enum or equivalent typed value with two modes: standard JSON-RPC and App Server headerless JSON-RPC.
-- Existing methods and consumers default to standard behavior with no source changes required at their call sites.
-- Standard parsing continues to require exactly `jsonrpc = "2.0"`; standard response creation continues to emit it.
-- Headerless parsing accepts an omitted member, rejects any present value other than `"2.0"`, and otherwise applies the same request/notification/response shape validation.
-- Headerless serialization leaves the RTTI `jsonrpc` property unassigned and omits it. Headerless success/error response helpers likewise omit it.
-- The policy is supplied explicitly by the App Server adapter. It is never inferred from method spelling or message contents.
-- Focused tests prove both policies, including that existing LSP behavior remains standard.
+- Add one bounded App Server command queue for discrete work submitted from other threads. Commands own all managed data they carry.
+- Minimum commands are start, stop, submit prompt, and interrupt active turn. Configuration requiring restart is applied before start rather than mutating a live session.
+- The worker loop checks commands, available stdout bytes, available stderr bytes, child exit, request deadlines, and active-turn state. It never performs an unbounded blocking read from one pipe while the other can fill.
+- Stdout is exclusively protocol JSONL. Stderr is drained independently by the same loop and is exclusively diagnostic text.
+- If implementation proves the target `TProcess` cannot safely drain both streams this way, stop and report that concrete conflict before adding another reader thread or queue architecture.
+- All stdin writes occur on the App Server owner thread. No write lock or writer thread is required.
+- Complete stdout lines are decoded, bound to the registered RTTI message class, validated, and dispatched immediately on the owner thread.
+- Malformed UTF-8, oversized frames, malformed JSON, invalid known-method payloads, correlation failures, and unexpected EOF fail the session visibly.
+- Unknown notifications are logged and ignored. Unknown server requests receive a typed headerless method-not-found response and never remain pending.
 
 ### Typed App Server protocol
 
-- At implementation start, generate the JSON Schema from the installed `codex app-server`, record the Codex version and schema fingerprint, and retain a reviewable schema snapshot or reproducible schema-baseline artifact under BotHost. This artifact documents the external version; the Pascal RTTI classes remain the runtime data contract.
-- Model only the stable App Server surface the first host sends, consumes, or must answer, plus the complete nested types reachable from those messages. Do not opt into experimental APIs.
-- The minimum outbound method set includes `initialize`, `initialized`, `model/list`, `thread/start`, `turn/start`, `turn/interrupt`, and the installed stable thread-release operation such as `thread/unsubscribe` when present.
-- The minimum inbound set includes the corresponding typed responses; thread, turn, item, error, and server-request lifecycle notifications; completed `agentMessage` items and their phase; and command, file-change, permission/network, and user-input requests that must be declined or cancelled.
-- Schema unions use typed `TNXJSONRPCVariant` descendants and concrete RTTI classes selected by the schema discriminator. Discriminator selection is protocol binding, not a free-form data channel; host logic receives only the selected typed class.
-- Known methods with invalid required fields, unsupported union tags within a supported method, or mismatched result shapes fail the session visibly.
-- Unknown notifications retain only the typed base envelope information needed to log the unsupported method and are ignored. Unknown server requests receive a headerless typed `MethodNotFound` error immediately. They never remain pending.
-- Request IDs are monotonically allocated with wrap protection. Pending requests own their typed outbound command/result expectation and are completed exactly once by response, timeout, process failure, or shutdown.
-- A schema-verification command regenerates the installed schema to a temporary directory and compares its version/fingerprint with the recorded baseline. Drift fails visibly and requires the RTTI contract to be reviewed; it never falls back to dynamic parsing.
+- At implementation start, generate the stable schema from the installed `codex app-server`, record the version/fingerprint, and retain a reviewable baseline under BotHost.
+- Model every supported request, response, notification, parameter, result, nested object, array, nullable field, and discriminator alternative as a Pascal RTTI/Props class with published properties.
+- Published properties and registered external names are the wire contract.
+- Schema discriminators choose concrete typed variant classes during binding. BotHost receives typed instances, not generic JSON objects.
+- Production BotHost code must not use `GetJSON`, `TJSONObject.Find`, `ValueByName`, dictionaries of JSON values, hand-built JSON, or a second JSON-RPC hierarchy to interpret App Server payloads.
+- Raw JSON strings are permitted only as test fixtures proving the typed contract.
+- Supported outbound lifecycle is the stable installed equivalent of `initialize`, `initialized`, `model/list`, `thread/start`, `turn/start`, `turn/interrupt`, and thread release/unsubscribe when available.
+- Supported inbound lifecycle includes corresponding responses; thread, turn, item, and error notifications; completed agent messages; and every server-initiated approval, permission, network, file-change, command, or user-input request the restricted bot must decline.
+- Provide a schema comparison command so Codex upgrades expose drift rather than falling back to dynamic interpretation.
 
-### App Server process and session
+### JSON-RPC envelope policy
 
-- `TNXCodexAppServerTransport` exclusively owns `TProcess`, its three pipes, reader threads, and transport-event queue.
-- Launch the resolved Codex command in App Server stdio mode without shell text composition. Resolve the Windows shim/executable explicitly and supply arguments as an argument list.
-- Keep stdout and stderr separate. Stdout accepts UTF-8 JSONL protocol frames only; stderr produces diagnostic events only.
-- Apply an explicit maximum stdout frame size. An overlong, malformed, or invalid UTF-8 frame fails the App Server session; protocol frames are never truncated or skipped.
-- Because Windows pipe reads can block independently, stdout protocol reading and stderr draining have separate owned readers. Neither mutates GUI, coordinator, XMPP, or session state directly.
-- Cross-thread events own their payloads and enter a bounded queue. Protocol-event overflow is fatal and visible because dropping a response or lifecycle event would corrupt correlation. Stderr overflow may coalesce dropped-line counts but may not block protocol progress indefinitely.
-- The application thread is the sole consumer of transport events and the sole caller of `TNXCodexAppServer` state transitions.
-- Startup proceeds through process launch, `initialize`, `initialized`, typed `model/list`, exact configured-model resolution, and `thread/start`. Failure at any step stops progression and remains visible.
-- Reuse installed Codex authentication. Inspect typed account state if required by the generated stable schema; an unauthenticated state is a visible startup failure rather than a request to store a new API key.
-- One newly created Codex thread belongs to one active configured room session for the lifetime of the child process. Changing rooms or restarting App Server creates a new thread. Persistent thread resume is out of scope.
-- Shutdown stops admission, cancels the active turn with the supported typed method, fails queued room work, releases/unsubscribes the thread when supported, closes stdin or otherwise requests orderly process exit, waits for the configured bound, and only then force-terminates. Every pending request completes with an explicit shutdown/process-loss result.
+- Extend the existing JSON-RPC owner with one explicit standard/headerless envelope policy.
+- Existing overloads and users remain strict standard JSON-RPC by default.
+- Standard mode requires and emits `jsonrpc = "2.0"`.
+- Headerless mode accepts an omitted `jsonrpc`, rejects a present value other than `"2.0"`, and omits it from requests, notifications, success responses, and error responses.
+- App Server selects headerless mode explicitly. Do not infer it from method names or duplicate the parser/dispatcher.
+
+### Room routing and turn ownership
+
+- The XMPP room-message handler runs on the connection thread.
+- Accept only a valid live groupchat message with a nonempty body.
+- Suppress messages from the bot's current room occupant identity.
+- Require an exact, case-sensitive leading `@BotNick` followed by whitespace or end-of-message.
+- Remove the prefix and immediately following whitespace; reject an empty remainder.
+- Enforce configured maximum admitted UTF-8 bytes before copying prompt work.
+- Copy room JID, sender occupant JID, message identity, admitted text, and local sequence into an owned prompt command. Never retain message or stanza objects.
+- The App Server owner maintains one active turn and a bounded FIFO, default capacity 16. When idle it starts the oldest prompt; when full it rejects the new prompt visibly without displacing older work.
+- Each admitted prompt becomes one `turn/start` on the same Codex thread. Do not use steering.
+- Terminal XMPP loss, deliberate room leave, App Server death, or shutdown fails queued prompts and interrupts the active turn where supported. Temporary XMPP recovery is not terminal loss.
+
+### Final answer and XMPP transmission
+
+- The App Server owner retains authoritative completed agent-message items for the active turn.
+- On successful completion, select the last completed agent message marked `final_answer`.
+- If phase may be absent and no agent message in the turn supplies any phase, select the last completed agent message.
+- Never send an item explicitly marked `commentary`. Mixed phased commentary and unphased candidates are ambiguous and fail visibly.
+- Failed/interrupted turns, missing final answers, empty text, invalid typed items, and ambiguous selection produce no fabricated reply.
+- Bound output by configured UTF-8 bytes, default 16 KiB. Truncate only at a UTF-8 boundary and append one explicit marker.
+- Raise the final-answer event on the App Server thread. The BotHost handler calls `TNXXMPPMUCModule.SendGroupMessage`, submitting an owned command to the XMPP thread.
+- A rejected XMPP command submission is visible and does not repeat the Codex turn.
 
 ### Authority contract
 
-- Use a dedicated configured runtime working directory rather than the repository root or user home.
-- Start the thread/turn with the installed stable equivalent of a restricted read-only sandbox, restricted readable roots, no tool network access, and `approvalPolicy = never`.
-- Where the stable installed schema supports disabling tools, disable command, file-change, external network, dynamic-tool, and connector capability for this first bot. Otherwise combine the isolated working directory, restrictive sandbox, no tool network, explicit developer instruction, and approval policy; record the residual behavior visibly.
-- Version 1 has no operator approval button. Command-execution, file-change, permission, network-escalation, MCP elicitation, and user-input requests are answered with the appropriate typed decline/cancel result and logged.
-- XMPP content is always untrusted conversational input and is never interpreted as authorization, configuration, a local path, a command, or an approval decision.
+- Use a dedicated configured runtime directory, not the Nexus repository or user home.
+- Reuse installed Codex authentication. Never store an OpenAI API key.
+- Resolve requested Luna identity through typed `model/list`; do not guess or substitute another model.
+- Use installed stable restricted/read-only sandbox settings, restricted roots, no tool network, and `approvalPolicy = never`.
+- Disable command, file-write, external-network, connector, MCP, and equivalent utility capabilities where stable schema controls exist.
+- Version 1 has no approval button. Every server request for command execution, file changes, permission, network escalation, MCP elicitation, or user input receives the typed decline/cancel result and is recorded.
+- XMPP text is untrusted conversation. It never grants authority, supplies a local path, changes configuration, or approves a request.
 
-### Room routing and bounded turn flow
+### GUI and observable state
 
-- Route only valid `xmdcLive` room messages with a nonempty body.
-- Suppress self messages by exact comparison with the current room occupant JID derived from the room JID and current `TNXXMPPRoom.Nick`; nickname changes update the comparison source automatically.
-- Match an exact, case-sensitive leading `@` plus the current nickname, followed by whitespace or end-of-message.
-- Remove the mention and all immediately separating whitespace. Reject and log an empty remainder without queueing a turn.
-- Enforce the configured maximum admitted UTF-8 byte length before allocating queue work. Oversized input is rejected visibly and never partially submitted.
-- Maintain one active turn and a bounded owned FIFO, default capacity 16. When idle, the oldest request starts immediately. When full, reject the new request and add a visible overflow event; do not displace older work.
-- Do not use `turn/steer`. Each admitted room message becomes one `turn/start` on the same thread.
-- Retain source room, sender occupant JID, message ID metadata, admitted text, and local sequence number until the turn completes or fails. Do not retain the callback-owned `TNXXMPPMessage` object.
-- A deliberate stop, room leave, XMPP terminal failure, App Server death, or host shutdown interrupts the active turn and explicitly fails all queued items. Temporary XMPP recovery state is shown accurately; the plan implementation must use the actual NexusXMPP state/lifecycle distinction rather than treating every intermediate reconnect state as a terminal stop.
+- Provide Start/Stop App Server, Connect/Disconnect XMPP, Join/Leave Room, and Clear View controls.
+- Display process/App Server, model, Codex thread/turn, prompt queue, XMPP, room/nickname, routing decisions, authority declines, stderr, and failures.
+- Worker event handlers update a BotHost-owned state object. Compound state and retained strings/journal entries are protected only for the short update/copy needed for a consistent snapshot.
+- A register-sized revision or dirty indication may be observed without coordination. Missing an intermediate revision is harmless because GUI rendering wants current state, not transition delivery.
+- The bounded retained journal preserves discrete diagnostics until eviction or Clear View.
+- BotHost display controls compare the revision and obtain a snapshot during normal rendering. They do not advance protocols or call pumps.
+- GUI controls invoke public BotHost/XMPP/App Server operations. They never parse JSON, retain stanzas, access pipes, or decide correlation.
+- Clearing the view affects display history only.
+- No source under `NexusLib/ui` changes.
 
-### Final-answer selection and XMPP output
+### Configuration and ownership
 
-- Collect authoritative completed `agentMessage` items for the active turn; streamed deltas may update GUI diagnostics but are not the source of the room response.
-- After successful `turn/completed`, select the last completed agent message with `phase = final_answer`.
-- If the installed schema permits absent phase and no agent message in that turn supplies any phase, select the last completed agent message.
-- Never select a message explicitly marked `commentary`. A mixture containing phased commentary and only unphased messages is treated as ambiguous and fails visibly rather than guessing.
-- A failed/interrupted turn, missing final answer, empty final text, invalid typed item, or ambiguous phase produces no fabricated room response.
-- Enforce the configured maximum outbound UTF-8 size, default 16 KiB. Truncate only at a valid UTF-8 boundary, reserve space for an explicit `\n[response truncated by NexusBotHost]` marker, and emit one groupchat message. Do not split one answer into an unbounded message burst.
-- Send through `TNXXMPPMUCModule.SendGroupMessage`. A failed enqueue/transmission request is visible and does not cause automatic model retry.
-
-### GUI and application-thread state flow
-
-- Add one NexusUI application-cycle/idle callback invoked by `TNXApplication.Run` after platform event processing and before rendering. It runs on the application thread and contains no protocol-specific behavior.
-- The BotHost cycle handler drains a bounded number of App Server transport events, calls `TNXXMPPClient.PumpEvents` with a bound, advances coordinator state, updates dirty GUI projections, and returns promptly.
-- All GUI controls read coordinator/application-event state. Controls do not parse JSON, own XMPP modules, read process pipes, or decide routing/approval policy.
-- Use a compact top status/control area for App Server, model/thread/turn, XMPP, room/nickname, and queue state.
-- Use a structured event grid/list for timestamp, sequence, subsystem, direction/category, and summary. Use a separate read-only memo/detail pane for the selected event, final response, stderr, or error detail.
-- Provide Start/Stop App Server, Connect/Disconnect XMPP, Join/Leave room, and Clear View controls with enablement derived from state. Do not expose approval controls in version 1.
-- Bound the retained GUI journal independently from the transport queues. Clearing the view affects presentation history only, not protocol state or pending work.
-
-### Configuration and secrets
-
-- Model non-secret settings as a `TNXPersistObject` with published properties and store them in a user-local BotHost JSON file, not beside the executable or in the repository.
-- Persist XMPP JID, endpoint override, CA file, resource, room JID, nickname, Codex command path, desired model identity/display selector, runtime working directory, queue capacity, frame/input/output limits, timeouts, and GUI journal capacity.
-- Never persist the XMPP password in the configuration object. Acquire it from a named environment variable or a masked runtime NexusUI edit control and keep it only in memory for the connection lifetime.
-- Never store an OpenAI API key. App Server uses the installed Codex authentication state.
-- Validate all capacities, timeouts, paths, JIDs, room/nickname values, and required CA material before starting their respective subsystem. Invalid configuration produces a specific GUI event and no partial transition.
+- Model non-secret settings as a `TNXPersistObject` with published properties in a user-local BotHost file.
+- Persist XMPP identity/endpoint, CA file, resource, room, nickname, Codex executable, model identity, runtime directory, capacities, limits, and timeouts.
+- Never persist the XMPP password. Read it from a named environment variable or masked runtime field and retain it only for the connection lifetime.
+- The top-level BotHost owns configuration, observable state, router, XMPP client/modules, and App Server owner. Destruction follows termination of both protocol owners.
+- Shutdown stops admission, requests turn interruption, fails queued prompts, leaves/disconnects XMPP, closes App Server stdin or uses supported shutdown, waits for bounded worker termination, and force-terminates the child only after the orderly bound.
 
 ## Scope
 
-- `NexusLib/core/src/obNXJSONRPCMessages.pas` and focused JSON-RPC tests for the explicit headerless envelope policy.
-- `NexusLib/ui/src/obNXApplication.pas` and focused NexusUI lifecycle verification for the application-cycle callback.
-- New `NexusTools/BotHost/` project, protocol contracts, process/session adapter, router, queue, coordinator, UI, configuration, tests, fake App Server, fixtures, and schema-baseline metadata.
-- Documentation describing configuration, authority limits, build/test commands, schema-drift verification, and the live Openfire/Gajim acceptance procedure.
-- Existing NexusXMPP public APIs and current Phase 2 units as consumers only, unless implementation inspection proves a concrete defect in the required existing behavior.
+- `NexusLib/core/src/obNXJSONRPCMessages.pas` and focused tests for the headerless policy.
+- New `NexusTools/BotHost/` project:
+  - `NexusBotHost.lpr` and `.lpi`.
+  - `src/obNXBotHostConfig.pas` for published configuration.
+  - `src/obNXBotHostState.pas` for current snapshot and bounded journal.
+  - `src/obNXBotHostRouter.pas` for pure admission.
+  - `src/obNXCodexAppServer.pas` for worker/process/session ownership and command path. Split process mechanics once only if implementation size requires it; ownership remains with the same worker.
+  - `src/protocol/` units for schema-derived RTTI types and registered methods.
+  - `src/obNXBotHost.pas` for ownership and direct cross-subsystem handlers.
+  - `src/uiNXBotHostMain.pas` and BotHost-specific observable display controls.
+  - `tests/` with BotHost tests, fake App Server, typed fixtures, and schema baseline/check.
+- BotHost documentation for configuration, authority, schema refresh, builds, and live acceptance.
+- Existing XMPP APIs as consumers only unless a concrete blocking defect is proved.
 
 ## Out Of Scope
 
-- Coordinator bots, catalogs, registries, invitations, slash commands, multi-bot orchestration, delegation, or autonomous bot-to-bot coordination.
-- Multiple rooms, multiple simultaneous Codex threads, persistent session resume, durable queueing, long-term memory, artifact databases, or NexusScript bot definitions.
-- Provider abstraction or support for a provider/process other than Codex App Server with the configured Luna model.
-- App Server WebSocket, remote App Server, process attach, terminal scraping, or pseudo-console automation.
-- Enabling command, file-write, git, build, external network, MCP/app, or other utility authority for the room bot.
-- A human-facing chat client, roster UI, room administration, voice, mobile, daemon, or Windows service mode.
-- Broad NexusXMPP, JSON-RPC, NexusUI, process, queue, logging, or configuration frameworks.
-- Automatic generation of arbitrary Pascal contracts from arbitrary JSON Schema unless inspection proves a small existing generator can be reused. The first binding may be authored from the generated schema and verified by fixtures.
+- NexusUI framework changes, application-cycle/idle hooks, timer frameworks, application-message abstractions, or UI-owned protocol pumps.
+- XMPP/App Server result queues, generic event dispatchers, or generalized cross-thread messaging.
+- Free-form JSON, dynamic field dictionaries, parallel JSON-RPC objects, or LSP transport reuse.
+- Multiple rooms or simultaneous turns, persistent Codex resume, durable prompts, long-term memory, bot registries, delegation, or bot orchestration.
+- Provider abstraction or anything besides local Codex App Server with configured Luna.
+- WebSocket/remote App Server, attach, terminal scraping, or pseudo-console automation.
+- Command, write, git, build, external-network, MCP/app, connector, or utility authority for room users.
+- Chat-client, roster, room-administration, invitation, voice, mobile, daemon, or service features.
+- Broad XMPP, process, queue, logging, configuration, JSON-RPC, or schema-generation frameworks.
 
 ## Staged Implementation Plan
 
-### Stage 0: Capture the installed App Server contract
+### Stage 0: Capture the installed contract
 
-1. Resolve the actual executable behind the installed `codex` shim and record `codex --version`.
-2. Generate the stable App Server JSON Schema to a temporary directory using the installed executable. Do not enable experimental API fields.
-3. Record the exact invocation, schema file set, schema fingerprint, method names, required initialization order, shutdown/release behavior, model-list shape, thread/turn/item types, phase optionality, sandbox fields, approval request/response shapes, and Windows stdio behavior.
-4. Add a reviewable schema baseline/fingerprint and protocol-version note under BotHost, clearly identifying it as the external reference rather than the runtime data model.
-5. If the installed contract materially contradicts the approved target—for example, it cannot select Luna, cannot enforce the authority boundary, or lacks a supported cancellation path—stop and report the blocker before implementing an invented substitute.
+1. Resolve the installed executable and record its version.
+2. Generate stable App Server schema to a temporary directory.
+3. Record lifecycle methods, model identity, types, phase rules, server-request replies, sandbox/approval controls, release/shutdown behavior, and fingerprint.
+4. Verify `TProcess` launch and nonblocking availability behavior for separate stdout/stderr on target Windows/FPC.
+5. Add approved schema baseline/fingerprint and reproduction command.
+6. Report any material contradiction instead of inventing a substitute.
 
-Completion: the installed external contract and any version-sensitive assumptions used by later stages are explicit and reproducible.
+Completion: external/version-dependent assumptions are explicit and reproducible.
 
-### Stage 1: Add the explicit JSON-RPC envelope policy
+### Stage 1: Add headerless JSON-RPC policy
 
-1. Add the typed standard/headerless policy to the existing JSON-RPC owner.
-2. Add policy-aware parsing/validation and success/error response creation while keeping existing overloads standard by default.
-3. Verify headerless request, notification, success, error, invalid-version, invalid-shape, and batch rejection/handling according to the installed App Server contract.
-4. Run existing JSON-RPC/LSP hardening tests to prove unchanged standard behavior.
+1. Add typed standard/headerless policy to existing JSON-RPC owner.
+2. Make validation and response/request creation policy-aware while existing entry points stay standard.
+3. Test headerless behavior and rerun strict JSON-RPC/LSP tests.
 
-Completion: App Server envelopes can be parsed and emitted without `jsonrpc`, and every pre-existing consumer still uses strict standard JSON-RPC.
+Completion: App Server can omit `jsonrpc` without changing standard consumers or creating a second stack.
 
-### Stage 2: Define and verify the RTTI App Server binding
+### Stage 2: Bind App Server through RTTI/Props
 
-1. Implement the schema-derived typed objects, arrays, nullable values, discriminated unions, requests, responses, notifications, and server-request decision results needed by the target contract.
-2. Register method classes through the existing class factory and keep all external names exactly equal to the installed schema.
-3. Implement typed serialization/deserialization round-trip fixtures for initialization, models, thread start, turn start/completion, phased and unphased agent messages, failures, approvals, user input, and unknown methods.
-4. Implement the schema drift verification command and document how a Codex upgrade is reviewed.
+1. Implement typed classes for supported methods and their complete reachable type graph.
+2. Register external method/discriminator names through existing mechanisms.
+3. Round-trip fixtures for initialization, models, thread/turn lifecycle, completed messages, failures, authority requests, input, and unknown methods.
+4. Add schema drift verification.
 
-Completion: every supported wire message round-trips through RTTI/Props, unknown-method behavior is deterministic, and production BotHost code contains no free-form App Server JSON construction or payload lookup.
+Completion: supported messages round-trip through published properties with no free-form production interpretation.
 
-### Stage 3: Implement the child-process JSONL transport and session
+### Stage 3: Implement single-owner App Server worker
 
-1. Implement owned `TProcess` launch with separate stdin, stdout, and stderr handling; never use `poStderrToOutput`.
-2. Add bounded stdout/stderr readers, UTF-8 JSONL framing, frame limits, transport-event ownership, process-exit detection, and deterministic shutdown.
-3. Add typed request correlation, response completion, notification dispatch, unknown server-request errors, timeouts, and failure of pending work.
-4. Implement initialization, installed authentication reuse, model discovery, exact Luna resolution, thread creation/release, turn start/interrupt, and typed approval declines.
-5. Drive this stage against a deterministic fake child process covering partial reads, multiple frames, malformed frames, stderr traffic, delayed responses, unexpected exit, timeout, queue overflow, and shutdown escalation.
+1. Implement bounded owned command queue and worker lifecycle.
+2. Own `TProcess` and separate stdin/stdout/stderr without merging stderr.
+3. Implement nonblocking command/output/timeout/exit loop.
+4. Implement bounded UTF-8 JSONL framing, typed dispatch, correlation, direct events, and deterministic shutdown.
+5. Implement initialization, model resolution, thread lifecycle, turn lifecycle, final selection, and typed declines.
+6. Test with a fake child producing split/combined frames, stderr bursts, delays, invalid messages, unknown messages, and unexpected exit.
 
-Completion: a non-GUI test can start the fake App Server, complete a typed conversation lifecycle, observe stderr independently, and shut it down without leaked readers or pending requests.
+Completion: a non-GUI test completes the typed lifecycle through one worker with direct events and no transport-result queue.
 
-### Stage 4: Implement configuration, routing, queueing, and coordinator state
+### Stage 4: Implement routing, state, and protocol wiring
 
-1. Add persisted non-secret configuration, runtime password acquisition, validation, safe defaults, and documented limits.
-2. Implement the pure mention router with live/history, self, exact nickname, delimiter, empty-remainder, and UTF-8-size rules.
-3. Implement the bounded owned FIFO and explicit overflow/failure results.
-4. Implement the coordinator state machine for App Server, XMPP, room, thread, turn, queue, and shutdown ownership.
-5. Implement authoritative completed-item collection, phase-aware final-answer selection, output bounding, and groupchat transmission through `TNXXMPPMUCModule`.
+1. Implement configuration validation and runtime secret acquisition.
+2. Implement exact-mention routing and owned prompt copy.
+3. Implement bounded pending FIFO and one active turn inside App Server owner.
+4. Wire XMPP room event to router to App Server command, and App Server final event to MUC send command.
+5. Wire state/error/diagnostic events into synchronized current state and bounded journal.
+6. Verify shutdown and borrowed-object lifetimes.
 
-Completion: deterministic tests can drive typed synthetic room inputs and App Server events through the coordinator and prove exactly which single XMPP send request, rejection, or failure results.
+Completion: deterministic tests prove accepted prompts, queued work, response sends, rejections, and snapshots without UI mediation.
 
-### Stage 5: Add the NexusUI application-cycle seam and GUI
+### Stage 5: Build GUI without changing NexusUI
 
-1. Add the narrow application-cycle/idle callback to `TNXApplication.Run` and verify that it runs on the application thread between input processing and rendering.
-2. Build the BotHost NexusUI application with status/control, structured event list, and detail/transcript views.
-3. Bind controls to coordinator commands and derive control enablement/status solely from current coordinator state.
-4. Pump NexusXMPP and drain App Server events with per-cycle bounds; ensure large diagnostic bursts cannot monopolize the GUI.
-5. Implement orderly window-close shutdown and retain visible terminal failure state long enough for diagnosis.
+1. Build window, inputs, controls, status, journal, and detail view from existing controls.
+2. Bind controls to BotHost operations.
+3. Add BotHost display controls that render latest snapshot when revision changes.
+4. Implement bounded close/shutdown before destruction.
+5. Verify rendering only reads state and performs no protocol work.
 
-Completion: the GUI remains responsive while the fake App Server streams events, XMPP callbacks occur only through application-thread pumping, and rendering contains no protocol work.
+Completion: GUI remains responsive and accurate with no NexusUI source change or application-thread protocol pump.
 
-### Stage 6: Integrate and verify the real local App Server
+### Stage 6: Verify installed App Server
 
-1. Launch the installed App Server from BotHost using the verified Stage 0 invocation.
-2. Confirm typed initialization, authentication-state reuse, model discovery, Luna selection, thread creation, a simple turn, final-answer selection, interruption, and orderly process shutdown.
-3. Confirm the restricted authority policy and automatic typed decline behavior using a controlled request that attempts an unavailable operation.
-4. Confirm malformed protocol/process failure remains attributable in the GUI and does not leave the host in a false ready state.
+1. Launch it through the GUI using the verified executable/arguments.
+2. Confirm typed initialization, auth reuse, model discovery, Luna resolution, thread creation, one turn, answer selection, interruption, and shutdown.
+3. Confirm a controlled disallowed request is declined with no authority escape.
+4. Confirm process/protocol failures cannot leave false ready state.
 
-Completion: the GUI can conduct a genuine restricted Luna turn locally without XMPP and exposes all required process/session state.
+Completion: the visible host completes a real restricted local Luna turn without XMPP.
 
-### Stage 7: Complete the Openfire room loop
+### Stage 7: Complete Openfire room loop
 
-1. Configure a dedicated bot JID, CA file, endpoint, room JID, nickname, and runtime password without committing credentials.
-2. Connect through `TNXXMPPClient`, join through `TNXXMPPMUCModule`, and display current room/occupant state.
-3. Exercise rejected ordinary messages, delayed history, self reflections, exact mentions, empty mentions, queueing, and one accepted message.
-4. Confirm only the selected completed final answer is sent with `SendGroupMessage` and all intermediate App Server activity remains GUI-only.
-5. Exercise invalid credentials, unavailable room/server, missing Luna, process death, queue overflow, approval decline, and shutdown during an active turn.
+1. Configure bot identity, trusted CA, endpoint, permanent room, nickname, and runtime password without committing credentials.
+2. Connect and join through existing NexusXMPP APIs.
+3. Exercise unaddressed/history/self/exact/empty/oversized input plus FIFO and overflow.
+4. Confirm intermediate items remain local and exactly one final answer uses `SendGroupMessage`.
+5. Exercise credentials/room/server/process failures, active-turn shutdown, and restart.
 
-Completion: the principal live acceptance test passes from Gajim through Openfire, NexusXMPP, the typed App Server boundary, Luna, and back to Gajim.
+Completion: one live room message traverses typed Codex App Server and one final response returns.
 
-### Stage 8: Documentation and integration review
+### Stage 8: Document and verify
 
-1. Document build/run prerequisites, non-secret configuration, secret entry, CA trust, authority restrictions, controls, event categories, schema verification, and live acceptance.
-2. Review ownership, reader termination, queue bounds, request completion, callback thread, GUI responsiveness, and shutdown order against the approved contract.
-3. Remove temporary schema output, process logs, credentials, and test artifacts from the repository; keep only approved fixtures/baseline metadata.
-4. Run the complete verification plan and create the required fresh Nexus source archive after implementation completes.
+1. Document setup, secrets, CA trust, authority, GUI, schema refresh, builds, and live test.
+2. Review ownership, bounds, borrowed data, snapshots, completion, and shutdown.
+3. Remove temporary schema/log/credential/process artifacts.
+4. Run complete verification and create the required fresh source archive.
 
-Completion: the result is reproducible, reviewable, credential-free, bounded, and ready for human behavioral experimentation in the permanent room.
+Completion: result is bounded, credential-free in source control, reproducible, and observable in the permanent room.
 
 ## Sub-Agent Delegation
 
-Implementation remains local to Main Codex. The human owner has not authorized sub-agent use. This plan, its approval, and any later implementation approval do not authorize spawning, resuming, messaging, or delegating work to sub-agents.
+Implementation remains local to Main Codex. The human owner has not authorized sub-agent use. This plan, its approval, and later implementation approval do not authorize any sub-agent operation.
 
 ## Verification Plan
 
 ### Deterministic builds and tests
 
-- Build the shared JSON-RPC regression target:
-  - `lazbuild -B NexusTools\LS\NexusLSTestModule\NexusLSTestModule.lpi`
-- Build the NexusUI regression target:
-  - `lazbuild -B NexusLib\ui\tests\NexusUITestModule.lpi`
-- Build the existing XMPP deterministic suite using its established FPC command/output isolation documented in `NexusLib/net/tests/NexusNetXMPPTests.md`.
-- Build the new fake child, BotHost test module, and GUI:
-  - `lazbuild -B NexusTools\BotHost\tests\NexusBotHostFakeAppServer.lpi`
-  - `lazbuild -B NexusTools\BotHost\tests\NexusBotHostTestModule.lpi`
-  - `lazbuild -B NexusTools\BotHost\NexusBotHost.lpi`
-- Run the three deterministic test executables and require zero failures.
+- Build/run existing JSON-RPC/LSP regression tests after shared policy changes.
+- Build/run existing NexusXMPP deterministic suite using its documented isolated FPC command.
+- Build/run new fake App Server and BotHost test module.
+- Build Windows NexusUI BotHost.
+- Run existing NexusUI tests unchanged; no NexusUI production file may differ.
 
-### Required focused coverage
+### Focused coverage
 
-- Standard versus headerless JSON-RPC parsing and serialization, including typed errors and unchanged LSP envelopes.
-- RTTI/Props round-trip of all supported App Server messages and reachable union alternatives.
-- Schema fingerprint match and a deliberate drift mismatch.
-- JSONL split reads, joined reads, CRLF/LF handling if supported by the installed contract, UTF-8, frame limit, malformed line, EOF, stderr isolation, and process exit.
-- Request ID/correlation, timeout, unknown notification, unknown request, invalid known payload, initialization ordering, missing model, and shutdown completion.
-- Automatic decline/cancel for every supported server-request category.
-- Router acceptance plus history, self, nickname case, missing delimiter, empty remainder, and oversized input rejection.
-- FIFO order/capacity/ownership, overflow visibility, active-turn cancellation, and queued-work failure.
-- Final-answer selection for final/commentary/unphased/mixed/empty/failed/interrupted cases and UTF-8-safe output truncation.
-- NexusUI event-cycle integration, bounded per-cycle draining, control-state projection, and orderly close behavior where deterministic testing is practical.
+- Strict/headerless JSON-RPC requests, notifications, results, errors, invalid shapes/versions, and unchanged LSP output.
+- RTTI/Props round trips for every supported App Server method and union alternative.
+- Schema match and deliberate drift.
+- JSONL split/multiple frames, verified newline forms, UTF-8, limits, malformed lines, EOF, stderr independence, timeouts, and child exit.
+- Command capacity/ownership and direct App Server event invocation on worker thread.
+- Unknown notification/request, invalid known payload, lifecycle order, missing model, and shutdown completion.
+- Typed decline/cancel for every supported authority request.
+- Router live/history/self/case/delimiter/empty/size behavior.
+- FIFO order/capacity, one active turn, overflow, cancellation, and failure.
+- Final/commentary/unphased/mixed/empty/failed/interrupted answer handling and UTF-8 truncation.
+- Observable revision, consistent snapshots, bounded journal, concurrent producer/read behavior, and no retained borrowed objects.
 
 ### Focused greps
 
-- Prove BotHost production units do not use `GetJSON`, `TJSONObject.Find`, `ValueByName`, `TNXJSONRPCUnknown`, hand-written JSON strings, `poStderrToOutput`, raw XMPP XML, `SendRaw`, or LSP transports/dispatchers.
-- Prove only the App Server adapter requests the headerless JSON-RPC policy.
-- Prove no XMPP password, OpenAI key, test password, room credential, or generated temporary schema directory is tracked.
-- Prove no protocol pumping occurs from NexusUI rendering methods or process-reader threads.
+- No BotHost `PumpEvents`, `OnIdle`, application-cycle callback, result queue, UI message queue, or protocol work in rendering.
+- No file under `NexusLib/ui` changed.
+- No production `GetJSON`, `TJSONObject.Find`, `ValueByName`, generic JSON dictionary, hand-built JSON frame, `poStderrToOutput`, or LSP transport/dispatcher use.
+- Only App Server selects headerless JSON-RPC.
+- No raw XMPP XML in BotHost; output uses `TNXXMPPMUCModule.SendGroupMessage`.
+- No XMPP password, OpenAI key, test password, room credential, or temporary generated schema tracked.
 
-### Manual GUI checks
+### Manual and live acceptance
 
-- Start/stop/restart App Server repeatedly and verify process IDs, thread IDs, reader exit, status, and stderr display.
-- Connect/disconnect and join/leave repeatedly while verifying button enablement and room/nickname state.
-- Generate enough diagnostic activity to test scrolling, event selection, view clearing, and responsiveness.
-- Close the window during idle, connection, model startup, active turn, and queued work; confirm bounded shutdown with no orphaned `codex app-server` process.
-
-### Principal live acceptance test
-
-1. Start NexusBotHost.
-2. Launch the installed `codex app-server` from the GUI.
-3. Confirm typed initialization, installed-auth reuse, model discovery, and configured Luna resolution.
-4. Connect the dedicated bot identity to the existing local Openfire server.
-5. Join the configured permanent MUC room and confirm the bot's current occupant identity.
-6. Join the room from Gajim.
-7. Send an unaddressed message and confirm the host logs a routing rejection and emits nothing.
-8. Send `@BotNick` alone and confirm empty-input rejection without a turn.
-9. Send `@BotNick <question>` using the exact current nickname.
-10. Confirm the host logs XMPP receipt, mention removal, admission, and immediate turn start or FIFO placement.
-11. Confirm intermediate App Server items appear only in the GUI.
-12. Confirm `turn/completed` reports success and the eligible completed final answer is selected.
-13. Confirm exactly one bounded groupchat response is submitted through `TNXXMPPMUCModule.SendGroupMessage`.
-14. Confirm Gajim displays that response from the bot occupant.
-15. Confirm the reflected self message is suppressed and does not start another turn.
-16. Stop the host and confirm it leaves/disconnects, interrupts/releases App Server state, exits the child process within the bound, and leaves no pending queue work.
+1. Repeatedly start/stop App Server and connect/disconnect/join/leave while observing state and responsiveness.
+2. Close during initialization, active turn, and queued work; verify bounded exit and no orphan process.
+3. Start BotHost, initialize installed App Server, reuse installed auth, resolve exact Luna, and create Codex thread.
+4. Connect dedicated XMPP identity and join permanent room.
+5. Verify unaddressed input and `@BotNick` alone start no turn.
+6. Send exact `@BotNick <question>` and confirm the XMPP-thread event submits one owned App Server prompt command.
+7. Confirm intermediate App Server activity remains local.
+8. Confirm successful completion selects one eligible answer and the App Server-thread event submits one MUC send command.
+9. Confirm another room client observes exactly one response and reflected self message starts no turn.
+10. Stop host and confirm leave, disconnect, interruption/release, worker/child exit, and explicit queued-prompt failure.
 
 ## Risks And Questions
 
-- The installed App Server version and generated schema were not launched during planning because repository policy forbids launching programs before implementation approval. Stage 0 is a mandatory gate; its findings override documentation examples where the installed schema differs.
-- The installed `codex` entry point is a PowerShell shim. `TProcess` may need to launch the underlying executable or invoke PowerShell with a fixed argument vector. Stage 0 must verify the safe Windows invocation without command-string composition.
-- The current App Server schema is broad. The binding must include the complete type graph reachable from supported methods, but must not turn into an arbitrary JSON-Schema-to-Pascal framework.
-- App Server may still produce non-privileged item kinds even under restrictive authority. Supported item unions must be sufficient to maintain event correlation, and unsupported known-method payloads must fail rather than being dynamically interpreted.
-- NexusUI currently runs an uncapped render loop. The new application-cycle callback must stay bounded; changing frame pacing is not part of this work.
-- The NexusXMPP Phase 2 files are currently uncommitted. Implementation must be based on the owner's retained working tree and must avoid commits that accidentally sweep unrelated Phase 2 changes into a BotHost checkpoint.
-- Version 1 automatically declines all App Server approval and user-input requests. Adding local operator approval is intentionally deferred because it would expand the authority and interaction contract.
-- Default capacities and limits in this plan are initial operational values and remain configurable: room FIFO 16 and outbound answer 16 KiB UTF-8. The installed schema inspection should establish a reasonable App Server frame limit before that default is fixed.
+- Installed Codex version/schema is an implementation-time gate; official examples do not override the generated local stable contract.
+- Installed Codex may resolve through a PowerShell shim. Stage 0 must obtain a fixed executable/argument vector without shell-string composition.
+- Bind the complete type graph reachable from supported methods without creating a general schema compiler.
+- The single App Server worker depends on verified nonblocking availability checks for both child output pipes. A concrete toolchain failure must be reported, not used to silently recreate the old reader/result-queue design.
+- State snapshots synchronize retained managed/compound data. The revision does not promise every transition; the retained journal provides history where history matters.
+- NexusXMPP MUC/direct-event work is currently uncommitted and must be preserved with narrow BotHost staging.
+- Initial configurable defaults are pending prompt capacity 16 and answer limit 16 KiB UTF-8. Stage 0 establishes the App Server frame limit.
 
-No human decision is required before implementation other than explicit approval of this work plan. Any material Stage 0 contradiction must be returned to the owner rather than guessed around.
+No additional human design decision is known before implementation. Report a material Stage 0 contradiction rather than guessing.
 
 ## Approval Gate
 
-This work plan does not authorize implementation. No code edits, builds, tests, App Server launch, GUI launch, archive creation, or implementation repository operations begin until the human owner explicitly authorizes implementation. Work-plan commit and push are planning handoff only and do not authorize implementation or sub-agent use.
+This plan does not authorize implementation. No code edits, builds, tests, App Server launch, GUI launch, archive creation, or implementation repository operations begin until the human owner explicitly authorizes implementation. Committing and pushing this plan is the planning handoff only and does not authorize implementation or sub-agent use.
