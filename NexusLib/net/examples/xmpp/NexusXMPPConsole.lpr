@@ -20,6 +20,8 @@ type
       const AJID, ASubscription: UTF8String);
     procedure Stanza(ASender: TObject; AStanza: TNXXMPPStanza);
     procedure State(ASender: TObject; AState: TNXXMPPConnectionState);
+    procedure UnrecoverableStanzas(ASender: TObject;
+      const AReason: UTF8String; AStanzas: TStrings);
     property Roster: TNXXMPPRosterModule read FRoster write FRoster;
   end;
 
@@ -51,6 +53,16 @@ begin
     TNXXMPPClient(ASender).RequestRoster(FRoster);
     TNXXMPPClient(ASender).SendPresence;
   end;
+end;
+
+procedure TConsoleEvents.UnrecoverableStanzas(ASender: TObject;
+  const AReason: UTF8String; AStanzas: TStrings);
+var
+  lIndex: Integer;
+begin
+  WriteLn('Unrecoverable transmitted stanzas: ', AReason);
+  for lIndex := 0 to AStanzas.Count - 1 do
+    WriteLn('  ', AStanzas[lIndex]);
 end;
 
 var
@@ -95,6 +107,7 @@ begin
     lClient.OnError := @lEvents.Error;
     lClient.OnStanza := @lEvents.Stanza;
     lClient.OnState := @lEvents.State;
+    lClient.OnUnrecoverableStanzas := @lEvents.UnrecoverableStanzas;
     lClient.Connect;
     WriteLn('Press P to send presence or Q to disconnect.');
     lKey := #0;

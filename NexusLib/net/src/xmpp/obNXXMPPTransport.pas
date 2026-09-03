@@ -78,7 +78,7 @@ end;
 
 function TNXXMPPTransport.Receive(ATimeoutMS: Integer): RawByteString;
 begin
-  Result := RawByteString(FSocket.RecvBufferStr(4096, ATimeoutMS));
+  Result := RawByteString(FSocket.RecvPacket(ATimeoutMS));
   if (Result = '') and (FSocket.LastError <> 0) and
     (FSocket.LastError <> WSAETIMEDOUT) and
     (FSocket.LastError <> WSAEWOULDBLOCK) then

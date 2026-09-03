@@ -12,27 +12,41 @@ uses
 type
   TNXXMPPStreamManagement = class
   private
+    FDisconnected: Boolean;
+    FDisconnectedAtMS: QWord;
     FEnabled: Boolean;
     FHandledIncoming: Cardinal;
     FHandledOutgoing: Cardinal;
     FLastAcknowledged: Cardinal;
+    FLastAcknowledgedSerial: QWord;
+    FOutgoingSerial: QWord;
+    FOutstandingOutgoing: QWord;
     FReplay: TStringList;
     FReplayCapacity: Integer;
+    FReplayReserved: Boolean;
+    FResumeAllowed: Boolean;
+    FResumeHasMaximum: Boolean;
     FResumeID: UTF8String;
+    FResumeMaximumSeconds: Cardinal;
   public
     constructor Create(AReplayCapacity: Integer);
     destructor Destroy; override;
     procedure Acknowledge(AHandled: Cardinal);
     function AcknowledgementXML: UTF8String;
-    procedure Enable(const AResumeID: UTF8String);
+    function CanResume(ANowMS: QWord): Boolean;
+    procedure Enable(const AResumeID: UTF8String; AResumeAllowed: Boolean;
+      AResumeHasMaximum: Boolean; AResumeMaximumSeconds: Cardinal);
     procedure IncomingHandled;
+    procedure MarkDisconnected(ANowMS: QWord);
+    procedure OutgoingCancelled(AReplayable: Boolean);
     procedure OutgoingSent(const AXML: UTF8String; AReplayable: Boolean);
+    procedure PrepareOutgoing(AReplayable: Boolean);
     function ProcessResumeResponse(AStanza: TNXXMPPStanza): Boolean;
     function ReplayCount: Integer;
     function ReplayXML(AIndex: Integer): UTF8String;
     function RequestAcknowledgementXML: UTF8String;
+    function ResumeRejected: TStringList;
     function ResumeRequestXML: UTF8String;
-    procedure ResumeRejected;
     procedure Reset;
     property Enabled: Boolean read FEnabled;
     property HandledIncoming: Cardinal read FHandledIncoming;
@@ -40,7 +54,27 @@ type
     property ResumeID: UTF8String read FResumeID;
   end;
 
+procedure NXXMPPIncrementSMCounter(var ACounter: Cardinal);
+function NXXMPPSMCounterDelta(APrevious, ACurrent: Cardinal): QWord;
+
 implementation
+
+const
+  cNXXMPPCounterModulus = QWord(High(Cardinal)) + 1;
+
+procedure NXXMPPIncrementSMCounter(var ACounter: Cardinal);
+begin
+  if ACounter = High(Cardinal) then
+    ACounter := 0
+  else
+    Inc(ACounter);
+end;
+
+function NXXMPPSMCounterDelta(APrevious, ACurrent: Cardinal): QWord;
+begin
+  Result := (QWord(ACurrent) + cNXXMPPCounterModulus -
+    QWord(APrevious)) mod cNXXMPPCounterModulus;
+end;
 
 constructor TNXXMPPStreamManagement.Create(AReplayCapacity: Integer);
 begin
@@ -61,24 +95,83 @@ end;
 
 procedure TNXXMPPStreamManagement.Reset;
 begin
+  FDisconnected := False;
+  FDisconnectedAtMS := 0;
   FEnabled := False;
   FHandledIncoming := 0;
   FHandledOutgoing := 0;
   FLastAcknowledged := 0;
+  FLastAcknowledgedSerial := 0;
+  FOutgoingSerial := 0;
+  FOutstandingOutgoing := 0;
   FReplay.Clear;
+  FReplayReserved := False;
+  FResumeAllowed := False;
+  FResumeHasMaximum := False;
   FResumeID := '';
+  FResumeMaximumSeconds := 0;
 end;
 
-procedure TNXXMPPStreamManagement.Enable(const AResumeID: UTF8String);
+procedure TNXXMPPStreamManagement.Enable(const AResumeID: UTF8String;
+  AResumeAllowed: Boolean; AResumeHasMaximum: Boolean;
+  AResumeMaximumSeconds: Cardinal);
 begin
+  Reset;
   FEnabled := True;
-  FResumeID := AResumeID;
+  FResumeAllowed := AResumeAllowed;
+  if AResumeAllowed then
+  begin
+    FResumeID := AResumeID;
+    FResumeHasMaximum := AResumeHasMaximum;
+    FResumeMaximumSeconds := AResumeMaximumSeconds;
+  end;
+end;
+
+procedure TNXXMPPStreamManagement.MarkDisconnected(ANowMS: QWord);
+begin
+  if not FEnabled or FDisconnected then
+    Exit;
+  FDisconnected := True;
+  FDisconnectedAtMS := ANowMS;
+end;
+
+function TNXXMPPStreamManagement.CanResume(ANowMS: QWord): Boolean;
+var
+  lElapsedMS: QWord;
+begin
+  Result := FEnabled and FResumeAllowed and (FResumeID <> '') and
+    FDisconnected;
+  if not Result or not FResumeHasMaximum then
+    Exit;
+  if ANowMS < FDisconnectedAtMS then
+    Exit(False);
+  lElapsedMS := ANowMS - FDisconnectedAtMS;
+  Result := lElapsedMS <= QWord(FResumeMaximumSeconds) * 1000;
 end;
 
 procedure TNXXMPPStreamManagement.IncomingHandled;
 begin
   if FEnabled then
-    Inc(FHandledIncoming);
+    NXXMPPIncrementSMCounter(FHandledIncoming);
+end;
+
+procedure TNXXMPPStreamManagement.PrepareOutgoing(AReplayable: Boolean);
+begin
+  if not FEnabled or not AReplayable then
+    Exit;
+  if FReplayReserved then
+    raise ENXXMPPError.Create(xesProtocol, 'replay-reservation-active',
+      'A stream-management replay reservation is already active.');
+  if FReplay.Count >= FReplayCapacity then
+    raise ENXXMPPError.Create(xesProtocol, 'replay-queue-full',
+      'The stream-management replay queue is full.');
+  FReplayReserved := True;
+end;
+
+procedure TNXXMPPStreamManagement.OutgoingCancelled(AReplayable: Boolean);
+begin
+  if FEnabled and AReplayable then
+    FReplayReserved := False;
 end;
 
 procedure TNXXMPPStreamManagement.OutgoingSent(const AXML: UTF8String;
@@ -86,28 +179,40 @@ procedure TNXXMPPStreamManagement.OutgoingSent(const AXML: UTF8String;
 begin
   if not FEnabled then
     Exit;
-  Inc(FHandledOutgoing);
-  if not AReplayable then
-    Exit;
-  if FReplay.Count >= FReplayCapacity then
-    raise ENXXMPPError.Create(xesProtocol, 'replay-queue-full',
-      'The stream-management replay queue is full.');
-  FReplay.Add(UIntToStr(FHandledOutgoing) + '=' + string(AXML));
+  if AReplayable and not FReplayReserved then
+    raise ENXXMPPError.Create(xesProtocol, 'missing-replay-reservation',
+      'A replayable stanza must reserve replay capacity before transmission.');
+  Inc(FOutgoingSerial);
+  Inc(FOutstandingOutgoing);
+  NXXMPPIncrementSMCounter(FHandledOutgoing);
+  if AReplayable then
+  begin
+    FReplay.Add(UIntToStr(FOutgoingSerial) + '=' + string(AXML));
+    FReplayReserved := False;
+  end;
 end;
 
 procedure TNXXMPPStreamManagement.Acknowledge(AHandled: Cardinal);
 var
+  lAcknowledgedSerial: QWord;
+  lDelta: QWord;
   lSequence: QWord;
 begin
-  if not FEnabled or (AHandled < FLastAcknowledged) or
-    (AHandled > FHandledOutgoing) then
+  if not FEnabled then
+    raise ENXXMPPError.Create(xesProtocol, 'invalid-sm-acknowledgement',
+      'The stream-management acknowledgement has no active stream.');
+  lDelta := NXXMPPSMCounterDelta(FLastAcknowledged, AHandled);
+  if lDelta > FOutstandingOutgoing then
     raise ENXXMPPError.Create(xesProtocol, 'invalid-sm-acknowledgement',
       'The stream-management acknowledgement is outside the sent range.');
+  lAcknowledgedSerial := FLastAcknowledgedSerial + lDelta;
   FLastAcknowledged := AHandled;
+  FLastAcknowledgedSerial := lAcknowledgedSerial;
+  Dec(FOutstandingOutgoing, lDelta);
   while FReplay.Count > 0 do
   begin
     if not TryStrToQWord(FReplay.Names[0], lSequence) or
-      (lSequence > AHandled) then
+      (lSequence > lAcknowledgedSerial) then
       Break;
     FReplay.Delete(0);
   end;
@@ -126,16 +231,21 @@ end;
 
 function TNXXMPPStreamManagement.ResumeRequestXML: UTF8String;
 begin
-  if not FEnabled or (FResumeID = '') then
+  if not CanResume(GetTickCount64) then
     raise ENXXMPPError.Create(xesProtocol, 'stream-not-resumable',
-      'The prior stream has no resumable session identifier.');
+      'The prior stream is not eligible for resumption.');
   Result := '<resume xmlns=''urn:xmpp:sm:3'' h=''' +
     UTF8String(UIntToStr(FHandledIncoming)) + ''' previd=''' +
     NXXMPPEscapeAttribute(FResumeID) + '''/>';
 end;
 
-procedure TNXXMPPStreamManagement.ResumeRejected;
+function TNXXMPPStreamManagement.ResumeRejected: TStringList;
+var
+  lIndex: Integer;
 begin
+  Result := TStringList.Create;
+  for lIndex := 0 to FReplay.Count - 1 do
+    Result.Add(string(ReplayXML(lIndex)));
   Reset;
 end;
 
@@ -148,15 +258,16 @@ begin
     (AStanza.NamespaceURI = 'urn:xmpp:sm:3') and
     (AStanza.LocalName = 'resumed');
   if not Result then
-  begin
-    ResumeRejected;
     Exit;
-  end;
+  if AStanza.Attribute('previd') <> FResumeID then
+    raise ENXXMPPError.Create(xesProtocol, 'invalid-sm-previd',
+      'The resumed stream identifier does not match the requested session.');
   if not TryStrToQWord(string(AStanza.Attribute('h')), lHandled) or
     (lHandled > High(Cardinal)) then
     raise ENXXMPPError.Create(xesProtocol, 'invalid-sm-acknowledgement',
       'The resumed stream acknowledgement counter is invalid.');
   Acknowledge(Cardinal(lHandled));
+  FDisconnected := False;
 end;
 
 function TNXXMPPStreamManagement.ReplayCount: Integer;

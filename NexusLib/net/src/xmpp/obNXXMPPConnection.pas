@@ -36,6 +36,7 @@ type
     procedure EnqueueEvent(AEvent: TNXXMPPEvent);
     procedure HandleIncoming(AStanza: TNXXMPPStanza);
     function IsDisconnectRequested: Boolean;
+    procedure RejectResumption(const AReason: UTF8String);
     function OpenSecuredStream(
       const AEndpoint: TNXXMPPEndpoint): TNXXMPPStanza;
     procedure OnlineLoop;
@@ -174,8 +175,27 @@ end;
 procedure TNXXMPPConnection.SendStanza(const AXML: UTF8String;
   AReplayable: Boolean);
 begin
-  FTransport.Send(RawByteString(AXML));
-  FStreamManagement.OutgoingSent(AXML, AReplayable);
+  FStreamManagement.PrepareOutgoing(AReplayable);
+  try
+    FTransport.Send(RawByteString(AXML));
+    FStreamManagement.OutgoingSent(AXML, AReplayable);
+  except
+    FStreamManagement.OutgoingCancelled(AReplayable);
+    raise;
+  end;
+end;
+
+procedure TNXXMPPConnection.RejectResumption(const AReason: UTF8String);
+var
+  lStanzas: TStringList;
+begin
+  lStanzas := FStreamManagement.ResumeRejected;
+  if lStanzas.Count = 0 then
+  begin
+    lStanzas.Free;
+    Exit;
+  end;
+  EnqueueEvent(TNXXMPPEvent.CreateUnrecoverableStanzas(AReason, lStanzas));
 end;
 
 function TNXXMPPConnection.IsDisconnectRequested: Boolean;
@@ -451,7 +471,10 @@ procedure TNXXMPPConnection.PerformNegotiation(
   const AEndpoint: TNXXMPPEndpoint);
 var
   lFeatures: TNXXMPPStanza;
+  lMaximum: QWord;
+  lMaximumText: UTF8String;
   lProceed: TNXXMPPStanza;
+  lResumeAllowed: Boolean;
 begin
   lFeatures := OpenSecuredStream(AEndpoint);
   try
@@ -469,13 +492,31 @@ begin
     PerformBinding(lFeatures);
     if TNXXMPPNegotiation.OffersStreamManagement(lFeatures.RawXML) then
     begin
-      FStreamManagement.ResumeRejected;
+      if FStreamManagement.ReplayCount > 0 then
+        RejectResumption('A new stream replaced the prior managed stream.')
+      else
+        FStreamManagement.Reset;
       FTransport.Send('<enable xmlns=''urn:xmpp:sm:3'' resume=''true''/>');
       lProceed := ReadElement;
       try
         if (lProceed.LocalName = 'enabled') and
           (lProceed.NamespaceURI = 'urn:xmpp:sm:3') then
-          FStreamManagement.Enable(lProceed.Attribute('id'));
+        begin
+          lResumeAllowed := (lProceed.Attribute('resume') = 'true') or
+            (lProceed.Attribute('resume') = '1');
+          if lResumeAllowed and (lProceed.Attribute('id') = '') then
+            raise ENXXMPPError.Create(xesProtocol, 'missing-sm-resume-id',
+              'The resumable stream has no session identifier.');
+          lMaximumText := lProceed.Attribute('max');
+          lMaximum := 0;
+          if (lMaximumText <> '') and
+            (not TryStrToQWord(string(lMaximumText), lMaximum) or
+            (lMaximum = 0) or (lMaximum > High(Cardinal))) then
+            raise ENXXMPPError.Create(xesProtocol, 'invalid-sm-maximum',
+              'The stream-management resumption maximum is invalid.');
+          FStreamManagement.Enable(lProceed.Attribute('id'), lResumeAllowed,
+            lMaximumText <> '', Cardinal(lMaximum));
+        end;
       finally
         lProceed.Free;
       end;
@@ -493,14 +534,18 @@ var
   lResponse: TNXXMPPStanza;
 begin
   Result := False;
-  if not FStreamManagement.Enabled or
-    (FStreamManagement.ResumeID = '') then
+  if not FStreamManagement.CanResume(GetTickCount64) then
+  begin
+    RejectResumption(
+      'The prior managed stream is no longer eligible for resumption.');
     Exit;
+  end;
   lFeatures := OpenSecuredStream(AEndpoint);
   try
     if not TNXXMPPNegotiation.OffersStreamManagement(lFeatures.RawXML) then
     begin
-      FStreamManagement.ResumeRejected;
+      RejectResumption(
+        'The replacement stream does not offer stream management.');
       Exit;
     end;
   finally
@@ -510,8 +555,20 @@ begin
   FTransport.Send(RawByteString(FStreamManagement.ResumeRequestXML));
   lResponse := ReadElement;
   try
-    if not FStreamManagement.ProcessResumeResponse(lResponse) then
-      Exit;
+    try
+      if not FStreamManagement.ProcessResumeResponse(lResponse) then
+      begin
+        RejectResumption('The server rejected stream resumption.');
+        Exit;
+      end;
+    except
+      on ENXXMPPError do
+      begin
+        RejectResumption(
+          'The server returned an invalid stream resumption response.');
+        raise;
+      end;
+    end;
     for lIndex := 0 to FStreamManagement.ReplayCount - 1 do
       FTransport.Send(RawByteString(FStreamManagement.ReplayXML(lIndex)));
     Result := True;
@@ -732,6 +789,7 @@ begin
           begin
             if IsDisconnectRequested then
               Break;
+            FStreamManagement.MarkDisconnected(GetTickCount64);
             FRequests.CancelAll('The IQ request was interrupted by a ' +
               'connection loss.', lCompletions);
             EnqueueCompletionEvents(lCompletions);

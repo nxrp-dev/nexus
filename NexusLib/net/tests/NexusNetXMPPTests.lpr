@@ -333,7 +333,8 @@ begin
   lFramer := TNXXMPPStreamFramer.Create;
   lFrames := TStringList.Create;
   try
-    lInput := '<stream:stream xmlns=''jabber:client'' ' +
+    lInput := '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<stream:stream xmlns=''jabber:client'' ' +
       'xmlns:stream=''http://etherx.jabber.org/streams''>' +
       '<iq type=''get'' id=''one''><query xmlns=''urn:test''/></iq>' +
       '<message id=''two''><body>Hello</body></message>' +
@@ -698,15 +699,21 @@ end;
 
 procedure TestStreamManagement;
 var
+  lCounter: Cardinal;
+  lErrorRaised: Boolean;
+  lEvent: TNXXMPPEvent;
   lResponse: TNXXMPPStanza;
   lSM: TNXXMPPStreamManagement;
+  lUnrecoverable: TStringList;
 begin
   lSM := TNXXMPPStreamManagement.Create(2);
   try
-    lSM.Enable('resume-token');
+    lSM.Enable('resume-token', True, True, 30);
     lSM.IncomingHandled;
+    lSM.PrepareOutgoing(True);
     lSM.OutgoingSent('<message id=''one''/>', True);
     lSM.OutgoingSent('<iq id=''unsafe''/>', False);
+    lSM.PrepareOutgoing(True);
     lSM.OutgoingSent('<presence/>', True);
     AssertTrue(lSM.ReplayCount = 2,
       'Replayable unacknowledged stanzas should be retained.');
@@ -726,6 +733,7 @@ begin
     AssertEquals('<a xmlns=''urn:xmpp:sm:3'' h=''1''/>',
       lSM.AcknowledgementXML,
       'The acknowledgement should report handled inbound stanzas.');
+    lSM.MarkDisconnected(GetTickCount64);
     AssertTrue(Pos('previd=''resume-token''',
       string(lSM.ResumeRequestXML)) > 0,
       'A resumable stream should build a resume request with its token.');
@@ -737,8 +745,85 @@ begin
     finally
       lResponse.Free;
     end;
-    AssertTrue(not lSM.Enabled and (lSM.ReplayCount = 0),
-      'Rejected resumption should discard the obsolete replay state.');
+    AssertTrue(lSM.ReplayCount = 1,
+      'A failed response must retain replay state until it is surfaced.');
+    lUnrecoverable := lSM.ResumeRejected;
+    try
+      AssertTrue((lUnrecoverable.Count = 1) and
+        (lUnrecoverable[0] = '<presence/>'),
+        'Rejected resumption should return every unrecoverable stanza.');
+      lEvent := TNXXMPPEvent.CreateUnrecoverableStanzas(
+        'resumption rejected', lUnrecoverable);
+      lUnrecoverable := nil;
+      try
+        AssertTrue((lEvent.Kind = xekUnrecoverableStanzas) and
+          (lEvent.UnrecoverableStanzas.Count = 1),
+          'Unrecoverable replay work should have an owned application event.');
+      finally
+        lEvent.Free;
+      end;
+    finally
+      lUnrecoverable.Free;
+    end;
+
+    lSM.Enable('window', True, True, 30);
+    lSM.MarkDisconnected(1000);
+    AssertTrue(lSM.CanResume(31000),
+      'The advertised resumption interval should include its boundary.');
+    AssertTrue(not lSM.CanResume(31001),
+      'The advertised resumption interval should reject expired sessions.');
+
+    lSM.Enable('not-authorized', False, False, 0);
+    lSM.MarkDisconnected(1000);
+    AssertTrue(not lSM.CanResume(1001),
+      'An identifier must not permit resumption without server authorization.');
+
+    lSM.Enable('unbounded', True, False, 0);
+    lSM.MarkDisconnected(1000);
+    AssertTrue(lSM.CanResume(QWord(High(Cardinal)) * 1000),
+      'The absence of max should not invent a server resumption deadline.');
+
+    lSM.Enable('capacity', True, False, 0);
+    lSM.PrepareOutgoing(True);
+    lSM.OutgoingSent('<message id=''full''/>', True);
+    lSM.PrepareOutgoing(True);
+    lSM.OutgoingCancelled(True);
+    lSM.PrepareOutgoing(True);
+    lSM.OutgoingSent('<message id=''second''/>', True);
+    lErrorRaised := False;
+    try
+      lSM.PrepareOutgoing(True);
+    except
+      on E: ENXXMPPError do
+        lErrorRaised := E.Condition = 'replay-queue-full';
+    end;
+    AssertTrue(lErrorRaised and (lSM.HandledOutgoing = 2),
+      'Replay capacity must fail before a stanza is counted as transmitted.');
+
+    lSM.Reset;
+    lSM.Enable('expected', True, False, 0);
+    lSM.MarkDisconnected(GetTickCount64);
+    lResponse := TNXXMPPStanza.Create(
+      '<resumed xmlns=''urn:xmpp:sm:3'' h=''0'' previd=''wrong''/>', '');
+    try
+      lErrorRaised := False;
+      try
+        lSM.ProcessResumeResponse(lResponse);
+      except
+        on E: ENXXMPPError do
+          lErrorRaised := E.Condition = 'invalid-sm-previd';
+      end;
+      AssertTrue(lErrorRaised,
+        'A resumed response must identify the requested prior stream.');
+    finally
+      lResponse.Free;
+    end;
+
+    lCounter := High(Cardinal);
+    NXXMPPIncrementSMCounter(lCounter);
+    AssertTrue((lCounter = 0) and
+      (NXXMPPSMCounterDelta(High(Cardinal), 0) = 1),
+      'Stream-management counters should wrap modulo two to the power of 32.');
   finally
     lSM.Free;
   end;

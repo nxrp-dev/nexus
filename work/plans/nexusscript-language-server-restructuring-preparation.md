@@ -242,7 +242,10 @@ Forbidden edges:
   - `ls/src/model/obNexusScriptLSDocument.pas`;
   - `ls/src/protocol/obNexusScriptLSLifecycleRequests.pas`;
   - `ls/src/protocol/obNexusScriptLSDocumentSyncRequests.pas`;
-  - `ls/src/protocol/obNexusScriptLSAllRequests.pas`.
+  - `ls/src/protocol/obNexusScriptLSAllRequests.pas`;
+  - `ls/tests/NexusScriptLSTestModule.lpr`;
+  - `ls/tests/NexusScriptLSTestModule.lpi`;
+  - `ls/tests/tsNexusScriptLSShellTests.pas`.
 - The shell will support initialization state, shutdown/exit, and full-text open/change/save/close storage only. It will return a minimal truthful capability set and perform no language analysis.
 - Its project paths may include only its own `ls/src` folders, `NexusTools/Script/core`, `NexusLib/core/src`, `NexusLib/lsp/src` and protocol paths, plus verified third-party transport dependencies. It must not include `NexusTools/LS`, `NexusTools/Script/cli`, or `NexusTools/Script/artifact`.
 - Reserve future NexusScript-specific request, model, cache, and service ownership beneath the `ls` tree; do not create empty generalized analysis abstractions during this pass.
@@ -328,7 +331,8 @@ Checkpoint: NexusScript CLI and complete tests compile and pass; representative 
 2. Wire the executable to shared transports/host and only its own request registry.
 3. Give the model a narrow, explicit NexusScript-core dependency seam without running compilation or analysis on document events.
 4. Advertise only full-text synchronization and other lifecycle capabilities the shell actually implements; all editor-intelligence capabilities remain absent/false.
-5. Verify the project search paths exclude Pascal NexusLS and NexusScript artifact/CLI folders.
+5. Add a NexusScriptLS-owned test module covering direct document storage/error behavior and the complete lifecycle through the real JSON-RPC dispatcher.
+6. Verify the project and test search paths exclude Pascal NexusLS and NexusScript artifact/CLI folders.
 
 Checkpoint: NexusScriptLS clean-builds and completes an initialize -> initialized -> open/change/save/close -> shutdown -> exit protocol smoke sequence without invoking editor intelligence.
 
@@ -361,16 +365,18 @@ lazbuild -B NexusTools\LS\NexusLSTestModule\NexusLSTestModule.lpi
 lazbuild -B NexusTools\Script\NexusScript.lpi
 lazbuild -B NexusTools\Script\tests\NexusScriptTestModule.lpi
 lazbuild -B NexusTools\Script\ls\NexusScriptLS.lpi
+lazbuild -B NexusTools\Script\ls\tests\NexusScriptLSTestModule.lpi
 ```
 
 ### Automated tests
 
-Run all registered suites in the shared LSP, Pascal NexusLS, and NexusScript modules through `nxtest_host.exe`, using the actual target paths declared by the final LPI files:
+Run all registered suites in the shared LSP, Pascal NexusLS, NexusScript, and NexusScriptLS modules through `nxtest_host.exe`, using the actual target paths declared by the final LPI files:
 
 ```text
 output\NexusTestHost\nxtest_host.exe output\NexusLSP\tests\x86_64-win64\NexusLSPTestModule.dll run-all
 output\NexusTestHost\nxtest_host.exe output\NexusLSTestModule\x86_64-win64\NexusLSTestModule.dll run-all
 output\NexusTestHost\nxtest_host.exe output\NexusScript\tests\x86_64-win64\NexusScriptTestModule.dll run-all
+output\NexusTestHost\nxtest_host.exe output\NexusScriptLS\tests\x86_64-win64\NexusScriptLSTestModule.dll run-all
 ```
 
 Keep or add focused regression cases proving:

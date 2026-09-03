@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="NexusScriptLSTestModule"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <Units Count="2">
+      <Unit0>
+        <Filename Value="NexusScriptLSTestModule.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="tsNexusScriptLSShellTests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="..\..\..\..\output\NexusScriptLS\tests\$(TargetCPU)-$(TargetOS)\NexusScriptLSTestModule"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value=".;..\src\model;..\src\protocol;..\..\core;..\..\..\..\NexusLib\lsp\src;..\..\..\..\NexusLib\lsp\src\protocol;..\..\..\..\NexusLib\core\src;..\..\..\Test\src;..\..\..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
+      <UnitOutputDirectory Value="..\..\..\..\output\NexusScriptLS\tests\$(TargetCPU)-$(TargetOS)\units"/>
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <ExecutableType Value="Library"/>
+      </Options>
+    </Linking>
+  </CompilerOptions>
+</CONFIG>

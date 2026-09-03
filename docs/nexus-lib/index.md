@@ -19,9 +19,12 @@ The deterministic Win64 test entry point is `NexusLib/net/tests/NexusNetXMPPTest
 fpc -B -FuNexusLib\net\src\xmpp -Fulib\synapse -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\fcl-xml -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\hash -FUoutput\NexusNetXMPPTests\units -FEoutput\NexusNetXMPPTests\bin NexusLib\net\tests\NexusNetXMPPTests.lpr
 ```
 
-The explicit live-test client is `NexusLib/net/examples/xmpp/NexusXMPPConsole.lpr`. It reads its JID, password, CA bundle, and optional endpoint override only from `NEXUS_XMPP_*` environment variables. Live server interoperability is not part of the deterministic test claim.
+The explicit live-test client is `NexusLib/net/examples/xmpp/NexusXMPPConsole.lpr`. It reads its JID, password, CA bundle, and optional endpoint override only from `NEXUS_XMPP_*` environment variables. Applications receive replayable transmitted stanzas that become uncertain after rejected resumption through `OnUnrecoverableStanzas`; NexusXMPP does not resend them automatically. Live server interoperability is not part of the deterministic test claim.
 
-The retained deterministic verification record is `NexusLib/net/tests/NexusNetXMPPTests.md`.
+The retained deterministic and Openfire 5.1.2 live verification record is
+`NexusLib/net/tests/NexusNetXMPPTests.md`. The live test entry point is
+`NexusLib/net/tests/NexusNetXMPPLiveTest.lpr`; it reads credentials and endpoint
+configuration from `NEXUS_XMPP_*` environment variables.
 
 The current Synapse integration pins TLS 1.2 because its exposed version selector cannot express “TLS 1.2 or newer” without also enabling obsolete protocols. TLS 1.3, SASL2, channel binding, Bind2, FAST, WebSocket/BOSH, and durable stream-resumption state remain outside the verified Phase 1 boundary.
 

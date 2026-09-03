@@ -240,7 +240,6 @@ begin
   if Length(FBuffer) > FMaximumStanzaBytes then
     raise ENXXMPPError.Create(xesStream, 'stanza-too-large',
       'The buffered XMPP input exceeds the configured stanza limit.');
-  RejectProhibitedMarkup(FBuffer);
   while FBuffer <> '' do
   begin
     RemoveLeadingWhitespace;
@@ -248,6 +247,20 @@ begin
       Exit;
     if not FStreamOpen then
     begin
+      if (Length(FBuffer) < Length('<?xml')) and
+        (FBuffer = Copy('<?xml', 1, Length(FBuffer))) then
+        Exit;
+      if StartsText(FBuffer, 1, '<?xml') then
+      begin
+        lEnd := Pos('?>', FBuffer);
+        if lEnd = 0 then
+          Exit;
+        Delete(FBuffer, 1, lEnd + 1);
+        RemoveLeadingWhitespace;
+        if FBuffer = '' then
+          Exit;
+      end;
+      RejectProhibitedMarkup(FBuffer);
       if Copy(FBuffer, 1, 15) <> '<stream:stream ' then
         Exit;
       lEnd := FindTagEnd(1);
@@ -263,6 +276,7 @@ begin
       Delete(FBuffer, 1, lEnd);
       Continue;
     end;
+    RejectProhibitedMarkup(FBuffer);
     if StartsText(FBuffer, 1, '</stream:stream') then
     begin
       lEnd := FindTagEnd(1);

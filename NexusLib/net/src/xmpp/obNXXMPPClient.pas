@@ -20,6 +20,8 @@ type
     AStanza: TNXXMPPStanza) of object;
   TNXXMPPErrorEvent = procedure(ASender: TObject; AStage: TNXXMPPErrorStage;
     const ACondition, AMessage: UTF8String) of object;
+  TNXXMPPUnrecoverableStanzasEvent = procedure(ASender: TObject;
+    const AReason: UTF8String; AStanzas: TStrings) of object;
 
   TNXXMPPClient = class
   private
@@ -34,6 +36,7 @@ type
     FOnError: TNXXMPPErrorEvent;
     FOnStanza: TNXXMPPStanzaEvent;
     FOnState: TNXXMPPStateEvent;
+    FOnUnrecoverableStanzas: TNXXMPPUnrecoverableStanzasEvent;
     FState: TNXXMPPConnectionState;
     function EnqueueCommand(ACommand: TNXXMPPCommand): Boolean;
   public
@@ -56,6 +59,8 @@ type
     property OnError: TNXXMPPErrorEvent read FOnError write FOnError;
     property OnStanza: TNXXMPPStanzaEvent read FOnStanza write FOnStanza;
     property OnState: TNXXMPPStateEvent read FOnState write FOnState;
+    property OnUnrecoverableStanzas: TNXXMPPUnrecoverableStanzasEvent
+      read FOnUnrecoverableStanzas write FOnUnrecoverableStanzas;
   end;
 
 implementation
@@ -224,6 +229,10 @@ begin
               lEvent.ErrorMessage);
         xekIQCompletion:
           lEvent.Completion.Invoke;
+        xekUnrecoverableStanzas:
+          if Assigned(FOnUnrecoverableStanzas) then
+            FOnUnrecoverableStanzas(Self, lEvent.UnrecoverableReason,
+              lEvent.UnrecoverableStanzas);
       end;
     finally
       lEvent.Free;
