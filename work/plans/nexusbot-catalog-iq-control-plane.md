@@ -19,9 +19,10 @@
 
 Add a controller-owned bot catalog and deterministic control executor to
 NexusBot. The controller will own zero or more active `TNXBotHost` instances,
-load behavioral bot definitions from a deliberately small NexusScript dialect,
-associate those definitions with non-secret deployment configuration, and
-execute LIST, STATUS, INVITE, and DISMISS operations.
+load behavioral bot definitions from a deliberately small Bot
+language/validator definition using NexusScript, associate those definitions
+with non-secret deployment configuration, and execute LIST, STATUS, INVITE, and
+DISMISS operations.
 
 Three adapters will converge on the same local operation model:
 
@@ -112,6 +113,9 @@ other rooms.
   - the shared authorization policy;
   - pending control operations and their deadlines;
   - the shared control executor.
+- The controller is the sole owner of operation lifetime, deadline, timeout,
+  cancellation, and exactly-once semantic completion. No transport adapter owns
+  a second operation state machine.
 - Each active `TNXBotHost` remains one behavioral bot instance and owns its own
   Codex App Server session, XMPP client, MUC module, configuration clone, and
   observable runtime state.
@@ -123,8 +127,8 @@ other rooms.
 ### Catalog and deployment
 
 - Use the term **catalog** exclusively; do not reuse XMPP's roster terminology.
-- Add one minimal NexusScript bot dialect and deterministic loader supporting
-  only the initial behavioral fields:
+- Add one minimal Bot language/validator definition using NexusScript and a
+  deterministic loader supporting only the initial behavioral fields:
   - bot name/identity;
   - `Provider` (Codex only in this pass);
   - `Model`;
@@ -252,7 +256,15 @@ other rooms.
   caller API. BotHost/controller code never constructs or inspects control XML.
 - The module copies incoming `id`, `from`, operation fields, and authorization
   identity before its responder returns. It emits a typed request event to the
-  controller and retains only its own bounded pending-response record.
+  controller and retains only bounded transport-correlation data needed to
+  serialize and send the controller's eventual IQ result/error. That record may
+  contain the request ID, caller JID, response QName, and controller operation
+  token; it contains no independent operation state, deadline, timeout,
+  cancellation, or completion policy.
+- Connection loss or adapter shutdown is reported to the controller as a
+  cancellation cause. The controller performs the one semantic completion; the
+  IQ adapter then sends the response when transport remains available or
+  discards its transport-correlation record when it does not.
 - Deferred results are submitted as owned module operations and serialized/sent
   on the XMPP connection thread.
 - The caller API accepts typed operation values, uses `SubmitIQ`, validates the
@@ -332,7 +344,8 @@ one real definition for each shared type and the boundaries above.
   additional AI providers, persistent memory, voice, files, marketplace, web
   control panel, or a broad GUI redesign.
 - Changes to NexusScript grammar/compiler semantics beyond consuming the existing
-  engine and adding the minimal Bot dialect/data files.
+  engine and adding the minimal Bot language/validator definition and data
+  files.
 - Compatibility wrappers preserving the current single-room BotHost API; update
   the known call sites to the explicit room contract.
 
@@ -344,11 +357,11 @@ one real definition for each shared type and the boundaries above.
    transports. Keep these types independent of XML, JSON, UI, and model wording.
 
 2. **Add the minimal catalog and deployment model.**
-   Create the Bot NexusScript dialect/fixtures, compile catalog files with the
-   existing session, extract effective compiled values, validate Codex-only
-   entries, and associate canonical names with RTTI-persisted deployment
-   bindings. Test valid, invalid, duplicate, unavailable, and secret-free
-   persistence cases.
+   Create the Bot language/validator definition and fixtures using NexusScript,
+   compile catalog files with the existing session, extract effective compiled
+   values, validate Codex-only entries, and associate canonical names with
+   RTTI-persisted deployment bindings. Test valid, invalid, duplicate,
+   unavailable, and secret-free persistence cases.
 
 3. **Make one bot instance genuinely multi-room.**
    Reshape join/leave/state/admission/cancellation APIs around explicit room JIDs.
@@ -379,12 +392,14 @@ one real definition for each shared type and the boundaries above.
 
 7. **Add the XMPP IQ module and caller API.**
    Implement the four QNames, strict parsing/serialization, responder
-   registration, bounded deferred response ownership, module-command response
+   registration, bounded transport correlation, module-command response
    submission, standard error mapping, and typed outbound caller completions.
-   Install discovery on the controller and advertise the versioned namespace.
-   Test requests, results, every error category, spoofed/unauthorized senders,
-   timeout, capacity, shutdown, duplicate lifecycle notifications, and exact
-   once-only response behavior.
+   Keep operation lifetime, deadlines, cancellation, and semantic completion
+   exclusively in the controller. Install discovery on the controller and
+   advertise the versioned namespace. Test requests, results, every error
+   category, spoofed/unauthorized senders, timeout, capacity, connection loss,
+   shutdown, duplicate lifecycle notifications, and exact once-only response
+   behavior.
 
 8. **Integrate controller ownership and configuration.**
    Have the GUI application construct one controller, its distinguished NexusBot
@@ -428,8 +443,9 @@ request sub-agent use explicitly in the current conversation.
 
 - Rebuild and run the standalone fake-App-Server process test to prove the
   RTTI tool-call/result boundary and ordinary prompt behavior across real pipes.
-- Rebuild the NexusScript test module and run its suites to prove the Bot dialect
-  and catalog fixtures compile without changing existing language behavior.
+- Rebuild the NexusScript test module and run its suites to prove the Bot
+  language/validator definition and catalog fixtures compile without changing
+  existing language behavior.
 - If the implementation changes generic NexusXMPP units, rebuild and run the
   complete deterministic NexusXMPP suite, not only the bot-control tests.
 - Rebuild the application:
@@ -468,6 +484,10 @@ request sub-agent use explicitly in the current conversation.
   stanza or sending a deferred response directly from another thread would
   violate current ownership; copied request data plus submitted module response
   operations is mandatory.
+- The IQ transport-correlation record must not acquire its own deadline,
+  cancellation, or completion decisions. Those belong solely to the controller;
+  otherwise two pending-state machines could race or produce contradictory
+  outcomes.
 - Semantic human control requires a real structured App Server tool exchange.
   Parsing a final assistant answer, embedding JSON in prose, or exposing raw IQ
   to the model is not an acceptable shortcut.
