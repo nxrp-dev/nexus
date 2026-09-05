@@ -96,6 +96,27 @@ When implementation is directly authorized:
 
 Rendering should consume state. Input dispatch should route through one policy. Persistence should reflect the object model. Scrollbars, controls, hosts, windows, and other framework objects should own the mechanics that belong to them.
 
+## Threading Design Imperative
+
+Every product thread requires proof that it isolates unavoidable blocking from
+another independently progressing activity. The accepted cases are:
+
+1. independent peers or external entities must progress without one blocked
+   peer preventing the others from progressing; or
+2. a genuinely long-running or blocking operation must be isolated so the GUI
+   application thread remains responsive.
+
+The second case is a special, weaker form of the first. A thread is not an
+architecture for asynchronous intent. Do not create threads for timers,
+deadlines, routing, callbacks, state observation, cleanup, shutdown policy, or
+generic background work. Those remain local to their existing owner and
+execution path.
+
+Any work request or plan that introduces or preserves a thread must name the
+specific blocking operation, the activity that must progress independently,
+and why an existing legitimate thread cannot perform the work. Without that
+proof, the plan is architecturally invalid and must not be implemented.
+
 ## Verification
 
 Compile frequently after structural changes.

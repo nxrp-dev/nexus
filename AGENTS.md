@@ -62,6 +62,28 @@ This repository is an Object Pascal / Free Pascal project. Treat the codebase as
 - Prefer small, boring methods over dense multipurpose methods.
 - Avoid speculative architecture.
 
+## Threading Law
+
+Threads are permitted only to isolate unavoidable blocking between independently
+progressing activities:
+
+1. Multiple independent entities must communicate without one blocked entity
+   preventing the others from progressing, as in a server handling independent
+   clients.
+2. A genuinely long-running or blocking operation must not prevent the GUI
+   application thread from remaining responsive. This is a narrower and weaker
+   instance of the same blocking-isolation requirement.
+
+Nothing else justifies a thread. Asynchrony, timers, deadlines, routing, state
+changes, callbacks, cleanup, ownership, and "background work" are not reasons
+to create one. Keep those responsibilities on the thread that already owns the
+work, using ordinary events, local state, and existing execution paths.
+
+Before adding or retaining a thread, identify the concrete blocking operation,
+the independently progressing activity it would otherwise block, and why an
+existing legitimate thread cannot own that operation. If those facts cannot be
+demonstrated, there must be no thread.
+
 ## Collaboration Rules
 
 - Questions, design discussion, diagnosis, and "thoughts only" requests are not work directives. Treat them as discussion, validation, or design exploration only.

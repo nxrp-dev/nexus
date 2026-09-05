@@ -54,6 +54,22 @@ Do not invent new naming conventions unless explicitly asked.
 - Avoid lifecycle magic hidden in unrelated methods.
 - Use protected getters/setters only when behavior is actually needed.
 
+## Threading
+
+- A product thread may exist only to isolate an unavoidable blocking operation
+  from another independently progressing activity.
+- Valid cases are independent entities that must not block one another, or a
+  long-running/blocking operation that must not freeze the GUI application
+  thread.
+- Do not create threads for asynchrony itself, timers, deadlines, routing,
+  callbacks, state propagation, cleanup, shutdown coordination, or generic
+  background work.
+- Before introducing or retaining a thread, document the blocking operation,
+  what must continue progressing, and why no existing legitimate thread can
+  own the operation. No demonstrated blocking boundary means no thread.
+- Prefer ordinary Pascal events, operation-local state, and existing owner
+  loops for work that does not meet this test.
+
 ## Function Returns
 
 - Use `Result` for function return values.

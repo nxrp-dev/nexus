@@ -48,6 +48,7 @@ type
     FCriticalSection: TRTLCriticalSection;
     FControlCount: Integer;
     FControlResult: TNXBotControlResult;
+    FError: UTF8String;
     FOnline: Boolean;
     FReply: UTF8String;
     FRoomJoined: Boolean;
@@ -60,6 +61,7 @@ type
     procedure ControlComplete(const AResult: TNXBotControlResult);
     procedure Error(ASender: TObject; AStage: TNXXMPPErrorStage;
       const ACondition, AMessage: UTF8String);
+    function ErrorText: UTF8String;
     procedure RoomState(ASender: TObject; ARoom: TNXXMPPRoom);
     procedure State(ASender: TObject; AState: TNXXMPPConnectionState);
     procedure Snapshot(out AOnline, ARoomJoined: Boolean;
@@ -110,7 +112,22 @@ end;
 procedure TObserver.Error(ASender: TObject; AStage: TNXXMPPErrorStage;
   const ACondition, AMessage: UTF8String);
 begin
-  WriteLn('XMPP error: ', string(ACondition), ': ', string(AMessage));
+  EnterCriticalSection(FCriticalSection);
+  try
+    FError := ACondition + ': ' + AMessage;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+function TObserver.ErrorText: UTF8String;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FError;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
 end;
 
 destructor TObserver.Destroy;
@@ -232,6 +249,9 @@ begin
     AObserver.Snapshot(lOnline, lRoom, lReply);
     if lOnline and ((not ARequireRoom) or lRoom) then
       Exit;
+    if AObserver.ErrorText <> '' then
+      raise Exception.Create('Observer XMPP failed: ' +
+        string(AObserver.ErrorText));
     Sleep(10);
   until GetTickCount64 >= lDeadline;
   raise Exception.Create('Timed out waiting for observer XMPP state.');
@@ -450,7 +470,7 @@ begin
     lInterpreter.Free;
     lController.Free;
   end;
-end.
+end;
 
 procedure RegisterNXBotHostLiveTests(ARegistry: TNXTestRegistry);
 var

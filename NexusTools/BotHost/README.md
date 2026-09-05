@@ -79,8 +79,7 @@ From the repository root:
 lazbuild -B NexusTools\BotHost\NexusBotHost.lpi
 lazbuild -B NexusTools\BotHost\tests\NexusBotHostTestModule.lpi
 fpc -B -MObjFPC -Sh -FUoutput\NexusBotHostTests\fake-units -FEoutput\NexusBotHostTests\bin NexusTools\BotHost\tests\FakeCodexAppServer.lpr
-fpc -B -MObjFPC -Sh -FuNexusLib\core\src -FuNexusLib\net\src\xmpp -FuNexusTools\BotHost\src -FuNexusTools\BotHost\src\protocol -FUoutput\NexusBotHostTests\units -FEoutput\NexusBotHostTests\bin NexusTools\BotHost\tests\NexusBotHostTests.lpr
-output\NexusBotHostTests\bin\NexusBotHostTests.exe output\NexusBotHostTests\bin\FakeCodexAppServer.exe
+$env:NEXUS_BOTHOST_FAKE_APP_SERVER = (Resolve-Path output\NexusBotHostTests\bin\FakeCodexAppServer.exe)
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost
 ```
 
@@ -88,14 +87,17 @@ The focused suite covers routing, copied observable multi-room state, typed
 App Server protocol objects, catalog validation and deployment association,
 authorization, idempotency, capacity/cancellation, exact human commands, IQ
 dispatch/serialization/error mapping, discovery, the typed IQ caller, claimed
-operation shutdown, and final App Server worker quiescence.
+operation shutdown, final App Server worker quiescence, and the real-pipe App
+Server process integration.
 
-The standalone process test verifies split JSONL frames, independent stderr,
+The `NexusBotHost.AppServerProcess` integration test verifies split JSONL
+frames, independent stderr,
 unknown notifications, authority decline, the complete thread/turn lifecycle,
 the RTTI-declared `bot_control` schema, a typed tool call, and its typed result
 across real pipes. Because App Server dynamic tools are experimental, BotHost
 declares the typed `experimentalApi` initialize capability before starting a
-thread with `dynamicTools`.
+thread with `dynamicTools`. If `NEXUS_BOTHOST_FAKE_APP_SERVER` is not set, that
+test is reported as skipped by the Nexus test framework.
 
 ## Configuration and secrets
 
@@ -141,17 +143,31 @@ free-form JSON interpretation.
 
 ## Live Openfire verification
 
-Compile `tests/NexusBotHostLiveTest.lpr` with the BotHost, Script core,
-NexusXMPP, core, and Synapse paths. Run:
+The live Openfire/Codex test is registered as
+`NexusBotHostLive.OpenfireCodex` in `NexusBotHostTestModule.dll`. Configure it
+through environment variables, then invoke it through `NexusTestHost`:
 
-```text
-NexusBotHostLiveTest.exe <codex.exe> <runtime-dir> <model> <bot-jid> \
-  <bot-password-environment-variable> <observer-jid> <observer-password> \
-  <ca-file> <host> <port> <room-jid> <catalog-file>
+```powershell
+$env:NEXUS_BOTHOST_LIVE_OPENFIRE = '1'
+$env:NEXUS_BOTHOST_CODEX_EXECUTABLE = '<path-to-codex.exe>'
+$env:NEXUS_BOTHOST_RUNTIME_DIRECTORY = '<runtime-directory>'
+$env:NEXUS_BOTHOST_MODEL = '<model>'
+$env:NEXUS_BOTHOST_BOT_JID = '<bot-jid>'
+$env:NEXUS_BOTHOST_BOT_PASSWORD_ENVIRONMENT_VARIABLE = 'NEXUS_BOT_XMPP_PASSWORD'
+$env:NEXUS_BOT_XMPP_PASSWORD = '<bot-password>'
+$env:NEXUS_BOTHOST_OBSERVER_JID = '<observer-jid>'
+$env:NEXUS_BOTHOST_OBSERVER_PASSWORD = '<observer-password>'
+$env:NEXUS_BOTHOST_CA_FILE = '<ca-file>'
+$env:NEXUS_BOTHOST_ENDPOINT_HOST = '<host>'
+$env:NEXUS_BOTHOST_ENDPOINT_PORT = '<port>'
+$env:NEXUS_BOTHOST_ROOM_JID = '<room-jid>'
+$env:NEXUS_BOTHOST_CATALOG_FILE = '<catalog-file>'
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenfireCodex
 ```
 
 The live test uses unique XMPP resources and ordinary client/module APIs. It
 verifies IQ LIST and STATUS, DISMISS plus idempotent DISMISS, observed leave,
 INVITE plus idempotent INVITE, observed rejoin, and an ordinary addressed MUC
 conversation in the permanent room. Credentials and generated resources are
-not written to the repository.
+not written to the repository. Without `NEXUS_BOTHOST_LIVE_OPENFIRE=1`, the
+test is reported as skipped.

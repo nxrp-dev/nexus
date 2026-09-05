@@ -127,6 +127,34 @@ type
       const ADetail: UTF8String);
   end;
 
+  TAppServerProcessRecorder = class
+  private
+    FAnswer: UTF8String;
+    FControlCount: Integer;
+    FCriticalSection: TRTLCriticalSection;
+    FDiagnosticCount: Integer;
+    FFailed: Boolean;
+    FFinalCount: Integer;
+    FReady: Boolean;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Answer(out AText: UTF8String): Integer;
+    function BotControl(ASender: TObject;
+      const AOperation: TNXBotControlOperation;
+      const AAuthorization: TNXBotAuthorization;
+      ACompletion: TNXBotControlCompletion; out AToken: QWord): Boolean;
+    function ControlCount: Integer;
+    procedure Diagnostic(ASender: TObject; const AText: UTF8String);
+    function DiagnosticCount: Integer;
+    function Failed: Boolean;
+    procedure FinalAnswer(ASender: TObject; APrompt: TNXBotPrompt;
+      const AText: UTF8String);
+    function Ready: Boolean;
+    procedure StateChanged(ASender: TObject;
+      AState: TNXCodexAppServerState; const ADetail: UTF8String);
+  end;
+
   TBotControlIQHarness = class
   public
     Authorization: TNXBotAuthorization;
@@ -169,6 +197,133 @@ procedure TControllerProbeThread.Execute;
 begin
   FController.SetOperationCapacity(1);
   FEvent.SetEvent;
+end;
+
+constructor TAppServerProcessRecorder.Create;
+begin
+  inherited Create;
+  InitCriticalSection(FCriticalSection);
+end;
+
+destructor TAppServerProcessRecorder.Destroy;
+begin
+  DoneCriticalSection(FCriticalSection);
+  inherited Destroy;
+end;
+
+function TAppServerProcessRecorder.Answer(out AText: UTF8String): Integer;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FFinalCount;
+    AText := FAnswer;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+function TAppServerProcessRecorder.BotControl(ASender: TObject;
+  const AOperation: TNXBotControlOperation;
+  const AAuthorization: TNXBotAuthorization;
+  ACompletion: TNXBotControlCompletion; out AToken: QWord): Boolean;
+var
+  lResult: TNXBotControlResult;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Inc(FControlCount);
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+  AToken := 99;
+  lResult.Error := bceNone;
+  lResult.Detail := '';
+  lResult.NoOp := False;
+  SetLength(lResult.Bots, 1);
+  lResult.Bots[0].Name := AOperation.BotName;
+  lResult.Bots[0].Known := True;
+  lResult.Bots[0].Available := True;
+  lResult.Bots[0].Active := True;
+  lResult.Bots[0].AppServerState := 'ready';
+  lResult.Bots[0].XMPPState := 'online';
+  ACompletion(AToken, lResult);
+  Result := AAuthorization.VerifiedMUCIdentity;
+end;
+
+function TAppServerProcessRecorder.ControlCount: Integer;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FControlCount;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+procedure TAppServerProcessRecorder.Diagnostic(ASender: TObject;
+  const AText: UTF8String);
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Inc(FDiagnosticCount);
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+function TAppServerProcessRecorder.DiagnosticCount: Integer;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FDiagnosticCount;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+function TAppServerProcessRecorder.Failed: Boolean;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FFailed;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+procedure TAppServerProcessRecorder.FinalAnswer(ASender: TObject;
+  APrompt: TNXBotPrompt; const AText: UTF8String);
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    FAnswer := AText;
+    Inc(FFinalCount);
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+function TAppServerProcessRecorder.Ready: Boolean;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FReady;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+procedure TAppServerProcessRecorder.StateChanged(ASender: TObject;
+  AState: TNXCodexAppServerState; const ADetail: UTF8String);
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    FReady := AState = cassReady;
+    if AState = cassFailed then
+      FFailed := True;
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
 end;
 
 constructor TControllerExecuteThread.Create(AController: TNXBotController;
@@ -1004,6 +1159,66 @@ begin
   end;
 end;
 
+procedure TestAppServerProcess(AContext: TNXTestContext);
+const
+  cExpectedAnswer: UTF8String = 'fake — “quoted” café 中文 😀' + #10 +
+    '[answer truncated]';
+var
+  lAnswer: UTF8String;
+  lAppServer: TNXCodexAppServer;
+  lDeadline: QWord;
+  lExecutable: string;
+  lPrompt: TNXBotPrompt;
+  lRecorder: TAppServerProcessRecorder;
+begin
+  lExecutable := GetEnvironmentVariable('NEXUS_BOTHOST_FAKE_APP_SERVER');
+  if lExecutable = '' then
+    AContext.Skip('Set NEXUS_BOTHOST_FAKE_APP_SERVER to the compiled fake ' +
+      'App Server fixture.');
+  AContext.AssertTrue(FileExists(lExecutable),
+    'The configured fake App Server executable does not exist.');
+  lRecorder := TAppServerProcessRecorder.Create;
+  lAppServer := TNXCodexAppServer.Create;
+  try
+    lAppServer.AnswerMaximumBytes := 58;
+    lAppServer.OnFinalAnswer := @lRecorder.FinalAnswer;
+    lAppServer.OnBotControl := @lRecorder.BotControl;
+    lAppServer.OnDiagnostic := @lRecorder.Diagnostic;
+    lAppServer.OnState := @lRecorder.StateChanged;
+    AContext.AssertTrue(lAppServer.StartServer(lExecutable, GetCurrentDir,
+      'gpt-5.6-luna', 'Test bot instructions.'),
+      'Could not enqueue App Server start.');
+    lDeadline := GetTickCount64 + 5000;
+    while not lRecorder.Ready and not lRecorder.Failed and
+      (GetTickCount64 < lDeadline) do
+      Sleep(5);
+    AContext.AssertTrue(lRecorder.Ready,
+      'Fake App Server did not become ready.');
+    lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
+      'room@nexus.local/test1', 'm1', 'hello');
+    lPrompt.SetVerifiedCaller('test1@nexus.local', True);
+    AContext.AssertTrue(lAppServer.SubmitPrompt(lPrompt),
+      'Could not submit prompt.');
+    lDeadline := GetTickCount64 + 5000;
+    while (lRecorder.Answer(lAnswer) = 0) and
+      (GetTickCount64 < lDeadline) do
+      Sleep(5);
+    AContext.AssertEquals(1, lRecorder.Answer(lAnswer),
+      'Final answer event was not raised.');
+    AContext.AssertEquals(string(cExpectedAnswer), string(lAnswer),
+      'UTF-8 answer was corrupted or not bounded at a character boundary.');
+    AContext.AssertTrue(lRecorder.DiagnosticCount >= 3,
+      'Stderr, unknown notification, or authority decline was not reported.');
+    AContext.AssertEquals(1, lRecorder.ControlCount,
+      'Typed bot_control request did not execute exactly once.');
+    AContext.AssertTrue(lAppServer.StopServer,
+      'Could not enqueue App Server stop.');
+  finally
+    lAppServer.Free;
+    lRecorder.Free;
+  end;
+end;
+
 procedure TestBotControlIQ(AContext: TNXTestContext);
 var
   lDispatcher: TNXXMPPDispatcher;
@@ -1169,6 +1384,7 @@ begin
   lSuite.AddTest('Controller', @TestController);
   lSuite.AddTest('ShutdownOwnership', @TestShutdownOwnership);
   lSuite.AddTest('AppServerShutdown', @TestAppServerShutdown);
+  lSuite.AddTest('AppServerProcess', @TestAppServerProcess, 'integration');
   lSuite.AddTest('BotControlIQ', @TestBotControlIQ);
 end;
 
