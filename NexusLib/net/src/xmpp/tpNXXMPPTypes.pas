@@ -10,7 +10,6 @@ uses
 
 const
   cNXXMPPDefaultCommandCapacity = 256;
-  cNXXMPPDefaultEventCapacity = 512;
   cNXXMPPDefaultPendingIQCapacity = 128;
   cNXXMPPDefaultMaxStanzaBytes = 1024 * 1024;
   cNXXMPPDefaultMaxNestingDepth = 64;
@@ -45,6 +44,9 @@ type
   TNXXMPPStanzaKind = (xskUnknown, xskMessage, xskPresence, xskIQ);
   TNXXMPPIQType = (xitUnknown, xitGet, xitSet, xitResult, xitError);
   TNXXMPPTransportSecurity = (xtsStartTLS, xtsDirectTLS);
+  TNXXMPPReplayPolicy = (xrpNever, xrpStreamManaged);
+  TNXXMPPModuleLifecycle = (xmlTemporaryLoss, xmlStreamResumed,
+    xmlNewSession, xmlPermanentLoss, xmlFinalDisconnect);
 
   TNXXMPPEndpoint = record
     Host: string;

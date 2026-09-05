@@ -9,6 +9,7 @@ uses
   obNXTestModule,
   obNXTestRegistry,
   obNXTestRPCRequests,
+  tsNXJSONRPCEnvelopeTests,
   tsNXLSCoreTests,
   tsNXLSDiagnosticsTests,
   tsNXLSDocumentSymbolTests,
@@ -38,6 +39,7 @@ end;
 
 procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
 begin
+  RegisterNXJSONRPCEnvelopeTests(ARegistry);
   RegisterNXLSCoreTests(ARegistry);
   RegisterNXLSDiagnosticsTests(ARegistry);
   RegisterNXLSDocumentSymbolTests(ARegistry);

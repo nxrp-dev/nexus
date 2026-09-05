@@ -56,7 +56,7 @@ type
     function ToJSONData: TJSONData; virtual;
     procedure FromJSONData(AData: TJSONData); virtual;
 
-    function AsString: string; virtual;
+    function AsString: UTF8String; virtual;
     function AsInteger: Integer; virtual;
     function AsInt64: Int64; virtual;
     function AsFloat: Double; virtual;
@@ -79,15 +79,15 @@ type
 
   TNXJSONString = class(TNXJSONValue)
   private
-    FValue: string;
+    FValue: UTF8String;
   public
     constructor Create; override;
     procedure Clear; override;
     function ToJSONData: TJSONData; override;
     procedure FromJSONData(AData: TJSONData); override;
-    function AsString: string; override;
-    procedure SetValue(const AValue: string);
-    property Value: string read FValue write SetValue;
+    function AsString: UTF8String; override;
+    procedure SetValue(const AValue: UTF8String);
+    property Value: UTF8String read FValue write SetValue;
   end;
 
   TNXJSONInteger = class(TNXJSONValue)
@@ -145,7 +145,7 @@ type
     class function ItemClass: TNXJSONValueClass; virtual;
 
     function Add(AItem: TNXJSONValue): TNXJSONValue;
-    function AddString(const AValue: string): TNXJSONString;
+    function AddString(const AValue: UTF8String): TNXJSONString;
     function AddInteger(const AValue: Int64): TNXJSONInteger;
     function AddFloat(const AValue: Double): TNXJSONFloat;
     function AddBoolean(const AValue: Boolean): TNXJSONBoolean;
@@ -431,7 +431,7 @@ begin
   end;
 end;
 
-function TNXJSONValue.AsString: string;
+function TNXJSONValue.AsString: UTF8String;
 begin
   if FRaw = nil then
     Result := ''
@@ -554,12 +554,12 @@ begin
   FJSONType := nxjtString;
 end;
 
-function TNXJSONString.AsString: string;
+function TNXJSONString.AsString: UTF8String;
 begin
   Result := FValue;
 end;
 
-procedure TNXJSONString.SetValue(const AValue: string);
+procedure TNXJSONString.SetValue(const AValue: UTF8String);
 begin
   FValue := AValue;
   SetNotNull;
@@ -762,7 +762,7 @@ begin
   Result := AItem;
 end;
 
-function TNXJSONArray.AddString(const AValue: string): TNXJSONString;
+function TNXJSONArray.AddString(const AValue: UTF8String): TNXJSONString;
 begin
   Result := TNXJSONString(Add(TNXJSONString.Create));
   Result.Value := AValue;

@@ -51,7 +51,7 @@ type
     FValue: TNXJSONRPCValue;
     function GetIntegerValue: Int64;
     function GetIsInteger: Boolean;
-    function GetStringValue: string;
+    function GetStringValue: UTF8String;
     procedure SetValue(AValue: TNXJSONRPCValue);
   protected
     class function ValueClassForJSON(AData: TJSONData): TNXJSONRPCValueClass; virtual;
@@ -62,14 +62,14 @@ type
     procedure Clear; override;
     function ToJSONData: TJSONData; override;
     procedure FromJSONData(AData: TJSONData); override;
-    function AsString: string; override;
+    function AsString: UTF8String; override;
     function AsInteger: Integer; override;
     function AsInt64: Int64; override;
     procedure SetIntegerValue(const AValue: Int64);
-    procedure SetStringValue(const AValue: string);
+    procedure SetStringValue(const AValue: UTF8String);
     property IntegerValue: Int64 read GetIntegerValue write SetIntegerValue;
     property IsInteger: Boolean read GetIsInteger;
-    property StringValue: string read GetStringValue write SetStringValue;
+    property StringValue: UTF8String read GetStringValue write SetStringValue;
     property Value: TNXJSONRPCValue read FValue write SetValue;
   end;
 
@@ -402,7 +402,7 @@ begin
   Result[1] := TNXJSONInteger;
 end;
 
-function TNXJSONRPCVariant.AsString: string;
+function TNXJSONRPCVariant.AsString: UTF8String;
 begin
   if IsNull then
     raise ENXJSON.Create('JSON value is null.');
@@ -439,7 +439,7 @@ begin
   Result := FValue is TNXJSONInteger;
 end;
 
-function TNXJSONRPCVariant.GetStringValue: string;
+function TNXJSONRPCVariant.GetStringValue: UTF8String;
 begin
   Result := AsString;
 end;
@@ -476,7 +476,7 @@ begin
   end;
 end;
 
-procedure TNXJSONRPCVariant.SetStringValue(const AValue: string);
+procedure TNXJSONRPCVariant.SetStringValue(const AValue: UTF8String);
 var
   lValue: TNXJSONString;
 begin

@@ -8,13 +8,25 @@ interface
 uses
   Classes, SysUtils, Contnrs, SyncObjs, synacode,
   obNXXMPPCommand, obNXXMPPConfig, obNXXMPPDispatcher,
-  obNXXMPPEndpointResolver, obNXXMPPError, obNXXMPPEvents, obNXXMPPJID,
-  obNXXMPPQueue, obNXXMPPRequestManager, obNXXMPPSASL,
+  obNXXMPPEndpointResolver, obNXXMPPError, obNXXMPPJID,
+  obNXXMPPModule, obNXXMPPQueue, obNXXMPPRequestManager, obNXXMPPSASL,
   obNXXMPPStanza, obNXXMPPStreamFramer, obNXXMPPTransport,
   obNXXMPPNegotiation, obNXXMPPStreamManagement,
   tpNXXMPPTypes, utNXXMPPXML;
 
 type
+  TNXXMPPConnectionStateEvent = procedure(
+    AState: TNXXMPPConnectionState) of object;
+  TNXXMPPConnectionStanzaEvent = procedure(AStanza: TNXXMPPStanza) of object;
+  TNXXMPPConnectionErrorEvent = procedure(AStage: TNXXMPPErrorStage;
+    const ACondition, AMessage: UTF8String) of object;
+  TNXXMPPConnectionCompletionEvent = procedure(
+    ACompletion: TNXXMPPIQCompletionEvent) of object;
+  TNXXMPPConnectionUnrecoverableStanzasEvent = procedure(
+    const AReason: UTF8String; AStanzas: TStrings) of object;
+  TNXXMPPConnectionModuleLifecycleEvent = procedure(
+    ALifecycle: TNXXMPPModuleLifecycle) of object;
+
   TNXXMPPConnection = class(TThread)
   private
     FCommands: TNXXMPPObjectQueue;
@@ -22,18 +34,31 @@ type
     FCriticalSection: TCriticalSection;
     FDisconnectRequested: Boolean;
     FDispatcher: TNXXMPPDispatcher;
-    FEvents: TNXXMPPObjectQueue;
     FFrames: TStringList;
     FFramer: TNXXMPPStreamFramer;
     FJID: TNXXMPPJID;
     FIQCapacity: TNXXMPPIQCapacity;
+    FModules: TObjectList;
+    FOnCompletion: TNXXMPPConnectionCompletionEvent;
+    FOnError: TNXXMPPConnectionErrorEvent;
+    FOnModuleLifecycle: TNXXMPPConnectionModuleLifecycleEvent;
+    FOnStanza: TNXXMPPConnectionStanzaEvent;
+    FOnState: TNXXMPPConnectionStateEvent;
+    FOnUnrecoverableStanzas: TNXXMPPConnectionUnrecoverableStanzasEvent;
     FRequests: TNXXMPPRequestManager;
     FState: TNXXMPPConnectionState;
     FStreamManagement: TNXXMPPStreamManagement;
     FTransport: TNXXMPPTransport;
     function ConnectEndpoint: TNXXMPPEndpoint;
-    procedure EnqueueCompletionEvents(AEvents: TObjectList);
-    procedure EnqueueEvent(AEvent: TNXXMPPEvent);
+    procedure CompleteEvents(AEvents: TObjectList);
+    procedure DoOnCompletion(ACompletion: TNXXMPPIQCompletionEvent);
+    procedure DoOnError(AStage: TNXXMPPErrorStage;
+      const ACondition, AMessage: UTF8String);
+    procedure DoOnModuleLifecycle(ALifecycle: TNXXMPPModuleLifecycle);
+    procedure DoOnStanza(AStanza: TNXXMPPStanza);
+    procedure DoOnState(AState: TNXXMPPConnectionState);
+    procedure DoOnUnrecoverableStanzas(const AReason: UTF8String;
+      AStanzas: TStrings);
     procedure HandleIncoming(AStanza: TNXXMPPStanza);
     function IsDisconnectRequested: Boolean;
     procedure RejectResumption(const AReason: UTF8String);
@@ -44,6 +69,7 @@ type
     procedure PerformBinding(AFeatures: TNXXMPPStanza);
     procedure PerformNegotiation(const AEndpoint: TNXXMPPEndpoint);
     procedure ProcessCommands;
+    procedure NotifyModules(ALifecycle: TNXXMPPModuleLifecycle);
     function ReadElement: TNXXMPPStanza;
     function ReadFrame: UTF8String;
     function RecoverConnection: Boolean;
@@ -57,27 +83,37 @@ type
     procedure Execute; override;
   public
     constructor Create(AConfig: TNXXMPPClientConfig;
-      ACommands, AEvents: TNXXMPPObjectQueue;
-      ADispatcher: TNXXMPPDispatcher; AIQCapacity: TNXXMPPIQCapacity);
+      ACommands: TNXXMPPObjectQueue; ADispatcher: TNXXMPPDispatcher;
+      AIQCapacity: TNXXMPPIQCapacity; AModules: TObjectList);
     destructor Destroy; override;
     procedure RequestDisconnect;
-    procedure SendModuleXML(const AXML: UTF8String);
+    procedure SendModuleXML(const AXML: UTF8String; AReplayable: Boolean);
     function State: TNXXMPPConnectionState;
+    property OnCompletion: TNXXMPPConnectionCompletionEvent
+      read FOnCompletion write FOnCompletion;
+    property OnError: TNXXMPPConnectionErrorEvent read FOnError write FOnError;
+    property OnModuleLifecycle: TNXXMPPConnectionModuleLifecycleEvent
+      read FOnModuleLifecycle write FOnModuleLifecycle;
+    property OnStanza: TNXXMPPConnectionStanzaEvent
+      read FOnStanza write FOnStanza;
+    property OnState: TNXXMPPConnectionStateEvent read FOnState write FOnState;
+    property OnUnrecoverableStanzas: TNXXMPPConnectionUnrecoverableStanzasEvent
+      read FOnUnrecoverableStanzas write FOnUnrecoverableStanzas;
   end;
 
 implementation
 
 constructor TNXXMPPConnection.Create(AConfig: TNXXMPPClientConfig;
-  ACommands, AEvents: TNXXMPPObjectQueue; ADispatcher: TNXXMPPDispatcher;
-  AIQCapacity: TNXXMPPIQCapacity);
+  ACommands: TNXXMPPObjectQueue; ADispatcher: TNXXMPPDispatcher;
+  AIQCapacity: TNXXMPPIQCapacity; AModules: TObjectList);
 begin
   inherited Create(True);
   FreeOnTerminate := False;
   FConfig := AConfig;
   FCommands := ACommands;
-  FEvents := AEvents;
   FDispatcher := ADispatcher;
   FIQCapacity := AIQCapacity;
+  FModules := AModules;
   FCriticalSection := TCriticalSection.Create;
   FFrames := TStringList.Create;
   FFramer := TNXXMPPStreamFramer.Create;
@@ -132,25 +168,47 @@ begin
   finally
     FCriticalSection.Release;
   end;
-  EnqueueEvent(TNXXMPPEvent.CreateState(AState));
+  DoOnState(AState);
 end;
 
-procedure TNXXMPPConnection.EnqueueEvent(AEvent: TNXXMPPEvent);
+procedure TNXXMPPConnection.DoOnCompletion(
+  ACompletion: TNXXMPPIQCompletionEvent);
 begin
-  if not FEvents.Enqueue(AEvent) then
-  begin
-    AEvent.Free;
-    FCriticalSection.Acquire;
-    try
-      FDisconnectRequested := True;
-      FState := xcsFailed;
-    finally
-      FCriticalSection.Release;
-    end;
-    FTransport.Interrupt;
-    raise ENXXMPPError.Create(xesProtocol, 'event-queue-full',
-      'The application event queue is full.');
-  end;
+  if Assigned(FOnCompletion) then
+    FOnCompletion(ACompletion);
+end;
+
+procedure TNXXMPPConnection.DoOnError(AStage: TNXXMPPErrorStage;
+  const ACondition, AMessage: UTF8String);
+begin
+  if Assigned(FOnError) then
+    FOnError(AStage, ACondition, AMessage);
+end;
+
+procedure TNXXMPPConnection.DoOnModuleLifecycle(
+  ALifecycle: TNXXMPPModuleLifecycle);
+begin
+  if Assigned(FOnModuleLifecycle) then
+    FOnModuleLifecycle(ALifecycle);
+end;
+
+procedure TNXXMPPConnection.DoOnStanza(AStanza: TNXXMPPStanza);
+begin
+  if Assigned(FOnStanza) then
+    FOnStanza(AStanza);
+end;
+
+procedure TNXXMPPConnection.DoOnState(AState: TNXXMPPConnectionState);
+begin
+  if Assigned(FOnState) then
+    FOnState(AState);
+end;
+
+procedure TNXXMPPConnection.DoOnUnrecoverableStanzas(
+  const AReason: UTF8String; AStanzas: TStrings);
+begin
+  if Assigned(FOnUnrecoverableStanzas) then
+    FOnUnrecoverableStanzas(AReason, AStanzas);
 end;
 
 procedure TNXXMPPConnection.RequestDisconnect;
@@ -164,12 +222,25 @@ begin
   FTransport.Interrupt;
 end;
 
-procedure TNXXMPPConnection.SendModuleXML(const AXML: UTF8String);
+procedure TNXXMPPConnection.SendModuleXML(const AXML: UTF8String;
+  AReplayable: Boolean);
 begin
   if GetCurrentThreadID <> ThreadID then
     raise ENXXMPPError.Create(xesProtocol, 'wrong-module-thread',
       'XMPP modules may send only while handling the connection thread.');
-  SendStanza(AXML, False);
+  SendStanza(AXML, AReplayable);
+end;
+
+procedure TNXXMPPConnection.NotifyModules(
+  ALifecycle: TNXXMPPModuleLifecycle);
+var
+  lIndex: Integer;
+begin
+  if not Assigned(FModules) then
+    Exit;
+  for lIndex := 0 to FModules.Count - 1 do
+    TNXXMPPModule(FModules[lIndex]).Lifecycle(ALifecycle);
+  DoOnModuleLifecycle(ALifecycle);
 end;
 
 procedure TNXXMPPConnection.SendStanza(const AXML: UTF8String;
@@ -195,7 +266,11 @@ begin
     lStanzas.Free;
     Exit;
   end;
-  EnqueueEvent(TNXXMPPEvent.CreateUnrecoverableStanzas(AReason, lStanzas));
+  try
+    DoOnUnrecoverableStanzas(AReason, lStanzas);
+  finally
+    lStanzas.Free;
+  end;
 end;
 
 function TNXXMPPConnection.IsDisconnectRequested: Boolean;
@@ -581,6 +656,7 @@ function TNXXMPPConnection.RecoverConnection: Boolean;
 var
   lAttempt: Integer;
   lEndpoint: TNXXMPPEndpoint;
+  lResumed: Boolean;
   lWaited: Cardinal;
 begin
   Result := False;
@@ -598,12 +674,16 @@ begin
     try
       FTransport.Close;
       lEndpoint := ConnectEndpoint;
-      if not TryResume(lEndpoint) then
+      lResumed := TryResume(lEndpoint);
+      if not lResumed then
       begin
         FTransport.Close;
         lEndpoint := ConnectEndpoint;
         PerformNegotiation(lEndpoint);
+        NotifyModules(xmlNewSession);
       end;
+      if lResumed then
+        NotifyModules(xmlStreamResumed);
       Transition(xcsOnline);
       Exit(True);
     except
@@ -658,8 +738,12 @@ begin
   lCompletion := FRequests.Complete(AStanza);
   if Assigned(lCompletion) then
   begin
-    EnqueueEvent(TNXXMPPEvent.CreateCompletion(lCompletion));
-    FStreamManagement.IncomingHandled;
+    try
+      DoOnCompletion(lCompletion);
+      FStreamManagement.IncomingHandled;
+    finally
+      lCompletion.Free;
+    end;
     Exit;
   end;
   if (AStanza.Kind = xskIQ) and (AStanza.IQType in [xitGet, xitSet]) and
@@ -668,7 +752,8 @@ begin
   else if not ((AStanza.Kind = xskIQ) and
     (AStanza.IQType in [xitGet, xitSet])) then
     FDispatcher.DispatchStanza(AStanza);
-  EnqueueEvent(TNXXMPPEvent.CreateStanza(AStanza));
+  DoOnStanza(AStanza);
+  AStanza.Free;
   FStreamManagement.IncomingHandled;
 end;
 
@@ -686,8 +771,7 @@ begin
       case lCommand.Kind of
         xckRawXML:
           SendStanza(lCommand.XML,
-            (Copy(lCommand.XML, 1, 8) = '<message') or
-            (Copy(lCommand.XML, 1, 9) = '<presence'));
+            lCommand.ReplayPolicy = xrpStreamManaged);
         xckIQ:
           begin
             try
@@ -706,6 +790,16 @@ begin
             lXML := lXML + '>' + lCommand.Payload + '</iq>';
             SendStanza(lXML, False);
           end;
+        xckModule:
+          begin
+            if not Assigned(FModules) or
+              (FModules.IndexOf(lCommand.Module) < 0) then
+              raise ENXXMPPError.Create(xesProtocol,
+                'unregistered-module-command',
+                'A module command targeted an unregistered module.');
+            TNXXMPPModule(lCommand.Module).ProcessCommand(
+              lCommand.ModuleOperation);
+          end;
         xckDisconnect:
           RequestDisconnect;
       end;
@@ -715,14 +809,18 @@ begin
   until False;
 end;
 
-procedure TNXXMPPConnection.EnqueueCompletionEvents(AEvents: TObjectList);
+procedure TNXXMPPConnection.CompleteEvents(AEvents: TObjectList);
 var
   lCompletion: TNXXMPPIQCompletionEvent;
 begin
   while AEvents.Count > 0 do
   begin
     lCompletion := TNXXMPPIQCompletionEvent(AEvents.Extract(AEvents[0]));
-    EnqueueEvent(TNXXMPPEvent.CreateCompletion(lCompletion));
+    try
+      DoOnCompletion(lCompletion);
+    finally
+      lCompletion.Free;
+    end;
   end;
 end;
 
@@ -760,7 +858,7 @@ begin
         end;
       end;
       FRequests.CollectTimeouts(GetTickCount64, lCompletions);
-      EnqueueCompletionEvents(lCompletions);
+      CompleteEvents(lCompletions);
     end;
   finally
     lCompletions.Free;
@@ -778,6 +876,7 @@ begin
       FJID := TNXXMPPJID.Create(FConfig.JID);
       lEndpoint := ConnectEndpoint;
       PerformNegotiation(lEndpoint);
+      NotifyModules(xmlNewSession);
       Transition(xcsOnline);
       while not IsDisconnectRequested do
       begin
@@ -790,9 +889,10 @@ begin
             if IsDisconnectRequested then
               Break;
             FStreamManagement.MarkDisconnected(GetTickCount64);
+            NotifyModules(xmlTemporaryLoss);
             FRequests.CancelAll('The IQ request was interrupted by a ' +
               'connection loss.', lCompletions);
-            EnqueueCompletionEvents(lCompletions);
+            CompleteEvents(lCompletions);
             Transition(xcsResuming);
             if not RecoverConnection and not IsDisconnectRequested then
               raise;
@@ -820,11 +920,9 @@ begin
         finally
           FCriticalSection.Release;
         end;
-        if FEvents.Count < FConfig.EventCapacity then
-          EnqueueEvent(TNXXMPPEvent.CreateState(xcsFailed));
-        if FEvents.Count < FConfig.EventCapacity then
-          EnqueueEvent(TNXXMPPEvent.CreateError(E.Stage,
-            UTF8String(E.Condition), UTF8String(E.Message)));
+        DoOnState(xcsFailed);
+        DoOnError(E.Stage, UTF8String(E.Condition), UTF8String(E.Message));
+        NotifyModules(xmlPermanentLoss);
       end;
       on E: Exception do
       begin
@@ -840,21 +938,20 @@ begin
         finally
           FCriticalSection.Release;
         end;
-        if FEvents.Count < FConfig.EventCapacity then
-          EnqueueEvent(TNXXMPPEvent.CreateState(xcsFailed));
-        if FEvents.Count < FConfig.EventCapacity then
-          EnqueueEvent(TNXXMPPEvent.CreateError(xesProtocol,
-            'unexpected-failure', UTF8String(E.Message)));
+        DoOnState(xcsFailed);
+        DoOnError(xesProtocol, 'unexpected-failure', UTF8String(E.Message));
+        NotifyModules(xmlPermanentLoss);
       end;
     end;
   finally
     FRequests.CancelAll('The XMPP connection closed.', lCompletions);
     try
-      EnqueueCompletionEvents(lCompletions);
+      CompleteEvents(lCompletions);
     except
       on Exception do ;
     end;
     FTransport.Close;
+    NotifyModules(xmlFinalDisconnect);
     if State <> xcsFailed then
       try
         Transition(xcsDisconnected);

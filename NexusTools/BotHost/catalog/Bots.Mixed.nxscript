@@ -1,0 +1,12 @@
+doctype "Bot.Language.nxscript";
+
+Bot NexusBot {
+    Provider: Codex;
+    Model: "gpt-5.6-luna";
+    Instructions: "A valid catalog entry.";
+}
+
+Bot Broken {
+    Provider: Codex;
+    Instructions: "This entry deliberately omits Model.";
+}

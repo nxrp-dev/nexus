@@ -1,0 +1,33 @@
+Language Bot {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Bot {
+            Root: True;
+            UnknownProperties: Reject;
+            Properties: [
+                Property Provider {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text];
+                        Scalar: Text;
+                        AllowedValues: [Codex];
+                    }
+                },
+                Property Model {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text];
+                        Scalar: Text;
+                    }
+                },
+                Property Instructions {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text];
+                        Scalar: Text;
+                    }
+                }
+            ];
+        }
+    ];
+}

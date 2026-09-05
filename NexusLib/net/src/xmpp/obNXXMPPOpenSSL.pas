@@ -16,6 +16,7 @@ type
     class procedure Load; static;
   public
     class procedure RequireAvailable; static;
+    class function SHA1(const AValue: RawByteString): RawByteString; static;
     class function SHA256(const AValue: RawByteString): RawByteString; static;
     class function HMACSHA256(const AKey,
       AValue: RawByteString): RawByteString; static;
@@ -30,6 +31,7 @@ implementation
 
 type
   PEVPMD = Pointer;
+  TEvPSHA1 = function: PEVPMD; cdecl;
   TEvPSHA256 = function: PEVPMD; cdecl;
   TEvPDigest = function(AData: Pointer; ACount: NativeUInt;
     ADigest: PByte; ADigestLength: PCardinal; AType: PEVPMD;
@@ -45,6 +47,7 @@ type
     ACount: NativeUInt): Integer; cdecl;
 
 var
+  lEVPSHA1: TEvPSHA1;
   lEVPSHA256: TEvPSHA256;
   lEVPDigest: TEvPDigest;
   lHMAC: THMAC;
@@ -77,11 +80,27 @@ begin
     raise ENXXMPPError.Create(xesConfiguration, 'openssl-unavailable',
       'The OpenSSL 3 cryptography runtime is unavailable.');
   RequireSymbol(lEVPSHA256, 'EVP_sha256');
+  RequireSymbol(lEVPSHA1, 'EVP_sha1');
   RequireSymbol(lEVPDigest, 'EVP_Digest');
   RequireSymbol(lHMAC, 'HMAC');
   RequireSymbol(lPBKDF2, 'PKCS5_PBKDF2_HMAC');
   RequireSymbol(lRandomBytes, 'RAND_bytes');
   RequireSymbol(lMemoryCompare, 'CRYPTO_memcmp');
+end;
+
+class function TNXXMPPOpenSSL.SHA1(
+  const AValue: RawByteString): RawByteString;
+var
+  lLength: Cardinal;
+begin
+  Load;
+  SetLength(Result, 20);
+  lLength := 0;
+  if lEVPDigest(Pointer(AValue), Length(AValue), @Result[1], @lLength,
+    lEVPSHA1(), nil) <> 1 then
+    raise ENXXMPPError.Create(xesProtocol, 'sha1-failure',
+      'OpenSSL failed to calculate the XEP-0115 verification digest.');
+  SetLength(Result, lLength);
 end;
 
 class procedure TNXXMPPOpenSSL.RequireAvailable;

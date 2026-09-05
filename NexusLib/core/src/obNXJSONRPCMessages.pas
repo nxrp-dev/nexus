@@ -44,6 +44,11 @@ type
     rpcmtErrorResponse
   );
 
+  TNXJSONRPCEnvelopePolicy = (
+    jepStandard,
+    jepHeaderless
+  );
+
   TNXJSONRPCMessage = class;
   TNXJSONRPCMessageClass = class of TNXJSONRPCMessage;
   TNXJSONRPCCommandMessage = class;
@@ -188,12 +193,31 @@ type
     const InvalidParams = -32602;
     const InternalError = -32603;
 
-    class function ParseMessage(const AJSON: string): TNXJSONRPCMessage; overload; static;
-    class function ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage; overload; static;
-    class function ParseMessages(const AJSON: string): TNXJSONRPCMessages; static;
-    class procedure ValidateMessage(AMessage: TNXJSONRPCMessage); static;
-    class function CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONRPCValue): TJSONObject; static;
-    class function CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONRPCValue = nil): TJSONObject; static;
+    class function ParseMessage(const AJSON: UTF8String): TNXJSONRPCMessage; overload; static;
+    class function ParseMessage(const AJSON: UTF8String;
+      APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessage; overload; static;
+    class function ParseMessage(const AJSON: UTF8String;
+      AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage; overload; static;
+    class function ParseMessage(const AJSON: UTF8String;
+      AMessageClass: TNXJSONRPCMessageClass;
+      APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessage; overload; static;
+    class function ParseMessages(const AJSON: UTF8String): TNXJSONRPCMessages; overload; static;
+    class function ParseMessages(const AJSON: UTF8String;
+      APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessages; overload; static;
+    class procedure ValidateMessage(AMessage: TNXJSONRPCMessage); overload; static;
+    class procedure ValidateMessage(AMessage: TNXJSONRPCMessage;
+      APolicy: TNXJSONRPCEnvelopePolicy); overload; static;
+    class function CreateSuccessResponse(AID: TJSONData;
+      AResult: TNXJSONRPCValue): TJSONObject; overload; static;
+    class function CreateSuccessResponse(AID: TJSONData;
+      AResult: TNXJSONRPCValue; APolicy: TNXJSONRPCEnvelopePolicy): TJSONObject;
+      overload; static;
+    class function CreateErrorResponse(AID: TJSONData; const ACode: Integer;
+      const AMessage: UTF8String; AData: TNXJSONRPCValue = nil): TJSONObject;
+      overload; static;
+    class function CreateErrorResponse(AID: TJSONData; const ACode: Integer;
+      const AMessage: UTF8String; AData: TNXJSONRPCValue;
+      APolicy: TNXJSONRPCEnvelopePolicy): TJSONObject; overload; static;
   end;
 
 implementation
@@ -231,7 +255,8 @@ begin
 end;
 
 function NXJSONRPCParseMessageData(AData: TJSONData;
-  AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
+  AMessageClass: TNXJSONRPCMessageClass;
+  APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessage;
 var
   lMessageClass: TNXJSONRPCMessageClass;
 begin
@@ -243,7 +268,7 @@ begin
   Result := lMessageClass.Create;
   try
     Result.FromJSONData(AData);
-    TNXJSONRPC.ValidateMessage(Result);
+    TNXJSONRPC.ValidateMessage(Result, APolicy);
   except
     Result.Free;
     raise;
@@ -651,12 +676,26 @@ procedure TNXJSONRPCOutboundCommand.ProcessOutboundTimeout;
 begin
 end;
 
-class function TNXJSONRPC.ParseMessage(const AJSON: string): TNXJSONRPCMessage;
+class function TNXJSONRPC.ParseMessage(const AJSON: UTF8String): TNXJSONRPCMessage;
 begin
-  Result := ParseMessage(AJSON, TNXJSONRPCMessage);
+  Result := ParseMessage(AJSON, TNXJSONRPCMessage, jepStandard);
 end;
 
-class function TNXJSONRPC.ParseMessage(const AJSON: string; AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
+class function TNXJSONRPC.ParseMessage(const AJSON: UTF8String;
+  APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessage;
+begin
+  Result := ParseMessage(AJSON, TNXJSONRPCMessage, APolicy);
+end;
+
+class function TNXJSONRPC.ParseMessage(const AJSON: UTF8String;
+  AMessageClass: TNXJSONRPCMessageClass): TNXJSONRPCMessage;
+begin
+  Result := ParseMessage(AJSON, AMessageClass, jepStandard);
+end;
+
+class function TNXJSONRPC.ParseMessage(const AJSON: UTF8String;
+  AMessageClass: TNXJSONRPCMessageClass;
+  APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessage;
 var
   lJSON: TJSONData;
 begin
@@ -669,13 +708,19 @@ begin
         raise ENXJSONRPC.CreateCode(ParseError, E.Message);
     end;
 
-    Result := NXJSONRPCParseMessageData(lJSON, AMessageClass);
+    Result := NXJSONRPCParseMessageData(lJSON, AMessageClass, APolicy);
   finally
     lJSON.Free;
   end;
 end;
 
-class function TNXJSONRPC.ParseMessages(const AJSON: string): TNXJSONRPCMessages;
+class function TNXJSONRPC.ParseMessages(const AJSON: UTF8String): TNXJSONRPCMessages;
+begin
+  Result := ParseMessages(AJSON, jepStandard);
+end;
+
+class function TNXJSONRPC.ParseMessages(const AJSON: UTF8String;
+  APolicy: TNXJSONRPCEnvelopePolicy): TNXJSONRPCMessages;
 var
   lJSON: TJSONData;
   lArray: TJSONArray;
@@ -702,7 +747,8 @@ begin
 
         for lIdx := 0 to lArray.Count - 1 do
         begin
-          lMessage := NXJSONRPCParseMessageData(lArray.Items[lIdx], TNXJSONRPCMessage);
+          lMessage := NXJSONRPCParseMessageData(lArray.Items[lIdx],
+            TNXJSONRPCMessage, APolicy);
           try
             Result.Add(lMessage);
             lMessage := nil;
@@ -713,7 +759,8 @@ begin
       end
       else
       begin
-        lMessage := NXJSONRPCParseMessageData(lJSON, TNXJSONRPCMessage);
+        lMessage := NXJSONRPCParseMessageData(lJSON, TNXJSONRPCMessage,
+          APolicy);
         try
           Result.Add(lMessage);
           lMessage := nil;
@@ -731,6 +778,12 @@ begin
 end;
 
 class procedure TNXJSONRPC.ValidateMessage(AMessage: TNXJSONRPCMessage);
+begin
+  ValidateMessage(AMessage, jepStandard);
+end;
+
+class procedure TNXJSONRPC.ValidateMessage(AMessage: TNXJSONRPCMessage;
+  APolicy: TNXJSONRPCEnvelopePolicy);
 var
   lIDJSON: TJSONData;
   lParamsJSON: TJSONData;
@@ -743,8 +796,17 @@ begin
   if AMessage = nil then
     raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC message cannot be nil.');
 
-  if (AMessage.jsonrpc = nil) or (not AMessage.jsonrpc.Assigned) or (AMessage.jsonrpc.Value <> Version) then
-    raise ENXJSONRPC.CreateCode(InvalidRequest, 'JSON-RPC message must contain jsonrpc = "2.0".');
+  if APolicy = jepStandard then
+  begin
+    if (AMessage.jsonrpc = nil) or (not AMessage.jsonrpc.Assigned) or
+      (AMessage.jsonrpc.Value <> Version) then
+      raise ENXJSONRPC.CreateCode(InvalidRequest,
+        'JSON-RPC message must contain jsonrpc = "2.0".');
+  end
+  else if (AMessage.jsonrpc <> nil) and AMessage.jsonrpc.Assigned and
+    (AMessage.jsonrpc.Value <> Version) then
+    raise ENXJSONRPC.CreateCode(InvalidRequest,
+      'JSON-RPC message jsonrpc must be "2.0" when present.');
 
   lKind := AMessage.Kind;
   if not (lKind in [rpcRequest, rpcNotification, rpcSuccessResponse, rpcErrorResponse]) then
@@ -830,9 +892,16 @@ end;
 
 class function TNXJSONRPC.CreateSuccessResponse(AID: TJSONData; AResult: TNXJSONRPCValue): TJSONObject;
 begin
+  Result := CreateSuccessResponse(AID, AResult, jepStandard);
+end;
+
+class function TNXJSONRPC.CreateSuccessResponse(AID: TJSONData;
+  AResult: TNXJSONRPCValue; APolicy: TNXJSONRPCEnvelopePolicy): TJSONObject;
+begin
   Result := TJSONObject.Create;
   try
-    Result.Add('jsonrpc', Version);
+    if APolicy = jepStandard then
+      Result.Add('jsonrpc', Version);
 
     if AID = nil then
       Result.Add('id', TJSONNull.Create)
@@ -849,14 +918,24 @@ begin
   end;
 end;
 
-class function TNXJSONRPC.CreateErrorResponse(AID: TJSONData; const ACode: Integer; const AMessage: string; AData: TNXJSONRPCValue): TJSONObject;
+class function TNXJSONRPC.CreateErrorResponse(AID: TJSONData;
+  const ACode: Integer; const AMessage: UTF8String;
+  AData: TNXJSONRPCValue): TJSONObject;
+begin
+  Result := CreateErrorResponse(AID, ACode, AMessage, AData, jepStandard);
+end;
+
+class function TNXJSONRPC.CreateErrorResponse(AID: TJSONData;
+  const ACode: Integer; const AMessage: UTF8String; AData: TNXJSONRPCValue;
+  APolicy: TNXJSONRPCEnvelopePolicy): TJSONObject;
 var
   lError: TNXJSONRPCError;
 begin
   Result := TJSONObject.Create;
   lError := nil;
   try
-    Result.Add('jsonrpc', Version);
+    if APolicy = jepStandard then
+      Result.Add('jsonrpc', Version);
 
     if AID = nil then
       Result.Add('id', TJSONNull.Create)

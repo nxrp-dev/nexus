@@ -27,6 +27,7 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLib'); ArchivePath = 'NexusLib' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusTools'); ArchivePath = 'NexusTools' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot '.ai'); ArchivePath = '.ai' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'docs'); ArchivePath = 'docs' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'scripts'); ArchivePath = 'scripts' },
   [pscustomobject]@{ SourcePath = $ExternalNexusPascalRoot; ArchivePath = 'tools\nexus-pascal' }

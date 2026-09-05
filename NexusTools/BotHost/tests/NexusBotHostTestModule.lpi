@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="NexusBotHostTestModule"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <Units Count="3">
+      <Unit0>
+        <Filename Value="NexusBotHostTestModule.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="tsNXBotHostTests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="tsNXBotHostLiveTests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit2>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="..\..\..\output\NexusBotHostTestModule\$(TargetCPU)-$(TargetOS)\NexusBotHostTestModule"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\..\Script\core;..\..\Test\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\net\src\xmpp;..\..\..\lib\synapse"/>
+      <UnitOutputDirectory Value="..\..\..\output\NexusBotHostTestModule\$(TargetCPU)-$(TargetOS)\units"/>
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <ExecutableType Value="Library"/>
+      </Options>
+    </Linking>
+  </CompilerOptions>
+</CONFIG>

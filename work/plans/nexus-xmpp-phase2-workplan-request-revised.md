@@ -1,5 +1,14 @@
 # Work Plan: NexusXMPP Phase 2 Messaging And Multi-User Chat
 
+## Owner Amendment: 2026-09-03
+
+The human owner expanded the approved MUC scope after implementation review.
+Instant room creation is normal XEP-0045 client functionality owned by the
+production MUC module. The live test creates its own unique instant room through
+that public API; it does not contain test-only stanza construction. It also
+joins the owner-provided permanent `nexus-test` room and sends a uniquely labeled
+message so the result can be inspected directly in Openfire.
+
 ## Inputs
 
 - Source request: `C:\Users\kcollins\Downloads\nexus-xmpp-phase2-workplan-request-revised.md`.
@@ -62,7 +71,7 @@ The following official XSF revisions were verified on 2026-09-02 and are the imp
 | Specification | Selected revision | Status | Phase 2 use |
 | --- | --- | --- | --- |
 | [XEP-0030 Service Discovery](https://xmpp.org/extensions/xep-0030.html) | 2.5.0, 2024-04-30 | Final | outgoing info/items queries and feature advertisement |
-| [XEP-0045 Multi-User Chat](https://xmpp.org/extensions/xep-0045.html) | 1.35.5, 2026-05-03 | Stable | pre-created room participation and room state |
+| [XEP-0045 Multi-User Chat](https://xmpp.org/extensions/xep-0045.html) | 1.35.5, 2026-05-03 | Stable | instant room creation, room participation, and room state |
 | [XEP-0359 Unique and Stable Stanza IDs](https://xmpp.org/extensions/xep-0359.html) | 0.7.0, 2023-02-20 | Experimental | `origin-id` and one-or-more `(by,id)` stanza IDs |
 | [XEP-0461 Message Replies](https://xmpp.org/extensions/xep-0461.html) | 0.2.1, 2026-02-25 | Experimental | semantic reply references |
 | [XEP-0184 Message Delivery Receipts](https://xmpp.org/extensions/xep-0184.html) | 1.4.0, 2018-08-02 | Stable | receipt requests/responses and correlation |
@@ -170,9 +179,9 @@ The correction is not a new generic protocol framework. NexusXMPP needs one Phas
 
 ### MUC contract
 
-- The MUC module exposes typed join, leave, change nickname, send groupchat message, send private occupant message, and set subject operations for pre-created rooms.
-- Join input includes room bare JID, nickname, optional room password, and bounded XEP-0045 history request controls. A nonexistent-room/room-created response is surfaced and left without entering owner configuration.
-- Each room has explicit state: joining, joined, leaving, stale/disconnected, rejoining, failed, and left. Lifecycle transition reasons distinguish requested leave, conflict, kick/ban, service error, new-session rejoin, successful resumed verification, and permanent session loss.
+- The MUC module exposes typed instant-room creation, join, leave, change nickname, send groupchat message, send private occupant message, and set subject operations.
+- Instant creation joins a new room, recognizes status 201, and submits the standard empty `muc#owner` data form. Existing-room and configuration failures remain explicit. Join input includes room bare JID, nickname, optional room password, and bounded XEP-0045 history request controls.
+- Each room has explicit state: creating, configuring, joining, joined, leaving, stale/disconnected, rejoining, failed, and left. Lifecycle transition reasons distinguish creation/configuration, requested leave, conflict, kick/ban, service error, new-session rejoin, successful resumed verification, and permanent session loss.
 - Self-presence is recognized from MUC status code 110 and the room/occupant address, not by nickname comparison alone. Nickname changes follow status code 303 and related presence. Role and affiliation remain separate typed values.
 - Each occupant retains occupant JID/nickname, role, affiliation, optional disclosed real JID, optional XEP-0421 Occupant ID, availability/status, and self flag. Occupant ID is preferred for cross-nickname association only when supplied by the room; its absence is represented honestly.
 - Initial reflected presence constructs the room roster. Presence updates, unavailable/kick/ban/nickname transitions, subject, room errors, groupchat messages, and private occupant messages produce typed caller-thread events.
@@ -180,7 +189,7 @@ The correction is not a new generic protocol framework. NexusXMPP needs one Phas
 - On temporary loss, joined rooms become stale. On accepted XEP-0198 resumption, the module retains the candidate occupancy and performs XEP-0410 self-ping when the state is ambiguous. The exact self-ping result determines joined, rejoin, or failed behavior.
 - On a fresh authenticated/bound session, rooms that were configured for recovery transition to rejoining and send new join presence; rooms not configured for recovery become failed/left explicitly. No code assumes old occupancy survived a new session.
 - Implement the narrow XEP-0199 IQ responder and outgoing ping support required by XEP-0410. Timers and outstanding self-pings are bounded, session-owned, and cancelled on loss/leave.
-- Room discovery uses the shared outgoing disco owner. This plan does not implement room creation/configuration, invitation workflows, moderation, affiliation administration, registration, or service administration.
+- Room discovery uses the shared outgoing disco owner. This plan implements instant room creation only; reserved/custom room configuration, invitation workflows, moderation, affiliation administration, registration, and service administration remain outside scope.
 
 ### Replies, receipts, and chat states
 
@@ -234,15 +243,15 @@ Expected production changes are limited to `NexusLib/net/src/xmpp` and its publi
 - Extend `obNXXMPPOpenSSL.pas` only with the SHA-1 digest operation required by XEP-0115 capability verification. Do not expose SHA-1 as a preferred general cryptographic primitive.
 - Add focused XMPP protocol units for data forms/RSM/date-delay helpers, XEP-0199 ping, MUC, receipts, chat states, carbons, and MAM. XEP-0359 and replies may remain shared message helpers rather than artificial stateful modules.
 - Extend `NexusLib/net/tests/NexusNetXMPPTests.lpr` and add synthetic Phase 2 transcript fixtures under `NexusLib/net/tests/fixtures/xmpp` where file fixtures are clearer than inline strings.
-- Extend `NexusLib/net/tests/NexusNetXMPPLiveTest.lpr` for explicitly selected, environment-configured Openfire Phase 2 checks using pre-created rooms.
-- Update `NexusLib/net/examples/xmpp/NexusXMPPConsole.lpr` only enough to demonstrate typed discovery, room join/message/leave, and event pumping without becoming a chat application.
+- Extend `NexusLib/net/tests/NexusNetXMPPLiveTest.lpr` to create a unique instant room through the production MUC API before running the Openfire room scenario.
+- Update `NexusLib/net/examples/xmpp/NexusXMPPConsole.lpr` only enough to demonstrate typed discovery, instant room creation, room join/message/leave, and event pumping without becoming a chat application.
 - Update `NexusLib/net/tests/NexusNetXMPPTests.md`, `docs/architecture/dependencies.md`, and `docs/nexus-lib/index.md` with the implemented XEP baseline, maturity, limits, APIs, runtime behavior, build commands, and verified live boundary.
 
 Exact unit grouping may be simplified during implementation when ownership remains explicit. Do not create one unit per XML element merely to mirror the XEP list.
 
 ## Out Of Scope
 
-- MUC room creation, instant/reserved room configuration, owner/admin/moderator operations, registration, invitations, voice requests, kicking/banning, affiliation management, and service administration.
+- Reserved/custom room configuration, owner/admin/moderator operations beyond the instant-room submission, registration, invitations, voice requests, kicking/banning, affiliation management, and service administration.
 - Nexus-specific bots, commands, AI providers, agent orchestration, artifact transfer, or `urn:nexus:*` application protocols.
 - A local message/archive database, cross-process capability cache, durable receipt store, conversation UI, search index, or generic persistence subsystem.
 - OMEMO, OpenPGP, file transfer, HTTP upload, Jingle, PubSub, push notifications, reactions, corrections, retractions, message moderation, threads beyond XEP-0461 reply metadata, and unrelated XEP families.
@@ -301,11 +310,11 @@ Exact unit grouping may be simplified during implementation when ownership remai
 ### Stage 6: Implement MUC participation and recovery
 
 1. Add typed room, occupant, role, affiliation, error, status-code, join-history, and lifecycle state models.
-2. Implement join/leave/nickname/availability parsing and commands for pre-created rooms, including passwords, self-presence status 110, conflicts, nick-change status 303, kick/ban outcomes, and structured room errors.
+2. Implement instant room creation/configuration plus join/leave/nickname/availability parsing and commands, including passwords, self-presence status 110, room-created status 201, conflicts, nick-change status 303, kick/ban outcomes, and structured room errors.
 3. Implement room roster/state updates, groupchat/private messages, subject changes, XEP-0359 room identities, and XEP-0421 occupant identity.
 4. Parse entry history as bounded `MUC history` delivery using XEP-0203 rather than live message delivery.
 5. Connect temporary-loss, accepted-resume, fresh-session, and permanent-loss lifecycle hooks. Implement bounded XEP-0410 self-ping resolution and configured automatic rejoin only for a fresh session.
-6. Test reordered reflected presence, missing optional metadata, duplicate occupants, nickname reuse, Occupant ID continuity/change, anonymous/non-anonymous JID exposure, unexpected room creation, history overflow, self-ping outcomes, and reconnect/resume distinction.
+6. Test successful instant configuration, existing-room rejection, structured configuration failure, reordered reflected presence, missing optional metadata, duplicate occupants, nickname reuse, Occupant ID continuity/change, anonymous/non-anonymous JID exposure, unexpected room creation, history overflow, self-ping outcomes, and reconnect/resume distinction.
 
 ### Stage 7: Implement carbon activation and trusted delivery
 
@@ -327,8 +336,8 @@ Exact unit grouping may be simplified during implementation when ownership remai
 ### Stage 9: Integrate, document, and verify controlled Openfire behavior
 
 1. Register all Phase 2 modules together and test responder keys, observer predicates, message ownership, callback ordering, and absence of duplicate processing.
-2. Extend the minimal console example only with typed discovery, room join/message/leave, and diagnostic display needed for manual inspection.
-3. Extend the live test with environment-selected Phase 2 scenarios. Use unique resources and a pre-created room; keep room JID/nick and feature selection outside source.
+2. Extend the minimal console example only with typed discovery, instant room creation, room join/message/leave, and diagnostic display needed for manual inspection.
+3. Extend the live test with environment-selected Phase 2 scenarios. Use unique resources and create a unique instant room through the public MUC API; keep the MUC service and optional nick overrides outside source.
 4. Exercise Openfire-supported discovery, MUC participation between the two temporary users, stable IDs/replies/receipts/chat states, carbons using multiple resources, and MAM paging where the installed configuration advertises each feature.
 5. Record the exact Openfire version, enabled plugins/configuration, tested feature namespaces, room preparation, successful and negative cases, and all unverified behavior. Do not infer support from server brand or a successful basic login.
 6. Update public documentation with API ownership/lifetimes, limits, XEP revisions/statuses, experimental-feature warning, session recovery semantics, build/test instructions, and the absence of local persistence/application policy.
@@ -393,12 +402,12 @@ Confirm by inspection, not grep absence alone, that:
 
 ### Controlled Openfire verification
 
-Build the live target with the documented FPC paths. Supply accounts, passwords, CA file, endpoint, unique resources, room JID, nicknames, and selected scenario through `NEXUS_XMPP_*` environment variables; never commit credentials.
+Build the live target with the documented FPC paths. Supply accounts, passwords, CA file, endpoint, optional MUC service, nicknames, and selected scenario through `NEXUS_XMPP_*` environment variables; never commit credentials. The target generates unique resources and a unique room node.
 
 For each Openfire-advertised feature:
 
 1. verify outgoing disco and retain the exact advertised namespace;
-2. join both users to a pre-created room and verify self/occupant lifecycle, room message, reply, subject, history classification, nickname change, and leave;
+2. create and configure a unique instant room through `TNXXMPPMUCModule`, join the second user, and verify self/occupant lifecycle, room message, reply, subject, history classification, nickname change, and leave;
 3. verify receipts/chat states in eligible one-to-one traffic and their negative contexts;
 4. enable carbons and use two distinct resources for one account to verify sent/received direction and disable/reconnect behavior;
 5. issue bounded personal and room MAM queries and verify query IDs, streamed results, delay/stable IDs, RSM completion, cancellation/late-result behavior where controllable;
@@ -436,4 +445,4 @@ No unresolved product choice blocks approval. Optional bounded accumulation of M
 
 This document is a planning artifact only. No Phase 2 code edit, build, test, live connection, archive, dependency change, or implementation repository operation begins until the human owner explicitly authorizes implementation of this plan.
 
-Approval authorizes only the scoped NexusXMPP Phase 2 work above. It does not authorize application integration, MUC administration, persistent message storage, Phase 3 authentication work, unrelated XEPs, or sub-agent use.
+Approval plus the 2026-09-03 owner amendment authorizes only the scoped NexusXMPP Phase 2 work above, including instant room creation. It does not authorize application integration, broader MUC administration, persistent message storage, Phase 3 authentication work, unrelated XEPs, or sub-agent use.

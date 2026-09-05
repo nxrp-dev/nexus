@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="10"/>
+    <PathDelim Value="\"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="NexusBotHost"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <Units Count="2">
+      <Unit0>
+        <Filename Value="NexusBotHost.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="uiNXBotHostMain.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="..\..\output\NexusBotHost\$(TargetCPU)-$(TargetOS)\NexusBotHost"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <OtherUnitFiles Value="src;src\protocol;..\Script\core;..\..\NexusLib\core\src;..\..\NexusLib\net\src\xmpp;..\..\NexusLib\ui\src;..\..\lib\synapse;..\..\..\common\sdl\units;..\..\..\common\sdl_ext"/>
+      <UnitOutputDirectory Value="..\..\output\NexusBotHost\$(TargetCPU)-$(TargetOS)\units"/>
+    </SearchPaths>
+    <Linking>
+      <Debugging>
+        <UseHeaptrc Value="False"/>
+      </Debugging>
+    </Linking>
+    <Other>
+      <CustomOptions Value="-WG"/>
+    </Other>
+  </CompilerOptions>
+</CONFIG>

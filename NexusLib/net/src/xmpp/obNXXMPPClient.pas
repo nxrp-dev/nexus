@@ -8,10 +8,10 @@ interface
 uses
   Classes, SysUtils, Contnrs,
   obNXXMPPCommand, obNXXMPPConfig, obNXXMPPConnection,
-  obNXXMPPDispatcher, obNXXMPPError, obNXXMPPEvents, obNXXMPPModule,
+  obNXXMPPDisco, obNXXMPPDispatcher, obNXXMPPError, obNXXMPPModule,
   obNXXMPPQueue, obNXXMPPRequestManager, obNXXMPPStanza,
   obNXXMPPRoster,
-  tpNXXMPPTypes, utNXXMPPXML;
+  tpNXXMPPMessageTypes, tpNXXMPPTypes, utNXXMPPIDs, utNXXMPPXML;
 
 type
   TNXXMPPStateEvent = procedure(ASender: TObject;
@@ -29,7 +29,6 @@ type
     FConfig: TNXXMPPClientConfig;
     FConnection: TNXXMPPConnection;
     FDispatcher: TNXXMPPDispatcher;
-    FEvents: TNXXMPPObjectQueue;
     FIQCapacity: TNXXMPPIQCapacity;
     FModules: TObjectList;
     FModulesFrozen: Boolean;
@@ -38,18 +37,28 @@ type
     FOnState: TNXXMPPStateEvent;
     FOnUnrecoverableStanzas: TNXXMPPUnrecoverableStanzasEvent;
     FState: TNXXMPPConnectionState;
+    procedure DoOnCompletion(ACompletion: TNXXMPPIQCompletionEvent);
+    procedure DoOnError(AStage: TNXXMPPErrorStage;
+      const ACondition, AMessage: UTF8String);
+    procedure DoOnModuleLifecycle(ALifecycle: TNXXMPPModuleLifecycle);
+    procedure DoOnStanza(AStanza: TNXXMPPStanza);
+    procedure DoOnState(AState: TNXXMPPConnectionState);
+    procedure DoOnUnrecoverableStanzas(const AReason: UTF8String;
+      AStanzas: TStrings);
     function EnqueueCommand(ACommand: TNXXMPPCommand): Boolean;
+    function EnqueueModuleCommand(AModule: TObject;
+      AOperation: TNXXMPPModuleOperation): Boolean;
   public
     constructor Create;
     destructor Destroy; override;
     procedure AddModule(AModule: TNXXMPPModule);
     procedure Connect;
     procedure Disconnect;
-    function PumpEvents(AMaxCount: Integer = 100): Integer;
     function SendIQ(AType: TNXXMPPIQType; const AToJID, AExpectedFrom,
       APayload: UTF8String; AHandler: TNXXMPPIQCompletionHandler;
       ATimeoutMS: Cardinal = cNXXMPPDefaultTimeoutMS): Boolean;
-    function SendMessage(const AToJID, ABody: UTF8String): Boolean;
+    function SendMessage(const AToJID, ABody: UTF8String;
+      out AIdentity: TNXXMPPOutgoingMessageIdentity): Boolean;
     function RequestRoster(ARoster: TNXXMPPRosterModule;
       ATimeoutMS: Cardinal = cNXXMPPDefaultTimeoutMS): Boolean;
     function SendPresence(const AType: UTF8String = ''): Boolean;
@@ -76,7 +85,6 @@ end;
 destructor TNXXMPPClient.Destroy;
 begin
   Disconnect;
-  FEvents.Free;
   FIQCapacity.Free;
   FCommands.Free;
   FDispatcher.Free;
@@ -98,27 +106,56 @@ end;
 
 procedure TNXXMPPClient.Connect;
 var
+  lFeatures: TStringList;
   lIndex: Integer;
+  lFeatureIndex: Integer;
 begin
   if Assigned(FConnection) then
     raise ENXXMPPError.Create(xesConfiguration, 'already-connected',
       'The XMPP client already has an active connection.');
   FConfig.Validate;
-  FreeAndNil(FEvents);
   FreeAndNil(FCommands);
   FreeAndNil(FDispatcher);
   FreeAndNil(FIQCapacity);
-  FEvents := TNXXMPPObjectQueue.Create(FConfig.EventCapacity);
   FCommands := TNXXMPPObjectQueue.Create(FConfig.CommandCapacity);
   FDispatcher := TNXXMPPDispatcher.Create;
   FIQCapacity := TNXXMPPIQCapacity.Create(FConfig.PendingIQCapacity);
-  for lIndex := 0 to FModules.Count - 1 do
-    TNXXMPPModule(FModules[lIndex]).RegisterHandlers(FDispatcher);
+  lFeatures := TStringList.Create;
+  try
+    lFeatures.CaseSensitive := True;
+    lFeatures.Sorted := True;
+    lFeatures.Duplicates := dupIgnore;
+    for lIndex := 0 to FModules.Count - 1 do
+    begin
+      TNXXMPPModule(FModules[lIndex]).Configure(FConfig);
+      TNXXMPPModule(FModules[lIndex]).AddFeatures(lFeatures);
+    end;
+    for lIndex := 0 to FModules.Count - 1 do
+    begin
+      if FModules[lIndex] is TNXXMPPDiscoModule then
+        for lFeatureIndex := 0 to lFeatures.Count - 1 do
+          TNXXMPPDiscoModule(FModules[lIndex]).AddFeature(
+            UTF8String(lFeatures[lFeatureIndex]));
+      TNXXMPPModule(FModules[lIndex]).RegisterHandlers(FDispatcher);
+    end;
+  finally
+    lFeatures.Free;
+  end;
   FModulesFrozen := True;
   FConnection := TNXXMPPConnection.Create(FConfig.Clone, FCommands,
-    FEvents, FDispatcher, FIQCapacity);
+    FDispatcher, FIQCapacity, FModules);
+  FConnection.OnCompletion := @DoOnCompletion;
+  FConnection.OnError := @DoOnError;
+  FConnection.OnModuleLifecycle := @DoOnModuleLifecycle;
+  FConnection.OnStanza := @DoOnStanza;
+  FConnection.OnState := @DoOnState;
+  FConnection.OnUnrecoverableStanzas := @DoOnUnrecoverableStanzas;
   for lIndex := 0 to FModules.Count - 1 do
+  begin
     TNXXMPPModule(FModules[lIndex]).Sender := @FConnection.SendModuleXML;
+    TNXXMPPModule(FModules[lIndex]).Submitter := @EnqueueModuleCommand;
+    TNXXMPPModule(FModules[lIndex]).IQSubmitter := @SendIQ;
+  end;
   FConnection.Start;
 end;
 
@@ -133,10 +170,27 @@ begin
   FState := FConnection.State;
   FreeAndNil(FConnection);
   for lIndex := 0 to FModules.Count - 1 do
+  begin
     TNXXMPPModule(FModules[lIndex]).Sender := nil;
+    TNXXMPPModule(FModules[lIndex]).Submitter := nil;
+    TNXXMPPModule(FModules[lIndex]).IQSubmitter := nil;
+  end;
   if FState <> xcsFailed then
     FState := xcsDisconnected;
   FModulesFrozen := False;
+end;
+
+function TNXXMPPClient.EnqueueModuleCommand(AModule: TObject;
+  AOperation: TNXXMPPModuleOperation): Boolean;
+begin
+  if not Assigned(AOperation) then
+    Exit(False);
+  if not FModulesFrozen or (FModules.IndexOf(AModule) < 0) then
+  begin
+    AOperation.Free;
+    Exit(False);
+  end;
+  Result := EnqueueCommand(TNXXMPPCommand.CreateModule(AModule, AOperation));
 end;
 
 function TNXXMPPClient.EnqueueCommand(ACommand: TNXXMPPCommand): Boolean;
@@ -150,17 +204,30 @@ function TNXXMPPClient.SendRaw(const AXML: UTF8String): Boolean;
 begin
   if AXML = '' then
     Exit(False);
-  Result := EnqueueCommand(TNXXMPPCommand.CreateRaw(AXML));
+  Result := EnqueueCommand(TNXXMPPCommand.CreateRaw(AXML, xrpNever));
 end;
 
-function TNXXMPPClient.SendMessage(const AToJID,
-  ABody: UTF8String): Boolean;
+function TNXXMPPClient.SendMessage(const AToJID, ABody: UTF8String;
+  out AIdentity: TNXXMPPOutgoingMessageIdentity): Boolean;
 begin
+  AIdentity.StanzaID := '';
+  AIdentity.OriginID := '';
   if (AToJID = '') or (ABody = '') then
     Exit(False);
-  Result := SendRaw('<message to=''' + NXXMPPEscapeAttribute(AToJID) +
-    ''' type=''chat''><body>' + NXXMPPEscapeText(ABody) +
-    '</body></message>');
+  AIdentity.StanzaID := NXXMPPCreateID;
+  AIdentity.OriginID := NXXMPPCreateID;
+  Result := EnqueueCommand(TNXXMPPCommand.CreateRaw('<message to=''' +
+    NXXMPPEscapeAttribute(AToJID) +
+    ''' type=''chat'' id=''' + NXXMPPEscapeAttribute(AIdentity.StanzaID) +
+    '''><body>' + NXXMPPEscapeText(ABody) +
+    '</body><origin-id xmlns=''urn:xmpp:sid:0'' id=''' +
+    NXXMPPEscapeAttribute(AIdentity.OriginID) + '''/>' +
+    '</message>', xrpStreamManaged));
+  if not Result then
+  begin
+    AIdentity.StanzaID := '';
+    AIdentity.OriginID := '';
+  end;
 end;
 
 function TNXXMPPClient.RequestRoster(ARoster: TNXXMPPRosterModule;
@@ -175,10 +242,11 @@ end;
 function TNXXMPPClient.SendPresence(const AType: UTF8String): Boolean;
 begin
   if AType = '' then
-    Result := SendRaw('<presence/>')
+    Result := EnqueueCommand(TNXXMPPCommand.CreateRaw('<presence/>',
+      xrpStreamManaged))
   else
-    Result := SendRaw('<presence type=''' +
-      NXXMPPEscapeAttribute(AType) + '''/>');
+    Result := EnqueueCommand(TNXXMPPCommand.CreateRaw('<presence type=''' +
+      NXXMPPEscapeAttribute(AType) + '''/>', xrpStreamManaged));
 end;
 
 function TNXXMPPClient.SendIQ(AType: TNXXMPPIQType; const AToJID,
@@ -195,50 +263,51 @@ begin
     FIQCapacity.Release;
 end;
 
-function TNXXMPPClient.PumpEvents(AMaxCount: Integer): Integer;
+procedure TNXXMPPClient.DoOnCompletion(
+  ACompletion: TNXXMPPIQCompletionEvent);
+begin
+  if Assigned(ACompletion) then
+    ACompletion.Invoke;
+end;
+
+procedure TNXXMPPClient.DoOnError(AStage: TNXXMPPErrorStage;
+  const ACondition, AMessage: UTF8String);
+begin
+  if Assigned(FOnError) then
+    FOnError(Self, AStage, ACondition, AMessage);
+end;
+
+procedure TNXXMPPClient.DoOnModuleLifecycle(
+  ALifecycle: TNXXMPPModuleLifecycle);
 var
-  lEvent: TNXXMPPEvent;
   lIndex: Integer;
 begin
-  Result := 0;
-  if (AMaxCount < 1) or not Assigned(FEvents) then
-    Exit;
-  while Result < AMaxCount do
-  begin
-    lEvent := TNXXMPPEvent(FEvents.Dequeue);
-    if not Assigned(lEvent) then
-      Exit;
-    try
-      case lEvent.Kind of
-        xekState:
-          begin
-            FState := lEvent.State;
-            if Assigned(FOnState) then
-              FOnState(Self, lEvent.State);
-          end;
-        xekStanza:
-          begin
-            for lIndex := 0 to FModules.Count - 1 do
-              TNXXMPPModule(FModules[lIndex]).PumpStanza(lEvent.Stanza);
-            if Assigned(FOnStanza) then
-              FOnStanza(Self, lEvent.Stanza);
-          end;
-        xekError:
-          if Assigned(FOnError) then
-            FOnError(Self, lEvent.ErrorStage, lEvent.Condition,
-              lEvent.ErrorMessage);
-        xekIQCompletion:
-          lEvent.Completion.Invoke;
-        xekUnrecoverableStanzas:
-          if Assigned(FOnUnrecoverableStanzas) then
-            FOnUnrecoverableStanzas(Self, lEvent.UnrecoverableReason,
-              lEvent.UnrecoverableStanzas);
-      end;
-    finally
-      lEvent.Free;
-    end;
-    Inc(Result);
-  end;
+  for lIndex := 0 to FModules.Count - 1 do
+    TNXXMPPModule(FModules[lIndex]).PumpLifecycle(ALifecycle);
+end;
+
+procedure TNXXMPPClient.DoOnStanza(AStanza: TNXXMPPStanza);
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to FModules.Count - 1 do
+    TNXXMPPModule(FModules[lIndex]).PumpStanza(AStanza);
+  if Assigned(FOnStanza) then
+    FOnStanza(Self, AStanza);
+end;
+
+procedure TNXXMPPClient.DoOnState(AState: TNXXMPPConnectionState);
+begin
+  FState := AState;
+  if Assigned(FOnState) then
+    FOnState(Self, AState);
+end;
+
+procedure TNXXMPPClient.DoOnUnrecoverableStanzas(
+  const AReason: UTF8String; AStanzas: TStrings);
+begin
+  if Assigned(FOnUnrecoverableStanzas) then
+    FOnUnrecoverableStanzas(Self, AReason, AStanzas);
 end;
 
 function TNXXMPPClient.State: TNXXMPPConnectionState;
