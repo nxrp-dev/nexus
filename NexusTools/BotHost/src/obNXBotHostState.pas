@@ -12,8 +12,8 @@ uses
 
 type
   TNXBotHostSnapshot = record
-    AppServerState: TNXCodexAppServerState;
-    AppServerDetail: UTF8String;
+    ProviderState: TNXBotProviderState;
+    ProviderDetail: UTF8String;
     XMPPState: UTF8String;
     Model: UTF8String;
     Nick: UTF8String;
@@ -23,8 +23,8 @@ type
 
   TNXBotHostState = class
   private
-    FAppServerDetail: UTF8String;
-    FAppServerState: TNXCodexAppServerState;
+    FProviderDetail: UTF8String;
+    FProviderState: TNXBotProviderState;
     FCriticalSection: TRTLCriticalSection;
     FJournal: TStringList;
     FJournalCapacity: Integer;
@@ -40,7 +40,7 @@ type
 
     procedure AddJournal(const AText: UTF8String);
     procedure ClearJournal;
-    procedure SetAppServer(AState: TNXCodexAppServerState;
+    procedure SetProvider(AState: TNXBotProviderState;
       const ADetail: UTF8String);
     procedure SetIdentity(const AModel, ANick: UTF8String);
     procedure SetRoom(const ARoomJID, AState: UTF8String);
@@ -50,23 +50,19 @@ type
     property Revision: PtrUInt read FRevision;
   end;
 
-function NXCodexAppServerStateName(AState: TNXCodexAppServerState): UTF8String;
+function NXBotProviderStateName(AState: TNXBotProviderState): UTF8String;
 
 implementation
 
-function NXCodexAppServerStateName(
-  AState: TNXCodexAppServerState): UTF8String;
+function NXBotProviderStateName(AState: TNXBotProviderState): UTF8String;
 begin
   case AState of
-    cassStopped: Result := 'stopped';
-    cassStarting: Result := 'starting';
-    cassInitializing: Result := 'initializing';
-    cassResolvingModel: Result := 'resolving model';
-    cassCreatingThread: Result := 'creating thread';
-    cassReady: Result := 'ready';
-    cassBusy: Result := 'busy';
-    cassStopping: Result := 'stopping';
-    cassFailed: Result := 'failed';
+    bpsStopped: Result := 'stopped';
+    bpsStarting: Result := 'starting';
+    bpsReady: Result := 'ready';
+    bpsWorking: Result := 'working';
+    bpsStopping: Result := 'stopping';
+    bpsFailed: Result := 'failed';
   end;
 end;
 
@@ -81,7 +77,7 @@ begin
   FRooms.CaseSensitive := True;
   FRooms.NameValueSeparator := '=';
   FJournalCapacity := AJournalCapacity;
-  FAppServerState := cassStopped;
+  FProviderState := bpsStopped;
   FXMPPState := 'disconnected';
 end;
 
@@ -125,13 +121,13 @@ begin
   end;
 end;
 
-procedure TNXBotHostState.SetAppServer(AState: TNXCodexAppServerState;
+procedure TNXBotHostState.SetProvider(AState: TNXBotProviderState;
   const ADetail: UTF8String);
 begin
   EnterCriticalSection(FCriticalSection);
   try
-    FAppServerState := AState;
-    FAppServerDetail := ADetail;
+    FProviderState := AState;
+    FProviderDetail := ADetail;
     Changed;
   finally
     LeaveCriticalSection(FCriticalSection);
@@ -184,8 +180,8 @@ var
 begin
   EnterCriticalSection(FCriticalSection);
   try
-    Result.AppServerState := FAppServerState;
-    Result.AppServerDetail := FAppServerDetail;
+    Result.ProviderState := FProviderState;
+    Result.ProviderDetail := FProviderDetail;
     Result.XMPPState := FXMPPState;
     Result.Model := FModel;
     Result.Nick := FNick;

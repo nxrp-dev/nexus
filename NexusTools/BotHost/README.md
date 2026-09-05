@@ -1,13 +1,23 @@
-# Nexus Codex XMPP BotHost
+# Nexus XMPP BotHost
 
-NexusBotHost is a visible NexusUI application that hosts a catalog of Codex
-bots on NexusXMPP. The distinguished `NexusBot` instance receives ordinary
-addressed MUC conversation and owns the control endpoint for the catalog.
+NexusBotHost is a visible NexusUI application that hosts a catalog of
+provider-backed bots on NexusXMPP. The distinguished `NexusBot` instance
+receives ordinary addressed MUC conversation and owns the control endpoint for
+the catalog.
 
 Bot behavior is defined by `catalog/Bots.nxscript` using the small Bot language
 in `catalog/Bot.Language.nxscript`. The initial behavioral contract contains
-only `Provider`, `Model`, and `Instructions`; `Codex` is the only supported
-provider in this pass. Deployment data is separate RTTI-persisted configuration.
+only `Provider`, `Model`, and `Instructions`. Provider names are resolved by a
+case-sensitive BotHost registry; `Codex` is the first registered provider.
+Deployment data is separate RTTI-persisted configuration. Catalog loading
+rejects an unregistered provider before publishing any bot entries.
+
+Catalog loading is atomic. Compilation, Bot-language validation, bot-name
+uniqueness, and static deployment bindings must all succeed before any entries
+are published. Invalid catalog documents are rejected as a whole with collected
+diagnostics; they are not retained as partially available bots. Connectivity,
+authentication, provider startup, and other operational failures remain runtime
+status rather than catalog validity.
 
 ## Control plane
 
@@ -41,15 +51,16 @@ XEP-0030. The controller owns explicit token cancellation and exactly-once
 semantic completion. It owns no deadline, timer, or polling thread. The IQ
 module retains only transport data needed to send the eventual response and
 cancels accepted controller work when that transport is permanently lost.
-App Server request deadlines remain in the App Server process loop; XMPP
-connection and outbound IQ deadlines remain in NexusXMPP. A pending controller
-operation otherwise ends from an observed lifecycle result, explicit token
-cancellation, or controller shutdown.
+Codex App Server request deadlines remain in the Codex provider process loop;
+XMPP connection and outbound IQ deadlines remain in NexusXMPP. A pending
+controller operation otherwise ends from an observed lifecycle result, explicit
+token cancellation, or controller shutdown.
 
 Controller shutdown closes admission, disconnects host notifications, and
 synchronously quiesces every active host before it releases pending operations
-or destroys hosts. Host shutdown joins both its XMPP connection and App Server
-worker while controller callbacks and IQ transport correlations remain alive.
+or destroys hosts. Host shutdown joins both its XMPP connection and provider;
+the Codex provider joins its App Server worker while controller callbacks and
+IQ transport correlations remain alive.
 After all producers have stopped, pending cancellation and object destruction
 are synchronous; neither controller nor module destruction polls for ownership
 to change.
@@ -68,7 +79,7 @@ explicit update method; GUI controls never mutate the controller's object graph
 directly.
 
 INVITE and DISMISS are idempotent. INVITE completes after the bot is joined.
-DISMISS leaves only the requested room; it does not stop the App Server,
+DISMISS leaves only the requested room; it does not stop the provider,
 disconnect XMPP, or disturb other room memberships.
 
 ## Build and deterministic tests
@@ -83,12 +94,13 @@ $env:NEXUS_BOTHOST_FAKE_APP_SERVER = (Resolve-Path output\NexusBotHostTests\bin\
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost
 ```
 
-The focused suite covers routing, copied observable multi-room state, typed
-App Server protocol objects, catalog validation and deployment association,
-authorization, idempotency, capacity/cancellation, exact human commands, IQ
-dispatch/serialization/error mapping, discovery, the typed IQ caller, claimed
-operation shutdown, final App Server worker quiescence, and the real-pipe App
-Server process integration.
+The focused suite covers routing, copied observable multi-room state, the
+case-sensitive provider registry, fail-fast catalog/provider association, typed
+Codex App Server protocol objects, authorization, idempotency,
+capacity/cancellation, exact human commands, IQ dispatch/serialization/error
+mapping, discovery, the typed IQ caller, claimed operation shutdown, final
+provider worker quiescence, and the real-pipe Codex App Server process
+integration.
 
 The `NexusBotHost.AppServerProcess` integration test verifies split JSONL
 frames, independent stderr,
@@ -109,8 +121,9 @@ configuration is saved beside it as `NexusBotController.json`. It contains:
 - bounded operation capacity;
 - normalized reader and operator bare-JID allowlists;
 - deployment bindings associating canonical catalog names with XMPP identity,
-  resource, nickname, endpoint/TLS data, Codex executable, runtime directory,
-  and a password-environment-variable name.
+  resource, nickname, endpoint/TLS data, provider-specific deployment data, and
+  a password-environment-variable name. The current Codex binding uses
+  `CodexExecutable` and `RuntimeDirectory`.
 
 No password value is persisted. The distinguished host defaults to the variable
 name below:

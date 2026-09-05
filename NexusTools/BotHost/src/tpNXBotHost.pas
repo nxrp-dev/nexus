@@ -5,16 +5,13 @@ unit tpNXBotHost;
 interface
 
 type
-  TNXCodexAppServerState = (
-    cassStopped,
-    cassStarting,
-    cassInitializing,
-    cassResolvingModel,
-    cassCreatingThread,
-    cassReady,
-    cassBusy,
-    cassStopping,
-    cassFailed
+  TNXBotProviderState = (
+    bpsStopped,
+    bpsStarting,
+    bpsReady,
+    bpsWorking,
+    bpsStopping,
+    bpsFailed
   );
 
   TNXBotPrompt = class

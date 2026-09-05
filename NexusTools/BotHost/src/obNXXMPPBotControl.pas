@@ -190,11 +190,11 @@ var
   lIndex: Integer;
 begin
   Result := '<bot name=''' + NXXMPPEscapeAttribute(AStatus.Name) +
-    ''' known=''' + BoolText(AStatus.Known) + ''' available=''' +
-    BoolText(AStatus.Available) + ''' active=''' + BoolText(AStatus.Active) +
+    ''' known=''' + BoolText(AStatus.Known) + ''' active=''' +
+    BoolText(AStatus.Active) +
     ''' provider=''' + NXXMPPEscapeAttribute(AStatus.Provider) +
     ''' model=''' + NXXMPPEscapeAttribute(AStatus.Model) +
-    ''' app-server=''' + NXXMPPEscapeAttribute(AStatus.AppServerState) +
+    ''' provider-state=''' + NXXMPPEscapeAttribute(AStatus.ProviderState) +
     ''' xmpp=''' + NXXMPPEscapeAttribute(AStatus.XMPPState) + '''';
   if AStatus.Diagnostic <> '' then
     Result := Result + ' diagnostic=''' +
@@ -692,11 +692,10 @@ begin
     begin
       lStatus.Name := UTF8Encode(lBot.GetAttribute('name'));
       lStatus.Known := ParseBooleanAttribute(lBot, 'known');
-      lStatus.Available := ParseBooleanAttribute(lBot, 'available');
       lStatus.Active := ParseBooleanAttribute(lBot, 'active');
       lStatus.Provider := UTF8Encode(lBot.GetAttribute('provider'));
       lStatus.Model := UTF8Encode(lBot.GetAttribute('model'));
-      lStatus.AppServerState := UTF8Encode(lBot.GetAttribute('app-server'));
+      lStatus.ProviderState := UTF8Encode(lBot.GetAttribute('provider-state'));
       lStatus.XMPPState := UTF8Encode(lBot.GetAttribute('xmpp'));
       lStatus.Diagnostic := UTF8Encode(lBot.GetAttribute('diagnostic'));
       SetLength(lStatus.Rooms, 0);

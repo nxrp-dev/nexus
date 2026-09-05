@@ -11,7 +11,7 @@ uses
 type
   TNXBotController = class;
 
-  TNXPendingBotPhase = (pbpReady, pbpWaitingAppServer, pbpWaitingXMPP,
+  TNXPendingBotPhase = (pbpReady, pbpWaitingProvider, pbpWaitingXMPP,
     pbpWaitingRoom);
 
   TNXActiveBot = class
@@ -113,7 +113,7 @@ uses
   SysUtils, obNXBotHostState, obNXXMPPJID;
 
 type
-  TNXBotHostAction = (bhaNone, bhaStartAppServer, bhaConnectXMPP,
+  TNXBotHostAction = (bhaNone, bhaStartProvider, bhaConnectXMPP,
     bhaJoinRoom, bhaLeaveRoom);
 
 destructor TNXActiveBot.Destroy;
@@ -309,7 +309,8 @@ begin
       if lFound then
       begin
         lConfig.CodexExecutable := lBinding.CodexExecutable;
-        lConfig.CodexModel := string(AEntry.Model);
+        lConfig.Model := string(AEntry.Model);
+        lConfig.Provider := string(AEntry.Provider);
         lConfig.AllowPlain := lBinding.AllowPlain;
         lConfig.CAFile := lBinding.CAFile;
         lConfig.DirectTLS := lBinding.DirectTLS;
@@ -356,27 +357,26 @@ var
 begin
   Result.Name := AEntry.Name;
   Result.Known := True;
-  Result.Available := AEntry.Available;
   Result.Provider := AEntry.Provider;
   Result.Model := AEntry.Model;
-  Result.Diagnostic := AEntry.Diagnostic;
+  Result.Diagnostic := '';
   lActive := AcquireActive(AEntry.Name);
   Result.Active := Assigned(lActive);
   if not Assigned(lActive) then
   begin
-    Result.AppServerState := 'stopped';
+    Result.ProviderState := 'stopped';
     Result.XMPPState := 'disconnected';
     SetLength(Result.Rooms, 0);
     Exit;
   end;
   try
     lSnapshot := lActive.Host.State.Snapshot;
-    Result.AppServerState := NXCodexAppServerStateName(
-      lSnapshot.AppServerState);
+    Result.ProviderState := NXBotProviderStateName(
+      lSnapshot.ProviderState);
     Result.XMPPState := lSnapshot.XMPPState;
     Result.Rooms := Copy(lSnapshot.Rooms);
-    if lSnapshot.AppServerDetail <> '' then
-      Result.Diagnostic := lSnapshot.AppServerDetail;
+    if lSnapshot.ProviderDetail <> '' then
+      Result.Diagnostic := lSnapshot.ProviderDetail;
   finally
     ReleaseActive(lActive);
   end;
@@ -558,27 +558,27 @@ begin
       lResult.Bots[0] := MakeStatus(lEntry);
       lComplete := True;
     end
-    else if (lSnapshot.AppServerState = cassFailed) or
+    else if (lSnapshot.ProviderState = bpsFailed) or
       (lSnapshot.XMPPState = 'failed') or (lRoomState = 'failed') then
     begin
       lResult := NXBotControlFailure(bceUnavailable,
         'Bot activation or room join failed.');
       lComplete := True;
     end
-    else if (lSnapshot.AppServerState = cassStopped) and
-      (AClaim.Phase <> pbpWaitingAppServer) then
+    else if (lSnapshot.ProviderState = bpsStopped) and
+      (AClaim.Phase <> pbpWaitingProvider) then
     begin
-      lAction := bhaStartAppServer;
-      lPhase := pbpWaitingAppServer;
+      lAction := bhaStartProvider;
+      lPhase := pbpWaitingProvider;
     end
-    else if (lSnapshot.AppServerState = cassReady) and
+    else if (lSnapshot.ProviderState = bpsReady) and
       (lSnapshot.XMPPState = 'disconnected') and
       (AClaim.Phase <> pbpWaitingXMPP) then
     begin
       lAction := bhaConnectXMPP;
       lPhase := pbpWaitingXMPP;
     end
-    else if (lSnapshot.AppServerState = cassReady) and
+    else if (lSnapshot.ProviderState = bpsReady) and
       (lSnapshot.XMPPState = 'online') and (lRoomState = 'left') and
       (AClaim.Phase <> pbpWaitingRoom) then
     begin
@@ -611,8 +611,8 @@ begin
   if lAction <> bhaNone then
   begin
     case lAction of
-      bhaStartAppServer:
-        lAccepted := AClaim.Active.Host.StartAppServer;
+      bhaStartProvider:
+        lAccepted := AClaim.Active.Host.StartProvider;
       bhaConnectXMPP:
         lAccepted := AClaim.Active.Host.ConnectXMPP;
       bhaJoinRoom:
@@ -765,13 +765,6 @@ begin
   end
   else
   begin
-    if not lEntry.Available then
-    begin
-      ReleaseActive(lActive);
-      ACompletion(AToken, NXBotControlFailure(bceUnavailable,
-        lEntry.Diagnostic));
-      Exit;
-    end;
     if not Assigned(lActive) then
     begin
       lCandidate := TNXActiveBot.Create;

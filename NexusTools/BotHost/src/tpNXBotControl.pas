@@ -33,11 +33,10 @@ type
   TNXBotStatus = record
     Name: UTF8String;
     Known: Boolean;
-    Available: Boolean;
     Active: Boolean;
     Provider: UTF8String;
     Model: UTF8String;
-    AppServerState: UTF8String;
+    ProviderState: UTF8String;
     XMPPState: UTF8String;
     Diagnostic: UTF8String;
     Rooms: TNXBotRoomStatusArray;

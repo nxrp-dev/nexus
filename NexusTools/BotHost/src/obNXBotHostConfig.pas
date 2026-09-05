@@ -77,7 +77,7 @@ type
     FAnswerMaximumBytes: Integer;
     FCAFile: string;
     FCodexExecutable: string;
-    FCodexModel: string;
+    FModel: string;
     FCommandCapacity: Integer;
     FEndpointHost: string;
     FEndpointPort: Integer;
@@ -87,6 +87,7 @@ type
     FPasswordEnvironmentVariable: string;
     FPromptCapacity: Integer;
     FPromptMaximumBytes: Integer;
+    FProvider: string;
     FRequestTimeoutMS: Integer;
     FResource: string;
     FRoomJID: string;
@@ -95,7 +96,7 @@ type
   public
     constructor Create; override;
     procedure Validate;
-    procedure ValidateAppServer;
+    procedure ValidateProvider;
     procedure ValidateXMPP;
     function Password: UTF8String;
   published
@@ -105,7 +106,6 @@ type
     property CAFile: string read FCAFile write FCAFile;
     property CodexExecutable: string read FCodexExecutable
       write FCodexExecutable;
-    property CodexModel: string read FCodexModel write FCodexModel;
     property CommandCapacity: Integer read FCommandCapacity
       write FCommandCapacity;
     property EndpointHost: string read FEndpointHost write FEndpointHost;
@@ -113,6 +113,7 @@ type
     property DirectTLS: Boolean read FDirectTLS write FDirectTLS;
     property JournalCapacity: Integer read FJournalCapacity
       write FJournalCapacity;
+    property Model: string read FModel write FModel;
     property Nick: string read FNick write FNick;
     property PasswordEnvironmentVariable: string
       read FPasswordEnvironmentVariable write FPasswordEnvironmentVariable;
@@ -120,6 +121,7 @@ type
       write FPromptCapacity;
     property PromptMaximumBytes: Integer read FPromptMaximumBytes
       write FPromptMaximumBytes;
+    property Provider: string read FProvider write FProvider;
     property RequestTimeoutMS: Integer read FRequestTimeoutMS
       write FRequestTimeoutMS;
     property Resource: string read FResource write FResource;
@@ -180,7 +182,7 @@ begin
   FAnswerMaximumBytes := 16 * 1024;
   FAllowPlain := True;
   FCodexExecutable := 'codex.exe';
-  FCodexModel := 'gpt-5.6-luna';
+  FModel := 'gpt-5.6-luna';
   FCommandCapacity := 64;
   FEndpointHost := '127.0.0.1';
   FEndpointPort := 5222;
@@ -189,6 +191,7 @@ begin
   FPasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
   FPromptCapacity := 16;
   FPromptMaximumBytes := 16 * 1024;
+  FProvider := 'Codex';
   FRequestTimeoutMS := 30000;
   FResource := 'NexusBotHost';
   FRoomJID := 'nexus-test@conference.nexus.local';
@@ -198,17 +201,15 @@ end;
 procedure TNXBotHostConfig.Validate;
 begin
   ValidateXMPP;
-  ValidateAppServer;
+  ValidateProvider;
 end;
 
-procedure TNXBotHostConfig.ValidateAppServer;
+procedure TNXBotHostConfig.ValidateProvider;
 begin
-  if FCodexExecutable = '' then
-    raise Exception.Create('Codex executable is required.');
-  if FRuntimeDirectory = '' then
-    raise Exception.Create('Codex runtime directory is required.');
-  if FCodexModel = '' then
-    raise Exception.Create('Codex model is required.');
+  if FProvider = '' then
+    raise Exception.Create('Bot provider is required.');
+  if FModel = '' then
+    raise Exception.Create('Bot model is required.');
   if (FCommandCapacity < 1) or (FPromptCapacity < 1) or
     (FPromptMaximumBytes < 1) or (FAnswerMaximumBytes < 1) or
     (FRequestTimeoutMS < 1) or (FJournalCapacity < 1) then

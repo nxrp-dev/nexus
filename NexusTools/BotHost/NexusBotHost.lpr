@@ -4,6 +4,7 @@ program NexusBotHost;
 {$apptype GUI}
 
 uses
+  obNXCodexAppServer,
   uiNXBotHostMain;
 
 begin

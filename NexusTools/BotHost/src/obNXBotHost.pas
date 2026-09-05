@@ -6,8 +6,8 @@ interface
 
 uses
   obNXBotHostConfig,
+  obNXBotProvider,
   obNXBotHostState,
-  obNXCodexAppServer,
   obNXXMPPClient,
   obNXXMPPMessage,
   obNXXMPPModule,
@@ -22,7 +22,6 @@ type
 
   TNXBotHost = class
   private
-    FAppServer: TNXCodexAppServer;
     FConfig: TNXBotHostConfig;
     FInstructions: UTF8String;
     FMUC: TNXXMPPMUCModule;
@@ -30,15 +29,18 @@ type
     FState: TNXBotHostState;
     FXMPP: TNXXMPPClient;
     FOnChanged: TNXBotHostChangedEvent;
+    FOnBotControl: TNXBotControlEvent;
     FOnPrompt: TNXBotHostPromptEvent;
+    FProvider: TNXBotProvider;
     procedure Changed;
-    procedure AppServerDiagnostic(ASender: TObject; const AText: UTF8String);
-    procedure AppServerFinalAnswer(ASender: TObject; APrompt: TNXBotPrompt;
+    procedure ProviderDiagnostic(ASender: TObject; const AText: UTF8String);
+    procedure ProviderFinalAnswer(ASender: TObject; APrompt: TNXBotPrompt;
       const AText: UTF8String);
-    procedure AppServerPromptFailed(ASender: TObject; APrompt: TNXBotPrompt;
+    procedure ProviderPromptFailed(ASender: TObject; APrompt: TNXBotPrompt;
       const AText: UTF8String);
-    procedure AppServerState(ASender: TObject;
-      AState: TNXCodexAppServerState; const ADetail: UTF8String);
+    procedure ProviderState(ASender: TObject;
+      AState: TNXBotProviderState; const ADetail: UTF8String);
+    procedure SetOnBotControl(AValue: TNXBotControlEvent);
     procedure XMPPError(ASender: TObject; AStage: TNXXMPPErrorStage;
       const ACondition, AMessage: UTF8String);
     procedure XMPPRoomMessage(ASender: TObject; ARoom: TNXXMPPRoom;
@@ -54,8 +56,8 @@ type
     procedure DisconnectXMPP; virtual;
     function JoinRoom(const ARoomJID: UTF8String): Boolean; virtual;
     function LeaveRoom(const ARoomJID: UTF8String): Boolean; virtual;
-    function StartAppServer: Boolean; virtual;
-    function StopAppServer: Boolean; virtual;
+    function StartProvider: Boolean; virtual;
+    function StopProvider: Boolean; virtual;
     procedure RefreshIdentity;
     procedure ClearView;
     procedure Shutdown; virtual;
@@ -65,10 +67,11 @@ type
 
     property Config: TNXBotHostConfig read FConfig;
     property State: TNXBotHostState read FState;
-    property AppServer: TNXCodexAppServer read FAppServer;
     property MUC: TNXXMPPMUCModule read FMUC;
     property XMPP: TNXXMPPClient read FXMPP;
     property OnChanged: TNXBotHostChangedEvent read FOnChanged write FOnChanged;
+    property OnBotControl: TNXBotControlEvent read FOnBotControl
+      write SetOnBotControl;
     property OnPrompt: TNXBotHostPromptEvent read FOnPrompt write FOnPrompt;
   end;
 
@@ -103,18 +106,15 @@ begin
   FConfig := AConfig;
   FInstructions := AInstructions;
   FState := TNXBotHostState.Create(FConfig.JournalCapacity);
-  FState.SetIdentity(UTF8String(FConfig.CodexModel), UTF8String(FConfig.Nick));
+  FState.SetIdentity(UTF8String(FConfig.Model), UTF8String(FConfig.Nick));
   FState.SetRoom(UTF8String(FConfig.RoomJID), 'left');
 
-  FAppServer := TNXCodexAppServer.Create;
-  FAppServer.AnswerMaximumBytes := FConfig.AnswerMaximumBytes;
-  FAppServer.CommandCapacity := FConfig.CommandCapacity;
-  FAppServer.PromptCapacity := FConfig.PromptCapacity;
-  FAppServer.RequestTimeoutMS := FConfig.RequestTimeoutMS;
-  FAppServer.OnDiagnostic := @AppServerDiagnostic;
-  FAppServer.OnFinalAnswer := @AppServerFinalAnswer;
-  FAppServer.OnPromptFailed := @AppServerPromptFailed;
-  FAppServer.OnState := @AppServerState;
+  FProvider := TNXBotProviderRegistry.CreateProvider(UTF8String(FConfig.Provider));
+  FProvider.Configure(FConfig, FInstructions);
+  FProvider.OnDiagnostic := @ProviderDiagnostic;
+  FProvider.OnFinalAnswer := @ProviderFinalAnswer;
+  FProvider.OnPromptFailed := @ProviderPromptFailed;
+  FProvider.OnState := @ProviderState;
 
   FXMPP := TNXXMPPClient.Create;
   FXMPP.OnError := @XMPPError;
@@ -128,7 +128,7 @@ end;
 destructor TNXBotHost.Destroy;
 begin
   Shutdown;
-  FreeAndNil(FAppServer);
+  FreeAndNil(FProvider);
   FreeAndNil(FXMPP);
   FMUC := nil;
   FreeAndNil(FState);
@@ -136,25 +136,24 @@ begin
   inherited Destroy;
 end;
 
-function TNXBotHost.StartAppServer: Boolean;
+function TNXBotHost.StartProvider: Boolean;
 begin
-  FConfig.ValidateAppServer;
-  Result := FAppServer.StartServer(FConfig.CodexExecutable,
-    FConfig.RuntimeDirectory, UTF8String(FConfig.CodexModel), FInstructions);
+  FConfig.ValidateProvider;
+  Result := FProvider.Start;
   if not Result then
-    FState.AddJournal('App Server start command rejected: command queue full.');
+    FState.AddJournal('Provider start command rejected: command queue full.');
 end;
 
-function TNXBotHost.StopAppServer: Boolean;
+function TNXBotHost.StopProvider: Boolean;
 begin
-  Result := FAppServer.StopServer;
+  Result := FProvider.Stop;
   if not Result then
-    FState.AddJournal('App Server stop command rejected: command queue full.');
+    FState.AddJournal('Provider stop command rejected: command queue full.');
 end;
 
 procedure TNXBotHost.RefreshIdentity;
 begin
-  FState.SetIdentity(UTF8String(FConfig.CodexModel), UTF8String(FConfig.Nick));
+  FState.SetIdentity(UTF8String(FConfig.Model), UTF8String(FConfig.Nick));
   FState.SetRoom(UTF8String(FConfig.RoomJID), 'left');
   Changed;
 end;
@@ -163,6 +162,12 @@ procedure TNXBotHost.Changed;
 begin
   if Assigned(FOnChanged) then
     FOnChanged(Self);
+end;
+
+procedure TNXBotHost.SetOnBotControl(AValue: TNXBotControlEvent);
+begin
+  FOnBotControl := AValue;
+  FProvider.OnBotControl := AValue;
 end;
 
 procedure TNXBotHost.AddXMPPModule(AModule: TNXXMPPModule);
@@ -200,7 +205,7 @@ end;
 
 procedure TNXBotHost.DisconnectXMPP;
 begin
-  FAppServer.CancelPrompts('XMPP disconnected.');
+  FProvider.CancelPrompts('XMPP disconnected.');
   FXMPP.Disconnect;
 end;
 
@@ -213,7 +218,7 @@ end;
 
 function TNXBotHost.LeaveRoom(const ARoomJID: UTF8String): Boolean;
 begin
-  FAppServer.CancelRoomPrompts(ARoomJID, 'Bot left the XMPP room.');
+  FProvider.CancelRoomPrompts(ARoomJID, 'Bot left the XMPP room.');
   Result := FMUC.Leave(ARoomJID);
   if not Result then
     FState.AddJournal('Room leave command rejected.');
@@ -229,26 +234,29 @@ var
   lIndex: Integer;
   lSnapshot: TNXBotHostSnapshot;
 begin
-  FAppServer.CancelPrompts('BotHost is shutting down.');
-  if FXMPP.State = xcsOnline then
+  if Assigned(FProvider) then
+    FProvider.CancelPrompts('BotHost is shutting down.');
+  if Assigned(FXMPP) and (FXMPP.State = xcsOnline) then
   begin
     lSnapshot := FState.Snapshot;
     for lIndex := 0 to High(lSnapshot.Rooms) do
       if lSnapshot.Rooms[lIndex].State = 'joined' then
         FMUC.Leave(lSnapshot.Rooms[lIndex].RoomJID);
   end;
-  FXMPP.Disconnect;
-  FAppServer.Shutdown;
+  if Assigned(FXMPP) then
+    FXMPP.Disconnect;
+  if Assigned(FProvider) then
+    FProvider.Shutdown;
 end;
 
-procedure TNXBotHost.AppServerDiagnostic(ASender: TObject;
+procedure TNXBotHost.ProviderDiagnostic(ASender: TObject;
   const AText: UTF8String);
 begin
-  FState.AddJournal('App Server: ' + AText);
+  FState.AddJournal('Provider: ' + AText);
   Changed;
 end;
 
-procedure TNXBotHost.AppServerFinalAnswer(ASender: TObject;
+procedure TNXBotHost.ProviderFinalAnswer(ASender: TObject;
   APrompt: TNXBotPrompt; const AText: UTF8String);
 begin
   if FMUC.SendGroupMessage(APrompt.RoomJID, AText) then
@@ -258,7 +266,7 @@ begin
   Changed;
 end;
 
-procedure TNXBotHost.AppServerPromptFailed(ASender: TObject;
+procedure TNXBotHost.ProviderPromptFailed(ASender: TObject;
   APrompt: TNXBotPrompt; const AText: UTF8String);
 begin
   FState.AddJournal('Prompt ' + UTF8String(IntToStr(APrompt.Sequence)) +
@@ -266,13 +274,13 @@ begin
   Changed;
 end;
 
-procedure TNXBotHost.AppServerState(ASender: TObject;
-  AState: TNXCodexAppServerState; const ADetail: UTF8String);
+procedure TNXBotHost.ProviderState(ASender: TObject;
+  AState: TNXBotProviderState; const ADetail: UTF8String);
 var
   lMessage: UTF8String;
 begin
-  FState.SetAppServer(AState, ADetail);
-  lMessage := 'App Server state: ' + NXCodexAppServerStateName(AState);
+  FState.SetProvider(AState, ADetail);
+  lMessage := 'Provider state: ' + NXBotProviderStateName(AState);
   if ADetail <> '' then
     lMessage := lMessage + ' (' + ADetail + ')';
   FState.AddJournal(lMessage + '.');
@@ -298,9 +306,9 @@ var
 begin
   if ARoom.State <> xrsJoined then
     Exit;
-  if not (FAppServer.State in [cassReady, cassBusy]) then
+  if not (FProvider.State in [bpsReady, bpsWorking]) then
   begin
-    FState.AddJournal('Ignored room message: App Server is not ready.');
+    FState.AddJournal('Ignored room message: provider is not ready.');
     Exit;
   end;
   Inc(FSequence);
@@ -330,10 +338,10 @@ begin
       FState.AddJournal('Accepted control prompt from ' + AMessage.FromJID + '.');
       lPrompt.Free;
     end
-    else if FAppServer.SubmitPrompt(lPrompt) then
+    else if FProvider.SubmitPrompt(lPrompt) then
       FState.AddJournal('Accepted prompt from ' + AMessage.FromJID + '.')
     else
-      FState.AddJournal('Prompt rejected: App Server command queue full.');
+      FState.AddJournal('Prompt rejected: provider command queue full.');
   end
   else if lDecision <> brdNotAddressed then
     FState.AddJournal('Ignored room message: ' +
@@ -347,7 +355,7 @@ begin
   FState.AddJournal('Room ' + ARoom.JID + ' state: ' +
     NXRoomStateName(ARoom.State) + '.');
   if ARoom.State in [xrsFailed, xrsLeft] then
-    FAppServer.CancelRoomPrompts(ARoom.JID, 'XMPP room is unavailable.');
+    FProvider.CancelRoomPrompts(ARoom.JID, 'XMPP room is unavailable.');
   Changed;
 end;
 
@@ -358,7 +366,7 @@ begin
   FState.AddJournal('XMPP state: ' +
     UTF8String(NXXMPPConnectionStateName(AState)) + '.');
   if AState in [xcsDisconnected, xcsFailed] then
-    FAppServer.CancelPrompts('XMPP connection is unavailable.');
+    FProvider.CancelPrompts('XMPP connection is unavailable.');
   Changed;
 end;
 

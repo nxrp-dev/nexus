@@ -11,22 +11,13 @@ uses
   Pipes,
   Process,
   SysUtils,
+  obNXBotHostConfig,
+  obNXBotProvider,
   obNXJSONRPCMessages,
   tpNXBotControl,
   tpNXBotHost;
 
 type
-  TNXCodexAppServerStateEvent = procedure(ASender: TObject;
-    AState: TNXCodexAppServerState; const ADetail: UTF8String) of object;
-  TNXCodexAppServerTextEvent = procedure(ASender: TObject;
-    const AText: UTF8String) of object;
-  TNXCodexAppServerPromptEvent = procedure(ASender: TObject;
-    APrompt: TNXBotPrompt; const AText: UTF8String) of object;
-  TNXCodexBotControlEvent = function(ASender: TObject;
-    const AOperation: TNXBotControlOperation;
-    const AAuthorization: TNXBotAuthorization;
-    ACompletion: TNXBotControlCompletion; out AToken: QWord): Boolean of object;
-
   TNXCodexAppServer = class;
 
   TNXCodexAppServerThread = class(TThread)
@@ -38,7 +29,7 @@ type
     constructor Create(AOwner: TNXCodexAppServer);
   end;
 
-  TNXCodexAppServer = class
+  TNXCodexAppServer = class(TNXBotProvider)
   private type
     TNXCommandKind = (ckStart, ckStop, ckSubmit, ckInterrupt, ckCancel,
       ckCancelRoom, ckToolResult);
@@ -86,18 +77,12 @@ type
     FFrameLimit: Integer;
     FInstructions: UTF8String;
     FModel: UTF8String;
-    FOnDiagnostic: TNXCodexAppServerTextEvent;
-    FOnBotControl: TNXCodexBotControlEvent;
-    FOnFinalAnswer: TNXCodexAppServerPromptEvent;
-    FOnPromptFailed: TNXCodexAppServerPromptEvent;
-    FOnState: TNXCodexAppServerStateEvent;
     FPendingPrompts: TObjectList;
     FPendingRequests: TObjectList;
     FProcess: TProcess;
     FRequestTimeoutMS: Cardinal;
     FRuntimeDirectory: string;
     FSelectedModel: UTF8String;
-    FState: TNXCodexAppServerState;
     FStderrBuffer: RawByteString;
     FStdoutBuffer: RawByteString;
     FShuttingDown: Boolean;
@@ -148,24 +133,28 @@ type
     procedure SendRequest(AKind: TNXRequestKind;
       ACommand: TNXJSONRPCOutboundCommand);
     procedure SendUserInputDecline(AMessage: TNXJSONRPCMessage);
-    procedure SetState(AState: TNXCodexAppServerState;
-      const ADetail: UTF8String = '');
     procedure StartNextPrompt;
     procedure StartProcess;
     procedure StopProcess;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
+
+    class function ProviderName: UTF8String; override;
+    class procedure ValidateDeployment(ABinding: TNXBotDeploymentBinding;
+      const ABotName: string; ADiagnostics: TStrings); override;
+    function Start: Boolean; override;
+    function Stop: Boolean; override;
 
     function StartServer(const AExecutable, ARuntimeDirectory: string;
       const AModel, AInstructions: UTF8String): Boolean;
     function StopServer: Boolean;
-    procedure Shutdown;
-    function SubmitPrompt(APrompt: TNXBotPrompt): Boolean;
+    procedure Shutdown; override;
+    function SubmitPrompt(APrompt: TNXBotPrompt): Boolean; override;
     function Interrupt: Boolean;
-    function CancelPrompts(const AReason: UTF8String): Boolean;
+    function CancelPrompts(const AReason: UTF8String): Boolean; override;
     function CancelRoomPrompts(const ARoomJID,
-      AReason: UTF8String): Boolean;
+      AReason: UTF8String): Boolean; override;
     function CommandCount: Integer;
     function SubmitControlResult(AID: TJSONData;
       const AResult: TNXBotControlResult): Boolean;
@@ -178,16 +167,6 @@ type
     property PromptCapacity: Integer read FPromptCapacity write FPromptCapacity;
     property RequestTimeoutMS: Cardinal read FRequestTimeoutMS
       write FRequestTimeoutMS;
-    property State: TNXCodexAppServerState read FState;
-    property OnDiagnostic: TNXCodexAppServerTextEvent read FOnDiagnostic
-      write FOnDiagnostic;
-    property OnBotControl: TNXCodexBotControlEvent read FOnBotControl
-      write FOnBotControl;
-    property OnFinalAnswer: TNXCodexAppServerPromptEvent read FOnFinalAnswer
-      write FOnFinalAnswer;
-    property OnPromptFailed: TNXCodexAppServerPromptEvent read FOnPromptFailed
-      write FOnPromptFailed;
-    property OnState: TNXCodexAppServerStateEvent read FOnState write FOnState;
   end;
 
 implementation
@@ -358,7 +337,6 @@ begin
   FFrameLimit := 1024 * 1024;
   FRequestTimeoutMS := 30000;
   FNextRequestID := 1;
-  FState := cassStopped;
   FCommands := TObjectList.Create(True);
   FPendingPrompts := TObjectList.Create(True);
   FPendingRequests := TObjectList.Create(True);
@@ -381,8 +359,46 @@ end;
 
 procedure TNXCodexAppServer.AddDiagnostic(const AText: UTF8String);
 begin
-  if Assigned(FOnDiagnostic) then
-    FOnDiagnostic(Self, AText);
+  Diagnostic(AText);
+end;
+
+class function TNXCodexAppServer.ProviderName: UTF8String;
+begin
+  Result := 'Codex';
+end;
+
+class procedure TNXCodexAppServer.ValidateDeployment(
+  ABinding: TNXBotDeploymentBinding; const ABotName: string;
+  ADiagnostics: TStrings);
+begin
+  if not Assigned(ABinding) then
+    Exit;
+  if ABinding.CodexExecutable = '' then
+    ADiagnostics.Add('Missing deployment field CodexExecutable for bot ' +
+      ABotName + '.');
+  if ABinding.RuntimeDirectory = '' then
+    ADiagnostics.Add('Missing deployment field RuntimeDirectory for bot ' +
+      ABotName + '.');
+end;
+
+function TNXCodexAppServer.Start: Boolean;
+begin
+  if Configuration.CodexExecutable = '' then
+    raise Exception.Create('Codex executable is required.');
+  if Configuration.RuntimeDirectory = '' then
+    raise Exception.Create('Codex runtime directory is required.');
+  AnswerMaximumBytes := Configuration.AnswerMaximumBytes;
+  CommandCapacity := Configuration.CommandCapacity;
+  PromptCapacity := Configuration.PromptCapacity;
+  RequestTimeoutMS := Configuration.RequestTimeoutMS;
+  Result := StartServer(Configuration.CodexExecutable,
+    Configuration.RuntimeDirectory, UTF8String(Configuration.Model),
+    Instructions);
+end;
+
+function TNXCodexAppServer.Stop: Boolean;
+begin
+  Result := StopServer;
 end;
 
 function TNXCodexAppServer.CommandCount: Integer;
@@ -531,14 +547,6 @@ begin
   Result := EnqueueCommand(lCommand);
 end;
 
-procedure TNXCodexAppServer.SetState(AState: TNXCodexAppServerState;
-  const ADetail: UTF8String);
-begin
-  FState := AState;
-  if Assigned(FOnState) then
-    FOnState(Self, AState, ADetail);
-end;
-
 procedure TNXCodexAppServer.Run;
 begin
   try
@@ -556,19 +564,19 @@ begin
           begin
             if not FStopRequested then
             begin
-              SetState(cassFailed, 'Codex App Server exited unexpectedly.');
+              SetState(bpsFailed, 'Codex App Server exited unexpectedly.');
               FailActivePrompt('Codex App Server exited unexpectedly.');
               FailQueuedPrompts('Codex App Server exited unexpectedly.');
             end;
             CloseProcess;
             if FStopRequested then
-              SetState(cassStopped);
+              SetState(bpsStopped);
           end;
         end;
       except
         on E: Exception do
         begin
-          SetState(cassFailed, E.Message);
+          SetState(bpsFailed, E.Message);
           AddDiagnostic(E.Message);
           FailActivePrompt(E.Message);
           FailQueuedPrompts(E.Message);
@@ -621,16 +629,14 @@ begin
         lPrompt := ACommand.FPrompt;
         ACommand.FPrompt := nil;
         if not Assigned(FProcess) or
-          (FState in [cassStopped, cassStopping, cassFailed]) then
+          (State in [bpsStopped, bpsStopping, bpsFailed]) then
         begin
-          if Assigned(FOnPromptFailed) then
-            FOnPromptFailed(Self, lPrompt, 'Codex App Server is not available.');
+          PromptFailed(lPrompt, 'Codex App Server is not available.');
           lPrompt.Free;
         end
         else if FPendingPrompts.Count >= FPromptCapacity then
         begin
-          if Assigned(FOnPromptFailed) then
-            FOnPromptFailed(Self, lPrompt, 'Pending prompt queue is full.');
+          PromptFailed(lPrompt, 'Pending prompt queue is full.');
           lPrompt.Free;
         end
         else
@@ -659,7 +665,7 @@ begin
         FailActivePrompt(ACommand.FReason);
         FailQueuedPrompts(ACommand.FReason);
         if Assigned(FProcess) and FProcess.Running then
-          SetState(cassReady, FSelectedModel);
+          SetState(bpsReady, FSelectedModel);
       end;
     ckCancelRoom:
       begin
@@ -676,7 +682,7 @@ begin
         if Assigned(FProcess) and FProcess.Running and
           not Assigned(FActivePrompt) then
         begin
-          SetState(cassReady, FSelectedModel);
+          SetState(bpsReady, FSelectedModel);
           StartNextPrompt;
         end;
       end;
@@ -705,7 +711,7 @@ begin
   FActiveTurnID := '';
   FSelectedModel := '';
   FPendingRequests.Clear;
-  SetState(cassStarting);
+  SetState(bpsStarting, 'starting process');
   FProcess := TProcess.Create(nil);
   try
     FProcess.Executable := FExecutable;
@@ -725,7 +731,7 @@ procedure TNXCodexAppServer.BeginInitialization;
 var
   lCommand: TNXCodexInitializeCommand;
 begin
-  SetState(cassInitializing);
+  SetState(bpsStarting, 'initializing');
   lCommand := TNXCodexInitializeCommand.Create;
   lCommand.params.clientInfo.name.Value := 'NexusBotHost';
   lCommand.params.clientInfo.title.Value := 'Nexus Codex XMPP Bot';
@@ -759,7 +765,7 @@ procedure TNXCodexAppServer.BeginModelList;
 var
   lCommand: TNXCodexModelListCommand;
 begin
-  SetState(cassResolvingModel);
+  SetState(bpsStarting, 'resolving model');
   lCommand := TNXCodexModelListCommand.Create;
   lCommand.params.includeHidden.Value := True;
   SendRequest(rkModelList, lCommand);
@@ -770,7 +776,7 @@ var
   lCommand: TNXCodexThreadStartCommand;
   lTool: TNXCodexDynamicToolSpec;
 begin
-  SetState(cassCreatingThread);
+  SetState(bpsStarting, 'creating thread');
   lCommand := TNXCodexThreadStartCommand.Create;
   lCommand.params.model.Value := FSelectedModel;
   lCommand.params.cwd.Value := FRuntimeDirectory;
@@ -978,7 +984,7 @@ begin
       rkTurnStart:
         begin
           FailActivePrompt(lErrorMessage);
-          SetState(cassReady, FSelectedModel);
+          SetState(bpsReady, FSelectedModel);
           StartNextPrompt;
           Exit;
         end;
@@ -1029,7 +1035,7 @@ begin
           result.thread.id.Value;
         if FThreadID = '' then
           raise Exception.Create('App Server returned an empty thread ID.');
-        SetState(cassReady, FSelectedModel);
+        SetState(bpsReady, FSelectedModel);
         StartNextPrompt;
       end;
     rkTurnStart:
@@ -1038,7 +1044,7 @@ begin
           result.turn.id.Value;
         if FActiveTurnID = '' then
           raise Exception.Create('App Server returned an empty turn ID.');
-        SetState(cassBusy, FActiveTurnID);
+        SetState(bpsWorking, FActiveTurnID);
       end;
     rkTurnInterrupt:
       AddDiagnostic('Active Codex turn interruption acknowledged.');
@@ -1110,8 +1116,7 @@ begin
     else
     begin
       lAnswer := NXBoundUTF8(lAnswer, FAnswerMaximumBytes);
-      if Assigned(FOnFinalAnswer) then
-        FOnFinalAnswer(Self, FActivePrompt, lAnswer);
+      FinalAnswer(FActivePrompt, lAnswer);
       FreeAndNil(FActivePrompt);
     end;
   end;
@@ -1119,7 +1124,7 @@ begin
   FFinalAnswer := '';
   FUnphasedAnswer := '';
   FAnyPhasedMessage := False;
-  SetState(cassReady, FSelectedModel);
+  SetState(bpsReady, FSelectedModel);
   StartNextPrompt;
 end;
 
@@ -1148,7 +1153,7 @@ begin
   else if AMessage is TNXCodexDynamicToolCallRequest then
   begin
     if (TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value <>
-      'bot_control') or not Assigned(FOnBotControl) or
+      'bot_control') or not Assigned(OnBotControlHandler) or
       not Assigned(FActivePrompt) or
       (TNXCodexDynamicToolCallRequest(AMessage).params.turnId.Value <>
       FActiveTurnID) or not
@@ -1180,7 +1185,7 @@ begin
         FActivePrompt.VerifiedCallerBareJID, FActivePrompt.RoomJID,
         FActivePrompt.VerifiedMUCIdentity);
       lControlRequest := TNXCodexControlRequest.Create(Self, AMessage.IDJSON);
-      if not FOnBotControl(Self, lOperation, lAuthorization,
+      if not OnBotControlHandler(Self, lOperation, lAuthorization,
         @lControlRequest.Complete, lToken) then
       begin
         lControlRequest.Free;
@@ -1227,10 +1232,9 @@ begin
       lText := lText + '; detail=' + AResult.Detail;
     for lIndex := 0 to High(AResult.Bots) do
       lText := lText + #10 + AResult.Bots[lIndex].Name +
-        ': available=' + UTF8String(BoolToStr(AResult.Bots[lIndex].Available,
-        True)) + '; active=' + UTF8String(BoolToStr(
-        AResult.Bots[lIndex].Active, True)) + '; appServer=' +
-        AResult.Bots[lIndex].AppServerState + '; xmpp=' +
+        ': active=' + UTF8String(BoolToStr(
+        AResult.Bots[lIndex].Active, True)) + '; providerState=' +
+        AResult.Bots[lIndex].ProviderState + '; xmpp=' +
         AResult.Bots[lIndex].XMPPState;
     lContent := TNXCodexDynamicToolTextContent(
       lResult.contentItems.AddObject(TNXCodexDynamicToolTextContent));
@@ -1372,7 +1376,7 @@ var
   lCommand: TNXCodexTurnStartCommand;
   lInput: TNXCodexTextInput;
 begin
-  if (FState <> cassReady) or Assigned(FActivePrompt) or
+  if (State <> bpsReady) or Assigned(FActivePrompt) or
     (FPendingPrompts.Count = 0) then
     Exit;
   FActivePrompt := TNXBotPrompt(FPendingPrompts.Extract(FPendingPrompts[0]));
@@ -1388,15 +1392,14 @@ begin
   lInput.text.Value := FActivePrompt.Body;
   lInput.text_elements.Assigned := True;
   SendRequest(rkTurnStart, lCommand);
-  SetState(cassBusy, 'Starting Codex turn.');
+  SetState(bpsWorking, 'Starting Codex turn.');
 end;
 
 procedure TNXCodexAppServer.FailActivePrompt(const AReason: UTF8String);
 begin
   if not Assigned(FActivePrompt) then
     Exit;
-  if Assigned(FOnPromptFailed) then
-    FOnPromptFailed(Self, FActivePrompt, AReason);
+  PromptFailed(FActivePrompt, AReason);
   FreeAndNil(FActivePrompt);
   FActiveTurnID := '';
 end;
@@ -1408,8 +1411,7 @@ begin
   while FPendingPrompts.Count > 0 do
   begin
     lPrompt := TNXBotPrompt(FPendingPrompts[0]);
-    if Assigned(FOnPromptFailed) then
-      FOnPromptFailed(Self, lPrompt, AReason);
+    PromptFailed(lPrompt, AReason);
     FPendingPrompts.Delete(0);
   end;
 end;
@@ -1427,8 +1429,7 @@ begin
     lPrompt := TNXBotPrompt(FPendingPrompts[lIndex]);
     if lPrompt.RoomJID <> ARoomJID then
       Continue;
-    if Assigned(FOnPromptFailed) then
-      FOnPromptFailed(Self, lPrompt, AReason);
+    PromptFailed(lPrompt, AReason);
     FPendingPrompts.Delete(lIndex);
   end;
 end;
@@ -1450,11 +1451,11 @@ var
 begin
   if not Assigned(FProcess) then
   begin
-    SetState(cassStopped);
+    SetState(bpsStopped);
     Exit;
   end;
   FStopRequested := True;
-  SetState(cassStopping);
+  SetState(bpsStopping);
   if (FThreadID <> '') and FProcess.Running then
   begin
     if FActiveTurnID <> '' then
@@ -1477,7 +1478,7 @@ begin
   FailActivePrompt('Codex App Server stopped.');
   FailQueuedPrompts('Codex App Server stopped.');
   CloseProcess;
-  SetState(cassStopped);
+  SetState(bpsStopped);
 end;
 
 procedure TNXCodexAppServer.CloseProcess;
@@ -1494,5 +1495,8 @@ begin
   FThreadID := '';
   FActiveTurnID := '';
 end;
+
+initialization
+  TNXBotProviderRegistry.RegisterProvider(TNXCodexAppServer);
 
 end.

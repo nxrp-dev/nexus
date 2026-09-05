@@ -197,7 +197,7 @@ begin
     lSnapshot := AHost.State.Snapshot;
     lRoomState := 'left';
     if AWhat = 'appserver' then
-      lSatisfied := lSnapshot.AppServerState = cassReady
+      lSatisfied := lSnapshot.ProviderState = bpsReady
     else if AWhat = 'xmpp' then
       lSatisfied := lSnapshot.XMPPState = 'online'
     else
@@ -210,7 +210,7 @@ begin
     end;
     if lSatisfied = AReady then
       Exit;
-    if (lSnapshot.AppServerState = cassFailed) or
+    if (lSnapshot.ProviderState = bpsFailed) or
       (lSnapshot.XMPPState = 'failed') or (lRoomState = 'failed') then
       raise Exception.Create('Host failed while waiting for ' + AWhat +
         LineEnding + string(lSnapshot.Journal));
@@ -317,7 +317,7 @@ begin
   lConfig := TNXBotHostConfig.Create;
   lConfig.CodexExecutable := lCodexExecutable;
   lConfig.RuntimeDirectory := lRuntimeDirectory;
-  lConfig.CodexModel := lModel;
+  lConfig.Model := lModel;
   lConfig.XMPPJID := lBotJID;
   lConfig.PasswordEnvironmentVariable := lBotPasswordEnvironment;
   lConfig.Resource := 'NexusBotHost-' + IntToStr(GetTickCount64);
@@ -354,7 +354,7 @@ begin
     raise Exception.Create('Could not adopt the live NexusBot host.');
   lInterpreter := TNXBotControlInterpreter.Create(lController, lHost);
   lHost.OnPrompt := @lInterpreter.HandlePrompt;
-  lHost.AppServer.OnBotControl := @lController.HandleModelControl;
+  lHost.OnBotControl := @lController.HandleModelControl;
   lControl := TNXXMPPBotControlModule.Create;
   lControl.OnRequest := @lController.Execute;
   lControl.OnCancel := @lController.Cancel;
@@ -382,8 +382,8 @@ begin
     lObserverClient.AddModule(TNXXMPPDiscoModule.Create('client', 'bot',
       'NexusBot observer'));
 
-    if not lHost.StartAppServer then
-      raise Exception.Create('Bot App Server command was rejected.');
+    if not lHost.StartProvider then
+      raise Exception.Create('Bot provider command was rejected.');
     WaitHost(lHost, 'appserver', True, 30000);
     if not lHost.ConnectXMPP then
       raise Exception.Create('Bot XMPP connect failed.');

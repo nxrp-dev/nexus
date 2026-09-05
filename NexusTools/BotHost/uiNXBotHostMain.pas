@@ -45,8 +45,8 @@ type
 
   TNXBotHostUI = class
   private
-    FAppServerStart: TNXButton;
-    FAppServerStop: TNXButton;
+    FProviderStart: TNXButton;
+    FProviderStop: TNXButton;
     FCAFile: TNXEditBox;
     FCodexExecutable: TNXEditBox;
     FController: TNXBotController;
@@ -73,9 +73,9 @@ type
     procedure AddEdit(AParent: TNXPanel; const ACaption: string;
       ATop: Integer; out AEdit: TNXEditBox);
     procedure ApplySettings;
-    procedure AppServerStartClick(ASender: TObject; AX, AY: Integer;
+    procedure ProviderStartClick(ASender: TObject; AX, AY: Integer;
       AButton: TNXMouseButton);
-    procedure AppServerStopClick(ASender: TObject; AX, AY: Integer;
+    procedure ProviderStopClick(ASender: TObject; AX, AY: Integer;
       AButton: TNXMouseButton);
     procedure ClearClick(ASender: TObject; AX, AY: Integer;
       AButton: TNXMouseButton);
@@ -118,9 +118,9 @@ begin
     lSnapshot := FSnapshot;
     lLines := TStringList.Create;
     try
-      lLines.Add('App Server: ' +
-        string(NXCodexAppServerStateName(lSnapshot.AppServerState)) + ' ' +
-        string(lSnapshot.AppServerDetail));
+      lLines.Add('Provider: ' +
+        string(NXBotProviderStateName(lSnapshot.ProviderState)) + ' ' +
+        string(lSnapshot.ProviderDetail));
       lLines.Add('Model: ' + string(lSnapshot.Model));
       lLines.Add('XMPP: ' + string(lSnapshot.XMPPState));
       if Length(lSnapshot.Rooms) = 0 then
@@ -148,6 +148,7 @@ constructor TNXBotHostUI.Create;
 var
   lBinding: TNXBotDeploymentBinding;
   lCatalog: TNXBotCatalog;
+  lCatalogDiagnostic: string;
   lCatalogFile: string;
   lCodexExecutable: string;
   lExecutableDirectory: string;
@@ -205,19 +206,23 @@ begin
   lCatalog := TNXBotCatalog.Create;
   if not lCatalog.Load(lCatalogFile, FControllerConfig) then
   begin
+    lCatalogDiagnostic := lCatalog.Diagnostics.Text;
     lCatalog.Free;
     FreeAndNil(FControllerConfig);
     lHostConfig.Free;
-    raise Exception.Create('Could not load the NexusBot catalog.');
+    raise Exception.Create('Could not load the NexusBot catalog:' +
+      LineEnding + lCatalogDiagnostic);
   end;
   FController := TNXBotController.Create(lCatalog, FControllerConfig);
+  lHostConfig.Provider := string(lCatalog.Find('NexusBot').Provider);
+  lHostConfig.Model := string(lCatalog.Find('NexusBot').Model);
   FHost := TNXBotHost.Create(lHostConfig,
     lCatalog.Find('NexusBot').Instructions);
   if not FController.AdoptHost('NexusBot', FHost) then
     raise Exception.Create('Could not adopt the distinguished NexusBot host.');
   FControlInterpreter := TNXBotControlInterpreter.Create(FController, FHost);
   FHost.OnPrompt := @FControlInterpreter.HandlePrompt;
-  FHost.AppServer.OnBotControl := @FController.HandleModelControl;
+  FHost.OnBotControl := @FController.HandleModelControl;
   FControlModule := TNXXMPPBotControlModule.Create;
   FControlModule.OnRequest := @FController.Execute;
   FControlModule.OnCancel := @FController.Cancel;
@@ -279,7 +284,7 @@ begin
   AddEdit(lPanel, 'Nickname', 330, FNick);
 
   FCodexExecutable.Text := FHost.Config.CodexExecutable;
-  FModel.Text := FHost.Config.CodexModel;
+  FModel.Text := FHost.Config.Model;
   FRuntimeDirectory.Text := FHost.Config.RuntimeDirectory;
   FJID.Text := FHost.Config.XMPPJID;
   FPasswordVariable.Text := 'NEXUS_BOT_XMPP_PASSWORD';
@@ -291,14 +296,14 @@ begin
   FRoom.Text := FHost.Config.RoomJID;
   FNick.Text := FHost.Config.Nick;
 
-  FAppServerStart := TNXButton.Create(lPanel);
-  FAppServerStart.SetBounds(8, 375, 125, 28);
-  FAppServerStart.Caption := 'Start App Server';
-  FAppServerStart.OnMouseClick := @AppServerStartClick;
-  FAppServerStop := TNXButton.Create(lPanel);
-  FAppServerStop.SetBounds(141, 375, 125, 28);
-  FAppServerStop.Caption := 'Stop App Server';
-  FAppServerStop.OnMouseClick := @AppServerStopClick;
+  FProviderStart := TNXButton.Create(lPanel);
+  FProviderStart.SetBounds(8, 375, 125, 28);
+  FProviderStart.Caption := 'Start Provider';
+  FProviderStart.OnMouseClick := @ProviderStartClick;
+  FProviderStop := TNXButton.Create(lPanel);
+  FProviderStop.SetBounds(141, 375, 125, 28);
+  FProviderStop.Caption := 'Stop Provider';
+  FProviderStop.OnMouseClick := @ProviderStopClick;
   FConnect := TNXButton.Create(lPanel);
   FConnect.SetBounds(8, 411, 125, 28);
   FConnect.Caption := 'Connect XMPP';
@@ -327,7 +332,7 @@ end;
 procedure TNXBotHostUI.ApplySettings;
 begin
   FHost.Config.CodexExecutable := FCodexExecutable.Text;
-  FHost.Config.CodexModel := FModel.Text;
+  FHost.Config.Model := FModel.Text;
   FHost.Config.RuntimeDirectory := FRuntimeDirectory.Text;
   FHost.Config.XMPPJID := FJID.Text;
   FHost.Config.PasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
@@ -371,22 +376,22 @@ begin
     UTF8String(AException.Message));
 end;
 
-procedure TNXBotHostUI.AppServerStartClick(ASender: TObject; AX, AY: Integer;
+procedure TNXBotHostUI.ProviderStartClick(ASender: TObject; AX, AY: Integer;
   AButton: TNXMouseButton);
 begin
   try
     ApplySettings;
     ForceDirectories(FHost.Config.RuntimeDirectory);
-    FHost.StartAppServer;
+    FHost.StartProvider;
   except
     on E: Exception do ReportException(E);
   end;
 end;
 
-procedure TNXBotHostUI.AppServerStopClick(ASender: TObject; AX, AY: Integer;
+procedure TNXBotHostUI.ProviderStopClick(ASender: TObject; AX, AY: Integer;
   AButton: TNXMouseButton);
 begin
-  FHost.StopAppServer;
+  FHost.StopProvider;
 end;
 
 procedure TNXBotHostUI.ConnectClick(ASender: TObject; AX, AY: Integer;

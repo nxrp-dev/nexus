@@ -120,12 +120,10 @@ begin
     if Result <> '' then
       Result := Result + #10;
     Result := Result + lBot.Name + ': ';
-    if not lBot.Available then
-      Result := Result + 'unavailable'
-    else if not lBot.Active then
+    if not lBot.Active then
       Result := Result + 'inactive'
     else
-      Result := Result + lBot.AppServerState + ', XMPP ' + lBot.XMPPState;
+      Result := Result + lBot.ProviderState + ', XMPP ' + lBot.XMPPState;
   end;
   if AResult.NoOp then
     Result := Result + ' (no change)';

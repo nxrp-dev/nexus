@@ -1,0 +1,5 @@
+Bot MissingDoctype {
+    Provider: Codex;
+    Model: "gpt-5.6-luna";
+    Instructions: "This catalog deliberately omits doctype.";
+}

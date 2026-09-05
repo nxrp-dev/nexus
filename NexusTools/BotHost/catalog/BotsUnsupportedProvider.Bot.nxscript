@@ -1,0 +1,7 @@
+doctype "Bot.Language.nxscript";
+
+Bot Unsupported {
+    Provider: OpenAI;
+    Model: "gpt-5.6-luna";
+    Instructions: "This provider is deliberately outside AllowedValues.";
+}

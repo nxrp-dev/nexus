@@ -22,6 +22,7 @@ uses
   obNXBotController,
   obNXBotHost,
   obNXBotHostConfig,
+  obNXBotProvider,
   obNXBotHostRouter,
   obNXBotHostState,
   obNXCodexAppServer,
@@ -116,14 +117,14 @@ type
     function ConnectXMPP: Boolean; override;
     function JoinRoom(const ARoomJID: UTF8String): Boolean; override;
     function LeaveRoom(const ARoomJID: UTF8String): Boolean; override;
-    function StartAppServer: Boolean; override;
+    function StartProvider: Boolean; override;
     procedure Shutdown; override;
   end;
 
   TAppServerStateRecorder = class
   public
     Count: Integer;
-    procedure Changed(ASender: TObject; AState: TNXCodexAppServerState;
+    procedure Changed(ASender: TObject; AState: TNXBotProviderState;
       const ADetail: UTF8String);
   end;
 
@@ -152,7 +153,7 @@ type
       const AText: UTF8String);
     function Ready: Boolean;
     procedure StateChanged(ASender: TObject;
-      AState: TNXCodexAppServerState; const ADetail: UTF8String);
+      AState: TNXBotProviderState; const ADetail: UTF8String);
   end;
 
   TBotControlIQHarness = class
@@ -242,9 +243,8 @@ begin
   SetLength(lResult.Bots, 1);
   lResult.Bots[0].Name := AOperation.BotName;
   lResult.Bots[0].Known := True;
-  lResult.Bots[0].Available := True;
   lResult.Bots[0].Active := True;
-  lResult.Bots[0].AppServerState := 'ready';
+  lResult.Bots[0].ProviderState := 'ready';
   lResult.Bots[0].XMPPState := 'online';
   ACompletion(AToken, lResult);
   Result := AAuthorization.VerifiedMUCIdentity;
@@ -314,12 +314,12 @@ begin
 end;
 
 procedure TAppServerProcessRecorder.StateChanged(ASender: TObject;
-  AState: TNXCodexAppServerState; const ADetail: UTF8String);
+  AState: TNXBotProviderState; const ADetail: UTF8String);
 begin
   EnterCriticalSection(FCriticalSection);
   try
-    FReady := AState = cassReady;
-    if AState = cassFailed then
+    FReady := AState = bpsReady;
+    if AState = bpsFailed then
       FFailed := True;
   finally
     LeaveCriticalSection(FCriticalSection);
@@ -425,10 +425,10 @@ begin
     LockProbeSucceeded := False;
 end;
 
-function TFakeBotHost.StartAppServer: Boolean;
+function TFakeBotHost.StartProvider: Boolean;
 begin
   ProbeControllerLock;
-  State.SetAppServer(cassReady, 'fake');
+  State.SetProvider(bpsReady, 'fake');
   SignalChanged;
   Result := True;
 end;
@@ -480,7 +480,7 @@ begin
 end;
 
 procedure TAppServerStateRecorder.Changed(ASender: TObject;
-  AState: TNXCodexAppServerState; const ADetail: UTF8String);
+  AState: TNXBotProviderState; const ADetail: UTF8String);
 begin
   Inc(Count);
 end;
@@ -536,8 +536,8 @@ begin
   lStanza := TNXXMPPStanza.Create('<iq type=''result'' id=''nx-1'' from=''' +
     AExpectedFrom + '''><bots xmlns=''' + cNXBotControlNamespace +
     ''' no-op=''false''><bot name=''NexusBot'' known=''true'' ' +
-    'available=''true'' active=''false'' provider=''Codex'' ' +
-    'model=''gpt-5.6-luna'' app-server=''stopped'' ' +
+    'active=''false'' provider=''Codex'' ' +
+    'model=''gpt-5.6-luna'' provider-state=''stopped'' ' +
     'xmpp=''disconnected''/></bots></iq>',
     ' xmlns=''jabber:client''');
   AHandler(lStanza, '');
@@ -755,10 +755,97 @@ begin
     lResult.Error)), 'Typed errors should retain their stable category.');
 end;
 
+procedure TestProviderRegistry(AContext: TNXTestContext);
+var
+  lProvider: TNXBotProvider;
+  lRaised: Boolean;
+begin
+  AContext.AssertTrue(TNXBotProviderRegistry.Registered('Codex'),
+    'The linked Codex provider should register itself.');
+  AContext.AssertFalse(TNXBotProviderRegistry.Registered('codex'),
+    'Provider names should remain case-sensitive.');
+  lProvider := TNXBotProviderRegistry.CreateProvider('Codex');
+  try
+    AContext.AssertTrue(lProvider is TNXCodexAppServer,
+      'Named provider creation should return the registered Codex class.');
+  finally
+    lProvider.Free;
+  end;
+
+  lRaised := False;
+  try
+    TNXBotProviderRegistry.RegisterProvider(TNXCodexAppServer);
+  except
+    on E: ENXBotProviderRegistry do
+      lRaised := True;
+  end;
+  AContext.AssertTrue(lRaised,
+    'Duplicate provider registration should fail clearly.');
+
+  lRaised := False;
+  try
+    TNXBotProviderRegistry.RegisterProvider(nil);
+  except
+    on E: ENXBotProviderRegistry do
+      lRaised := True;
+  end;
+  AContext.AssertTrue(lRaised,
+    'Nil provider registration should fail clearly.');
+
+  lRaised := False;
+  try
+    TNXBotProviderRegistry.FindProvider('Missing');
+  except
+    on E: ENXBotProviderRegistry do
+      lRaised := True;
+  end;
+  AContext.AssertTrue(lRaised,
+    'Unknown provider lookup should fail clearly.');
+end;
+
+procedure TestUnregisteredProviderCatalog(AContext: TNXTestContext);
+var
+  lBinding: TNXBotDeploymentBinding;
+  lCatalog: TNXBotCatalog;
+  lConfig: TNXBotControllerConfig;
+  lFileName: string;
+begin
+  lCatalog := TNXBotCatalog.Create;
+  lConfig := TNXBotControllerConfig.Create;
+  try
+    lBinding := TNXBotDeploymentBinding.Create;
+    lBinding.BotName := 'Unregistered';
+    lBinding.CAFile := 'ca.pem';
+    lBinding.EndpointHost := '127.0.0.1';
+    lBinding.EndpointPort := 5222;
+    lBinding.Nick := 'Unregistered';
+    lBinding.PasswordEnvironmentVariable := 'UNREGISTERED_PASSWORD';
+    lBinding.Resource := 'Unregistered';
+    lBinding.XMPPJID := 'unregistered@nexus.local';
+    lConfig.Bindings.Add(lBinding);
+    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      PathDelim + 'catalog' + PathDelim +
+      'BotsUnregistered.Bot.nxscript');
+    AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
+      'A dialect-valid provider without a linked class must fail loading.');
+    AContext.AssertEquals(0, lCatalog.Entries.Count,
+      'An unregistered provider must not publish a catalog entry.');
+    AContext.AssertTrue((Pos('Unregistered', lCatalog.Diagnostics.Text) > 0)
+      and (Pos('not registered', lCatalog.Diagnostics.Text) > 0),
+      'The catalog diagnostic should name the unregistered provider.');
+  finally
+    lConfig.Free;
+    lCatalog.Free;
+  end;
+end;
+
 procedure TestBotCatalog(AContext: TNXTestContext);
 var
   lBinding: TNXBotDeploymentBinding;
+  lDiagnostic: string;
   lDuplicate: TNXBotDeploymentBinding;
+  lFreshCatalog: TNXBotCatalog;
+  lFreshConfig: TNXBotControllerConfig;
   lCatalog: TNXBotCatalog;
   lConfig: TNXBotControllerConfig;
   lFileName: string;
@@ -769,6 +856,7 @@ begin
   try
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
+    lBinding.CAFile := 'ca.pem';
     lBinding.CodexExecutable := 'codex.exe';
     lBinding.EndpointHost := '127.0.0.1';
     lBinding.EndpointPort := 5222;
@@ -784,8 +872,6 @@ begin
       'Bot catalog should compile and validate: ' + lCatalog.Diagnostics.Text);
     AContext.AssertEquals(1, lCatalog.Entries.Count,
       'The fixture should expose one bot definition.');
-    AContext.AssertTrue(lCatalog.Entries[0].Available,
-      'A supported bot with a complete binding should be available.');
     AContext.AssertEquals('gpt-5.6-luna',
       string(lCatalog.Entries[0].Model),
       'Catalog extraction should use the compiled effective value.');
@@ -807,6 +893,7 @@ begin
 
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'Broken';
+    lBinding.CAFile := 'ca.pem';
     lBinding.CodexExecutable := 'codex.exe';
     lBinding.Nick := 'Broken';
     lBinding.PasswordEnvironmentVariable := 'BROKEN_PASSWORD';
@@ -815,16 +902,21 @@ begin
     lBinding.XMPPJID := 'broken@nexus.local';
     lConfig.Bindings.Add(lBinding);
     lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
-      PathDelim + 'catalog' + PathDelim + 'Bots.Mixed.nxscript');
-    AContext.AssertTrue(lCatalog.Load(lFileName, lConfig),
-      'A bad definition must not erase valid catalog entries.');
-    AContext.AssertTrue(lCatalog.Find('NexusBot').Available,
-      'The valid entry should remain available beside an invalid entry.');
-    AContext.AssertTrue(not lCatalog.Find('Broken').Available,
-      'The definition missing Model should be retained but unavailable.');
+      PathDelim + 'catalog' + PathDelim + 'BotsInvalid.Bot.nxscript');
+    AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
+      'A catalog with one invalid definition must fail as a whole.');
+    AContext.AssertEquals(1, lCatalog.Entries.Count,
+      'A failed candidate must preserve the previously published catalog.');
+    AContext.AssertTrue(lCatalog.Find('NexusBot') <> nil,
+      'The previously published entry should remain after candidate failure.');
+    AContext.AssertTrue(lCatalog.Find('Broken') = nil,
+      'No definition from a failed candidate may be published.');
+    AContext.AssertTrue(Pos('required', LowerCase(lCatalog.Diagnostics.Text)) > 0,
+      'Dialect validation failure should retain a useful diagnostic.');
 
     lDuplicate := TNXBotDeploymentBinding.Create;
     lDuplicate.BotName := 'NexusBot';
+    lDuplicate.CAFile := 'ca.pem';
     lDuplicate.CodexExecutable := 'codex.exe';
     lDuplicate.Nick := 'Duplicate';
     lDuplicate.PasswordEnvironmentVariable := 'DUPLICATE_PASSWORD';
@@ -832,10 +924,100 @@ begin
     lDuplicate.RuntimeDirectory := 'runtime';
     lDuplicate.XMPPJID := 'duplicate@nexus.local';
     lConfig.Bindings.Add(lDuplicate);
-    AContext.AssertTrue(lCatalog.Load(lFileName, lConfig),
-      'Duplicate bindings should be reported per entry, not abort loading.');
-    AContext.AssertTrue(not lCatalog.Find('NexusBot').Available,
-      'Duplicate deployment bindings should make their entry unavailable.');
+    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+    AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
+      'Duplicate deployment bindings must fail the catalog.');
+    AContext.AssertTrue(Pos('Multiple deployment bindings',
+      lCatalog.Diagnostics.Text) > 0,
+      'Duplicate deployment bindings should identify the catalog error.');
+    AContext.AssertEquals(1, lCatalog.Entries.Count,
+      'A binding failure must preserve the previously published catalog.');
+
+    lFreshConfig := TNXBotControllerConfig.Create;
+    lFreshCatalog := TNXBotCatalog.Create;
+    try
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'A missing deployment binding must fail a fresh catalog.');
+      AContext.AssertEquals(0, lFreshCatalog.Entries.Count,
+        'A fresh catalog must remain empty after failure.');
+      AContext.AssertTrue(Pos('Missing deployment binding for bot NexusBot',
+        lFreshCatalog.Diagnostics.Text) > 0,
+        'Missing binding diagnostics should name the affected bot.');
+
+      lBinding := TNXBotDeploymentBinding.Create;
+      lBinding.BotName := 'NexusBot';
+      lFreshConfig.Bindings.Add(lBinding);
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'Incomplete deployment configuration must fail the catalog.');
+      lDiagnostic := lFreshCatalog.Diagnostics.Text;
+      AContext.AssertTrue((Pos('XMPPJID', lDiagnostic) > 0) and
+        (Pos('RuntimeDirectory', lDiagnostic) > 0) and
+        (Pos('CAFile', lDiagnostic) > 0),
+        'Incomplete binding diagnostics should identify missing fields.');
+
+      lBinding.CAFile := 'ca.pem';
+      lBinding.CodexExecutable := 'codex.exe';
+      lBinding.EndpointHost := '127.0.0.1';
+      lBinding.EndpointPort := 0;
+      lBinding.Nick := 'NexusBot';
+      lBinding.PasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
+      lBinding.Resource := 'NexusBotHost';
+      lBinding.RuntimeDirectory := 'runtime';
+      lBinding.XMPPJID := 'bad@@nexus.local';
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'Malformed static deployment values must fail the catalog.');
+      lDiagnostic := lFreshCatalog.Diagnostics.Text;
+      AContext.AssertTrue((Pos('Invalid deployment field XMPPJID',
+        lDiagnostic) > 0) and (Pos('requires both host and port',
+        lDiagnostic) > 0),
+        'Static deployment diagnostics should identify malformed values.');
+
+      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+        PathDelim + 'catalog' + PathDelim +
+        'BotsUnsupportedProvider.Bot.nxscript');
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'Unsupported providers must fail dialect validation.');
+      AContext.AssertTrue((Pos('NSV2306', lFreshCatalog.Diagnostics.Text) > 0)
+        and (Pos('OpenAI', lFreshCatalog.Diagnostics.Text) > 0),
+        'Unsupported provider diagnostics should come from the dialect.');
+
+      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+        PathDelim + 'catalog' + PathDelim +
+        'BotsDuplicate.Bot.nxscript');
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'Duplicate bot names must fail catalog loading.');
+      AContext.AssertTrue(lFreshCatalog.Diagnostics.Text <> '',
+        'Duplicate bot names should retain a useful compiler diagnostic.');
+
+      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+        PathDelim + 'catalog' + PathDelim +
+        'BotsMissingDoctype.Bot.nxscript');
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'A missing doctype must fail catalog loading.');
+      AContext.AssertTrue(Pos('declare its language definition',
+        lFreshCatalog.Diagnostics.Text) > 0,
+        'A missing doctype should produce the catalog diagnostic.');
+
+      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+        PathDelim + 'catalog' + PathDelim + 'Missing.Bot.nxscript');
+      AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'NexusScript compilation failure must fail catalog loading.');
+      AContext.AssertTrue(lFreshCatalog.Diagnostics.Text <> '',
+        'Compilation failure should retain a useful diagnostic.');
+
+      lBinding.EndpointPort := 5222;
+      lBinding.XMPPJID := 'test1@nexus.local';
+      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+        PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+      AContext.AssertTrue(lFreshCatalog.Load(lFileName, lFreshConfig),
+        'A valid load should succeed after earlier candidate failures.');
+      AContext.AssertEquals(0, lFreshCatalog.Diagnostics.Count,
+        'Successful loading should clear diagnostics from the failed attempt.');
+    finally
+      lFreshCatalog.Free;
+      lFreshConfig.Free;
+    end;
   finally
     lCatalog.Free;
     lConfig.Free;
@@ -890,6 +1072,7 @@ begin
   try
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
+    lBinding.CAFile := 'ca.pem';
     lBinding.CodexExecutable := 'codex.exe';
     lBinding.Nick := 'NexusBot';
     lBinding.PasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
@@ -1000,6 +1183,9 @@ begin
     AContext.AssertEquals('joined',
       string(lRecorder.ResultValue.Bots[0].Rooms[0].State),
       'INVITE should complete only after the room is joined.');
+    AContext.AssertEquals('fake',
+      string(lRecorder.ResultValue.Bots[0].Diagnostic),
+      'Runtime App Server detail should remain in bot status.');
     AContext.AssertTrue(lController.Execute(lOperation, lAuthorization,
       @lRecorder.Complete, lToken), 'Idempotent INVITE should be accepted.');
     AContext.AssertTrue(lRecorder.ResultValue.NoOp,
@@ -1096,7 +1282,7 @@ begin
   lThread := nil;
   lController := CreateTestController(lHost);
   try
-    lHost.State.SetAppServer(cassReady, 'fake');
+    lHost.State.SetProvider(bpsReady, 'fake');
     lHost.State.SetXMPP('online');
     lHost.BlockJoins := True;
     lHost.StallJoins := True;
@@ -1144,7 +1330,7 @@ begin
     lServer.OnState := @lRecorder.Changed;
     lServer.Shutdown;
     lCallbackCount := lRecorder.Count;
-    AContext.AssertEquals(Integer(cassStopped), Integer(lServer.State),
+    AContext.AssertEquals(Integer(bpsStopped), Integer(lServer.State),
       'Final App Server shutdown should leave stopped state.');
     AContext.AssertFalse(lServer.StartServer('codex.exe', 'runtime',
       'model', 'instructions'),
@@ -1240,7 +1426,15 @@ begin
     lHarness.Module.OnRequest := @lHarness.Request;
     lHarness.IncomingResult.Error := bceNone;
     lHarness.IncomingResult.NoOp := False;
-    SetLength(lHarness.IncomingResult.Bots, 0);
+    SetLength(lHarness.IncomingResult.Bots, 1);
+    lHarness.IncomingResult.Bots[0].Name := 'NexusBot';
+    lHarness.IncomingResult.Bots[0].Known := True;
+    lHarness.IncomingResult.Bots[0].Active := False;
+    lHarness.IncomingResult.Bots[0].Provider := 'Codex';
+    lHarness.IncomingResult.Bots[0].Model := 'gpt-5.6-luna';
+    lHarness.IncomingResult.Bots[0].ProviderState := 'failed';
+    lHarness.IncomingResult.Bots[0].XMPPState := 'disconnected';
+    lHarness.IncomingResult.Bots[0].Diagnostic := 'runtime failure';
     lHarness.Module.RegisterHandlers(lDispatcher);
     lHarness.Module.AddFeatures(lFeatures);
     AContext.AssertTrue(lFeatures.IndexOf(cNXBotControlNamespace) >= 0,
@@ -1265,6 +1459,11 @@ begin
     AContext.AssertTrue(Pos('<iq type=''result'' id=''q1''',
       string(lHarness.SentXML)) = 1,
       'A successful controller result should produce one IQ result.');
+    AContext.AssertTrue(Pos(' available=', string(lHarness.SentXML)) = 0,
+      'Bot status IQ results must not serialize catalog availability.');
+    AContext.AssertTrue(Pos('diagnostic=''runtime failure''',
+      string(lHarness.SentXML)) > 0,
+      'Bot status IQ results should preserve runtime diagnostic detail.');
 
     lStanza := TNXXMPPStanza.Create(
       '<iq from=''reader@nexus.local/resource'' type=''get'' id=''q2''>' +
@@ -1302,6 +1501,8 @@ begin
       'Typed outbound IQ should complete exactly once.');
     AContext.AssertEquals(1, Length(lHarness.OutboundResult.Bots),
       'Typed outbound IQ should parse bot status results.');
+    AContext.AssertFalse(lHarness.OutboundResult.Bots[0].Active,
+      'Typed outbound IQ should parse runtime active state without availability.');
 
     lHarness.DeferRequest := True;
     lStanza := TNXXMPPStanza.Create(
@@ -1379,6 +1580,9 @@ begin
   lSuite.AddTest('ObservableState', @TestObservableState);
   lSuite.AddTest('TypedProtocol', @TestTypedProtocol);
   lSuite.AddTest('ControlContract', @TestControlContract);
+  lSuite.AddTest('ProviderRegistry', @TestProviderRegistry);
+  lSuite.AddTest('UnregisteredProviderCatalog',
+    @TestUnregisteredProviderCatalog);
   lSuite.AddTest('BotCatalog', @TestBotCatalog);
   lSuite.AddTest('ControlInterpreter', @TestControlInterpreter);
   lSuite.AddTest('Controller', @TestController);
