@@ -76,8 +76,8 @@ The useful completion proof is:
 
 ## Current Committed State
 
-The Linux-support checkpoint before this handoff is commit `fe58f86` (`Syncing
-Linux support progress.`). It contains:
+The Linux-support checkpoint is commit `fe58f86` (`Syncing Linux support
+progress.`). It contains:
 
 - the headless `NexusBotHost.lpr` entry point;
 - Unix `cthreads`, `SIGINT`, and `SIGTERM` handling;
@@ -88,6 +88,10 @@ Linux support progress.`). It contains:
 - removal of BotHost's NexusUI and SDL dependencies;
 - direct-message routing and room-context behavior;
 - join-or-create support for temporary MUC rooms.
+
+Commit `be25612` (`removed ICU silliness`) follows it and contains the settled
+ASCII-only XMPP identity change described below. Both commits precede this
+handoff and are available from `origin/main`.
 
 Primary files for native-build failures are:
 
@@ -103,14 +107,9 @@ Primary files for native-build failures are:
 
 Open only the files implicated by an actual failure.
 
-## Important Uncommitted Windows Work
+## ICU/PRECIS Removal
 
-When this handoff was created, the Windows working tree also contained a
-verified but uncommitted ICU/PRECIS removal. It is deliberately **not** part of
-the handoff commit. A fresh Ubuntu checkout will not contain it unless it has
-subsequently been committed or transferred by the owner.
-
-The agreed final direction of that change is:
+Commit `be25612` implements the agreed final direction:
 
 - delete `obNXXMPPICU.pas`, `obNXXMPPPRECIS.pas`,
   `tpNXXMPPPRECISTableData.inc`, and
@@ -121,14 +120,13 @@ The agreed final direction of that change is:
 - remove ICU/PRECIS references from tests and documentation.
 
 Before changing anything on Ubuntu, run `git status --short` and inspect the
-last few commits. Do not overwrite Ubuntu-side work. If the ICU-removal commit
-is absent, report that fact to the owner instead of silently rebuilding a
-second implementation from this summary.
+last few commits. Do not overwrite Ubuntu-side work. Pull `origin/main` if the
+checkout does not contain `be25612`; do not rebuild a second implementation.
 
 ## Verified Windows Baseline
 
-Immediately before this handoff was written, the Windows tree including the
-uncommitted ICU removal produced these results:
+Immediately before this handoff was written, the committed Windows tree through
+`be25612` produced these results:
 
 - `lazbuild -B NexusTools/BotHost/NexusBotHost.lpi`: passed;
 - `lazbuild -B NexusTools/BotHost/tests/NexusBotHostTestModule.lpi`: passed;
