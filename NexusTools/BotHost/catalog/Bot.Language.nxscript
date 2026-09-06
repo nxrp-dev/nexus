@@ -10,7 +10,7 @@ Language Bot {
                     Value Value {
                         EffectiveCategories: [Text];
                         Scalar: Text;
-                        AllowedValues: [Codex];
+                        AllowedValues: [Codex, OpenAI];
                     }
                 },
                 Property Model {

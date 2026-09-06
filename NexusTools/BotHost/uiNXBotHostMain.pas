@@ -200,6 +200,24 @@ begin
   lBinding.Resource := lHostConfig.Resource;
   lBinding.RuntimeDirectory := lHostConfig.RuntimeDirectory;
   lBinding.XMPPJID := lHostConfig.XMPPJID;
+  lBinding := FControllerConfig.Bindings.Find('OpenAIBot');
+  if not Assigned(lBinding) then
+  begin
+    lBinding := TNXBotDeploymentBinding.Create;
+    lBinding.BotName := 'OpenAIBot';
+    FControllerConfig.Bindings.Add(lBinding);
+  end;
+  lBinding.AllowPlain := lHostConfig.AllowPlain;
+  lBinding.CAFile := lHostConfig.CAFile;
+  lBinding.DirectTLS := lHostConfig.DirectTLS;
+  lBinding.EndpointHost := lHostConfig.EndpointHost;
+  lBinding.EndpointPort := lHostConfig.EndpointPort;
+  lBinding.Nick := 'OpenAIBot';
+  lBinding.OpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
+  lBinding.PasswordEnvironmentVariable :=
+    'NEXUS_OPENAI_BOT_XMPP_PASSWORD';
+  lBinding.Resource := 'NexusOpenAIBotHost';
+  lBinding.XMPPJID := 'test2@nexus.local';
   FControllerConfig.ControllerFullJID := lHostConfig.XMPPJID + '/' +
     lHostConfig.Resource;
 

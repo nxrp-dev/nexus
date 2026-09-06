@@ -39,6 +39,8 @@ type
     FOnState: TNXBotProviderStateEvent;
     FState: TNXBotProviderState;
   protected
+    function BoundAnswer(const AValue: UTF8String;
+      AMaximumBytes: Integer): UTF8String;
     procedure Diagnostic(const AText: UTF8String);
     procedure FinalAnswer(APrompt: TNXBotPrompt; const AText: UTF8String);
     procedure PromptFailed(APrompt: TNXBotPrompt; const AText: UTF8String);
@@ -89,10 +91,29 @@ type
 
 implementation
 
+const
+  cAnswerTruncationMarker = #10'[answer truncated]';
+
 constructor TNXBotProvider.Create;
 begin
   inherited Create;
   FState := bpsStopped;
+end;
+
+function TNXBotProvider.BoundAnswer(const AValue: UTF8String;
+  AMaximumBytes: Integer): UTF8String;
+var
+  lAvailable: Integer;
+begin
+  if (AMaximumBytes < 1) or (Length(AValue) <= AMaximumBytes) then
+    Exit(AValue);
+  if AMaximumBytes <= Length(cAnswerTruncationMarker) then
+    Exit(Copy(UTF8String(cAnswerTruncationMarker), 1, AMaximumBytes));
+  lAvailable := AMaximumBytes - Length(cAnswerTruncationMarker);
+  while (lAvailable > 0) and (lAvailable < Length(AValue)) and
+    ((Byte(AValue[lAvailable + 1]) and $C0) = $80) do
+    Dec(lAvailable);
+  Result := Copy(AValue, 1, lAvailable) + cAnswerTruncationMarker;
 end;
 
 class procedure TNXBotProvider.ValidateDeployment(

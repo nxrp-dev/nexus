@@ -5,6 +5,7 @@ program NexusBotHost;
 
 uses
   obNXCodexAppServer,
+  obNXOpenAIProvider,
   uiNXBotHostMain;
 
 begin

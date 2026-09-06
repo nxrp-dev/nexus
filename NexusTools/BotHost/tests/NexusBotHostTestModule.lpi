@@ -9,7 +9,7 @@
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
-    <Units Count="3">
+    <Units Count="4">
       <Unit0>
         <Filename Value="NexusBotHostTestModule.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -22,6 +22,10 @@
         <Filename Value="tsNXBotHostLiveTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit2>
+      <Unit3>
+        <Filename Value="tsNXOpenAIProviderTests.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit3>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

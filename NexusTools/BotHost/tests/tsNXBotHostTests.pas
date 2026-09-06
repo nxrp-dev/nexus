@@ -29,6 +29,7 @@ uses
   obNXCodexAppServerMessages,
   obNXCodexAppServerTypes,
   obNXJSONRPCMessages,
+  obNXOpenAIProvider,
   obNXXMPPCommand,
   obNXXMPPBotControl,
   obNXXMPPDispatcher,
@@ -771,6 +772,17 @@ begin
   finally
     lProvider.Free;
   end;
+  AContext.AssertTrue(TNXBotProviderRegistry.Registered('OpenAI'),
+    'The linked OpenAI provider should register itself.');
+  AContext.AssertFalse(TNXBotProviderRegistry.Registered('openai'),
+    'OpenAI provider identity should remain case-sensitive.');
+  lProvider := TNXBotProviderRegistry.CreateProvider('OpenAI');
+  try
+    AContext.AssertTrue(lProvider is TNXOpenAIProvider,
+      'Named provider creation should return the registered OpenAI class.');
+  finally
+    lProvider.Free;
+  end;
 
   lRaised := False;
   try
@@ -801,6 +813,23 @@ begin
   end;
   AContext.AssertTrue(lRaised,
     'Unknown provider lookup should fail clearly.');
+end;
+
+procedure AddOpenAITestBinding(AConfig: TNXBotControllerConfig);
+var
+  lBinding: TNXBotDeploymentBinding;
+begin
+  lBinding := TNXBotDeploymentBinding.Create;
+  lBinding.BotName := 'OpenAIBot';
+  lBinding.CAFile := 'ca.pem';
+  lBinding.EndpointHost := '127.0.0.1';
+  lBinding.EndpointPort := 5222;
+  lBinding.Nick := 'OpenAIBot';
+  lBinding.OpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
+  lBinding.PasswordEnvironmentVariable := 'OPENAI_BOT_XMPP_PASSWORD';
+  lBinding.Resource := 'OpenAIBotHost';
+  lBinding.XMPPJID := 'openai@nexus.local';
+  AConfig.Bindings.Add(lBinding);
 end;
 
 procedure TestUnregisteredProviderCatalog(AContext: TNXTestContext);
@@ -866,12 +895,13 @@ begin
     lBinding.RuntimeDirectory := 'runtime';
     lBinding.XMPPJID := 'test1@nexus.local';
     lConfig.Bindings.Add(lBinding);
+    AddOpenAITestBinding(lConfig);
     lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
       PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
     AContext.AssertTrue(lCatalog.Load(lFileName, lConfig),
       'Bot catalog should compile and validate: ' + lCatalog.Diagnostics.Text);
-    AContext.AssertEquals(1, lCatalog.Entries.Count,
-      'The fixture should expose one bot definition.');
+    AContext.AssertEquals(2, lCatalog.Entries.Count,
+      'The fixture should expose both bot definitions.');
     AContext.AssertEquals('gpt-5.6-luna',
       string(lCatalog.Entries[0].Model),
       'Catalog extraction should use the compiled effective value.');
@@ -879,6 +909,18 @@ begin
       'Persisted deployment configuration must not contain a password value.');
     AContext.AssertTrue(Pos('OperationTimeoutMS', lConfig.JSON) = 0,
       'Controller configuration must not emit the removed deadline setting.');
+
+    lBinding := TNXBotDeploymentBinding(lConfig.Bindings[1]);
+    lBinding.OpenAIAPIKeyEnvironmentVariable := '';
+    AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
+      'A blank OpenAI API-key variable name must fail catalog loading.');
+    AContext.AssertEquals(2, lCatalog.Entries.Count,
+      'OpenAI deployment failure must preserve the published catalog.');
+    AContext.AssertTrue(Pos('OpenAIAPIKeyEnvironmentVariable',
+      lCatalog.Diagnostics.Text) > 0,
+      'The OpenAI deployment diagnostic should name the missing field.');
+    lBinding.OpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
+
     lLoadedConfig := TNXBotControllerConfig.Create;
     try
       lLoadedConfig.JSON := '{"OperationTimeoutMS":1,' +
@@ -905,7 +947,7 @@ begin
       PathDelim + 'catalog' + PathDelim + 'BotsInvalid.Bot.nxscript');
     AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
       'A catalog with one invalid definition must fail as a whole.');
-    AContext.AssertEquals(1, lCatalog.Entries.Count,
+    AContext.AssertEquals(2, lCatalog.Entries.Count,
       'A failed candidate must preserve the previously published catalog.');
     AContext.AssertTrue(lCatalog.Find('NexusBot') <> nil,
       'The previously published entry should remain after candidate failure.');
@@ -931,7 +973,7 @@ begin
     AContext.AssertTrue(Pos('Multiple deployment bindings',
       lCatalog.Diagnostics.Text) > 0,
       'Duplicate deployment bindings should identify the catalog error.');
-    AContext.AssertEquals(1, lCatalog.Entries.Count,
+    AContext.AssertEquals(2, lCatalog.Entries.Count,
       'A binding failure must preserve the previously published catalog.');
 
     lFreshConfig := TNXBotControllerConfig.Create;
@@ -948,6 +990,7 @@ begin
       lBinding := TNXBotDeploymentBinding.Create;
       lBinding.BotName := 'NexusBot';
       lFreshConfig.Bindings.Add(lBinding);
+      AddOpenAITestBinding(lFreshConfig);
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
         'Incomplete deployment configuration must fail the catalog.');
       lDiagnostic := lFreshCatalog.Diagnostics.Text;
@@ -979,7 +1022,7 @@ begin
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
         'Unsupported providers must fail dialect validation.');
       AContext.AssertTrue((Pos('NSV2306', lFreshCatalog.Diagnostics.Text) > 0)
-        and (Pos('OpenAI', lFreshCatalog.Diagnostics.Text) > 0),
+        and (Pos('UnsupportedProvider', lFreshCatalog.Diagnostics.Text) > 0),
         'Unsupported provider diagnostics should come from the dialect.');
 
       lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
@@ -1080,6 +1123,7 @@ begin
     lBinding.RuntimeDirectory := 'runtime';
     lBinding.XMPPJID := 'bot@nexus.local';
     lConfig.Bindings.Add(lBinding);
+    AddOpenAITestBinding(lConfig);
     lConfig.Operators.Add('operator@nexus.local');
     lConfig.Readers.Add('reader@nexus.local');
     if not lCatalog.Load(ExpandFileName('NexusTools' + PathDelim +

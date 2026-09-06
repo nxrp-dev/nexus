@@ -20,6 +20,7 @@ type
     FEndpointPort: Integer;
     FDirectTLS: Boolean;
     FNick: string;
+    FOpenAIAPIKeyEnvironmentVariable: string;
     FPasswordEnvironmentVariable: string;
     FResource: string;
     FRuntimeDirectory: string;
@@ -34,6 +35,9 @@ type
     property EndpointPort: Integer read FEndpointPort write FEndpointPort;
     property DirectTLS: Boolean read FDirectTLS write FDirectTLS;
     property Nick: string read FNick write FNick;
+    property OpenAIAPIKeyEnvironmentVariable: string
+      read FOpenAIAPIKeyEnvironmentVariable
+      write FOpenAIAPIKeyEnvironmentVariable;
     property PasswordEnvironmentVariable: string
       read FPasswordEnvironmentVariable write FPasswordEnvironmentVariable;
     property Resource: string read FResource write FResource;
@@ -84,6 +88,7 @@ type
     FDirectTLS: Boolean;
     FJournalCapacity: Integer;
     FNick: string;
+    FOpenAIAPIKeyEnvironmentVariable: string;
     FPasswordEnvironmentVariable: string;
     FPromptCapacity: Integer;
     FPromptMaximumBytes: Integer;
@@ -115,6 +120,9 @@ type
       write FJournalCapacity;
     property Model: string read FModel write FModel;
     property Nick: string read FNick write FNick;
+    property OpenAIAPIKeyEnvironmentVariable: string
+      read FOpenAIAPIKeyEnvironmentVariable
+      write FOpenAIAPIKeyEnvironmentVariable;
     property PasswordEnvironmentVariable: string
       read FPasswordEnvironmentVariable write FPasswordEnvironmentVariable;
     property PromptCapacity: Integer read FPromptCapacity
@@ -188,6 +196,7 @@ begin
   FEndpointPort := 5222;
   FJournalCapacity := 256;
   FNick := 'NexusBot';
+  FOpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
   FPasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
   FPromptCapacity := 16;
   FPromptMaximumBytes := 16 * 1024;

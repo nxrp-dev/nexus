@@ -8,7 +8,7 @@ the catalog.
 Bot behavior is defined by `catalog/Bots.nxscript` using the small Bot language
 in `catalog/Bot.Language.nxscript`. The initial behavioral contract contains
 only `Provider`, `Model`, and `Instructions`. Provider names are resolved by a
-case-sensitive BotHost registry; `Codex` is the first registered provider.
+case-sensitive BotHost registry; `Codex` and `OpenAI` are registered providers.
 Deployment data is separate RTTI-persisted configuration. Catalog loading
 rejects an unregistered provider before publishing any bot entries.
 
@@ -18,6 +18,13 @@ are published. Invalid catalog documents are rejected as a whole with collected
 diagnostics; they are not retained as partially available bots. Connectivity,
 authentication, provider startup, and other operational failures remain runtime
 status rather than catalog validity.
+
+The registered providers are `Codex` and `OpenAI`. `OpenAI` uses the Responses
+API through WinHTTP on Windows, sends non-streaming requests, and keeps only the
+previous response ID in memory for conversation continuity. It sends
+`store: true`; the response chain therefore uses OpenAI-retained response state
+while BotHost writes no conversation history to disk. Streaming, tools, and a
+non-Windows OpenAI transport are not part of this milestone.
 
 ## Control plane
 
@@ -122,8 +129,9 @@ configuration is saved beside it as `NexusBotController.json`. It contains:
 - normalized reader and operator bare-JID allowlists;
 - deployment bindings associating canonical catalog names with XMPP identity,
   resource, nickname, endpoint/TLS data, provider-specific deployment data, and
-  a password-environment-variable name. The current Codex binding uses
-  `CodexExecutable` and `RuntimeDirectory`.
+  a password-environment-variable name. The Codex binding uses
+  `CodexExecutable` and `RuntimeDirectory`; the OpenAI binding uses
+  `OpenAIAPIKeyEnvironmentVariable`.
 
 No password value is persisted. The distinguished host defaults to the variable
 name below:
@@ -132,11 +140,23 @@ name below:
 $env:NEXUS_BOT_XMPP_PASSWORD = '<password>'
 ```
 
-Each additional bot binding should use its own environment variable. Use a
+Each additional bot binding should use its own environment variable. The
+default second binding expects:
+
+```powershell
+$env:NEXUS_OPENAI_BOT_XMPP_PASSWORD = '<openfire-password>'
+$env:OPENAI_API_KEY = '<OpenAI-API-key>'
+```
+
+Set those variables before issuing `invite OpenAIBot` through the existing
+control path. The API key value is read only by the OpenAI provider worker and
+is never persisted in configuration or placed in its typed JSON request.
+
+Use a
 dedicated runtime directory outside a source repository. The host starts an
 ephemeral Codex thread with `sandbox = read-only`, `approvalPolicy = never`, and
 restrictive developer instructions. Existing Codex authentication is reused;
-no OpenAI API key is stored.
+no Codex or OpenAI credential value is stored.
 
 For Openfire with a private CA, set `CAFile` to the trusted CA PEM used by the
 NexusXMPP live tests. Trust the issuer rather than disabling verification.
@@ -156,9 +176,12 @@ free-form JSON interpretation.
 
 ## Live Openfire verification
 
-The live Openfire/Codex test is registered as
-`NexusBotHostLive.OpenfireCodex` in `NexusBotHostTestModule.dll`. Configure it
-through environment variables, then invoke it through `NexusTestHost`:
+The live tests are registered as `NexusBotHostLive.OpenfireCodex` and
+`NexusBotHostLive.OpenfireOpenAI` in `NexusBotHostTestModule.dll`. Configure
+the desired test through environment variables, then invoke it through
+`NexusTestHost`.
+
+Codex:
 
 ```powershell
 $env:NEXUS_BOTHOST_LIVE_OPENFIRE = '1'
@@ -178,9 +201,23 @@ $env:NEXUS_BOTHOST_CATALOG_FILE = '<catalog-file>'
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenfireCodex
 ```
 
+OpenAI uses the shared Openfire endpoint, CA, room, and observer variables from
+the preceding example, plus:
+
+```powershell
+$env:NEXUS_BOTHOST_LIVE_OPENAI = '1'
+$env:NEXUS_BOTHOST_OPENAI_MODEL = '<available-OpenAI-model>'
+$env:NEXUS_BOTHOST_OPENAI_BOT_JID = 'test2@nexus.local'
+$env:NEXUS_BOTHOST_OPENAI_BOT_PASSWORD_ENVIRONMENT_VARIABLE = 'NEXUS_OPENAI_BOT_XMPP_PASSWORD'
+$env:NEXUS_BOTHOST_OPENAI_API_KEY_ENVIRONMENT_VARIABLE = 'OPENAI_API_KEY'
+$env:NEXUS_OPENAI_BOT_XMPP_PASSWORD = '<bot-password>'
+$env:OPENAI_API_KEY = '<OpenAI-API-key>'
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenfireOpenAI
+```
+
 The live test uses unique XMPP resources and ordinary client/module APIs. It
 verifies IQ LIST and STATUS, DISMISS plus idempotent DISMISS, observed leave,
 INVITE plus idempotent INVITE, observed rejoin, and an ordinary addressed MUC
 conversation in the permanent room. Credentials and generated resources are
-not written to the repository. Without `NEXUS_BOTHOST_LIVE_OPENFIRE=1`, the
-test is reported as skipped.
+not written to the repository. Each live test is skipped unless its own switch
+is set to `1`.

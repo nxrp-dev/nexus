@@ -5,3 +5,9 @@ Bot NexusBot {
     Model: "gpt-5.6-luna";
     Instructions: "You are NexusBot. Answer directly and concisely.";
 }
+
+Bot OpenAIBot {
+    Provider: OpenAI;
+    Model: "gpt-5.6-luna";
+    Instructions: "You are OpenAIBot. Answer directly and concisely.";
+}

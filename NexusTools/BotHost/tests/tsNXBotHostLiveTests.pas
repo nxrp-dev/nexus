@@ -33,6 +33,7 @@ uses
 
 const
   cLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_OPENFIRE';
+  cOpenAILiveTestEnabled = 'NEXUS_BOTHOST_LIVE_OPENAI';
 
 function RequiredEnvironment(AContext: TNXTestContext;
   const AName: string): string;
@@ -48,12 +49,13 @@ type
     FCriticalSection: TRTLCriticalSection;
     FControlCount: Integer;
     FControlResult: TNXBotControlResult;
+    FBotNick: UTF8String;
     FError: UTF8String;
     FOnline: Boolean;
     FReply: UTF8String;
     FRoomJoined: Boolean;
   public
-    constructor Create;
+    constructor Create(const ABotNick: UTF8String = 'NexusBot');
     destructor Destroy; override;
     procedure RoomMessage(ASender: TObject; ARoom: TNXXMPPRoom;
       AMessage: TNXXMPPMessage);
@@ -70,9 +72,10 @@ type
       out AResult: TNXBotControlResult);
   end;
 
-constructor TObserver.Create;
+constructor TObserver.Create(const ABotNick: UTF8String);
 begin
   inherited Create;
+  FBotNick := ABotNick;
   InitCriticalSection(FCriticalSection);
 end;
 
@@ -140,13 +143,123 @@ procedure TObserver.RoomMessage(ASender: TObject; ARoom: TNXXMPPRoom;
   AMessage: TNXXMPPMessage);
 begin
   if (AMessage.Context <> xmdcLive) or
-    (AMessage.FromJID <> ARoom.JID + '/NexusBot') then
+    (AMessage.FromJID <> ARoom.JID + '/' + FBotNick) then
     Exit;
   EnterCriticalSection(FCriticalSection);
   try
     FReply := AMessage.Body;
   finally
     LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+procedure WaitHost(AHost: TNXBotHost; const AWhat: string;
+  AReady: Boolean; ATimeoutMS: Cardinal); forward;
+procedure WaitObserver(AObserver: TObserver; ARequireRoom: Boolean;
+  ATimeoutMS: Cardinal); forward;
+
+procedure TestOpenfireOpenAI(AContext: TNXTestContext);
+var
+  lAPIKeyEnvironment: string;
+  lBotPasswordEnvironment: string;
+  lConfig: TNXBotHostConfig;
+  lDeadline: QWord;
+  lHost: TNXBotHost;
+  lMUC: TNXXMPPMUCModule;
+  lObserver: TObserver;
+  lObserverClient: TNXXMPPClient;
+  lOnline: Boolean;
+  lReply: UTF8String;
+  lRoomJID: string;
+  lRoomJoined: Boolean;
+begin
+  if GetEnvironmentVariable(cOpenAILiveTestEnabled) <> '1' then
+    AContext.Skip('Set ' + cOpenAILiveTestEnabled + '=1 to run the ' +
+      'Openfire/OpenAI integration test.');
+  lAPIKeyEnvironment := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_OPENAI_API_KEY_ENVIRONMENT_VARIABLE');
+  RequiredEnvironment(AContext, lAPIKeyEnvironment);
+  lBotPasswordEnvironment := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_OPENAI_BOT_PASSWORD_ENVIRONMENT_VARIABLE');
+  RequiredEnvironment(AContext, lBotPasswordEnvironment);
+  lRoomJID := RequiredEnvironment(AContext, 'NEXUS_BOTHOST_ROOM_JID');
+
+  lConfig := TNXBotHostConfig.Create;
+  lConfig.Provider := 'OpenAI';
+  lConfig.Model := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_OPENAI_MODEL');
+  lConfig.OpenAIAPIKeyEnvironmentVariable := lAPIKeyEnvironment;
+  lConfig.XMPPJID := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_OPENAI_BOT_JID');
+  lConfig.PasswordEnvironmentVariable := lBotPasswordEnvironment;
+  lConfig.Resource := 'NexusOpenAIBotHost-' + IntToStr(GetTickCount64);
+  lConfig.CAFile := RequiredEnvironment(AContext, 'NEXUS_BOTHOST_CA_FILE');
+  lConfig.EndpointHost := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_ENDPOINT_HOST');
+  lConfig.EndpointPort := StrToInt(RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_ENDPOINT_PORT'));
+  lConfig.RoomJID := lRoomJID;
+  lConfig.Nick := 'OpenAIBot';
+
+  lHost := TNXBotHost.Create(lConfig,
+    'Reply directly and concisely to the addressed user.');
+  lObserver := TObserver.Create('OpenAIBot');
+  lObserverClient := TNXXMPPClient.Create;
+  lMUC := TNXXMPPMUCModule.Create;
+  try
+    lObserverClient.Config.JID := UTF8String(RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_OBSERVER_JID'));
+    lObserverClient.Config.Password := UTF8String(RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_OBSERVER_PASSWORD'));
+    lObserverClient.Config.Resource := 'NexusOpenAIObserver-' +
+      IntToStr(GetTickCount64);
+    lObserverClient.Config.CAFile := lConfig.CAFile;
+    lObserverClient.Config.EndpointHost := lConfig.EndpointHost;
+    lObserverClient.Config.EndpointPort := lConfig.EndpointPort;
+    lObserverClient.Config.AllowPlain := True;
+    lObserverClient.OnError := @lObserver.Error;
+    lObserverClient.OnState := @lObserver.State;
+    lMUC.OnRoomMessage := @lObserver.RoomMessage;
+    lMUC.OnRoomState := @lObserver.RoomState;
+    lObserverClient.AddModule(lMUC);
+
+    if not lHost.StartProvider then
+      raise Exception.Create('OpenAI provider command was rejected.');
+    WaitHost(lHost, 'appserver', True, 15000);
+    if not lHost.ConnectXMPP then
+      raise Exception.Create('OpenAI bot XMPP connect failed.');
+    WaitHost(lHost, 'xmpp', True, 15000);
+    if not lHost.JoinRoom(UTF8String(lRoomJID)) then
+      raise Exception.Create('OpenAI bot room join command was rejected.');
+    WaitHost(lHost, lRoomJID, True, 15000);
+
+    lObserverClient.Connect;
+    WaitObserver(lObserver, False, 15000);
+    if not lMUC.Join(UTF8String(lRoomJID), 'OpenAIObserver', '') then
+      raise Exception.Create('Observer room join command was rejected.');
+    WaitObserver(lObserver, True, 15000);
+    if not lMUC.SendGroupMessage(UTF8String(lRoomJID),
+      '@OpenAIBot Reply with exactly: OpenAI BotHost live test passed') then
+      raise Exception.Create('Observer group message command was rejected.');
+
+    lDeadline := GetTickCount64 + 120000;
+    repeat
+      lObserver.Snapshot(lOnline, lRoomJoined, lReply);
+      if lReply <> '' then
+        Break;
+      Sleep(10);
+    until GetTickCount64 >= lDeadline;
+    if lReply = '' then
+      raise Exception.Create('The OpenAI room message received no answer.' +
+        LineEnding + string(lHost.State.Snapshot.Journal));
+    AContext.AssertEquals('OpenAI BotHost live test passed', string(lReply),
+      'The live OpenAI bot should return the requested exact reply.');
+  finally
+    lMUC.Leave(UTF8String(lRoomJID));
+    lObserverClient.Disconnect;
+    lObserverClient.Free;
+    lObserver.Free;
+    lHost.Free;
   end;
 end;
 
@@ -342,6 +455,18 @@ begin
   lBinding.RuntimeDirectory := lRuntimeDirectory;
   lBinding.XMPPJID := lBotJID;
   lControllerConfig.Bindings.Add(lBinding);
+  lBinding := TNXBotDeploymentBinding.Create;
+  lBinding.BotName := 'OpenAIBot';
+  lBinding.AllowPlain := True;
+  lBinding.CAFile := lCAFile;
+  lBinding.EndpointHost := lEndpointHost;
+  lBinding.EndpointPort := lPort;
+  lBinding.Nick := 'OpenAIBot';
+  lBinding.OpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
+  lBinding.PasswordEnvironmentVariable := 'NEXUS_OPENAI_BOT_XMPP_PASSWORD';
+  lBinding.Resource := 'NexusOpenAIBotHost';
+  lBinding.XMPPJID := 'test2@nexus.local';
+  lControllerConfig.Bindings.Add(lBinding);
   lCatalog := TNXBotCatalog.Create;
   if not lCatalog.Load(lCatalogFile, lControllerConfig) then
     raise Exception.Create(lCatalog.Diagnostics.Text);
@@ -478,6 +603,7 @@ var
 begin
   lSuite := ARegistry.AddSuite('NexusBotHostLive');
   lSuite.AddTest('OpenfireCodex', @TestOpenfireCodex, 'integration');
+  lSuite.AddTest('OpenfireOpenAI', @TestOpenfireOpenAI, 'integration');
 end;
 
 end.

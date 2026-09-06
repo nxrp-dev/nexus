@@ -180,7 +180,6 @@ const
   cAppServerEnvelopePolicy = jepHeaderless;
   cLoopDelayMS = 5;
   cReadBufferSize = 8192;
-  cTruncationMarker = #10'[answer truncated]';
 
 type
   TNXCodexControlRequest = class
@@ -230,22 +229,6 @@ begin
     AMessage.jsonrpc.Value := TNXJSONRPC.Version
   else
     AMessage.jsonrpc.Assigned := False;
-end;
-
-function NXBoundUTF8(const AValue: UTF8String;
-  AMaximumBytes: Integer): UTF8String;
-var
-  lAvailable: Integer;
-begin
-  if (AMaximumBytes < 1) or (Length(AValue) <= AMaximumBytes) then
-    Exit(AValue);
-  if AMaximumBytes <= Length(cTruncationMarker) then
-    Exit(Copy(UTF8String(cTruncationMarker), 1, AMaximumBytes));
-  lAvailable := AMaximumBytes - Length(cTruncationMarker);
-  while (lAvailable > 0) and (lAvailable < Length(AValue)) and
-    ((Byte(AValue[lAvailable + 1]) and $C0) = $80) do
-    Dec(lAvailable);
-  Result := Copy(AValue, 1, lAvailable) + cTruncationMarker;
 end;
 
 function NXValidUTF8(const AValue: RawByteString): Boolean;
@@ -1115,7 +1098,7 @@ begin
       FailActivePrompt('Codex turn completed without an eligible final answer.')
     else
     begin
-      lAnswer := NXBoundUTF8(lAnswer, FAnswerMaximumBytes);
+      lAnswer := BoundAnswer(lAnswer, FAnswerMaximumBytes);
       FinalAnswer(FActivePrompt, lAnswer);
       FreeAndNil(FActivePrompt);
     end;

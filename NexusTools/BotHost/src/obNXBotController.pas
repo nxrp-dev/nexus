@@ -317,6 +317,8 @@ begin
         lConfig.EndpointHost := lBinding.EndpointHost;
         lConfig.EndpointPort := lBinding.EndpointPort;
         lConfig.Nick := lBinding.Nick;
+        lConfig.OpenAIAPIKeyEnvironmentVariable :=
+          lBinding.OpenAIAPIKeyEnvironmentVariable;
         lConfig.PasswordEnvironmentVariable :=
           lBinding.PasswordEnvironmentVariable;
         lConfig.Resource := lBinding.Resource;
@@ -975,6 +977,8 @@ begin
       lBinding.EndpointHost := ABinding.EndpointHost;
       lBinding.EndpointPort := ABinding.EndpointPort;
       lBinding.Nick := ABinding.Nick;
+      lBinding.OpenAIAPIKeyEnvironmentVariable :=
+        ABinding.OpenAIAPIKeyEnvironmentVariable;
       lBinding.PasswordEnvironmentVariable :=
         ABinding.PasswordEnvironmentVariable;
       lBinding.Resource := ABinding.Resource;

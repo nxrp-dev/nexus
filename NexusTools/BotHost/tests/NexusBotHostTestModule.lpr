@@ -8,7 +8,9 @@ uses
   obNXTestModule,
   obNXTestRegistry,
   obNXTestRPCRequests,
+  obNXOpenAIProvider,
   tsNXBotHostTests,
+  tsNXOpenAIProviderTests,
   tsNXBotHostLiveTests;
 
 var
@@ -17,6 +19,7 @@ var
 procedure RegisterTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXBotHostTests(ARegistry);
+  RegisterNXOpenAIProviderTests(ARegistry);
   RegisterNXBotHostLiveTests(ARegistry);
 end;
 
