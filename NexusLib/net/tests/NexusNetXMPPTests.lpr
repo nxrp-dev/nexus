@@ -6,9 +6,7 @@ program NexusNetXMPPTests;
 uses
   Classes, SysUtils, Contnrs, DOM, blcksock, ssl_openssl3, synsock,
   tpNXXMPPTypes, tpNXXMPPMessageTypes,
-  obNXXMPPICU,
   obNXXMPPError,
-  obNXXMPPPRECIS,
   obNXXMPPJID,
   obNXXMPPStreamFramer,
   obNXXMPPStanza,
@@ -490,48 +488,49 @@ begin
   raise Exception.Create(AMessage + ' Expected an exception.');
 end;
 
-procedure TestICU;
+procedure AssertJIDRejected(const AValue, ACondition: UTF8String);
+var
+  lJID: TNXXMPPJID;
 begin
-  TNXXMPPICU.RequireAvailable;
-  AssertEquals(UTF8Encode(UnicodeString(#$00E9)),
-    TNXXMPPICU.NFCNormalize(UTF8String('e') +
-      UTF8Encode(UnicodeString(#$0301))),
-    'ICU should normalize to NFC.');
-  AssertEquals('example.com', TNXXMPPICU.IDNAToASCII('example.com'),
-    'ICU should preserve an ASCII domain.');
-  AssertEquals('xn--bcher-kva.example',
-    TNXXMPPICU.IDNAToASCII(UTF8String('b') +
-      UTF8Encode(UnicodeString(#$00FC)) +
-      'cher.example'), 'ICU should apply non-transitional IDNA.');
-end;
-
-procedure TestPRECIS;
-begin
-  AssertEquals('kevin', TNXXMPPPRECIS.EnforceUsernameCaseMapped('KEVIN'),
-    'UsernameCaseMapped should lowercase.');
-  AssertEquals('abc', TNXXMPPPRECIS.EnforceUsernameCaseMapped(
-    UTF8Encode(UnicodeString(#$FF21#$FF22#$FF23))),
-    'UsernameCaseMapped should width-map fullwidth letters.');
-  AssertEquals('l' + UTF8Encode(UnicodeString(#$00B7)) + 'l',
-    TNXXMPPPRECIS.EnforceUsernameCaseMapped(
-      UTF8String('L') + UTF8Encode(UnicodeString(#$00B7)) + 'L'),
-    'MIDDLE DOT should be valid between lowercase l characters.');
+  try
+    lJID := TNXXMPPJID.Create(AValue);
+    lJID.Free;
+  except
+    on E: ENXXMPPError do
+    begin
+      AssertTrue(E.Condition = ACondition,
+        'A rejected JID should report the expected condition.');
+      Exit;
+    end;
+  end;
+  raise Exception.Create('The invalid JID should have been rejected.');
 end;
 
 procedure TestJID;
 var
   lJID: TNXXMPPJID;
 begin
-  lJID := TNXXMPPJID.Create(UTF8String('KEVIN@b') +
-    UTF8Encode(UnicodeString(#$00FC)) + 'cher.example/Desk');
+  lJID := TNXXMPPJID.Create('KEVIN@NEXUS.REMOTE/Desk One');
   try
-    AssertEquals('kevin@xn--bcher-kva.example/Desk', lJID.ToString,
-      'JID should prepare each part according to its profile.');
-    AssertEquals('kevin@xn--bcher-kva.example', lJID.Bare,
+    AssertEquals('kevin@nexus.remote/Desk One', lJID.ToString,
+      'JID should lowercase ASCII identity parts and retain the resource.');
+    AssertEquals('kevin@nexus.remote', lJID.Bare,
       'Bare JID should omit the resourcepart.');
   finally
     lJID.Free;
   end;
+  AssertJIDRejected(UTF8String('k') +
+    UTF8Encode(UnicodeString(#$00E9)) + 'vin@example.com',
+    'invalid-localpart');
+  AssertJIDRejected(UTF8String('kevin@b') +
+    UTF8Encode(UnicodeString(#$00FC)) + 'cher.example',
+    'invalid-domainpart');
+  AssertJIDRejected(UTF8String('kevin@example.com/D') +
+    UTF8Encode(UnicodeString(#$00E9)) + 'sk', 'invalid-resourcepart');
+  AssertJIDRejected('ke vin@example.com', 'invalid-localpart');
+  AssertJIDRejected('@example.com', 'invalid-localpart');
+  AssertJIDRejected('kevin@bad_domain.example', 'invalid-domainpart');
+  AssertJIDRejected('kevin@example.com/', 'invalid-resourcepart');
 end;
 
 procedure TestStreamFramerAndStanza;
@@ -973,6 +972,7 @@ end;
 
 procedure TestSCRAMSHA256;
 var
+  lRejected: Boolean;
   lSCRAM: TNXXMPPSCRAMSHA256;
 begin
   lSCRAM := TNXXMPPSCRAMSHA256.Create;
@@ -989,6 +989,29 @@ begin
       'SCRAM should reproduce the RFC 7677 client proof.');
     lSCRAM.VerifyServerFinal(
       'v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=');
+    AssertEquals('n,,n=user,r=clientnonce',
+      lSCRAM.Start('USER', 'clientnonce'),
+      'SCRAM should apply ASCII case mapping to the username.');
+    lRejected := False;
+    try
+      lSCRAM.Start(UTF8String('us') +
+        UTF8Encode(UnicodeString(#$00E9)) + 'r', 'clientnonce');
+    except
+      on E: ENXXMPPError do
+        lRejected := E.Condition = 'invalid-scram-username';
+    end;
+    AssertTrue(lRejected, 'SCRAM should reject a non-ASCII username.');
+    lSCRAM.Start('user', 'clientnonce');
+    lRejected := False;
+    try
+      lSCRAM.Continue(
+        'r=clientnonceserver,s=QSXCR+Q6sek8bf92,i=4096',
+        UTF8String('p') + UTF8Encode(UnicodeString(#$00E9)) + 'ncil');
+    except
+      on E: ENXXMPPError do
+        lRejected := E.Condition = 'invalid-scram-password';
+    end;
+    AssertTrue(lRejected, 'SCRAM should reject a non-ASCII password.');
     lSCRAM.Start('user', 'clientnonce');
     try
       lSCRAM.Continue('r=wrongnonce,s=QSXCR+Q6sek8bf92,i=4096',
@@ -1314,6 +1337,30 @@ begin
     finally
       lClone.Free;
     end;
+    lConfig.Resource := UTF8String('D') +
+      UTF8Encode(UnicodeString(#$00E9)) + 'sk';
+    lRejected := False;
+    try
+      lConfig.Validate;
+    except
+      on E: ENXXMPPError do
+        lRejected := E.Condition = 'invalid-resource';
+    end;
+    AssertTrue(lRejected,
+      'Configuration should reject a non-ASCII XMPP resource.');
+    lConfig.Resource := 'Desk';
+    lConfig.Password := UTF8String('p') +
+      UTF8Encode(UnicodeString(#$00E9)) + 'ncil';
+    lRejected := False;
+    try
+      lConfig.Validate;
+    except
+      on E: ENXXMPPError do
+        lRejected := E.Condition = 'invalid-password';
+    end;
+    AssertTrue(lRejected,
+      'Configuration should reject a non-ASCII XMPP password.');
+    lConfig.Password := 'password';
     lConfig.ReceiptCapacity := 0;
     lRejected := False;
     try
@@ -2372,8 +2419,6 @@ begin
 end;
 
 begin
-  TestICU;
-  TestPRECIS;
   TestJID;
   TestStreamFramerAndStanza;
   TestPhase2MessageModels;

@@ -14,6 +14,11 @@ These rules apply to `NexusLib/net/src/xmpp`.
 - Connection and module events are raised directly on the connection thread.
 - Applications own any transfer of event data to another thread.
 - Cross-thread command queues are bounded and queued payloads own their data.
-- Keep ICU use behind the XMPP-specific ICU adapter.
 - Keep OpenSSL use behind the XMPP crypto and TLS owners.
-- Never silently fall back to plaintext, `TSSLNone`, disabled verification, ASCII-only JIDs, or incomplete PRECIS processing.
+- JID parts and authentication credentials are deliberately ASCII-only. Reject
+  non-ASCII identity input explicitly; do not add Unicode normalization,
+  PRECIS, IDNA, or internationalization dependencies without a verified owner
+  requirement.
+- Preserve UTF-8 stanza and message content without identity normalization.
+- Never silently fall back to plaintext, `TSSLNone`, or disabled certificate
+  verification.

@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, synacode, obNXXMPPError, obNXXMPPOpenSSL,
-  obNXXMPPPRECIS, tpNXXMPPTypes;
+  tpNXXMPPTypes, utNXXMPPASCII;
 
 type
   TNXXMPPSCRAMSHA256 = class
@@ -78,7 +78,10 @@ function TNXXMPPSCRAMSHA256.Start(const AUsername: UTF8String;
 var
   lUsername: UTF8String;
 begin
-  lUsername := TNXXMPPPRECIS.EnforceUsernameCaseMapped(AUsername);
+  if (AUsername = '') or not NXXMPPIsASCIIIdentifier(AUsername) then
+    raise ENXXMPPError.Create(xesAuthentication, 'invalid-scram-username',
+      'The SCRAM username must contain printable ASCII characters without spaces.');
+  lUsername := NXXMPPASCIIToLower(AUsername);
   if ANonce = '' then
     FNonce := EncodeBase64(TNXXMPPOpenSSL.RandomBytes(18))
   else
@@ -133,7 +136,10 @@ begin
     raise ENXXMPPError.Create(xesAuthentication, 'invalid-scram-salt',
       'The SCRAM salt is not valid Base64.');
   end;
-  lPassword := TNXXMPPPRECIS.EnforceOpaqueString(APassword);
+  if (APassword = '') or not NXXMPPIsASCIIText(APassword) then
+    raise ENXXMPPError.Create(xesAuthentication, 'invalid-scram-password',
+      'The SCRAM password must contain printable ASCII characters only.');
+  lPassword := APassword;
   lSaltedPassword := TNXXMPPOpenSSL.PBKDF2SHA256(
     RawByteString(lPassword), lSalt, lIterations, 32);
   lClientKey := TNXXMPPOpenSSL.HMACSHA256(lSaltedPassword, 'Client Key');

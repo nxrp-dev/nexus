@@ -6,8 +6,8 @@ unit obNXXMPPConfig;
 interface
 
 uses
-  Classes, SysUtils, obNXXMPPError, obNXXMPPJID, obNXXMPPPRECIS,
-  tpNXXMPPTypes;
+  Classes, SysUtils, obNXXMPPError, obNXXMPPJID, tpNXXMPPTypes,
+  utNXXMPPASCII;
 
 type
   TNXXMPPClientConfig = class
@@ -156,11 +156,15 @@ var
 begin
   lJID := TNXXMPPJID.Create(FJID);
   lJID.Free;
-  if FResource <> '' then
-    FResource := TNXXMPPPRECIS.EnforceOpaqueString(FResource);
+  if (FResource <> '') and not NXXMPPIsASCIIText(FResource) then
+    raise ENXXMPPError.Create(xesConfiguration, 'invalid-resource',
+      'The XMPP resource must contain printable ASCII characters only.');
   if FPassword = '' then
     raise ENXXMPPError.Create(xesConfiguration, 'missing-password',
       'An XMPP account password is required.');
+  if not NXXMPPIsASCIIText(FPassword) then
+    raise ENXXMPPError.Create(xesConfiguration, 'invalid-password',
+      'The XMPP account password must contain printable ASCII characters only.');
   if (FCAFile = '') or not FileExists(FCAFile) then
     raise ENXXMPPError.Create(xesConfiguration, 'missing-ca-file',
       'A readable OpenSSL CA bundle is required.');

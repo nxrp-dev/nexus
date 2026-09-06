@@ -23,7 +23,7 @@ The preferred direction is from tools toward shared foundations, not from shared
 
 `NexusLib/lsp` uses `lib/synapse` for its shared TCP/IP transport. Both language-server executables select shared stdio or TCP/IP transports and inject their own application model into the shared host.
 
-`NexusLib/net/src/xmpp` uses bundled Synapse for TCP, DNS SRV, and the OpenSSL 3 TLS wrapper. The XMPP-specific Unicode adapter dynamically loads the operating-system ICU C API for NFC, Unicode properties, case mapping, bidi data, and UTS #46 IDNA; checked-in IANA Unicode 6.3 PRECIS ranges provide the protocol-specific derived-property classification. OpenSSL 3 supplies SHA-256, HMAC, PBKDF2, secure random bytes, TLS, and certificate verification. Neither ICU nor OpenSSL is vendored by NexusXMPP.
+`NexusLib/net/src/xmpp` uses bundled Synapse for TCP, DNS SRV, and the OpenSSL 3 TLS wrapper. OpenSSL 3 supplies SHA-256, HMAC, PBKDF2, secure random bytes, TLS, and certificate verification; it is not vendored by NexusXMPP. XMPP JID parts and authentication credentials deliberately accept ASCII only. UTF-8 stanza and message content remain transparent and do not require ICU, PRECIS, IDNA, or generated Unicode tables.
 
 The NexusXMPP Phase 2 modules depend inward on the shared stanza, DOM,
 connection-command, lifecycle, request-manager, and configuration owners. The

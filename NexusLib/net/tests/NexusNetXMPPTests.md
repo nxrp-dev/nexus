@@ -3,7 +3,7 @@
 This is the retained verification record for the deterministic Win64
 NexusXMPP test target and the explicitly identified live-server checks below.
 
-## Verified 2026-09-03
+## Verified 2026-09-06
 
 The test executable was rebuilt from source with FPC 3.2.2 using `-B` and all units/binaries directed under `output/`:
 
@@ -22,7 +22,7 @@ output\NexusNetXMPPTests\bin\NexusNetXMPPTests.exe
 
 Result: `NexusNet XMPP tests passed.`
 
-Covered behavior includes ICU availability, PRECIS/JID processing, arbitrary stream chunk boundaries, retained namespaces, dispatcher ownership, IQ correlation and synchronous capacity, combined direct-TLS/STARTTLS SRV ordering, OpenSSL primitives, trusted loopback TLS, rejected service identity, rejected issuer, blocked-read interruption, positive and negative SCRAM transcripts, bounded command queues, legal state transitions, stream-management resumption eligibility and expiry, replay reservation and cancellation, rejected-resume reporting, resumed-session identity checks, 32-bit counter wraparound, discovery, roster retrieval/push/subscription storage, connection failure events, connection-thread callbacks, and repeated client connection lifecycles.
+Covered behavior includes the ASCII-only JID and authentication contract, arbitrary stream chunk boundaries, retained namespaces, dispatcher ownership, IQ correlation and synchronous capacity, combined direct-TLS/STARTTLS SRV ordering, OpenSSL primitives, trusted loopback TLS, rejected service identity, rejected issuer, blocked-read interruption, positive and negative SCRAM transcripts, bounded command queues, legal state transitions, stream-management resumption eligibility and expiry, replay reservation and cancellation, rejected-resume reporting, resumed-session identity checks, 32-bit counter wraparound, discovery, roster retrieval/push/subscription storage, connection failure events, connection-thread callbacks, and repeated client connection lifecycles.
 
 Phase 2 coverage includes printable secure stanza/origin IDs, namespace-aware
 sibling and nested traversal, typed bodies/subjects/replies/stable IDs/receipts/

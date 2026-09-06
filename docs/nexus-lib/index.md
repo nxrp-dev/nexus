@@ -9,7 +9,7 @@ NexusLib is the shared Pascal support layer used by other Nexus modules. It is i
 - `obNXJSONValues.pas` provides typed JSON value objects, arrays, objects, positional params, and object/property mapping helpers.
 - `obNXJSONRPCMessages.pas` provides JSON-RPC 2.0 message parsing, validation, request base classes, and success/error response construction.
 - `obNXPersist.pas` provides JSON-backed persistent objects, binary payload support, and persistent lists.
-- `net/src/xmpp` provides the NexusXMPP client protocol library: prepared JIDs, bounded XML stream framing, endpoint discovery, verified TLS, SCRAM-SHA-256, stanza and IQ dispatch, caller-thread event pumping, roster/discovery, direct and room messaging, Carbons, bounded MAM queries, bounded reconnect policy, and in-memory XEP-0198 resumption/replay.
+- `net/src/xmpp` provides the NexusXMPP client protocol library: ASCII-validated JIDs and credentials, bounded XML stream framing, endpoint discovery, verified TLS, SCRAM-SHA-256, stanza and IQ dispatch, caller-thread event pumping, roster/discovery, direct and room messaging, Carbons, bounded MAM queries, bounded reconnect policy, and in-memory XEP-0198 resumption/replay.
 
 ## NexusXMPP
 

@@ -6,8 +6,7 @@ unit obNXXMPPJID;
 interface
 
 uses
-  Classes, SysUtils, obNXXMPPICU, obNXXMPPPRECIS, obNXXMPPError,
-  tpNXXMPPTypes;
+  Classes, SysUtils, obNXXMPPError, tpNXXMPPTypes, utNXXMPPASCII;
 
 type
   TNXXMPPJID = class
@@ -39,7 +38,7 @@ procedure CheckPartLength(const AName: string; const AValue: UTF8String);
 begin
   if Length(UTF8String(AValue)) > cMaximumPartBytes then
     raise ENXXMPPError.Create(xesConfiguration, 'jid-part-too-long',
-      'The JID ' + AName + ' exceeds 1023 UTF-8 bytes.');
+      'The JID ' + AName + ' exceeds 1023 ASCII bytes.');
 end;
 
 function IsIPLiteral(const AValue: UTF8String): Boolean;
@@ -55,12 +54,50 @@ begin
       Exit(False);
 end;
 
+procedure ValidateDomainPart(const AValue: UTF8String);
+var
+  lIndex: Integer;
+  lLabelLength: Integer;
+begin
+  if not NXXMPPIsASCIIIdentifier(AValue) then
+    raise ENXXMPPError.Create(xesConfiguration, 'invalid-domainpart',
+      'The JID domainpart must contain printable ASCII characters only.');
+  if IsIPLiteral(AValue) then
+    Exit;
+  lLabelLength := 0;
+  for lIndex := 1 to Length(AValue) do
+    if AValue[lIndex] = '.' then
+    begin
+      if (lLabelLength = 0) or (AValue[lIndex - 1] = '-') then
+        raise ENXXMPPError.Create(xesConfiguration, 'invalid-domainpart',
+          'The JID domainpart contains an invalid domain label.');
+      lLabelLength := 0;
+    end
+    else
+    begin
+      if not (AValue[lIndex] in ['a'..'z', 'A'..'Z', '0'..'9', '-']) or
+        ((lLabelLength = 0) and (AValue[lIndex] = '-')) then
+        raise ENXXMPPError.Create(xesConfiguration, 'invalid-domainpart',
+          'The JID domainpart contains an invalid domain label.');
+      Inc(lLabelLength);
+      if lLabelLength > 63 then
+        raise ENXXMPPError.Create(xesConfiguration, 'invalid-domainpart',
+          'A JID domain label exceeds 63 ASCII characters.');
+    end;
+  if (lLabelLength = 0) or (AValue[Length(AValue)] = '-') then
+    raise ENXXMPPError.Create(xesConfiguration, 'invalid-domainpart',
+      'The JID domainpart contains an invalid domain label.');
+end;
+
 procedure ValidateLocalPart(const AValue: UTF8String);
 const
   cProhibited = ['"', '&', '''', '/', ':', '<', '>', '@'];
 var
   lIndex: Integer;
 begin
+  if (AValue = '') or not NXXMPPIsASCIIIdentifier(AValue) then
+    raise ENXXMPPError.Create(xesConfiguration, 'invalid-localpart',
+      'The JID localpart must contain printable ASCII characters without spaces.');
   for lIndex := 1 to Length(AValue) do
     if AValue[lIndex] in cProhibited then
       raise ENXXMPPError.Create(xesConfiguration, 'invalid-localpart',
@@ -89,7 +126,9 @@ begin
     FHasResourcePart := True;
     lPreResource := Copy(AValue, 1, lSlashPosition - 1);
     FResourcePart := Copy(AValue, lSlashPosition + 1, MaxInt);
-    FResourcePart := TNXXMPPPRECIS.EnforceOpaqueString(FResourcePart);
+    if (FResourcePart = '') or not NXXMPPIsASCIIText(FResourcePart) then
+      raise ENXXMPPError.Create(xesConfiguration, 'invalid-resourcepart',
+        'The JID resourcepart must contain printable ASCII characters only.');
     CheckPartLength('resourcepart', FResourcePart);
   end
   else
@@ -104,7 +143,7 @@ begin
     FHasLocalPart := True;
     FLocalPart := Copy(lPreResource, 1, lAtPosition - 1);
     lDomainSource := Copy(lPreResource, lAtPosition + 1, MaxInt);
-    FLocalPart := TNXXMPPPRECIS.EnforceUsernameCaseMapped(FLocalPart);
+    FLocalPart := NXXMPPASCIIToLower(FLocalPart);
     ValidateLocalPart(FLocalPart);
     CheckPartLength('localpart', FLocalPart);
   end
@@ -114,10 +153,8 @@ begin
   if lDomainSource = '' then
     raise ENXXMPPError.Create(xesConfiguration, 'empty-domainpart',
       'A JID domainpart must not be empty.');
-  if IsIPLiteral(lDomainSource) then
-    FDomainPart := LowerCase(lDomainSource)
-  else
-    FDomainPart := LowerCase(TNXXMPPICU.IDNAToASCII(lDomainSource));
+  ValidateDomainPart(lDomainSource);
+  FDomainPart := NXXMPPASCIIToLower(lDomainSource);
   CheckPartLength('domainpart', FDomainPart);
 end;
 
