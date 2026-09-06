@@ -15,6 +15,9 @@ type
   TNXXMPPRoomState = (xrsJoining, xrsCreating, xrsConfiguring, xrsJoined,
     xrsLeaving, xrsStale, xrsRejoining, xrsFailed, xrsLeft);
 
+  TNXXMPPMUCRoomEntryMode = (xremJoin, xremCreateInstant,
+    xremJoinOrCreateInstant);
+
   TNXXMPPOccupant = class
   private
     FAffiliation: TNXXMPPMUCAffiliation;
@@ -41,7 +44,7 @@ type
   TNXXMPPRoom = class
   private
     FAutoRejoin: Boolean;
-    FCreateInstantRequested: Boolean;
+    FEntryMode: TNXXMPPMUCRoomEntryMode;
     FJID: UTF8String;
     FNick: UTF8String;
     FOccupants: TObjectList;
@@ -100,7 +103,6 @@ type
     FPendingConfigurations: TObjectList;
     FSelfPingTimeoutMS: Cardinal;
     FRooms: TObjectList;
-    function FindRoom(const AJID: UTF8String): TNXXMPPRoom;
     function BeginInstantRoomConfiguration(ARoom: TNXXMPPRoom): Boolean;
     procedure CompleteRoomConfiguration(ARequest: TObject;
       AStanza: TNXXMPPStanza; const AError: UTF8String);
@@ -108,8 +110,8 @@ type
       AStanza: TNXXMPPStanza; const AError: UTF8String);
     function QueueXML(const AXML: UTF8String): Boolean;
     function StartJoin(const ARoomJID, ANick, APassword: UTF8String;
-      const AHistory: TNXXMPPMUCHistoryRequest; AAutoRejoin,
-      ACreateInstant: Boolean): Boolean;
+      const AHistory: TNXXMPPMUCHistoryRequest; AAutoRejoin: Boolean;
+      AEntryMode: TNXXMPPMUCRoomEntryMode): Boolean;
     procedure SetState(ARoom: TNXXMPPRoom; AState: TNXXMPPRoomState;
       AReason: TNXXMPPMUCTransitionReason = xmtrNone);
     procedure SelfPingComplete(AStanza: TNXXMPPStanza;
@@ -120,6 +122,9 @@ type
     procedure AddFeatures(AFeatures: TStrings); override;
     procedure Configure(AConfig: TNXXMPPClientConfig); override;
     function CreateInstantRoom(const ARoomJID, ANick: UTF8String;
+      AAutoRejoin: Boolean = True): Boolean;
+    function FindRoom(const AJID: UTF8String): TNXXMPPRoom;
+    function JoinOrCreateInstantRoom(const ARoomJID, ANick: UTF8String;
       AAutoRejoin: Boolean = True): Boolean;
     function ChangeNick(const ARoomJID, ANick: UTF8String): Boolean;
     function Join(const ARoomJID, ANick, APassword: UTF8String;
@@ -341,7 +346,7 @@ begin
     Exit;
   lRequest := TNXXMPPRoomConfigurationRequest(ARequest);
   lRoom := lRequest.FRoom;
-  lRoom.FCreateInstantRequested := False;
+  lRoom.FEntryMode := xremJoin;
   if (AError = '') and Assigned(AStanza) and
     (AStanza.IQType = xitResult) then
     SetState(lRoom, xrsJoined, xmtrRoomConfigured)
@@ -404,7 +409,20 @@ begin
   lHistory.Seconds := -1;
   lHistory.SinceTimestamp := '';
   Result := StartJoin(ARoomJID, ANick, '', lHistory, AAutoRejoin,
-    True);
+    xremCreateInstant);
+end;
+
+function TNXXMPPMUCModule.JoinOrCreateInstantRoom(const ARoomJID,
+  ANick: UTF8String; AAutoRejoin: Boolean): Boolean;
+var
+  lHistory: TNXXMPPMUCHistoryRequest;
+begin
+  lHistory.MaxChars := -1;
+  lHistory.MaxStanzas := 0;
+  lHistory.Seconds := -1;
+  lHistory.SinceTimestamp := '';
+  Result := StartJoin(ARoomJID, ANick, '', lHistory, AAutoRejoin,
+    xremJoinOrCreateInstant);
 end;
 
 function TNXXMPPMUCModule.JoinWithHistory(const ARoomJID, ANick,
@@ -412,12 +430,12 @@ function TNXXMPPMUCModule.JoinWithHistory(const ARoomJID, ANick,
   AAutoRejoin: Boolean): Boolean;
 begin
   Result := StartJoin(ARoomJID, ANick, APassword, AHistory, AAutoRejoin,
-    False);
+    xremJoin);
 end;
 
 function TNXXMPPMUCModule.StartJoin(const ARoomJID, ANick,
   APassword: UTF8String; const AHistory: TNXXMPPMUCHistoryRequest;
-  AAutoRejoin, ACreateInstant: Boolean): Boolean;
+  AAutoRejoin: Boolean; AEntryMode: TNXXMPPMUCRoomEntryMode): Boolean;
 var
   lRoom: TNXXMPPRoom;
   lXML: UTF8String;
@@ -444,8 +462,8 @@ begin
     lRoom.FNick := ANick;
     lRoom.FPassword := APassword;
     lRoom.FAutoRejoin := AAutoRejoin;
-    lRoom.FCreateInstantRequested := ACreateInstant;
-    if ACreateInstant then
+    lRoom.FEntryMode := AEntryMode;
+    if AEntryMode <> xremJoin then
       SetState(lRoom, xrsCreating, xmtrCreateRequested)
     else
       SetState(lRoom, xrsJoining, xmtrJoinRequested);
@@ -477,7 +495,7 @@ begin
   Result := QueueXML(lXML + '</x></presence>');
   if not Result then
   begin
-    lRoom.FCreateInstantRequested := False;
+    lRoom.FEntryMode := xremJoin;
     SetState(lRoom, xrsFailed, xmtrServiceError);
   end;
 end;
@@ -877,9 +895,9 @@ begin
         SetState(lRoom, xrsLeft, xmtrLeft)
       else if lCreated then
       begin
-        if lRoom.FCreateInstantRequested then
+        if lRoom.FEntryMode <> xremJoin then
         begin
-          lRoom.FCreateInstantRequested := False;
+          lRoom.FEntryMode := xremJoin;
           SetState(lRoom, xrsConfiguring, xmtrConfiguring);
           if not BeginInstantRoomConfiguration(lRoom) then
           begin
@@ -900,9 +918,9 @@ begin
             ''' type=''unavailable''/>');
         end;
       end
-      else if lRoom.FCreateInstantRequested then
+      else if lRoom.FEntryMode = xremCreateInstant then
       begin
-        lRoom.FCreateInstantRequested := False;
+        lRoom.FEntryMode := xremJoin;
         lRoom.FLastError.Present := True;
         lRoom.FLastError.ErrorType := 'cancel';
         lRoom.FLastError.Condition := 'room-already-exists';
@@ -913,7 +931,10 @@ begin
           ''' type=''unavailable''/>');
       end
       else
+      begin
+        lRoom.FEntryMode := xremJoin;
         SetState(lRoom, xrsJoined, xmtrJoined);
+      end;
     if lNickChanged and Assigned(lOccupant) and (lNewNick <> '') then
     begin
       lOccupant.FNick := lNewNick;

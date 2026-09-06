@@ -24,14 +24,14 @@ type
 
   TNXOpenAIExecutor = class
   public
-    function Execute(const AAPIKey, ABody: UTF8String;
+    function Execute(const AAPIKey, ACAFile, ABody: UTF8String;
       ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
       virtual; abstract;
   end;
 
-  TNXOpenAIWinHTTPExecutor = class(TNXOpenAIExecutor)
+  TNXOpenAISynapseExecutor = class(TNXOpenAIExecutor)
   public
-    function Execute(const AAPIKey, ABody: UTF8String;
+    function Execute(const AAPIKey, ACAFile, ABody: UTF8String;
       ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
       override;
   end;
@@ -93,15 +93,30 @@ implementation
 
 uses
   fpjson,
-  obNXOpenAIResponses
-  {$ifdef windows}
-  , Windows,
-  WinHttp
-  {$endif}
-  ;
+  httpsend,
+  obNXOpenAIResponses,
+  ssl_openssl3;
 
 const
   cOpenAIResponseMaximumBytes = 1024 * 1024;
+
+type
+  ENXOpenAIResponseLimit = class(Exception);
+
+  TNXOpenAIBoundedStream = class(TMemoryStream)
+  public
+    function Write(const ABuffer; ACount: LongInt): LongInt; override;
+  end;
+
+function TNXOpenAIBoundedStream.Write(const ABuffer;
+  ACount: LongInt): LongInt;
+begin
+  if (ACount < 0) or (Position > cOpenAIResponseMaximumBytes) or
+    (ACount > cOpenAIResponseMaximumBytes - Position) then
+    raise ENXOpenAIResponseLimit.Create(
+      'OpenAI response exceeds the protocol limit.');
+  Result := inherited Write(ABuffer, ACount);
+end;
 
 function BoundedDiagnostic(const AText: UTF8String): UTF8String;
 const
@@ -141,133 +156,72 @@ begin
   Result := BoundedDiagnostic(Result);
 end;
 
-{$ifdef windows}
-function NXWinHttpSetTimeouts(AHandle: HINTERNET; AResolveTimeout,
-  AConnectTimeout, ASendTimeout, AReceiveTimeout: Integer): WINBOOL; stdcall;
-  external 'winhttp.dll' name 'WinHttpSetTimeouts';
-
-function SecureWinHTTPError(AError: Cardinal): Boolean;
-begin
-  case AError of
-    ERROR_WINHTTP_CLIENT_AUTH_CERT_NEEDED,
-    ERROR_WINHTTP_SECURE_FAILURE,
-    ERROR_WINHTTP_SECURE_CERT_DATE_INVALID,
-    ERROR_WINHTTP_SECURE_CERT_CN_INVALID,
-    ERROR_WINHTTP_SECURE_INVALID_CA,
-    ERROR_WINHTTP_SECURE_CERT_REV_FAILED,
-    ERROR_WINHTTP_SECURE_CHANNEL_ERROR,
-    ERROR_WINHTTP_SECURE_INVALID_CERT,
-    ERROR_WINHTTP_SECURE_CERT_REVOKED,
-    ERROR_WINHTTP_SECURE_CERT_WRONG_USAGE:
-      Result := True;
-  else
-    Result := False;
-  end;
-end;
-
-function WinHTTPFailure(out AResult: TNXOpenAIHTTPResult): Boolean;
-begin
-  AResult.ErrorCode := GetLastError;
-  AResult.ErrorText := UTF8String(SysErrorMessage(AResult.ErrorCode));
-  AResult.Fatal := SecureWinHTTPError(AResult.ErrorCode);
-  Result := False;
-end;
-{$endif}
-
-function TNXOpenAIWinHTTPExecutor.Execute(const AAPIKey,
+function TNXOpenAISynapseExecutor.Execute(const AAPIKey, ACAFile,
   ABody: UTF8String; ATimeoutMS: Cardinal;
   out AResult: TNXOpenAIHTTPResult): Boolean;
-{$ifdef windows}
 var
   lBody: RawByteString;
-  lBytesRead: DWORD;
-  lConnect: HINTERNET;
-  lHeaders: UnicodeString;
-  lOldLength: Integer;
-  lRequest: HINTERNET;
-  lSession: HINTERNET;
-  lStatus: DWORD;
-  lStatusSize: DWORD;
+  lHTTP: THTTPSend;
+  lResponse: TNXOpenAIBoundedStream;
   lTimeout: Integer;
-  lBuffer: array[0..8191] of Byte;
-{$endif}
 begin
   AResult := Default(TNXOpenAIHTTPResult);
-  {$ifdef windows}
-  lSession := WinHttpOpen('NexusBotHost/1.0',
-    WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY, WINHTTP_NO_PROXY_NAME,
-    WINHTTP_NO_PROXY_BYPASS, 0);
-  if lSession = nil then
-    Exit(WinHTTPFailure(AResult));
-  try
-    lTimeout := Integer(ATimeoutMS);
-    if not NXWinHttpSetTimeouts(lSession, lTimeout, lTimeout,
-      lTimeout, lTimeout) then
-      Exit(WinHTTPFailure(AResult));
-    lConnect := WinHttpConnect(lSession, 'api.openai.com',
-      INTERNET_DEFAULT_HTTPS_PORT, 0);
-    if lConnect = nil then
-      Exit(WinHTTPFailure(AResult));
-    try
-      lRequest := WinHttpOpenRequest(lConnect, 'POST', '/v1/responses', nil,
-        WINHTTP_NO_REFERER, nil, WINHTTP_FLAG_SECURE);
-      if lRequest = nil then
-        Exit(WinHTTPFailure(AResult));
-      try
-        lHeaders := UnicodeString('Content-Type: application/json'#13#10 +
-          'Authorization: Bearer ' + AAPIKey);
-        if Length(ABody) > 0 then
-          Result := WinHttpSendRequest(lRequest, PWideChar(lHeaders),
-            Length(lHeaders), Pointer(ABody), Length(ABody), Length(ABody), 0)
-        else
-          Result := WinHttpSendRequest(lRequest, PWideChar(lHeaders),
-            Length(lHeaders), nil, 0, 0, 0);
-        if not Result then
-          Exit(WinHTTPFailure(AResult));
-        if not WinHttpReceiveResponse(lRequest, nil) then
-          Exit(WinHTTPFailure(AResult));
-        lStatus := 0;
-        lStatusSize := SizeOf(lStatus);
-        if not WinHttpQueryHeaders(lRequest,
-          WINHTTP_QUERY_STATUS_CODE or WINHTTP_QUERY_FLAG_NUMBER, nil,
-          @lStatus, @lStatusSize, WINHTTP_NO_HEADER_INDEX) then
-          Exit(WinHTTPFailure(AResult));
-        AResult.Status := lStatus;
-        lBody := '';
-        repeat
-          lBytesRead := 0;
-          if not WinHttpReadData(lRequest, @lBuffer[0], SizeOf(lBuffer),
-            @lBytesRead) then
-            Exit(WinHTTPFailure(AResult));
-          if lBytesRead = 0 then
-            Break;
-          if Length(lBody) + Integer(lBytesRead) >
-            cOpenAIResponseMaximumBytes then
-          begin
-            AResult.ErrorText := 'OpenAI response exceeds the protocol limit.';
-            AResult.Fatal := True;
-            Exit(False);
-          end;
-          lOldLength := Length(lBody);
-          SetLength(lBody, lOldLength + lBytesRead);
-          Move(lBuffer[0], lBody[lOldLength + 1], lBytesRead);
-        until False;
-        AResult.Body := UTF8String(lBody);
-        Result := True;
-      finally
-        WinHttpCloseHandle(lRequest);
-      end;
-    finally
-      WinHttpCloseHandle(lConnect);
-    end;
-  finally
-    WinHttpCloseHandle(lSession);
+  if (Trim(string(ACAFile)) = '') or not FileExists(string(ACAFile)) then
+  begin
+    AResult.ErrorText := 'A readable OpenAI CA bundle is required.';
+    AResult.Fatal := True;
+    Exit(False);
   end;
-  {$else}
-  AResult.ErrorText := 'The OpenAI provider is not supported on this platform.';
-  AResult.Fatal := True;
-  Result := False;
-  {$endif}
+  lHTTP := THTTPSend.Create;
+  lResponse := TNXOpenAIBoundedStream.Create;
+  try
+    if ATimeoutMS > Cardinal(High(Integer)) then
+      lTimeout := High(Integer)
+    else
+      lTimeout := Integer(ATimeoutMS);
+    lHTTP.Timeout := lTimeout;
+    lHTTP.Sock.ConnectionTimeout := lTimeout;
+    lHTTP.Sock.SSL.VerifyCert := True;
+    lHTTP.Sock.SSL.CertCAFile := string(ACAFile);
+    lHTTP.UserAgent := 'NexusBotHost/1.0';
+    lHTTP.MimeType := 'application/json';
+    lHTTP.Headers.Add('Authorization: Bearer ' + string(AAPIKey));
+    lHTTP.OutputStream := lResponse;
+    if Length(ABody) > 0 then
+      lHTTP.Document.WriteBuffer(ABody[1], Length(ABody));
+    try
+      Result := lHTTP.HTTPMethod('POST',
+        'https://api.openai.com/v1/responses');
+    except
+      on E: ENXOpenAIResponseLimit do
+      begin
+        AResult.ErrorText := UTF8String(E.Message);
+        AResult.Fatal := True;
+        Exit(False);
+      end;
+    end;
+    AResult.Status := Cardinal(lHTTP.ResultCode);
+    if not Result then
+    begin
+      AResult.ErrorCode := Cardinal(lHTTP.Sock.LastError);
+      AResult.ErrorText := UTF8String(lHTTP.Sock.GetErrorDescEx);
+      if AResult.ErrorText = '' then
+        AResult.ErrorText := 'OpenAI HTTPS request failed.';
+      AResult.Fatal := lHTTP.Sock.SSL.LastError <> 0;
+      Exit(False);
+    end;
+    lBody := '';
+    SetLength(lBody, lResponse.Size);
+    if Length(lBody) > 0 then
+    begin
+      lResponse.Position := 0;
+      lResponse.ReadBuffer(lBody[1], Length(lBody));
+    end;
+    AResult.Body := UTF8String(lBody);
+  finally
+    lResponse.Free;
+    lHTTP.Free;
+  end;
 end;
 
 constructor TNXOpenAIProviderThread.Create(AOwner: TNXOpenAIProvider);
@@ -284,7 +238,7 @@ end;
 
 constructor TNXOpenAIProvider.Create;
 begin
-  CreateWithExecutor(TNXOpenAIWinHTTPExecutor.Create);
+  CreateWithExecutor(TNXOpenAISynapseExecutor.Create);
 end;
 
 constructor TNXOpenAIProvider.CreateWithExecutor(AExecutor: TNXOpenAIExecutor);
@@ -316,37 +270,32 @@ end;
 class procedure TNXOpenAIProvider.ValidateDeployment(
   ABinding: TNXBotDeploymentBinding; const ABotName: string;
   ADiagnostics: TStrings);
-var
-  lName: string;
 begin
   if not Assigned(ABinding) then
     Exit;
-  lName := Trim(ABinding.OpenAIAPIKeyEnvironmentVariable);
-  if lName = '' then
-    ADiagnostics.Add('Missing deployment field ' +
-      'OpenAIAPIKeyEnvironmentVariable for bot ' + ABotName + '.')
-  else if Pos('=', lName) > 0 then
-    ADiagnostics.Add('Invalid deployment field ' +
-      'OpenAIAPIKeyEnvironmentVariable for bot ' + ABotName + '.');
+  if Trim(ABinding.OpenAIAPIKey) = '' then
+    ADiagnostics.Add('Missing deployment field OpenAIAPIKey for bot ' +
+      ABotName + '.');
+  if Trim(ABinding.OpenAICAFile) = '' then
+    ADiagnostics.Add('Missing deployment field OpenAICAFile for bot ' +
+      ABotName + '.');
 end;
 
 function TNXOpenAIProvider.Start: Boolean;
 var
   lFinishedWorker: TNXOpenAIProviderThread;
-  lVariableName: string;
 begin
   Result := False;
   if not (State in [bpsStopped, bpsFailed]) then
     Exit;
-  {$ifndef windows}
-  SetState(bpsFailed, 'The OpenAI provider is not supported on this platform.');
-  Exit(True);
-  {$endif}
-  lVariableName := Trim(Configuration.OpenAIAPIKeyEnvironmentVariable);
-  if (lVariableName = '') or (Pos('=', lVariableName) > 0) then
+  if Trim(Configuration.OpenAIAPIKey) = '' then
   begin
-    SetState(bpsFailed,
-      'OpenAI API key environment-variable name is invalid.');
+    SetState(bpsFailed, 'OpenAI API key is empty.');
+    Exit(True);
+  end;
+  if Trim(Configuration.OpenAICAFile) = '' then
+  begin
+    SetState(bpsFailed, 'OpenAI CA bundle is empty.');
     Exit(True);
   end;
   lFinishedWorker := nil;
@@ -631,7 +580,7 @@ begin
   try
     lRequest.model.Value := UTF8String(Configuration.Model);
     lRequest.instructions.Value := Instructions;
-    lRequest.input.Value := APrompt.Body;
+    lRequest.input.Value := APrompt.ModelInput;
     lRequest.store.Value := True;
     lRequest.stream.Value := False;
     if FPreviousResponseID <> '' then
@@ -639,6 +588,7 @@ begin
     lRequestData := lRequest.ToJSONData;
     try
       lSuccess := FExecutor.Execute(FAPIKey,
+        UTF8String(Configuration.OpenAICAFile),
         UTF8String(lRequestData.AsJSON), Configuration.RequestTimeoutMS,
         lHTTP);
     except
@@ -771,8 +721,7 @@ var
   lPrompt: TNXBotPrompt;
   lStop: Boolean;
 begin
-  FAPIKey := UTF8String(SysUtils.GetEnvironmentVariable(
-    Configuration.OpenAIAPIKeyEnvironmentVariable));
+  FAPIKey := UTF8String(Configuration.OpenAIAPIKey);
   if FAPIKey = '' then
   begin
     EnterCriticalSection(FCriticalSection);
@@ -782,9 +731,8 @@ begin
     finally
       LeaveCriticalSection(FCriticalSection);
     end;
-    SetState(bpsFailed, 'OpenAI API key environment variable is empty: ' +
-      UTF8String(Configuration.OpenAIAPIKeyEnvironmentVariable));
-    FailAllQueued('OpenAI API key environment variable is empty.');
+    SetState(bpsFailed, 'OpenAI API key is empty.');
+    FailAllQueued('OpenAI API key is empty.');
     Exit;
   end;
   SetState(bpsReady);

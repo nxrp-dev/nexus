@@ -20,8 +20,9 @@ type
     FEndpointPort: Integer;
     FDirectTLS: Boolean;
     FNick: string;
-    FOpenAIAPIKeyEnvironmentVariable: string;
-    FPasswordEnvironmentVariable: string;
+    FOpenAICAFile: string;
+    FOpenAIAPIKey: string;
+    FPassword: string;
     FResource: string;
     FRuntimeDirectory: string;
     FXMPPJID: string;
@@ -35,11 +36,9 @@ type
     property EndpointPort: Integer read FEndpointPort write FEndpointPort;
     property DirectTLS: Boolean read FDirectTLS write FDirectTLS;
     property Nick: string read FNick write FNick;
-    property OpenAIAPIKeyEnvironmentVariable: string
-      read FOpenAIAPIKeyEnvironmentVariable
-      write FOpenAIAPIKeyEnvironmentVariable;
-    property PasswordEnvironmentVariable: string
-      read FPasswordEnvironmentVariable write FPasswordEnvironmentVariable;
+    property OpenAICAFile: string read FOpenAICAFile write FOpenAICAFile;
+    property OpenAIAPIKey: string read FOpenAIAPIKey write FOpenAIAPIKey;
+    property Password: string read FPassword write FPassword;
     property Resource: string read FResource write FResource;
     property RuntimeDirectory: string read FRuntimeDirectory
       write FRuntimeDirectory;
@@ -64,6 +63,7 @@ type
   public
     constructor Create; override;
     destructor Destroy; override;
+    procedure ResolvePaths(const AConfigFile: string);
   published
     property Bindings: TNXBotDeploymentList read FBindings write FBindings;
     property CatalogFile: string read FCatalogFile write FCatalogFile;
@@ -73,6 +73,24 @@ type
       write FOperationCapacity;
     property Operators: TStringList read FOperators write FOperators;
     property Readers: TStringList read FReaders write FReaders;
+  end;
+
+  TNXBotHostLaunchConfig = class(TNXPersistObject)
+  private
+    FAutoStart: Boolean;
+    FBotName: string;
+    FControllerFile: string;
+    FRoomJID: string;
+  public
+    constructor Create; override;
+    procedure ResolvePaths(const AConfigFile: string);
+    procedure Validate;
+  published
+    property AutoStart: Boolean read FAutoStart write FAutoStart;
+    property BotName: string read FBotName write FBotName;
+    property ControllerFile: string read FControllerFile
+      write FControllerFile;
+    property RoomJID: string read FRoomJID write FRoomJID;
   end;
 
   TNXBotHostConfig = class(TNXPersistObject)
@@ -88,8 +106,9 @@ type
     FDirectTLS: Boolean;
     FJournalCapacity: Integer;
     FNick: string;
-    FOpenAIAPIKeyEnvironmentVariable: string;
-    FPasswordEnvironmentVariable: string;
+    FOpenAICAFile: string;
+    FOpenAIAPIKey: string;
+    FPassword: string;
     FPromptCapacity: Integer;
     FPromptMaximumBytes: Integer;
     FProvider: string;
@@ -100,10 +119,10 @@ type
     FXMPPJID: string;
   public
     constructor Create; override;
+    procedure ApplyDeployment(ABinding: TNXBotDeploymentBinding);
     procedure Validate;
     procedure ValidateProvider;
     procedure ValidateXMPP;
-    function Password: UTF8String;
   published
     property AllowPlain: Boolean read FAllowPlain write FAllowPlain;
     property AnswerMaximumBytes: Integer read FAnswerMaximumBytes
@@ -120,11 +139,9 @@ type
       write FJournalCapacity;
     property Model: string read FModel write FModel;
     property Nick: string read FNick write FNick;
-    property OpenAIAPIKeyEnvironmentVariable: string
-      read FOpenAIAPIKeyEnvironmentVariable
-      write FOpenAIAPIKeyEnvironmentVariable;
-    property PasswordEnvironmentVariable: string
-      read FPasswordEnvironmentVariable write FPasswordEnvironmentVariable;
+    property OpenAICAFile: string read FOpenAICAFile write FOpenAICAFile;
+    property OpenAIAPIKey: string read FOpenAIAPIKey write FOpenAIAPIKey;
+    property Password: string read FPassword write FPassword;
     property PromptCapacity: Integer read FPromptCapacity
       write FPromptCapacity;
     property PromptMaximumBytes: Integer read FPromptMaximumBytes
@@ -143,6 +160,20 @@ implementation
 
 uses
   SysUtils;
+
+function NXResolveConfigPath(const APath, AConfigFile: string): string;
+var
+  lBaseDirectory: string;
+begin
+  if APath = '' then
+    Exit('');
+  if (ExtractFileDrive(APath) <> '') or
+    (APath[1] = DirectorySeparator) then
+    Exit(ExpandFileName(APath));
+  lBaseDirectory := ExtractFileDir(ExpandFileName(AConfigFile));
+  Result := ExpandFileName(IncludeTrailingPathDelimiter(lBaseDirectory) +
+    APath);
+end;
 
 constructor TNXBotDeploymentList.Create;
 begin
@@ -176,12 +207,55 @@ begin
   FOperationCapacity := 32;
 end;
 
+constructor TNXBotHostLaunchConfig.Create;
+begin
+  inherited Create;
+  FAutoStart := True;
+  FBotName := 'NexusBot';
+  FControllerFile := 'NexusBotController.json';
+  FRoomJID := 'nexus-test@conference.nexus.local';
+end;
+
+procedure TNXBotHostLaunchConfig.ResolvePaths(const AConfigFile: string);
+begin
+  FControllerFile := NXResolveConfigPath(FControllerFile, AConfigFile);
+end;
+
+procedure TNXBotHostLaunchConfig.Validate;
+begin
+  if FBotName = '' then
+    raise Exception.Create('Launch bot name is required.');
+  if FControllerFile = '' then
+    raise Exception.Create('Launch controller file is required.');
+  if FRoomJID = '' then
+    raise Exception.Create('Launch room JID is required.');
+end;
+
 destructor TNXBotControllerConfig.Destroy;
 begin
   FReaders.Free;
   FOperators.Free;
   FBindings.Free;
   inherited Destroy;
+end;
+
+procedure TNXBotControllerConfig.ResolvePaths(const AConfigFile: string);
+var
+  lBinding: TNXBotDeploymentBinding;
+  lIndex: Integer;
+begin
+  FCatalogFile := NXResolveConfigPath(FCatalogFile, AConfigFile);
+  for lIndex := 0 to FBindings.Count - 1 do
+  begin
+    lBinding := FBindings.Binding(lIndex);
+    lBinding.CAFile := NXResolveConfigPath(lBinding.CAFile, AConfigFile);
+    lBinding.OpenAICAFile := NXResolveConfigPath(
+      lBinding.OpenAICAFile, AConfigFile);
+    lBinding.CodexExecutable := NXResolveConfigPath(
+      lBinding.CodexExecutable, AConfigFile);
+    lBinding.RuntimeDirectory := NXResolveConfigPath(
+      lBinding.RuntimeDirectory, AConfigFile);
+  end;
 end;
 
 constructor TNXBotHostConfig.Create;
@@ -196,8 +270,6 @@ begin
   FEndpointPort := 5222;
   FJournalCapacity := 256;
   FNick := 'NexusBot';
-  FOpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
-  FPasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
   FPromptCapacity := 16;
   FPromptMaximumBytes := 16 * 1024;
   FProvider := 'Codex';
@@ -205,6 +277,26 @@ begin
   FResource := 'NexusBotHost';
   FRoomJID := 'nexus-test@conference.nexus.local';
   FXMPPJID := 'test1@nexus.local';
+end;
+
+procedure TNXBotHostConfig.ApplyDeployment(
+  ABinding: TNXBotDeploymentBinding);
+begin
+  if not Assigned(ABinding) then
+    raise Exception.Create('Bot deployment binding is required.');
+  FAllowPlain := ABinding.AllowPlain;
+  FCAFile := ABinding.CAFile;
+  FCodexExecutable := ABinding.CodexExecutable;
+  FDirectTLS := ABinding.DirectTLS;
+  FEndpointHost := ABinding.EndpointHost;
+  FEndpointPort := ABinding.EndpointPort;
+  FNick := ABinding.Nick;
+  FOpenAICAFile := ABinding.OpenAICAFile;
+  FOpenAIAPIKey := ABinding.OpenAIAPIKey;
+  FPassword := ABinding.Password;
+  FResource := ABinding.Resource;
+  FRuntimeDirectory := ABinding.RuntimeDirectory;
+  FXMPPJID := ABinding.XMPPJID;
 end;
 
 procedure TNXBotHostConfig.Validate;
@@ -237,18 +329,11 @@ begin
     raise Exception.Create('XMPP endpoint port is invalid.');
 end;
 
-function TNXBotHostConfig.Password: UTF8String;
-begin
-  Result := UTF8String(GetEnvironmentVariable(FPasswordEnvironmentVariable));
-  if Result = '' then
-    raise Exception.CreateFmt('XMPP password environment variable is empty: %s',
-      [FPasswordEnvironmentVariable]);
-end;
-
 initialization
   TNXPersistObject.RegisterPersistClass(TNXBotDeploymentBinding);
   TNXPersistObject.RegisterPersistClass(TNXBotDeploymentList);
   TNXPersistObject.RegisterPersistClass(TNXBotControllerConfig);
+  TNXPersistObject.RegisterPersistClass(TNXBotHostLaunchConfig);
   TNXPersistObject.RegisterPersistClass(TNXBotHostConfig);
 
 end.

@@ -11,6 +11,9 @@ uses
   tpNXBotHost;
 
 type
+  TNXBotHostActivityEvent = procedure(ASender: TObject;
+    const AText: UTF8String) of object;
+
   TNXBotHostSnapshot = record
     ProviderState: TNXBotProviderState;
     ProviderDetail: UTF8String;
@@ -30,6 +33,7 @@ type
     FJournalCapacity: Integer;
     FModel: UTF8String;
     FNick: UTF8String;
+    FOnActivity: TNXBotHostActivityEvent;
     FRevision: PtrUInt;
     FRooms: TStringList;
     FXMPPState: UTF8String;
@@ -48,6 +52,8 @@ type
     function Snapshot: TNXBotHostSnapshot;
 
     property Revision: PtrUInt read FRevision;
+    property OnActivity: TNXBotHostActivityEvent read FOnActivity
+      write FOnActivity;
   end;
 
 function NXBotProviderStateName(AState: TNXBotProviderState): UTF8String;
@@ -97,6 +103,7 @@ end;
 procedure TNXBotHostState.AddJournal(const AText: UTF8String);
 var
   lEntry: string;
+  lOnActivity: TNXBotHostActivityEvent;
 begin
   lEntry := FormatDateTime('hh:nn:ss', Now) + '  ' + string(AText);
   EnterCriticalSection(FCriticalSection);
@@ -105,9 +112,12 @@ begin
     while FJournal.Count > FJournalCapacity do
       FJournal.Delete(0);
     Changed;
+    lOnActivity := FOnActivity;
   finally
     LeaveCriticalSection(FCriticalSection);
   end;
+  if Assigned(lOnActivity) then
+    lOnActivity(Self, UTF8String(lEntry));
 end;
 
 procedure TNXBotHostState.ClearJournal;

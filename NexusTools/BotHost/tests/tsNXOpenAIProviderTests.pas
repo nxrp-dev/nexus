@@ -17,7 +17,6 @@ uses
   fpjson,
   SyncObjs,
   SysUtils,
-  Windows,
   obNXBotHostConfig,
   obNXOpenAIProvider,
   obNXOpenAIResponses,
@@ -32,13 +31,14 @@ type
     DelayMS: Cardinal;
     Bodies: TStringList;
     Calls: Integer;
+    CAFile: UTF8String;
     Entered: TEvent;
     Key: UTF8String;
     ReleaseCall: TEvent;
     Results: array[0..9] of TNXOpenAIHTTPResult;
     constructor Create;
     destructor Destroy; override;
-    function Execute(const AAPIKey, ABody: UTF8String;
+    function Execute(const AAPIKey, ACAFile, ABody: UTF8String;
       ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
       override;
   end;
@@ -82,11 +82,12 @@ begin
   inherited Destroy;
 end;
 
-function TFakeOpenAIExecutor.Execute(const AAPIKey,
+function TFakeOpenAIExecutor.Execute(const AAPIKey, ACAFile,
   ABody: UTF8String; ATimeoutMS: Cardinal;
   out AResult: TNXOpenAIHTTPResult): Boolean;
 begin
   Key := AAPIKey;
+  CAFile := ACAFile;
   Bodies.Add(string(ABody));
   Inc(Calls);
   Entered.SetEvent;
@@ -168,7 +169,8 @@ procedure ConfigureProvider(AProvider: TNXOpenAIProvider;
 begin
   AConfig.Provider := 'OpenAI';
   AConfig.Model := 'test-model';
-  AConfig.OpenAIAPIKeyEnvironmentVariable := 'NEXUS_OPENAI_TEST_KEY';
+  AConfig.OpenAICAFile := 'openai-ca.pem';
+  AConfig.OpenAIAPIKey := 'secret-test-key';
   AProvider.Configure(AConfig, 'Test instructions.');
   AProvider.OnFinalAnswer := @ARecorder.FinalAnswer;
   AProvider.OnPromptFailed := @ARecorder.PromptFailed;
@@ -195,7 +197,6 @@ var
   lProvider: TNXOpenAIProvider;
   lRecorder: TOpenAIRecorder;
 begin
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', 'secret-test-key');
   lConfig := TNXBotHostConfig.Create;
   lConfig.AnswerMaximumBytes := 24;
   lExecutor := TFakeOpenAIExecutor.Create;
@@ -224,7 +225,6 @@ begin
     lProvider.Free;
     lRecorder.Free;
     lConfig.Free;
-    Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   end;
 end;
 
@@ -236,13 +236,13 @@ var
   lProvider: TNXOpenAIProvider;
   lRecorder: TOpenAIRecorder;
 begin
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   lConfig := TNXBotHostConfig.Create;
   lExecutor := TFakeOpenAIExecutor.Create;
   lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
   lRecorder := TOpenAIRecorder.Create;
   try
     ConfigureProvider(lProvider, lConfig, lRecorder);
+    lConfig.OpenAIAPIKey := '';
     AContext.AssertTrue(lProvider.Start,
       'A valid deployment should start its credential check.');
     lDeadline := GetTickCount64 + 5000;
@@ -250,12 +250,47 @@ begin
       (GetTickCount64 < lDeadline) do
       Sleep(1);
     AContext.AssertEquals(Integer(bpsFailed), Integer(lProvider.State),
-      'An empty named API-key variable should fail provider startup.');
-    AContext.AssertTrue(Pos('NEXUS_OPENAI_TEST_KEY',
+      'An empty API key should fail provider startup.');
+    AContext.AssertTrue(Pos('API key is empty',
       string(lRecorder.StateDetail)) > 0,
-      'The failure should name the empty variable without exposing a value.');
+      'The failure should identify the missing credential without a value.');
     AContext.AssertEquals(0, lExecutor.Calls,
       'Missing credentials must fail before any HTTP request.');
+  finally
+    lProvider.Free;
+    lRecorder.Free;
+    lConfig.Free;
+  end;
+end;
+
+procedure TestMissingCAFile(AContext: TNXTestContext);
+var
+  lConfig: TNXBotHostConfig;
+  lDeadline: QWord;
+  lExecutor: TFakeOpenAIExecutor;
+  lProvider: TNXOpenAIProvider;
+  lRecorder: TOpenAIRecorder;
+begin
+  lConfig := TNXBotHostConfig.Create;
+  lExecutor := TFakeOpenAIExecutor.Create;
+  lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
+  lRecorder := TOpenAIRecorder.Create;
+  try
+    ConfigureProvider(lProvider, lConfig, lRecorder);
+    lConfig.OpenAICAFile := '';
+    AContext.AssertTrue(lProvider.Start,
+      'A valid deployment should start its CA-bundle check.');
+    lDeadline := GetTickCount64 + 5000;
+    while (lProvider.State <> bpsFailed) and
+      (GetTickCount64 < lDeadline) do
+      Sleep(1);
+    AContext.AssertEquals(Integer(bpsFailed), Integer(lProvider.State),
+      'An empty OpenAI CA file should fail provider startup.');
+    AContext.AssertTrue(Pos('CA bundle is empty',
+      string(lRecorder.StateDetail)) > 0,
+      'The failure should identify the missing OpenAI trust bundle.');
+    AContext.AssertEquals(0, lExecutor.Calls,
+      'Missing trust configuration must fail before any HTTPS request.');
   finally
     lProvider.Free;
     lRecorder.Free;
@@ -322,7 +357,6 @@ var
   lProvider: TNXOpenAIProvider;
   lRecorder: TOpenAIRecorder;
 begin
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', 'secret-test-key');
   lConfig := TNXBotHostConfig.Create;
   lExecutor := TFakeOpenAIExecutor.Create;
   lExecutor.Results[0].Status := 200;
@@ -351,7 +385,9 @@ begin
     AContext.AssertEquals(2, lExecutor.Calls,
       'The provider should serialize both requests through one executor.');
     AContext.AssertEquals('secret-test-key', string(lExecutor.Key),
-      'The configured environment value should reach the HTTP boundary.');
+      'The configured API key should reach the HTTP boundary.');
+    AContext.AssertEquals('openai-ca.pem', string(lExecutor.CAFile),
+      'The configured OpenAI CA file should reach the HTTPS boundary.');
     AContext.AssertTrue(Pos('secret-test-key', lExecutor.Bodies.Text) = 0,
       'The API key must not enter typed JSON request bodies.');
     AContext.AssertTrue(Pos('previous_response_id',
@@ -383,7 +419,6 @@ begin
     lProvider.Free;
     lRecorder.Free;
     lConfig.Free;
-    Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   end;
 end;
 
@@ -395,7 +430,6 @@ var
   lProvider: TNXOpenAIProvider;
   lRecorder: TOpenAIRecorder;
 begin
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', 'secret-test-key');
   lConfig := TNXBotHostConfig.Create;
   lExecutor := TFakeOpenAIExecutor.Create;
   lExecutor.Block := True;
@@ -457,7 +491,6 @@ begin
     lProvider.Free;
     lRecorder.Free;
     lConfig.Free;
-    Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   end;
 end;
 
@@ -469,7 +502,6 @@ var
   lProvider: TNXOpenAIProvider;
   lRecorder: TOpenAIRecorder;
 begin
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', 'secret-test-key');
   lConfig := TNXBotHostConfig.Create;
   lExecutor := TFakeOpenAIExecutor.Create;
   lExecutor.Results[0].Status := 429;
@@ -527,7 +559,6 @@ begin
     lProvider.Free;
     lRecorder.Free;
     lConfig.Free;
-    Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   end;
 end;
 
@@ -538,7 +569,6 @@ var
   lProvider: TNXOpenAIProvider;
   lRecorder: TOpenAIRecorder;
 begin
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', 'secret-test-key');
   lConfig := TNXBotHostConfig.Create;
   lConfig.PromptCapacity := 1;
   lExecutor := TFakeOpenAIExecutor.Create;
@@ -593,10 +623,8 @@ begin
     lProvider.Free;
     lRecorder.Free;
     lConfig.Free;
-    Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   end;
 
-  Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', 'secret-test-key');
   lConfig := TNXBotHostConfig.Create;
   lExecutor := TFakeOpenAIExecutor.Create;
   lExecutor.Results[0].Status := 401;
@@ -620,7 +648,6 @@ begin
     lProvider.Free;
     lRecorder.Free;
     lConfig.Free;
-    Windows.SetEnvironmentVariable('NEXUS_OPENAI_TEST_KEY', nil);
   end;
 end;
 
@@ -633,6 +660,7 @@ begin
   lSuite.AddTest('ProviderConversation', @TestProviderConversation);
   lSuite.AddTest('IndependentAnswerLimit', @TestIndependentAnswerLimit);
   lSuite.AddTest('MissingAPIKey', @TestMissingAPIKey);
+  lSuite.AddTest('MissingCAFile', @TestMissingCAFile);
   lSuite.AddTest('CancellationAndFailure', @TestCancellationAndFailure);
   lSuite.AddTest('StopAndShutdownLifecycle', @TestStopAndShutdownLifecycle);
   lSuite.AddTest('ResponseFailures', @TestResponseFailures);

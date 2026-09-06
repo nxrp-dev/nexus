@@ -1973,6 +1973,52 @@ begin
       lStanza.Free;
     end;
 
+    AssertTrue(lCreateMUC.JoinOrCreateInstantRoom(
+      'created@conference.example.com', 'creator', True),
+      'Join-or-create should accept an existing room.');
+    lStanza := TNXXMPPStanza.Create(
+      '<presence xmlns=''jabber:client'' ' +
+      'from=''created@conference.example.com/creator''><x xmlns=' +
+      '''http://jabber.org/protocol/muc#user''><item affiliation=''member'' ' +
+      'role=''participant''/><status code=''110''/></x></presence>', '');
+    try
+      lCreateMUC.PumpStanza(lStanza);
+      AssertTrue((lRecorder.LastRoom.State = xrsJoined) and
+        (lRecorder.LastRoom.LastTransitionReason = xmtrJoined),
+        'Join-or-create should join an existing room without configuring it.');
+    finally
+      lStanza.Free;
+    end;
+
+    AssertTrue(lCreateMUC.JoinOrCreateInstantRoom(
+      'temporary@conference.example.com', 'creator', True),
+      'Join-or-create should accept a missing room.');
+    lStanza := TNXXMPPStanza.Create(
+      '<presence xmlns=''jabber:client'' ' +
+      'from=''temporary@conference.example.com/creator''><x xmlns=' +
+      '''http://jabber.org/protocol/muc#user''><item affiliation=''owner'' ' +
+      'role=''moderator''/><status code=''110''/><status code=''201''/>' +
+      '</x></presence>', '');
+    try
+      lCreateMUC.PumpStanza(lStanza);
+      AssertTrue((lRecorder.LastRoom.State = xrsConfiguring) and
+        (lRecorder.LastRoom.LastTransitionReason = xmtrConfiguring),
+        'Join-or-create should configure a newly created temporary room.');
+    finally
+      lStanza.Free;
+    end;
+    lStanza := TNXXMPPStanza.Create(
+      '<iq xmlns=''jabber:client'' type=''result'' id=''configure-temporary'' ' +
+      'from=''temporary@conference.example.com''/>', '');
+    try
+      lRecorder.IQHandler(lStanza, '');
+      AssertTrue((lRecorder.LastRoom.State = xrsJoined) and
+        (lRecorder.LastRoom.LastTransitionReason = xmtrRoomConfigured),
+        'Join-or-create should enter the newly configured temporary room.');
+    finally
+      lStanza.Free;
+    end;
+
     lRecorder.RejectIQ := True;
     AssertTrue(lCreateMUC.CreateInstantRoom(
       'created@conference.example.com', 'creator', True),

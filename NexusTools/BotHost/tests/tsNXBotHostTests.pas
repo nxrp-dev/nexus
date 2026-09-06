@@ -22,6 +22,7 @@ uses
   obNXBotController,
   obNXBotHost,
   obNXBotHostConfig,
+  obNXBotHostRuntime,
   obNXBotProvider,
   obNXBotHostRouter,
   obNXBotHostState,
@@ -44,6 +45,12 @@ uses
   tpNXXMPPTypes;
 
 type
+  TRuntimeActivityRecorder = class
+  public
+    Text: UTF8String;
+    procedure Activity(const AText: UTF8String);
+  end;
+
   TControllerProbeThread = class(TThread)
   private
     FController: TNXBotController;
@@ -185,6 +192,11 @@ type
     function Submit(AModule: TObject;
       AOperation: TNXXMPPModuleOperation): Boolean;
   end;
+
+procedure TRuntimeActivityRecorder.Activity(const AText: UTF8String);
+begin
+  Text := AText;
+end;
 
 constructor TControllerProbeThread.Create(AController: TNXBotController;
   AEvent: TEvent);
@@ -704,7 +716,8 @@ begin
   lMessage := TNXJSONRPC.ParseMessage(
     '{"id":2,"method":"item/tool/call","params":{"threadId":"t",' +
     '"turnId":"u","callId":"c","namespace":null,"tool":"bot_control",' +
-    '"arguments":{"operation":"status","bot":"NexusBot"}}}',
+    '"arguments":{"operation":"status","bot":"NexusBot",' +
+    '"room":"room@conference.nexus.local"}}}',
     jepHeaderless);
   try
     AContext.AssertTrue(lMessage is TNXCodexDynamicToolCallRequest,
@@ -716,6 +729,10 @@ begin
     AContext.AssertEquals('NexusBot', string(TNXCodexBotControlArguments(
       lToolRequest.params.arguments.Value).bot.Value),
       'Typed bot_control arguments should preserve the bot name.');
+    AContext.AssertEquals('room@conference.nexus.local',
+      string(TNXCodexBotControlArguments(
+      lToolRequest.params.arguments.Value).room.Value),
+      'Typed bot_control arguments should preserve an explicit room.');
   finally
     lMessage.Free;
   end;
@@ -825,11 +842,152 @@ begin
   lBinding.EndpointHost := '127.0.0.1';
   lBinding.EndpointPort := 5222;
   lBinding.Nick := 'OpenAIBot';
-  lBinding.OpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
-  lBinding.PasswordEnvironmentVariable := 'OPENAI_BOT_XMPP_PASSWORD';
+  lBinding.OpenAICAFile := 'public-ca.pem';
+  lBinding.OpenAIAPIKey := 'secret-test-key';
+  lBinding.Password := 'winston';
   lBinding.Resource := 'OpenAIBotHost';
   lBinding.XMPPJID := 'openai@nexus.local';
   AConfig.Bindings.Add(lBinding);
+end;
+
+procedure TestLaunchConfiguration(AContext: TNXTestContext);
+var
+  lBinding: TNXBotDeploymentBinding;
+  lController: TNXBotControllerConfig;
+  lControllerFile: string;
+  lHost: TNXBotHostConfig;
+  lLaunch: TNXBotHostLaunchConfig;
+  lLaunchFile: string;
+begin
+  lLaunchFile := ExpandFileName('test-config' + PathDelim +
+    'NexusBotHostLaunch.json');
+  lLaunch := TNXBotHostLaunchConfig.Create;
+  try
+    lLaunch.JSON := '{"AutoStart":true,"BotName":"Observer",' +
+      '"ControllerFile":"config\\controller.json",' +
+      '"RoomJID":"room@conference.nexus.local"}';
+    lLaunch.Validate;
+    lLaunch.ResolvePaths(lLaunchFile);
+    lControllerFile := ExpandFileName(ExtractFileDir(lLaunchFile) +
+      PathDelim + 'config' + PathDelim + 'controller.json');
+    AContext.AssertEquals(lControllerFile, lLaunch.ControllerFile,
+      'Relative controller paths must resolve from the launch file.');
+    AContext.AssertTrue(lLaunch.AutoStart,
+      'The typed launch configuration must retain autostart policy.');
+  finally
+    lLaunch.Free;
+  end;
+
+  lController := TNXBotControllerConfig.Create;
+  lHost := TNXBotHostConfig.Create;
+  try
+    lController.CatalogFile := '..' + PathDelim + 'catalog' + PathDelim +
+      'Bots.nxscript';
+    lBinding := TNXBotDeploymentBinding.Create;
+    lBinding.BotName := 'NexusBot';
+    lBinding.CAFile := 'certs' + PathDelim + 'server.crt';
+    lBinding.CodexExecutable := 'bin' + PathDelim + 'codex.exe';
+    lBinding.OpenAICAFile := 'certs' + PathDelim + 'public-ca.pem';
+    lBinding.OpenAIAPIKey := 'test-api-key';
+    lBinding.Password := 'winston';
+    lBinding.RuntimeDirectory := 'runtime';
+    lController.Bindings.Add(lBinding);
+    lController.ResolvePaths(lControllerFile);
+    AContext.AssertEquals(ExpandFileName(ExtractFileDir(lControllerFile) +
+      PathDelim + 'certs' + PathDelim + 'server.crt'), lBinding.CAFile,
+      'Relative deployment paths must resolve from the controller file.');
+    AContext.AssertEquals(ExpandFileName(ExtractFileDir(lControllerFile) +
+      PathDelim + 'certs' + PathDelim + 'public-ca.pem'),
+      lBinding.OpenAICAFile,
+      'Relative OpenAI CA paths must resolve from the controller file.');
+    lHost.ApplyDeployment(lBinding);
+    AContext.AssertEquals('winston', lHost.Password,
+      'The host must receive the persisted XMPP credential directly.');
+    AContext.AssertEquals('test-api-key', lHost.OpenAIAPIKey,
+      'The host must receive the persisted provider credential directly.');
+    AContext.AssertEquals(lBinding.OpenAICAFile, lHost.OpenAICAFile,
+      'The host must receive the OpenAI trust bundle path.');
+    AContext.AssertTrue(Pos('"Password" : "winston"',
+      lController.JSON) > 0,
+      'RTTI persistence must own the direct deployment credential contract.');
+  finally
+    lHost.Free;
+    lController.Free;
+  end;
+end;
+
+procedure TestHeadlessRuntime(AContext: TNXTestContext);
+var
+  lBinding: TNXBotDeploymentBinding;
+  lController: TNXBotControllerConfig;
+  lControllerFile: string;
+  lLaunch: TNXBotHostLaunchConfig;
+  lLaunchFile: string;
+  lRecorder: TRuntimeActivityRecorder;
+  lRuntime: TNXBotHostRuntime;
+  lSnapshot: TNXBotHostSnapshot;
+  lTempDirectory: string;
+begin
+  lTempDirectory := GetTempFileName(GetTempDir(False), 'nxbot');
+  DeleteFile(lTempDirectory);
+  if not CreateDir(lTempDirectory) then
+    raise Exception.Create('Could not create the BotHost runtime test directory.');
+  lControllerFile := lTempDirectory + PathDelim + 'controller.json';
+  lLaunchFile := lTempDirectory + PathDelim + 'launch.json';
+  lController := TNXBotControllerConfig.Create;
+  lLaunch := TNXBotHostLaunchConfig.Create;
+  lRecorder := TRuntimeActivityRecorder.Create;
+  lRuntime := nil;
+  try
+    lController.CatalogFile := ExpandFileName('NexusTools' + PathDelim +
+      'BotHost' + PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+    lBinding := TNXBotDeploymentBinding.Create;
+    lBinding.BotName := 'NexusBot';
+    lBinding.CAFile := 'ca.pem';
+    lBinding.CodexExecutable := 'codex.exe';
+    lBinding.EndpointHost := '127.0.0.1';
+    lBinding.EndpointPort := 5222;
+    lBinding.Nick := 'NexusBot';
+    lBinding.Password := 'winston';
+    lBinding.Resource := 'NexusBotHost';
+    lBinding.RuntimeDirectory := 'runtime';
+    lBinding.XMPPJID := 'test1@nexus.local';
+    lController.Bindings.Add(lBinding);
+    AddOpenAITestBinding(lController);
+    lController.SaveToJSONFile(lControllerFile);
+
+    lLaunch.AutoStart := False;
+    lLaunch.BotName := 'NexusBot';
+    lLaunch.ControllerFile := 'controller.json';
+    lLaunch.RoomJID := 'room@conference.nexus.local';
+    lLaunch.SaveToJSONFile(lLaunchFile);
+
+    lRuntime := TNXBotHostRuntime.Create(lLaunchFile);
+    lRuntime.OnActivity := @lRecorder.Activity;
+    AContext.AssertTrue(Assigned(lRuntime.Controller) and
+      Assigned(lRuntime.Host),
+      'The headless runtime must compose the controller and selected host.');
+    AContext.AssertEquals('room@conference.nexus.local',
+      lRuntime.Host.Config.RoomJID,
+      'The launch room must be applied to the selected host.');
+    lRuntime.Start;
+    lSnapshot := lRuntime.Host.State.Snapshot;
+    AContext.AssertTrue(lSnapshot.ProviderState = bpsStopped,
+      'AutoStart false must not start external provider or XMPP work.');
+    lRuntime.Host.State.AddJournal('headless runtime activity');
+    AContext.AssertTrue(Pos('headless runtime activity',
+      string(lRecorder.Text)) > 0,
+      'Journal activity must be delivered directly through the runtime event.');
+    lRuntime.Shutdown;
+  finally
+    lRuntime.Free;
+    lRecorder.Free;
+    lLaunch.Free;
+    lController.Free;
+    DeleteFile(lLaunchFile);
+    DeleteFile(lControllerFile);
+    RemoveDir(lTempDirectory);
+  end;
 end;
 
 procedure TestUnregisteredProviderCatalog(AContext: TNXTestContext);
@@ -848,7 +1006,7 @@ begin
     lBinding.EndpointHost := '127.0.0.1';
     lBinding.EndpointPort := 5222;
     lBinding.Nick := 'Unregistered';
-    lBinding.PasswordEnvironmentVariable := 'UNREGISTERED_PASSWORD';
+    lBinding.Password := 'winston';
     lBinding.Resource := 'Unregistered';
     lBinding.XMPPJID := 'unregistered@nexus.local';
     lConfig.Bindings.Add(lBinding);
@@ -890,7 +1048,7 @@ begin
     lBinding.EndpointHost := '127.0.0.1';
     lBinding.EndpointPort := 5222;
     lBinding.Nick := 'NexusBot';
-    lBinding.PasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
+    lBinding.Password := 'winston';
     lBinding.Resource := 'NexusBotHost';
     lBinding.RuntimeDirectory := 'runtime';
     lBinding.XMPPJID := 'test1@nexus.local';
@@ -905,21 +1063,23 @@ begin
     AContext.AssertEquals('gpt-5.6-luna',
       string(lCatalog.Entries[0].Model),
       'Catalog extraction should use the compiled effective value.');
-    AContext.AssertTrue(Pos('winston', LowerCase(lConfig.JSON)) = 0,
-      'Persisted deployment configuration must not contain a password value.');
+    AContext.AssertTrue(Pos('winston', LowerCase(lConfig.JSON)) > 0,
+      'Persisted deployment configuration must contain its password value.');
+    AContext.AssertTrue(Pos('secret-test-key', lConfig.JSON) > 0,
+      'Persisted deployment configuration must contain its API key value.');
     AContext.AssertTrue(Pos('OperationTimeoutMS', lConfig.JSON) = 0,
       'Controller configuration must not emit the removed deadline setting.');
 
     lBinding := TNXBotDeploymentBinding(lConfig.Bindings[1]);
-    lBinding.OpenAIAPIKeyEnvironmentVariable := '';
+    lBinding.OpenAIAPIKey := '';
     AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
-      'A blank OpenAI API-key variable name must fail catalog loading.');
+      'A blank OpenAI API key must fail catalog loading.');
     AContext.AssertEquals(2, lCatalog.Entries.Count,
       'OpenAI deployment failure must preserve the published catalog.');
-    AContext.AssertTrue(Pos('OpenAIAPIKeyEnvironmentVariable',
+    AContext.AssertTrue(Pos('OpenAIAPIKey',
       lCatalog.Diagnostics.Text) > 0,
       'The OpenAI deployment diagnostic should name the missing field.');
-    lBinding.OpenAIAPIKeyEnvironmentVariable := 'OPENAI_API_KEY';
+    lBinding.OpenAIAPIKey := 'secret-test-key';
 
     lLoadedConfig := TNXBotControllerConfig.Create;
     try
@@ -938,7 +1098,7 @@ begin
     lBinding.CAFile := 'ca.pem';
     lBinding.CodexExecutable := 'codex.exe';
     lBinding.Nick := 'Broken';
-    lBinding.PasswordEnvironmentVariable := 'BROKEN_PASSWORD';
+    lBinding.Password := 'winston';
     lBinding.Resource := 'Broken';
     lBinding.RuntimeDirectory := 'runtime';
     lBinding.XMPPJID := 'broken@nexus.local';
@@ -961,7 +1121,7 @@ begin
     lDuplicate.CAFile := 'ca.pem';
     lDuplicate.CodexExecutable := 'codex.exe';
     lDuplicate.Nick := 'Duplicate';
-    lDuplicate.PasswordEnvironmentVariable := 'DUPLICATE_PASSWORD';
+    lDuplicate.Password := 'winston';
     lDuplicate.Resource := 'Duplicate';
     lDuplicate.RuntimeDirectory := 'runtime';
     lDuplicate.XMPPJID := 'duplicate@nexus.local';
@@ -1004,7 +1164,7 @@ begin
       lBinding.EndpointHost := '127.0.0.1';
       lBinding.EndpointPort := 0;
       lBinding.Nick := 'NexusBot';
-      lBinding.PasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
+      lBinding.Password := 'winston';
       lBinding.Resource := 'NexusBotHost';
       lBinding.RuntimeDirectory := 'runtime';
       lBinding.XMPPJID := 'bad@@nexus.local';
@@ -1075,6 +1235,10 @@ begin
   lPrompt := TNXBotPrompt.Create(1, 'room@conference.nexus.local',
     'room@conference.nexus.local/test1', 'm1', 'LiSt BoTs');
   try
+    AContext.AssertEquals(
+      'XMPP context: group message in room room@conference.nexus.local.' +
+      LineEnding + LineEnding + 'LiSt BoTs', string(lPrompt.ModelInput),
+      'A room prompt must identify its room to the provider.');
     AContext.AssertTrue(TNXBotControlInterpreter.Parse(lPrompt, lOperation),
       'LIST should be recognized case-insensitively after routing.');
     AContext.AssertEquals(Integer(bcokList), Integer(lOperation.Kind),
@@ -1101,6 +1265,50 @@ begin
   finally
     lPrompt.Free;
   end;
+  lPrompt := TNXBotPrompt.Create(4, '', 'operator@nexus.local/desktop',
+    'm4', 'invite Observer other@conference.nexus.local');
+  lPrompt.SetDirectResponse('origin-4');
+  try
+    AContext.AssertEquals(
+      'XMPP context: direct message with no originating room.' + LineEnding +
+      LineEnding + 'invite Observer other@conference.nexus.local',
+      string(lPrompt.ModelInput),
+      'A global direct message must explicitly have no room context.');
+    AContext.AssertTrue(TNXBotControlInterpreter.Parse(lPrompt, lOperation),
+      'A global DM should accept an explicit room for INVITE.');
+    AContext.AssertEquals('other@conference.nexus.local',
+      string(lOperation.RoomJID),
+      'The explicit DM room must become the operation target.');
+    AContext.AssertEquals(Integer(bpdDirect), Integer(lPrompt.Delivery),
+      'The prompt must retain direct-response routing.');
+    AContext.AssertEquals('origin-4', string(lPrompt.ReplyID),
+      'A direct prompt must retain the incoming reply identifier.');
+  finally
+    lPrompt.Free;
+  end;
+  lPrompt := TNXBotPrompt.Create(5, '', 'operator@nexus.local/desktop',
+    'm5', 'dismiss Observer');
+  lPrompt.SetDirectResponse('origin-5');
+  try
+    AContext.AssertTrue(TNXBotControlInterpreter.Parse(lPrompt, lOperation),
+      'A room command without context should still produce a typed request.');
+    AContext.AssertEquals('', string(lOperation.RoomJID),
+      'A global DM must not invent a room context.');
+  finally
+    lPrompt.Free;
+  end;
+  lPrompt := TNXBotPrompt.Create(6, 'room@conference.nexus.local',
+    'room@conference.nexus.local/operator', 'm6', 'what room?');
+  lPrompt.SetDirectResponse('origin-6');
+  try
+    AContext.AssertEquals(
+      'XMPP context: private message from room ' +
+      'room@conference.nexus.local.' + LineEnding + LineEnding + 'what room?',
+      string(lPrompt.ModelInput),
+      'A MUC private message must identify its originating room.');
+  finally
+    lPrompt.Free;
+  end;
 end;
 
 function CreateTestController(out AHost: TFakeBotHost): TNXBotController;
@@ -1118,7 +1326,7 @@ begin
     lBinding.CAFile := 'ca.pem';
     lBinding.CodexExecutable := 'codex.exe';
     lBinding.Nick := 'NexusBot';
-    lBinding.PasswordEnvironmentVariable := 'NEXUS_BOT_XMPP_PASSWORD';
+    lBinding.Password := 'winston';
     lBinding.Resource := 'test';
     lBinding.RuntimeDirectory := 'runtime';
     lBinding.XMPPJID := 'bot@nexus.local';
@@ -1140,6 +1348,81 @@ begin
   finally
     lConfig.Free;
     lCatalog.Free;
+  end;
+end;
+
+procedure TestRoomLocalAuthorization(AContext: TNXTestContext);
+var
+  lAuthorization: TNXBotAuthorization;
+  lController: TNXBotController;
+  lHost: TFakeBotHost;
+  lOperation: TNXBotControlOperation;
+  lRecorder: TControlRecorder;
+  lToken: QWord;
+begin
+  lRecorder := TControlRecorder.Create;
+  lController := CreateTestController(lHost);
+  try
+    lAuthorization := NXBotAuthorization(bcoHumanMUC, '',
+      'room@conference.nexus.local', True);
+    lOperation := NXBotControlOperation(bcokDismiss, 'OpenAIBot',
+      'room@conference.nexus.local');
+    AContext.AssertTrue(lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken),
+      'A verified room occupant should submit a room-local DISMISS.');
+    AContext.AssertTrue((lRecorder.ResultValue.Error = bceNone) and
+      lRecorder.ResultValue.NoOp,
+      'A room-local command must not require a disclosed real JID.');
+
+    lOperation.RoomJID := 'other@conference.nexus.local';
+    lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken);
+    AContext.AssertEquals(Integer(bceForbidden),
+      Integer(lRecorder.ResultValue.Error),
+      'Anonymous room authority must not cross room boundaries.');
+
+    lAuthorization.VerifiedMUCIdentity := False;
+    lOperation.RoomJID := 'room@conference.nexus.local';
+    lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken);
+    AContext.AssertEquals(Integer(bceForbidden),
+      Integer(lRecorder.ResultValue.Error),
+      'An unverified sender must not receive room-local authority.');
+
+    lAuthorization := NXBotAuthorization(bcoModelTool, '',
+      'room@conference.nexus.local', True);
+    lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken);
+    AContext.AssertEquals(Integer(bceNone),
+      Integer(lRecorder.ResultValue.Error),
+      'A model tool should receive the same room-local authority.');
+
+    lOperation := NXBotControlOperation(bcokList, '', '');
+    lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken);
+    AContext.AssertEquals(Integer(bceForbidden),
+      Integer(lRecorder.ResultValue.Error),
+      'Room occupancy alone must not grant global LIST authority.');
+
+    lAuthorization := NXBotAuthorization(bcoHumanDM,
+      'reader@nexus.local', '', False);
+    lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken);
+    AContext.AssertEquals(Integer(bceNone),
+      Integer(lRecorder.ResultValue.Error),
+      'An allowlisted reader should retain read access through a global DM.');
+
+    lAuthorization := NXBotAuthorization(bcoHumanDM,
+      'operator@nexus.local', '', False);
+    lOperation := NXBotControlOperation(bcokDismiss, 'OpenAIBot', '');
+    lController.Execute(lOperation, lAuthorization,
+      @lRecorder.Complete, lToken);
+    AContext.AssertEquals(Integer(bceBadRequest),
+      Integer(lRecorder.ResultValue.Error),
+      'A global DM room operation must specify its target room.');
+  finally
+    lController.Free;
+    lRecorder.Free;
   end;
 end;
 
@@ -1625,10 +1908,13 @@ begin
   lSuite.AddTest('TypedProtocol', @TestTypedProtocol);
   lSuite.AddTest('ControlContract', @TestControlContract);
   lSuite.AddTest('ProviderRegistry', @TestProviderRegistry);
+  lSuite.AddTest('LaunchConfiguration', @TestLaunchConfiguration);
+  lSuite.AddTest('HeadlessRuntime', @TestHeadlessRuntime);
   lSuite.AddTest('UnregisteredProviderCatalog',
     @TestUnregisteredProviderCatalog);
   lSuite.AddTest('BotCatalog', @TestBotCatalog);
   lSuite.AddTest('ControlInterpreter', @TestControlInterpreter);
+  lSuite.AddTest('RoomLocalAuthorization', @TestRoomLocalAuthorization);
   lSuite.AddTest('Controller', @TestController);
   lSuite.AddTest('ShutdownOwnership', @TestShutdownOwnership);
   lSuite.AddTest('AppServerShutdown', @TestAppServerShutdown);

@@ -10,6 +10,7 @@ uses
   obNXBotHostState,
   obNXXMPPClient,
   obNXXMPPMessage,
+  obNXXMPPMessageFeatures,
   obNXXMPPModule,
   obNXXMPPMUC,
   tpNXBotHost,
@@ -24,6 +25,7 @@ type
   private
     FConfig: TNXBotHostConfig;
     FInstructions: UTF8String;
+    FMessages: TNXXMPPMessageModule;
     FMUC: TNXXMPPMUCModule;
     FSequence: QWord;
     FState: TNXBotHostState;
@@ -43,6 +45,7 @@ type
     procedure SetOnBotControl(AValue: TNXBotControlEvent);
     procedure XMPPError(ASender: TObject; AStage: TNXXMPPErrorStage;
       const ACondition, AMessage: UTF8String);
+    procedure XMPPDirectMessage(ASender: TObject; AMessage: TNXXMPPMessage);
     procedure XMPPRoomMessage(ASender: TObject; ARoom: TNXXMPPRoom;
       AMessage: TNXXMPPMessage);
     procedure XMPPRoomState(ASender: TObject; ARoom: TNXXMPPRoom);
@@ -64,6 +67,8 @@ type
     procedure AddXMPPModule(AModule: TNXXMPPModule);
     function SendRoomMessage(const ARoomJID,
       AText: UTF8String): Boolean;
+    function SendPromptResponse(APrompt: TNXBotPrompt;
+      const AText: UTF8String): Boolean;
 
     property Config: TNXBotHostConfig read FConfig;
     property State: TNXBotHostState read FState;
@@ -123,6 +128,9 @@ begin
   FMUC.OnRoomMessage := @XMPPRoomMessage;
   FMUC.OnRoomState := @XMPPRoomState;
   FXMPP.AddModule(FMUC);
+  FMessages := TNXXMPPMessageModule.Create;
+  FMessages.OnMessage := @XMPPDirectMessage;
+  FXMPP.AddModule(FMessages);
 end;
 
 destructor TNXBotHost.Destroy;
@@ -131,6 +139,7 @@ begin
   FreeAndNil(FProvider);
   FreeAndNil(FXMPP);
   FMUC := nil;
+  FMessages := nil;
   FreeAndNil(FState);
   FreeAndNil(FConfig);
   inherited Destroy;
@@ -181,13 +190,31 @@ begin
   Result := FMUC.SendGroupMessage(ARoomJID, AText);
 end;
 
+function TNXBotHost.SendPromptResponse(APrompt: TNXBotPrompt;
+  const AText: UTF8String): Boolean;
+var
+  lIdentity: TNXXMPPOutgoingMessageIdentity;
+begin
+  Result := Assigned(APrompt) and (AText <> '');
+  if not Result then
+    Exit;
+  if APrompt.Delivery = bpdRoom then
+    Exit(FMUC.SendGroupMessage(APrompt.RoomJID, AText));
+  if APrompt.ReplyID <> '' then
+    Result := FMessages.SendReply(APrompt.SenderJID, AText,
+      APrompt.SenderJID, APrompt.ReplyID, False, lIdentity)
+  else
+    Result := FMessages.SendChatMessage(APrompt.SenderJID, AText, False,
+      lIdentity);
+end;
+
 function TNXBotHost.ConnectXMPP: Boolean;
 begin
   Result := False;
   try
     FConfig.ValidateXMPP;
     FXMPP.Config.JID := UTF8String(FConfig.XMPPJID);
-    FXMPP.Config.Password := FConfig.Password;
+    FXMPP.Config.Password := UTF8String(FConfig.Password);
     FXMPP.Config.Resource := UTF8String(FConfig.Resource);
     FXMPP.Config.CAFile := FConfig.CAFile;
     FXMPP.Config.EndpointHost := FConfig.EndpointHost;
@@ -211,7 +238,8 @@ end;
 
 function TNXBotHost.JoinRoom(const ARoomJID: UTF8String): Boolean;
 begin
-  Result := FMUC.Join(ARoomJID, UTF8String(FConfig.Nick), '');
+  Result := FMUC.JoinOrCreateInstantRoom(ARoomJID,
+    UTF8String(FConfig.Nick));
   if not Result then
     FState.AddJournal('Room join command rejected.');
 end;
@@ -259,10 +287,102 @@ end;
 procedure TNXBotHost.ProviderFinalAnswer(ASender: TObject;
   APrompt: TNXBotPrompt; const AText: UTF8String);
 begin
-  if FMUC.SendGroupMessage(APrompt.RoomJID, AText) then
+  if SendPromptResponse(APrompt, AText) then
     FState.AddJournal('Queued answer for ' + APrompt.SenderJID + '.')
   else
     FState.AddJournal('Answer could not be queued to XMPP.');
+  Changed;
+end;
+
+procedure TNXBotHost.XMPPDirectMessage(ASender: TObject;
+  AMessage: TNXXMPPMessage);
+var
+  lCallerJID: UTF8String;
+  lNick: UTF8String;
+  lOccupant: TNXXMPPOccupant;
+  lPrompt: TNXBotPrompt;
+  lReplyID: UTF8String;
+  lRoom: TNXXMPPRoom;
+  lRoomJID: UTF8String;
+  lSeparator: Integer;
+begin
+  if not Assigned(AMessage) or not AMessage.Valid or
+    (AMessage.Context <> xmdcLive) or AMessage.Delay.Present or
+    (AMessage.TypeValue <> 'chat') or (AMessage.Body = '') or
+    (AMessage.DisplayBody = '') or (AMessage.FromJID = '') then
+    Exit;
+  if AMessage.FromJID = UTF8String(FConfig.XMPPJID + '/' + FConfig.Resource) then
+    Exit;
+  if not (FProvider.State in [bpsReady, bpsWorking]) then
+  begin
+    FState.AddJournal('Ignored direct message: provider is not ready.');
+    Changed;
+    Exit;
+  end;
+  if (FConfig.PromptMaximumBytes < 1) or
+    (Length(AMessage.DisplayBody) > FConfig.PromptMaximumBytes) then
+  begin
+    FState.AddJournal('Ignored direct message: prompt exceeds configured ' +
+      'byte limit.');
+    Changed;
+    Exit;
+  end;
+
+  lSeparator := Pos('/', AMessage.FromJID);
+  if lSeparator > 0 then
+  begin
+    lCallerJID := Copy(AMessage.FromJID, 1, lSeparator - 1);
+    lNick := Copy(AMessage.FromJID, lSeparator + 1, MaxInt);
+  end
+  else
+  begin
+    lCallerJID := AMessage.FromJID;
+    lNick := '';
+  end;
+  lRoom := FMUC.FindRoom(lCallerJID);
+  if Assigned(lRoom) and (lRoom.State = xrsJoined) then
+    lRoomJID := lRoom.JID
+  else
+  begin
+    lRoom := nil;
+    lRoomJID := '';
+  end;
+
+  Inc(FSequence);
+  lPrompt := TNXBotPrompt.Create(FSequence, lRoomJID, AMessage.FromJID,
+    AMessage.ID, AMessage.DisplayBody);
+  if AMessage.OriginID <> '' then
+    lReplyID := AMessage.OriginID
+  else
+    lReplyID := AMessage.ID;
+  lPrompt.SetDirectResponse(lReplyID);
+  if Assigned(lRoom) then
+  begin
+    lPrompt.SetVerifiedCaller('', True);
+    lOccupant := lRoom.Occupant(lNick);
+    if Assigned(lOccupant) and lOccupant.Available and
+      (lOccupant.RealJID <> '') then
+    begin
+      lCallerJID := lOccupant.RealJID;
+      lSeparator := Pos('/', lCallerJID);
+      if lSeparator > 0 then
+        lCallerJID := Copy(lCallerJID, 1, lSeparator - 1);
+      lPrompt.SetVerifiedCaller(lCallerJID, True);
+    end;
+  end
+  else
+    lPrompt.SetVerifiedCaller(lCallerJID, False);
+
+  if Assigned(FOnPrompt) and FOnPrompt(Self, lPrompt) then
+  begin
+    FState.AddJournal('Accepted direct control prompt from ' +
+      AMessage.FromJID + '.');
+    lPrompt.Free;
+  end
+  else if FProvider.SubmitPrompt(lPrompt) then
+    FState.AddJournal('Accepted direct prompt from ' + AMessage.FromJID + '.')
+  else
+    FState.AddJournal('Direct prompt rejected: provider command queue full.');
   Changed;
 end;
 
@@ -323,15 +443,19 @@ begin
       lNick := Copy(AMessage.FromJID, lSeparator + 1, MaxInt)
     else
       lNick := '';
-    lOccupant := ARoom.Occupant(lNick);
-    if Assigned(lOccupant) and lOccupant.Available and
-      (lOccupant.RealJID <> '') then
+    if lNick <> '' then
     begin
-      lVerifiedJID := lOccupant.RealJID;
-      lSeparator := Pos('/', lVerifiedJID);
-      if lSeparator > 0 then
-        lVerifiedJID := Copy(lVerifiedJID, 1, lSeparator - 1);
-      lPrompt.SetVerifiedCaller(lVerifiedJID, True);
+      lPrompt.SetVerifiedCaller('', True);
+      lOccupant := ARoom.Occupant(lNick);
+      if Assigned(lOccupant) and lOccupant.Available and
+        (lOccupant.RealJID <> '') then
+      begin
+        lVerifiedJID := lOccupant.RealJID;
+        lSeparator := Pos('/', lVerifiedJID);
+        if lSeparator > 0 then
+          lVerifiedJID := Copy(lVerifiedJID, 1, lSeparator - 1);
+        lPrompt.SetVerifiedCaller(lVerifiedJID, True);
+      end;
     end;
     if Assigned(FOnPrompt) and FOnPrompt(Self, lPrompt) then
     begin

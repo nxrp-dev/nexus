@@ -127,8 +127,8 @@ begin
           ABotName + ': ' + E.Message);
     end;
   end;
-  if ABinding.PasswordEnvironmentVariable = '' then
-    ADiagnostics.Add('Missing deployment field PasswordEnvironmentVariable ' +
+  if ABinding.Password = '' then
+    ADiagnostics.Add('Missing deployment field Password ' +
       'for bot ' + ABotName + '.');
   if ABinding.Resource = '' then
     ADiagnostics.Add('Missing deployment field Resource for bot ' +

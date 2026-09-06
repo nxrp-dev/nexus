@@ -1,6 +1,6 @@
 # Nexus XMPP BotHost
 
-NexusBotHost is a visible NexusUI application that hosts a catalog of
+NexusBotHost is a headless console application that hosts a catalog of
 provider-backed bots on NexusXMPP. The distinguished `NexusBot` instance
 receives ordinary addressed MUC conversation and owns the control endpoint for
 the catalog.
@@ -20,11 +20,12 @@ authentication, provider startup, and other operational failures remain runtime
 status rather than catalog validity.
 
 The registered providers are `Codex` and `OpenAI`. `OpenAI` uses the Responses
-API through WinHTTP on Windows, sends non-streaming requests, and keeps only the
-previous response ID in memory for conversation continuity. It sends
+API through Synapse and its OpenSSL 3 TLS provider, sends non-streaming
+requests, and keeps only the previous response ID in memory for conversation
+continuity. It sends
 `store: true`; the response chain therefore uses OpenAI-retained response state
 while BotHost writes no conversation history to disk. Streaming, tools, and a
-non-Windows OpenAI transport are not part of this milestone.
+second socket stack are not part of this milestone.
 
 ## Control plane
 
@@ -38,8 +39,18 @@ controller implementation. They can arrive through:
 
 The existing BotHost router remains the sole owner of MUC admission. It accepts
 live replies, `@Nick`, and Gajim's case-insensitive `Nick, ` addressing. Human
-control authorization uses only a room-disclosed real bare JID; nicknames and
-occupant JIDs are not identities. Direct-message control is not supported.
+room occupants may invite or dismiss catalog bots only in their current room,
+including temporary rooms that conceal real JIDs. Allowlisted reader/operator
+authorization still requires a room-disclosed or IQ-authenticated real bare
+JID; nicknames and occupant JIDs are not account identities.
+
+Bots also accept ordinary direct messages without nickname addressing and
+return their answer to the same full JID. A MUC private message carries the
+room occupant JID, so BotHost retains that room as the prompt context. A global
+direct message carries no room provenance. Its room operations must therefore
+use `invite BotName room@service` or `dismiss BotName room@service`; omitting
+the room returns a bad-request result. Existing reader/operator authorization
+still applies to global direct-message control.
 
 The IQ wire operations are:
 
@@ -80,10 +91,10 @@ object destruction all execute after that guard has been released. An active
 host removed from the controller is retained until outstanding users release
 it, then destroyed outside the critical section.
 
-The GUI owns the editable persisted controller configuration. The controller
-receives a private copy and accepts complete deployment updates through its
-explicit update method; GUI controls never mutate the controller's object graph
-directly.
+The typed controller configuration owns deployment data. The host has no
+second configuration surface; it writes timestamped activity to standard
+output while retaining the existing bounded in-memory journal. The controller
+receives its private configuration copy.
 
 INVITE and DISMISS are idempotent. INVITE completes after the bot is joined.
 DISMISS leaves only the requested room; it does not stop the provider,
@@ -105,7 +116,8 @@ The focused suite covers routing, copied observable multi-room state, the
 case-sensitive provider registry, fail-fast catalog/provider association, typed
 Codex App Server protocol objects, authorization, idempotency,
 capacity/cancellation, exact human commands, IQ dispatch/serialization/error
-mapping, discovery, the typed IQ caller, claimed operation shutdown, final
+mapping, discovery, headless runtime composition and activity delivery, the
+typed IQ caller, claimed operation shutdown, final
 provider worker quiescence, and the real-pipe Codex App Server process
 integration.
 
@@ -120,46 +132,65 @@ test is reported as skipped by the Nexus test framework.
 
 ## Configuration and secrets
 
-The GUI saves its distinguished-host settings under the current user's
-application-data directory in `NexusBotHost\NexusBotHost.json`. Controller
-configuration is saved beside it as `NexusBotController.json`. It contains:
+NexusBotHost launches from a typed RTTI-persisted JSON launch configuration:
+
+```powershell
+NexusBotHost.exe --config C:\Bots\NexusBotHostLaunch.json
+```
+
+With no argument it uses
+`NexusBotHost\NexusBotHostLaunch.json` under the current user's application-data
+directory. A missing or invalid explicit/default configuration fails clearly.
+
+The launch object selects the bot, controller configuration, initial room, and
+autostart policy:
+
+```json
+{
+  "Class": "TNXBotHostLaunchConfig",
+  "AutoStart": true,
+  "BotName": "NexusBot",
+  "ControllerFile": "NexusBotController.json",
+  "RoomJID": "nexus-test@conference.nexus.remote"
+}
+```
+
+Relative paths are resolved from the JSON file that declares them. Thus the
+controller path above is relative to the launch file, while catalog, CA,
+executable, and runtime-directory paths are relative to the controller file.
+
+The controller configuration contains:
 
 - `CatalogFile` and the stable `ControllerFullJID`;
 - bounded operation capacity;
 - normalized reader and operator bare-JID allowlists;
 - deployment bindings associating canonical catalog names with XMPP identity,
-  resource, nickname, endpoint/TLS data, provider-specific deployment data, and
-  a password-environment-variable name. The Codex binding uses
-  `CodexExecutable` and `RuntimeDirectory`; the OpenAI binding uses
-  `OpenAIAPIKeyEnvironmentVariable`.
+  resource, nickname, endpoint/TLS data, direct `Password`, and
+  provider-specific deployment data. The Codex binding uses `CodexExecutable`
+  and `RuntimeDirectory`; the OpenAI binding uses direct `OpenAIAPIKey` and an
+  explicit `OpenAICAFile` public CA bundle.
 
-No password value is persisted. The distinguished host defaults to the variable
-name below:
+The configuration is the credential owner. Passwords and API keys are not
+copied into process environment variables, command-line arguments, logs,
+diagnostics, activity messages, or protocol request bodies. The configuration
+file must be protected with appropriate filesystem permissions.
 
-```powershell
-$env:NEXUS_BOT_XMPP_PASSWORD = '<password>'
-```
-
-Each additional bot binding should use its own environment variable. The
-default second binding expects:
-
-```powershell
-$env:NEXUS_OPENAI_BOT_XMPP_PASSWORD = '<openfire-password>'
-$env:OPENAI_API_KEY = '<OpenAI-API-key>'
-```
-
-Set those variables before issuing `invite OpenAIBot` through the existing
-control path. The API key value is read only by the OpenAI provider worker and
-is never persisted in configuration or placed in its typed JSON request.
+The process remains active until it receives Ctrl+C, Ctrl+Break, or the
+platform's normal termination signal. Shutdown stops the selected provider and
+XMPP client through their existing synchronous ownership path. Console output
+is suitable for direct observation or capture by a service manager such as
+systemd.
 
 Use a
 dedicated runtime directory outside a source repository. The host starts an
 ephemeral Codex thread with `sandbox = read-only`, `approvalPolicy = never`, and
-restrictive developer instructions. Existing Codex authentication is reused;
-no Codex or OpenAI credential value is stored.
+restrictive developer instructions. Existing Codex authentication is reused.
 
 For Openfire with a private CA, set `CAFile` to the trusted CA PEM used by the
 NexusXMPP live tests. Trust the issuer rather than disabling verification.
+OpenAI HTTPS always verifies the server certificate and hostname. Set
+`OpenAICAFile` to a readable public CA bundle; it is independent of the XMPP
+server's `CAFile`.
 
 ## Installed App Server contract
 
@@ -174,12 +205,16 @@ The expected stable-v2 schema fingerprint and methods are recorded in
 protocol objects are modeled through RTTI and published properties, not
 free-form JSON interpretation.
 
-## Live Openfire verification
+## Live XMPP verification
 
 The live tests are registered as `NexusBotHostLive.OpenfireCodex` and
 `NexusBotHostLive.OpenfireOpenAI` in `NexusBotHostTestModule.dll`. Configure
 the desired test through environment variables, then invoke it through
 `NexusTestHost`.
+
+The original test IDs retain their Openfire names from the initial local
+deployment. The tests use ordinary XMPP and module APIs and contain no
+server-brand-specific protocol behavior.
 
 Codex:
 
@@ -207,6 +242,7 @@ the preceding example, plus:
 ```powershell
 $env:NEXUS_BOTHOST_LIVE_OPENAI = '1'
 $env:NEXUS_BOTHOST_OPENAI_MODEL = '<available-OpenAI-model>'
+$env:NEXUS_BOTHOST_OPENAI_CA_FILE = '<public-ca-bundle>'
 $env:NEXUS_BOTHOST_OPENAI_BOT_JID = 'test2@nexus.local'
 $env:NEXUS_BOTHOST_OPENAI_BOT_PASSWORD_ENVIRONMENT_VARIABLE = 'NEXUS_OPENAI_BOT_XMPP_PASSWORD'
 $env:NEXUS_BOTHOST_OPENAI_API_KEY_ENVIRONMENT_VARIABLE = 'OPENAI_API_KEY'
@@ -214,6 +250,19 @@ $env:NEXUS_OPENAI_BOT_XMPP_PASSWORD = '<bot-password>'
 $env:OPENAI_API_KEY = '<OpenAI-API-key>'
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenfireOpenAI
 ```
+
+Bot interoperability uses the Codex settings above and the OpenAI API key and
+bot-account settings from the OpenAI example. It has its own opt-in switch:
+
+```powershell
+$env:NEXUS_BOTHOST_LIVE_BOT_INTEROP = '1'
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.BotInterop
+```
+
+The interoperability test has a verified room occupant summon OpenAIBot through
+an ordinary addressed room command. NexusBot then sends an addressed group
+message to OpenAIBot, and the observer validates OpenAIBot's exact API-backed
+answer.
 
 The live test uses unique XMPP resources and ordinary client/module APIs. It
 verifies IQ LIST and STATUS, DISMISS plus idempotent DISMISS, observed leave,

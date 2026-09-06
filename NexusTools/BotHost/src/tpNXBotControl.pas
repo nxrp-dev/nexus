@@ -7,7 +7,7 @@ interface
 type
   TNXBotControlOperationKind = (bcokList, bcokStatus, bcokInvite,
     bcokDismiss);
-  TNXBotControlOrigin = (bcoHumanMUC, bcoModelTool, bcoRemoteIQ);
+  TNXBotControlOrigin = (bcoHumanMUC, bcoHumanDM, bcoModelTool, bcoRemoteIQ);
   TNXBotControlError = (bceNone, bceBadRequest, bceForbidden,
     bceNotFound, bceUnavailable, bceCapacity, bceTimeout, bceCancelled);
 

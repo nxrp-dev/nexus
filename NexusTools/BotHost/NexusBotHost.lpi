@@ -20,7 +20,7 @@
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="uiNXBotHostMain.pas"/>
+        <Filename Value="src\obNXBotHostRuntime.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit1>
     </Units>
@@ -33,7 +33,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;..\Script\core;..\..\NexusLib\core\src;..\..\NexusLib\net\src\xmpp;..\..\NexusLib\ui\src;..\..\lib\synapse;..\..\..\common\sdl\units;..\..\..\common\sdl_ext"/>
+      <OtherUnitFiles Value="src;src\protocol;..\Script\core;..\..\NexusLib\core\src;..\..\NexusLib\net\src\xmpp;..\..\lib\synapse"/>
       <UnitOutputDirectory Value="..\..\output\NexusBotHost\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
@@ -41,8 +41,5 @@
         <UseHeaptrc Value="False"/>
       </Debugging>
     </Linking>
-    <Other>
-      <CustomOptions Value="-WG"/>
-    </Other>
   </CompilerOptions>
 </CONFIG>

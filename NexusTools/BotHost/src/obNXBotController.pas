@@ -187,9 +187,21 @@ function TNXBotController.Authorized(const AOperation: TNXBotControlOperation;
 var
   lCaller: UTF8String;
 begin
-  if (AAuthorization.Origin in [bcoHumanMUC, bcoModelTool]) and
-    not AAuthorization.VerifiedMUCIdentity then
-    Exit(False);
+  if AAuthorization.Origin = bcoHumanMUC then
+  begin
+    if not AAuthorization.VerifiedMUCIdentity then
+      Exit(False);
+    if (AOperation.Kind in [bcokInvite, bcokDismiss]) and
+      (AAuthorization.SourceRoomJID <> '') and
+      (AOperation.RoomJID = AAuthorization.SourceRoomJID) then
+      Exit(True);
+  end;
+  if (AAuthorization.Origin = bcoModelTool) and
+    AAuthorization.VerifiedMUCIdentity and
+    (AOperation.Kind in [bcokInvite, bcokDismiss]) and
+    (AAuthorization.SourceRoomJID <> '') and
+    (AOperation.RoomJID = AAuthorization.SourceRoomJID) then
+    Exit(True);
   lCaller := NormalizedBareJID(AAuthorization.CallerBareJID);
   if lCaller = '' then
     Exit(False);
@@ -308,22 +320,9 @@ begin
       lFound := Assigned(lBinding);
       if lFound then
       begin
-        lConfig.CodexExecutable := lBinding.CodexExecutable;
+        lConfig.ApplyDeployment(lBinding);
         lConfig.Model := string(AEntry.Model);
         lConfig.Provider := string(AEntry.Provider);
-        lConfig.AllowPlain := lBinding.AllowPlain;
-        lConfig.CAFile := lBinding.CAFile;
-        lConfig.DirectTLS := lBinding.DirectTLS;
-        lConfig.EndpointHost := lBinding.EndpointHost;
-        lConfig.EndpointPort := lBinding.EndpointPort;
-        lConfig.Nick := lBinding.Nick;
-        lConfig.OpenAIAPIKeyEnvironmentVariable :=
-          lBinding.OpenAIAPIKeyEnvironmentVariable;
-        lConfig.PasswordEnvironmentVariable :=
-          lBinding.PasswordEnvironmentVariable;
-        lConfig.Resource := lBinding.Resource;
-        lConfig.RuntimeDirectory := lBinding.RuntimeDirectory;
-        lConfig.XMPPJID := lBinding.XMPPJID;
       end;
     finally
       LeaveCriticalSection(FCriticalSection);
@@ -742,8 +741,9 @@ begin
     ACompletion(AToken, lResult);
     Exit;
   end;
-  if NormalizedBareJID(lResolvedOperation.RoomJID) <>
-    lResolvedOperation.RoomJID then
+  if (lResolvedOperation.RoomJID = '') or
+    (NormalizedBareJID(lResolvedOperation.RoomJID) <>
+    lResolvedOperation.RoomJID) then
   begin
     ACompletion(AToken, NXBotControlFailure(bceBadRequest,
       'A canonical bare room JID is required.'));
@@ -977,10 +977,9 @@ begin
       lBinding.EndpointHost := ABinding.EndpointHost;
       lBinding.EndpointPort := ABinding.EndpointPort;
       lBinding.Nick := ABinding.Nick;
-      lBinding.OpenAIAPIKeyEnvironmentVariable :=
-        ABinding.OpenAIAPIKeyEnvironmentVariable;
-      lBinding.PasswordEnvironmentVariable :=
-        ABinding.PasswordEnvironmentVariable;
+      lBinding.OpenAICAFile := ABinding.OpenAICAFile;
+      lBinding.OpenAIAPIKey := ABinding.OpenAIAPIKey;
+      lBinding.Password := ABinding.Password;
       lBinding.Resource := ABinding.Resource;
       lBinding.RuntimeDirectory := ABinding.RuntimeDirectory;
       lBinding.XMPPJID := ABinding.XMPPJID;

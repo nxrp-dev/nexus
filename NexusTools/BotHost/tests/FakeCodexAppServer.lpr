@@ -91,6 +91,10 @@ begin
           'params.dynamicTools[0].inputSchema.additionalProperties');
         if (not Assigned(lValue)) or lValue.AsBoolean then
           Halt(8);
+        lValue := lData.FindPath(
+          'params.dynamicTools[0].inputSchema.properties.room.type');
+        if (not Assigned(lValue)) or (lValue.AsString <> 'string') then
+          Halt(10);
         Send('{"id":' + lID + ',"result":{"thread":{"id":"thread-1"},' +
           '"model":"gpt-5.6-luna"}}');
         Send('{"method":"fake/unknownNotification","params":{}}');

@@ -1,0 +1,44 @@
+{
+  "Class": "TNXBotControllerConfig",
+  "Bindings": {
+    "Class": "TNXBotDeploymentList",
+    "Items": [
+      {
+        "Class": "TNXBotDeploymentBinding",
+        "AllowPlain": true,
+        "BotName": "NexusBot",
+        "CAFile": "../../../NexusLib/net/tests/fixtures/xmpp/openfire-nexus-local.crt",
+        "CodexExecutable": "C:/path/to/codex.exe",
+        "EndpointHost": "127.0.0.1",
+        "EndpointPort": 5222,
+        "DirectTLS": false,
+        "Nick": "NexusBot",
+        "OpenAICAFile": "",
+        "Password": "replace-me",
+        "Resource": "NexusBotHost",
+        "RuntimeDirectory": "runtime",
+        "XMPPJID": "test1@nexus.local"
+      },
+      {
+        "Class": "TNXBotDeploymentBinding",
+        "AllowPlain": true,
+        "BotName": "OpenAIBot",
+        "CAFile": "../../../NexusLib/net/tests/fixtures/xmpp/openfire-nexus-local.crt",
+        "EndpointHost": "127.0.0.1",
+        "EndpointPort": 5222,
+        "DirectTLS": false,
+        "Nick": "OpenAIBot",
+        "OpenAICAFile": "path/to/public-ca-bundle.pem",
+        "OpenAIAPIKey": "replace-me",
+        "Password": "replace-me",
+        "Resource": "NexusOpenAIBotHost",
+        "XMPPJID": "test2@nexus.local"
+      }
+    ]
+  },
+  "CatalogFile": "../catalog/Bots.nxscript",
+  "ControllerFullJID": "test1@nexus.local/NexusBotHost",
+  "OperationCapacity": 32,
+  "Operators": "operator@nexus.local\r\n",
+  "Readers": ""
+}

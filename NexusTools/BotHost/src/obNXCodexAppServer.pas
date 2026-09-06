@@ -768,7 +768,8 @@ begin
   lCommand.params.sandbox.Value := 'read-only';
   lCommand.params.ephemeral.Value := True;
   lCommand.params.developerInstructions.Value := FInstructions + ' ' +
-    'You are an XMPP room bot. Answer the user message directly. Do not run ' +
+    'You are an XMPP bot. Each user message begins with authoritative XMPP ' +
+    'delivery context supplied by the host. Answer the user message directly. Do not run ' +
     'commands, read or modify files, use network tools, invoke MCP tools, ask ' +
     'for approvals, or request additional user input.';
   lCommand.params.dynamicTools.Assigned := True;
@@ -777,7 +778,7 @@ begin
   lTool.&type.Value := 'function';
   lTool.name.Value := 'bot_control';
   lTool.description.Value := 'List bots, inspect bot status, or invite or ' +
-    'dismiss a bot from the current XMPP room.';
+    'dismiss a bot from the current or explicitly named XMPP room.';
   lTool.inputSchema.&type.Value := 'object';
   lTool.inputSchema.additionalProperties.Value := False;
   lTool.inputSchema.properties.operation.&type.Value := 'string';
@@ -786,6 +787,7 @@ begin
   lTool.inputSchema.properties.operation.&enum.AddString('invite');
   lTool.inputSchema.properties.operation.&enum.AddString('dismiss');
   lTool.inputSchema.properties.bot.&type.Value := 'string';
+  lTool.inputSchema.properties.room.&type.Value := 'string';
   lTool.inputSchema.required.AddString('operation');
   SendRequest(rkThreadStart, lCommand);
 end;
@@ -1119,6 +1121,7 @@ var
   lID: TJSONData;
   lOperation: TNXBotControlOperation;
   lResponse: TJSONObject;
+  lRoomJID: UTF8String;
   lToken: QWord;
 begin
   if (AMessage is TNXCodexCommandApprovalRequest) or
@@ -1153,11 +1156,23 @@ begin
         lOperation := NXBotControlOperation(bcokStatus,
           lArguments.bot.Value, '')
       else if SameText(lArguments.operation.Value, 'invite') then
+      begin
+        if lArguments.room.Value <> '' then
+          lRoomJID := lArguments.room.Value
+        else
+          lRoomJID := FActivePrompt.RoomJID;
         lOperation := NXBotControlOperation(bcokInvite,
-          lArguments.bot.Value, FActivePrompt.RoomJID)
+          lArguments.bot.Value, lRoomJID);
+      end
       else if SameText(lArguments.operation.Value, 'dismiss') then
+      begin
+        if lArguments.room.Value <> '' then
+          lRoomJID := lArguments.room.Value
+        else
+          lRoomJID := FActivePrompt.RoomJID;
         lOperation := NXBotControlOperation(bcokDismiss,
-          lArguments.bot.Value, FActivePrompt.RoomJID)
+          lArguments.bot.Value, lRoomJID);
+      end
       else
       begin
         SendDynamicToolResult(AMessage.IDJSON, NXBotControlFailure(
@@ -1372,7 +1387,7 @@ begin
   lInput := TNXCodexTextInput(lCommand.params.input.AddObject(
     TNXCodexTextInput));
   lInput.&type.Value := 'text';
-  lInput.text.Value := FActivePrompt.Body;
+  lInput.text.Value := FActivePrompt.ModelInput;
   lInput.text_elements.Assigned := True;
   SendRequest(rkTurnStart, lCommand);
   SetState(bpsWorking, 'Starting Codex turn.');

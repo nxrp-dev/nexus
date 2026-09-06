@@ -1,5 +1,18 @@
 # Work Plan: NexusBot OpenAI Responses Provider
 
+## Owner correction: Synapse transport
+
+On 2026-09-06 the owner corrected the transport decision: all Nexus socket
+work uses Synapse. The WinHTTP-specific selections in the original approved
+plan below are superseded by a Synapse `THTTPSend` implementation using the
+existing OpenSSL 3 provider. The correction preserves the executor boundary,
+blocking-provider worker, independent 1 MiB protocol response bound, request
+timeout, typed RTTI request/response model, and provider behavior. TLS peer and
+hostname verification remain mandatory. `OpenAICAFile` supplies the explicit
+typed deployment path to a public CA bundle, independent of the XMPP server CA
+file. The Windows-only provider guard is removed; no second socket stack is
+introduced.
+
 ## Inputs
 
 - Source request:
