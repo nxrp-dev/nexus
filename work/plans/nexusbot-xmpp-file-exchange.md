@@ -86,8 +86,10 @@ through typed Responses input objects.
 - The current OpenAI provider sends a scalar string as Responses `input`; its
   existing provider worker correctly isolates the blocking OpenAI HTTP request.
   The current OpenAI Files API accepts `purpose=user_data`, supports bounded
-  expiration, and returns a `file_id` that Responses accepts in an
-  `input_file` content item.
+  expiration, and returns a `file_id` that the stable Responses contract
+  accepts in distinct typed `input_file` and `input_image` content items. The
+  selected stable Responses baseline does not provide a general native audio
+  input for this provider.
 - All deterministic BotHost tests are registered through
   `NexusBotHostTestModule`; NexusXMPP deterministic tests use
   `NexusNetXMPPTests.lpr`. No standalone test executable is needed or allowed.
@@ -408,8 +410,9 @@ validation.
 ### OpenAI provider adaptation
 
 - Replace the scalar Responses `input` model with RTTI-backed heterogeneous
-  message/content classes: one user message containing `input_text` plus one
-  `input_file` per attachment. Do not construct free-form JSON.
+  message/content classes: one user message containing `input_text` plus the
+  appropriate typed content item for each supported attachment. Do not
+  construct free-form JSON.
 - Add a narrow typed Files API model/executor operation. The existing OpenAI
   provider worker uploads the exact BotHost-staged bytes as multipart form data
   before creating the Response; no second OpenAI thread is added.
@@ -419,9 +422,22 @@ validation.
   active. Delete them on failed prompt setup, chain reset, provider stop, or
   shutdown; expiry is the recovery boundary if explicit deletion cannot
   complete.
-- Validate the returned filename/byte count where available, then map the
-  returned ID into a typed `input_file.file_id`. Never give OpenAI the original
-  XMPP URL and never Base64-embed the file by default.
+- Select the provider representation before uploading: text, code, and
+  supported document attachments map to typed `input_file`; supported images
+  map to typed `input_image`. Upload the exact staged bytes through Files first,
+  validate the returned filename/byte count where available, then place the
+  returned ID in `input_file.file_id` or `input_image.file_id` as selected.
+  Media type and original filename select the candidate representation but are
+  not treated as proof of the actual content; API/model validation remains
+  authoritative.
+- Under the pinned stable Responses contract, audio and any other attachment
+  without a supported `input_file` or `input_image` representation fail with a
+  typed unsupported-media result before upload. Do not depend on beta-only
+  input variants or silently treat arbitrary binary media as a document. A
+  future stable audio mapping requires a separately verified provider/model
+  contract change.
+- Never give OpenAI the original XMPP URL and never Base64-embed the file by
+  default.
 - Files API upload/download envelopes have their own protocol response-body
   safety bound; it is independent of `AnswerMaximumBytes` and the staged file
   limit. Provider ingestion failure fails the prompt before Responses is called.
@@ -561,7 +577,8 @@ need outside these owners is a plan conflict to report before broadening scope.
 2. Add typed Codex local image/audio input objects, the active-prompt-only
    `read_attachment` tool, and the attachment-ID-only `send_file` relay tool.
 3. Add typed OpenAI Files and heterogeneous Responses input objects, multipart
-   streaming upload, provider-session file-ID retention, expiry, and cleanup.
+   streaming upload, document/image variant selection, explicit unsupported
+   media handling, provider-session file-ID retention, expiry, and cleanup.
 4. Add deterministic Codex wire tests against the fake App Server and OpenAI
    executor tests covering upload, input mapping, chain reuse, cleanup, and
    provider failures without live OpenAI traffic.
@@ -645,7 +662,8 @@ ordering, size/capacity/path/URL/redirect/EOF/hash failures, queued/active
 cancellation, disconnect/shutdown, partial cleanup, outbound direct/room,
 bot-to-bot receipt, ordered source fallback and first-success termination,
 unauthorized path rejection, ranged Codex reads including UTF-8 boundaries,
-and OpenAI Files/Responses mapping and cleanup.
+and OpenAI document/image mapping, unsupported-media behavior, Files/Responses
+ownership, and cleanup.
 
 ### Controlled live verification
 
@@ -688,9 +706,11 @@ and OpenAI Files/Responses mapping and cleanup.
 - The current Codex App Server has no general local-document input. The narrow
   active-prompt attachment tool is the selected solution. Binary formats
   without a native media input remain truthfully unsupported for Codex.
-- OpenAI input support depends on the selected model accepting that file type.
-  API/model rejection remains a provider-ingestion failure and must not be
-  misreported as an XMPP transfer failure.
+- OpenAI document/image input support depends on the selected model accepting
+  that file type. API/model rejection remains a provider-ingestion failure and
+  must not be misreported as an XMPP transfer failure. Audio remains explicitly
+  unsupported by this provider baseline rather than inferred from beta or
+  specialized audio APIs.
 - Presigned upload and download URLs often carry credentials in their query
   string. The embedded-credentials rejection applies to URL user-info, not an
   opaque signed query; queries are operation-owned secrets and must never be
