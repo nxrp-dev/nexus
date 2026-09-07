@@ -4,6 +4,10 @@ program NexusNetXMPPTests;
 {$codepage utf8}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  cwstring,
+  {$ENDIF}
   Classes, SysUtils, Contnrs, DOM, blcksock, ssl_openssl3, synsock,
   tpNXXMPPTypes, tpNXXMPPMessageTypes,
   obNXXMPPError,
@@ -880,7 +884,9 @@ var
   lTransport: TNXXMPPTransport;
 begin
   lFixturePath := IncludeTrailingPathDelimiter(GetCurrentDir) +
-    'NexusLib\net\tests\fixtures\xmpp\';
+    'NexusLib' + DirectorySeparator + 'net' + DirectorySeparator + 'tests' +
+    DirectorySeparator + 'fixtures' + DirectorySeparator + 'xmpp' +
+    DirectorySeparator;
   lCAFile := lFixturePath + 'ca.crt';
   AssertTrue(FileExists(lCAFile) and
     FileExists(lFixturePath + 'server.crt') and

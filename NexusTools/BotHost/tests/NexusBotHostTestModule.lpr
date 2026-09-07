@@ -3,6 +3,10 @@ library NexusBotHostTestModule;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  cwstring,
+  {$ENDIF}
   SysUtils,
   tpNXTest,
   obNXTestModule,

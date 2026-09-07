@@ -5,6 +5,7 @@ program NexusBotHost;
 uses
   {$IFDEF UNIX}
   cthreads,
+  cwstring,
   BaseUnix,
   {$ENDIF}
   {$IFDEF WINDOWS}

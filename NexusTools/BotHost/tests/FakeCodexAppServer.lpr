@@ -84,6 +84,10 @@ begin
           '"model":"gpt-5.6-luna","displayName":"Luna"}]}}')
       else if lMethod = 'thread/start' then
       begin
+        lValue := lData.FindPath('params.developerInstructions');
+        if (not Assigned(lValue)) or
+          (Pos('Use the bot_control tool', lValue.AsString) = 0) then
+          Halt(11);
         lValue := lData.FindPath('params.dynamicTools[0].name');
         if (not Assigned(lValue)) or (lValue.AsString <> 'bot_control') then
           Halt(7);

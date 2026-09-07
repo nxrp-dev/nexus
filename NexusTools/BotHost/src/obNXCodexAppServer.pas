@@ -771,7 +771,11 @@ begin
     'You are an XMPP bot. Each user message begins with authoritative XMPP ' +
     'delivery context supplied by the host. Answer the user message directly. Do not run ' +
     'commands, read or modify files, use network tools, invoke MCP tools, ask ' +
-    'for approvals, or request additional user input.';
+    'for approvals, or request additional user input. Use the bot_control ' +
+    'tool whenever the user asks to list bots, inspect bot status, invite or ' +
+    'summon a bot, or dismiss a bot. For invite or dismiss requests with no ' +
+    'explicit room, omit the room so the current room is used. Do not claim ' +
+    'bot management is unavailable without first calling bot_control.';
   lCommand.params.dynamicTools.Assigned := True;
   lTool := TNXCodexDynamicToolSpec(lCommand.params.dynamicTools.AddObject(
     TNXCodexDynamicToolSpec));
@@ -1138,14 +1142,36 @@ begin
     SendElicitationDecline(AMessage)
   else if AMessage is TNXCodexDynamicToolCallRequest then
   begin
-    if (TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value <>
-      'bot_control') or not Assigned(OnBotControlHandler) or
-      not Assigned(FActivePrompt) or
-      (TNXCodexDynamicToolCallRequest(AMessage).params.turnId.Value <>
-      FActiveTurnID) or not
+    if TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value <>
+      'bot_control' then
+    begin
+      AddDiagnostic('Declined dynamic tool request for ' +
+        TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value + '.');
+      SendDynamicToolDecline(AMessage);
+    end
+    else if not Assigned(OnBotControlHandler) then
+    begin
+      AddDiagnostic('Declined bot_control request: handler unavailable.');
+      SendDynamicToolDecline(AMessage);
+    end
+    else if not Assigned(FActivePrompt) then
+    begin
+      AddDiagnostic('Declined bot_control request: no active prompt.');
+      SendDynamicToolDecline(AMessage);
+    end
+    else if TNXCodexDynamicToolCallRequest(AMessage).params.turnId.Value <>
+      FActiveTurnID then
+    begin
+      AddDiagnostic('Declined bot_control request: turn mismatch.');
+      SendDynamicToolDecline(AMessage);
+    end
+    else if not
       (TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value is
       TNXCodexBotControlArguments) then
+    begin
+      AddDiagnostic('Declined bot_control request: invalid arguments.');
       SendDynamicToolDecline(AMessage)
+    end
     else
     begin
       lArguments := TNXCodexBotControlArguments(
@@ -1189,11 +1215,15 @@ begin
         lControlRequest.Free;
         SendDynamicToolResult(AMessage.IDJSON, NXBotControlFailure(
           bceCapacity, 'The control request could not be accepted.'));
-      end;
+      end
+      else
+        AddDiagnostic('Accepted bot_control request.');
     end;
   end
   else
   begin
+    AddDiagnostic('Declined App Server request: ' +
+      TNXJSONRPCCommandMessage(AMessage).method.Value);
     lID := AMessage.IDJSON;
     try
       lResponse := TNXJSONRPC.CreateErrorResponse(lID,
@@ -1208,8 +1238,6 @@ begin
       lID.Free;
     end;
   end;
-  AddDiagnostic('Declined App Server request: ' +
-    TNXJSONRPCCommandMessage(AMessage).method.Value);
 end;
 
 procedure TNXCodexAppServer.SendDynamicToolResult(AID: TJSONData;

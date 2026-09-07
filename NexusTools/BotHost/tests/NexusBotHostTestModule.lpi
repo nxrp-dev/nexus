@@ -2,6 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
+    <PathDelim Value="\"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
@@ -30,6 +31,7 @@
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
+    <PathDelim Value="\"/>
     <Target>
       <Filename Value="..\..\..\output\NexusBotHostTestModule\$(TargetCPU)-$(TargetOS)\NexusBotHostTestModule"/>
     </Target>

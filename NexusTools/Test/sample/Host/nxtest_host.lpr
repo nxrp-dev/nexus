@@ -3,6 +3,10 @@ program nxtest_host;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  cwstring,
+  {$ENDIF}
   Classes, SysUtils, DynLibs, fpjson, jsonparser, tpNXTest;
 
 type
