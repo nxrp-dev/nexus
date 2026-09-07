@@ -125,8 +125,9 @@ do not acquire new threads.
 ### Protocol baseline and wire contract
 
 - Pin XEP-0363 1.2.0 (`urn:xmpp:http:upload:0`) for service discovery,
-  `max-file-size`, slot requests, optional `purpose='message'`, slot responses,
-  allowed PUT headers, and stanza errors.
+  `max-file-size`, slot requests, slot responses, allowed PUT headers, and
+  stanza errors. Omit an explicit upload purpose: XEP-0363 defines `message` as
+  the default, while purpose advertisement and requests are optional.
 - Pin XEP-0446 0.2.0 (`urn:xmpp:file:metadata:0`) for name, media type,
   declared size, description, and XEP-0300 hashes.
 - Pin XEP-0447 0.3.1 (`urn:xmpp:sfs:0`) and implement only self-contained
@@ -143,11 +144,11 @@ do not acquire new threads.
   GET URL as the fallback body and include the matching XEP-0066 1.6
   `jabber:x:oob` URL recommended by XEP-0447. This is the only XEP-0066 use in
   the milestone.
-- Parse XEP-0066-only message OOB as one legacy typed attachment when no
-  modern SFS element exists. An OOB URL matching an SFS URL is fallback, not a
-  duplicate attachment. If modern SFS and a conflicting OOB URL coexist, SFS
-  remains authoritative and the unrelated OOB URL is ignored for attachment
-  retrieval.
+- Recognize XEP-0066 only as compatibility fallback accompanying a modern SFS
+  share. A matching OOB URL is fallback, not a duplicate attachment. If a
+  conflicting OOB URL coexists with SFS, SFS remains authoritative and the OOB
+  URL is ignored for retrieval. An OOB-only message is not an attachment and
+  never authorizes a download.
 - The XEP-0447 URL source element uses
   `http://jabber.org/protocol/url-data` as required by that wire shape. The
   implementation supports only its `target` URL here; it does not add general
@@ -155,6 +156,11 @@ do not acquire new threads.
 - One message may contain multiple self-contained `<file-sharing>` elements.
   Every element in a multi-file message must have a nonempty unique SFS `id`.
   A single file may omit it; Nexus assigns an internal attachment identity.
+- Within one attachment, try supported URL sources in wire order. Apply the
+  complete URL policy, transfer bounds, actual-size checks, and hash
+  verification independently to each source; delete its partial file before
+  trying the next source and stop at the first complete success. Fail the
+  attachment only after every supported source has failed.
 - Incoming recognized SFS fallback ranges are removed from `DisplayBody`, as
   reply fallback already is, while `Body` retains the original wire text. A
   file-only fallback body therefore becomes empty display text but still
@@ -181,11 +187,13 @@ do not acquire new threads.
 - Slot IQ operations use the existing request manager, expected upload-service
   sender, configured IQ capacity, and request timeout. A malformed or spoofed
   slot never reaches the HTTP worker.
-- Slot PUT headers are an ordered typed list limited case-insensitively to
-  `Authorization`, `Cookie`, and `Expires`. Preserve allowed duplicate headers
-  and wire order, strip/reject CR or LF, and reject every other header. The
-  live slot object owns these secrets until its transfer ends and never logs
-  them.
+- For every slot PUT header, first strip every CR or LF from its name and value,
+  then compare the resulting name case-insensitively with `Authorization`,
+  `Cookie`, and `Expires`. Retain only those allowed headers in their original
+  relative order, including duplicates. Ignore every other resulting header
+  name and never include it in the HTTP request; an unknown header does not
+  invalidate an otherwise usable slot. The live slot object owns the retained
+  allowed-header secrets until its transfer ends and never logs them.
 - Add streaming SHA-256 to the existing XMPP OpenSSL owner rather than adding
   another crypto dependency.
 
@@ -255,8 +263,9 @@ validation.
 
 ### Inbound URL and HTTP policy
 
-- Accept retrieval candidates only from typed SFS `url-data` or the selected
-  OOB-only compatibility object. Never scan ordinary body text for URLs.
+- Accept retrieval candidates only from typed SFS `url-data`. Matching OOB is
+  retained only as compatibility fallback and OOB-only messages do not create
+  retrieval candidates. Never scan ordinary body text for URLs.
 - Require HTTPS, a DNS hostname, and no embedded user information. Reject
   loopback, unspecified, multicast, link-local, private-use, carrier-grade NAT,
   documentation/test, host-local, and otherwise non-public IPv4/IPv6 targets
@@ -374,14 +383,18 @@ validation.
   `localImage` and `localAudio` variants. Map staged image/audio attachments to
   those native local inputs and always use the BotHost-owned staged path.
 - The installed schema has no generic local-document item. Add one narrow
-  dynamic `read_attachment` tool alongside `bot_control`. It accepts only an
-  attachment ID from the active prompt. The provider resolves that ID against
-  the active prompt collection and returns bounded textual content from the
-  exact staged artifact; it does not accept paths, URLs, or artifact IDs from
-  other prompts.
-- `read_attachment` supports UTF-8 text/code documents up to the configured
-  file maximum but also applies a provider text-return maximum of 1 MiB. A
-  non-text attachment without a native App Server mapping returns a typed
+  dynamic `read_attachment(attachment_id, offset, maximum_bytes)` tool
+  alongside `bot_control`. It accepts only an attachment ID from the active
+  prompt plus a zero-based byte offset and requested byte count. The provider
+  resolves that ID against the active prompt collection and returns bounded
+  textual content from the exact staged artifact; it does not accept paths,
+  URLs, or artifact IDs from other prompts.
+- `read_attachment` supports incremental UTF-8 text/code reading and caps one
+  call at 64 KiB regardless of the requested maximum. Its typed result contains
+  attachment ID, total bytes, returned offset, returned bytes, next offset,
+  whether more remains, and content. Returned text never ends inside a UTF-8
+  code point, while offsets remain byte-based and deterministic. A non-text
+  attachment without a native App Server mapping returns a typed
   unsupported-media result rather than pretending Codex consumed it.
 - Revise the bot instructions only enough to permit native prompt attachments
   and `read_attachment`; retain read-only sandbox, no approvals, no arbitrary
@@ -423,8 +436,9 @@ validation.
 
 - NexusXMPP reports malformed/duplicate/conflicting SFS metadata, malformed
   OOB fallback, missing sources, malformed upload data forms, spoofed slot
-  senders, slot stanza errors, missing PUT/GET URL, and forbidden slot headers
-  as protocol-specific failures.
+  senders, slot stanza errors, and missing PUT/GET URLs as protocol-specific
+  failures. Unknown slot headers are ignored as required by XEP-0363; allowed
+  headers are retained only after newline stripping.
 - BotHost reports routing/capacity rejection, unsafe URL destination, staging
   failure, actual size overflow, early EOF, hash mismatch, HTTP GET/PUT failure,
   no upload service, service limit rejection, cancellation, stale completion,
@@ -500,8 +514,9 @@ need outside these owners is a plan conflict to report before broadening scope.
 1. Add the XMPP file metadata, source, hash, upload-service, slot, and header
    types with explicit ownership and bounds.
 2. Extend `TNXXMPPMessage` parsing for self-contained SFS and narrow OOB
-   compatibility. Generalize recognized fallback retention enough to remove
-   SFS fallback from `DisplayBody` without disturbing reply fallback.
+   fallback compatibility, while leaving OOB-only messages non-attachment
+   traffic. Generalize recognized fallback retention enough to remove SFS
+   fallback from `DisplayBody` without disturbing reply fallback.
 3. Make direct/MUC message delivery recognize an attachment-bearing message
    with no body, including nested MAM/carbon/history parsing without changing
    live-prompt policy.
@@ -517,8 +532,9 @@ need outside these owners is a plan conflict to report before broadening scope.
    when no selected service can satisfy the requested size.
 3. Parse the advertised `max-file-size` from the XEP-0128 form whose
    `FORM_TYPE` is `urn:xmpp:http:upload:0`.
-4. Submit typed slot IQ requests with actual size, filename, media type, and
-   purpose `message`; validate sender, URLs, and ordered allowed headers.
+4. Submit typed slot IQ requests with actual size, filename, and media type,
+   omitting the redundant optional purpose; validate sender and URLs, retain
+   newline-stripped allowed headers in order, and ignore unknown headers.
 5. Add deterministic disco/slot/sender/header/error/limit tests.
 
 ### Stage 3: Add the BotHost exchange and inbound pipeline
@@ -617,15 +633,18 @@ output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\
 ```
 
 NexusXMPP coverage must include valid/invalid SFS, multiple files, OOB and
-fallback, hashes, metadata bounds, typed disco forms, upload discovery/limits,
-slot success/error/spoofed sender, headers, feature advertisement, and direct,
-MUC, MAM, carbon, history, and forwarded contexts.
+fallback matching, OOB-only non-attachment behavior, hashes, metadata bounds,
+typed disco forms, upload discovery/limits, slot success/error/spoofed sender,
+unknown-header ignoring, allowed-header newline stripping and duplicate order,
+feature advertisement, and direct, MUC, MAM, carbon, history, and forwarded
+contexts.
 
 BotHost coverage must include text/file and file-only DMs, all room addressing
 forms, ignored unaddressed room files, prompt clone ownership, provider-submit
 ordering, size/capacity/path/URL/redirect/EOF/hash failures, queued/active
 cancellation, disconnect/shutdown, partial cleanup, outbound direct/room,
-bot-to-bot receipt, unauthorized path rejection, Codex native/tool mapping,
+bot-to-bot receipt, ordered source fallback and first-success termination,
+unauthorized path rejection, ranged Codex reads including UTF-8 boundaries,
 and OpenAI Files/Responses mapping and cleanup.
 
 ### Controlled live verification
