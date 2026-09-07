@@ -772,17 +772,23 @@ begin
     'delivery context supplied by the host. Answer the user message directly. Do not run ' +
     'commands, read or modify files, use network tools, invoke MCP tools, ask ' +
     'for approvals, or request additional user input. Use the bot_control ' +
-    'tool whenever the user asks to list bots, inspect bot status, invite or ' +
-    'summon a bot, or dismiss a bot. For invite or dismiss requests with no ' +
-    'explicit room, omit the room so the current room is used. Do not claim ' +
-    'bot management is unavailable without first calling bot_control.';
+    'tool whenever the user asks to list the bot roster, inspect bot status, ' +
+    'invite or summon a bot, or dismiss a bot. For invite or dismiss ' +
+    'requests with no explicit room, omit the room so the current room is ' +
+    'used. Do not claim ' +
+    'bot management is unavailable without first calling bot_control. The ' +
+    'roster is the set of bots Nexus manages. For every request to list, ' +
+    'show, or get the roster, call bot_control with operation list before ' +
+    'answering. Never substitute a plugin, app, service, or general-knowledge ' +
+    'catalog for the bot roster.';
   lCommand.params.dynamicTools.Assigned := True;
   lTool := TNXCodexDynamicToolSpec(lCommand.params.dynamicTools.AddObject(
     TNXCodexDynamicToolSpec));
   lTool.&type.Value := 'function';
   lTool.name.Value := 'bot_control';
-  lTool.description.Value := 'List bots, inspect bot status, or invite or ' +
-    'dismiss a bot from the current or explicitly named XMPP room.';
+  lTool.description.Value := 'Manage the Nexus bot roster. List returns ' +
+    'the bots Nexus manages; other operations inspect bot status or invite ' +
+    'or dismiss a bot from the current or explicitly named XMPP room.';
   lTool.inputSchema.&type.Value := 'object';
   lTool.inputSchema.additionalProperties.Value := False;
   lTool.inputSchema.properties.operation.&type.Value := 'string';

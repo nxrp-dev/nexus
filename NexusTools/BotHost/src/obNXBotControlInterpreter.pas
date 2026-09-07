@@ -88,7 +88,7 @@ begin
   if not Assigned(APrompt) then
     Exit;
   lBody := UTF8String(Trim(string(APrompt.Body)));
-  if SameText(lBody, 'list bots') then
+  if SameText(lBody, 'list roster') then
   begin
     AOperation := NXBotControlOperation(bcokList, '', '');
     Exit(True);

@@ -32,7 +32,7 @@ second socket stack are not part of this milestone.
 LIST, STATUS, INVITE, and DISMISS share one typed operation, authorization, and
 controller implementation. They can arrive through:
 
-- exact addressed room commands: `list bots`, `status <bot>`, `info <bot>`,
+- exact addressed room commands: `list roster`, `status <bot>`, `info <bot>`,
   `invite <bot>`, and `dismiss <bot>`;
 - the RTTI-modeled Codex `bot_control` dynamic tool for conversational requests;
 - XMPP IQ requests in `urn:nexus:bot-control:1`.

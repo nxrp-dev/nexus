@@ -88,6 +88,11 @@ begin
         if (not Assigned(lValue)) or
           (Pos('Use the bot_control tool', lValue.AsString) = 0) then
           Halt(11);
+        if (Pos('The roster is the set of bots Nexus manages',
+          lValue.AsString) = 0) or
+          (Pos('Never substitute a plugin, app, service',
+          lValue.AsString) = 0) then
+          Halt(12);
         lValue := lData.FindPath('params.dynamicTools[0].name');
         if (not Assigned(lValue)) or (lValue.AsString <> 'bot_control') then
           Halt(7);

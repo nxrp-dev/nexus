@@ -1386,11 +1386,11 @@ var
   lPrompt: TNXBotPrompt;
 begin
   lPrompt := TNXBotPrompt.Create(1, 'room@conference.nexus.local',
-    'room@conference.nexus.local/test1', 'm1', 'LiSt BoTs');
+    'room@conference.nexus.local/test1', 'm1', 'LiSt RoStEr');
   try
     AContext.AssertEquals(
       'XMPP context: group message in room room@conference.nexus.local.' +
-      LineEnding + LineEnding + 'LiSt BoTs', string(lPrompt.ModelInput),
+      LineEnding + LineEnding + 'LiSt RoStEr', string(lPrompt.ModelInput),
       'A room prompt must identify its room to the provider.');
     AContext.AssertTrue(TNXBotControlInterpreter.Parse(lPrompt, lOperation),
       'LIST should be recognized case-insensitively after routing.');
