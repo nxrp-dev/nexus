@@ -20,6 +20,7 @@ uses
   obNXBotCatalog,
   obNXBotControlInterpreter,
   obNXBotController,
+  obNXBotConversation,
   obNXBotHost,
   obNXBotHostConfig,
   obNXBotHostRuntime,
@@ -45,6 +46,13 @@ uses
   tpNXXMPPTypes;
 
 type
+  TTestConversationTracker = class(TNXBotConversationTracker)
+  public
+    Tick: QWord;
+  protected
+    function CurrentTick: QWord; override;
+  end;
+
   TRuntimeActivityRecorder = class
   public
     Text: UTF8String;
@@ -192,6 +200,11 @@ type
     function Submit(AModule: TObject;
       AOperation: TNXXMPPModuleOperation): Boolean;
   end;
+
+function TTestConversationTracker.CurrentTick: QWord;
+begin
+  Result := Tick;
+end;
 
 procedure TRuntimeActivityRecorder.Activity(const AText: UTF8String);
 begin
@@ -569,7 +582,7 @@ begin
   AContext.AssertEquals(Integer(brdAccepted), Integer(TNXBotHostRouter.Admit(
     1, 'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm1',
     'groupchat', '@Luna hello', '@Luna hello', lReply, xmdcLive, True, 100,
-    lPrompt)),
+    False, lPrompt)),
     'Exact leading mention should be accepted.');
   try
     AContext.AssertEquals('hello', string(lPrompt.Body),
@@ -580,7 +593,7 @@ begin
   AContext.AssertEquals(Integer(brdAccepted),
     Integer(TNXBotHostRouter.Admit(2, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm2', 'groupchat', '@luna hello',
-      '@luna hello', lReply, xmdcLive, True, 100, lPrompt)),
+      '@luna hello', lReply, xmdcLive, True, 100, False, lPrompt)),
     'Textual mention comparison should be case-insensitive.');
   try
     AContext.AssertEquals('hello', string(lPrompt.Body),
@@ -592,7 +605,7 @@ begin
     Integer(TNXBotHostRouter.Admit(3, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm3', 'groupchat',
       'Could LUNA, explain this?', 'Could LUNA, explain this?', lReply,
-      xmdcLive, True, 100, lPrompt)),
+      xmdcLive, True, 100, False, lPrompt)),
     'Gajim nickname-comma addressing should work anywhere in the body.');
   try
     AContext.AssertEquals('Could explain this?', string(lPrompt.Body),
@@ -603,36 +616,38 @@ begin
   AContext.AssertEquals(Integer(brdNotAddressed),
     Integer(TNXBotHostRouter.Admit(4, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm4', 'groupchat', '@Lunatic hello',
-      '@Lunatic hello', lReply, xmdcLive, True, 100, lPrompt)),
+      '@Lunatic hello', lReply, xmdcLive, True, 100, False, lPrompt)),
     'Nickname prefix without a delimiter must fail.');
   AContext.AssertEquals(Integer(brdNotAddressed),
     Integer(TNXBotHostRouter.Admit(5, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm5', 'groupchat',
       'OldLuna, explain this?', 'OldLuna, explain this?', lReply,
-      xmdcLive, True, 100, lPrompt)),
+      xmdcLive, True, 100, False, lPrompt)),
     'Nickname-comma addressing must not match inside a larger name.');
   AContext.AssertEquals(Integer(brdNotAddressed),
     Integer(TNXBotHostRouter.Admit(6, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm6', 'groupchat',
       'Ask Luna about this', 'Ask Luna about this', lReply, xmdcLive, True,
-      100, lPrompt)),
+      100, False, lPrompt)),
     'A nickname without the addressing comma must not be accepted.');
   AContext.AssertEquals(Integer(brdSelf), Integer(TNXBotHostRouter.Admit(7,
     'room@nexus.local', 'Luna', 'room@nexus.local/Luna', 'm7', 'groupchat',
-    '@Luna hello', '@Luna hello', lReply, xmdcLive, True, 100, lPrompt)),
+    '@Luna hello', '@Luna hello', lReply, xmdcLive, True, 100, False,
+    lPrompt)),
     'Reflected self messages must be rejected.');
   AContext.AssertEquals(Integer(brdNotLive), Integer(TNXBotHostRouter.Admit(8,
     'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm8', 'groupchat',
     '@Luna hello', '@Luna hello', lReply, xmdcMUCHistory, True, 100,
-    lPrompt)),
+    False, lPrompt)),
     'MUC history must not start a turn.');
   AContext.AssertEquals(Integer(brdEmpty), Integer(TNXBotHostRouter.Admit(9,
     'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm9', 'groupchat',
-    '@Luna ', '@Luna ', lReply, xmdcLive, True, 100, lPrompt)),
+    '@Luna ', '@Luna ', lReply, xmdcLive, True, 100, False, lPrompt)),
     'An empty addressed prompt must be rejected.');
   AContext.AssertEquals(Integer(brdTooLarge), Integer(TNXBotHostRouter.Admit(10,
     'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm10', 'groupchat',
-    '@Luna 12345', '@Luna 12345', lReply, xmdcLive, True, 4, lPrompt)),
+    '@Luna 12345', '@Luna 12345', lReply, xmdcLive, True, 4, False,
+    lPrompt)),
     'Prompt limit must be measured before ownership transfer.');
 
   lReply.Present := True;
@@ -641,7 +656,7 @@ begin
   AContext.AssertEquals(Integer(brdAccepted), Integer(TNXBotHostRouter.Admit(
     11, 'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm11',
     'groupchat', '> previous answer' + #10 + 'follow up', 'follow up',
-    lReply, xmdcLive, True, 100, lPrompt)),
+    lReply, xmdcLive, True, 100, False, lPrompt)),
     'A reply to the bot occupant should be accepted.');
   try
     AContext.AssertEquals('follow up', string(lPrompt.Body),
@@ -654,8 +669,144 @@ begin
     Integer(TNXBotHostRouter.Admit(12, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm12', 'groupchat',
       '> previous answer' + #10 + 'follow up', 'follow up', lReply,
-      xmdcLive, True, 100, lPrompt)),
+      xmdcLive, True, 100, False, lPrompt)),
     'A reply to another occupant must not address the bot.');
+
+  lReply.Present := False;
+  AContext.AssertEquals(Integer(brdAccepted),
+    Integer(TNXBotHostRouter.Admit(13, 'room@nexus.local', 'Luna',
+      'room@nexus.local/test1', 'm13', 'groupchat', 'continue',
+      'continue', lReply, xmdcLive, True, 100, True, lPrompt)),
+    'A shared conversation decision should admit an implied reply.');
+  try
+    AContext.AssertEquals('continue', string(lPrompt.Body),
+      'An implied reply should preserve the displayed message body.');
+  finally
+    lPrompt.Free;
+  end;
+end;
+
+procedure TestImpliedReplies(AContext: TNXTestContext);
+const
+  cRoom = 'room@nexus.local';
+  cUser = 'room@nexus.local/test1';
+var
+  lReason: UTF8String;
+  lReply: TNXXMPPReplyReference;
+  lTarget: UTF8String;
+  lTracker: TTestConversationTracker;
+begin
+  lReply.Present := False;
+  lReply.ToJID := '';
+  lReply.ID := '';
+  lTracker := TTestConversationTracker.Create(1000);
+  try
+    lTracker.Tick := 100;
+    lTracker.RegisterBot('Luna');
+    lTracker.RegisterBot('OpenAIBot');
+
+    lTracker.BeginAnswer(cRoom, 'Luna', cUser, 'test1@nexus.local',
+      'First answer');
+    lTarget := lTracker.Observe(cRoom, cRoom + '/Luna', '', 'b1',
+      'groupchat', 'First answer', 'First answer', lReply, xmdcLive, True,
+      lReason);
+    AContext.AssertEquals('', string(lTarget),
+      'A reflected bot answer must not itself be routed.');
+    lTarget := lTracker.Observe(cRoom, cUser, 'test1@nexus.local', 'u1',
+      'groupchat', 'yes, continue', 'yes, continue', lReply, xmdcLive, True,
+      lReason);
+    AContext.AssertEquals('Luna', string(lTarget),
+      'The same participant should continue with the answering bot.');
+    AContext.AssertTrue(lReason <> '',
+      'An implied decision should provide an observable reason.');
+    AContext.AssertEquals('Luna', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u1', 'groupchat', 'yes, continue',
+      'yes, continue', lReply, xmdcLive, True, lReason)),
+      'Every bot copy of one stanza must receive the same decision.');
+
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom,
+      cRoom + '/other', 'other@nexus.local', 'u2', 'groupchat', 'hello',
+      'hello', lReply, xmdcLive, True, lReason)),
+      'Another participant should not inherit the conversation.');
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u3', 'groupchat', 'continue', 'continue',
+      lReply, xmdcLive, True, lReason)),
+      'An intervening participant should clear the prior claim.');
+
+    lTracker.BeginAnswer(cRoom, 'OpenAIBot', cUser,
+      'test1@nexus.local', 'OpenAI answer');
+    lTracker.Observe(cRoom, cRoom + '/OpenAIBot', '', 'b2', 'groupchat',
+      'OpenAI answer', 'OpenAI answer', lReply, xmdcLive, True, lReason);
+    AContext.AssertEquals('OpenAIBot', string(lTracker.Observe(cRoom,
+      cUser, 'test1@nexus.local', 'u4', 'groupchat', 'why?', 'why?',
+      lReply, xmdcLive, True, lReason)),
+      'Only the most recent answering bot should own the continuation.');
+
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u5', 'groupchat', '@Luna new topic',
+      '@Luna new topic', lReply, xmdcLive, True, lReason)),
+      'An explicit address must bypass implied routing.');
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u6', 'groupchat', 'unaddressed',
+      'unaddressed', lReply, xmdcLive, True, lReason)),
+      'An explicit address should clear the previous bot claim.');
+
+    lTracker.BeginAnswer(cRoom, 'Luna', cUser, 'test1@nexus.local',
+      'Human address answer');
+    lTracker.Observe(cRoom, cRoom + '/Luna', '', 'b-address', 'groupchat',
+      'Human address answer', 'Human address answer', lReply, xmdcLive,
+      True, lReason);
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u-address', 'groupchat', '@other hello',
+      '@other hello', lReply, xmdcLive, True, lReason)),
+      'Addressing any occupant must bypass an existing implied claim.');
+
+    lTracker.BeginAnswer(cRoom, 'Luna', cUser, 'test1@nexus.local',
+      'Expiring answer');
+    lTracker.Observe(cRoom, cRoom + '/Luna', '', 'b3', 'groupchat',
+      'Expiring answer', 'Expiring answer', lReply, xmdcLive, True,
+      lReason);
+    Inc(lTracker.Tick, 1000);
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u7', 'groupchat', 'too late', 'too late',
+      lReply, xmdcLive, True, lReason)),
+      'An expired claim must not route a message.');
+
+    lTracker.BeginAnswer(cRoom, 'Luna', cUser, 'test1@nexus.local',
+      'Delayed answer');
+    lTracker.Observe(cRoom, cRoom + '/other', 'other@nexus.local', 'u8',
+      'groupchat', 'interrupt', 'interrupt', lReply, xmdcLive, True,
+      lReason);
+    lTracker.Observe(cRoom, cRoom + '/Luna', '', 'b4', 'groupchat',
+      'Delayed answer', 'Delayed answer', lReply, xmdcLive, True, lReason);
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u9', 'groupchat', 'continue', 'continue',
+      lReply, xmdcLive, True, lReason)),
+      'A message before answer reflection must invalidate the pending claim.');
+
+    lTracker.BeginAnswer(cRoom, 'Luna', cUser, 'test1@nexus.local',
+      'Identity answer');
+    lTracker.Observe(cRoom, cRoom + '/Luna', '', 'b5', 'groupchat',
+      'Identity answer', 'Identity answer', lReply, xmdcLive, True,
+      lReason);
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'replacement@nexus.local', 'u10', 'groupchat', 'continue',
+      'continue', lReply, xmdcLive, True, lReason)),
+      'A reused occupant nickname must not inherit a verified claim.');
+
+    lTracker.BeginAnswer(cRoom, 'Luna', cUser, 'test1@nexus.local',
+      'Room cleanup answer');
+    lTracker.Observe(cRoom, cRoom + '/Luna', '', 'b6', 'groupchat',
+      'Room cleanup answer', 'Room cleanup answer', lReply, xmdcLive, True,
+      lReason);
+    lTracker.ClearBotRoom(cRoom, 'Luna');
+    AContext.AssertEquals('', string(lTracker.Observe(cRoom, cUser,
+      'test1@nexus.local', 'u11', 'groupchat', 'continue', 'continue',
+      lReply, xmdcLive, True, lReason)),
+      'Leaving a room must clear that bot''s claim.');
+  finally
+    lTracker.Free;
+  end;
 end;
 
 procedure TestObservableState(AContext: TNXTestContext);
@@ -881,6 +1032,8 @@ begin
   lController := TNXBotControllerConfig.Create;
   lHost := TNXBotHostConfig.Create;
   try
+    AContext.AssertEquals(120000, lController.ImpliedReplyTimeoutMS,
+      'Implied room ownership should expire after two minutes by default.');
     lController.CatalogFile := '..' + PathDelim + 'catalog' + PathDelim +
       'Bots.nxscript';
     lBinding := TNXBotDeploymentBinding.Create;
@@ -1445,6 +1598,8 @@ begin
   lShutdownRecorder := TFakeHostShutdownRecorder.Create;
   lController := CreateTestController(lHost);
   try
+    AContext.AssertTrue(Assigned(lHost.Conversation),
+      'Every controller-managed host must share conversation routing state.');
     lHost.ShutdownRecorder := lShutdownRecorder;
     lRecorder.Controller := lController;
     lRecorder.LockProbe := lCompletionProbe;
@@ -1904,6 +2059,7 @@ var
 begin
   lSuite := ARegistry.AddSuite('NexusBotHost');
   lSuite.AddTest('Routing', @TestRouting);
+  lSuite.AddTest('ImpliedReplies', @TestImpliedReplies);
   lSuite.AddTest('ObservableState', @TestObservableState);
   lSuite.AddTest('TypedProtocol', @TestTypedProtocol);
   lSuite.AddTest('ControlContract', @TestControlContract);

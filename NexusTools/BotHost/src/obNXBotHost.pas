@@ -5,6 +5,7 @@ unit obNXBotHost;
 interface
 
 uses
+  obNXBotConversation,
   obNXBotHostConfig,
   obNXBotProvider,
   obNXBotHostState,
@@ -24,6 +25,7 @@ type
   TNXBotHost = class
   private
     FConfig: TNXBotHostConfig;
+    FConversation: TNXBotConversationTracker;
     FInstructions: UTF8String;
     FMessages: TNXXMPPMessageModule;
     FMUC: TNXXMPPMUCModule;
@@ -71,6 +73,8 @@ type
       const AText: UTF8String): Boolean;
 
     property Config: TNXBotHostConfig read FConfig;
+    property Conversation: TNXBotConversationTracker read FConversation
+      write FConversation;
     property State: TNXBotHostState read FState;
     property MUC: TNXXMPPMUCModule read FMUC;
     property XMPP: TNXXMPPClient read FXMPP;
@@ -136,6 +140,7 @@ end;
 destructor TNXBotHost.Destroy;
 begin
   Shutdown;
+  Conversation := nil;
   FreeAndNil(FProvider);
   FreeAndNil(FXMPP);
   FMUC := nil;
@@ -199,7 +204,16 @@ begin
   if not Result then
     Exit;
   if APrompt.Delivery = bpdRoom then
-    Exit(FMUC.SendGroupMessage(APrompt.RoomJID, AText));
+  begin
+    if Assigned(FConversation) then
+      FConversation.BeginAnswer(APrompt.RoomJID, UTF8String(FConfig.Nick),
+        APrompt.SenderJID, APrompt.VerifiedCallerBareJID, AText);
+    Result := FMUC.SendGroupMessage(APrompt.RoomJID, AText);
+    if not Result and Assigned(FConversation) then
+      FConversation.CancelAnswer(APrompt.RoomJID,
+        UTF8String(FConfig.Nick));
+    Exit;
+  end;
   if APrompt.ReplyID <> '' then
     Result := FMessages.SendReply(APrompt.SenderJID, AText,
       APrompt.SenderJID, APrompt.ReplyID, False, lIdentity)
@@ -418,6 +432,10 @@ procedure TNXBotHost.XMPPRoomMessage(ASender: TObject; ARoom: TNXXMPPRoom;
   AMessage: TNXXMPPMessage);
 var
   lDecision: TNXBotRouteDecision;
+  lImplied: Boolean;
+  lImpliedBot: UTF8String;
+  lImpliedReason: UTF8String;
+  lMessageID: UTF8String;
   lNick: UTF8String;
   lOccupant: TNXXMPPOccupant;
   lPrompt: TNXBotPrompt;
@@ -426,6 +444,42 @@ var
 begin
   if ARoom.State <> xrsJoined then
     Exit;
+  lSeparator := Pos('/', AMessage.FromJID);
+  if lSeparator > 0 then
+    lNick := Copy(AMessage.FromJID, lSeparator + 1, MaxInt)
+  else
+    lNick := '';
+  lVerifiedJID := '';
+  if lNick <> '' then
+  begin
+    lOccupant := ARoom.Occupant(lNick);
+    if Assigned(lOccupant) and lOccupant.Available and
+      (lOccupant.RealJID <> '') then
+    begin
+      lVerifiedJID := lOccupant.RealJID;
+      lSeparator := Pos('/', lVerifiedJID);
+      if lSeparator > 0 then
+        lVerifiedJID := Copy(lVerifiedJID, 1, lSeparator - 1);
+    end;
+  end;
+  if Assigned(FConversation) then
+  begin
+    if not AMessage.StanzaIDFor(ARoom.JID, lMessageID) then
+      if AMessage.OriginID <> '' then
+        lMessageID := AMessage.OriginID
+      else
+        lMessageID := AMessage.ID;
+    lImpliedBot := FConversation.Observe(ARoom.JID, AMessage.FromJID,
+      lVerifiedJID, lMessageID, AMessage.TypeValue, AMessage.Body,
+      AMessage.DisplayBody, AMessage.Reply, AMessage.Context,
+      AMessage.Valid, lImpliedReason);
+  end
+  else
+  begin
+    lImpliedBot := '';
+    lImpliedReason := '';
+  end;
+  lImplied := SameText(string(lImpliedBot), FConfig.Nick);
   if not (FProvider.State in [bpsReady, bpsWorking]) then
   begin
     FState.AddJournal('Ignored room message: provider is not ready.');
@@ -435,27 +489,14 @@ begin
   lDecision := TNXBotHostRouter.Admit(FSequence, ARoom.JID, ARoom.Nick,
     AMessage.FromJID, AMessage.ID, AMessage.TypeValue, AMessage.Body,
     AMessage.DisplayBody, AMessage.Reply, AMessage.Context, AMessage.Valid,
-    FConfig.PromptMaximumBytes, lPrompt);
+    FConfig.PromptMaximumBytes, lImplied, lPrompt);
   if lDecision = brdAccepted then
   begin
-    lSeparator := Pos('/', AMessage.FromJID);
-    if lSeparator > 0 then
-      lNick := Copy(AMessage.FromJID, lSeparator + 1, MaxInt)
-    else
-      lNick := '';
     if lNick <> '' then
     begin
       lPrompt.SetVerifiedCaller('', True);
-      lOccupant := ARoom.Occupant(lNick);
-      if Assigned(lOccupant) and lOccupant.Available and
-        (lOccupant.RealJID <> '') then
-      begin
-        lVerifiedJID := lOccupant.RealJID;
-        lSeparator := Pos('/', lVerifiedJID);
-        if lSeparator > 0 then
-          lVerifiedJID := Copy(lVerifiedJID, 1, lSeparator - 1);
+      if lVerifiedJID <> '' then
         lPrompt.SetVerifiedCaller(lVerifiedJID, True);
-      end;
     end;
     if Assigned(FOnPrompt) and FOnPrompt(Self, lPrompt) then
     begin
@@ -463,7 +504,13 @@ begin
       lPrompt.Free;
     end
     else if FProvider.SubmitPrompt(lPrompt) then
-      FState.AddJournal('Accepted prompt from ' + AMessage.FromJID + '.')
+    begin
+      if lImplied then
+        FState.AddJournal('Accepted implied reply from ' +
+          AMessage.FromJID + ': ' + lImpliedReason + '.')
+      else
+        FState.AddJournal('Accepted prompt from ' + AMessage.FromJID + '.');
+    end
     else
       FState.AddJournal('Prompt rejected: provider command queue full.');
   end
@@ -479,7 +526,11 @@ begin
   FState.AddJournal('Room ' + ARoom.JID + ' state: ' +
     NXRoomStateName(ARoom.State) + '.');
   if ARoom.State in [xrsFailed, xrsLeft] then
+  begin
+    if Assigned(FConversation) then
+      FConversation.ClearBotRoom(ARoom.JID, UTF8String(FConfig.Nick));
     FProvider.CancelRoomPrompts(ARoom.JID, 'XMPP room is unavailable.');
+  end;
   Changed;
 end;
 

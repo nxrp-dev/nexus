@@ -57,6 +57,7 @@ type
     FBindings: TNXBotDeploymentList;
     FCatalogFile: string;
     FControllerFullJID: string;
+    FImpliedReplyTimeoutMS: Integer;
     FOperationCapacity: Integer;
     FOperators: TStringList;
     FReaders: TStringList;
@@ -69,6 +70,8 @@ type
     property CatalogFile: string read FCatalogFile write FCatalogFile;
     property ControllerFullJID: string read FControllerFullJID
       write FControllerFullJID;
+    property ImpliedReplyTimeoutMS: Integer read FImpliedReplyTimeoutMS
+      write FImpliedReplyTimeoutMS;
     property OperationCapacity: Integer read FOperationCapacity
       write FOperationCapacity;
     property Operators: TStringList read FOperators write FOperators;
@@ -202,6 +205,7 @@ constructor TNXBotControllerConfig.Create;
 begin
   inherited Create;
   FBindings := TNXBotDeploymentList.Create;
+  FImpliedReplyTimeoutMS := 120000;
   FOperators := TStringList.Create;
   FReaders := TStringList.Create;
   FOperationCapacity := 32;

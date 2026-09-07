@@ -26,10 +26,13 @@ type
       ASenderJID, AMessageID, ATypeValue, ABody, ADisplayBody: UTF8String;
       const AReply: TNXXMPPReplyReference;
       AContext: TNXXMPPMessageDeliveryContext; AValid: Boolean;
-      AMaximumBytes: Integer; out APrompt: TNXBotPrompt): TNXBotRouteDecision;
+      AMaximumBytes: Integer; AImplied: Boolean;
+      out APrompt: TNXBotPrompt): TNXBotRouteDecision;
   end;
 
 function NXBotRouteDecisionName(ADecision: TNXBotRouteDecision): UTF8String;
+function NXBotHostHasAddress(const ABody, ADisplayBody,
+  ANick: UTF8String): Boolean;
 
 implementation
 
@@ -78,6 +81,24 @@ begin
   end;
 end;
 
+function NXBotHostHasAddress(const ABody, ADisplayBody,
+  ANick: UTF8String): Boolean;
+var
+  lAddressLength: Integer;
+  lAddressPosition: Integer;
+  lPosition: Integer;
+  lPrefix: UTF8String;
+begin
+  lPrefix := '@' + ANick;
+  lPosition := Length(lPrefix) + 1;
+  Result := SameText(Copy(ABody, 1, Length(lPrefix)), lPrefix) and
+    ((lPosition > Length(ABody)) or
+    (ABody[lPosition] in [#9, #10, #13, ' ']));
+  if not Result then
+    Result := NXBotHostFindAddress(ADisplayBody, ANick, lAddressPosition,
+      lAddressLength);
+end;
+
 function NXBotRouteDecisionName(ADecision: TNXBotRouteDecision): UTF8String;
 begin
   case ADecision of
@@ -96,7 +117,7 @@ class function TNXBotHostRouter.Admit(const ASequence: QWord;
   const ARoomJID, ANick, ASenderJID, AMessageID, ATypeValue,
   ABody, ADisplayBody: UTF8String; const AReply: TNXXMPPReplyReference;
   AContext: TNXXMPPMessageDeliveryContext; AValid: Boolean;
-  AMaximumBytes: Integer;
+  AMaximumBytes: Integer; AImplied: Boolean;
   out APrompt: TNXBotPrompt): TNXBotRouteDecision;
 var
   lAddressLength: Integer;
@@ -134,6 +155,8 @@ begin
       Copy(ADisplayBody, lAddressPosition + lAddressLength, MaxInt)
   else if AReply.Present and
     (AReply.ToJID = ARoomJID + '/' + ANick) then
+    lPrompt := ADisplayBody
+  else if AImplied then
     lPrompt := ADisplayBody
   else
     Exit(brdNotAddressed);

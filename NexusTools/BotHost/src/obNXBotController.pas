@@ -5,8 +5,8 @@ unit obNXBotController;
 interface
 
 uses
-  Classes, Contnrs, obNXBotCatalog, obNXBotHost, obNXBotHostConfig,
-  tpNXBotControl, tpNXBotHost;
+  Classes, Contnrs, obNXBotCatalog, obNXBotConversation, obNXBotHost,
+  obNXBotHostConfig, tpNXBotControl, tpNXBotHost;
 
 type
   TNXBotController = class;
@@ -49,6 +49,7 @@ type
     FActive: TObjectList;
     FCatalog: TNXBotCatalog;
     FConfig: TNXBotControllerConfig;
+    FConversation: TNXBotConversationTracker;
     FCriticalSection: TRTLCriticalSection;
     FNextToken: QWord;
     FPending: TObjectList;
@@ -124,15 +125,24 @@ end;
 
 constructor TNXBotController.Create(ACatalog: TNXBotCatalog;
   AConfig: TNXBotControllerConfig);
+var
+  lIndex: Integer;
 begin
   inherited Create;
   if not Assigned(ACatalog) or not Assigned(AConfig) then
     raise Exception.Create('Bot controller requires catalog and configuration.');
   if AConfig.OperationCapacity < 1 then
     raise Exception.Create('Bot controller capacity must be positive.');
+  if AConfig.ImpliedReplyTimeoutMS < 1 then
+    raise Exception.Create('Implied reply timeout must be positive.');
   FCatalog := ACatalog;
   FConfig := TNXBotControllerConfig.Create;
   FConfig.JSON := AConfig.JSON;
+  FConversation := TNXBotConversationTracker.Create(
+    QWord(FConfig.ImpliedReplyTimeoutMS));
+  for lIndex := 0 to FConfig.Bindings.Count - 1 do
+    FConversation.RegisterBot(UTF8String(
+      FConfig.Bindings.Binding(lIndex).Nick));
   FActive := TObjectList.Create(True);
   FActive.Capacity := FCatalog.Entries.Count;
   FPending := TObjectList.Create(True);
@@ -145,6 +155,7 @@ begin
   Shutdown;
   FPending.Free;
   FActive.Free;
+  FConversation.Free;
   DoneCriticalSection(FCriticalSection);
   FConfig.Free;
   FCatalog.Free;
@@ -330,6 +341,7 @@ begin
     if not lFound then
       raise Exception.Create('Deployment binding is unavailable.');
     Result := CreateHost(lConfig, AEntry.Instructions);
+    Result.Conversation := FConversation;
     lConfig := nil;
   finally
     lConfig.Free;
@@ -906,6 +918,7 @@ begin
   lActive := TNXActiveBot.Create;
   lActive.Entry := lEntry;
   lActive.Host := AHost;
+  lActive.Host.Conversation := FConversation;
   lActive.Host.OnChanged := @HostChanged;
   EnterCriticalSection(FCriticalSection);
   try
