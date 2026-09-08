@@ -96,8 +96,9 @@ place to accept cancellation or completion.
 ### Responsibilities
 
 - The host identifies the actual lifecycle fact: provider unavailable, XMPP
-  unavailable, one room unavailable, one prompt/request owner withdrawn, or
-  host shutdown.
+  unavailable, one room owner unavailable, one prompt/request owner withdrawn,
+  or host shutdown. Lifecycle ownership is explicit and is not inferred from
+  the operation's stanza type or delivery target.
 - The exchange matches that fact only to operations whose explicit context
   depends on that owner. It does not translate a room loss into global file
   invalidation.
@@ -106,10 +107,13 @@ place to accept cancellation or completion.
 - The existing worker performs only the blocking HTTP portion for the active
   operation. It does not own routing policy or terminal result policy.
 - One exchange completion method performs the `CompleteActive`-style terminal
-  transition: verify the exact retained operation, capture its final result or
-  cancellation reason, remove it from the applicable pending/queued/active
-  state, update capacity/reservation accounting, and prevent any second
-  completion.
+  transition. For pending or queued work that nobody else is using, it decides
+  the outcome, removes the exact retained operation, updates accounting, and
+  prevents any second completion in one step. For active blocking work,
+  invalidation atomically decides that cancellation won but does not detach or
+  destroy the operation while the worker still holds it. When the worker
+  returns, the same terminal path observes the already-decided outcome and
+  performs the single detach, accounting update, and release.
 - Callback invocation, provider submission, journal reporting, file deletion,
   and object destruction occur after the small protected ownership transition,
   never while the exchange critical section is held.
@@ -126,16 +130,18 @@ place to accept cancellation or completion.
    directly to the transfer queue.
 4. The exchange queues the operation's blocking HTTP work and installs that
    exact operation as active when the worker takes it.
-5. A lifecycle notification marks only matching retained operations as no
-   longer completable for their original purpose. Queued matching work can be
-   removed immediately. If the matching active HTTP call must be interrupted,
-   cancellation targets that one active call; ownership remains with the
-   exchange until the worker returns.
+5. A lifecycle notification decides a terminal cancellation outcome only for
+   matching retained operations. Queued matching work can be detached
+   immediately. If matching active HTTP work must be interrupted, cancellation
+   targets that one call, but the operation remains retained until the worker
+   returns and relinquishes it.
 6. Success, transfer failure, negotiation failure, owner invalidation, and
-   shutdown all converge through the same terminal method.
-7. The terminal method yields one detached result package for processing
-   outside the critical section, then the operation and any rollback artifacts
-   are released exactly once.
+   shutdown all converge through the same terminal method. Once an outcome has
+   been decided, later progress cannot replace it; active-work return merely
+   permits the already-decided operation to be detached.
+7. After safe detachment, the terminal method yields one result package for
+   processing outside the critical section. The operation and any rollback
+   artifacts are then released exactly once.
 
 ### Scope Matching
 
@@ -144,15 +150,40 @@ place to accept cancellation or completion.
 - XMPP loss invalidates pending outbound discovery, slot, upload, and send work
   because their delivery owner is unavailable. It does not independently
   corrupt exchange accounting or artifact registry state.
-- Room loss invalidates only operations explicitly addressed to that room.
-  Direct-message operations and operations for other rooms remain valid.
+- Room loss invalidates operations whose explicit room-owner dependency matches
+  that room, regardless of whether the delivery target is the bare room JID,
+  an occupant JID, or another routing form. A standalone direct-message
+  operation with no room-owner dependency survives room loss. Operations owned
+  by other rooms also remain valid.
 - Prompt/request withdrawal invalidates only file work owned by that exact
   prompt/request identity.
 - Host shutdown stops acceptance and terminally drains all retained operations
   through the same ownership path before exchange destruction.
+- A lifecycle request that can fail or be rejected does not report its scope
+  unavailable merely because it was attempted. Rejected provider-stop,
+  room-leave, XMPP-disconnect, or equivalent commands leave existing operation
+  ownership unchanged. Invalidation occurs only after the lifecycle command is
+  accepted or the corresponding state transition establishes that the owner is
+  unavailable, according to the actual owner API contract.
 - Scope representation remains narrow and explicit to BotHost file operations;
   this work must not introduce a generic owner-token, cancellation, or
   lifecycle framework.
+
+### Callback Lifetime
+
+- No asynchronous XMPP callback may retain a raw operation reference that can
+  be destroyed before the callback completes.
+- Callback progress must identify a still-retained operation safely. Prefer an
+  existing XMPP request/correlation identity when the current API provides one.
+  Otherwise retain the operation until the outstanding callback's ownership
+  has ended.
+- A callback for an operation whose terminal outcome is already decided may
+  only advance that operation toward safe detachment; it cannot replace the
+  decided outcome or complete the operation again.
+- The actual discovery and slot callback contracts must be verified before
+  choosing between correlation and retained lifetime. If neither is supported
+  cleanly, stop implementation and report the concrete lifetime conflict before
+  introducing a new identity mechanism.
 
 ### Threading And Synchronization
 
@@ -160,7 +191,7 @@ place to accept cancellation or completion.
   is blocking and the host, XMPP, and provider must continue progressing.
 - Add no thread, timer, poller, worker pool, future, or task abstraction.
 - Use the exchange critical section only to move operation references between
-  retained states, record invalidation on the exact retained operation, and
+  retained states, decide an outcome on the exact retained operation, and
   update bounded accounting in the same small autonomous transition.
 - Do not hold the critical section across DNS, XMPP, HTTP, filesystem work,
   callbacks, provider submission, journaling, or object destruction.
@@ -208,9 +239,10 @@ Possible narrow call-site changes, only if required by the ownership handoff:
    prompt/request dependencies needed for matching lifecycle facts.
 2. Give the exchange one retained operation collection/state model covering
    XMPP negotiation, queued transfer, and active transfer.
-3. Add one terminal method modeled on `CompleteActive` that removes the exact
-   operation and updates accounting once, returning detached completion work
-   for execution outside the critical section.
+3. Add one terminal method modeled on `CompleteActive` that records the first
+   terminal outcome and removes the exact operation only when no outstanding
+   blocking work or callback can still use it. It updates accounting once and
+   returns detached completion work for execution outside the critical section.
 4. Preserve current capacity, byte reservation, artifact rollback, and
    exactly-once caller completion behavior through that terminal method.
 
@@ -223,7 +255,11 @@ Possible narrow call-site changes, only if required by the ownership handoff:
    the complete request to the exchange on acceptance.
 3. Route discovery, slot, upload, and final XMPP-send results back to the same
    retained operation; no phase creates an independent lifecycle record.
-4. Remove callback-local generation checks and self-destruction.
+4. Verify the actual discovery and slot callback APIs. Correlate callbacks by
+   an existing stable request identity when available; otherwise retain the
+   operation until the outstanding callback has ended. Never leave a callback
+   holding a raw reference to an operation that may already have been freed.
+5. Remove callback-local generation checks and self-destruction.
 
 ### Stage 3: Replace global invalidation with exact owner invalidation
 
@@ -233,10 +269,15 @@ Possible narrow call-site changes, only if required by the ownership handoff:
    owner or delivery scope that actually became unavailable.
 3. Make provider stop, XMPP disconnect/failure, one-room leave/failure, and
    shutdown affect only operations that declare that dependency.
-4. Remove `TNXBotFileOperation.Cancelled`, repeated
+4. For fallible lifecycle commands, report invalidation only after command
+   acceptance or the authoritative unavailable state transition. A rejected
+   stop, leave, or disconnect attempt must not alter existing file operations.
+5. Match room invalidation by the explicit room-owner dependency, not by stanza
+   type or delivery-target shape.
+6. Remove `TNXBotFileOperation.Cancelled`, repeated
    `OperationCancelled` sampling, `CancelAll`/`CancelRoom` as independent
    completion paths, and exchange-global resettable abort state.
-5. Preserve physical interruption only for the exact active blocking transfer
+7. Preserve physical interruption only for the exact active blocking transfer
    when required, without transferring lifetime or completion ownership away
    from the exchange.
 
@@ -260,8 +301,11 @@ Possible narrow call-site changes, only if required by the ownership handoff:
 3. Prove queued, negotiating, and active matching operations each complete
    once with the correct reason and never submit or send afterward.
 4. Prove late discovery, slot, HTTP, and XMPP callbacks cannot complete an
-   already terminal operation a second time.
-5. Prove shutdown drains ownership and accounting without a second lifecycle
+   already terminal operation a second time or dereference an operation whose
+   lifetime has ended.
+5. Prove rejected provider-stop, room-leave, and disconnect commands leave
+   existing file operations unchanged.
+6. Prove shutdown drains ownership and accounting without a second lifecycle
    subsystem.
 
 ## Sub-Agent Delegation
@@ -282,7 +326,12 @@ delegation.
 - Confirm there is one exchange-owned terminal transition for accepted file
   operations and no callback frees an operation directly.
 - Confirm room invalidation matches the room identity and cannot invalidate
-  direct-message or other-room operations.
+  direct-message operations with no room-owner dependency or operations owned
+  by another room. Confirm occupant-JID and other routing forms remain governed
+  by their explicit room owner rather than their delivery-target shape.
+- Confirm no callback can retain a raw reference beyond the operation's safe
+  lifetime and no fallible lifecycle request invalidates work before acceptance
+  or an authoritative unavailable state transition.
 - Confirm critical sections contain only retained-reference, invalidation, and
   accounting transitions and contain no I/O, callbacks, logging, or frees.
 - Confirm no new thread, timer, poller, task/future, generic cancellation
@@ -306,12 +355,19 @@ Focused registered tests must cover:
 - successful inbound and outbound completion occurs once;
 - negotiation, transfer, and final-send failure occurs once;
 - invalidating room A does not affect room B or direct-message work;
+- an occupant-targeted chat with room A as its explicit owner is invalidated
+  with room A, while a standalone direct chat without that owner is not;
 - provider invalidation affects only provider-dependent work;
 - XMPP invalidation affects only XMPP-dependent outbound work;
 - exact prompt/request invalidation affects only that operation;
+- rejected provider-stop, room-leave, and disconnect commands do not invalidate
+  any operation;
 - queued, negotiating, and active matching operations do not publish, submit,
   or send after terminal invalidation;
-- late callbacks are ignored by retained identity rather than generation;
+- active invalidation decides cancellation before the worker returns but does
+  not detach or free worker-held state until return;
+- late callbacks use safe correlation or retained lifetime, preserve an
+  already-decided outcome, and never dereference freed operation state;
 - capacity and byte/file reservations return to their initial values after
   every terminal path;
 - shutdown stops acceptance, drains retained work, and joins the existing
@@ -330,8 +386,11 @@ Focused registered tests must cover:
 
 - The current XMPP discovery and slot APIs are callback-based. The exchange
   must retain the operation across those callbacks without moving policy into
-  the XMPP module. If either API requires callback ownership that contradicts
-  this contract, report the concrete conflict before changing that module.
+  the XMPP module. The implementation must first determine whether those APIs
+  expose stable request correlation or require the callback receiver to remain
+  alive. If either API cannot provide safe correlation or bounded retained
+  lifetime under this contract, report the concrete conflict before changing
+  that module or inventing another identity mechanism.
 - An active Synapse HTTP call may need a physical interruption for prompt
   withdrawal or shutdown. This plan authorizes targeting the one active call;
   it does not authorize an exchange-global resettable cancellation model. If
