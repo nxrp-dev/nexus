@@ -3,7 +3,7 @@
 This is the retained verification record for the deterministic Win64
 NexusXMPP test target and the explicitly identified live-server checks below.
 
-## Verified 2026-09-06
+## Verified 2026-09-07
 
 The test executable was rebuilt from source with FPC 3.2.2 using `-B` and all units/binaries directed under `output/`:
 
@@ -32,6 +32,13 @@ policy, incoming/outgoing ping, outgoing discovery, automatic XEP-0115 lookup,
 verified capability hashes, wrong-node and unsupported-hash handling,
 default-off automatic receipts, receipt capacity/expiry and explicit accepted,
 duplicate, unknown, malformed, expired, and failed outcomes.
+
+File-sharing coverage includes bounded typed XEP-0446 metadata, XEP-0447 SFS
+sources, SHA-256 metadata, attachment-only message retention, OOB-only
+non-attachment behavior, namespace-targeted fallback removal, duplicate and
+multi-file validation, typed XEP-0128 upload limits, XEP-0363 discovery and
+slot parsing, allowed-header newline stripping, unknown-header ignoring,
+omitted upload purpose, and outbound SFS/OOB/fallback generation.
 
 MUC tests cover instant room creation/configuration, existing-room rejection,
 structured configuration failure, bounded history requests/delivery, typed role
@@ -68,7 +75,8 @@ The implemented protocol baseline is XEP-0045 1.35.5, XEP-0059 1.0,
 XEP-0085 2.1, XEP-0115 1.6.0, XEP-0184 1.4.0, XEP-0199 2.0.1,
 XEP-0203 2.0, XEP-0280 1.0.1, XEP-0297 1.0, XEP-0313 1.1.3,
 XEP-0359 0.7.0, XEP-0410 1.1.0, XEP-0421 1.0.1, XEP-0428 0.2.1,
-and XEP-0461 0.2.1. Feature availability remains subject to peer/server
+XEP-0446 0.2.0, XEP-0447 0.3.1, XEP-0363 1.2.0, XEP-0066 1.6,
+XEP-0300 1.0.0, and XEP-0461 0.2.1. Feature availability remains subject to peer/server
 advertisement; the library does not infer support from server brand. The
 selected XEP-0359, XEP-0428, and XEP-0461 revisions are Experimental and their
 public shapes may need deliberate revision when those specifications change.

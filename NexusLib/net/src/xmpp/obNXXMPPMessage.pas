@@ -7,12 +7,13 @@ interface
 
 uses
   Classes, SysUtils, DOM, obNXXMPPStanza, tpNXXMPPMessageTypes,
-  tpNXXMPPTypes, utNXXMPPDateTime, utNXXMPPDOM;
+  tpNXXMPPFileTypes, tpNXXMPPTypes, utNXXMPPDateTime, utNXXMPPDOM;
 
 type
   TNXXMPPMessage = class
   private
     FBody: UTF8String;
+    FAttachments: TNXXMPPFileShareArray;
     FChatState: TNXXMPPChatState;
     FContext: TNXXMPPMessageDeliveryContext;
     FDelay: TNXXMPPDelay;
@@ -31,6 +32,8 @@ type
     FValid: Boolean;
     FValidationError: UTF8String;
     procedure Invalidate(const AReason: UTF8String);
+    procedure ParseFileShare(AElement: TDOMElement;
+      var AMetadataBytes: Integer);
     procedure Parse(AStanza: TNXXMPPStanza);
   public
     constructor Create(AStanza: TNXXMPPStanza;
@@ -38,6 +41,7 @@ type
     function StanzaIDFor(const AByJID: UTF8String;
       out AID: UTF8String): Boolean;
     property Body: UTF8String read FBody;
+    property Attachments: TNXXMPPFileShareArray read FAttachments;
     property ChatState: TNXXMPPChatState read FChatState;
     property Context: TNXXMPPMessageDeliveryContext read FContext;
     property Delay: TNXXMPPDelay read FDelay;
@@ -58,6 +62,15 @@ type
   end;
 
 implementation
+
+type
+  TNXXMPPFallbackRange = record
+    StartCharacter: Integer;
+    EndCharacter: Integer;
+    ForNamespace: UTF8String;
+    WholeBody: Boolean;
+  end;
+  TNXXMPPFallbackRangeArray = array of TNXXMPPFallbackRange;
 
 function NXXMPPUTF8Offset(const AValue: UTF8String; ACharacterIndex: Integer;
   out AByteOffset: Integer): Boolean;
@@ -105,6 +118,183 @@ begin
     FValidationError := AReason;
 end;
 
+procedure TNXXMPPMessage.ParseFileShare(AElement: TDOMElement;
+  var AMetadataBytes: Integer);
+var
+  lChild: TDOMElement;
+  lFile: TDOMElement;
+  lHash: TNXXMPPFileHash;
+  lIndex: Integer;
+  lShare: TNXXMPPFileShare;
+  lSize: Int64;
+  lSource: TNXXMPPFileSource;
+  lSources: TDOMElement;
+  lText: UTF8String;
+  lDescriptionSeen: Boolean;
+  lMediaTypeSeen: Boolean;
+  lNameSeen: Boolean;
+begin
+  lShare := Default(TNXXMPPFileShare);
+  lDescriptionSeen := False;
+  lMediaTypeSeen := False;
+  lNameSeen := False;
+  if Length(FAttachments) >= cNXXMPPFileMaximumAttachments then
+  begin
+    Invalidate('The message contains too many file shares.');
+    Exit;
+  end;
+  AMetadataBytes := AMetadataBytes + Length(NXXMPPElementXML(AElement));
+  if AMetadataBytes > cNXXMPPFileMaximumMetadataBytes then
+  begin
+    Invalidate('The message file metadata is too large.');
+    Exit;
+  end;
+
+  lShare.ID := UTF8Encode(AElement.GetAttribute('id'));
+  lShare.Disposition := UTF8Encode(AElement.GetAttribute('disposition'));
+  if Length(lShare.ID) > cNXXMPPFileMaximumShareIDBytes then
+    Invalidate('The file share id is too long.');
+  for lIndex := 0 to High(FAttachments) do
+    if (lShare.ID <> '') and (FAttachments[lIndex].ID = lShare.ID) then
+      Invalidate('The message contains duplicate file share ids.');
+
+  lFile := nil;
+  lSources := nil;
+  lChild := NXXMPPFirstChildElement(AElement);
+  while Assigned(lChild) do
+  begin
+    if NXXMPPElementMatches(lChild, cNXXMPPFileMetadataNamespace,
+      'file') then
+    begin
+      if Assigned(lFile) then
+        Invalidate('A file share contains more than one file metadata element.')
+      else
+        lFile := lChild;
+    end
+    else if NXXMPPElementMatches(lChild, cNXXMPPFileSharingNamespace,
+      'sources') then
+    begin
+      if Assigned(lSources) then
+        Invalidate('A file share contains more than one sources element.')
+      else
+        lSources := lChild;
+    end;
+    lChild := NXXMPPNextSiblingElement(lChild);
+  end;
+  if not Assigned(lFile) then
+    Invalidate('A file share requires file metadata.');
+  if not Assigned(lSources) then
+    Invalidate('A file share requires sources.');
+
+  if Assigned(lFile) then
+  begin
+    lChild := NXXMPPFirstChildElement(lFile);
+    while Assigned(lChild) do
+    begin
+      if NXXMPPElementMatches(lChild, cNXXMPPFileMetadataNamespace,
+        'name') then
+      begin
+        if lNameSeen then
+          Invalidate('A file share contains more than one name.');
+        lNameSeen := True;
+        lShare.Name := NXXMPPDirectText(lChild);
+        if Length(lShare.Name) > cNXXMPPFileMaximumNameBytes then
+          Invalidate('The file name is too long.');
+      end
+      else if NXXMPPElementMatches(lChild, cNXXMPPFileMetadataNamespace,
+        'media-type') then
+      begin
+        if lMediaTypeSeen then
+          Invalidate('A file share contains more than one media type.');
+        lMediaTypeSeen := True;
+        lShare.MediaType := NXXMPPDirectText(lChild);
+        if Length(lShare.MediaType) > cNXXMPPFileMaximumMediaTypeBytes then
+          Invalidate('The file media type is too long.');
+      end
+      else if NXXMPPElementMatches(lChild, cNXXMPPFileMetadataNamespace,
+        'desc') then
+      begin
+        if lDescriptionSeen then
+          Invalidate('A file share contains more than one description.');
+        lDescriptionSeen := True;
+        lShare.Description := NXXMPPDirectText(lChild);
+        if Length(lShare.Description) > cNXXMPPFileMaximumDescriptionBytes then
+          Invalidate('The file description is too long.');
+      end
+      else if NXXMPPElementMatches(lChild, cNXXMPPFileMetadataNamespace,
+        'size') then
+      begin
+        if lShare.HasSize then
+          Invalidate('A file share contains more than one size.');
+        lText := NXXMPPDirectText(lChild);
+        if not TryStrToInt64(string(lText), lSize) or (lSize < 0) then
+          Invalidate('The declared file size is invalid.')
+        else
+        begin
+          lShare.HasSize := True;
+          lShare.DeclaredSize := lSize;
+        end;
+      end
+      else if NXXMPPElementMatches(lChild, cNXXMPPFileHashNamespace,
+        'hash') then
+      begin
+        if Length(lShare.Hashes) >= cNXXMPPFileMaximumHashes then
+          Invalidate('A file share contains too many hashes.')
+        else
+        begin
+          lHash.Algorithm := UTF8Encode(lChild.GetAttribute('algo'));
+          lHash.Value := NXXMPPDirectText(lChild);
+          if (lHash.Algorithm = '') or (lHash.Value = '') then
+            Invalidate('A file hash requires an algorithm and value.')
+          else
+          begin
+            SetLength(lShare.Hashes, Length(lShare.Hashes) + 1);
+            lShare.Hashes[High(lShare.Hashes)] := lHash;
+          end;
+        end;
+      end;
+      lChild := NXXMPPNextSiblingElement(lChild);
+    end;
+  end;
+
+  if Assigned(lSources) then
+  begin
+    lChild := NXXMPPFirstChildElement(lSources);
+    while Assigned(lChild) do
+    begin
+      if NXXMPPElementMatches(lChild, cNXXMPPURLDataNamespace,
+        'url-data') then
+      begin
+        if Length(lShare.Sources) >= cNXXMPPFileMaximumSources then
+          Invalidate('A file share contains too many URL sources.')
+        else
+        begin
+          lSource.URL := UTF8Encode(lChild.GetAttribute('target'));
+          if lSource.URL = '' then
+            Invalidate('A file URL source requires a target.')
+          else if Length(lSource.URL) > cNXXMPPFileMaximumURLBytes then
+            Invalidate('A file URL source is too long.')
+          else
+          begin
+            SetLength(lShare.Sources, Length(lShare.Sources) + 1);
+            lShare.Sources[High(lShare.Sources)] := lSource;
+          end;
+        end;
+      end;
+      lChild := NXXMPPNextSiblingElement(lChild);
+    end;
+  end;
+  if Length(lShare.Sources) = 0 then
+    Invalidate('A file share contains no supported URL source.');
+
+  SetLength(FAttachments, Length(FAttachments) + 1);
+  FAttachments[High(FAttachments)] := lShare;
+  if (Length(FAttachments) > 1) and (lShare.ID = '') then
+    Invalidate('Every file in a multi-file message requires an id.');
+  if (Length(FAttachments) = 2) and (FAttachments[0].ID = '') then
+    Invalidate('Every file in a multi-file message requires an id.');
+end;
+
 procedure TNXXMPPMessage.Parse(AStanza: TNXXMPPStanza);
 var
   lChild: TDOMElement;
@@ -113,12 +303,18 @@ var
   lNamespace: UTF8String;
   lState: TNXXMPPChatState;
   lIndex: Integer;
-  lFallbackEnd: Integer;
-  lFallbackStart: Integer;
+  lFallbackFor: UTF8String;
+  lFallbackRange: TNXXMPPFallbackRange;
+  lFallbackRanges: TNXXMPPFallbackRangeArray;
+  lMetadataBytes: Integer;
   lRange: TDOMElement;
   lStartByte: Integer;
   lEndByte: Integer;
+  lSwap: TNXXMPPFallbackRange;
+  lSort: Integer;
 begin
+  lMetadataBytes := 0;
+  SetLength(lFallbackRanges, 0);
   if not Assigned(AStanza) or (AStanza.Kind <> xskMessage) then
   begin
     Invalidate('The retained stanza is not a message.');
@@ -129,8 +325,6 @@ begin
   FToJID := AStanza.ToJID;
   FID := AStanza.ID;
   FTypeValue := AStanza.TypeValue;
-  lFallbackStart := -1;
-  lFallbackEnd := -1;
   lChild := NXXMPPFirstChildElement(AStanza.Root);
   while Assigned(lChild) do
   begin
@@ -235,32 +429,76 @@ begin
         FDelay.Reason := NXXMPPDirectText(lChild);
       end;
     end
+    else if (lNamespace = cNXXMPPFileSharingNamespace) and
+      (lLocalName = 'file-sharing') then
+      ParseFileShare(lChild, lMetadataBytes)
     else if (lNamespace = 'urn:xmpp:fallback:0') and
-      (lLocalName = 'fallback') and
-      (UTF8Encode(lChild.GetAttribute('for')) = 'urn:xmpp:reply:0') then
+      (lLocalName = 'fallback') then
     begin
-      if lFallbackStart >= 0 then
-        Invalidate('The message contains more than one reply fallback.')
-      else
+      lFallbackFor := UTF8Encode(lChild.GetAttribute('for'));
+      if (lFallbackFor = 'urn:xmpp:reply:0') or
+        (lFallbackFor = cNXXMPPFileSharingNamespace) then
       begin
+        lFallbackRange.ForNamespace := lFallbackFor;
         lRange := NXXMPPFindChild(lChild, 'urn:xmpp:fallback:0', 'body');
-        if not Assigned(lRange) or
-          not TryStrToInt(string(UTF8Encode(lRange.GetAttribute('start'))),
-            lFallbackStart) or
-          not TryStrToInt(string(UTF8Encode(lRange.GetAttribute('end'))),
-            lFallbackEnd) or (lFallbackStart < 0) or
-          (lFallbackEnd < lFallbackStart) then
-          Invalidate('The reply fallback body range is invalid.');
+        if not Assigned(lRange) then
+          Invalidate('The message fallback body is missing.')
+        else
+        begin
+          lFallbackRange.WholeBody :=
+            (not lRange.HasAttribute('start')) and
+            (not lRange.HasAttribute('end'));
+          if lFallbackRange.WholeBody then
+          begin
+            lFallbackRange.StartCharacter := 0;
+            lFallbackRange.EndCharacter := MaxInt;
+          end
+          else if not TryStrToInt(string(UTF8Encode(
+            lRange.GetAttribute('start'))), lFallbackRange.StartCharacter) or
+            not TryStrToInt(string(UTF8Encode(lRange.GetAttribute('end'))),
+              lFallbackRange.EndCharacter) or
+            (lFallbackRange.StartCharacter < 0) or
+            (lFallbackRange.EndCharacter < lFallbackRange.StartCharacter) then
+            Invalidate('The message fallback body range is invalid.')
+          else
+          begin
+            SetLength(lFallbackRanges, Length(lFallbackRanges) + 1);
+            lFallbackRanges[High(lFallbackRanges)] := lFallbackRange;
+          end;
+          if lFallbackRange.WholeBody then
+          begin
+            SetLength(lFallbackRanges, Length(lFallbackRanges) + 1);
+            lFallbackRanges[High(lFallbackRanges)] := lFallbackRange;
+          end;
+        end;
       end;
     end;
     lChild := NXXMPPNextSiblingElement(lChild);
   end;
   FDisplayBody := FBody;
-  if lFallbackStart >= 0 then
+  for lIndex := 0 to High(lFallbackRanges) - 1 do
+    for lSort := lIndex + 1 to High(lFallbackRanges) do
+      if lFallbackRanges[lIndex].StartCharacter <
+        lFallbackRanges[lSort].StartCharacter then
+      begin
+        lSwap := lFallbackRanges[lIndex];
+        lFallbackRanges[lIndex] := lFallbackRanges[lSort];
+        lFallbackRanges[lSort] := lSwap;
+      end;
+  for lIndex := 0 to High(lFallbackRanges) do
   begin
-    if not NXXMPPUTF8Offset(FBody, lFallbackStart, lStartByte) or
-      not NXXMPPUTF8Offset(FBody, lFallbackEnd, lEndByte) then
-      Invalidate('The reply fallback body range exceeds the body.')
+    if ((lFallbackRanges[lIndex].ForNamespace = 'urn:xmpp:reply:0') and
+      not FReply.Present) or
+      ((lFallbackRanges[lIndex].ForNamespace =
+      cNXXMPPFileSharingNamespace) and (Length(FAttachments) = 0)) then
+      Continue;
+    if lFallbackRanges[lIndex].WholeBody then
+      FDisplayBody := ''
+    else if not NXXMPPUTF8Offset(FBody,
+      lFallbackRanges[lIndex].StartCharacter, lStartByte) or
+      not NXXMPPUTF8Offset(FBody, lFallbackRanges[lIndex].EndCharacter,
+        lEndByte) then
+      Invalidate('The message fallback body range exceeds the body.')
     else
       Delete(FDisplayBody, lStartByte, lEndByte - lStartByte);
   end;

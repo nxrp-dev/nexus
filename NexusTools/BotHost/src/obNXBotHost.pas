@@ -6,15 +6,18 @@ interface
 
 uses
   obNXBotConversation,
+  obNXBotFileExchange,
   obNXBotHostConfig,
   obNXBotProvider,
   obNXBotHostState,
   obNXXMPPClient,
+  obNXXMPPFileSharing,
   obNXXMPPMessage,
   obNXXMPPMessageFeatures,
   obNXXMPPModule,
   obNXXMPPMUC,
   tpNXBotHost,
+  tpNXBotFileTypes,
   tpNXXMPPTypes;
 
 type
@@ -26,6 +29,8 @@ type
   private
     FConfig: TNXBotHostConfig;
     FConversation: TNXBotConversationTracker;
+    FExchange: TNXBotFileExchange;
+    FFileSharing: TNXXMPPFileSharingModule;
     FInstructions: UTF8String;
     FMessages: TNXXMPPMessageModule;
     FMUC: TNXXMPPMUCModule;
@@ -37,9 +42,16 @@ type
     FOnPrompt: TNXBotHostPromptEvent;
     FProvider: TNXBotProvider;
     procedure Changed;
+    procedure FilePromptReady(ASender: TObject; APrompt: TNXBotPrompt;
+      const AError: UTF8String);
+    procedure SubmitAcceptedPrompt(APrompt: TNXBotPrompt;
+      const AJournalText: UTF8String);
     procedure ProviderDiagnostic(ASender: TObject; const AText: UTF8String);
     procedure ProviderFinalAnswer(ASender: TObject; APrompt: TNXBotPrompt;
       const AText: UTF8String);
+    function ProviderFileSend(ASender: TObject;
+      const ARequest: TNXBotFileSendRequest;
+      ACompletion: TNXBotFileSendCompletion): Boolean;
     procedure ProviderPromptFailed(ASender: TObject; APrompt: TNXBotPrompt;
       const AText: UTF8String);
     procedure ProviderState(ASender: TObject;
@@ -122,8 +134,15 @@ begin
   FProvider.Configure(FConfig, FInstructions);
   FProvider.OnDiagnostic := @ProviderDiagnostic;
   FProvider.OnFinalAnswer := @ProviderFinalAnswer;
+  FProvider.OnFileSend := @ProviderFileSend;
   FProvider.OnPromptFailed := @ProviderPromptFailed;
   FProvider.OnState := @ProviderState;
+
+  if FConfig.ExchangeDirectory <> '' then
+  begin
+    FExchange := TNXBotFileExchange.Create(FConfig);
+    FExchange.OnPromptReady := @FilePromptReady;
+  end;
 
   FXMPP := TNXXMPPClient.Create;
   FXMPP.OnError := @XMPPError;
@@ -135,6 +154,8 @@ begin
   FMessages := TNXXMPPMessageModule.Create;
   FMessages.OnMessage := @XMPPDirectMessage;
   FXMPP.AddModule(FMessages);
+  FFileSharing := TNXXMPPFileSharingModule.Create;
+  FXMPP.AddModule(FFileSharing);
 end;
 
 destructor TNXBotHost.Destroy;
@@ -142,12 +163,43 @@ begin
   Shutdown;
   Conversation := nil;
   FreeAndNil(FProvider);
+  FreeAndNil(FExchange);
   FreeAndNil(FXMPP);
   FMUC := nil;
   FMessages := nil;
+  FFileSharing := nil;
   FreeAndNil(FState);
   FreeAndNil(FConfig);
   inherited Destroy;
+end;
+
+procedure TNXBotHost.SubmitAcceptedPrompt(APrompt: TNXBotPrompt;
+  const AJournalText: UTF8String);
+begin
+  if not Assigned(APrompt) then
+    Exit;
+  if Assigned(FOnPrompt) and FOnPrompt(Self, APrompt) then
+  begin
+    FState.AddJournal(AJournalText);
+    APrompt.Free;
+  end
+  else if FProvider.SubmitPrompt(APrompt) then
+    FState.AddJournal(AJournalText)
+  else
+    FState.AddJournal('Prompt rejected: provider command queue full.');
+end;
+
+procedure TNXBotHost.FilePromptReady(ASender: TObject;
+  APrompt: TNXBotPrompt; const AError: UTF8String);
+begin
+  if AError <> '' then
+  begin
+    FState.AddJournal('File prompt failed: ' + AError);
+    APrompt.Free;
+  end
+  else
+    SubmitAcceptedPrompt(APrompt, 'Accepted prompt with verified files.');
+  Changed;
 end;
 
 function TNXBotHost.StartProvider: Boolean;
@@ -161,7 +213,12 @@ end;
 function TNXBotHost.StopProvider: Boolean;
 begin
   Result := FProvider.Stop;
-  if not Result then
+  if Result then
+  begin
+    if Assigned(FExchange) then
+      FExchange.SignalProvider('The provider stopped.');
+  end
+  else
     FState.AddJournal('Provider stop command rejected: command queue full.');
 end;
 
@@ -246,6 +303,8 @@ end;
 
 procedure TNXBotHost.DisconnectXMPP;
 begin
+  if Assigned(FExchange) then
+    FExchange.SignalXMPP('XMPP disconnected.');
   FProvider.CancelPrompts('XMPP disconnected.');
   FXMPP.Disconnect;
 end;
@@ -260,9 +319,14 @@ end;
 
 function TNXBotHost.LeaveRoom(const ARoomJID: UTF8String): Boolean;
 begin
-  FProvider.CancelRoomPrompts(ARoomJID, 'Bot left the XMPP room.');
   Result := FMUC.Leave(ARoomJID);
-  if not Result then
+  if Result then
+  begin
+    if Assigned(FExchange) then
+      FExchange.SignalRoom(ARoomJID, 'Bot left the XMPP room.');
+    FProvider.CancelRoomPrompts(ARoomJID, 'Bot left the XMPP room.');
+  end
+  else
     FState.AddJournal('Room leave command rejected.');
 end;
 
@@ -276,6 +340,11 @@ var
   lIndex: Integer;
   lSnapshot: TNXBotHostSnapshot;
 begin
+  if Assigned(FExchange) then
+  begin
+    FExchange.SignalProvider('BotHost is shutting down.');
+    FExchange.SignalXMPP('BotHost is shutting down.');
+  end;
   if Assigned(FProvider) then
     FProvider.CancelPrompts('BotHost is shutting down.');
   if Assigned(FXMPP) and (FXMPP.State = xcsOnline) then
@@ -287,6 +356,8 @@ begin
   end;
   if Assigned(FXMPP) then
     FXMPP.Disconnect;
+  if Assigned(FExchange) then
+    FExchange.Shutdown;
   if Assigned(FProvider) then
     FProvider.Shutdown;
 end;
@@ -308,6 +379,45 @@ begin
   Changed;
 end;
 
+function TNXBotHost.ProviderFileSend(ASender: TObject;
+  const ARequest: TNXBotFileSendRequest;
+  ACompletion: TNXBotFileSendCompletion): Boolean;
+var
+  lAttachment: TNXBotAttachment;
+  lMessageType: UTF8String;
+  lRoomOwner: UTF8String;
+  lTargetJID: UTF8String;
+begin
+  Result := False;
+  if not Assigned(FExchange) or not Assigned(FFileSharing) or
+    not Assigned(ACompletion) or
+    not (FProvider.State in [bpsReady, bpsWorking]) or
+    (FXMPP.State <> xcsOnline) then Exit;
+  lAttachment := FExchange.FindAttachment(ARequest.ArtifactID);
+  if not Assigned(lAttachment) then Exit;
+  if ARequest.RoomDelivery then
+  begin
+    lTargetJID := ARequest.RoomJID;
+    lMessageType := 'groupchat';
+    lRoomOwner := ARequest.RoomJID;
+  end
+  else
+  begin
+    lTargetJID := ARequest.SenderJID;
+    lMessageType := 'chat';
+    lRoomOwner := ARequest.RoomJID;
+  end;
+  if lTargetJID = '' then
+  begin
+    lAttachment.Free;
+    Exit;
+  end;
+  Result := FExchange.AcceptOutbound(lAttachment, FFileSharing,
+    lTargetJID, lMessageType, ARequest.SenderJID, ARequest.ReplyID,
+    lRoomOwner, ACompletion);
+  if not Result then lAttachment.Free;
+end;
+
 procedure TNXBotHost.XMPPDirectMessage(ASender: TObject;
   AMessage: TNXXMPPMessage);
 var
@@ -322,8 +432,10 @@ var
 begin
   if not Assigned(AMessage) or not AMessage.Valid or
     (AMessage.Context <> xmdcLive) or AMessage.Delay.Present or
-    (AMessage.TypeValue <> 'chat') or (AMessage.Body = '') or
-    (AMessage.DisplayBody = '') or (AMessage.FromJID = '') then
+    (AMessage.TypeValue <> 'chat') or
+    ((AMessage.Body = '') and (Length(AMessage.Attachments) = 0)) or
+    ((AMessage.DisplayBody = '') and (Length(AMessage.Attachments) = 0)) or
+    (AMessage.FromJID = '') then
     Exit;
   if AMessage.FromJID = UTF8String(FConfig.XMPPJID + '/' + FConfig.Resource) then
     Exit;
@@ -387,16 +499,21 @@ begin
   else
     lPrompt.SetVerifiedCaller(lCallerJID, False);
 
-  if Assigned(FOnPrompt) and FOnPrompt(Self, lPrompt) then
+  if Length(AMessage.Attachments) > 0 then
   begin
-    FState.AddJournal('Accepted direct control prompt from ' +
-      AMessage.FromJID + '.');
-    lPrompt.Free;
+    if Assigned(FExchange) and
+      FExchange.AcceptInbound(lPrompt, AMessage.Attachments) then
+      FState.AddJournal('Accepted direct file transfer from ' +
+        AMessage.FromJID + '.')
+    else
+    begin
+      FState.AddJournal('Direct file prompt rejected: transfer capacity full.');
+      lPrompt.Free;
+    end;
   end
-  else if FProvider.SubmitPrompt(lPrompt) then
-    FState.AddJournal('Accepted direct prompt from ' + AMessage.FromJID + '.')
   else
-    FState.AddJournal('Direct prompt rejected: provider command queue full.');
+    SubmitAcceptedPrompt(lPrompt, 'Accepted direct prompt from ' +
+      AMessage.FromJID + '.');
   Changed;
 end;
 
@@ -413,6 +530,8 @@ procedure TNXBotHost.ProviderState(ASender: TObject;
 var
   lMessage: UTF8String;
 begin
+  if (AState in [bpsStopped, bpsFailed]) and Assigned(FExchange) then
+    FExchange.SignalProvider('The provider is unavailable.');
   FState.SetProvider(AState, ADetail);
   lMessage := 'Provider state: ' + NXBotProviderStateName(AState);
   if ADetail <> '' then
@@ -489,7 +608,8 @@ begin
   lDecision := TNXBotHostRouter.Admit(FSequence, ARoom.JID, ARoom.Nick,
     AMessage.FromJID, AMessage.ID, AMessage.TypeValue, AMessage.Body,
     AMessage.DisplayBody, AMessage.Reply, AMessage.Context, AMessage.Valid,
-    FConfig.PromptMaximumBytes, lImplied, lPrompt);
+    FConfig.PromptMaximumBytes, lImplied,
+    Length(AMessage.Attachments) > 0, lPrompt);
   if lDecision = brdAccepted then
   begin
     if lNick <> '' then
@@ -498,21 +618,27 @@ begin
       if lVerifiedJID <> '' then
         lPrompt.SetVerifiedCaller(lVerifiedJID, True);
     end;
-    if Assigned(FOnPrompt) and FOnPrompt(Self, lPrompt) then
+    if Length(AMessage.Attachments) > 0 then
     begin
-      FState.AddJournal('Accepted control prompt from ' + AMessage.FromJID + '.');
-      lPrompt.Free;
-    end
-    else if FProvider.SubmitPrompt(lPrompt) then
-    begin
-      if lImplied then
-        FState.AddJournal('Accepted implied reply from ' +
-          AMessage.FromJID + ': ' + lImpliedReason + '.')
+      if Assigned(FExchange) and
+        FExchange.AcceptInbound(lPrompt, AMessage.Attachments) then
+        FState.AddJournal('Accepted addressed room file transfer from ' +
+          AMessage.FromJID + '.')
       else
-        FState.AddJournal('Accepted prompt from ' + AMessage.FromJID + '.');
+      begin
+        FState.AddJournal('Room file prompt rejected: transfer capacity full.');
+        lPrompt.Free;
+      end;
     end
     else
-      FState.AddJournal('Prompt rejected: provider command queue full.');
+    begin
+      if lImplied then
+        SubmitAcceptedPrompt(lPrompt, 'Accepted implied reply from ' +
+          AMessage.FromJID + ': ' + lImpliedReason + '.')
+      else
+        SubmitAcceptedPrompt(lPrompt, 'Accepted prompt from ' +
+          AMessage.FromJID + '.');
+    end;
   end
   else if lDecision <> brdNotAddressed then
     FState.AddJournal('Ignored room message: ' +
@@ -527,6 +653,8 @@ begin
     NXRoomStateName(ARoom.State) + '.');
   if ARoom.State in [xrsFailed, xrsLeft] then
   begin
+    if Assigned(FExchange) then
+      FExchange.SignalRoom(ARoom.JID, 'XMPP room is unavailable.');
     if Assigned(FConversation) then
       FConversation.ClearBotRoom(ARoom.JID, UTF8String(FConfig.Nick));
     FProvider.CancelRoomPrompts(ARoom.JID, 'XMPP room is unavailable.');
@@ -541,7 +669,11 @@ begin
   FState.AddJournal('XMPP state: ' +
     UTF8String(NXXMPPConnectionStateName(AState)) + '.');
   if AState in [xcsDisconnected, xcsFailed] then
+  begin
+    if Assigned(FExchange) then
+      FExchange.SignalXMPP('XMPP connection is unavailable.');
     FProvider.CancelPrompts('XMPP connection is unavailable.');
+  end;
   Changed;
 end;
 

@@ -137,6 +137,17 @@ begin
     ADiagnostics.Add('Missing deployment field Nick for bot ' + ABotName + '.');
   if ABinding.CAFile = '' then
     ADiagnostics.Add('Missing deployment field CAFile for bot ' + ABotName + '.');
+  if ABinding.ExchangeDirectory = '' then
+    ADiagnostics.Add('Missing deployment field ExchangeDirectory for bot ' +
+      ABotName + '.');
+  if ABinding.ExchangeDirectory <> '' then
+    try
+      ABinding.ValidateFileExchange;
+    except
+      on E: Exception do
+        ADiagnostics.Add('Invalid file exchange deployment for bot ' +
+          ABotName + ': ' + E.Message);
+    end;
   if (ABinding.EndpointHost = '') <> (ABinding.EndpointPort = 0) then
     ADiagnostics.Add('Deployment endpoint for bot ' + ABotName +
       ' requires both host and port.');

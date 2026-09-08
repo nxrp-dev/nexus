@@ -18,6 +18,7 @@ type
     class procedure RequireAvailable; static;
     class function SHA1(const AValue: RawByteString): RawByteString; static;
     class function SHA256(const AValue: RawByteString): RawByteString; static;
+    class function SHA256Stream(AStream: TStream): RawByteString; static;
     class function HMACSHA256(const AKey,
       AValue: RawByteString): RawByteString; static;
     class function PBKDF2SHA256(const APassword, ASalt: RawByteString;
@@ -31,11 +32,20 @@ implementation
 
 type
   PEVPMD = Pointer;
+  PEVPMDContext = Pointer;
   TEvPSHA1 = function: PEVPMD; cdecl;
   TEvPSHA256 = function: PEVPMD; cdecl;
   TEvPDigest = function(AData: Pointer; ACount: NativeUInt;
     ADigest: PByte; ADigestLength: PCardinal; AType: PEVPMD;
     AImplementation: Pointer): Integer; cdecl;
+  TEvPMDContextNew = function: PEVPMDContext; cdecl;
+  TEvPMDContextFree = procedure(AContext: PEVPMDContext); cdecl;
+  TEvPDigestInit = function(AContext: PEVPMDContext; AType: PEVPMD;
+    AImplementation: Pointer): Integer; cdecl;
+  TEvPDigestUpdate = function(AContext: PEVPMDContext; AData: Pointer;
+    ACount: NativeUInt): Integer; cdecl;
+  TEvPDigestFinal = function(AContext: PEVPMDContext; ADigest: PByte;
+    ADigestLength: PCardinal): Integer; cdecl;
   THMAC = function(AType: PEVPMD; AKey: Pointer; AKeyLength: Integer;
     AData: PByte; ADataLength: NativeUInt; ADigest: PByte;
     ADigestLength: PCardinal): PByte; cdecl;
@@ -50,6 +60,11 @@ var
   lEVPSHA1: TEvPSHA1;
   lEVPSHA256: TEvPSHA256;
   lEVPDigest: TEvPDigest;
+  lEVPMDContextNew: TEvPMDContextNew;
+  lEVPMDContextFree: TEvPMDContextFree;
+  lEVPDigestInit: TEvPDigestInit;
+  lEVPDigestUpdate: TEvPDigestUpdate;
+  lEVPDigestFinal: TEvPDigestFinal;
   lHMAC: THMAC;
   lPBKDF2: TPBKDF2;
   lRandomBytes: TRandomBytes;
@@ -82,6 +97,11 @@ begin
   RequireSymbol(lEVPSHA256, 'EVP_sha256');
   RequireSymbol(lEVPSHA1, 'EVP_sha1');
   RequireSymbol(lEVPDigest, 'EVP_Digest');
+  RequireSymbol(lEVPMDContextNew, 'EVP_MD_CTX_new');
+  RequireSymbol(lEVPMDContextFree, 'EVP_MD_CTX_free');
+  RequireSymbol(lEVPDigestInit, 'EVP_DigestInit_ex');
+  RequireSymbol(lEVPDigestUpdate, 'EVP_DigestUpdate');
+  RequireSymbol(lEVPDigestFinal, 'EVP_DigestFinal_ex');
   RequireSymbol(lHMAC, 'HMAC');
   RequireSymbol(lPBKDF2, 'PKCS5_PBKDF2_HMAC');
   RequireSymbol(lRandomBytes, 'RAND_bytes');
@@ -121,6 +141,45 @@ begin
     raise ENXXMPPError.Create(xesAuthentication, 'sha256-failure',
       'OpenSSL failed to calculate SHA-256.');
   SetLength(Result, lLength);
+end;
+
+class function TNXXMPPOpenSSL.SHA256Stream(
+  AStream: TStream): RawByteString;
+const
+  cBufferSize = 65536;
+var
+  lBuffer: array[0..cBufferSize - 1] of Byte;
+  lContext: PEVPMDContext;
+  lCount: LongInt;
+  lLength: Cardinal;
+begin
+  if not Assigned(AStream) then
+    raise EArgumentNilException.Create('A SHA-256 input stream is required.');
+  Load;
+  lContext := lEVPMDContextNew();
+  if not Assigned(lContext) then
+    raise ENXXMPPError.Create(xesProtocol, 'sha256-failure',
+      'OpenSSL could not create a SHA-256 context.');
+  try
+    if lEVPDigestInit(lContext, lEVPSHA256(), nil) <> 1 then
+      raise ENXXMPPError.Create(xesProtocol, 'sha256-failure',
+        'OpenSSL could not initialize SHA-256.');
+    repeat
+      lCount := AStream.Read(lBuffer, SizeOf(lBuffer));
+      if (lCount > 0) and
+        (lEVPDigestUpdate(lContext, @lBuffer[0], lCount) <> 1) then
+        raise ENXXMPPError.Create(xesProtocol, 'sha256-failure',
+          'OpenSSL could not update SHA-256.');
+    until lCount = 0;
+    SetLength(Result, 32);
+    lLength := 0;
+    if lEVPDigestFinal(lContext, @Result[1], @lLength) <> 1 then
+      raise ENXXMPPError.Create(xesProtocol, 'sha256-failure',
+        'OpenSSL could not finish SHA-256.');
+    SetLength(Result, lLength);
+  finally
+    lEVPMDContextFree(lContext);
+  end;
 end;
 
 class function TNXXMPPOpenSSL.HMACSHA256(const AKey,

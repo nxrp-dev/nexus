@@ -22,6 +22,7 @@ uses
   obNXOpenAIResponses,
   obNXTestContext,
   obNXTestSuite,
+  tpNXBotFileTypes,
   tpNXBotHost;
 
 type
@@ -36,9 +37,19 @@ type
     Key: UTF8String;
     ReleaseCall: TEvent;
     Results: array[0..9] of TNXOpenAIHTTPResult;
+    DeleteCalls: Integer;
+    RaiseUploadOnce: Boolean;
+    UploadBody: UTF8String;
+    UploadCalls: Integer;
     constructor Create;
     destructor Destroy; override;
     function Execute(const AAPIKey, ACAFile, ABody: UTF8String;
+      ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
+      override;
+    function UploadFile(const AAPIKey, ACAFile, AFileName,
+      ADisplayName, AMediaType: UTF8String; ATimeoutMS: Cardinal;
+      out AResult: TNXOpenAIHTTPResult): Boolean; override;
+    function DeleteFile(const AAPIKey, ACAFile, AFileID: UTF8String;
       ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
       override;
   end;
@@ -97,6 +108,47 @@ begin
     raise Exception.Create('Fake OpenAI executor release timed out.');
   AResult := Results[Calls - 1];
   Result := AResult.ErrorText = '';
+end;
+
+function TFakeOpenAIExecutor.UploadFile(const AAPIKey, ACAFile, AFileName,
+  ADisplayName, AMediaType: UTF8String; ATimeoutMS: Cardinal;
+  out AResult: TNXOpenAIHTTPResult): Boolean;
+var
+  lSize: Int64;
+begin
+  Inc(UploadCalls);
+  if RaiseUploadOnce then
+  begin
+    RaiseUploadOnce := False;
+    raise Exception.Create('simulated upload exception');
+  end;
+  with TFileStream.Create(string(AFileName), fmOpenRead or fmShareDenyWrite) do
+  try
+    lSize := Size;
+  finally
+    Free;
+  end;
+  AResult := Default(TNXOpenAIHTTPResult);
+  AResult.Status := 200;
+  if UploadBody <> '' then
+    AResult.Body := UploadBody
+  else
+    AResult.Body := UTF8String(Format(
+      '{"id":"file-%d","bytes":%d,"filename":"%s",' +
+      '"purpose":"user_data","status":"processed"}',
+      [UploadCalls, lSize, string(ADisplayName)]));
+  Result := True;
+end;
+
+function TFakeOpenAIExecutor.DeleteFile(const AAPIKey, ACAFile,
+  AFileID: UTF8String; ATimeoutMS: Cardinal;
+  out AResult: TNXOpenAIHTTPResult): Boolean;
+begin
+  Inc(DeleteCalls);
+  AResult := Default(TNXOpenAIHTTPResult);
+  AResult.Status := 200;
+  AResult.Body := '{"deleted":true}';
+  Result := True;
 end;
 
 constructor TOpenAIRecorder.Create;
@@ -301,6 +353,8 @@ end;
 procedure TestTypedResponses(AContext: TNXTestContext);
 var
   lData: TJSONData;
+  lInputMessage: TNXOpenAIInputMessage;
+  lInputText: TNXOpenAIInputText;
   lRefusal: UTF8String;
   lRequest: TNXOpenAIResponseRequest;
   lResponse: TNXOpenAIResponse;
@@ -311,7 +365,13 @@ begin
   try
     lRequest.model.Value := 'test-model';
     lRequest.instructions.Value := 'instructions';
-    lRequest.input.Value := 'hello';
+    lInputMessage := TNXOpenAIInputMessage(lRequest.input.AddObject(
+      TNXOpenAIInputMessage));
+    lInputMessage.role.Value := 'user';
+    lInputText := TNXOpenAIInputText(lInputMessage.content.AddObject(
+      TNXOpenAIInputText));
+    lInputText.&type.Value := 'input_text';
+    lInputText.text.Value := 'hello';
     lRequest.store.Value := True;
     lRequest.stream.Value := False;
     lData := lRequest.ToJSONData;
@@ -415,6 +475,199 @@ begin
     AContext.AssertTrue(Pos('previous_response_id',
       lExecutor.Bodies[2]) = 0,
       'Restart should begin a new response lineage.');
+  finally
+    lProvider.Free;
+    lRecorder.Free;
+    lConfig.Free;
+  end;
+end;
+
+procedure TestAttachmentMappingAndCleanup(AContext: TNXTestContext);
+var
+  lAttachment: TNXBotAttachment;
+  lConfig: TNXBotHostConfig;
+  lDocument: string;
+  lExecutor: TFakeOpenAIExecutor;
+  lImage: string;
+  lPrompt: TNXBotPrompt;
+  lProvider: TNXOpenAIProvider;
+  lRecorder: TOpenAIRecorder;
+  lStream: TStringStream;
+begin
+  lDocument := GetTempFileName(GetTempDir(False), 'nxdoc');
+  lImage := GetTempFileName(GetTempDir(False), 'nximg');
+  lStream := TStringStream.Create('document');
+  try lStream.SaveToFile(lDocument); finally lStream.Free; end;
+  lStream := TStringStream.Create('image');
+  try lStream.SaveToFile(lImage); finally lStream.Free; end;
+  lConfig := TNXBotHostConfig.Create;
+  lExecutor := TFakeOpenAIExecutor.Create;
+  lExecutor.Results[0].Status := 200;
+  lExecutor.Results[0].Body := CompletedResponse('attachment-response', 'ok');
+  lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
+  lRecorder := TOpenAIRecorder.Create;
+  try
+    ConfigureProvider(lProvider, lConfig, lRecorder);
+    lProvider.Start;
+    lRecorder.ReadyEvent.WaitFor(5000);
+    lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm-file', 'inspect both');
+    lAttachment := TNXBotAttachment.Create;
+    lAttachment.ID := 'document-artifact';
+    lAttachment.ArtifactID := lAttachment.ID;
+    lAttachment.Name := 'notes.txt';
+    lAttachment.MediaType := 'text/plain';
+    lAttachment.Path := lDocument;
+    lAttachment.Size := 8;
+    lPrompt.AddAttachment(lAttachment);
+    lAttachment := TNXBotAttachment.Create;
+    lAttachment.ID := 'image-artifact';
+    lAttachment.ArtifactID := lAttachment.ID;
+    lAttachment.Name := 'picture.png';
+    lAttachment.MediaType := 'image/png';
+    lAttachment.Path := lImage;
+    lAttachment.Size := 5;
+    lPrompt.AddAttachment(lAttachment);
+    AContext.AssertTrue(lProvider.SubmitPrompt(lPrompt),
+      'A prompt with supported attachments should be accepted.');
+    AContext.AssertTrue(lRecorder.FinalEvent.WaitFor(5000) = wrSignaled,
+      'Supported attachments should complete through Responses.');
+    AContext.AssertEquals(2, lExecutor.UploadCalls,
+      'Each neutral artifact should be uploaded once to Files.');
+    AContext.AssertTrue((Pos('"type" : "input_file"',
+      lExecutor.Bodies[0]) > 0) and
+      (Pos('"type" : "input_image"', lExecutor.Bodies[0]) > 0) and
+      (Pos('file-1', lExecutor.Bodies[0]) > 0) and
+      (Pos('file-2', lExecutor.Bodies[0]) > 0),
+      'Responses input should use typed document and image variants.');
+    lProvider.Stop;
+    WaitProviderState(lProvider, bpsStopped, 'attachment cleanup');
+    AContext.AssertEquals(2, lExecutor.DeleteCalls,
+      'Provider stop should delete every session-owned OpenAI file.');
+  finally
+    lProvider.Free;
+    lRecorder.Free;
+    lConfig.Free;
+    DeleteFile(lDocument);
+    DeleteFile(lImage);
+  end;
+end;
+
+procedure TestAttachmentSetupFailures(AContext: TNXTestContext);
+var
+  lAttachment: TNXBotAttachment;
+  lConfig: TNXBotHostConfig;
+  lExecutor: TFakeOpenAIExecutor;
+  lFileName: string;
+  lPrompt: TNXBotPrompt;
+  lProvider: TNXOpenAIProvider;
+  lRecorder: TOpenAIRecorder;
+  lStream: TStringStream;
+begin
+  lFileName := GetTempFileName(GetTempDir(False), 'nxfail');
+  lStream := TStringStream.Create('failure-data');
+  try
+    lStream.SaveToFile(lFileName);
+  finally
+    lStream.Free;
+  end;
+  lConfig := TNXBotHostConfig.Create;
+  lExecutor := TFakeOpenAIExecutor.Create;
+  lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
+  lRecorder := TOpenAIRecorder.Create;
+  try
+    ConfigureProvider(lProvider, lConfig, lRecorder);
+    lProvider.Start;
+    lRecorder.ReadyEvent.WaitFor(5000);
+
+    lExecutor.UploadBody := '{"id":"file-wrong","bytes":12,' +
+      '"filename":"wrong.txt","purpose":"user_data"}';
+    lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm-wrong', 'inspect');
+    lAttachment := TNXBotAttachment.Create;
+    lAttachment.ID := 'wrong-response';
+    lAttachment.ArtifactID := lAttachment.ID;
+    lAttachment.Name := 'expected.txt';
+    lAttachment.MediaType := 'text/plain';
+    lAttachment.Path := lFileName;
+    lAttachment.Size := 12;
+    lPrompt.AddAttachment(lAttachment);
+    AContext.AssertTrue(lProvider.SubmitPrompt(lPrompt),
+      'The mismatched upload response prompt should enter the worker.');
+    AContext.AssertTrue(lRecorder.FailureEvent.WaitFor(5000) = wrSignaled,
+      'A mismatched upload response should fail the prompt.');
+    AContext.AssertEquals(1, lExecutor.DeleteCalls,
+      'A server file created during failed setup should be deleted.');
+    AContext.AssertEquals(0, lExecutor.Calls,
+      'Responses must not run after failed file validation.');
+
+    lExecutor.UploadBody := '';
+    lExecutor.RaiseUploadOnce := True;
+    lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm-exception', 'inspect');
+    lAttachment := TNXBotAttachment.Create;
+    lAttachment.ID := 'upload-exception';
+    lAttachment.ArtifactID := lAttachment.ID;
+    lAttachment.Name := 'expected.txt';
+    lAttachment.MediaType := 'text/plain';
+    lAttachment.Path := lFileName;
+    lAttachment.Size := 12;
+    lPrompt.AddAttachment(lAttachment);
+    AContext.AssertTrue(lProvider.SubmitPrompt(lPrompt),
+      'The upload-exception prompt should enter the worker.');
+    AContext.AssertTrue(lRecorder.FailureEvent.WaitFor(5000) = wrSignaled,
+      'An upload exception should fail the prompt without killing the worker.');
+
+    lExecutor.Results[0].Status := 200;
+    lExecutor.Results[0].Body := CompletedResponse('after-upload-failure', 'ok');
+    lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm-after', 'continue');
+    AContext.AssertTrue(lProvider.SubmitPrompt(lPrompt),
+      'The provider should accept work after an upload exception.');
+    AContext.AssertTrue(lRecorder.FinalEvent.WaitFor(5000) = wrSignaled,
+      'The provider worker should survive an upload exception.');
+  finally
+    lProvider.Free;
+    lRecorder.Free;
+    lConfig.Free;
+    DeleteFile(lFileName);
+  end;
+end;
+
+procedure TestUnsupportedAudioAttachment(AContext: TNXTestContext);
+var
+  lAttachment: TNXBotAttachment;
+  lConfig: TNXBotHostConfig;
+  lExecutor: TFakeOpenAIExecutor;
+  lPrompt: TNXBotPrompt;
+  lProvider: TNXOpenAIProvider;
+  lRecorder: TOpenAIRecorder;
+begin
+  lConfig := TNXBotHostConfig.Create;
+  lExecutor := TFakeOpenAIExecutor.Create;
+  lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
+  lRecorder := TOpenAIRecorder.Create;
+  try
+    ConfigureProvider(lProvider, lConfig, lRecorder);
+    lProvider.Start;
+    lRecorder.ReadyEvent.WaitFor(5000);
+    lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm-audio', 'listen');
+    lAttachment := TNXBotAttachment.Create;
+    lAttachment.ID := 'audio-artifact';
+    lAttachment.ArtifactID := lAttachment.ID;
+    lAttachment.Name := 'sound.wav';
+    lAttachment.MediaType := 'audio/wav';
+    lAttachment.Size := 4;
+    lPrompt.AddAttachment(lAttachment);
+    AContext.AssertTrue(lProvider.SubmitPrompt(lPrompt),
+      'The audio prompt should enter provider validation.');
+    AContext.AssertTrue(lRecorder.FailureEvent.WaitFor(5000) = wrSignaled,
+      'Unsupported audio should fail explicitly.');
+    AContext.AssertEquals(0, lExecutor.UploadCalls,
+      'Unsupported audio must fail before a Files upload.');
+    AContext.AssertEquals(0, lExecutor.Calls,
+      'Unsupported audio must fail before a Responses request.');
   finally
     lProvider.Free;
     lRecorder.Free;
@@ -658,6 +911,11 @@ begin
   lSuite := ARegistry.AddSuite('NexusBotHost.OpenAI');
   lSuite.AddTest('TypedResponses', @TestTypedResponses);
   lSuite.AddTest('ProviderConversation', @TestProviderConversation);
+  lSuite.AddTest('AttachmentMappingAndCleanup',
+    @TestAttachmentMappingAndCleanup);
+  lSuite.AddTest('AttachmentSetupFailures', @TestAttachmentSetupFailures);
+  lSuite.AddTest('UnsupportedAudioAttachment',
+    @TestUnsupportedAudioAttachment);
   lSuite.AddTest('IndependentAnswerLimit', @TestIndependentAnswerLimit);
   lSuite.AddTest('MissingAPIKey', @TestMissingAPIKey);
   lSuite.AddTest('MissingCAFile', @TestMissingCAFile);

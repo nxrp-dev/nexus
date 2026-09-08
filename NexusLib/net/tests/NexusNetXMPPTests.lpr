@@ -9,7 +9,7 @@ uses
   cwstring,
   {$ENDIF}
   Classes, SysUtils, Contnrs, DOM, blcksock, ssl_openssl3, synsock,
-  tpNXXMPPTypes, tpNXXMPPMessageTypes,
+  tpNXXMPPTypes, tpNXXMPPMessageTypes, tpNXXMPPFileTypes,
   obNXXMPPError,
   obNXXMPPJID,
   obNXXMPPStreamFramer,
@@ -30,6 +30,7 @@ uses
   obNXXMPPNegotiation,
   obNXXMPPStreamManagement,
   obNXXMPPDisco,
+  obNXXMPPFileSharing,
   obNXXMPPPing,
   obNXXMPPMessageFeatures,
   obNXXMPPMUC,
@@ -102,6 +103,8 @@ type
     LastReceiptOutcome: TNXXMPPReceiptOutcome;
     RoomStateCount: Integer;
     XML: UTF8String;
+    UploadService: TNXXMPPHTTPUploadService;
+    UploadSlot: TNXXMPPHTTPUploadSlot;
     procedure Carbon(ASender: TObject; ASent: Boolean;
       const ADelay: TNXXMPPDelay; AMessage: TNXXMPPMessage);
     procedure CarbonDiagnostic(ASender: TObject;
@@ -133,6 +136,11 @@ type
     procedure Receipt(ASender: TObject; const AFromJID,
       AStanzaID: UTF8String; AOutcome: TNXXMPPReceiptOutcome);
     procedure Send(const AXML: UTF8String; AReplayable: Boolean);
+    procedure UploadServiceReady(ASender: TObject;
+      const AService: TNXXMPPHTTPUploadService;
+      const AError: UTF8String);
+    procedure UploadSlotReady(ASender: TObject;
+      const ASlot: TNXXMPPHTTPUploadSlot; const AError: UTF8String);
   end;
 
   TTLSLoopbackServer = class(TThread)
@@ -298,6 +306,22 @@ procedure TPhase2Recorder.Send(const AXML: UTF8String;
   AReplayable: Boolean);
 begin
   XML := AXML;
+end;
+
+procedure TPhase2Recorder.UploadServiceReady(ASender: TObject;
+  const AService: TNXXMPPHTTPUploadService; const AError: UTF8String);
+begin
+  UploadService := AService;
+  LastError := AError;
+  Inc(CompleteCount);
+end;
+
+procedure TPhase2Recorder.UploadSlotReady(ASender: TObject;
+  const ASlot: TNXXMPPHTTPUploadSlot; const AError: UTF8String);
+begin
+  UploadSlot := ASlot;
+  LastError := AError;
+  Inc(CompleteCount);
 end;
 
 function TPhase2Recorder.ModuleSubmit(AModule: TObject;
@@ -678,6 +702,112 @@ begin
     try
       AssertTrue(lMessage.Valid and (lMessage.DisplayBody = 'answer'),
         'Fallback ranges must use Unicode character offsets, not UTF-8 bytes.');
+    finally
+      lMessage.Free;
+    end;
+  finally
+    lStanza.Free;
+  end;
+
+  lStanza := TNXXMPPStanza.Create(
+    '<message xmlns=''jabber:client''><body>ordinary URL text</body>' +
+    '<fallback xmlns=''urn:xmpp:fallback:0'' for=''urn:xmpp:sfs:0''>' +
+    '<body/></fallback></message>', '');
+  try
+    lMessage := TNXXMPPMessage.Create(lStanza);
+    try
+      AssertTrue(lMessage.Valid and
+        (lMessage.DisplayBody = 'ordinary URL text'),
+        'An SFS fallback without an SFS payload must not hide message text.');
+    finally
+      lMessage.Free;
+    end;
+  finally
+    lStanza.Free;
+  end;
+
+  lStanza := TNXXMPPStanza.Create(
+    '<message xmlns=''jabber:client''>' +
+    '<file-sharing xmlns=''urn:xmpp:sfs:0''><file ' +
+    'xmlns=''urn:xmpp:file:metadata:0''><name/><name/></file>' +
+    '<sources/><sources/></file-sharing></message>', '');
+  try
+    lMessage := TNXXMPPMessage.Create(lStanza);
+    try
+      AssertTrue(not lMessage.Valid,
+        'Duplicate empty metadata and sources containers must be rejected.');
+    finally
+      lMessage.Free;
+    end;
+  finally
+    lStanza.Free;
+  end;
+
+  lStanza := TNXXMPPStanza.Create(
+    '<message xmlns=''jabber:client'' from=''peer@example.com''>' +
+    '<body>https://files.example.test/report.txt</body>' +
+    '<file-sharing xmlns=''urn:xmpp:sfs:0'' id=''share-1'' ' +
+    'disposition=''attachment''><file xmlns=''urn:xmpp:file:metadata:0''>' +
+    '<media-type>text/plain</media-type><name>report.txt</name>' +
+    '<size>12</size><desc>Report</desc>' +
+    '<hash xmlns=''urn:xmpp:hashes:2'' algo=''sha-256''>YWJj</hash>' +
+    '</file><sources><url-data ' +
+    'xmlns=''http://jabber.org/protocol/url-data'' ' +
+    'target=''https://files.example.test/report.txt''/></sources>' +
+    '</file-sharing><x xmlns=''jabber:x:oob''>' +
+    '<url>https://files.example.test/report.txt</url></x>' +
+    '<fallback xmlns=''urn:xmpp:fallback:0'' for=''urn:xmpp:sfs:0''>' +
+    '<body/></fallback></message>', '');
+  try
+    lMessage := TNXXMPPMessage.Create(lStanza);
+    try
+      AssertTrue(lMessage.Valid and (Length(lMessage.Attachments) = 1),
+        'A self-contained SFS message should retain one typed attachment.');
+      AssertTrue((lMessage.DisplayBody = '') and
+        (lMessage.Attachments[0].Name = 'report.txt') and
+        lMessage.Attachments[0].HasSize and
+        (lMessage.Attachments[0].DeclaredSize = 12) and
+        (Length(lMessage.Attachments[0].Sources) = 1) and
+        (Length(lMessage.Attachments[0].Hashes) = 1),
+        'Typed file metadata and whole-body fallback must be retained.');
+    finally
+      lMessage.Free;
+    end;
+  finally
+    lStanza.Free;
+  end;
+
+  lStanza := TNXXMPPStanza.Create(
+    '<message xmlns=''jabber:client''><x xmlns=''jabber:x:oob''>' +
+    '<url>https://files.example.test/legacy.txt</url></x></message>', '');
+  try
+    lMessage := TNXXMPPMessage.Create(lStanza);
+    try
+      AssertTrue(lMessage.Valid and (Length(lMessage.Attachments) = 0),
+        'An OOB-only message must not authorize an attachment download.');
+    finally
+      lMessage.Free;
+    end;
+  finally
+    lStanza.Free;
+  end;
+
+  lStanza := TNXXMPPStanza.Create(
+    '<message xmlns=''jabber:client''>' +
+    '<file-sharing xmlns=''urn:xmpp:sfs:0''><file ' +
+    'xmlns=''urn:xmpp:file:metadata:0''><name>a.txt</name></file>' +
+    '<sources><url-data xmlns=''http://jabber.org/protocol/url-data'' ' +
+    'target=''https://files.example.test/a.txt''/></sources></file-sharing>' +
+    '<file-sharing xmlns=''urn:xmpp:sfs:0'' id=''b''><file ' +
+    'xmlns=''urn:xmpp:file:metadata:0''><name>b.txt</name></file>' +
+    '<sources><url-data xmlns=''http://jabber.org/protocol/url-data'' ' +
+    'target=''https://files.example.test/b.txt''/></sources></file-sharing>' +
+    '</message>', '');
+  try
+    lMessage := TNXXMPPMessage.Create(lStanza);
+    try
+      AssertTrue(not lMessage.Valid,
+        'Every attachment in a multi-file message must have an id.');
     finally
       lMessage.Free;
     end;
@@ -2360,6 +2490,100 @@ begin
   end;
 end;
 
+procedure TestFileSharingModule;
+var
+  lConfig: TNXXMPPClientConfig;
+  lModule: TNXXMPPFileSharingModule;
+  lRecorder: TPhase2Recorder;
+  lShare: TNXXMPPFileShare;
+  lStanza: TNXXMPPStanza;
+begin
+  lConfig := TNXXMPPClientConfig.Create;
+  lModule := TNXXMPPFileSharingModule.Create;
+  lRecorder := TPhase2Recorder.Create;
+  try
+    lConfig.JID := 'bot@example.com';
+    lModule.Configure(lConfig);
+    lModule.Submitter := @lRecorder.ModuleSubmit;
+    lModule.IQSubmitter := @lRecorder.SubmitIQ;
+    lModule.Sender := @lRecorder.Send;
+    AssertTrue(lModule.DiscoverUploadService(12,
+      @lRecorder.UploadServiceReady),
+      'Upload discovery should enter the module command path.');
+    AssertTrue(Pos('disco#items', string(lRecorder.IQPayload)) > 0,
+      'Upload discovery should begin with domain disco items.');
+    lStanza := TNXXMPPStanza.Create(
+      '<iq xmlns=''jabber:client'' type=''result'' from=''example.com''>' +
+      '<query xmlns=''http://jabber.org/protocol/disco#items''>' +
+      '<item jid=''upload.example.com''/></query></iq>', '');
+    try lRecorder.IQHandler(lStanza, ''); finally lStanza.Free; end;
+    lStanza := TNXXMPPStanza.Create(
+      '<iq xmlns=''jabber:client'' type=''result'' from=''example.com''>' +
+      '<query xmlns=''http://jabber.org/protocol/disco#info''/></iq>', '');
+    try lRecorder.IQHandler(lStanza, ''); finally lStanza.Free; end;
+    lStanza := TNXXMPPStanza.Create(
+      '<iq xmlns=''jabber:client'' type=''result'' from=''upload.example.com''>' +
+      '<query xmlns=''http://jabber.org/protocol/disco#info''>' +
+      '<feature var=''urn:xmpp:http:upload:0''/>' +
+      '<x xmlns=''jabber:x:data'' type=''result''>' +
+      '<field var=''FORM_TYPE'' type=''hidden''><value>' +
+      'urn:xmpp:http:upload:0</value></field>' +
+      '<field var=''max-file-size''><value>1024</value></field>' +
+      '</x></query></iq>', '');
+    try lRecorder.IQHandler(lStanza, ''); finally lStanza.Free; end;
+    AssertTrue((lRecorder.LastError = '') and
+      (lRecorder.UploadService.JID = 'upload.example.com') and
+      lRecorder.UploadService.HasMaximumSize and
+      (lRecorder.UploadService.MaximumSize = 1024),
+      'Typed disco forms should select the compatible upload service.');
+
+    AssertTrue(lModule.RequestUploadSlot('upload.example.com', 'test.txt',
+      'text/plain', 12, @lRecorder.UploadSlotReady),
+      'A typed upload slot request should be accepted.');
+    AssertTrue((Pos('filename=''test.txt''', string(lRecorder.IQPayload)) > 0)
+      and (Pos('purpose', string(lRecorder.IQPayload)) = 0),
+      'Slot request should contain metadata and omit optional purpose.');
+    lStanza := TNXXMPPStanza.Create(
+      '<iq xmlns=''jabber:client'' type=''result'' ' +
+      'from=''upload.example.com''><slot xmlns=''urn:xmpp:http:upload:0''>' +
+      '<put url=''https://upload.example.com/put''>' +
+      '<header name=''Authorization''>Bearer&#10; token</header>' +
+      '<header name=''X-Ignored''>value</header></put>' +
+      '<get url=''https://upload.example.com/get''/></slot></iq>', '');
+    try lRecorder.IQHandler(lStanza, ''); finally lStanza.Free; end;
+    AssertTrue((lRecorder.LastError = '') and
+      (Length(lRecorder.UploadSlot.Headers) = 1) and
+      (lRecorder.UploadSlot.Headers[0].Value = 'Bearer token'),
+      'Slot parsing should strip newlines, retain allowed headers, and ignore unknown headers.');
+
+    lShare := Default(TNXXMPPFileShare);
+    lShare.ID := 'share-1';
+    lShare.Name := 'test.txt';
+    lShare.MediaType := 'text/plain';
+    lShare.HasSize := True;
+    lShare.DeclaredSize := 12;
+    SetLength(lShare.Hashes, 1);
+    lShare.Hashes[0].Algorithm := 'sha-256';
+    lShare.Hashes[0].Value := 'digest';
+    SetLength(lShare.Sources, 1);
+    lShare.Sources[0].URL := 'https://upload.example.com/get';
+    AssertTrue(lModule.SendFileShare('room@conference.example.com',
+      'groupchat', 'sender@example.com/device', 'reply-1', lShare),
+      'A typed file share should be queued.');
+    AssertTrue((Pos('urn:xmpp:sfs:0', string(lRecorder.XML)) > 0) and
+      (Pos('jabber:x:oob', string(lRecorder.XML)) > 0) and
+      (Pos('urn:xmpp:fallback:0', string(lRecorder.XML)) > 0) and
+      (Pos('urn:xmpp:sid:0', string(lRecorder.XML)) > 0) and
+      (Pos('urn:xmpp:reply:0', string(lRecorder.XML)) > 0) and
+      (Pos('reply-1', string(lRecorder.XML)) > 0),
+      'Outbound shares should preserve origin and reply identity metadata.');
+  finally
+    lRecorder.Free;
+    lModule.Free;
+    lConfig.Free;
+  end;
+end;
+
 procedure TestClientLifecycleAndCapacity;
 var
   lClient: TNXXMPPClient;
@@ -2440,6 +2664,7 @@ begin
   TestPhase2Config;
   TestPhase2Modules;
   TestRosterModule;
+  TestFileSharingModule;
   TestClientLifecycleAndCapacity;
   WriteLn('NexusNet XMPP tests passed.');
 end.

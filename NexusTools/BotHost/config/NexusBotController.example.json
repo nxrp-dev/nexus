@@ -17,6 +17,13 @@
         "Password": "replace-me",
         "Resource": "NexusBotHost",
         "RuntimeDirectory": "runtime",
+        "ExchangeDirectory": "exchange/NexusBot",
+        "FileMaximumBytes": 16777216,
+        "FileTransferCapacity": 8,
+        "FileTransferTimeoutMS": 120000,
+        "StagedFileCapacity": 32,
+        "StagedMaximumBytes": 67108864,
+        "TrustedFileOrigins": "",
         "XMPPJID": "test1@nexus.local"
       },
       {
@@ -32,6 +39,13 @@
         "OpenAIAPIKey": "replace-me",
         "Password": "replace-me",
         "Resource": "NexusOpenAIBotHost",
+        "ExchangeDirectory": "exchange/OpenAIBot",
+        "FileMaximumBytes": 16777216,
+        "FileTransferCapacity": 8,
+        "FileTransferTimeoutMS": 120000,
+        "StagedFileCapacity": 32,
+        "StagedMaximumBytes": 67108864,
+        "TrustedFileOrigins": "",
         "XMPPJID": "test2@nexus.local"
       }
     ]

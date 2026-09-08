@@ -40,6 +40,7 @@ uses
   obNXXMPPStanza,
   obNXTestContext,
   obNXTestSuite,
+  tpNXBotFileTypes,
   tpNXBotHost,
   tpNXBotControl,
   tpNXXMPPMessageTypes,
@@ -582,7 +583,7 @@ begin
   AContext.AssertEquals(Integer(brdAccepted), Integer(TNXBotHostRouter.Admit(
     1, 'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm1',
     'groupchat', '@Luna hello', '@Luna hello', lReply, xmdcLive, True, 100,
-    False, lPrompt)),
+    False, False, lPrompt)),
     'Exact leading mention should be accepted.');
   try
     AContext.AssertEquals('hello', string(lPrompt.Body),
@@ -593,7 +594,7 @@ begin
   AContext.AssertEquals(Integer(brdAccepted),
     Integer(TNXBotHostRouter.Admit(2, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm2', 'groupchat', '@luna hello',
-      '@luna hello', lReply, xmdcLive, True, 100, False, lPrompt)),
+      '@luna hello', lReply, xmdcLive, True, 100, False, False, lPrompt)),
     'Textual mention comparison should be case-insensitive.');
   try
     AContext.AssertEquals('hello', string(lPrompt.Body),
@@ -605,7 +606,7 @@ begin
     Integer(TNXBotHostRouter.Admit(3, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm3', 'groupchat',
       'Could LUNA, explain this?', 'Could LUNA, explain this?', lReply,
-      xmdcLive, True, 100, False, lPrompt)),
+      xmdcLive, True, 100, False, False, lPrompt)),
     'Gajim nickname-comma addressing should work anywhere in the body.');
   try
     AContext.AssertEquals('Could explain this?', string(lPrompt.Body),
@@ -616,38 +617,38 @@ begin
   AContext.AssertEquals(Integer(brdNotAddressed),
     Integer(TNXBotHostRouter.Admit(4, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm4', 'groupchat', '@Lunatic hello',
-      '@Lunatic hello', lReply, xmdcLive, True, 100, False, lPrompt)),
+      '@Lunatic hello', lReply, xmdcLive, True, 100, False, False, lPrompt)),
     'Nickname prefix without a delimiter must fail.');
   AContext.AssertEquals(Integer(brdNotAddressed),
     Integer(TNXBotHostRouter.Admit(5, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm5', 'groupchat',
       'OldLuna, explain this?', 'OldLuna, explain this?', lReply,
-      xmdcLive, True, 100, False, lPrompt)),
+      xmdcLive, True, 100, False, False, lPrompt)),
     'Nickname-comma addressing must not match inside a larger name.');
   AContext.AssertEquals(Integer(brdNotAddressed),
     Integer(TNXBotHostRouter.Admit(6, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm6', 'groupchat',
       'Ask Luna about this', 'Ask Luna about this', lReply, xmdcLive, True,
-      100, False, lPrompt)),
+      100, False, False, lPrompt)),
     'A nickname without the addressing comma must not be accepted.');
   AContext.AssertEquals(Integer(brdSelf), Integer(TNXBotHostRouter.Admit(7,
     'room@nexus.local', 'Luna', 'room@nexus.local/Luna', 'm7', 'groupchat',
     '@Luna hello', '@Luna hello', lReply, xmdcLive, True, 100, False,
-    lPrompt)),
+    False, lPrompt)),
     'Reflected self messages must be rejected.');
   AContext.AssertEquals(Integer(brdNotLive), Integer(TNXBotHostRouter.Admit(8,
     'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm8', 'groupchat',
     '@Luna hello', '@Luna hello', lReply, xmdcMUCHistory, True, 100,
-    False, lPrompt)),
+    False, False, lPrompt)),
     'MUC history must not start a turn.');
   AContext.AssertEquals(Integer(brdEmpty), Integer(TNXBotHostRouter.Admit(9,
     'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm9', 'groupchat',
-    '@Luna ', '@Luna ', lReply, xmdcLive, True, 100, False, lPrompt)),
+    '@Luna ', '@Luna ', lReply, xmdcLive, True, 100, False, False, lPrompt)),
     'An empty addressed prompt must be rejected.');
   AContext.AssertEquals(Integer(brdTooLarge), Integer(TNXBotHostRouter.Admit(10,
     'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm10', 'groupchat',
     '@Luna 12345', '@Luna 12345', lReply, xmdcLive, True, 4, False,
-    lPrompt)),
+    False, lPrompt)),
     'Prompt limit must be measured before ownership transfer.');
 
   lReply.Present := True;
@@ -656,7 +657,7 @@ begin
   AContext.AssertEquals(Integer(brdAccepted), Integer(TNXBotHostRouter.Admit(
     11, 'room@nexus.local', 'Luna', 'room@nexus.local/test1', 'm11',
     'groupchat', '> previous answer' + #10 + 'follow up', 'follow up',
-    lReply, xmdcLive, True, 100, False, lPrompt)),
+    lReply, xmdcLive, True, 100, False, False, lPrompt)),
     'A reply to the bot occupant should be accepted.');
   try
     AContext.AssertEquals('follow up', string(lPrompt.Body),
@@ -669,14 +670,14 @@ begin
     Integer(TNXBotHostRouter.Admit(12, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm12', 'groupchat',
       '> previous answer' + #10 + 'follow up', 'follow up', lReply,
-      xmdcLive, True, 100, False, lPrompt)),
+      xmdcLive, True, 100, False, False, lPrompt)),
     'A reply to another occupant must not address the bot.');
 
   lReply.Present := False;
   AContext.AssertEquals(Integer(brdAccepted),
     Integer(TNXBotHostRouter.Admit(13, 'room@nexus.local', 'Luna',
       'room@nexus.local/test1', 'm13', 'groupchat', 'continue',
-      'continue', lReply, xmdcLive, True, 100, True, lPrompt)),
+      'continue', lReply, xmdcLive, True, 100, True, False, lPrompt)),
     'A shared conversation decision should admit an implied reply.');
   try
     AContext.AssertEquals('continue', string(lPrompt.Body),
@@ -684,6 +685,22 @@ begin
   finally
     lPrompt.Free;
   end;
+  AContext.AssertEquals(Integer(brdAccepted),
+    Integer(TNXBotHostRouter.Admit(14, 'room@nexus.local', 'Luna',
+      'room@nexus.local/test1', 'm14', 'groupchat', '@Luna ', '', lReply,
+      xmdcLive, True, 100, False, True, lPrompt)),
+    'An addressed attachment-only room message should be accepted.');
+  try
+    AContext.AssertEquals('', string(lPrompt.Body),
+      'An attachment-only prompt may have an empty text body.');
+  finally
+    lPrompt.Free;
+  end;
+  AContext.AssertEquals(Integer(brdNotAddressed),
+    Integer(TNXBotHostRouter.Admit(15, 'room@nexus.local', 'Luna',
+      'room@nexus.local/test1', 'm15', 'groupchat', '', '', lReply,
+      xmdcLive, True, 100, False, True, lPrompt)),
+    'An unaddressed room attachment must not start a bot turn.');
 end;
 
 procedure TestImpliedReplies(AContext: TNXTestContext);
@@ -875,13 +892,13 @@ begin
       'Dynamic tool request should bind before it is declined.');
     lToolRequest := TNXCodexDynamicToolCallRequest(lMessage);
     AContext.AssertTrue(lToolRequest.params.arguments.Value is
-      TNXCodexBotControlArguments,
+      TNXCodexDynamicToolArguments,
       'bot_control arguments should bind to their RTTI contract.');
-    AContext.AssertEquals('NexusBot', string(TNXCodexBotControlArguments(
+    AContext.AssertEquals('NexusBot', string(TNXCodexDynamicToolArguments(
       lToolRequest.params.arguments.Value).bot.Value),
       'Typed bot_control arguments should preserve the bot name.');
     AContext.AssertEquals('room@conference.nexus.local',
-      string(TNXCodexBotControlArguments(
+      string(TNXCodexDynamicToolArguments(
       lToolRequest.params.arguments.Value).room.Value),
       'Typed bot_control arguments should preserve an explicit room.');
   finally
@@ -997,6 +1014,7 @@ begin
   lBinding.OpenAIAPIKey := 'secret-test-key';
   lBinding.Password := 'winston';
   lBinding.Resource := 'OpenAIBotHost';
+  lBinding.ExchangeDirectory := 'exchange-openai';
   lBinding.XMPPJID := 'openai@nexus.local';
   AConfig.Bindings.Add(lBinding);
 end;
@@ -1044,6 +1062,7 @@ begin
     lBinding.OpenAIAPIKey := 'test-api-key';
     lBinding.Password := 'winston';
     lBinding.RuntimeDirectory := 'runtime';
+    lBinding.ExchangeDirectory := 'exchange-nexus';
     lController.Bindings.Add(lBinding);
     lController.ResolvePaths(lControllerFile);
     AContext.AssertEquals(ExpandFileName(ExtractFileDir(lControllerFile) +
@@ -1104,6 +1123,7 @@ begin
     lBinding.Password := 'winston';
     lBinding.Resource := 'NexusBotHost';
     lBinding.RuntimeDirectory := 'runtime';
+    lBinding.ExchangeDirectory := 'exchange-nexus';
     lBinding.XMPPJID := 'test1@nexus.local';
     lController.Bindings.Add(lBinding);
     AddOpenAITestBinding(lController);
@@ -1204,6 +1224,7 @@ begin
     lBinding.Password := 'winston';
     lBinding.Resource := 'NexusBotHost';
     lBinding.RuntimeDirectory := 'runtime';
+    lBinding.ExchangeDirectory := 'exchange-nexus';
     lBinding.XMPPJID := 'test1@nexus.local';
     lConfig.Bindings.Add(lBinding);
     AddOpenAITestBinding(lConfig);
@@ -1233,6 +1254,14 @@ begin
       lCatalog.Diagnostics.Text) > 0,
       'The OpenAI deployment diagnostic should name the missing field.');
     lBinding.OpenAIAPIKey := 'secret-test-key';
+
+    lBinding.TrustedFileOrigins.Add('http://files.example.test');
+    AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
+      'A non-HTTPS trusted file origin must fail catalog loading.');
+    AContext.AssertTrue(Pos('Trusted file origin is invalid',
+      lCatalog.Diagnostics.Text) > 0,
+      'The catalog should expose the invalid trusted-origin contract.');
+    lBinding.TrustedFileOrigins.Clear;
 
     lLoadedConfig := TNXBotControllerConfig.Create;
     try
@@ -1277,6 +1306,7 @@ begin
     lDuplicate.Password := 'winston';
     lDuplicate.Resource := 'Duplicate';
     lDuplicate.RuntimeDirectory := 'runtime';
+    lDuplicate.ExchangeDirectory := 'exchange-duplicate';
     lDuplicate.XMPPJID := 'duplicate@nexus.local';
     lConfig.Bindings.Add(lDuplicate);
     lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
@@ -1320,6 +1350,7 @@ begin
       lBinding.Password := 'winston';
       lBinding.Resource := 'NexusBotHost';
       lBinding.RuntimeDirectory := 'runtime';
+      lBinding.ExchangeDirectory := 'exchange-nexus';
       lBinding.XMPPJID := 'bad@@nexus.local';
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
         'Malformed static deployment values must fail the catalog.');
@@ -1482,6 +1513,7 @@ begin
     lBinding.Password := 'winston';
     lBinding.Resource := 'test';
     lBinding.RuntimeDirectory := 'runtime';
+    lBinding.ExchangeDirectory := 'exchange-nexus';
     lBinding.XMPPJID := 'bot@nexus.local';
     lConfig.Bindings.Add(lBinding);
     AddOpenAITestBinding(lConfig);
@@ -1832,12 +1864,15 @@ const
   cExpectedAnswer: UTF8String = 'fake — “quoted” café 中文 😀' + #10 +
     '[answer truncated]';
 var
+  lAttachment: TNXBotAttachment;
   lAnswer: UTF8String;
   lAppServer: TNXCodexAppServer;
   lDeadline: QWord;
   lExecutable: string;
+  lFileName: string;
   lPrompt: TNXBotPrompt;
   lRecorder: TAppServerProcessRecorder;
+  lStream: TStringStream;
 begin
   lExecutable := GetEnvironmentVariable('NEXUS_BOTHOST_FAKE_APP_SERVER');
   if lExecutable = '' then
@@ -1847,6 +1882,13 @@ begin
     'The configured fake App Server executable does not exist.');
   lRecorder := TAppServerProcessRecorder.Create;
   lAppServer := TNXCodexAppServer.Create;
+  lFileName := GetTempFileName(GetTempDir(False), 'nxread');
+  lStream := TStringStream.Create(UTF8String('a😀b'));
+  try
+    lStream.SaveToFile(lFileName);
+  finally
+    lStream.Free;
+  end;
   try
     lAppServer.AnswerMaximumBytes := 58;
     lAppServer.OnFinalAnswer := @lRecorder.FinalAnswer;
@@ -1865,6 +1907,14 @@ begin
     lPrompt := TNXBotPrompt.Create(1, 'room@nexus.local',
       'room@nexus.local/test1', 'm1', 'hello');
     lPrompt.SetVerifiedCaller('test1@nexus.local', True);
+    lAttachment := TNXBotAttachment.Create;
+    lAttachment.ID := 'test-attachment';
+    lAttachment.ArtifactID := lAttachment.ID;
+    lAttachment.Name := 'fixture.txt';
+    lAttachment.MediaType := 'text/plain';
+    lAttachment.Path := lFileName;
+    lAttachment.Size := 6;
+    lPrompt.AddAttachment(lAttachment);
     AContext.AssertTrue(lAppServer.SubmitPrompt(lPrompt),
       'Could not submit prompt.');
     lDeadline := GetTickCount64 + 5000;
@@ -1884,6 +1934,7 @@ begin
   finally
     lAppServer.Free;
     lRecorder.Free;
+    DeleteFile(lFileName);
   end;
 end;
 

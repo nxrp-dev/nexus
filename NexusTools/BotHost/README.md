@@ -27,6 +27,31 @@ continuity. It sends
 while BotHost writes no conversation history to disk. Streaming, tools, and a
 second socket stack are not part of this milestone.
 
+## File exchange
+
+BotHost accepts self-contained XEP-0447 file shares in addressed live room
+messages and direct messages. XEP-0066 is emitted only as the matching fallback
+for an SFS share; an OOB URL by itself is never treated as an attachment. Files
+are downloaded in advertised source order through verified HTTPS, bounded by
+the deployment limits, checked against declared size and SHA-256 when present,
+and staged under the BotHost-owned exchange directory before provider delivery.
+Ordinary URLs in message prose are never downloaded.
+
+Codex receives staged images and audio through its native local input variants.
+It can inspect UTF-8 documents through the active-prompt-only
+`read_attachment` tool, in byte ranges capped at 64 KiB, and can relay an
+active attachment with `send_file`. Neither tool accepts a filesystem path or
+an arbitrary URL. OpenAI uploads staged document/image bytes to the Files API
+with purpose `user_data` and 24-hour expiry, then uses typed `input_file` or
+`input_image` Responses content. Audio is explicitly unsupported by the pinned
+OpenAI provider contract.
+
+Outbound relay discovers an XEP-0363 service, observes its advertised maximum,
+requests a fresh slot, streams the PUT without redirects, and sends an ordinary
+SFS message with SHA-256, XEP-0428 body fallback, and matching OOB fallback.
+The exchange uses one bounded worker per BotHost because HTTPS transfers block
+while the independently owned XMPP connection and provider must continue.
+
 ## Control plane
 
 LIST, STATUS, INVITE, and DISMISS share one typed operation, authorization, and
@@ -110,6 +135,8 @@ lazbuild -B NexusTools\BotHost\tests\NexusBotHostTestModule.lpi
 fpc -B -MObjFPC -Sh -FUoutput\NexusBotHostTests\fake-units -FEoutput\NexusBotHostTests\bin NexusTools\BotHost\tests\FakeCodexAppServer.lpr
 $env:NEXUS_BOTHOST_FAKE_APP_SERVER = (Resolve-Path output\NexusBotHostTests\bin\FakeCodexAppServer.exe)
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost.OpenAI
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost.FileExchange
 ```
 
 The focused suite covers routing, copied observable multi-room state, the
@@ -120,6 +147,13 @@ mapping, discovery, headless runtime composition and activity delivery, the
 typed IQ caller, claimed operation shutdown, final
 provider worker quiescence, and the real-pipe Codex App Server process
 integration.
+
+The file-exchange and OpenAI suites additionally cover all-or-none inbound
+staging and rollback, registry authorization, outbound upload failure,
+shutdown abort, addressed attachment-only routing, provider prompt cloning,
+Codex attachment tool declaration and bounded reads, typed OpenAI document and
+image mapping, unsupported audio, upload-response validation, failed-setup
+cleanup, and worker survival after upload exceptions.
 
 The `NexusBotHost.AppServerProcess` integration test verifies split JSONL
 frames, independent stderr,
@@ -169,6 +203,14 @@ The controller configuration contains:
   provider-specific deployment data. The Codex binding uses `CodexExecutable`
   and `RuntimeDirectory`; the OpenAI binding uses direct `OpenAIAPIKey` and an
   explicit `OpenAICAFile` public CA bundle.
+
+Each deployment binding also owns `ExchangeDirectory`, `FileMaximumBytes`,
+`FileTransferCapacity`, `FileTransferTimeoutMS`, `StagedFileCapacity`,
+`StagedMaximumBytes`, and `TrustedFileOrigins`. Relative exchange paths resolve
+from the controller configuration file. Trusted origins use exact canonical
+`https://host:port` spelling and only exempt that origin from the public-address
+rule; certificate and hostname verification remain mandatory. Presigned URLs,
+slot headers, local staging paths, and credentials are not logged.
 
 The configuration is the credential owner. Passwords and API keys are not
 copied into process environment variables, command-line arguments, logs,
@@ -263,6 +305,22 @@ The interoperability test has a verified room occupant summon OpenAIBot through
 an ordinary addressed room command. NexusBot then sends an addressed group
 message to OpenAIBot, and the observer validates OpenAIBot's exact API-backed
 answer.
+
+Live XEP-0363 file exchange uses the shared XMPP endpoint, CA, bot, and
+observer settings from the Codex example. The server must advertise an HTTP
+upload service that accepts the test file. If an upload URL resolves to an
+otherwise blocked private origin, list its canonical origin explicitly.
+
+```powershell
+$env:NEXUS_BOTHOST_LIVE_FILE_EXCHANGE = '1'
+$env:NEXUS_BOTHOST_TRUSTED_FILE_ORIGINS = '<optional-comma-separated-origins>'
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.FileExchange
+```
+
+The test uploads known bytes through the discovered service, sends the
+resulting file-share message to the observer's unique full JID, downloads and
+stages the attachment, and verifies its bytes and SHA-256 hash. It is skipped
+unless its own switch is set to `1`.
 
 The live test uses unique XMPP resources and ordinary client/module APIs. It
 verifies IQ LIST and STATUS, DISMISS plus idempotent DISMISS, observed leave,

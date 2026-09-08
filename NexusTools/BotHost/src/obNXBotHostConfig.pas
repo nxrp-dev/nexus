@@ -25,7 +25,18 @@ type
     FPassword: string;
     FResource: string;
     FRuntimeDirectory: string;
+    FExchangeDirectory: string;
+    FFileMaximumBytes: Int64;
+    FFileTransferCapacity: Integer;
+    FFileTransferTimeoutMS: Integer;
+    FStagedFileCapacity: Integer;
+    FStagedMaximumBytes: Int64;
+    FTrustedFileOrigins: TStringList;
     FXMPPJID: string;
+  public
+    constructor Create; override;
+    destructor Destroy; override;
+    procedure ValidateFileExchange;
   published
     property AllowPlain: Boolean read FAllowPlain write FAllowPlain;
     property CAFile: string read FCAFile write FCAFile;
@@ -42,6 +53,20 @@ type
     property Resource: string read FResource write FResource;
     property RuntimeDirectory: string read FRuntimeDirectory
       write FRuntimeDirectory;
+    property ExchangeDirectory: string read FExchangeDirectory
+      write FExchangeDirectory;
+    property FileMaximumBytes: Int64 read FFileMaximumBytes
+      write FFileMaximumBytes;
+    property FileTransferCapacity: Integer read FFileTransferCapacity
+      write FFileTransferCapacity;
+    property FileTransferTimeoutMS: Integer read FFileTransferTimeoutMS
+      write FFileTransferTimeoutMS;
+    property StagedFileCapacity: Integer read FStagedFileCapacity
+      write FStagedFileCapacity;
+    property StagedMaximumBytes: Int64 read FStagedMaximumBytes
+      write FStagedMaximumBytes;
+    property TrustedFileOrigins: TStringList read FTrustedFileOrigins
+      write FTrustedFileOrigins;
     property XMPPJID: string read FXMPPJID write FXMPPJID;
   end;
 
@@ -119,9 +144,17 @@ type
     FResource: string;
     FRoomJID: string;
     FRuntimeDirectory: string;
+    FExchangeDirectory: string;
+    FFileMaximumBytes: Int64;
+    FFileTransferCapacity: Integer;
+    FFileTransferTimeoutMS: Integer;
+    FStagedFileCapacity: Integer;
+    FStagedMaximumBytes: Int64;
+    FTrustedFileOrigins: TStringList;
     FXMPPJID: string;
   public
     constructor Create; override;
+    destructor Destroy; override;
     procedure ApplyDeployment(ABinding: TNXBotDeploymentBinding);
     procedure Validate;
     procedure ValidateProvider;
@@ -156,13 +189,53 @@ type
     property RoomJID: string read FRoomJID write FRoomJID;
     property RuntimeDirectory: string read FRuntimeDirectory
       write FRuntimeDirectory;
+    property ExchangeDirectory: string read FExchangeDirectory
+      write FExchangeDirectory;
+    property FileMaximumBytes: Int64 read FFileMaximumBytes
+      write FFileMaximumBytes;
+    property FileTransferCapacity: Integer read FFileTransferCapacity
+      write FFileTransferCapacity;
+    property FileTransferTimeoutMS: Integer read FFileTransferTimeoutMS
+      write FFileTransferTimeoutMS;
+    property StagedFileCapacity: Integer read FStagedFileCapacity
+      write FStagedFileCapacity;
+    property StagedMaximumBytes: Int64 read FStagedMaximumBytes
+      write FStagedMaximumBytes;
+    property TrustedFileOrigins: TStringList read FTrustedFileOrigins
+      write FTrustedFileOrigins;
     property XMPPJID: string read FXMPPJID write FXMPPJID;
   end;
 
 implementation
 
 uses
-  SysUtils;
+  SysUtils, synaip, synautil;
+
+function NXCanonicalTrustedOrigin(const AValue: string): string;
+var
+  lHost: string;
+  lPara: string;
+  lPass: string;
+  lPath: string;
+  lPort: string;
+  lPortNumber: Integer;
+  lProtocol: string;
+  lUser: string;
+begin
+  ParseURL(Trim(AValue), lProtocol, lUser, lPass, lHost, lPort,
+    lPath, lPara);
+  if not SameText(lProtocol, 'https') or (lHost = '') or (lUser <> '') or
+    (lPass <> '') or IsIP(lHost) or IsIP6(lHost) or (lPara <> '') or
+    ((lPath <> '') and (lPath <> '/')) or (Pos('#', AValue) > 0) then
+    raise Exception.CreateFmt('Trusted file origin is invalid: %s',
+      [AValue]);
+  if lPort = '' then lPort := '443';
+  if not TryStrToInt(lPort, lPortNumber) or (lPortNumber < 1) or
+    (lPortNumber > High(Word)) then
+    raise Exception.CreateFmt('Trusted file origin port is invalid: %s',
+      [AValue]);
+  Result := 'https://' + LowerCase(lHost) + ':' + IntToStr(lPortNumber);
+end;
 
 function NXResolveConfigPath(const APath, AConfigFile: string): string;
 var
@@ -176,6 +249,68 @@ begin
   lBaseDirectory := ExtractFileDir(ExpandFileName(AConfigFile));
   Result := ExpandFileName(IncludeTrailingPathDelimiter(lBaseDirectory) +
     APath);
+end;
+
+procedure NXValidateFileExchange(const AExchangeDirectory: string;
+  AFileMaximumBytes: Int64; AFileTransferCapacity,
+  AFileTransferTimeoutMS, AStagedFileCapacity: Integer;
+  AStagedMaximumBytes: Int64; ATrustedOrigins: TStringList);
+var
+  lIndex: Integer;
+  lOrigin: string;
+  lOrigins: TStringList;
+begin
+  if AExchangeDirectory = '' then
+    raise Exception.Create('BotHost exchange directory is required.');
+  if (AFileMaximumBytes < 1) or (AFileTransferCapacity < 1) or
+    (AFileTransferTimeoutMS < 1) or (AStagedFileCapacity < 1) or
+    (AStagedMaximumBytes < 1) then
+    raise Exception.Create('BotHost file limits and timeouts must be positive.');
+  lOrigins := TStringList.Create;
+  try
+    lOrigins.CaseSensitive := False;
+    lOrigins.Sorted := True;
+    lOrigins.Duplicates := dupError;
+    for lIndex := 0 to ATrustedOrigins.Count - 1 do
+    begin
+      lOrigin := NXCanonicalTrustedOrigin(ATrustedOrigins[lIndex]);
+      try
+        lOrigins.Add(lOrigin);
+      except
+        on E: EStringListError do
+          raise Exception.CreateFmt('Trusted file origin is duplicated: %s',
+            [ATrustedOrigins[lIndex]]);
+      end;
+    end;
+    ATrustedOrigins.Assign(lOrigins);
+  finally
+    lOrigins.Free;
+  end;
+end;
+
+constructor TNXBotDeploymentBinding.Create;
+begin
+  inherited Create;
+  FFileMaximumBytes := 16 * 1024 * 1024;
+  FFileTransferCapacity := 8;
+  FFileTransferTimeoutMS := 120000;
+  FStagedFileCapacity := 32;
+  FStagedMaximumBytes := 64 * 1024 * 1024;
+  FTrustedFileOrigins := TStringList.Create;
+  FTrustedFileOrigins.CaseSensitive := False;
+end;
+
+destructor TNXBotDeploymentBinding.Destroy;
+begin
+  FTrustedFileOrigins.Free;
+  inherited Destroy;
+end;
+
+procedure TNXBotDeploymentBinding.ValidateFileExchange;
+begin
+  NXValidateFileExchange(FExchangeDirectory, FFileMaximumBytes,
+    FFileTransferCapacity, FFileTransferTimeoutMS, FStagedFileCapacity,
+    FStagedMaximumBytes, FTrustedFileOrigins);
 end;
 
 constructor TNXBotDeploymentList.Create;
@@ -259,6 +394,8 @@ begin
       lBinding.CodexExecutable, AConfigFile);
     lBinding.RuntimeDirectory := NXResolveConfigPath(
       lBinding.RuntimeDirectory, AConfigFile);
+    lBinding.ExchangeDirectory := NXResolveConfigPath(
+      lBinding.ExchangeDirectory, AConfigFile);
   end;
 end;
 
@@ -280,7 +417,20 @@ begin
   FRequestTimeoutMS := 30000;
   FResource := 'NexusBotHost';
   FRoomJID := 'nexus-test@conference.nexus.local';
+  FFileMaximumBytes := 16 * 1024 * 1024;
+  FFileTransferCapacity := 8;
+  FFileTransferTimeoutMS := 120000;
+  FStagedFileCapacity := 32;
+  FStagedMaximumBytes := 64 * 1024 * 1024;
+  FTrustedFileOrigins := TStringList.Create;
+  FTrustedFileOrigins.CaseSensitive := False;
   FXMPPJID := 'test1@nexus.local';
+end;
+
+destructor TNXBotHostConfig.Destroy;
+begin
+  FTrustedFileOrigins.Free;
+  inherited Destroy;
 end;
 
 procedure TNXBotHostConfig.ApplyDeployment(
@@ -300,6 +450,13 @@ begin
   FPassword := ABinding.Password;
   FResource := ABinding.Resource;
   FRuntimeDirectory := ABinding.RuntimeDirectory;
+  FExchangeDirectory := ABinding.ExchangeDirectory;
+  FFileMaximumBytes := ABinding.FileMaximumBytes;
+  FFileTransferCapacity := ABinding.FileTransferCapacity;
+  FFileTransferTimeoutMS := ABinding.FileTransferTimeoutMS;
+  FStagedFileCapacity := ABinding.StagedFileCapacity;
+  FStagedMaximumBytes := ABinding.StagedMaximumBytes;
+  FTrustedFileOrigins.Assign(ABinding.TrustedFileOrigins);
   FXMPPJID := ABinding.XMPPJID;
 end;
 
@@ -319,6 +476,9 @@ begin
     (FPromptMaximumBytes < 1) or (FAnswerMaximumBytes < 1) or
     (FRequestTimeoutMS < 1) or (FJournalCapacity < 1) then
     raise Exception.Create('BotHost capacities, limits, and timeouts must be positive.');
+  NXValidateFileExchange(FExchangeDirectory, FFileMaximumBytes,
+    FFileTransferCapacity, FFileTransferTimeoutMS, FStagedFileCapacity,
+    FStagedMaximumBytes, FTrustedFileOrigins);
 end;
 
 procedure TNXBotHostConfig.ValidateXMPP;

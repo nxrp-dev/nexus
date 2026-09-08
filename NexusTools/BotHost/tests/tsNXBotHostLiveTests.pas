@@ -12,7 +12,10 @@ procedure RegisterNXBotHostLiveTests(ARegistry: TNXTestRegistry);
 implementation
 
 uses
+  Classes,
+  SyncObjs,
   SysUtils,
+  synacode,
   obNXTestContext,
   obNXTestSuite,
   obNXBotCatalog,
@@ -20,6 +23,7 @@ uses
   obNXBotController,
   obNXBotHost,
   obNXBotHostConfig,
+  obNXBotFileExchange,
   obNXBotHostState,
   obNXXMPPClient,
   obNXXMPPBotControl,
@@ -27,7 +31,10 @@ uses
   obNXXMPPMessage,
   obNXXMPPMessageFeatures,
   obNXXMPPMUC,
+  obNXXMPPFileSharing,
+  obNXXMPPOpenSSL,
   tpNXBotControl,
+  tpNXBotFileTypes,
   tpNXBotHost,
   tpNXXMPPMessageTypes,
   tpNXXMPPTypes;
@@ -36,6 +43,7 @@ const
   cLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_OPENFIRE';
   cOpenAILiveTestEnabled = 'NEXUS_BOTHOST_LIVE_OPENAI';
   cInteropLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_BOT_INTEROP';
+  cFileExchangeLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_FILE_EXCHANGE';
 
 function RequiredEnvironment(AContext: TNXTestContext;
   const AName: string): string;
@@ -78,11 +86,82 @@ type
       out AResult: TNXBotControlResult);
   end;
 
+  TLiveFileExchangeRecorder = class
+  private
+    FExchange: TNXBotFileExchange;
+    FSequence: Int64;
+  public
+    Prompt: TNXBotPrompt;
+    ReceiveError: UTF8String;
+    ReceivedEvent: TEvent;
+    SendDetail: UTF8String;
+    SendSuccess: Boolean;
+    SentEvent: TEvent;
+    constructor Create(AExchange: TNXBotFileExchange);
+    destructor Destroy; override;
+    procedure FileSent(ASuccess: Boolean; const ADetail: UTF8String);
+    procedure MessageReceived(ASender: TObject; AMessage: TNXXMPPMessage);
+    procedure PromptReady(ASender: TObject; APrompt: TNXBotPrompt;
+      const AError: UTF8String);
+  end;
+
 constructor TObserver.Create(const ABotNick: UTF8String);
 begin
   inherited Create;
   FBotNick := ABotNick;
   InitCriticalSection(FCriticalSection);
+end;
+
+constructor TLiveFileExchangeRecorder.Create(AExchange: TNXBotFileExchange);
+begin
+  inherited Create;
+  FExchange := AExchange;
+  ReceivedEvent := TEvent.Create(nil, False, False, '');
+  SentEvent := TEvent.Create(nil, False, False, '');
+end;
+
+destructor TLiveFileExchangeRecorder.Destroy;
+begin
+  Prompt.Free;
+  SentEvent.Free;
+  ReceivedEvent.Free;
+  inherited Destroy;
+end;
+
+procedure TLiveFileExchangeRecorder.FileSent(ASuccess: Boolean;
+  const ADetail: UTF8String);
+begin
+  SendSuccess := ASuccess;
+  SendDetail := ADetail;
+  SentEvent.SetEvent;
+end;
+
+procedure TLiveFileExchangeRecorder.MessageReceived(ASender: TObject;
+  AMessage: TNXXMPPMessage);
+var
+  lPrompt: TNXBotPrompt;
+begin
+  if not Assigned(AMessage) or (AMessage.Context <> xmdcLive) or
+    (AMessage.TypeValue <> 'chat') or
+    (Length(AMessage.Attachments) = 0) then
+    Exit;
+  Inc(FSequence);
+  lPrompt := TNXBotPrompt.Create(FSequence, '', AMessage.FromJID,
+    AMessage.ID, AMessage.DisplayBody);
+  if not FExchange.AcceptInbound(lPrompt, AMessage.Attachments) then
+  begin
+    lPrompt.Free;
+    ReceiveError := 'The inbound live transfer was rejected.';
+    ReceivedEvent.SetEvent;
+  end;
+end;
+
+procedure TLiveFileExchangeRecorder.PromptReady(ASender: TObject;
+  APrompt: TNXBotPrompt; const AError: UTF8String);
+begin
+  Prompt := APrompt;
+  ReceiveError := AError;
+  ReceivedEvent.SetEvent;
 end;
 
 procedure TObserver.ControlComplete(const AResult: TNXBotControlResult);
@@ -700,6 +779,182 @@ begin
   end;
 end;
 
+procedure TestFileExchange(AContext: TNXTestContext);
+var
+  lAttachment: TNXBotAttachment;
+  lBody: RawByteString;
+  lCAFile: string;
+  lEndpointHost: string;
+  lEndpointPort: Integer;
+  lExpectedHash: UTF8String;
+  lFile: TFileStream;
+  lMessages: TNXXMPPMessageModule;
+  lOriginList: string;
+  lPath: string;
+  lReceiverClient: TNXXMPPClient;
+  lReceiverConfig: TNXBotHostConfig;
+  lReceiverExchange: TNXBotFileExchange;
+  lReceiverFiles: TNXXMPPFileSharingModule;
+  lReceiverJID: string;
+  lReceiverObserver: TObserver;
+  lReceiverPassword: string;
+  lReceiverResource: string;
+  lReceived: RawByteString;
+  lRecorder: TLiveFileExchangeRecorder;
+  lSenderClient: TNXXMPPClient;
+  lSenderConfig: TNXBotHostConfig;
+  lSenderDirectory: string;
+  lSenderExchange: TNXBotFileExchange;
+  lSenderFiles: TNXXMPPFileSharingModule;
+  lSenderJID: string;
+  lSenderObserver: TObserver;
+  lSenderPassword: string;
+  lSenderResource: string;
+  lReceiverDirectory: string;
+begin
+  if GetEnvironmentVariable(cFileExchangeLiveTestEnabled) <> '1' then
+    AContext.Skip('Set ' + cFileExchangeLiveTestEnabled + '=1 to run the ' +
+      'live XEP-0363 file-exchange test.');
+  lSenderJID := RequiredEnvironment(AContext, 'NEXUS_BOTHOST_BOT_JID');
+  lSenderPassword := RequiredEnvironment(AContext,
+    RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_BOT_PASSWORD_ENVIRONMENT_VARIABLE'));
+  lReceiverJID := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_OBSERVER_JID');
+  lReceiverPassword := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_OBSERVER_PASSWORD');
+  lCAFile := RequiredEnvironment(AContext, 'NEXUS_BOTHOST_CA_FILE');
+  lEndpointHost := RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_ENDPOINT_HOST');
+  lEndpointPort := StrToInt(RequiredEnvironment(AContext,
+    'NEXUS_BOTHOST_ENDPOINT_PORT'));
+  lOriginList := GetEnvironmentVariable(
+    'NEXUS_BOTHOST_TRUSTED_FILE_ORIGINS');
+  lSenderResource := 'NexusFileSender-' + IntToStr(GetTickCount64);
+  lReceiverResource := 'NexusFileReceiver-' + IntToStr(GetTickCount64);
+  lReceived := '';
+  lSenderDirectory := GetTempFileName(GetTempDir(False), 'nxfs');
+  DeleteFile(lSenderDirectory);
+  CreateDir(lSenderDirectory);
+  lReceiverDirectory := GetTempFileName(GetTempDir(False), 'nxfr');
+  DeleteFile(lReceiverDirectory);
+  CreateDir(lReceiverDirectory);
+
+  lSenderConfig := TNXBotHostConfig.Create;
+  lSenderConfig.CAFile := lCAFile;
+  lSenderConfig.ExchangeDirectory := lSenderDirectory;
+  lSenderConfig.TrustedFileOrigins.CommaText := lOriginList;
+  lReceiverConfig := TNXBotHostConfig.Create;
+  lReceiverConfig.CAFile := lCAFile;
+  lReceiverConfig.ExchangeDirectory := lReceiverDirectory;
+  lReceiverConfig.TrustedFileOrigins.CommaText := lOriginList;
+  lSenderExchange := TNXBotFileExchange.Create(lSenderConfig);
+  lReceiverExchange := TNXBotFileExchange.Create(lReceiverConfig);
+  lRecorder := TLiveFileExchangeRecorder.Create(lReceiverExchange);
+  lReceiverExchange.OnPromptReady := @lRecorder.PromptReady;
+  lSenderObserver := TObserver.Create;
+  lReceiverObserver := TObserver.Create;
+  lSenderClient := TNXXMPPClient.Create;
+  lReceiverClient := TNXXMPPClient.Create;
+  lSenderFiles := TNXXMPPFileSharingModule.Create;
+  lReceiverFiles := TNXXMPPFileSharingModule.Create;
+  lMessages := TNXXMPPMessageModule.Create;
+  lPath := IncludeTrailingPathDelimiter(lSenderDirectory) + 'live.txt';
+  lBody := 'Nexus XEP-0363 live file exchange ' +
+    RawByteString(IntToStr(GetTickCount64));
+  lFile := TFileStream.Create(lPath, fmCreate);
+  try
+    lFile.WriteBuffer(lBody[1], Length(lBody));
+  finally
+    lFile.Free;
+  end;
+  lAttachment := TNXBotAttachment.Create;
+  lAttachment.ID := 'live-' + UTF8String(IntToStr(GetTickCount64));
+  lAttachment.SFSID := lAttachment.ID;
+  lAttachment.Name := 'live.txt';
+  lAttachment.MediaType := 'text/plain';
+  lAttachment.Size := Length(lBody);
+  lExpectedHash := UTF8String(EncodeBase64(TNXXMPPOpenSSL.SHA256(lBody)));
+  lAttachment.HashSHA256 := lExpectedHash;
+  lAttachment.Path := lPath;
+  try
+    lSenderClient.Config.JID := UTF8String(lSenderJID);
+    lSenderClient.Config.Password := UTF8String(lSenderPassword);
+    lSenderClient.Config.Resource := UTF8String(lSenderResource);
+    lSenderClient.Config.CAFile := lCAFile;
+    lSenderClient.Config.EndpointHost := lEndpointHost;
+    lSenderClient.Config.EndpointPort := lEndpointPort;
+    lSenderClient.Config.AllowPlain := True;
+    lSenderClient.OnError := @lSenderObserver.Error;
+    lSenderClient.OnState := @lSenderObserver.State;
+    lSenderClient.AddModule(lSenderFiles);
+
+    lReceiverClient.Config.JID := UTF8String(lReceiverJID);
+    lReceiverClient.Config.Password := UTF8String(lReceiverPassword);
+    lReceiverClient.Config.Resource := UTF8String(lReceiverResource);
+    lReceiverClient.Config.CAFile := lCAFile;
+    lReceiverClient.Config.EndpointHost := lEndpointHost;
+    lReceiverClient.Config.EndpointPort := lEndpointPort;
+    lReceiverClient.Config.AllowPlain := True;
+    lReceiverClient.OnError := @lReceiverObserver.Error;
+    lReceiverClient.OnState := @lReceiverObserver.State;
+    lReceiverClient.AddModule(lReceiverFiles);
+    lMessages.OnMessage := @lRecorder.MessageReceived;
+    lReceiverClient.AddModule(lMessages);
+
+    lReceiverClient.Connect;
+    WaitObserver(lReceiverObserver, False, 30000);
+    lSenderClient.Connect;
+    WaitObserver(lSenderObserver, False, 30000);
+    AContext.AssertTrue(lSenderExchange.AcceptOutbound(lAttachment,
+      lSenderFiles, UTF8String(lReceiverJID + '/' + lReceiverResource),
+      'chat', '', '', '', @lRecorder.FileSent),
+      'The live outbound transfer should be accepted.');
+    lAttachment := nil;
+    AContext.AssertTrue(lRecorder.SentEvent.WaitFor(120000) = wrSignaled,
+      'The live upload should complete within the transfer timeout.');
+    AContext.AssertTrue(lRecorder.SendSuccess,
+      'The live upload failed: ' + string(lRecorder.SendDetail));
+    AContext.AssertTrue(lRecorder.ReceivedEvent.WaitFor(120000) = wrSignaled,
+      'The live file-share message and download should complete.');
+    AContext.AssertEquals('', string(lRecorder.ReceiveError),
+      'The live inbound transfer should not report an error.');
+    AContext.AssertTrue(Assigned(lRecorder.Prompt) and
+      (lRecorder.Prompt.Attachments.Count = 1),
+      'The receiver should obtain exactly one staged attachment.');
+    lFile := TFileStream.Create(lRecorder.Prompt.Attachments[0].Path,
+      fmOpenRead or fmShareDenyWrite);
+    try
+      SetLength(lReceived, lFile.Size);
+      if Length(lReceived) > 0 then
+        lFile.ReadBuffer(lReceived[1], Length(lReceived));
+    finally
+      lFile.Free;
+    end;
+    AContext.AssertTrue(lReceived = lBody,
+      'The downloaded bytes must exactly match the uploaded file.');
+    AContext.AssertEquals(string(lExpectedHash),
+      string(lRecorder.Prompt.Attachments[0].HashSHA256),
+      'The staged attachment should retain the verified SHA-256 hash.');
+  finally
+    lAttachment.Free;
+    lSenderClient.Disconnect;
+    lReceiverClient.Disconnect;
+    lSenderExchange.Free;
+    lReceiverExchange.Free;
+    lSenderClient.Free;
+    lReceiverClient.Free;
+    lRecorder.Free;
+    lSenderObserver.Free;
+    lReceiverObserver.Free;
+    lSenderConfig.Free;
+    lReceiverConfig.Free;
+    if FileExists(lPath) then DeleteFile(lPath);
+    RemoveDir(lSenderDirectory);
+    RemoveDir(lReceiverDirectory);
+  end;
+end;
+
 procedure TestOpenfireCodex(AContext: TNXTestContext);
 begin
   RunLiveCodex(AContext, False);
@@ -718,6 +973,7 @@ begin
   lSuite.AddTest('OpenfireCodex', @TestOpenfireCodex, 'integration');
   lSuite.AddTest('OpenfireOpenAI', @TestOpenfireOpenAI, 'integration');
   lSuite.AddTest('BotInterop', @TestBotInterop, 'integration');
+  lSuite.AddTest('FileExchange', @TestFileExchange, 'integration');
 end;
 
 end.

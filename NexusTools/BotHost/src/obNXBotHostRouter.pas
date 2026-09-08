@@ -26,7 +26,7 @@ type
       ASenderJID, AMessageID, ATypeValue, ABody, ADisplayBody: UTF8String;
       const AReply: TNXXMPPReplyReference;
       AContext: TNXXMPPMessageDeliveryContext; AValid: Boolean;
-      AMaximumBytes: Integer; AImplied: Boolean;
+      AMaximumBytes: Integer; AImplied, AHasAttachments: Boolean;
       out APrompt: TNXBotPrompt): TNXBotRouteDecision;
   end;
 
@@ -117,7 +117,7 @@ class function TNXBotHostRouter.Admit(const ASequence: QWord;
   const ARoomJID, ANick, ASenderJID, AMessageID, ATypeValue,
   ABody, ADisplayBody: UTF8String; const AReply: TNXXMPPReplyReference;
   AContext: TNXXMPPMessageDeliveryContext; AValid: Boolean;
-  AMaximumBytes: Integer; AImplied: Boolean;
+  AMaximumBytes: Integer; AImplied, AHasAttachments: Boolean;
   out APrompt: TNXBotPrompt): TNXBotRouteDecision;
 var
   lAddressLength: Integer;
@@ -135,7 +135,7 @@ begin
     Exit(brdNotGroupChat);
   if (ASenderJID = ARoomJID + '/' + ANick) then
     Exit(brdSelf);
-  if ABody = '' then
+  if (ABody = '') and not AHasAttachments then
     Exit(brdEmpty);
 
   lPrefix := '@' + ANick;
@@ -160,7 +160,7 @@ begin
     lPrompt := ADisplayBody
   else
     Exit(brdNotAddressed);
-  if lPrompt = '' then
+  if (lPrompt = '') and not AHasAttachments then
     Exit(brdEmpty);
   if (AMaximumBytes < 1) or (Length(lPrompt) > AMaximumBytes) then
     Exit(brdTooLarge);

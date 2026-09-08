@@ -427,7 +427,8 @@ begin
     if (lMessage.ChatState <> xcsNone) and Assigned(FOnChatState) then
       FOnChatState(Self, lMessage.FromJID, lMessage.ChatState);
     if Assigned(FOnMessage) and ((lMessage.Body <> '') or
-      (lMessage.Subject <> '') or lMessage.Reply.Present) then
+      (lMessage.Subject <> '') or lMessage.Reply.Present or
+      (Length(lMessage.Attachments) > 0)) then
       FOnMessage(Self, lMessage);
   finally
     lMessage.Free;

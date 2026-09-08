@@ -67,6 +67,34 @@ begin
           (Pos('NexusBot', lValue.AsString) = 0) then
           Halt(6);
       end
+      else if (lMethod = '') and (lID = '903') then
+      begin
+        lValue := lData.FindPath('result.success');
+        if (not Assigned(lValue)) or not lValue.AsBoolean then
+          Halt(17);
+        lValue := lData.FindPath('result.contentItems[0].text');
+        if (not Assigned(lValue)) or
+          (Pos('returned_bytes=1', lValue.AsString) = 0) or
+          (Pos('more=True', lValue.AsString) = 0) then
+          Halt(18);
+      end
+      else if (lMethod = '') and (lID = '904') then
+      begin
+        lValue := lData.FindPath('result.success');
+        if (not Assigned(lValue)) or lValue.AsBoolean then
+          Halt(19);
+      end
+      else if (lMethod = '') and (lID = '905') then
+      begin
+        lValue := lData.FindPath('result.success');
+        if (not Assigned(lValue)) or not lValue.AsBoolean then
+          Halt(20);
+        lValue := lData.FindPath('result.contentItems[0].text');
+        if (not Assigned(lValue)) or
+          (Pos('returned_offset=5', lValue.AsString) = 0) or
+          (Pos('returned_bytes=1', lValue.AsString) = 0) then
+          Halt(21);
+      end
       else if lMethod = 'initialize' then
       begin
         lValue := lData.FindPath('params.capabilities.experimentalApi');
@@ -104,6 +132,21 @@ begin
           'params.dynamicTools[0].inputSchema.properties.room.type');
         if (not Assigned(lValue)) or (lValue.AsString <> 'string') then
           Halt(10);
+        lValue := lData.FindPath('params.dynamicTools[1].name');
+        if (not Assigned(lValue)) or
+          (lValue.AsString <> 'read_attachment') then
+          Halt(13);
+        lValue := lData.FindPath(
+          'params.dynamicTools[1].inputSchema.properties.maximum_bytes.maximum');
+        if (not Assigned(lValue)) or (lValue.AsInteger <> 65536) then
+          Halt(14);
+        lValue := lData.FindPath('params.dynamicTools[2].name');
+        if (not Assigned(lValue)) or (lValue.AsString <> 'send_file') then
+          Halt(15);
+        lValue := lData.FindPath(
+          'params.dynamicTools[2].inputSchema.additionalProperties');
+        if (not Assigned(lValue)) or lValue.AsBoolean then
+          Halt(16);
         Send('{"id":' + lID + ',"result":{"thread":{"id":"thread-1"},' +
           '"model":"gpt-5.6-luna"}}');
         Send('{"method":"fake/unknownNotification","params":{}}');
@@ -121,6 +164,20 @@ begin
           '"threadId":"thread-1","turnId":"turn-1","callId":"call-2",' +
           '"namespace":null,"tool":"bot_control","arguments":{' +
           '"operation":"status","bot":"NexusBot"}}}');
+        Send('{"id":903,"method":"item/tool/call","params":{' +
+          '"threadId":"thread-1","turnId":"turn-1","callId":"call-3",' +
+          '"namespace":null,"tool":"read_attachment","arguments":{' +
+          '"attachment_id":"test-attachment","offset":0,' +
+          '"maximum_bytes":3}}}');
+        Send('{"id":905,"method":"item/tool/call","params":{' +
+          '"threadId":"thread-1","turnId":"turn-1","callId":"call-5",' +
+          '"namespace":null,"tool":"read_attachment","arguments":{' +
+          '"attachment_id":"test-attachment","offset":2,' +
+          '"maximum_bytes":64}}}');
+        Send('{"id":904,"method":"item/tool/call","params":{' +
+          '"threadId":"thread-1","turnId":"turn-1","callId":"call-4",' +
+          '"namespace":null,"tool":"send_file","arguments":{' +
+          '"attachment_id":"test-attachment"}}}');
         Send('{"method":"item/completed","params":{"threadId":"thread-1",' +
           '"turnId":"turn-1","item":{"type":"agentMessage",' +
           '"id":"item-commentary","text":"thinking",' +

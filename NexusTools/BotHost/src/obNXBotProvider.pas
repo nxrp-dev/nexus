@@ -9,6 +9,7 @@ uses
   SysUtils,
   obNXBotHostConfig,
   tpNXBotControl,
+  tpNXBotFileTypes,
   tpNXBotHost;
 
 type
@@ -24,6 +25,9 @@ type
     const AOperation: TNXBotControlOperation;
     const AAuthorization: TNXBotAuthorization;
     ACompletion: TNXBotControlCompletion; out AToken: QWord): Boolean of object;
+  TNXBotFileSendEvent = function(ASender: TObject;
+    const ARequest: TNXBotFileSendRequest;
+    ACompletion: TNXBotFileSendCompletion): Boolean of object;
 
   TNXBotProvider = class;
   TNXBotProviderClass = class of TNXBotProvider;
@@ -35,6 +39,7 @@ type
     FOnBotControl: TNXBotControlEvent;
     FOnDiagnostic: TNXBotProviderTextEvent;
     FOnFinalAnswer: TNXBotProviderPromptEvent;
+    FOnFileSend: TNXBotFileSendEvent;
     FOnPromptFailed: TNXBotProviderPromptEvent;
     FOnState: TNXBotProviderStateEvent;
     FState: TNXBotProviderState;
@@ -44,6 +49,8 @@ type
     procedure Diagnostic(const AText: UTF8String);
     procedure FinalAnswer(APrompt: TNXBotPrompt; const AText: UTF8String);
     procedure PromptFailed(APrompt: TNXBotPrompt; const AText: UTF8String);
+    function RequestFileSend(const ARequest: TNXBotFileSendRequest;
+      ACompletion: TNXBotFileSendCompletion): Boolean;
     procedure SetState(AState: TNXBotProviderState;
       const ADetail: UTF8String = '');
     property Configuration: TNXBotHostConfig read FConfiguration;
@@ -71,6 +78,8 @@ type
       write FOnDiagnostic;
     property OnFinalAnswer: TNXBotProviderPromptEvent read FOnFinalAnswer
       write FOnFinalAnswer;
+    property OnFileSend: TNXBotFileSendEvent read FOnFileSend
+      write FOnFileSend;
     property OnPromptFailed: TNXBotProviderPromptEvent read FOnPromptFailed
       write FOnPromptFailed;
     property OnState: TNXBotProviderStateEvent read FOnState write FOnState;
@@ -149,6 +158,14 @@ procedure TNXBotProvider.PromptFailed(APrompt: TNXBotPrompt;
 begin
   if Assigned(FOnPromptFailed) then
     FOnPromptFailed(Self, APrompt, AText);
+end;
+
+function TNXBotProvider.RequestFileSend(
+  const ARequest: TNXBotFileSendRequest;
+  ACompletion: TNXBotFileSendCompletion): Boolean;
+begin
+  Result := Assigned(FOnFileSend) and Assigned(ACompletion) and
+    FOnFileSend(Self, ARequest, ACompletion);
 end;
 
 procedure TNXBotProvider.SetState(AState: TNXBotProviderState;

@@ -11,6 +11,7 @@ uses
   SysUtils,
   obNXBotHostConfig,
   obNXBotProvider,
+  obNXOpenAIResponses,
   tpNXBotHost;
 
 type
@@ -27,11 +28,23 @@ type
     function Execute(const AAPIKey, ACAFile, ABody: UTF8String;
       ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
       virtual; abstract;
+    function UploadFile(const AAPIKey, ACAFile, AFileName,
+      ADisplayName, AMediaType: UTF8String; ATimeoutMS: Cardinal;
+      out AResult: TNXOpenAIHTTPResult): Boolean; virtual; abstract;
+    function DeleteFile(const AAPIKey, ACAFile, AFileID: UTF8String;
+      ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
+      virtual; abstract;
   end;
 
   TNXOpenAISynapseExecutor = class(TNXOpenAIExecutor)
   public
     function Execute(const AAPIKey, ACAFile, ABody: UTF8String;
+      ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
+      override;
+    function UploadFile(const AAPIKey, ACAFile, AFileName,
+      ADisplayName, AMediaType: UTF8String; ATimeoutMS: Cardinal;
+      out AResult: TNXOpenAIHTTPResult): Boolean; override;
+    function DeleteFile(const AAPIKey, ACAFile, AFileID: UTF8String;
       ATimeoutMS: Cardinal; out AResult: TNXOpenAIHTTPResult): Boolean;
       override;
   end;
@@ -57,6 +70,7 @@ type
     FCriticalSection: TRTLCriticalSection;
     FExecutor: TNXOpenAIExecutor;
     FPreviousResponseID: UTF8String;
+    FUploadedFiles: TStringList;
     FPrompts: TObjectList;
     FShuttingDown: Boolean;
     FStopRequested: Boolean;
@@ -73,6 +87,11 @@ type
     procedure ThreadExecute;
     procedure ThreadStopped;
     procedure ProcessPrompt(APrompt: TNXBotPrompt);
+    function AddPromptAttachments(APrompt: TNXBotPrompt;
+      AInputMessage: TNXOpenAIInputMessage;
+      out ADiagnostic: UTF8String): Boolean;
+    procedure DeleteUploadedFilesFrom(AIndex: Integer);
+    procedure DeleteUploadedFiles;
   public
     constructor Create; override;
     constructor CreateWithExecutor(AExecutor: TNXOpenAIExecutor);
@@ -94,8 +113,9 @@ implementation
 uses
   fpjson,
   httpsend,
-  obNXOpenAIResponses,
-  ssl_openssl3;
+  obNXOpenAIFiles,
+  ssl_openssl3,
+  tpNXBotFileTypes;
 
 const
   cOpenAIResponseMaximumBytes = 1024 * 1024;
@@ -107,6 +127,95 @@ type
   public
     function Write(const ABuffer; ACount: LongInt): LongInt; override;
   end;
+
+  TNXOpenAIMultipartStream = class(TStream)
+  private
+    FFile: TFileStream;
+    FPrefix: RawByteString;
+    FPosition: Int64;
+    FSuffix: RawByteString;
+  public
+    constructor Create(const AFileName: string; const APrefix,
+      ASuffix: RawByteString);
+    destructor Destroy; override;
+    function Read(var ABuffer; ACount: LongInt): LongInt; override;
+    function Seek(const AOffset: Int64; AOrigin: TSeekOrigin): Int64; override;
+    function Write(const ABuffer; ACount: LongInt): LongInt; override;
+  end;
+
+constructor TNXOpenAIMultipartStream.Create(const AFileName: string;
+  const APrefix, ASuffix: RawByteString);
+begin
+  inherited Create;
+  FPrefix := APrefix;
+  FSuffix := ASuffix;
+  FFile := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
+end;
+
+destructor TNXOpenAIMultipartStream.Destroy;
+begin
+  FFile.Free;
+  inherited Destroy;
+end;
+
+function TNXOpenAIMultipartStream.Read(var ABuffer;
+  ACount: LongInt): LongInt;
+var
+  lAvailable: Int64;
+  lCount: LongInt;
+  lOffset: Int64;
+begin
+  Result := 0;
+  if ACount <= 0 then Exit;
+  if FPosition < Length(FPrefix) then
+  begin
+    lAvailable := Length(FPrefix) - FPosition;
+    lCount := ACount;
+    if lCount > lAvailable then lCount := lAvailable;
+    Move(FPrefix[FPosition + 1], ABuffer, lCount);
+  end
+  else if FPosition < Length(FPrefix) + FFile.Size then
+  begin
+    lOffset := FPosition - Length(FPrefix);
+    FFile.Position := lOffset;
+    Result := FFile.Read(ABuffer, ACount);
+    Inc(FPosition, Result);
+    Exit;
+  end
+  else
+  begin
+    lOffset := FPosition - Length(FPrefix) - FFile.Size;
+    lAvailable := Length(FSuffix) - lOffset;
+    if lAvailable <= 0 then Exit;
+    lCount := ACount;
+    if lCount > lAvailable then lCount := lAvailable;
+    Move(FSuffix[lOffset + 1], ABuffer, lCount);
+  end;
+  Result := lCount;
+  Inc(FPosition, Result);
+end;
+
+function TNXOpenAIMultipartStream.Seek(const AOffset: Int64;
+  AOrigin: TSeekOrigin): Int64;
+var
+  lSize: Int64;
+begin
+  lSize := Length(FPrefix) + FFile.Size + Length(FSuffix);
+  case AOrigin of
+    soBeginning: FPosition := AOffset;
+    soCurrent: Inc(FPosition, AOffset);
+    soEnd: FPosition := lSize + AOffset;
+  end;
+  if FPosition < 0 then FPosition := 0;
+  if FPosition > lSize then FPosition := lSize;
+  Result := FPosition;
+end;
+
+function TNXOpenAIMultipartStream.Write(const ABuffer;
+  ACount: LongInt): LongInt;
+begin
+  Result := 0;
+end;
 
 function TNXOpenAIBoundedStream.Write(const ABuffer;
   ACount: LongInt): LongInt;
@@ -224,6 +333,114 @@ begin
   end;
 end;
 
+function TNXOpenAISynapseExecutor.UploadFile(const AAPIKey, ACAFile,
+  AFileName, ADisplayName, AMediaType: UTF8String; ATimeoutMS: Cardinal;
+  out AResult: TNXOpenAIHTTPResult): Boolean;
+var
+  lBody: RawByteString;
+  lBoundary: RawByteString;
+  lDisplayName: UTF8String;
+  lHTTP: THTTPSend;
+  lInput: TNXOpenAIMultipartStream;
+  lMediaType: UTF8String;
+  lPrefix: RawByteString;
+  lResponse: TNXOpenAIBoundedStream;
+  lSuffix: RawByteString;
+  lTimeout: Integer;
+begin
+  AResult := Default(TNXOpenAIHTTPResult);
+  if not FileExists(string(AFileName)) then
+  begin
+    AResult.ErrorText := 'The staged OpenAI input file is unavailable.';
+    Exit(False);
+  end;
+  lDisplayName := StringReplace(ADisplayName, '"', '', [rfReplaceAll]);
+  lDisplayName := StringReplace(lDisplayName, #13, '', [rfReplaceAll]);
+  lDisplayName := StringReplace(lDisplayName, #10, '', [rfReplaceAll]);
+  lMediaType := AMediaType;
+  if lMediaType = '' then
+    lMediaType := 'application/octet-stream';
+  lBoundary := '----NexusBotHost' + RawByteString(IntToHex(GetTickCount64, 16));
+  lPrefix := '--' + lBoundary + #13#10 +
+    'Content-Disposition: form-data; name="purpose"' + #13#10#13#10 +
+    'user_data' + #13#10 + '--' + lBoundary + #13#10 +
+    'Content-Disposition: form-data; name="expires_after[anchor]"' +
+    #13#10#13#10 + 'created_at' + #13#10 + '--' + lBoundary + #13#10 +
+    'Content-Disposition: form-data; name="expires_after[seconds]"' +
+    #13#10#13#10 + '86400' + #13#10 + '--' + lBoundary + #13#10 +
+    'Content-Disposition: form-data; name="file"; filename="' +
+    RawByteString(lDisplayName) + '"' + #13#10 + 'Content-Type: ' +
+    RawByteString(lMediaType) + #13#10#13#10;
+  lSuffix := #13#10 + '--' + lBoundary + '--' + #13#10;
+  lInput := TNXOpenAIMultipartStream.Create(string(AFileName), lPrefix,
+    lSuffix);
+  lHTTP := THTTPSend.Create;
+  lResponse := TNXOpenAIBoundedStream.Create;
+  try
+    if ATimeoutMS > Cardinal(High(Integer)) then lTimeout := High(Integer)
+    else lTimeout := ATimeoutMS;
+    lHTTP.Timeout := lTimeout;
+    lHTTP.Sock.ConnectionTimeout := lTimeout;
+    lHTTP.Sock.SSL.VerifyCert := True;
+    lHTTP.Sock.SSL.CertCAFile := string(ACAFile);
+    lHTTP.UserAgent := 'NexusBotHost/1.0';
+    lHTTP.MimeType := 'multipart/form-data; boundary=' + string(lBoundary);
+    lHTTP.Headers.Add('Authorization: Bearer ' + string(AAPIKey));
+    lHTTP.InputStream := lInput;
+    lHTTP.OutputStream := lResponse;
+    Result := lHTTP.HTTPMethod('POST', 'https://api.openai.com/v1/files');
+    AResult.Status := Cardinal(lHTTP.ResultCode);
+    if not Result then
+    begin
+      AResult.ErrorCode := Cardinal(lHTTP.Sock.LastError);
+      AResult.ErrorText := UTF8String(lHTTP.Sock.GetErrorDescEx);
+      Exit(False);
+    end;
+    SetLength(lBody, lResponse.Size);
+    if Length(lBody) > 0 then
+    begin
+      lResponse.Position := 0;
+      lResponse.ReadBuffer(lBody[1], Length(lBody));
+    end;
+    AResult.Body := UTF8String(lBody);
+  finally
+    lResponse.Free;
+    lHTTP.Free;
+    lInput.Free;
+  end;
+end;
+
+function TNXOpenAISynapseExecutor.DeleteFile(const AAPIKey, ACAFile,
+  AFileID: UTF8String; ATimeoutMS: Cardinal;
+  out AResult: TNXOpenAIHTTPResult): Boolean;
+var
+  lHTTP: THTTPSend;
+  lResponse: TNXOpenAIBoundedStream;
+  lTimeout: Integer;
+begin
+  AResult := Default(TNXOpenAIHTTPResult);
+  lHTTP := THTTPSend.Create;
+  lResponse := TNXOpenAIBoundedStream.Create;
+  try
+    if ATimeoutMS > Cardinal(High(Integer)) then lTimeout := High(Integer)
+    else lTimeout := ATimeoutMS;
+    lHTTP.Timeout := lTimeout;
+    lHTTP.Sock.ConnectionTimeout := lTimeout;
+    lHTTP.Sock.SSL.VerifyCert := True;
+    lHTTP.Sock.SSL.CertCAFile := string(ACAFile);
+    lHTTP.Headers.Add('Authorization: Bearer ' + string(AAPIKey));
+    lHTTP.OutputStream := lResponse;
+    Result := lHTTP.HTTPMethod('DELETE',
+      'https://api.openai.com/v1/files/' + string(AFileID));
+    AResult.Status := Cardinal(lHTTP.ResultCode);
+    if not Result then
+      AResult.ErrorText := UTF8String(lHTTP.Sock.GetErrorDescEx);
+  finally
+    lResponse.Free;
+    lHTTP.Free;
+  end;
+end;
+
 constructor TNXOpenAIProviderThread.Create(AOwner: TNXOpenAIProvider);
 begin
   inherited Create(True);
@@ -247,6 +464,9 @@ begin
   if not Assigned(AExecutor) then
     raise Exception.Create('OpenAI executor is required.');
   FExecutor := AExecutor;
+  FUploadedFiles := TStringList.Create;
+  FUploadedFiles.CaseSensitive := True;
+  FUploadedFiles.NameValueSeparator := '=';
   InitCriticalSection(FCriticalSection);
   FPrompts := TObjectList.Create(True);
   FWake := TEvent.Create(nil, False, False, '');
@@ -259,6 +479,7 @@ begin
   FPrompts.Free;
   DoneCriticalSection(FCriticalSection);
   FExecutor.Free;
+  FUploadedFiles.Free;
   inherited Destroy;
 end;
 
@@ -568,6 +789,9 @@ var
   lData: TJSONData;
   lDiagnostic: UTF8String;
   lHTTP: TNXOpenAIHTTPResult;
+  lInputMessage: TNXOpenAIInputMessage;
+  lInputText: TNXOpenAIInputText;
+  lUploadedStart: Integer;
   lRequest: TNXOpenAIResponseRequest;
   lRequestData: TJSONData;
   lResponse: TNXOpenAIResponse;
@@ -575,12 +799,30 @@ var
   lSuccess: Boolean;
 begin
   SetState(bpsWorking);
+  lUploadedStart := FUploadedFiles.Count;
   lRequest := TNXOpenAIResponseRequest.Create;
   lRequestData := nil;
   try
     lRequest.model.Value := UTF8String(Configuration.Model);
     lRequest.instructions.Value := Instructions;
-    lRequest.input.Value := APrompt.ModelInput;
+    lInputMessage := TNXOpenAIInputMessage(lRequest.input.AddObject(
+      TNXOpenAIInputMessage));
+    lInputMessage.role.Value := 'user';
+    lInputText := TNXOpenAIInputText(lInputMessage.content.AddObject(
+      TNXOpenAIInputText));
+    lInputText.&type.Value := 'input_text';
+    lInputText.text.Value := APrompt.ModelInput;
+    if not AddPromptAttachments(APrompt, lInputMessage, lDiagnostic) then
+    begin
+      DeleteUploadedFilesFrom(lUploadedStart);
+      if CompleteActive(APrompt, False, '', lCancellationReason) then
+        PromptFailed(APrompt, BoundedDiagnostic(lDiagnostic))
+      else
+        PromptFailed(APrompt, lCancellationReason);
+      APrompt.Free;
+      ReturnToReady;
+      Exit;
+    end;
     lRequest.store.Value := True;
     lRequest.stream.Value := False;
     if FPreviousResponseID <> '' then
@@ -606,6 +848,7 @@ begin
   end;
   if not lSuccess then
   begin
+    DeleteUploadedFilesFrom(lUploadedStart);
     lDiagnostic := BoundedDiagnostic(lHTTP.ErrorText);
     if lHTTP.Fatal then
       FailFatally(APrompt, lDiagnostic)
@@ -622,6 +865,7 @@ begin
   end;
   if (lHTTP.Status < 200) or (lHTTP.Status >= 300) then
   begin
+    DeleteUploadedFilesFrom(lUploadedStart);
     lDiagnostic := ErrorMessageFromBody(lHTTP.Body);
     if lDiagnostic = '' then
       lDiagnostic := 'OpenAI HTTP status ' +
@@ -649,6 +893,7 @@ begin
     except
       on E: Exception do
       begin
+        DeleteUploadedFilesFrom(lUploadedStart);
         FailFatally(APrompt, 'Invalid OpenAI response: ' +
           BoundedDiagnostic(UTF8String(E.Message)));
         Exit;
@@ -656,6 +901,7 @@ begin
     end;
     if lResponse.error.Assigned and not lResponse.error.IsNull then
     begin
+      DeleteUploadedFilesFrom(lUploadedStart);
       lDiagnostic := lResponse.error.message.Value;
       if lDiagnostic = '' then
         lDiagnostic := 'OpenAI returned an error response.';
@@ -669,6 +915,7 @@ begin
     end;
     if lResponse.status.Value <> 'completed' then
     begin
+      DeleteUploadedFilesFrom(lUploadedStart);
       if lResponse.error.Assigned and not lResponse.error.IsNull then
         lDiagnostic := lResponse.error.message.Value
       else if lResponse.incomplete_details.Assigned and
@@ -688,6 +935,7 @@ begin
     if (lResponse.id.Value = '') or
       not lResponse.ExtractCompletedText(lAnswer, lRefusal) then
     begin
+      DeleteUploadedFilesFrom(lUploadedStart);
       if lRefusal <> '' then
         lDiagnostic := 'OpenAI refusal: ' + lRefusal
       else if lResponse.id.Value = '' then
@@ -714,6 +962,135 @@ begin
     lResponse.Free;
     lData.Free;
   end;
+end;
+
+function TNXOpenAIProvider.AddPromptAttachments(APrompt: TNXBotPrompt;
+  AInputMessage: TNXOpenAIInputMessage;
+  out ADiagnostic: UTF8String): Boolean;
+var
+  lAttachment: TNXBotAttachment;
+  lData: TJSONData;
+  lFile: TNXOpenAIFileObject;
+  lFileID: UTF8String;
+  lFileIndex: Integer;
+  lHTTP: TNXOpenAIHTTPResult;
+  lInputFile: TNXOpenAIInputFile;
+  lInputImage: TNXOpenAIInputImage;
+  lIndex: Integer;
+  lSuccess: Boolean;
+begin
+  Result := False;
+  ADiagnostic := '';
+  for lIndex := 0 to APrompt.Attachments.Count - 1 do
+  begin
+    lAttachment := APrompt.Attachments[lIndex];
+    if Pos('audio/', LowerCase(string(lAttachment.MediaType))) = 1 then
+    begin
+      ADiagnostic := 'OpenAI does not support this audio input.';
+      Exit;
+    end;
+    lFileIndex := FUploadedFiles.IndexOfName(string(lAttachment.ArtifactID));
+    if lFileIndex >= 0 then
+      lFileID := UTF8String(FUploadedFiles.ValueFromIndex[lFileIndex])
+    else
+    begin
+      lHTTP := Default(TNXOpenAIHTTPResult);
+      try
+        lSuccess := FExecutor.UploadFile(FAPIKey,
+          UTF8String(Configuration.OpenAICAFile),
+          UTF8String(lAttachment.Path), lAttachment.Name,
+          lAttachment.MediaType, Configuration.RequestTimeoutMS, lHTTP);
+      except
+        on E: Exception do
+        begin
+          ADiagnostic := 'OpenAI file upload failed: ' + UTF8String(E.Message);
+          Exit;
+        end;
+      end;
+      if not lSuccess or (lHTTP.Status < 200) or (lHTTP.Status >= 300) then
+      begin
+        ADiagnostic := lHTTP.ErrorText;
+        if ADiagnostic = '' then
+          ADiagnostic := 'OpenAI file upload failed.';
+        Exit;
+      end;
+      lData := nil;
+      lFile := TNXOpenAIFileObject.Create;
+      try
+        try
+          lData := GetJSON(string(lHTTP.Body));
+          lFile.FromJSONData(lData);
+        except
+          on E: Exception do
+          begin
+            ADiagnostic := 'Invalid OpenAI file response: ' +
+              UTF8String(E.Message);
+            Exit;
+          end;
+        end;
+        lFileID := lFile.id.Value;
+        if lFileID = '' then
+        begin
+          ADiagnostic := 'OpenAI file upload returned no file ID.';
+          Exit;
+        end;
+        FUploadedFiles.Add(string(lAttachment.ArtifactID + '=' + lFileID));
+        if lFile.filename.Assigned and
+          (lFile.filename.Value <> lAttachment.Name) then
+        begin
+          ADiagnostic := 'OpenAI file upload returned a different filename.';
+          Exit;
+        end;
+        if lFile.bytes.Assigned and (lFile.bytes.Value <> lAttachment.Size) then
+        begin
+          ADiagnostic := 'OpenAI file upload returned a different byte count.';
+          Exit;
+        end;
+      finally
+        lFile.Free;
+        lData.Free;
+      end;
+    end;
+    if Pos('image/', LowerCase(string(lAttachment.MediaType))) = 1 then
+    begin
+      lInputImage := TNXOpenAIInputImage(AInputMessage.content.AddObject(
+        TNXOpenAIInputImage));
+      lInputImage.&type.Value := 'input_image';
+      lInputImage.file_id.Value := lFileID;
+    end
+    else
+    begin
+      lInputFile := TNXOpenAIInputFile(AInputMessage.content.AddObject(
+        TNXOpenAIInputFile));
+      lInputFile.&type.Value := 'input_file';
+      lInputFile.file_id.Value := lFileID;
+    end;
+  end;
+  Result := True;
+end;
+
+procedure TNXOpenAIProvider.DeleteUploadedFilesFrom(AIndex: Integer);
+var
+  lHTTP: TNXOpenAIHTTPResult;
+  lIndex: Integer;
+begin
+  for lIndex := FUploadedFiles.Count - 1 downto AIndex do
+  begin
+    try
+      FExecutor.DeleteFile(FAPIKey, UTF8String(Configuration.OpenAICAFile),
+        UTF8String(FUploadedFiles.ValueFromIndex[lIndex]),
+        Configuration.RequestTimeoutMS, lHTTP);
+    except
+      on E: Exception do
+        Diagnostic('OpenAI file cleanup failed: ' + UTF8String(E.Message));
+    end;
+    FUploadedFiles.Delete(lIndex);
+  end;
+end;
+
+procedure TNXOpenAIProvider.DeleteUploadedFiles;
+begin
+  DeleteUploadedFilesFrom(0);
 end;
 
 procedure TNXOpenAIProvider.ThreadExecute;
@@ -749,6 +1126,7 @@ begin
       LeaveCriticalSection(FCriticalSection);
     end;
   until lStop;
+  DeleteUploadedFiles;
   FAPIKey := '';
   FPreviousResponseID := '';
   if State <> bpsFailed then

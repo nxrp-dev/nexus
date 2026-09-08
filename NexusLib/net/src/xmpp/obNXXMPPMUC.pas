@@ -971,7 +971,8 @@ begin
         Assigned(FOnChatState) then
         FOnChatState(Self, lRoom, lMessage.FromJID, lMessage.ChatState);
       if Assigned(FOnRoomMessage) and ((lMessage.Body <> '') or
-        (lMessage.Subject <> '') or lMessage.Reply.Present) then
+        (lMessage.Subject <> '') or lMessage.Reply.Present or
+        (Length(lMessage.Attachments) > 0)) then
         FOnRoomMessage(Self, lRoom, lMessage);
     finally
       lMessage.Free;

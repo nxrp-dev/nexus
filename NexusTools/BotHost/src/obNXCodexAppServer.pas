@@ -126,6 +126,8 @@ type
     procedure SendDynamicToolDecline(AMessage: TNXJSONRPCMessage);
     procedure SendDynamicToolResult(AID: TJSONData;
       const AResult: TNXBotControlResult);
+    procedure SendDynamicToolText(AID: TJSONData; ASuccess: Boolean;
+      const AText: UTF8String);
     procedure SendElicitationDecline(AMessage: TNXJSONRPCMessage);
     procedure SendInitialized;
     procedure SendJSON(AJSON: TJSONData);
@@ -174,7 +176,8 @@ implementation
 uses
   obNXCodexAppServerMessages,
   obNXCodexAppServerTypes,
-  obNXJSONValues;
+  obNXJSONValues,
+  tpNXBotFileTypes;
 
 const
   cAppServerEnvelopePolicy = jepHeaderless;
@@ -191,6 +194,16 @@ type
     destructor Destroy; override;
     procedure Complete(const AToken: QWord;
       const AResult: TNXBotControlResult);
+  end;
+
+  TNXCodexFileSendRequest = class
+  private
+    FID: TJSONData;
+    FServer: TNXCodexAppServer;
+  public
+    constructor Create(AServer: TNXCodexAppServer; AID: TJSONData);
+    destructor Destroy; override;
+    procedure Complete(ASuccess: Boolean; const ADetail: UTF8String);
   end;
 
 constructor TNXCodexControlRequest.Create(AServer: TNXCodexAppServer;
@@ -217,6 +230,34 @@ begin
     FID := nil;
     if not FServer.SubmitControlResult(lID, AResult) then
       lID.Free;
+  finally
+    Free;
+  end;
+end;
+
+constructor TNXCodexFileSendRequest.Create(AServer: TNXCodexAppServer;
+  AID: TJSONData);
+begin
+  inherited Create;
+  FServer := AServer;
+  FID := AID;
+end;
+
+destructor TNXCodexFileSendRequest.Destroy;
+begin
+  FID.Free;
+  inherited Destroy;
+end;
+
+procedure TNXCodexFileSendRequest.Complete(ASuccess: Boolean;
+  const ADetail: UTF8String);
+var
+  lID: TJSONData;
+begin
+  try
+    lID := FID;
+    FID := nil;
+    FServer.SendDynamicToolText(lID, ASuccess, ADetail);
   finally
     Free;
   end;
@@ -770,7 +811,7 @@ begin
   lCommand.params.developerInstructions.Value := FInstructions + ' ' +
     'You are an XMPP bot. Each user message begins with authoritative XMPP ' +
     'delivery context supplied by the host. Answer the user message directly. Do not run ' +
-    'commands, read or modify files, use network tools, invoke MCP tools, ask ' +
+    'commands, read or modify arbitrary files, use network tools, invoke MCP tools, ask ' +
     'for approvals, or request additional user input. Use the bot_control ' +
     'tool whenever the user asks to list the bot roster, inspect bot status, ' +
     'invite or summon a bot, or dismiss a bot. For invite or dismiss ' +
@@ -780,7 +821,9 @@ begin
     'roster is the set of bots Nexus manages. For every request to list, ' +
     'show, or get the roster, call bot_control with operation list before ' +
     'answering. Never substitute a plugin, app, service, or general-knowledge ' +
-    'catalog for the bot roster.';
+    'catalog for the bot roster. Attachments listed by the host may be read ' +
+    'only with read_attachment, or relayed to the same XMPP conversation ' +
+    'with send_file.';
   lCommand.params.dynamicTools.Assigned := True;
   lTool := TNXCodexDynamicToolSpec(lCommand.params.dynamicTools.AddObject(
     TNXCodexDynamicToolSpec));
@@ -799,6 +842,33 @@ begin
   lTool.inputSchema.properties.bot.&type.Value := 'string';
   lTool.inputSchema.properties.room.&type.Value := 'string';
   lTool.inputSchema.required.AddString('operation');
+  lTool := TNXCodexDynamicToolSpec(lCommand.params.dynamicTools.AddObject(
+    TNXCodexDynamicToolSpec));
+  lTool.&type.Value := 'function';
+  lTool.name.Value := 'read_attachment';
+  lTool.description.Value := 'Read a bounded UTF-8 range from an attachment ' +
+    'owned by the active XMPP prompt.';
+  lTool.inputSchema.&type.Value := 'object';
+  lTool.inputSchema.additionalProperties.Value := False;
+  lTool.inputSchema.properties.attachment_id.&type.Value := 'string';
+  lTool.inputSchema.properties.offset.&type.Value := 'integer';
+  lTool.inputSchema.properties.offset.minimum.Value := 0;
+  lTool.inputSchema.properties.maximum_bytes.&type.Value := 'integer';
+  lTool.inputSchema.properties.maximum_bytes.minimum.Value := 1;
+  lTool.inputSchema.properties.maximum_bytes.maximum.Value := 65536;
+  lTool.inputSchema.required.AddString('attachment_id');
+  lTool.inputSchema.required.AddString('offset');
+  lTool.inputSchema.required.AddString('maximum_bytes');
+  lTool := TNXCodexDynamicToolSpec(lCommand.params.dynamicTools.AddObject(
+    TNXCodexDynamicToolSpec));
+  lTool.&type.Value := 'function';
+  lTool.name.Value := 'send_file';
+  lTool.description.Value := 'Relay an attachment owned by the active XMPP ' +
+    'prompt back to that same XMPP conversation.';
+  lTool.inputSchema.&type.Value := 'object';
+  lTool.inputSchema.additionalProperties.Value := False;
+  lTool.inputSchema.properties.attachment_id.&type.Value := 'string';
+  lTool.inputSchema.required.AddString('attachment_id');
   SendRequest(rkThreadStart, lCommand);
 end;
 
@@ -1125,10 +1195,19 @@ end;
 
 procedure TNXCodexAppServer.HandleServerRequest(AMessage: TNXJSONRPCMessage);
 var
-  lArguments: TNXCodexBotControlArguments;
+  lAttachment: TNXBotAttachment;
+  lArguments: TNXCodexDynamicToolArguments;
   lAuthorization: TNXBotAuthorization;
   lControlRequest: TNXCodexControlRequest;
+  lFileRequest: TNXCodexFileSendRequest;
   lID: TJSONData;
+  lBuffer: RawByteString;
+  lCount: Integer;
+  lFile: TFileStream;
+  lIndex: Integer;
+  lMaximum: Int64;
+  lMore: Boolean;
+  lOffset: Int64;
   lOperation: TNXBotControlOperation;
   lResponse: TJSONObject;
   lRoomJID: UTF8String;
@@ -1148,7 +1227,121 @@ begin
     SendElicitationDecline(AMessage)
   else if AMessage is TNXCodexDynamicToolCallRequest then
   begin
-    if TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value <>
+    if TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value =
+      'send_file' then
+    begin
+      if not Assigned(FActivePrompt) or
+        (TNXCodexDynamicToolCallRequest(AMessage).params.turnId.Value <>
+        FActiveTurnID) or not
+        (TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value is
+        TNXCodexDynamicToolArguments) then
+      begin
+        SendDynamicToolDecline(AMessage);
+        Exit;
+      end;
+      lArguments := TNXCodexDynamicToolArguments(
+        TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value);
+      lAttachment := nil;
+      for lIndex := 0 to FActivePrompt.Attachments.Count - 1 do
+        if FActivePrompt.Attachments[lIndex].ID =
+          lArguments.attachment_id.Value then
+          lAttachment := FActivePrompt.Attachments[lIndex];
+      if not Assigned(lAttachment) then
+      begin
+        SendDynamicToolText(AMessage.IDJSON, False,
+          'The attachment is not owned by the active prompt.');
+        Exit;
+      end;
+      lFileRequest := TNXCodexFileSendRequest.Create(Self, AMessage.IDJSON);
+      if not RequestFileSend(NXBotFileSendRequest(lAttachment.ID,
+        FActivePrompt.Delivery = bpdRoom, FActivePrompt.RoomJID,
+        FActivePrompt.SenderJID, FActivePrompt.ReplyID),
+        @lFileRequest.Complete) then
+      begin
+        lFileRequest.Free;
+        SendDynamicToolText(AMessage.IDJSON, False,
+          'The attachment relay request could not be accepted.');
+      end
+      else
+        AddDiagnostic('Accepted send_file request.');
+    end
+    else if TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value =
+      'read_attachment' then
+    begin
+      if not Assigned(FActivePrompt) or
+        (TNXCodexDynamicToolCallRequest(AMessage).params.turnId.Value <>
+        FActiveTurnID) or not
+        (TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value is
+        TNXCodexDynamicToolArguments) then
+      begin
+        SendDynamicToolDecline(AMessage);
+        Exit;
+      end;
+      lArguments := TNXCodexDynamicToolArguments(
+        TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value);
+      lAttachment := nil;
+      for lIndex := 0 to FActivePrompt.Attachments.Count - 1 do
+        if FActivePrompt.Attachments[lIndex].ID =
+          lArguments.attachment_id.Value then
+          lAttachment := FActivePrompt.Attachments[lIndex];
+      lOffset := lArguments.offset.Value;
+      lMaximum := lArguments.maximum_bytes.Value;
+      if not Assigned(lAttachment) or (lOffset < 0) or (lMaximum < 1) or
+        not FileExists(lAttachment.Path) then
+      begin
+        SendDynamicToolText(AMessage.IDJSON, False,
+          'The attachment or requested range is invalid.');
+        Exit;
+      end;
+      if lMaximum > 65536 then
+        lMaximum := 65536;
+      if (Pos('text/', LowerCase(string(lAttachment.MediaType))) <> 1) and
+        (Pos('json', LowerCase(string(lAttachment.MediaType))) = 0) and
+        (Pos('xml', LowerCase(string(lAttachment.MediaType))) = 0) and
+        (Pos('javascript', LowerCase(string(lAttachment.MediaType))) = 0) then
+      begin
+        SendDynamicToolText(AMessage.IDJSON, False,
+          'The attachment is not a supported UTF-8 text document.');
+        Exit;
+      end;
+      lFile := TFileStream.Create(lAttachment.Path,
+        fmOpenRead or fmShareDenyWrite);
+      try
+        if lOffset > lFile.Size then lOffset := lFile.Size;
+        lFile.Position := lOffset;
+        SetLength(lBuffer, lMaximum + 4);
+        lCount := lFile.Read(lBuffer[1], Length(lBuffer));
+        SetLength(lBuffer, lCount);
+        while (Length(lBuffer) > 0) and (lOffset < lFile.Size) and
+          ((Byte(lBuffer[1]) and $C0) = $80) do
+        begin
+          Delete(lBuffer, 1, 1);
+          Inc(lOffset);
+        end;
+        if Length(lBuffer) > lMaximum then
+        begin
+          lCount := lMaximum;
+          if (Byte(lBuffer[lCount + 1]) and $C0) = $80 then
+          begin
+            while (lCount > 0) and
+              ((Byte(lBuffer[lCount]) and $C0) = $80) do Dec(lCount);
+            if lCount > 0 then Dec(lCount);
+          end;
+          SetLength(lBuffer, lCount);
+        end;
+        lMore := lOffset + Length(lBuffer) < lFile.Size;
+        SendDynamicToolText(AMessage.IDJSON, True,
+          'attachment_id=' + lAttachment.ID + '; total_bytes=' +
+          UTF8String(IntToStr(lFile.Size)) + '; returned_offset=' +
+          UTF8String(IntToStr(lOffset)) + '; returned_bytes=' +
+          UTF8String(IntToStr(Length(lBuffer))) + '; next_offset=' +
+          UTF8String(IntToStr(lOffset + Length(lBuffer))) + '; more=' +
+          UTF8String(BoolToStr(lMore, True)) + LineEnding + UTF8String(lBuffer));
+      finally
+        lFile.Free;
+      end;
+    end
+    else if TNXCodexDynamicToolCallRequest(AMessage).params.tool.Value <>
       'bot_control' then
     begin
       AddDiagnostic('Declined dynamic tool request for ' +
@@ -1173,14 +1366,14 @@ begin
     end
     else if not
       (TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value is
-      TNXCodexBotControlArguments) then
+      TNXCodexDynamicToolArguments) then
     begin
       AddDiagnostic('Declined bot_control request: invalid arguments.');
       SendDynamicToolDecline(AMessage)
     end
     else
     begin
-      lArguments := TNXCodexBotControlArguments(
+      lArguments := TNXCodexDynamicToolArguments(
         TNXCodexDynamicToolCallRequest(AMessage).params.arguments.Value);
       if SameText(lArguments.operation.Value, 'list') then
         lOperation := NXBotControlOperation(bcokList, '', '')
@@ -1249,29 +1442,36 @@ end;
 procedure TNXCodexAppServer.SendDynamicToolResult(AID: TJSONData;
   const AResult: TNXBotControlResult);
 var
-  lContent: TNXCodexDynamicToolTextContent;
   lIndex: Integer;
+  lText: UTF8String;
+begin
+  lText := 'error=' + NXBotControlErrorName(AResult.Error);
+  if AResult.Detail <> '' then
+    lText := lText + '; detail=' + AResult.Detail;
+  for lIndex := 0 to High(AResult.Bots) do
+    lText := lText + #10 + AResult.Bots[lIndex].Name +
+      ': active=' + UTF8String(BoolToStr(
+      AResult.Bots[lIndex].Active, True)) + '; providerState=' +
+      AResult.Bots[lIndex].ProviderState + '; xmpp=' +
+      AResult.Bots[lIndex].XMPPState;
+  SendDynamicToolText(AID, AResult.Error = bceNone, lText);
+end;
+
+procedure TNXCodexAppServer.SendDynamicToolText(AID: TJSONData;
+  ASuccess: Boolean; const AText: UTF8String);
+var
+  lContent: TNXCodexDynamicToolTextContent;
   lResponse: TJSONObject;
   lResult: TNXCodexDynamicToolCallResult;
-  lText: UTF8String;
 begin
   lResult := TNXCodexDynamicToolCallResult.Create;
   try
-    lResult.success.Value := AResult.Error = bceNone;
+    lResult.success.Value := ASuccess;
     lResult.contentItems.Assigned := True;
-    lText := 'error=' + NXBotControlErrorName(AResult.Error);
-    if AResult.Detail <> '' then
-      lText := lText + '; detail=' + AResult.Detail;
-    for lIndex := 0 to High(AResult.Bots) do
-      lText := lText + #10 + AResult.Bots[lIndex].Name +
-        ': active=' + UTF8String(BoolToStr(
-        AResult.Bots[lIndex].Active, True)) + '; providerState=' +
-        AResult.Bots[lIndex].ProviderState + '; xmpp=' +
-        AResult.Bots[lIndex].XMPPState;
     lContent := TNXCodexDynamicToolTextContent(
       lResult.contentItems.AddObject(TNXCodexDynamicToolTextContent));
     lContent.&type.Value := 'inputText';
-    lContent.text.Value := lText;
+    lContent.text.Value := AText;
     lResponse := TNXJSONRPC.CreateSuccessResponse(AID, lResult,
       jepHeaderless);
     try
@@ -1405,8 +1605,12 @@ end;
 
 procedure TNXCodexAppServer.StartNextPrompt;
 var
+  lAttachment: TNXBotAttachment;
+  lAudio: TNXCodexLocalAudioInput;
   lCommand: TNXCodexTurnStartCommand;
+  lImage: TNXCodexLocalImageInput;
   lInput: TNXCodexTextInput;
+  lIndex: Integer;
 begin
   if (State <> bpsReady) or Assigned(FActivePrompt) or
     (FPendingPrompts.Count = 0) then
@@ -1423,6 +1627,24 @@ begin
   lInput.&type.Value := 'text';
   lInput.text.Value := FActivePrompt.ModelInput;
   lInput.text_elements.Assigned := True;
+  for lIndex := 0 to FActivePrompt.Attachments.Count - 1 do
+  begin
+    lAttachment := FActivePrompt.Attachments[lIndex];
+    if Pos('image/', LowerCase(string(lAttachment.MediaType))) = 1 then
+    begin
+      lImage := TNXCodexLocalImageInput(lCommand.params.input.AddObject(
+        TNXCodexLocalImageInput));
+      lImage.&type.Value := 'localImage';
+      lImage.path.Value := UTF8String(lAttachment.Path);
+    end
+    else if Pos('audio/', LowerCase(string(lAttachment.MediaType))) = 1 then
+    begin
+      lAudio := TNXCodexLocalAudioInput(lCommand.params.input.AddObject(
+        TNXCodexLocalAudioInput));
+      lAudio.&type.Value := 'localAudio';
+      lAudio.path.Value := UTF8String(lAttachment.Path);
+    end;
+  end;
   SendRequest(rkTurnStart, lCommand);
   SetState(bpsWorking, 'Starting Codex turn.');
 end;

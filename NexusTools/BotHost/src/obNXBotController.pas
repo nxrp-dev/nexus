@@ -995,6 +995,13 @@ begin
       lBinding.Password := ABinding.Password;
       lBinding.Resource := ABinding.Resource;
       lBinding.RuntimeDirectory := ABinding.RuntimeDirectory;
+      lBinding.ExchangeDirectory := ABinding.ExchangeDirectory;
+      lBinding.FileMaximumBytes := ABinding.FileMaximumBytes;
+      lBinding.FileTransferCapacity := ABinding.FileTransferCapacity;
+      lBinding.FileTransferTimeoutMS := ABinding.FileTransferTimeoutMS;
+      lBinding.StagedFileCapacity := ABinding.StagedFileCapacity;
+      lBinding.StagedMaximumBytes := ABinding.StagedMaximumBytes;
+      lBinding.TrustedFileOrigins.Assign(ABinding.TrustedFileOrigins);
       lBinding.XMPPJID := ABinding.XMPPJID;
     end;
   finally

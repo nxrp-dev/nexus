@@ -14,6 +14,7 @@ uses
   obNXTestRPCRequests,
   obNXOpenAIProvider,
   tsNXBotHostTests,
+  tsNXBotFileExchangeTests,
   tsNXOpenAIProviderTests,
   tsNXBotHostLiveTests;
 
@@ -23,6 +24,7 @@ var
 procedure RegisterTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXBotHostTests(ARegistry);
+  RegisterNXBotFileExchangeTests(ARegistry);
   RegisterNXOpenAIProviderTests(ARegistry);
   RegisterNXBotHostLiveTests(ARegistry);
 end;

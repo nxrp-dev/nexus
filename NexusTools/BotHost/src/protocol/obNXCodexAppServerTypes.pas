@@ -316,6 +316,28 @@ type
     property text_elements: TNXJSONArray read Ftext_elements write Ftext_elements;
   end;
 
+  TNXCodexLocalImageInput = class(TNXJSONObject)
+  private
+    Fdetail: TNXJSONString;
+    Fpath: TNXJSONString;
+    Ftype: TNXJSONString;
+  public
+    constructor Create; override;
+  published
+    property detail: TNXJSONString read Fdetail write Fdetail;
+    property path: TNXJSONString read Fpath write Fpath;
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXCodexLocalAudioInput = class(TNXJSONObject)
+  private
+    Fpath: TNXJSONString;
+    Ftype: TNXJSONString;
+  published
+    property path: TNXJSONString read Fpath write Fpath;
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
   TNXCodexUserInputArray = class(TNXJSONArray)
   public
     class function ItemClass: TNXJSONValueClass; override;
@@ -532,14 +554,22 @@ type
       write FstrictAutoReview;
   end;
 
-  TNXCodexBotControlArguments = class(TNXJSONObject)
+  TNXCodexDynamicToolArguments = class(TNXJSONObject)
   private
+    Fattachment_id: TNXJSONString;
     Fbot: TNXJSONString;
+    Fmaximum_bytes: TNXJSONInteger;
+    Foffset: TNXJSONInteger;
     Foperation: TNXJSONString;
     Froom: TNXJSONString;
   published
+    property attachment_id: TNXJSONString read Fattachment_id
+      write Fattachment_id;
     property bot: TNXJSONString read Fbot write Fbot;
     property operation: TNXJSONString read Foperation write Foperation;
+    property maximum_bytes: TNXJSONInteger read Fmaximum_bytes
+      write Fmaximum_bytes;
+    property offset: TNXJSONInteger read Foffset write Foffset;
     property room: TNXJSONString read Froom write Froom;
   end;
 
@@ -559,15 +589,34 @@ type
     property &type: TNXJSONString read Ftype write Ftype;
   end;
 
+  TNXCodexIntegerSchema = class(TNXJSONObject)
+  private
+    Fmaximum: TNXJSONInteger;
+    Fminimum: TNXJSONInteger;
+    Ftype: TNXJSONString;
+  published
+    property maximum: TNXJSONInteger read Fmaximum write Fmaximum;
+    property minimum: TNXJSONInteger read Fminimum write Fminimum;
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
   TNXCodexBotControlSchemaProperties = class(TNXJSONObject)
   private
     Fbot: TNXCodexBotControlStringSchema;
+    Fattachment_id: TNXCodexBotControlStringSchema;
+    Fmaximum_bytes: TNXCodexIntegerSchema;
+    Foffset: TNXCodexIntegerSchema;
     Foperation: TNXCodexBotControlOperationSchema;
     Froom: TNXCodexBotControlStringSchema;
   published
+    property attachment_id: TNXCodexBotControlStringSchema
+      read Fattachment_id write Fattachment_id;
     property bot: TNXCodexBotControlStringSchema read Fbot write Fbot;
     property operation: TNXCodexBotControlOperationSchema read Foperation
       write Foperation;
+    property maximum_bytes: TNXCodexIntegerSchema read Fmaximum_bytes
+      write Fmaximum_bytes;
+    property offset: TNXCodexIntegerSchema read Foffset write Foffset;
     property room: TNXCodexBotControlStringSchema read Froom write Froom;
   end;
 
@@ -755,6 +804,12 @@ begin
   Result := TNXCodexTextInput;
 end;
 
+constructor TNXCodexLocalImageInput.Create;
+begin
+  inherited Create;
+  detail.AcceptsNull := True;
+end;
+
 constructor TNXCodexTurnStartParams.Create;
 begin
   inherited Create;
@@ -858,7 +913,7 @@ class function TNXCodexAnyJSONValue.ValueClassForJSON(AData: TJSONData):
   TNXJSONRPCValueClass;
 begin
   if (AData <> nil) and (AData.JSONType = jtObject) then
-    Result := TNXCodexBotControlArguments
+    Result := TNXCodexDynamicToolArguments
   else
     Result := inherited ValueClassForJSON(AData);
 end;

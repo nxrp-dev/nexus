@@ -12,6 +12,30 @@ uses
 
 type
   TNXXMPPDiscoModule = class;
+  TNXXMPPDataFormField = class
+  private
+    FName: UTF8String;
+    FValues: TStringList;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property Name: UTF8String read FName;
+    property Values: TStringList read FValues;
+  end;
+
+  TNXXMPPDataForm = class
+  private
+    FFields: TObjectList;
+    FFormType: UTF8String;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    function Canonical: UTF8String;
+    function Field(const AName: UTF8String): TNXXMPPDataFormField;
+    property Fields: TObjectList read FFields;
+    property FormType: UTF8String read FFormType;
+  end;
+
   TNXXMPPDiscoIdentity = record
     Category: UTF8String;
     IdentityType: UTF8String;
@@ -23,6 +47,7 @@ type
   TNXXMPPDiscoInfo = class
   private
     FError: UTF8String;
+    FDataForms: TObjectList;
     FFeatures: TStringList;
     FForms: TStringList;
     FFromJID: UTF8String;
@@ -32,11 +57,13 @@ type
     constructor Create;
     destructor Destroy; override;
     property Error: UTF8String read FError;
+    property DataForms: TObjectList read FDataForms;
     property Features: TStringList read FFeatures;
     property Forms: TStringList read FForms;
     property FromJID: UTF8String read FFromJID;
     property Identities: TNXXMPPDiscoIdentityArray read FIdentities;
     property Node: UTF8String read FNode;
+    function DataForm(const AFormType: UTF8String): TNXXMPPDataForm;
   end;
 
   TNXXMPPDiscoItem = record
@@ -122,8 +149,6 @@ type
     procedure HandleInfo(AStanza: TNXXMPPStanza);
     procedure CompleteCaps(ARequest: TNXXMPPCapsRequest;
       AStanza: TNXXMPPStanza; const AError: UTF8String);
-    function ParseInfo(AStanza: TNXXMPPStanza;
-      const AError: UTF8String): TNXXMPPDiscoInfo;
   public
     constructor Create(const ACategory, AType, AName: UTF8String);
     destructor Destroy; override;
@@ -137,12 +162,93 @@ type
     procedure PumpStanza(AStanza: TNXXMPPStanza); override;
     class function CapabilityHash(AInfo: TNXXMPPDiscoInfo): UTF8String;
       static;
+    class function ParseInfoResponse(AStanza: TNXXMPPStanza;
+      const AError: UTF8String): TNXXMPPDiscoInfo; static;
+    class function ParseItemsResponse(AStanza: TNXXMPPStanza;
+      const AError: UTF8String): TNXXMPPDiscoItems; static;
     property OnInfo: TNXXMPPDiscoInfoEvent read FOnInfo write FOnInfo;
     property OnItems: TNXXMPPDiscoItemsEvent read FOnItems write FOnItems;
     property Capabilities: TNXXMPPCapabilityCache read FCapabilities;
   end;
 
 implementation
+
+constructor TNXXMPPDataFormField.Create;
+begin
+  inherited Create;
+  FValues := TStringList.Create;
+  FValues.CaseSensitive := True;
+end;
+
+destructor TNXXMPPDataFormField.Destroy;
+begin
+  FValues.Free;
+  inherited Destroy;
+end;
+
+constructor TNXXMPPDataForm.Create;
+begin
+  inherited Create;
+  FFields := TObjectList.Create(True);
+end;
+
+destructor TNXXMPPDataForm.Destroy;
+begin
+  FFields.Free;
+  inherited Destroy;
+end;
+
+function TNXXMPPDataForm.Field(
+  const AName: UTF8String): TNXXMPPDataFormField;
+var
+  lIndex: Integer;
+begin
+  for lIndex := 0 to FFields.Count - 1 do
+    if TNXXMPPDataFormField(FFields[lIndex]).Name = AName then
+      Exit(TNXXMPPDataFormField(FFields[lIndex]));
+  Result := nil;
+end;
+
+function TNXXMPPDataForm.Canonical: UTF8String;
+var
+  lField: TNXXMPPDataFormField;
+  lFieldCanonical: UTF8String;
+  lFields: TStringList;
+  lIndex: Integer;
+  lValue: Integer;
+  lValues: TStringList;
+begin
+  Result := FFormType + '<';
+  lFields := TStringList.Create;
+  try
+    lFields.CaseSensitive := True;
+    lFields.Sorted := True;
+    lFields.Duplicates := dupAccept;
+    for lIndex := 0 to FFields.Count - 1 do
+    begin
+      lField := TNXXMPPDataFormField(FFields[lIndex]);
+      if lField.Name = 'FORM_TYPE' then
+        Continue;
+      lValues := TStringList.Create;
+      try
+        lValues.Assign(lField.Values);
+        lValues.CaseSensitive := True;
+        lValues.Sorted := True;
+        lFieldCanonical := lField.Name + '<';
+        for lValue := 0 to lValues.Count - 1 do
+          lFieldCanonical := lFieldCanonical + UTF8String(lValues[lValue]) +
+            '<';
+        lFields.Add(string(lFieldCanonical));
+      finally
+        lValues.Free;
+      end;
+    end;
+    for lIndex := 0 to lFields.Count - 1 do
+      Result := Result + UTF8String(lFields[lIndex]);
+  finally
+    lFields.Free;
+  end;
+end;
 
 procedure TNXXMPPCapsRequest.Complete(AStanza: TNXXMPPStanza;
   const AError: UTF8String);
@@ -298,6 +404,7 @@ end;
 constructor TNXXMPPDiscoInfo.Create;
 begin
   inherited Create;
+  FDataForms := TObjectList.Create(True);
   FFeatures := TStringList.Create;
   FFeatures.CaseSensitive := True;
   FFeatures.Sorted := True;
@@ -310,78 +417,71 @@ end;
 
 destructor TNXXMPPDiscoInfo.Destroy;
 begin
+  FDataForms.Free;
   FForms.Free;
   FFeatures.Free;
   inherited Destroy;
 end;
 
-function NXXMPPCanonicalDataForm(AForm: TDOMElement;
-  out ACanonical: UTF8String): Boolean;
+function TNXXMPPDiscoInfo.DataForm(
+  const AFormType: UTF8String): TNXXMPPDataForm;
 var
-  lField: TDOMElement;
-  lFieldName: UTF8String;
-  lFields: TStringList;
-  lFormType: UTF8String;
-  lValue: TDOMElement;
-  lValues: TStringList;
   lIndex: Integer;
 begin
+  for lIndex := 0 to FDataForms.Count - 1 do
+    if TNXXMPPDataForm(FDataForms[lIndex]).FormType = AFormType then
+      Exit(TNXXMPPDataForm(FDataForms[lIndex]));
+  Result := nil;
+end;
+
+function NXXMPPParseDataForm(AElement: TDOMElement;
+  out AForm: TNXXMPPDataForm): Boolean;
+var
+  lFieldElement: TDOMElement;
+  lField: TNXXMPPDataFormField;
+  lValue: TDOMElement;
+begin
   Result := False;
-  ACanonical := '';
-  lFormType := '';
-  lFields := TStringList.Create;
-  lValues := TStringList.Create;
+  AForm := TNXXMPPDataForm.Create;
   try
-    lFields.CaseSensitive := True;
-    lFields.Sorted := True;
-    lFields.Duplicates := dupIgnore;
-    lFields.NameValueSeparator := '<';
-    lField := NXXMPPFirstChildElement(AForm);
-    while Assigned(lField) do
+    lFieldElement := NXXMPPFirstChildElement(AElement);
+    while Assigned(lFieldElement) do
     begin
-      if NXXMPPElementMatches(lField, 'jabber:x:data', 'field') then
+      if NXXMPPElementMatches(lFieldElement, 'jabber:x:data', 'field') then
       begin
-        lFieldName := UTF8Encode(lField.GetAttribute('var'));
-        if lFieldName = '' then
+        lField := TNXXMPPDataFormField.Create;
+        lField.FName := UTF8Encode(lFieldElement.GetAttribute('var'));
+        if (lField.Name = '') or Assigned(AForm.Field(lField.Name)) then
+        begin
+          lField.Free;
           Exit;
-        lValues.Clear;
-    lValues.Sorted := True;
-    lValues.CaseSensitive := True;
-        lValues.Duplicates := dupAccept;
-        lValue := NXXMPPFirstChildElement(lField);
+        end;
+        lValue := NXXMPPFirstChildElement(lFieldElement);
         while Assigned(lValue) do
         begin
           if NXXMPPElementMatches(lValue, 'jabber:x:data', 'value') then
-            lValues.Add(string(NXXMPPDirectText(lValue)));
+            lField.Values.Add(string(NXXMPPDirectText(lValue)));
           lValue := NXXMPPNextSiblingElement(lValue);
         end;
-        if lFieldName = 'FORM_TYPE' then
+        if lField.Name = 'FORM_TYPE' then
         begin
-          if (lFormType <> '') or (lValues.Count <> 1) then
+          if (AForm.FFormType <> '') or (lField.Values.Count <> 1) then
+          begin
+            lField.Free;
             Exit;
-          lFormType := UTF8String(lValues[0]);
-        end
-        else
-        begin
-          if lFields.IndexOfName(string(lFieldName)) >= 0 then
-            Exit;
-          ACanonical := lFieldName + '<';
-          for lIndex := 0 to lValues.Count - 1 do
-            ACanonical := ACanonical + UTF8String(lValues[lIndex]) + '<';
-          lFields.Add(string(ACanonical));
+          end;
+          AForm.FFormType := UTF8String(lField.Values[0]);
         end;
+        AForm.Fields.Add(lField);
       end;
-      lField := NXXMPPNextSiblingElement(lField);
+      lFieldElement := NXXMPPNextSiblingElement(lFieldElement);
     end;
-    if lFormType = '' then
+    if AForm.FormType = '' then
       Exit;
-    ACanonical := lFormType + '<';
-    for lIndex := 0 to lFields.Count - 1 do
-      ACanonical := ACanonical + UTF8String(lFields[lIndex]);
     Result := True;
   finally
-    lValues.Free;
-    lFields.Free;
+    if not Result then
+      FreeAndNil(AForm);
   end;
 end;
 
@@ -517,7 +617,7 @@ begin
   if FCapsRequests.IndexOf(ARequest) < 0 then
     Exit;
   FCapsRequests.Extract(ARequest);
-  lInfo := ParseInfo(AStanza, AError);
+  lInfo := ParseInfoResponse(AStanza, AError);
   try
     if (lInfo.Error = '') and (lInfo.Node = ARequest.FNode) then
       FCapabilities.StoreVerified(ARequest.FEntityJID, ARequest.FNode,
@@ -534,7 +634,7 @@ procedure TNXXMPPDiscoModule.CompleteInfo(AStanza: TNXXMPPStanza;
 var
   lInfo: TNXXMPPDiscoInfo;
 begin
-  lInfo := ParseInfo(AStanza, AError);
+  lInfo := ParseInfoResponse(AStanza, AError);
   try
     if Assigned(FOnInfo) then
       FOnInfo(Self, lInfo);
@@ -543,13 +643,14 @@ begin
   end;
 end;
 
-function TNXXMPPDiscoModule.ParseInfo(AStanza: TNXXMPPStanza;
+class function TNXXMPPDiscoModule.ParseInfoResponse(AStanza: TNXXMPPStanza;
   const AError: UTF8String): TNXXMPPDiscoInfo;
 var
   lChild: TDOMElement;
   lIdentity: TNXXMPPDiscoIdentity;
   lQuery: TDOMElement;
   lCanonicalForm: UTF8String;
+  lDataForm: TNXXMPPDataForm;
   lIndex: Integer;
   lDuplicate: Boolean;
 begin
@@ -604,12 +705,22 @@ begin
           end
           else if NXXMPPElementMatches(lChild, 'jabber:x:data', 'x') then
           begin
-            if not NXXMPPCanonicalDataForm(lChild, lCanonicalForm) then
+            if not NXXMPPParseDataForm(lChild, lDataForm) then
               Result.FError := 'The disco info response has an invalid data form.'
-            else if Result.FForms.IndexOf(string(lCanonicalForm)) >= 0 then
-              Result.FError := 'The disco info response repeats a data form.'
             else
-              Result.FForms.Add(string(lCanonicalForm));
+            begin
+              lCanonicalForm := lDataForm.Canonical;
+              if Result.FForms.IndexOf(string(lCanonicalForm)) >= 0 then
+              begin
+                Result.FError := 'The disco info response repeats a data form.';
+                lDataForm.Free;
+              end
+              else
+              begin
+                Result.FDataForms.Add(lDataForm);
+                Result.FForms.Add(string(lCanonicalForm));
+              end;
+            end;
           end;
           lChild := NXXMPPNextSiblingElement(lChild);
         end;
@@ -620,24 +731,36 @@ end;
 procedure TNXXMPPDiscoModule.CompleteItems(AStanza: TNXXMPPStanza;
   const AError: UTF8String);
 var
+  lItems: TNXXMPPDiscoItems;
+begin
+  lItems := ParseItemsResponse(AStanza, AError);
+  try
+    if Assigned(FOnItems) then
+      FOnItems(Self, lItems);
+  finally
+    lItems.Free;
+  end;
+end;
+
+class function TNXXMPPDiscoModule.ParseItemsResponse(
+  AStanza: TNXXMPPStanza; const AError: UTF8String): TNXXMPPDiscoItems;
+var
   lChild: TDOMElement;
   lItem: TNXXMPPDiscoItem;
-  lItems: TNXXMPPDiscoItems;
   lQuery: TDOMElement;
 begin
-  lItems := TNXXMPPDiscoItems.Create;
-  try
-    lItems.FError := AError;
+  Result := TNXXMPPDiscoItems.Create;
+  Result.FError := AError;
     if Assigned(AStanza) then
     begin
-      lItems.FFromJID := AStanza.FromJID;
+      Result.FFromJID := AStanza.FromJID;
       lQuery := NXXMPPFindChild(AStanza.Root,
         'http://jabber.org/protocol/disco#items', 'query');
       if not Assigned(lQuery) then
-        lItems.FError := 'The disco items response has no query element.'
+        Result.FError := 'The disco items response has no query element.'
       else
       begin
-        lItems.FNode := UTF8Encode(lQuery.GetAttribute('node'));
+        Result.FNode := UTF8Encode(lQuery.GetAttribute('node'));
         lChild := NXXMPPFirstChildElement(lQuery);
         while Assigned(lChild) do
         begin
@@ -649,19 +772,14 @@ begin
             lItem.Node := UTF8Encode(lChild.GetAttribute('node'));
             if lItem.JID <> '' then
             begin
-              SetLength(lItems.FItems, Length(lItems.FItems) + 1);
-              lItems.FItems[High(lItems.FItems)] := lItem;
+              SetLength(Result.FItems, Length(Result.FItems) + 1);
+              Result.FItems[High(Result.FItems)] := lItem;
             end;
           end;
           lChild := NXXMPPNextSiblingElement(lChild);
         end;
       end;
     end;
-    if Assigned(FOnItems) then
-      FOnItems(Self, lItems);
-  finally
-    lItems.Free;
-  end;
 end;
 
 class function TNXXMPPDiscoModule.CapabilityHash(

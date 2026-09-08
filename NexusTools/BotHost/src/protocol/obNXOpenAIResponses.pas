@@ -9,16 +9,63 @@ uses
   obNXJSONValues;
 
 type
+  TNXOpenAIInputContent = class(TNXJSONObject)
+  private
+    Ftype: TNXJSONString;
+  published
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXOpenAIInputText = class(TNXOpenAIInputContent)
+  private
+    Ftext: TNXJSONString;
+  published
+    property text: TNXJSONString read Ftext write Ftext;
+  end;
+
+  TNXOpenAIInputFile = class(TNXOpenAIInputContent)
+  private
+    Ffile_id: TNXJSONString;
+  published
+    property file_id: TNXJSONString read Ffile_id write Ffile_id;
+  end;
+
+  TNXOpenAIInputImage = class(TNXOpenAIInputContent)
+  private
+    Ffile_id: TNXJSONString;
+  published
+    property file_id: TNXJSONString read Ffile_id write Ffile_id;
+  end;
+
+  TNXOpenAIInputContentArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXOpenAIInputMessage = class(TNXJSONObject)
+  private
+    Fcontent: TNXOpenAIInputContentArray;
+    Frole: TNXJSONString;
+  published
+    property content: TNXOpenAIInputContentArray read Fcontent write Fcontent;
+    property role: TNXJSONString read Frole write Frole;
+  end;
+
+  TNXOpenAIInputMessageArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
   TNXOpenAIResponseRequest = class(TNXJSONObject)
   private
-    Finput: TNXJSONString;
+    Finput: TNXOpenAIInputMessageArray;
     Finstructions: TNXJSONString;
     Fmodel: TNXJSONString;
     Fprevious_response_id: TNXJSONString;
     Fstore: TNXJSONBoolean;
     Fstream: TNXJSONBoolean;
   published
-    property input: TNXJSONString read Finput write Finput;
+    property input: TNXOpenAIInputMessageArray read Finput write Finput;
     property instructions: TNXJSONString read Finstructions write Finstructions;
     property model: TNXJSONString read Fmodel write Fmodel;
     property previous_response_id: TNXJSONString read Fprevious_response_id
@@ -132,6 +179,16 @@ type
   end;
 
 implementation
+
+class function TNXOpenAIInputContentArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXOpenAIInputContent;
+end;
+
+class function TNXOpenAIInputMessageArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXOpenAIInputMessage;
+end;
 
 function JSONDiscriminator(AData: TJSONData): string;
 var
