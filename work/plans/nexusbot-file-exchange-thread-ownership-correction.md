@@ -22,8 +22,8 @@ transfer implementation without changing its fundamental execution model.
 
 The correction will:
 
-- arbitrate cancellation and commitment through one register-sized atomic
-  terminal state;
+- arbitrate cancellation and commitment through one fixed-width `LongInt`
+  atomic terminal state;
 - publish the cancellation reason through protection dedicated solely to that
   complex string value;
 - use the existing callback event as the outbound callback-result handoff;
@@ -128,16 +128,27 @@ ownership and protect only the actual shared collections that remain.
 - Cancellation while an XMPP request is outstanding still drains that one raw
   callback before the transfer exits; this preserves the existing callback
   receiver lifetime without new callback-validity machinery.
+- Transfer cancellation never signals `FResultEvent`. Only the genuine XMPP
+  response, IQ timeout, or XMPP cancellation callback writes the callback
+  result and signals that event. A cancelled transfer waiting for discovery or
+  slot completion remains alive until that registered callback has fired; it
+  then observes `cancelled`, ignores the callback result, and exits.
 
 ### Atomic cancellation and commitment
 
-- Replace `FCommitted` and string-presence-as-state with one register-sized
-  terminal state represented by an ordinal integer:
+- Replace `FCommitted` and string-presence-as-state with exactly
+  `FTerminalState: LongInt` and `LongInt` constants for:
   - `active`;
   - `cancelled`; or
   - `committed`.
-- External cancellation attempts exactly one interlocked transition from
-  `active` to `cancelled`.
+- Use FPC's `InterlockedCompareExchange(var Target: LongInt; NewValue:
+  LongInt; Comperand: LongInt): LongInt` operation on that exact storage. Do
+  not depend on compiler-selected enum sizing or pointer/register width.
+- External cancellation enters the cancellation-reason protection and attempts
+  exactly one interlocked transition from `active` to `cancelled`.
+- If and only if that transition succeeds, cancellation publishes the reason
+  before releasing the reason protection. If commitment already won, it does
+  not write cancellation metadata.
 - The transfer thread attempts exactly one interlocked transition from
   `active` to `committed` at its irreversible handoff boundary.
 - Whichever transition succeeds is authoritative. Cancellation after
@@ -146,9 +157,10 @@ ownership and protect only the actual shared collections that remain.
 - The cancellation reason is metadata, not the arbitration state. Because it
   is a managed complex string, protect its publication and retrieval with a
   critical section dedicated only to that string.
-- Cancellation writes the winning reason while holding the reason protection.
-  A transfer that observes `cancelled` obtains the reason through the same
-  protection, so it cannot observe a partially published managed string.
+- A transfer that observes `cancelled` obtains the reason through the same
+  protection. If it observes the state after the cancellation CAS but before
+  the reason assignment, it waits on that exact protection until publication
+  is complete and cannot observe a partially published managed string.
 - Do not protect the ordinal terminal state with that critical section; the
   interlocked transition is the decision.
 
@@ -170,6 +182,12 @@ ownership and protect only the actual shared collections that remain.
 - Retain/release governs only object memory lifetime. It does not decide
   cancellation, commitment, protocol progression, completion, or shutdown
   policy.
+- A running transfer's collection reference is not released until reaping or
+  shutdown has extracted the transfer and `WaitFor` has completed. Temporary
+  startup or cancellation references may delay destruction beyond that point.
+  The final release may destroy the `TThread` object only after execution has
+  been joined/completed, or when construction succeeded but the candidate was
+  never admitted and therefore never started.
 - The executor's existing critical section remains limited to the concrete
   active-`THTTPSend` publication/clear/abort relationship. Its necessity must
   not be generalized into protection for other transfer state.
@@ -183,14 +201,21 @@ ownership and protect only the actual shared collections that remain.
   may be read while locating transfers, but no cancellation, callback, HTTP,
   filesystem, thread start, join, destruction, or completion work occurs while
   the collection is protected.
-- Candidate transfer construction occurs before collection admission.
+- Candidate transfer construction occurs before collection admission. A
+  constructor exception therefore leaves no live-collection entry, and the
+  accepting path retains responsibility for its unadmitted inputs.
 - Admission adds an accepted suspended transfer under collection protection,
   releases the protection, and starts that exact transfer immediately.
+- FPC 3.2.2 `TThread.Start` is a procedure that delegates to `Resume`; it has
+  no Boolean result and exposes no defined startup-failure exception. Do not
+  invent a startup-failure state machine around a failure the RTL does not
+  report. The recoverable construction boundary is the suspended-thread
+  constructor before admission.
 - Reaping extracts finished transfer objects under collection protection, then
   joins and frees them after releasing it.
-- Shutdown closes admission through a register-sized state, extracts retained
-  thread objects under collection protection, then cancels, joins, and frees
-  them after releasing it.
+- Shutdown closes admission through a separate interlocked `LongInt` state. It
+  extracts retained thread objects under collection protection, then cancels,
+  joins, and frees them after releasing it.
 - Admission rechecks the closed state as part of the add attempt. An admission
   that wins collection insertion is visible to shutdown; one that loses
   releases its unstarted candidate. The accepting call's retained reference
@@ -280,13 +305,14 @@ conflict to report before widening scope.
 
 ### Stage 1: Establish terminal arbitration and retained transfer lifetime
 
-1. Add the private ordinal terminal state and narrow interlocked transfer
-   retain/release count.
+1. Add the private `LongInt` terminal state, fixed `LongInt` state constants,
+   and narrow interlocked transfer retain/release count.
 2. Make collection, admission/startup, cancellation snapshots, reaping, and
    shutdown hold explicit transfer references for exactly as long as they use
    the object.
-3. Implement one interlocked cancellation transition and one interlocked
-   commitment transition.
+3. Implement both terminal transitions with FPC's exact `LongInt`
+   `InterlockedCompareExchange` overload and publish a winning cancellation
+   reason in the required order.
 4. Limit the remaining transfer-local critical section to cancellation-reason
    publication/retrieval and rename it accordingly.
 5. Replace every sampled-cancellation-plus-blind-commit sequence with the
@@ -299,6 +325,8 @@ conflict to report before widening scope.
    auto-reset event, and consume the completed result.
 3. Preserve callback drainage after cancellation and prove both
    callback-before-wait and callback-after-wait behavior.
+4. Ensure cancellation never sets the callback result event and only the
+   actual registered callback discharges the wait.
 
 ### Stage 3: Separate the actual shared memory blocks
 
@@ -353,10 +381,14 @@ delegation authority.
   `SendFileShare`.
 - Publish and retrieve a non-empty managed-string cancellation reason while
   terminal-state contention is forced by barriers rather than timing sleeps.
+- Force commitment to win while a cancellation caller is waiting to enter the
+  reason protection and prove the losing caller writes no cancellation
+  metadata.
 - Complete discovery/slot callbacks both before and after the transfer begins
   waiting; prove one wake and one result for each request.
 - Cancel while one discovery/slot callback is outstanding and prove the
-  callback is drained before transfer destruction.
+  cancellation path does not signal the result event and the genuine callback
+  is drained before transfer destruction.
 - Block one executor's `Abort` deterministically while unrelated artifact
   lookup, staging accounting, and transfer admission continue; this proves no
   collection critical section is retained through abort.
@@ -367,6 +399,11 @@ delegation authority.
 - Exercise shutdown against a just-accepted transfer and prove it is cancelled,
   started, joined, and freed without polling, forced termination, or a dangling
   transfer reference.
+- Force constructor failure before admission and prove no live-transfer entry
+  or retained reference is created. Do not simulate an unsupported
+  `TThread.Start` failure contract.
+- Retain a transfer temporarily across reaping and prove its final release can
+  destroy it only after `WaitFor` has completed.
 - Verify artifact files are deleted after registry extraction and without the
   staging-registry protection held.
 - Preserve the existing proof that cancelling one transfer does not abort a
@@ -425,6 +462,9 @@ architecture checkpoint with `scripts\New-NexusSourceArchive.ps1`.
 - Shutdown may observe a transfer after collection admission but before its
   immediate `Start`. It must wait outside the collection protection; the
   accepting call remains responsible for starting the accepted thread.
+- FPC 3.2.2 provides no result or defined exception contract from
+  `TThread.Start`. Construction failure is handled before admission; no
+  speculative startup-failure lifecycle machinery is permitted.
 - No unresolved product choice blocks implementation. If the narrow retained
   transfer reference cannot provide stable cancellation/startup without
   broader lifecycle machinery, stop and return the concrete conflict rather
