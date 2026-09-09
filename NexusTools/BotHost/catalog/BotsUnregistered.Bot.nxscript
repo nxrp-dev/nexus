@@ -1,7 +1,11 @@
 doctype "BotProviderTest.Language.nxscript";
 
-Bot Unregistered {
-    Provider: Unregistered;
-    Model: test-model;
-    Instructions: "The provider name is legal but deliberately unregistered.";
+BotCatalog NexusBots {
+    Bots: [
+        Bot Unregistered {
+            Provider: Unregistered;
+            Model: test-model;
+            Instructions: "The provider name is legal but deliberately unregistered.";
+        }
+    ];
 }

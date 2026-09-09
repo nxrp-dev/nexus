@@ -23,6 +23,7 @@ uses
   obNXBotController,
   obNXBotHost,
   obNXBotHostConfig,
+  obNXBotWorkspace,
   obNXBotFileExchange,
   obNXBotHostState,
   obNXXMPPClient,
@@ -42,6 +43,8 @@ uses
 const
   cLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_OPENFIRE';
   cOpenAILiveTestEnabled = 'NEXUS_BOTHOST_LIVE_OPENAI';
+  cOpenAIWorkspaceLiveTestEnabled =
+    'NEXUS_BOTHOST_LIVE_OPENAI_WORKSPACE';
   cInteropLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_BOT_INTEROP';
   cFileExchangeLiveTestEnabled = 'NEXUS_BOTHOST_LIVE_FILE_EXCHANGE';
 
@@ -283,21 +286,33 @@ procedure WaitObserver(AObserver: TObserver; ARequireRoom: Boolean;
 function WaitReply(AObserver: TObserver; AHost: TNXBotHost;
   ATimeoutMS: Cardinal): UTF8String; forward;
 
-procedure TestOpenfireOpenAI(AContext: TNXTestContext);
+procedure RunLiveOpenAI(AContext: TNXTestContext; AWorkspace: Boolean);
 var
   lAPIKey: string;
+  lArtifact: string;
   lBotPassword: string;
   lConfig: TNXBotHostConfig;
+  lExpected: string;
   lHost: TNXBotHost;
   lMUC: TNXXMPPMUCModule;
   lObserver: TObserver;
   lObserverClient: TNXXMPPClient;
+  lProbe: string;
+  lPrompt: UTF8String;
   lReply: UTF8String;
   lRoomJID: string;
+  lText: TStringList;
+  lWorkspace: TNXBotWorkspaceAccess;
 begin
-  if GetEnvironmentVariable(cOpenAILiveTestEnabled) <> '1' then
+  if AWorkspace then
+  begin
+    if GetEnvironmentVariable(cOpenAIWorkspaceLiveTestEnabled) <> '1' then
+      AContext.Skip('Set ' + cOpenAIWorkspaceLiveTestEnabled +
+        '=1 to run the OpenAI workspace integration test.');
+  end
+  else if GetEnvironmentVariable(cOpenAILiveTestEnabled) <> '1' then
     AContext.Skip('Set ' + cOpenAILiveTestEnabled + '=1 to run the ' +
-      'Openfire/OpenAI integration test.');
+      'OpenAI integration test.');
   lAPIKey := RequiredEnvironment(AContext, RequiredEnvironment(AContext,
     'NEXUS_BOTHOST_OPENAI_API_KEY_ENVIRONMENT_VARIABLE'));
   lBotPassword := RequiredEnvironment(AContext,
@@ -323,6 +338,36 @@ begin
     'NEXUS_BOTHOST_ENDPOINT_PORT'));
   lConfig.RoomJID := lRoomJID;
   lConfig.Nick := 'OpenAIBot';
+  lArtifact := '';
+  if AWorkspace then
+  begin
+    lWorkspace := TNXBotWorkspaceAccess.Create;
+    lWorkspace.Name := 'Nexus';
+    lWorkspace.Purpose := 'Live reference workspace test.';
+    lWorkspace.RepositoryPath := RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_WORKSPACE_REPOSITORY');
+    lWorkspace.CachePath := RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_WORKSPACE_CACHE');
+    lWorkspace.ResolvedCommit := UTF8String(RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_WORKSPACE_COMMIT'));
+    lConfig.Workspaces.Add(lWorkspace);
+    lProbe := RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_WORKSPACE_PROBE');
+    lExpected := RequiredEnvironment(AContext,
+      'NEXUS_BOTHOST_WORKSPACE_EXPECTED');
+    lArtifact := IncludeTrailingPathDelimiter(lWorkspace.CachePath) +
+      'nexus-workspace-live.txt';
+    DeleteFile(lArtifact);
+    lPrompt := '@OpenAIBot Use local shell to read the complete file "' +
+      UTF8String(IncludeTrailingPathDelimiter(lWorkspace.RepositoryPath) +
+      lProbe) + '". If its trimmed contents equal "' +
+      UTF8String(lExpected) + '", write exactly "workspace cache passed" ' +
+      'to "' + UTF8String(lArtifact) + '" and reply with exactly: ' +
+      'OpenAI workspace live test passed. Otherwise reply with exactly: ' +
+      'workspace probe mismatch.';
+  end
+  else
+    lPrompt := '@OpenAIBot Reply with exactly: OpenAI BotHost live test passed';
 
   lHost := TNXBotHost.Create(lConfig,
     'Reply directly and concisely to the addressed user.');
@@ -360,20 +405,48 @@ begin
     if not lMUC.Join(UTF8String(lRoomJID), 'OpenAIObserver', '') then
       raise Exception.Create('Observer room join command was rejected.');
     WaitObserver(lObserver, True, 15000);
-    if not lMUC.SendGroupMessage(UTF8String(lRoomJID),
-      '@OpenAIBot Reply with exactly: OpenAI BotHost live test passed') then
+    if not lMUC.SendGroupMessage(UTF8String(lRoomJID), lPrompt) then
       raise Exception.Create('Observer group message command was rejected.');
 
     lReply := WaitReply(lObserver, lHost, 120000);
-    AContext.AssertEquals('OpenAI BotHost live test passed', string(lReply),
-      'The live OpenAI bot should return the requested exact reply.');
+    if AWorkspace then
+    begin
+      AContext.AssertEquals('OpenAI workspace live test passed',
+        string(lReply),
+        'The live OpenAI bot should inspect the configured workspace.');
+      AContext.AssertTrue(FileExists(lArtifact),
+        'The live OpenAI bot should create the cache artifact.');
+      lText := TStringList.Create;
+      try
+        lText.LoadFromFile(lArtifact);
+        AContext.AssertEquals('workspace cache passed', Trim(lText.Text),
+          'The live shell should write the expected cache artifact.');
+      finally
+        lText.Free;
+      end;
+    end
+    else
+      AContext.AssertEquals('OpenAI BotHost live test passed', string(lReply),
+        'The live OpenAI bot should return the requested exact reply.');
   finally
     lMUC.Leave(UTF8String(lRoomJID));
     lObserverClient.Disconnect;
     lObserverClient.Free;
     lObserver.Free;
     lHost.Free;
+    if lArtifact <> '' then
+      DeleteFile(lArtifact);
   end;
+end;
+
+procedure TestOpenfireOpenAI(AContext: TNXTestContext);
+begin
+  RunLiveOpenAI(AContext, False);
+end;
+
+procedure TestOpenAIWorkspace(AContext: TNXTestContext);
+begin
+  RunLiveOpenAI(AContext, True);
 end;
 
 procedure TObserver.RoomState(ASender: TObject; ARoom: TNXXMPPRoom);
@@ -972,6 +1045,7 @@ begin
   lSuite := ARegistry.AddSuite('NexusBotHostLive');
   lSuite.AddTest('OpenfireCodex', @TestOpenfireCodex, 'integration');
   lSuite.AddTest('OpenfireOpenAI', @TestOpenfireOpenAI, 'integration');
+  lSuite.AddTest('OpenAIWorkspace', @TestOpenAIWorkspace, 'integration');
   lSuite.AddTest('BotInterop', @TestBotInterop, 'integration');
   lSuite.AddTest('FileExchange', @TestFileExchange, 'integration');
 end;

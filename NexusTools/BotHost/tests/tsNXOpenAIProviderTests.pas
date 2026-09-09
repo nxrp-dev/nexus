@@ -18,6 +18,7 @@ uses
   SyncObjs,
   SysUtils,
   obNXBotHostConfig,
+  obNXBotWorkspace,
   obNXOpenAIProvider,
   obNXOpenAIResponses,
   obNXTestContext,
@@ -450,6 +451,9 @@ begin
       'The configured OpenAI CA file should reach the HTTPS boundary.');
     AContext.AssertTrue(Pos('secret-test-key', lExecutor.Bodies.Text) = 0,
       'The API key must not enter typed JSON request bodies.');
+    AContext.AssertTrue(Pos('"type" : "shell"',
+      lExecutor.Bodies[0]) = 0,
+      'A bot without workspaces must not advertise local shell.');
     AContext.AssertTrue(Pos('previous_response_id',
       lExecutor.Bodies[0]) = 0,
       'The first request should omit previous_response_id.');
@@ -893,10 +897,145 @@ begin
       'sender@nexus.local', 'm2', 'fail'));
     AContext.AssertTrue(lRecorder.FailureEvent.WaitFor(5000) = wrSignaled,
       'Authentication rejection should fail the prompt.');
+    WaitProviderState(lProvider, bpsFailed, 'authentication rejection');
     AContext.AssertEquals(Integer(bpsFailed), Integer(lProvider.State),
       'Authentication rejection should fail the provider.');
     AContext.AssertTrue(Pos('bad key', string(lRecorder.Failed)) > 0,
       'Typed API error text should reach the bounded failure diagnostic.');
+  finally
+    lProvider.Free;
+    lRecorder.Free;
+    lConfig.Free;
+  end;
+end;
+
+procedure TestWorkspaceShellContinuation(AContext: TNXTestContext);
+var
+  lConfig: TNXBotHostConfig;
+  lExecutor: TFakeOpenAIExecutor;
+  lProvider: TNXOpenAIProvider;
+  lRecorder: TOpenAIRecorder;
+  lWorkspace: TNXBotWorkspaceAccess;
+begin
+  lConfig := TNXBotHostConfig.Create;
+  lConfig.RuntimeDirectory := GetTempDir(False);
+  lConfig.ShellOutputMaximumBytes := 5;
+  lWorkspace := TNXBotWorkspaceAccess.Create;
+  lWorkspace.Name := 'Nexus';
+  lWorkspace.Purpose := 'Reference source.';
+  lWorkspace.RepositoryPath := ExpandFileName('.');
+  lWorkspace.CachePath := GetTempDir(False);
+  lWorkspace.ResolvedCommit := '0123456789abcdef';
+  lConfig.Workspaces.Add(lWorkspace);
+  lExecutor := TFakeOpenAIExecutor.Create;
+  lExecutor.Results[0].Status := 200;
+  lExecutor.Results[0].Body :=
+    '{"id":"response-shell","status":"completed","error":null,' +
+    '"incomplete_details":null,"output":[{"type":"shell_call",' +
+    '"id":"item-shell","call_id":"call-shell","status":"completed",' +
+    '"action":{"type":"exec","commands":["echo shell-ok"],' +
+    '"timeout_ms":5000,"max_output_length":4096}}]}';
+  lExecutor.Results[1].Status := 200;
+  lExecutor.Results[1].Body := CompletedResponse('response-final', 'done');
+  lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
+  lRecorder := TOpenAIRecorder.Create;
+  try
+    ConfigureProvider(lProvider, lConfig, lRecorder);
+    lProvider.Start;
+    AContext.AssertTrue(lRecorder.ReadyEvent.WaitFor(5000) = wrSignaled,
+      'Workspace provider should become ready.');
+    lProvider.SubmitPrompt(TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm1', 'inspect the workspace'));
+    AContext.AssertTrue(lRecorder.FinalEvent.WaitFor(5000) = wrSignaled,
+      'Shell output should continue to a final assistant answer.');
+    AContext.AssertEquals('done', string(lRecorder.Answer),
+      'The continuation should publish only the final answer.');
+    AContext.AssertEquals(2, lExecutor.Calls,
+      'One shell call should require exactly one continuation request.');
+    AContext.AssertTrue((Pos('"type" : "shell"',
+      lExecutor.Bodies[0]) > 0) and (Pos('Reference workspaces:',
+      lExecutor.Bodies[0]) > 0),
+      'Assigned workspaces should advertise local shell and explicit paths.');
+    AContext.AssertTrue((Pos('"type" : "shell_call_output"',
+      lExecutor.Bodies[1]) > 0) and (Pos('"max_output_length" : 5',
+      lExecutor.Bodies[1]) > 0) and (Pos('"stdout" : "shell"',
+      lExecutor.Bodies[1]) > 0) and (Pos('response-shell',
+      lExecutor.Bodies[1]) > 0),
+      'The bounded typed shell result should continue the same response.');
+    AContext.AssertTrue((Pos('"instructions"', lExecutor.Bodies[1]) > 0) and
+      (Pos('Test instructions.', lExecutor.Bodies[1]) > 0) and
+      (Pos('Reference workspaces:', lExecutor.Bodies[1]) > 0),
+      'Shell continuations should retain bot and workspace instructions.');
+    AContext.AssertEquals(1, lRecorder.FinalCount,
+      'The prompt should complete exactly once.');
+    AContext.AssertEquals(0, lRecorder.FailureCount,
+      'A successful shell continuation should not fail the prompt.');
+  finally
+    lProvider.Free;
+    lRecorder.Free;
+    lConfig.Free;
+  end;
+end;
+
+procedure TestWorkspaceShellLimits(AContext: TNXTestContext);
+var
+  lCommand: string;
+  lConfig: TNXBotHostConfig;
+  lExecutor: TFakeOpenAIExecutor;
+  lProvider: TNXOpenAIProvider;
+  lRecorder: TOpenAIRecorder;
+  lWorkspace: TNXBotWorkspaceAccess;
+begin
+  {$IFDEF Windows}
+  lCommand := 'for /L %i in (1,1,2147483647) do @rem';
+  {$ELSE}
+  lCommand := 'while :; do :; done';
+  {$ENDIF}
+  lConfig := TNXBotHostConfig.Create;
+  lConfig.RuntimeDirectory := GetTempDir(False);
+  lConfig.ShellCallMaximum := 1;
+  lConfig.ShellCommandTimeoutMS := 20;
+  lConfig.ShellOutputMaximumBytes := 5;
+  lWorkspace := TNXBotWorkspaceAccess.Create;
+  lWorkspace.Name := 'Nexus';
+  lWorkspace.RepositoryPath := ExpandFileName('.');
+  lWorkspace.CachePath := GetTempDir(False);
+  lWorkspace.ResolvedCommit := '0123456789abcdef';
+  lConfig.Workspaces.Add(lWorkspace);
+  lExecutor := TFakeOpenAIExecutor.Create;
+  lExecutor.Results[0].Status := 200;
+  lExecutor.Results[0].Body :=
+    '{"id":"response-shell-1","status":"completed","error":null,' +
+    '"incomplete_details":null,"output":[{"type":"shell_call",' +
+    '"call_id":"call-shell-1","status":"completed","action":{' +
+    '"commands":["' + lCommand + '"],"timeout_ms":10000,' +
+    '"max_output_length":10000}}]}';
+  lExecutor.Results[1].Status := 200;
+  lExecutor.Results[1].Body :=
+    '{"id":"response-shell-2","status":"completed","error":null,' +
+    '"incomplete_details":null,"output":[{"type":"shell_call",' +
+    '"call_id":"call-shell-2","status":"completed","action":{' +
+    '"commands":["echo should-not-run"]}}]}';
+  lProvider := TNXOpenAIProvider.CreateWithExecutor(lExecutor);
+  lRecorder := TOpenAIRecorder.Create;
+  try
+    ConfigureProvider(lProvider, lConfig, lRecorder);
+    lProvider.Start;
+    AContext.AssertTrue(lRecorder.ReadyEvent.WaitFor(5000) = wrSignaled,
+      'Workspace limit provider should become ready.');
+    lProvider.SubmitPrompt(TNXBotPrompt.Create(1, 'room@nexus.local',
+      'sender@nexus.local', 'm1', 'exercise shell limits'));
+    AContext.AssertTrue(lRecorder.FailureEvent.WaitFor(5000) = wrSignaled,
+      'A second shell call should exceed the configured prompt limit.');
+    AContext.AssertTrue(Pos('shell call limit exceeded',
+      LowerCase(string(lRecorder.Failed))) > 0,
+      'The prompt should report the shell-call limit.');
+    AContext.AssertEquals(2, lExecutor.Calls,
+      'The rejected second shell call must not produce another request.');
+    AContext.AssertTrue((Pos('"max_output_length" : 5',
+      lExecutor.Bodies[1]) > 0) and (Pos('"type" : "timeout"',
+      lExecutor.Bodies[1]) > 0),
+      'Model limits should clamp to deployment limits and report timeout.');
   finally
     lProvider.Free;
     lRecorder.Free;
@@ -922,6 +1061,9 @@ begin
   lSuite.AddTest('CancellationAndFailure', @TestCancellationAndFailure);
   lSuite.AddTest('StopAndShutdownLifecycle', @TestStopAndShutdownLifecycle);
   lSuite.AddTest('ResponseFailures', @TestResponseFailures);
+  lSuite.AddTest('WorkspaceShellContinuation',
+    @TestWorkspaceShellContinuation);
+  lSuite.AddTest('WorkspaceShellLimits', @TestWorkspaceShellLimits);
 end;
 
 end.

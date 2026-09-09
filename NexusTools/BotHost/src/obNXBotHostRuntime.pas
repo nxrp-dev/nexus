@@ -167,6 +167,7 @@ begin
     Exit;
   if not FAutoStart then
     Exit;
+  FController.PrepareWorkspaces;
   ForceDirectories(FHost.Config.RuntimeDirectory);
   if not FHost.StartProvider then
     raise Exception.Create('Provider start command was rejected.');

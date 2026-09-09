@@ -157,16 +157,6 @@ type
     function Write(const ABuffer; ACount: LongInt): LongInt; override;
   end;
 
-  TNXBotFileReadStream = class(TStream)
-  private
-    FFile: TFileStream;
-  public
-    constructor Create(const AFileName: string);
-    destructor Destroy; override;
-    function Read(var ABuffer; ACount: LongInt): LongInt; override;
-    function Seek(const AOffset: Int64; AOrigin: TSeekOrigin): Int64; override;
-  end;
-
   TNXBotPinnedSocket = class(TTCPBlockSocket)
   private
     FAddress: string;
@@ -243,29 +233,6 @@ begin
     (Int64(ACount) > FMaximum - Position) then
     raise ENXBotFileLimit.Create('The downloaded file exceeds the byte limit.');
   Result := inherited Write(ABuffer, ACount);
-end;
-
-constructor TNXBotFileReadStream.Create(const AFileName: string);
-begin
-  inherited Create;
-  FFile := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
-end;
-
-destructor TNXBotFileReadStream.Destroy;
-begin
-  FFile.Free;
-  inherited Destroy;
-end;
-
-function TNXBotFileReadStream.Read(var ABuffer; ACount: LongInt): LongInt;
-begin
-  Result := FFile.Read(ABuffer, ACount);
-end;
-
-function TNXBotFileReadStream.Seek(const AOffset: Int64;
-  AOrigin: TSeekOrigin): Int64;
-begin
-  Result := FFile.Seek(AOffset, AOrigin);
 end;
 
 constructor TNXBotPinnedSocket.Create(const AAddress, AHost: string);
@@ -646,7 +613,6 @@ function TNXBotSynapseFileTransferExecutor.Upload(const ASource,
   ATrustedOrigins: TStrings;
   out AError: UTF8String): Boolean;
 var
-  lFile: TNXBotFileReadStream;
   lHTTP: THTTPSend;
   lAddress: string;
   lGetAddress: string;
@@ -665,14 +631,13 @@ begin
     Exit;
   if ATimeoutMS > Cardinal(High(Integer)) then lTimeout := High(Integer)
   else lTimeout := ATimeoutMS;
-  lFile := TNXBotFileReadStream.Create(ASource);
   lHTTP := TNXBotPinnedHTTPSend.Create(lAddress, lHost);
   try
     lHTTP.Timeout := lTimeout;
     lHTTP.Sock.ConnectionTimeout := lTimeout;
     lHTTP.Sock.SSL.VerifyCert := True;
     lHTTP.Sock.SSL.CertCAFile := ACAFile;
-    lHTTP.InputStream := lFile;
+    lHTTP.Document.LoadFromFile(ASource);
     for lIndex := 0 to High(ASlot.Headers) do
       lHTTP.Headers.Add(string(ASlot.Headers[lIndex].Name + ': ' +
         ASlot.Headers[lIndex].Value));
@@ -689,7 +654,6 @@ begin
   finally
     EndHTTP;
     lHTTP.Free;
-    lFile.Free;
   end;
 end;
 

@@ -1,8 +1,41 @@
 Language Bot {
     UnknownDefinitions: Reject;
     Definitions: [
-        Definition Bot {
+        Definition BotCatalog {
             Root: True;
+            UnknownProperties: Reject;
+            Properties: [
+                Property Workspaces {
+                    Value Value {
+                        SourceForms: [Array];
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Names: Required;
+                            EntrySourceForms: [InlineDefinition];
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [Workspace];
+                            Mixed: False;
+                        }
+                    }
+                },
+                Property Bots {
+                    Required: True;
+                    Value Value {
+                        SourceForms: [Array];
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Minimum: 1;
+                            Names: Required;
+                            EntrySourceForms: [InlineDefinition];
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [Bot];
+                            Mixed: False;
+                        }
+                    }
+                }
+            ];
+        },
+        Definition Bot {
             UnknownProperties: Reject;
             Properties: [
                 Property Provider {
@@ -26,6 +59,44 @@ Language Bot {
                         EffectiveCategories: [Text];
                         Scalar: Text;
                     }
+                },
+                Property Workspaces {
+                    Value Value {
+                        SourceForms: [Array];
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            EntrySourceForms: [Reference];
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [Workspace];
+                            Mixed: False;
+                        }
+                    }
+                }
+            ];
+        },
+        Definition Workspace {
+            UnknownProperties: Reject;
+            Properties: [
+                Property Purpose {
+                    Value Value { Scalar: Text; }
+                },
+                Property SourceType {
+                    Required: True;
+                    Value Value {
+                        Scalar: Text;
+                        AllowedValues: [Git];
+                    }
+                },
+                Property Source {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Ref {
+                    Value Value { Scalar: Text; }
+                },
+                Property Location {
+                    Required: True;
+                    Value Value { Scalar: Text; }
                 }
             ];
         }

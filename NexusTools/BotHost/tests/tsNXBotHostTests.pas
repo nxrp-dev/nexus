@@ -15,6 +15,7 @@ implementation
 uses
   Classes,
   fpjson,
+  Process,
   SyncObjs,
   SysUtils,
   obNXBotCatalog,
@@ -45,6 +46,83 @@ uses
   tpNXBotControl,
   tpNXXMPPMessageTypes,
   tpNXXMPPTypes;
+
+function RunTestGit(const AArguments: array of string): string;
+var
+  lIndex: Integer;
+  lOutput: TStringList;
+  lProcess: TProcess;
+begin
+  lOutput := TStringList.Create;
+  lProcess := TProcess.Create(nil);
+  try
+    lProcess.Executable := 'git';
+    for lIndex := Low(AArguments) to High(AArguments) do
+      lProcess.Parameters.Add(AArguments[lIndex]);
+    lProcess.Options := [poUsePipes, poStderrToOutPut, poWaitOnExit,
+      poNoConsole];
+    lProcess.Execute;
+    lOutput.LoadFromStream(lProcess.Output);
+    Result := Trim(lOutput.Text);
+    if lProcess.ExitStatus <> 0 then
+      raise Exception.Create('Test Git failed: ' + Result);
+  finally
+    lProcess.Free;
+    lOutput.Free;
+  end;
+end;
+
+procedure DeleteTestDirectory(const ADirectory: string);
+var
+  lEntry: TSearchRec;
+  lPath: string;
+begin
+  if not DirectoryExists(ADirectory) then
+    Exit;
+  if FindFirst(IncludeTrailingPathDelimiter(ADirectory) + '*', faAnyFile,
+    lEntry) = 0 then
+  try
+    repeat
+      if (lEntry.Name = '.') or (lEntry.Name = '..') then
+        Continue;
+      lPath := IncludeTrailingPathDelimiter(ADirectory) + lEntry.Name;
+      if (lEntry.Attr and faDirectory) <> 0 then
+        DeleteTestDirectory(lPath)
+      else
+        DeleteFile(lPath);
+    until FindNext(lEntry) <> 0;
+  finally
+    FindClose(lEntry);
+  end;
+  RemoveDir(ADirectory);
+end;
+
+procedure CreateBotCatalogFixture(out ARoot, AFileName: string);
+var
+  lLocation: string;
+  lText: TStringList;
+begin
+  ARoot := GetTempFileName(GetTempDir(False), 'nxbc');
+  DeleteFile(ARoot);
+  ForceDirectories(ARoot);
+  AFileName := IncludeTrailingPathDelimiter(ARoot) + 'Bots.nxscript';
+  lText := TStringList.Create;
+  try
+    lText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      PathDelim + 'catalog' + PathDelim + 'Bot.Language.nxscript'));
+    lText.SaveToFile(IncludeTrailingPathDelimiter(ARoot) +
+      'Bot.Language.nxscript');
+    lText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      PathDelim + 'catalog' + PathDelim + 'Bots.nxscript'));
+    lLocation := StringReplace(IncludeTrailingPathDelimiter(ARoot) +
+      'workspace', '\', '/', [rfReplaceAll]);
+    lText.Text := StringReplace(lText.Text,
+      '/srv/nexus/workspaces/nexus', lLocation, [rfReplaceAll]);
+    lText.SaveToFile(AFileName);
+  finally
+    lText.Free;
+  end;
+end;
 
 type
   TTestConversationTracker = class(TNXBotConversationTracker)
@@ -1091,6 +1169,8 @@ end;
 procedure TestHeadlessRuntime(AContext: TNXTestContext);
 var
   lBinding: TNXBotDeploymentBinding;
+  lCatalogFile: string;
+  lCatalogRoot: string;
   lController: TNXBotControllerConfig;
   lControllerFile: string;
   lLaunch: TNXBotHostLaunchConfig;
@@ -1100,6 +1180,8 @@ var
   lSnapshot: TNXBotHostSnapshot;
   lTempDirectory: string;
 begin
+  lCatalogRoot := '';
+  CreateBotCatalogFixture(lCatalogRoot, lCatalogFile);
   lTempDirectory := GetTempFileName(GetTempDir(False), 'nxbot');
   DeleteFile(lTempDirectory);
   if not CreateDir(lTempDirectory) then
@@ -1111,8 +1193,7 @@ begin
   lRecorder := TRuntimeActivityRecorder.Create;
   lRuntime := nil;
   try
-    lController.CatalogFile := ExpandFileName('NexusTools' + PathDelim +
-      'BotHost' + PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+    lController.CatalogFile := lCatalogFile;
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
     lBinding.CAFile := 'ca.pem';
@@ -1160,6 +1241,7 @@ begin
     DeleteFile(lLaunchFile);
     DeleteFile(lControllerFile);
     RemoveDir(lTempDirectory);
+    DeleteTestDirectory(lCatalogRoot);
   end;
 end;
 
@@ -1209,8 +1291,12 @@ var
   lCatalog: TNXBotCatalog;
   lConfig: TNXBotControllerConfig;
   lFileName: string;
+  lFixtureRoot: string;
   lLoadedConfig: TNXBotControllerConfig;
+  lValidFileName: string;
 begin
+  lFixtureRoot := '';
+  CreateBotCatalogFixture(lFixtureRoot, lValidFileName);
   lConfig := TNXBotControllerConfig.Create;
   lCatalog := TNXBotCatalog.Create;
   try
@@ -1228,12 +1314,15 @@ begin
     lBinding.XMPPJID := 'test1@nexus.local';
     lConfig.Bindings.Add(lBinding);
     AddOpenAITestBinding(lConfig);
-    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
-      PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+    lFileName := lValidFileName;
     AContext.AssertTrue(lCatalog.Load(lFileName, lConfig),
       'Bot catalog should compile and validate: ' + lCatalog.Diagnostics.Text);
     AContext.AssertEquals(2, lCatalog.Entries.Count,
       'The fixture should expose both bot definitions.');
+    AContext.AssertEquals(1, lCatalog.Workspaces.Count,
+      'The deployed catalog should expose the Nexus workspace.');
+    AContext.AssertEquals(1, lCatalog.Find('OpenAIBot').Workspaces.Count,
+      'OpenAIBot should reference the Nexus workspace.');
     AContext.AssertEquals('gpt-5.6-luna',
       string(lCatalog.Entries[0].Model),
       'Catalog extraction should use the compiled effective value.');
@@ -1243,6 +1332,23 @@ begin
       'Persisted deployment configuration must contain its API key value.');
     AContext.AssertTrue(Pos('OperationTimeoutMS', lConfig.JSON) = 0,
       'Controller configuration must not emit the removed deadline setting.');
+
+    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      PathDelim + 'catalog' + PathDelim +
+      'BotsWorkspaces.Bot.nxscript');
+    AContext.AssertTrue(lCatalog.Load(lFileName, lConfig),
+      'Workspace catalog should compile and validate: ' +
+      lCatalog.Diagnostics.Text);
+    AContext.AssertEquals(2, lCatalog.Workspaces.Count,
+      'The catalog should publish both workspace definitions.');
+    AContext.AssertEquals(2, lCatalog.Find('NexusBot').Workspaces.Count,
+      'Workspace references should preserve their plural assignment.');
+    AContext.AssertEquals('Nexus',
+      string(lCatalog.Find('OpenAIBot').Workspaces[0].Name),
+      'Compiled workspace references should resolve to catalog entries.');
+    AContext.AssertEquals('//nexus-tests/workspaces/nexus',
+      string(lCatalog.Workspaces[0].Location),
+      'The explicit absolute location should be preserved.');
 
     lBinding := TNXBotDeploymentBinding(lConfig.Bindings[1]);
     lBinding.OpenAIAPIKey := '';
@@ -1309,8 +1415,7 @@ begin
     lDuplicate.ExchangeDirectory := 'exchange-duplicate';
     lDuplicate.XMPPJID := 'duplicate@nexus.local';
     lConfig.Bindings.Add(lDuplicate);
-    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
-      PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+    lFileName := lValidFileName;
     AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
       'Duplicate deployment bindings must fail the catalog.');
     AContext.AssertTrue(Pos('Multiple deployment bindings',
@@ -1395,8 +1500,7 @@ begin
 
       lBinding.EndpointPort := 5222;
       lBinding.XMPPJID := 'test1@nexus.local';
-      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
-        PathDelim + 'catalog' + PathDelim + 'Bots.nxscript');
+      lFileName := lValidFileName;
       AContext.AssertTrue(lFreshCatalog.Load(lFileName, lFreshConfig),
         'A valid load should succeed after earlier candidate failures.');
       AContext.AssertEquals(0, lFreshCatalog.Diagnostics.Count,
@@ -1408,6 +1512,7 @@ begin
   finally
     lCatalog.Free;
     lConfig.Free;
+    DeleteTestDirectory(lFixtureRoot);
   end;
 end;
 
@@ -1499,9 +1604,13 @@ function CreateTestController(out AHost: TFakeBotHost): TNXBotController;
 var
   lBinding: TNXBotDeploymentBinding;
   lCatalog: TNXBotCatalog;
+  lCatalogFile: string;
   lConfig: TNXBotControllerConfig;
+  lFixtureRoot: string;
   lHostConfig: TNXBotHostConfig;
 begin
+  lFixtureRoot := '';
+  CreateBotCatalogFixture(lFixtureRoot, lCatalogFile);
   lCatalog := TNXBotCatalog.Create;
   lConfig := TNXBotControllerConfig.Create;
   try
@@ -1519,9 +1628,7 @@ begin
     AddOpenAITestBinding(lConfig);
     lConfig.Operators.Add('operator@nexus.local');
     lConfig.Readers.Add('reader@nexus.local');
-    if not lCatalog.Load(ExpandFileName('NexusTools' + PathDelim +
-      'BotHost' + PathDelim + 'catalog' + PathDelim + 'Bots.nxscript'),
-      lConfig) then
+    if not lCatalog.Load(lCatalogFile, lConfig) then
       raise Exception.Create(lCatalog.Diagnostics.Text);
     Result := TNXBotController.Create(lCatalog, lConfig);
     lCatalog := nil;
@@ -1533,6 +1640,7 @@ begin
   finally
     lConfig.Free;
     lCatalog.Free;
+    DeleteTestDirectory(lFixtureRoot);
   end;
 end;
 
@@ -1938,6 +2046,156 @@ begin
   end;
 end;
 
+procedure TestWorkspacePreparation(AContext: TNXTestContext);
+var
+  lAdopted: TFakeBotHost;
+  lBinding: TNXBotDeploymentBinding;
+  lCatalog: TNXBotCatalog;
+  lCatalogFile: string;
+  lCatalogText: TStringList;
+  lCommit: string;
+  lConfig: TNXBotControllerConfig;
+  lController: TNXBotController;
+  lHost: TFakeBotHost;
+  lHostConfig: TNXBotHostConfig;
+  lRoot: string;
+  lSource: string;
+  lSourceFile: TStringList;
+  lUnusedWorkspace: string;
+  lWorkspace: string;
+begin
+  lRoot := GetTempFileName(GetTempDir(False), 'nxws');
+  DeleteFile(lRoot);
+  lSource := IncludeTrailingPathDelimiter(lRoot) + 'source';
+  lUnusedWorkspace := IncludeTrailingPathDelimiter(lRoot) +
+    'unused-workspace';
+  lWorkspace := IncludeTrailingPathDelimiter(lRoot) + 'workspace';
+  lCatalogFile := IncludeTrailingPathDelimiter(lRoot) + 'Bots.nxscript';
+  ForceDirectories(lSource);
+  lCatalogText := TStringList.Create;
+  try
+    lCatalogText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim +
+      'BotHost' + PathDelim + 'catalog' + PathDelim +
+      'Bot.Language.nxscript'));
+    lCatalogText.SaveToFile(IncludeTrailingPathDelimiter(lRoot) +
+      'Bot.Language.nxscript');
+  finally
+    lCatalogText.Free;
+  end;
+  lSourceFile := TStringList.Create;
+  try
+    lSourceFile.Text := 'known workspace content';
+    lSourceFile.SaveToFile(IncludeTrailingPathDelimiter(lSource) +
+      'known.txt');
+  finally
+    lSourceFile.Free;
+  end;
+  RunTestGit(['init', lSource]);
+  RunTestGit(['-C', lSource, 'config', 'user.email',
+    'nexus-test@nexus.local']);
+  RunTestGit(['-C', lSource, 'config', 'user.name', 'Nexus Test']);
+  RunTestGit(['-C', lSource, 'add', 'known.txt']);
+  RunTestGit(['-C', lSource, 'commit', '-m', 'workspace fixture']);
+  RunTestGit(['-C', lSource, 'branch', '-M', 'main']);
+  lCommit := RunTestGit(['-C', lSource, 'rev-parse', 'HEAD']);
+
+  lCatalogText := TStringList.Create;
+  try
+    lCatalogText.Add('doctype "Bot.Language.nxscript";');
+    lCatalogText.Add('BotCatalog NexusBots {');
+    lCatalogText.Add('  Workspaces: [');
+    lCatalogText.Add('  Workspace Nexus {');
+    lCatalogText.Add('    SourceType: Git;');
+    lCatalogText.Add('    Source: "' + StringReplace(lSource, '\', '/',
+      [rfReplaceAll]) + '";');
+    lCatalogText.Add('    Ref: main;');
+    lCatalogText.Add('    Location: "' + StringReplace(lWorkspace, '\', '/',
+      [rfReplaceAll]) + '";');
+    lCatalogText.Add('  },');
+    lCatalogText.Add('  Workspace Unused {');
+    lCatalogText.Add('    SourceType: Git;');
+    lCatalogText.Add('    Source: "' + StringReplace(
+      IncludeTrailingPathDelimiter(lRoot) + 'missing-source', '\', '/',
+      [rfReplaceAll]) + '";');
+    lCatalogText.Add('    Location: "' + StringReplace(lUnusedWorkspace,
+      '\', '/', [rfReplaceAll]) + '";');
+    lCatalogText.Add('  }];');
+    lCatalogText.Add('  Bots: [');
+    lCatalogText.Add('    Bot NexusBot { Provider: Codex; Model: test; ' +
+      'Instructions: test; Workspaces: [@NexusBots.Workspaces.Nexus]; },');
+    lCatalogText.Add('    Bot OpenAIBot { Provider: OpenAI; Model: test; ' +
+      'Instructions: test; Workspaces: [@NexusBots.Workspaces.Nexus]; }');
+    lCatalogText.Add('  ];');
+    lCatalogText.Add('}');
+    lCatalogText.SaveToFile(lCatalogFile);
+  finally
+    lCatalogText.Free;
+  end;
+
+  lCatalog := TNXBotCatalog.Create;
+  lConfig := TNXBotControllerConfig.Create;
+  lController := nil;
+  lHost := nil;
+  try
+    lBinding := TNXBotDeploymentBinding.Create;
+    lBinding.BotName := 'NexusBot';
+    lBinding.CAFile := 'ca.pem';
+    lBinding.CodexExecutable := 'codex.exe';
+    lBinding.ExchangeDirectory := IncludeTrailingPathDelimiter(lRoot) +
+      'exchange-nexus';
+    lBinding.Nick := 'NexusBot';
+    lBinding.Password := 'winston';
+    lBinding.Resource := 'NexusBot';
+    lBinding.RuntimeDirectory := IncludeTrailingPathDelimiter(lRoot) +
+      'runtime-nexus';
+    lBinding.XMPPJID := 'nexus@nexus.local';
+    lConfig.Bindings.Add(lBinding);
+    AddOpenAITestBinding(lConfig);
+    lBinding := lConfig.Bindings.Find('OpenAIBot');
+    lBinding.ExchangeDirectory := IncludeTrailingPathDelimiter(lRoot) +
+      'exchange-openai';
+    lBinding.RuntimeDirectory := IncludeTrailingPathDelimiter(lRoot) +
+      'runtime-openai';
+    if not lCatalog.Load(lCatalogFile, lConfig) then
+      AContext.Fail('The local workspace catalog should load: ' +
+        lCatalog.Diagnostics.Text);
+    lController := TNXBotController.Create(lCatalog, lConfig);
+    lCatalog := nil;
+    lHostConfig := TNXBotHostConfig.Create;
+    lHost := TFakeBotHost.Create(lHostConfig, 'test');
+    AContext.AssertTrue(lController.AdoptHost('NexusBot', lHost),
+      'The test controller should adopt the initial host.');
+    lAdopted := lHost;
+    lHost := nil;
+    lController.PrepareWorkspaces;
+
+    AContext.AssertTrue(DirectoryExists(IncludeTrailingPathDelimiter(
+      lWorkspace) + 'repo' + PathDelim + '.git'),
+      'Workspace preparation should create one shared checkout.');
+    AContext.AssertFalse(DirectoryExists(lUnusedWorkspace),
+      'Workspace preparation should ignore unreferenced declarations.');
+    AContext.AssertEquals(lCommit, RunTestGit(['-C',
+      IncludeTrailingPathDelimiter(lWorkspace) + 'repo', 'rev-parse',
+      'HEAD']), 'The shared checkout should resolve the requested commit.');
+    AContext.AssertTrue(DirectoryExists(IncludeTrailingPathDelimiter(
+      lWorkspace) + 'botcache' + PathDelim + 'NexusBot') and
+      DirectoryExists(IncludeTrailingPathDelimiter(lWorkspace) +
+      'botcache' + PathDelim + 'OpenAIBot'),
+      'Assigned bots should receive separate cache directories.');
+    AContext.AssertEquals(1, lAdopted.Config.Workspaces.Count,
+      'The adopted host should receive its prepared workspace.');
+    AContext.AssertEquals(lCommit,
+      string(lAdopted.Config.Workspaces[0].ResolvedCommit),
+      'The host workspace should retain the exact resolved commit.');
+  finally
+    lHost.Free;
+    lController.Free;
+    lConfig.Free;
+    lCatalog.Free;
+    DeleteTestDirectory(lRoot);
+  end;
+end;
+
 procedure TestBotControlIQ(AContext: TNXTestContext);
 var
   lDispatcher: TNXXMPPDispatcher;
@@ -2120,6 +2378,7 @@ begin
   lSuite.AddTest('UnregisteredProviderCatalog',
     @TestUnregisteredProviderCatalog);
   lSuite.AddTest('BotCatalog', @TestBotCatalog);
+  lSuite.AddTest('WorkspacePreparation', @TestWorkspacePreparation);
   lSuite.AddTest('ControlInterpreter', @TestControlInterpreter);
   lSuite.AddTest('RoomLocalAuthorization', @TestRoomLocalAuthorization);
   lSuite.AddTest('Controller', @TestController);

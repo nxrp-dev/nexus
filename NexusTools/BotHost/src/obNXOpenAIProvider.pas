@@ -87,6 +87,13 @@ type
     procedure ThreadExecute;
     procedure ThreadStopped;
     procedure ProcessPrompt(APrompt: TNXBotPrompt);
+    function CancellationRequested(out AReason: UTF8String): Boolean;
+    procedure ExecuteShellCommand(const ACommand: UTF8String;
+      ATimeoutMS, AOutputMaximum: Integer; out AStdOut, AStdErr: UTF8String;
+      out AExitCode: Integer; out ATimedOut: Boolean);
+    function WorkspaceInstructions: UTF8String;
+    procedure ContinueShell(APrompt: TNXBotPrompt;
+      AInitialResponse: TNXOpenAIResponse; AUploadedStart: Integer);
     function AddPromptAttachments(APrompt: TNXBotPrompt;
       AInputMessage: TNXOpenAIInputMessage;
       out ADiagnostic: UTF8String): Boolean;
@@ -113,7 +120,11 @@ implementation
 uses
   fpjson,
   httpsend,
+  obNXJSONValues,
   obNXOpenAIFiles,
+  obNXBotWorkspace,
+  Process,
+  Pipes,
   ssl_openssl3,
   tpNXBotFileTypes;
 
@@ -782,6 +793,120 @@ begin
     SetState(bpsReady);
 end;
 
+function TNXOpenAIProvider.CancellationRequested(
+  out AReason: UTF8String): Boolean;
+begin
+  EnterCriticalSection(FCriticalSection);
+  try
+    Result := FStopRequested or FActiveCancelled;
+    AReason := FActiveCancellationReason;
+    if FStopRequested and (AReason = '') then
+      AReason := 'OpenAI provider stopped.';
+  finally
+    LeaveCriticalSection(FCriticalSection);
+  end;
+end;
+
+function TNXOpenAIProvider.WorkspaceInstructions: UTF8String;
+var
+  lIndex: Integer;
+  lWorkspace: TNXBotWorkspaceAccess;
+begin
+  Result := '';
+  if Configuration.Workspaces.Count = 0 then
+    Exit;
+  Result := LineEnding + LineEnding + 'Reference workspaces:';
+  for lIndex := 0 to Configuration.Workspaces.Count - 1 do
+  begin
+    lWorkspace := Configuration.Workspaces[lIndex];
+    Result := Result + LineEnding + '- ' + lWorkspace.Name;
+    if lWorkspace.Purpose <> '' then
+      Result := Result + ': ' + lWorkspace.Purpose;
+    Result := Result + LineEnding + '  Repository: ' +
+      UTF8String(lWorkspace.RepositoryPath) + LineEnding + '  Cache: ' +
+      UTF8String(lWorkspace.CachePath) + LineEnding + '  Commit: ' +
+      lWorkspace.ResolvedCommit;
+  end;
+  Result := Result + LineEnding +
+    'Treat repositories as read-only references and write task-local files ' +
+    'only beneath the corresponding cache path.';
+end;
+
+procedure TNXOpenAIProvider.ExecuteShellCommand(const ACommand: UTF8String;
+  ATimeoutMS, AOutputMaximum: Integer; out AStdOut, AStdErr: UTF8String;
+  out AExitCode: Integer; out ATimedOut: Boolean);
+var
+  lBuffer: array[0..4095] of Byte;
+  lChunk: RawByteString;
+  lCount: LongInt;
+  lDeadline: QWord;
+  lProcess: TProcess;
+  lRemaining: Integer;
+
+  procedure Drain(AStream: TInputPipeStream; var AText: UTF8String);
+  begin
+    while AStream.NumBytesAvailable > 0 do
+    begin
+      lCount := AStream.Read(lBuffer, SizeOf(lBuffer));
+      if lCount <= 0 then
+        Exit;
+      if lRemaining > 0 then
+      begin
+        if lCount > lRemaining then
+          lCount := lRemaining;
+        SetLength(lChunk, lCount);
+        Move(lBuffer[0], lChunk[1], lCount);
+        AText := AText + UTF8String(lChunk);
+        Dec(lRemaining, lCount);
+      end;
+    end;
+  end;
+
+begin
+  AStdOut := '';
+  AStdErr := '';
+  AExitCode := -1;
+  ATimedOut := False;
+  lRemaining := AOutputMaximum;
+  lProcess := TProcess.Create(nil);
+  try
+    {$IFDEF Windows}
+    lProcess.Executable := GetEnvironmentVariable('COMSPEC');
+    if lProcess.Executable = '' then
+      lProcess.Executable := 'cmd.exe';
+    lProcess.Parameters.Add('/D');
+    lProcess.Parameters.Add('/S');
+    lProcess.Parameters.Add('/C');
+    {$ELSE}
+    lProcess.Executable := '/bin/sh';
+    lProcess.Parameters.Add('-c');
+    {$ENDIF}
+    lProcess.Parameters.Add(string(ACommand));
+    lProcess.CurrentDirectory := Configuration.RuntimeDirectory;
+    lProcess.Options := [poUsePipes, poNoConsole];
+    lProcess.Execute;
+    lDeadline := GetTickCount64 + QWord(ATimeoutMS);
+    while lProcess.Running do
+    begin
+      Drain(lProcess.Output, AStdOut);
+      Drain(lProcess.Stderr, AStdErr);
+      if GetTickCount64 >= lDeadline then
+      begin
+        ATimedOut := True;
+        lProcess.Terminate(1);
+        Break;
+      end;
+      TThread.Yield;
+    end;
+    lProcess.WaitOnExit;
+    Drain(lProcess.Output, AStdOut);
+    Drain(lProcess.Stderr, AStdErr);
+    AExitCode := lProcess.ExitStatus;
+  finally
+    lProcess.Free;
+  end;
+end;
+
 procedure TNXOpenAIProvider.ProcessPrompt(APrompt: TNXBotPrompt);
 var
   lAnswer: UTF8String;
@@ -795,6 +920,9 @@ var
   lRequest: TNXOpenAIResponseRequest;
   lRequestData: TJSONData;
   lResponse: TNXOpenAIResponse;
+  lShellCall: TNXOpenAIShellCall;
+  lOutputIndex: Integer;
+  lShellTool: TNXOpenAIShellTool;
   lRefusal: UTF8String;
   lSuccess: Boolean;
 begin
@@ -804,9 +932,10 @@ begin
   lRequestData := nil;
   try
     lRequest.model.Value := UTF8String(Configuration.Model);
-    lRequest.instructions.Value := Instructions;
+    lRequest.instructions.Value := Instructions + WorkspaceInstructions;
     lInputMessage := TNXOpenAIInputMessage(lRequest.input.AddObject(
       TNXOpenAIInputMessage));
+    lInputMessage.&type.Value := 'message';
     lInputMessage.role.Value := 'user';
     lInputText := TNXOpenAIInputText(lInputMessage.content.AddObject(
       TNXOpenAIInputText));
@@ -825,6 +954,14 @@ begin
     end;
     lRequest.store.Value := True;
     lRequest.stream.Value := False;
+    if Configuration.Workspaces.Count > 0 then
+    begin
+      lRequest.parallel_tool_calls.Value := False;
+      lShellTool := TNXOpenAIShellTool(lRequest.tools.AddObject(
+        TNXOpenAIShellTool));
+      lShellTool.&type.Value := 'shell';
+      lShellTool.environment.&type.Value := 'local';
+    end;
     if FPreviousResponseID <> '' then
       lRequest.previous_response_id.Value := FPreviousResponseID;
     lRequestData := lRequest.ToJSONData;
@@ -932,6 +1069,18 @@ begin
       ReturnToReady;
       Exit;
     end;
+    lShellCall := nil;
+    for lOutputIndex := 0 to lResponse.output.Count - 1 do
+      if lResponse.output[lOutputIndex] is TNXOpenAIShellCall then
+      begin
+        lShellCall := TNXOpenAIShellCall(lResponse.output[lOutputIndex]);
+        Break;
+      end;
+    if Assigned(lShellCall) then
+    begin
+      ContinueShell(APrompt, lResponse, lUploadedStart);
+      Exit;
+    end;
     if (lResponse.id.Value = '') or
       not lResponse.ExtractCompletedText(lAnswer, lRefusal) then
     begin
@@ -961,6 +1110,224 @@ begin
   finally
     lResponse.Free;
     lData.Free;
+  end;
+end;
+
+procedure TNXOpenAIProvider.ContinueShell(APrompt: TNXBotPrompt;
+  AInitialResponse: TNXOpenAIResponse; AUploadedStart: Integer);
+var
+  lAnswer: UTF8String;
+  lCallCount: Integer;
+  lCancellationReason: UTF8String;
+  lCommand: UTF8String;
+  lCommandIndex: Integer;
+  lData: TJSONData;
+  lDiagnostic: UTF8String;
+  lExitCode: Integer;
+  lHTTP: TNXOpenAIHTTPResult;
+  lInput: TNXOpenAIShellCallOutput;
+  lMaximumOutput: Integer;
+  lOutput: TNXOpenAIShellOutput;
+  lOutputIndex: Integer;
+  lOwnedResponse: TNXOpenAIResponse;
+  lRefusal: UTF8String;
+  lRequest: TNXOpenAIResponseRequest;
+  lRequestData: TJSONData;
+  lResponse: TNXOpenAIResponse;
+  lShellCall: TNXOpenAIShellCall;
+  lShellTool: TNXOpenAIShellTool;
+  lStdErr: UTF8String;
+  lStdOut: UTF8String;
+  lSuccess: Boolean;
+  lTimedOut: Boolean;
+  lTimeoutMS: Integer;
+
+  procedure Fail(const AReason: UTF8String);
+  begin
+    DeleteUploadedFilesFrom(AUploadedStart);
+    if CompleteActive(APrompt, False, '', lCancellationReason) then
+      PromptFailed(APrompt, BoundedDiagnostic(AReason))
+    else
+      PromptFailed(APrompt, lCancellationReason);
+    APrompt.Free;
+    ReturnToReady;
+  end;
+
+begin
+  lCallCount := 0;
+  lOwnedResponse := nil;
+  lResponse := AInitialResponse;
+  try
+    while True do
+    begin
+      if CancellationRequested(lCancellationReason) then
+      begin
+        Fail(lCancellationReason);
+        Exit;
+      end;
+      lShellCall := nil;
+      for lOutputIndex := 0 to lResponse.output.Count - 1 do
+        if lResponse.output[lOutputIndex] is TNXOpenAIShellCall then
+        begin
+          if Assigned(lShellCall) then
+          begin
+            Fail('OpenAI returned parallel shell calls.');
+            Exit;
+          end;
+          lShellCall := TNXOpenAIShellCall(
+            lResponse.output[lOutputIndex]);
+        end;
+      if not Assigned(lShellCall) then
+      begin
+        if (lResponse.id.Value = '') or
+          not lResponse.ExtractCompletedText(lAnswer, lRefusal) then
+        begin
+          if lRefusal <> '' then
+            lDiagnostic := 'OpenAI refusal: ' + lRefusal
+          else
+            lDiagnostic := 'OpenAI completed response has no assistant text.';
+          Fail(lDiagnostic);
+          Exit;
+        end;
+        lAnswer := BoundAnswer(lAnswer, Configuration.AnswerMaximumBytes);
+        if CompleteActive(APrompt, True, lResponse.id.Value,
+          lCancellationReason) then
+          FinalAnswer(APrompt, lAnswer)
+        else
+          PromptFailed(APrompt, lCancellationReason);
+        APrompt.Free;
+        ReturnToReady;
+        Exit;
+      end;
+
+      Inc(lCallCount);
+      if lCallCount > Configuration.ShellCallMaximum then
+      begin
+        Fail('OpenAI shell call limit exceeded.');
+        Exit;
+      end;
+      if (Configuration.Workspaces.Count = 0) or
+        (lResponse.id.Value = '') or (lShellCall.call_id.Value = '') or
+        (lShellCall.action.commands.Count = 0) then
+      begin
+        Fail('OpenAI returned an invalid shell call.');
+        Exit;
+      end;
+      lTimeoutMS := Configuration.ShellCommandTimeoutMS;
+      if lShellCall.action.timeout_ms.Assigned and
+        (lShellCall.action.timeout_ms.Value > 0) and
+        (lShellCall.action.timeout_ms.Value < lTimeoutMS) then
+        lTimeoutMS := lShellCall.action.timeout_ms.Value;
+      lMaximumOutput := Configuration.ShellOutputMaximumBytes;
+      if lShellCall.action.max_output_length.Assigned and
+        (lShellCall.action.max_output_length.Value > 0) and
+        (lShellCall.action.max_output_length.Value < lMaximumOutput) then
+        lMaximumOutput := lShellCall.action.max_output_length.Value;
+
+      lRequest := TNXOpenAIResponseRequest.Create;
+      lRequestData := nil;
+      try
+        lRequest.model.Value := UTF8String(Configuration.Model);
+        lRequest.instructions.Value := Instructions + WorkspaceInstructions;
+        lRequest.previous_response_id.Value := lResponse.id.Value;
+        lRequest.store.Value := True;
+        lRequest.stream.Value := False;
+        lRequest.parallel_tool_calls.Value := False;
+        lShellTool := TNXOpenAIShellTool(lRequest.tools.AddObject(
+          TNXOpenAIShellTool));
+        lShellTool.&type.Value := 'shell';
+        lShellTool.environment.&type.Value := 'local';
+        lInput := TNXOpenAIShellCallOutput(lRequest.input.AddObject(
+          TNXOpenAIShellCallOutput));
+        lInput.&type.Value := 'shell_call_output';
+        lInput.call_id.Value := lShellCall.call_id.Value;
+        lInput.max_output_length.Value := lMaximumOutput;
+        for lCommandIndex := 0 to lShellCall.action.commands.Count - 1 do
+        begin
+          if CancellationRequested(lCancellationReason) then
+          begin
+            Fail(lCancellationReason);
+            Exit;
+          end;
+          lCommand := TNXJSONString(
+            lShellCall.action.commands[lCommandIndex]).Value;
+          try
+            ExecuteShellCommand(lCommand, lTimeoutMS, lMaximumOutput,
+              lStdOut, lStdErr, lExitCode, lTimedOut);
+          except
+            on E: Exception do
+            begin
+              Fail('Local shell execution failed: ' + UTF8String(E.Message));
+              Exit;
+            end;
+          end;
+          lOutput := TNXOpenAIShellOutput(lInput.output.AddObject(
+            TNXOpenAIShellOutput));
+          lOutput.stdout.Value := lStdOut;
+          lOutput.stderr.Value := lStdErr;
+          if lTimedOut then
+            lOutput.outcome.&type.Value := 'timeout'
+          else
+          begin
+            lOutput.outcome.&type.Value := 'exit';
+            lOutput.outcome.exit_code.Value := lExitCode;
+          end;
+        end;
+        lRequestData := lRequest.ToJSONData;
+        try
+          lSuccess := FExecutor.Execute(FAPIKey,
+            UTF8String(Configuration.OpenAICAFile),
+            UTF8String(lRequestData.AsJSON), Configuration.RequestTimeoutMS,
+            lHTTP);
+        except
+          on E: Exception do
+          begin
+            lSuccess := False;
+            lHTTP := Default(TNXOpenAIHTTPResult);
+            lHTTP.ErrorText := UTF8String(E.Message);
+          end;
+        end;
+      finally
+        lRequestData.Free;
+        lRequest.Free;
+      end;
+      if not lSuccess or (lHTTP.Status < 200) or (lHTTP.Status >= 300) then
+      begin
+        lDiagnostic := lHTTP.ErrorText;
+        if lDiagnostic = '' then
+          lDiagnostic := ErrorMessageFromBody(lHTTP.Body);
+        if lDiagnostic = '' then
+          lDiagnostic := 'OpenAI shell continuation failed.';
+        Fail(lDiagnostic);
+        Exit;
+      end;
+      lData := nil;
+      try
+        try
+          lData := GetJSON(string(lHTTP.Body));
+          FreeAndNil(lOwnedResponse);
+          lOwnedResponse := TNXOpenAIResponse.Create;
+          lOwnedResponse.FromJSONData(lData);
+        except
+          on E: Exception do
+          begin
+            Fail('Invalid OpenAI shell continuation response: ' +
+              UTF8String(E.Message));
+            Exit;
+          end;
+        end;
+      finally
+        lData.Free;
+      end;
+      lResponse := lOwnedResponse;
+      if lResponse.status.Value <> 'completed' then
+      begin
+        Fail('OpenAI shell continuation did not complete.');
+        Exit;
+      end;
+    end;
+  finally
+    lOwnedResponse.Free;
   end;
 end;
 

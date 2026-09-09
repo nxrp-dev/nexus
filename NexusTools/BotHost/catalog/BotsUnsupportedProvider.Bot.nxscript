@@ -1,7 +1,11 @@
 doctype "Bot.Language.nxscript";
 
-Bot Unsupported {
-    Provider: UnsupportedProvider;
-    Model: "gpt-5.6-luna";
-    Instructions: "This provider is deliberately outside AllowedValues.";
+BotCatalog NexusBots {
+    Bots: [
+        Bot Unsupported {
+            Provider: UnsupportedProvider;
+            Model: "gpt-5.6-luna";
+            Instructions: "This provider is deliberately outside AllowedValues.";
+        }
+    ];
 }

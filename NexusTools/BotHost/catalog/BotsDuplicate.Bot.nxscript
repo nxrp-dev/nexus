@@ -1,13 +1,16 @@
 doctype "Bot.Language.nxscript";
 
-Bot Duplicate {
-    Provider: Codex;
-    Model: "gpt-5.6-luna";
-    Instructions: "The first duplicate definition.";
-}
-
-Bot Duplicate {
-    Provider: Codex;
-    Model: "gpt-5.6-luna";
-    Instructions: "The second duplicate definition.";
+BotCatalog NexusBots {
+    Bots: [
+        Bot Duplicate {
+            Provider: Codex;
+            Model: "gpt-5.6-luna";
+            Instructions: "The first duplicate definition.";
+        },
+        Bot Duplicate {
+            Provider: Codex;
+            Model: "gpt-5.6-luna";
+            Instructions: "The second duplicate definition.";
+        }
+    ];
 }

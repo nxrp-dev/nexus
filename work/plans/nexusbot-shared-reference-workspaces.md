@@ -18,7 +18,8 @@ No hosted OpenAI container, additional thread, generalized workspace service, pr
 ## Verified Findings
 
 - `Bot.Language.nxscript` currently defines only `Bot` with `Provider`, `Model`, and `Instructions`.
-- NexusScript already supports arrays of references constrained to a definition kind; no compiler or grammar change is needed.
+- NexusScript already supports inline definitions in arrays and arrays of references constrained to a definition kind; no compiler or grammar change is needed.
+- A catalog uses one root definition. References resolve bottom-up from their containing definition, so a bot nested under `NexusBots.Bots` addresses the sibling workspace collection as `@NexusBots.Workspaces.Nexus`.
 - `TNXBotCatalog.Load` already builds and validates an unpublished candidate before replacing the published catalog.
 - `TNXBotHostRuntime.Start` is the existing point before provider startup, XMPP connection, and room join.
 - `TNXBotController` owns the catalog and creates both the initial and subsequently summoned hosts.
@@ -50,23 +51,29 @@ catalog workspace reference
 Add this deployed shape:
 
 ```nexusscript
-Workspace Nexus {
-    Purpose: "Shared reference copy of the Nexus source tree.";
-    SourceType: Git;
-    Source: "https://github.com/nxrp-dev/nexus.git";
-    Ref: main;
-    Location: "/srv/nexus/workspaces/nexus";
-}
-
-Bot Reviewer {
-    Provider: OpenAI;
-    Model: gpt-5.6-luna;
-    Instructions: "...";
-    Workspaces: [@Nexus];
+BotCatalog NexusBots {
+    Workspaces: [
+        Workspace Nexus {
+            Purpose: "Shared reference copy of the Nexus source tree.";
+            SourceType: Git;
+            Source: "https://github.com/nxrp-dev/nexus.git";
+            Ref: main;
+            Location: "/srv/nexus/workspaces/nexus";
+        }
+    ];
+    Bots: [
+        Bot Reviewer {
+            Provider: OpenAI;
+            Model: gpt-5.6-luna;
+            Instructions: "...";
+            Workspaces: [@NexusBots.Workspaces.Nexus];
+        }
+    ];
 }
 ```
 
-- `Workspace` is a root definition.
+- `BotCatalog` is the document's single root definition.
+- `Workspaces` and `Bots` contain named inline `Workspace` and `Bot` definitions.
 - `Purpose` and `Ref` are optional text.
 - `SourceType`, `Source`, and `Location` are required text.
 - Initially, `SourceType` accepts only `Git`.
@@ -77,8 +84,8 @@ Bot Reviewer {
 
 ### Catalog and runtime data
 
-- Extend the catalog candidate with workspace entries containing name, purpose, source type, source, optional ref, and location.
-- Extend each bot entry with its compiled workspace references.
+- Extract workspace and bot entries from the single compiled `BotCatalog` root's `Workspaces` and `Bots` arrays.
+- Extend the catalog candidate with workspace entries containing name, purpose, source type, source, optional ref, and location, and each bot entry with its compiled workspace references.
 - Publish bot and workspace entries together only after the complete candidate validates.
 - Add a small runtime workspace record containing logical name, purpose, repository path, bot cache path, and resolved commit.
 - Pass an owned list of those records through the host configuration to the OpenAI provider. The list is runtime data and is not a published JSON configuration property.
@@ -180,8 +187,8 @@ The canonical repository's read-only status remains a reference-bot behavior rul
 
 ### Stage 1: Catalog contract
 
-1. Add `Workspace` and `Bot.Workspaces` to the deployed Bot language.
-2. Extract workspace definitions and plural references into the existing unpublished catalog candidate.
+1. Add the single-root `BotCatalog` shape, inline `Workspace` and `Bot` arrays, and `Bot.Workspaces` references to the deployed Bot language.
+2. Extract workspace definitions and plural references from the compiled root into the existing unpublished catalog candidate.
 3. Publish the bot/workspace candidate atomically after validation.
 4. Add focused catalog tests.
 

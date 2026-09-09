@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, Contnrs, obNXBotCatalog, obNXBotConversation, obNXBotHost,
-  obNXBotHostConfig, tpNXBotControl, tpNXBotHost;
+  obNXBotHostConfig, obNXBotWorkspace, tpNXBotControl, tpNXBotHost;
 
 type
   TNXBotController = class;
@@ -53,7 +53,9 @@ type
     FCriticalSection: TRTLCriticalSection;
     FNextToken: QWord;
     FPending: TObjectList;
+    FPreparedWorkspaces: TObjectList;
     FShuttingDown: Boolean;
+    FWorkspacesPrepared: Boolean;
     function AcquireActive(const AName: UTF8String): TNXActiveBot;
     procedure AdvancePending;
     function Authorized(const AOperation: TNXBotControlOperation;
@@ -85,6 +87,8 @@ type
       AOrigin: TNXBotControlOrigin): TNXBotCatalogEntry;
     function RequestCompletion(AToken: QWord;
       const AResult: TNXBotControlResult): Boolean;
+    procedure AssignWorkspaces(AEntry: TNXBotCatalogEntry;
+      AConfig: TNXBotHostConfig);
   protected
     function CreateHost(AConfig: TNXBotHostConfig;
       const AInstructions: UTF8String): TNXBotHost; virtual;
@@ -102,6 +106,7 @@ type
       const AOperation: TNXBotControlOperation;
       const AAuthorization: TNXBotAuthorization;
       ACompletion: TNXBotControlCompletion; out AToken: QWord): Boolean;
+    procedure PrepareWorkspaces;
     procedure SetOperationCapacity(AValue: Integer);
     procedure Shutdown;
     function UpdateDeployment(ABinding: TNXBotDeploymentBinding): Boolean;
@@ -111,11 +116,65 @@ type
 implementation
 
 uses
-  SysUtils, obNXBotHostState, obNXXMPPJID;
+  Process, SysUtils, obNXBotHostState, obNXXMPPJID;
 
 type
   TNXBotHostAction = (bhaNone, bhaStartProvider, bhaConnectXMPP,
     bhaJoinRoom, bhaLeaveRoom);
+
+  TNXPreparedWorkspace = class
+  public
+    CatalogWorkspace: TNXBotCatalogWorkspace;
+    RepositoryPath: string;
+    ResolvedCommit: UTF8String;
+  end;
+
+function RunGit(const AArguments: array of string): UTF8String;
+var
+  lBuffer: array[0..4095] of Byte;
+  lCount: LongInt;
+  lIndex: Integer;
+  lOutput: TMemoryStream;
+  lProcess: TProcess;
+begin
+  lOutput := TMemoryStream.Create;
+  lProcess := TProcess.Create(nil);
+  try
+    lProcess.Executable := 'git';
+    for lIndex := Low(AArguments) to High(AArguments) do
+      lProcess.Parameters.Add(AArguments[lIndex]);
+    lProcess.Options := [poUsePipes, poStderrToOutPut, poNoConsole];
+    lProcess.Execute;
+    while lProcess.Running do
+    begin
+      while lProcess.Output.NumBytesAvailable > 0 do
+      begin
+        lCount := lProcess.Output.Read(lBuffer, SizeOf(lBuffer));
+        if lCount > 0 then
+          lOutput.WriteBuffer(lBuffer, lCount);
+      end;
+      TThread.Yield;
+    end;
+    while lProcess.Output.NumBytesAvailable > 0 do
+    begin
+      lCount := lProcess.Output.Read(lBuffer, SizeOf(lBuffer));
+      if lCount > 0 then
+        lOutput.WriteBuffer(lBuffer, lCount);
+    end;
+    SetLength(Result, lOutput.Size);
+    if lOutput.Size > 0 then
+    begin
+      lOutput.Position := 0;
+      lOutput.ReadBuffer(Result[1], lOutput.Size);
+    end;
+    Result := UTF8String(Trim(string(Result)));
+    if lProcess.ExitStatus <> 0 then
+      raise Exception.Create('Git failed: ' + string(Result));
+  finally
+    lProcess.Free;
+    lOutput.Free;
+  end;
+end;
 
 destructor TNXActiveBot.Destroy;
 begin
@@ -147,6 +206,7 @@ begin
   FActive.Capacity := FCatalog.Entries.Count;
   FPending := TObjectList.Create(True);
   FPending.Capacity := FConfig.OperationCapacity;
+  FPreparedWorkspaces := TObjectList.Create(True);
   InitCriticalSection(FCriticalSection);
 end;
 
@@ -154,6 +214,7 @@ destructor TNXBotController.Destroy;
 begin
   Shutdown;
   FPending.Free;
+  FPreparedWorkspaces.Free;
   FActive.Free;
   FConversation.Free;
   DoneCriticalSection(FCriticalSection);
@@ -334,6 +395,7 @@ begin
         lConfig.ApplyDeployment(lBinding);
         lConfig.Model := string(AEntry.Model);
         lConfig.Provider := string(AEntry.Provider);
+        AssignWorkspaces(AEntry, lConfig);
       end;
     finally
       LeaveCriticalSection(FCriticalSection);
@@ -345,6 +407,110 @@ begin
     lConfig := nil;
   finally
     lConfig.Free;
+  end;
+end;
+
+procedure TNXBotController.AssignWorkspaces(AEntry: TNXBotCatalogEntry;
+  AConfig: TNXBotHostConfig);
+var
+  lAccess: TNXBotWorkspaceAccess;
+  lCatalogWorkspace: TNXBotCatalogWorkspace;
+  lIndex: Integer;
+  lPrepared: TNXPreparedWorkspace;
+begin
+  AConfig.Workspaces.Clear;
+  for lCatalogWorkspace in AEntry.Workspaces do
+    for lIndex := 0 to FPreparedWorkspaces.Count - 1 do
+    begin
+      lPrepared := TNXPreparedWorkspace(FPreparedWorkspaces[lIndex]);
+      if lPrepared.CatalogWorkspace <> lCatalogWorkspace then
+        Continue;
+      lAccess := TNXBotWorkspaceAccess.Create;
+      lAccess.Name := lCatalogWorkspace.Name;
+      lAccess.Purpose := lCatalogWorkspace.Purpose;
+      lAccess.RepositoryPath := lPrepared.RepositoryPath;
+      lAccess.ResolvedCommit := lPrepared.ResolvedCommit;
+      lAccess.CachePath := IncludeTrailingPathDelimiter(
+        string(lCatalogWorkspace.Location)) + 'botcache' +
+        DirectorySeparator + string(AEntry.Name);
+      AConfig.Workspaces.Add(lAccess);
+      Break;
+    end;
+end;
+
+procedure TNXBotController.PrepareWorkspaces;
+var
+  lActive: TNXActiveBot;
+  lCommit: UTF8String;
+  lEntry: TNXBotCatalogEntry;
+  lIndex: Integer;
+  lPrepared: TNXPreparedWorkspace;
+  lRepositoryPath: string;
+  lWorkspace: TNXBotCatalogWorkspace;
+begin
+  if FWorkspacesPrepared then
+    Exit;
+  FPreparedWorkspaces.Clear;
+  try
+    for lEntry in FCatalog.Entries do
+      for lWorkspace in lEntry.Workspaces do
+      begin
+        lPrepared := nil;
+        for lIndex := 0 to FPreparedWorkspaces.Count - 1 do
+          if TNXPreparedWorkspace(FPreparedWorkspaces[lIndex]).CatalogWorkspace =
+            lWorkspace then
+          begin
+            lPrepared := TNXPreparedWorkspace(FPreparedWorkspaces[lIndex]);
+            Break;
+          end;
+        if Assigned(lPrepared) then
+          Continue;
+        lRepositoryPath := IncludeTrailingPathDelimiter(
+          string(lWorkspace.Location)) + 'repo';
+        ForceDirectories(string(lWorkspace.Location));
+        if not DirectoryExists(IncludeTrailingPathDelimiter(lRepositoryPath) +
+          '.git') then
+          RunGit(['clone', '--no-checkout', string(lWorkspace.Source),
+            lRepositoryPath])
+        else if RunGit(['-C', lRepositoryPath, 'remote', 'get-url', 'origin']) <>
+          lWorkspace.Source then
+          raise Exception.Create('Workspace repository origin does not match ' +
+            string(lWorkspace.Source) + '.');
+        if lWorkspace.Ref <> '' then
+        begin
+          RunGit(['-C', lRepositoryPath, 'fetch', 'origin',
+            string(lWorkspace.Ref)]);
+          lCommit := RunGit(['-C', lRepositoryPath, 'rev-parse',
+            'FETCH_HEAD^{commit}']);
+        end
+        else
+        begin
+          RunGit(['-C', lRepositoryPath, 'fetch', 'origin']);
+          lCommit := RunGit(['-C', lRepositoryPath, 'rev-parse',
+            'origin/HEAD^{commit}']);
+        end;
+        RunGit(['-C', lRepositoryPath, 'checkout', '--detach', '--force',
+          string(lCommit)]);
+        lPrepared := TNXPreparedWorkspace.Create;
+        lPrepared.CatalogWorkspace := lWorkspace;
+        lPrepared.RepositoryPath := ExpandFileName(lRepositoryPath);
+        lPrepared.ResolvedCommit := lCommit;
+        FPreparedWorkspaces.Add(lPrepared);
+      end;
+    for lEntry in FCatalog.Entries do
+      for lWorkspace in lEntry.Workspaces do
+        ForceDirectories(IncludeTrailingPathDelimiter(
+          string(lWorkspace.Location)) + 'botcache' + DirectorySeparator +
+          string(lEntry.Name));
+    for lIndex := 0 to FActive.Count - 1 do
+    begin
+      lActive := TNXActiveBot(FActive[lIndex]);
+      AssignWorkspaces(lActive.Entry, lActive.Host.Config);
+    end;
+    FWorkspacesPrepared := True;
+  except
+    FPreparedWorkspaces.Clear;
+    raise;
   end;
 end;
 
@@ -1001,6 +1167,9 @@ begin
       lBinding.FileTransferTimeoutMS := ABinding.FileTransferTimeoutMS;
       lBinding.StagedFileCapacity := ABinding.StagedFileCapacity;
       lBinding.StagedMaximumBytes := ABinding.StagedMaximumBytes;
+      lBinding.ShellCallMaximum := ABinding.ShellCallMaximum;
+      lBinding.ShellCommandTimeoutMS := ABinding.ShellCommandTimeoutMS;
+      lBinding.ShellOutputMaximumBytes := ABinding.ShellOutputMaximumBytes;
       lBinding.TrustedFileOrigins.Assign(ABinding.TrustedFileOrigins);
       lBinding.XMPPJID := ABinding.XMPPJID;
     end;

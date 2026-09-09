@@ -3,23 +3,30 @@ doctype "Bot.Language.nxscript";
 BotCatalog NexusBots {
     Workspaces: [
         Workspace Nexus {
-            Purpose: "Shared reference copy of the Nexus source tree.";
+            Purpose: "Nexus reference source.";
             SourceType: Git;
             Source: "https://github.com/nxrp-dev/nexus.git";
             Ref: main;
-            Location: "/srv/nexus/workspaces/nexus";
+            Location: "//nexus-tests/workspaces/nexus";
+        },
+        Workspace Docs {
+            SourceType: Git;
+            Source: "https://github.com/nxrp-dev/nexus-docs.git";
+            Location: "//nexus-tests/workspaces/docs";
         }
     ];
     Bots: [
         Bot NexusBot {
             Provider: Codex;
             Model: "gpt-5.6-luna";
-            Instructions: "You are NexusBot. Answer directly and concisely.";
+            Instructions: "Test bot.";
+            Workspaces: [@NexusBots.Workspaces.Nexus,
+                @NexusBots.Workspaces.Docs];
         },
         Bot OpenAIBot {
             Provider: OpenAI;
             Model: "gpt-5.6-luna";
-            Instructions: "You are OpenAIBot. Answer directly and concisely.";
+            Instructions: "Test OpenAI bot.";
             Workspaces: [@NexusBots.Workspaces.Nexus];
         }
     ];

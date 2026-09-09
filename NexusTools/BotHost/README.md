@@ -6,8 +6,8 @@ receives ordinary addressed MUC conversation and owns the control endpoint for
 the catalog.
 
 Bot behavior is defined by `catalog/Bots.nxscript` using the small Bot language
-in `catalog/Bot.Language.nxscript`. The initial behavioral contract contains
-only `Provider`, `Model`, and `Instructions`. Provider names are resolved by a
+in `catalog/Bot.Language.nxscript`. Bot definitions contain `Provider`,
+`Model`, `Instructions`, and optional plural `Workspaces` references. Provider names are resolved by a
 case-sensitive BotHost registry; `Codex` and `OpenAI` are registered providers.
 Deployment data is separate RTTI-persisted configuration. Catalog loading
 rejects an unregistered provider before publishing any bot entries.
@@ -24,8 +24,21 @@ API through Synapse and its OpenSSL 3 TLS provider, sends non-streaming
 requests, and keeps only the previous response ID in memory for conversation
 continuity. It sends
 `store: true`; the response chain therefore uses OpenAI-retained response state
-while BotHost writes no conversation history to disk. Streaming, tools, and a
-second socket stack are not part of this milestone.
+while BotHost writes no conversation history to disk. Streaming and a second
+socket stack are not part of this milestone.
+
+The catalog has one `BotCatalog` root whose `Workspaces` and `Bots` arrays hold
+named inline definitions. A bot refers to a workspace through NexusScript's
+bottom-up reference resolution, for example
+`@NexusBots.Workspaces.Nexus`. Each workspace declares a Git `Source`, optional
+`Ref`, purpose, and explicit absolute `Location`. Before providers start,
+BotHost prepares one shared checkout at `<Location>/repo`, records its exact
+commit, and creates
+`<Location>/botcache/<BotName>` for every assigned bot. OpenAI bots with an
+assignment advertise the Responses local shell tool and receive every
+repository, cache, and commit as explicit absolute paths. The deployment limits
+`ShellCallMaximum`, `ShellCommandTimeoutMS`, and `ShellOutputMaximumBytes`
+bound same-worker command execution and retained output.
 
 ## File exchange
 
@@ -249,9 +262,8 @@ free-form JSON interpretation.
 
 ## Live XMPP verification
 
-The live tests are registered as `NexusBotHostLive.OpenfireCodex` and
-`NexusBotHostLive.OpenfireOpenAI` in `NexusBotHostTestModule.dll`. Configure
-the desired test through environment variables, then invoke it through
+The live tests are registered in `NexusBotHostTestModule.dll`. Configure the
+desired test through environment variables, then invoke it through
 `NexusTestHost`.
 
 The original test IDs retain their Openfire names from the initial local
@@ -278,7 +290,7 @@ $env:NEXUS_BOTHOST_CATALOG_FILE = '<catalog-file>'
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenfireCodex
 ```
 
-OpenAI uses the shared Openfire endpoint, CA, room, and observer variables from
+OpenAI uses the shared XMPP endpoint, CA, room, and observer variables from
 the preceding example, plus:
 
 ```powershell
@@ -292,6 +304,24 @@ $env:NEXUS_OPENAI_BOT_XMPP_PASSWORD = '<bot-password>'
 $env:OPENAI_API_KEY = '<OpenAI-API-key>'
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenfireOpenAI
 ```
+
+The opt-in OpenAI workspace test additionally requires a prepared reference
+checkout, a writable bot cache, and a probe file whose complete trimmed text is
+known:
+
+```powershell
+$env:NEXUS_BOTHOST_LIVE_OPENAI_WORKSPACE = '1'
+$env:NEXUS_BOTHOST_WORKSPACE_REPOSITORY = '<absolute-repository-path>'
+$env:NEXUS_BOTHOST_WORKSPACE_CACHE = '<absolute-bot-cache-path>'
+$env:NEXUS_BOTHOST_WORKSPACE_COMMIT = '<resolved-commit>'
+$env:NEXUS_BOTHOST_WORKSPACE_PROBE = '<repository-relative-probe-file>'
+$env:NEXUS_BOTHOST_WORKSPACE_EXPECTED = '<complete-trimmed-probe-text>'
+output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-test NexusBotHostLive.OpenAIWorkspace
+```
+
+It requires the model to read the probe through local shell, write a known
+artifact beneath the bot cache, and complete the same prompt with an exact
+answer. It is skipped unless its own switch is `1`.
 
 Bot interoperability uses the Codex settings above and the OpenAI API key and
 bot-account settings from the OpenAI example. It has its own opt-in switch:

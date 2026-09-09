@@ -42,7 +42,14 @@ type
     class function ItemClass: TNXJSONValueClass; override;
   end;
 
-  TNXOpenAIInputMessage = class(TNXJSONObject)
+  TNXOpenAIInputItem = class(TNXJSONObject)
+  private
+    Ftype: TNXJSONString;
+  published
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXOpenAIInputMessage = class(TNXOpenAIInputItem)
   private
     Fcontent: TNXOpenAIInputContentArray;
     Frole: TNXJSONString;
@@ -52,8 +59,74 @@ type
   end;
 
   TNXOpenAIInputMessageArray = class(TNXJSONArray)
+  protected
+    function CreateItemForJSON(AData: TJSONData): TNXJSONValue; override;
   public
     class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXOpenAIStringArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXOpenAIShellEnvironment = class(TNXJSONObject)
+  private
+    Ftype: TNXJSONString;
+  published
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXOpenAIShellTool = class(TNXJSONObject)
+  private
+    Fenvironment: TNXOpenAIShellEnvironment;
+    Ftype: TNXJSONString;
+  published
+    property environment: TNXOpenAIShellEnvironment read Fenvironment
+      write Fenvironment;
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXOpenAIToolArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXOpenAIShellOutcome = class(TNXJSONObject)
+  private
+    Fexit_code: TNXJSONInteger;
+    Ftype: TNXJSONString;
+  published
+    property exit_code: TNXJSONInteger read Fexit_code write Fexit_code;
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXOpenAIShellOutput = class(TNXJSONObject)
+  private
+    Foutcome: TNXOpenAIShellOutcome;
+    Fstderr: TNXJSONString;
+    Fstdout: TNXJSONString;
+  published
+    property outcome: TNXOpenAIShellOutcome read Foutcome write Foutcome;
+    property stderr: TNXJSONString read Fstderr write Fstderr;
+    property stdout: TNXJSONString read Fstdout write Fstdout;
+  end;
+
+  TNXOpenAIShellOutputArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+  end;
+
+  TNXOpenAIShellCallOutput = class(TNXOpenAIInputItem)
+  private
+    Fcall_id: TNXJSONString;
+    Fmax_output_length: TNXJSONInteger;
+    Foutput: TNXOpenAIShellOutputArray;
+  published
+    property call_id: TNXJSONString read Fcall_id write Fcall_id;
+    property max_output_length: TNXJSONInteger read Fmax_output_length
+      write Fmax_output_length;
+    property output: TNXOpenAIShellOutputArray read Foutput write Foutput;
   end;
 
   TNXOpenAIResponseRequest = class(TNXJSONObject)
@@ -64,6 +137,8 @@ type
     Fprevious_response_id: TNXJSONString;
     Fstore: TNXJSONBoolean;
     Fstream: TNXJSONBoolean;
+    Fparallel_tool_calls: TNXJSONBoolean;
+    Ftools: TNXOpenAIToolArray;
   published
     property input: TNXOpenAIInputMessageArray read Finput write Finput;
     property instructions: TNXJSONString read Finstructions write Finstructions;
@@ -72,6 +147,9 @@ type
       write Fprevious_response_id;
     property store: TNXJSONBoolean read Fstore write Fstore;
     property stream: TNXJSONBoolean read Fstream write Fstream;
+    property parallel_tool_calls: TNXJSONBoolean read Fparallel_tool_calls
+      write Fparallel_tool_calls;
+    property tools: TNXOpenAIToolArray read Ftools write Ftools;
   end;
 
   TNXOpenAIResponseError = class(TNXJSONObject)
@@ -144,6 +222,33 @@ type
     property status: TNXJSONString read Fstatus write Fstatus;
   end;
 
+  TNXOpenAIShellAction = class(TNXJSONObject)
+  private
+    Fcommands: TNXOpenAIStringArray;
+    Fmax_output_length: TNXJSONInteger;
+    Ftimeout_ms: TNXJSONInteger;
+    Ftype: TNXJSONString;
+  published
+    property commands: TNXOpenAIStringArray read Fcommands write Fcommands;
+    property max_output_length: TNXJSONInteger read Fmax_output_length
+      write Fmax_output_length;
+    property timeout_ms: TNXJSONInteger read Ftimeout_ms write Ftimeout_ms;
+    property &type: TNXJSONString read Ftype write Ftype;
+  end;
+
+  TNXOpenAIShellCall = class(TNXOpenAIOutputItem)
+  private
+    Faction: TNXOpenAIShellAction;
+    Fcall_id: TNXJSONString;
+    Fid: TNXJSONString;
+    Fstatus: TNXJSONString;
+  published
+    property action: TNXOpenAIShellAction read Faction write Faction;
+    property call_id: TNXJSONString read Fcall_id write Fcall_id;
+    property id: TNXJSONString read Fid write Fid;
+    property status: TNXJSONString read Fstatus write Fstatus;
+  end;
+
   TNXOpenAIOutputArray = class(TNXJSONArray)
   protected
     function CreateItemForJSON(AData: TJSONData): TNXJSONValue; override;
@@ -187,7 +292,7 @@ end;
 
 class function TNXOpenAIInputMessageArray.ItemClass: TNXJSONValueClass;
 begin
-  Result := TNXOpenAIInputMessage;
+  Result := TNXOpenAIInputItem;
 end;
 
 function JSONDiscriminator(AData: TJSONData): string;
@@ -200,6 +305,36 @@ begin
   lType := TJSONObject(AData).Find('type');
   if Assigned(lType) and (lType.JSONType = jtString) then
     Result := lType.AsString;
+end;
+
+function TNXOpenAIInputMessageArray.CreateItemForJSON(
+  AData: TJSONData): TNXJSONValue;
+var
+  lClass: TNXJSONValueClass;
+begin
+  case JSONDiscriminator(AData) of
+    'message': lClass := TNXOpenAIInputMessage;
+    'shell_call_output': lClass := TNXOpenAIShellCallOutput;
+  else
+    lClass := TNXOpenAIInputItem;
+  end;
+  Result := lClass.Create;
+  Result.FromJSONData(AData);
+end;
+
+class function TNXOpenAIStringArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXJSONString;
+end;
+
+class function TNXOpenAIToolArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXOpenAIShellTool;
+end;
+
+class function TNXOpenAIShellOutputArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNXOpenAIShellOutput;
 end;
 
 constructor TNXOpenAIResponseError.Create;
@@ -239,10 +374,12 @@ function TNXOpenAIOutputArray.CreateItemForJSON(
 var
   lClass: TNXJSONValueClass;
 begin
-  if JSONDiscriminator(AData) = 'message' then
-    lClass := TNXOpenAIOutputMessage
+  case JSONDiscriminator(AData) of
+    'message': lClass := TNXOpenAIOutputMessage;
+    'shell_call': lClass := TNXOpenAIShellCall;
   else
     lClass := TNXOpenAIOutputItem;
+  end;
   Result := lClass.Create;
   Result.FromJSONData(AData);
 end;

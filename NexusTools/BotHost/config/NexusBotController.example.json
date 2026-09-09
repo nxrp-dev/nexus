@@ -23,6 +23,9 @@
         "FileTransferTimeoutMS": 120000,
         "StagedFileCapacity": 32,
         "StagedMaximumBytes": 67108864,
+        "ShellCallMaximum": 8,
+        "ShellCommandTimeoutMS": 30000,
+        "ShellOutputMaximumBytes": 65536,
         "TrustedFileOrigins": "",
         "XMPPJID": "test1@nexus.local"
       },
@@ -45,6 +48,9 @@
         "FileTransferTimeoutMS": 120000,
         "StagedFileCapacity": 32,
         "StagedMaximumBytes": 67108864,
+        "ShellCallMaximum": 8,
+        "ShellCommandTimeoutMS": 30000,
+        "ShellOutputMaximumBytes": 65536,
         "TrustedFileOrigins": "",
         "XMPPJID": "test2@nexus.local"
       }

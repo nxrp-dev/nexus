@@ -7,7 +7,8 @@ interface
 
 uses
   Classes,
-  obNXPersist;
+  obNXPersist,
+  obNXBotWorkspace;
 
 type
   TNXBotDeploymentBinding = class(TNXPersistObject)
@@ -31,6 +32,9 @@ type
     FFileTransferTimeoutMS: Integer;
     FStagedFileCapacity: Integer;
     FStagedMaximumBytes: Int64;
+    FShellCallMaximum: Integer;
+    FShellCommandTimeoutMS: Integer;
+    FShellOutputMaximumBytes: Integer;
     FTrustedFileOrigins: TStringList;
     FXMPPJID: string;
   public
@@ -65,6 +69,12 @@ type
       write FStagedFileCapacity;
     property StagedMaximumBytes: Int64 read FStagedMaximumBytes
       write FStagedMaximumBytes;
+    property ShellCallMaximum: Integer read FShellCallMaximum
+      write FShellCallMaximum;
+    property ShellCommandTimeoutMS: Integer read FShellCommandTimeoutMS
+      write FShellCommandTimeoutMS;
+    property ShellOutputMaximumBytes: Integer read FShellOutputMaximumBytes
+      write FShellOutputMaximumBytes;
     property TrustedFileOrigins: TStringList read FTrustedFileOrigins
       write FTrustedFileOrigins;
     property XMPPJID: string read FXMPPJID write FXMPPJID;
@@ -150,8 +160,12 @@ type
     FFileTransferTimeoutMS: Integer;
     FStagedFileCapacity: Integer;
     FStagedMaximumBytes: Int64;
+    FShellCallMaximum: Integer;
+    FShellCommandTimeoutMS: Integer;
+    FShellOutputMaximumBytes: Integer;
     FTrustedFileOrigins: TStringList;
     FXMPPJID: string;
+    FWorkspaces: TNXBotWorkspaceAccessList;
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -159,6 +173,7 @@ type
     procedure Validate;
     procedure ValidateProvider;
     procedure ValidateXMPP;
+    property Workspaces: TNXBotWorkspaceAccessList read FWorkspaces;
   published
     property AllowPlain: Boolean read FAllowPlain write FAllowPlain;
     property AnswerMaximumBytes: Integer read FAnswerMaximumBytes
@@ -201,6 +216,12 @@ type
       write FStagedFileCapacity;
     property StagedMaximumBytes: Int64 read FStagedMaximumBytes
       write FStagedMaximumBytes;
+    property ShellCallMaximum: Integer read FShellCallMaximum
+      write FShellCallMaximum;
+    property ShellCommandTimeoutMS: Integer read FShellCommandTimeoutMS
+      write FShellCommandTimeoutMS;
+    property ShellOutputMaximumBytes: Integer read FShellOutputMaximumBytes
+      write FShellOutputMaximumBytes;
     property TrustedFileOrigins: TStringList read FTrustedFileOrigins
       write FTrustedFileOrigins;
     property XMPPJID: string read FXMPPJID write FXMPPJID;
@@ -296,6 +317,9 @@ begin
   FFileTransferTimeoutMS := 120000;
   FStagedFileCapacity := 32;
   FStagedMaximumBytes := 64 * 1024 * 1024;
+  FShellCallMaximum := 8;
+  FShellCommandTimeoutMS := 30000;
+  FShellOutputMaximumBytes := 64 * 1024;
   FTrustedFileOrigins := TStringList.Create;
   FTrustedFileOrigins.CaseSensitive := False;
 end;
@@ -422,13 +446,18 @@ begin
   FFileTransferTimeoutMS := 120000;
   FStagedFileCapacity := 32;
   FStagedMaximumBytes := 64 * 1024 * 1024;
+  FShellCallMaximum := 8;
+  FShellCommandTimeoutMS := 30000;
+  FShellOutputMaximumBytes := 64 * 1024;
   FTrustedFileOrigins := TStringList.Create;
   FTrustedFileOrigins.CaseSensitive := False;
+  FWorkspaces := TNXBotWorkspaceAccessList.Create(True);
   FXMPPJID := 'test1@nexus.local';
 end;
 
 destructor TNXBotHostConfig.Destroy;
 begin
+  FWorkspaces.Free;
   FTrustedFileOrigins.Free;
   inherited Destroy;
 end;
@@ -456,6 +485,9 @@ begin
   FFileTransferTimeoutMS := ABinding.FileTransferTimeoutMS;
   FStagedFileCapacity := ABinding.StagedFileCapacity;
   FStagedMaximumBytes := ABinding.StagedMaximumBytes;
+  FShellCallMaximum := ABinding.ShellCallMaximum;
+  FShellCommandTimeoutMS := ABinding.ShellCommandTimeoutMS;
+  FShellOutputMaximumBytes := ABinding.ShellOutputMaximumBytes;
   FTrustedFileOrigins.Assign(ABinding.TrustedFileOrigins);
   FXMPPJID := ABinding.XMPPJID;
 end;
@@ -476,6 +508,9 @@ begin
     (FPromptMaximumBytes < 1) or (FAnswerMaximumBytes < 1) or
     (FRequestTimeoutMS < 1) or (FJournalCapacity < 1) then
     raise Exception.Create('BotHost capacities, limits, and timeouts must be positive.');
+  if (FShellCallMaximum < 1) or (FShellCommandTimeoutMS < 1) or
+    (FShellOutputMaximumBytes < 1) then
+    raise Exception.Create('OpenAI shell limits and timeout must be positive.');
   NXValidateFileExchange(FExchangeDirectory, FFileMaximumBytes,
     FFileTransferCapacity, FFileTransferTimeoutMS, FStagedFileCapacity,
     FStagedMaximumBytes, FTrustedFileOrigins);
