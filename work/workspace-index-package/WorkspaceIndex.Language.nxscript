@@ -1,0 +1,84 @@
+doctype "Language.nxscript";
+
+Language WorkspaceIndex {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Workspace {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Description {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Repository {
+                    Value Value { Scalar: Text; }
+                },
+                Property Branch {
+                    Value Value { Scalar: Text; }
+                },
+                Property Notes {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            EntryEffectiveCategories: [Text];
+                        }
+                    }
+                }
+            ];
+            Children: [
+                Child Entries { Kinds: [Folder, File]; }
+            ];
+        },
+
+        Definition Folder {
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Path {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Description {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Notes {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            EntryEffectiveCategories: [Text];
+                        }
+                    }
+                }
+            ];
+            Children: [
+                Child Entries { Kinds: [Folder, File]; }
+            ];
+        },
+
+        Definition File {
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Path {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Description {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                },
+                Property Notes {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            EntryEffectiveCategories: [Text];
+                        }
+                    }
+                }
+            ];
+        }
+    ];
+}

@@ -147,8 +147,10 @@ It owns only:
 
 - traversal of ordered completed documents, definitions, properties,
   children, and array items;
-- creation and ownership of `fpjson` objects and arrays;
-- `_nx` metadata encoding;
+- materialization of runtime-named definition, property, child, and array
+  members at the JSON persistence boundary;
+- population and serialization of the shared RTTI-backed artifact metadata
+  object;
 - JSON string escaping, Unicode handling, formatting, and serialization;
 - focused errors when the completed model violates the reserved JSON
   contract.
@@ -480,11 +482,15 @@ move, or replace it with a compatibility adapter.
 
 ### Stage 2: Implement mechanical JSON serialization
 
-- Add `obNexusScriptJSON.pas` using `fpjson` ownership throughout.
+- Add `obNexusScriptJSON.pas` as the persistence boundary for the completed
+  artifact model. Fixed JSON contracts use typed `TNXJSONObject` descendants
+  and published properties; direct `fpjson` construction is limited to the
+  runtime-named domain members that cannot be expressed as Pascal properties.
 - Serialize root and child definitions as name-keyed dictionary members.
 - Serialize properties, scalars, arrays, structural definitions, and named
   scalar wrappers according to the target contract.
-- Add `_nx.Kind` and `_nx.Name` exactly where specified.
+- Model the shared `_nx` contract in the artifact model and populate
+  `_nx.Kind` and `_nx.Name` exactly where specified.
 - Reject reserved `_nx` collisions and duplicate root dictionary names with
   focused diagnostics.
 - Add exact structural tests for escaping, Unicode, empty values, array order,

@@ -98,17 +98,25 @@ type
     property CompositionSelectors: TStringList read FCompositionSelectors;
     property Tags: TStringList read FTags;
     property Parent: TNexusScriptSourceDefinition read FParent write FParent;
-    property SourceRange: TNexusScriptRange read FSourceRange;
+    property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
 
   TNexusScriptSourceModule = class
   private
     FRootSelector: string;
     FPath: string;
+    FDiscover: Boolean;
+    FRecursive: Boolean;
+    FDiscoverFolder: string;
+    FDiscoverMask: string;
     FSourceRange: TNexusScriptRange;
   public
     property RootSelector: string read FRootSelector write FRootSelector;
     property Path: string read FPath write FPath;
+    property Discover: Boolean read FDiscover write FDiscover;
+    property Recursive: Boolean read FRecursive write FRecursive;
+    property DiscoverFolder: string read FDiscoverFolder write FDiscoverFolder;
+    property DiscoverMask: string read FDiscoverMask write FDiscoverMask;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
 
@@ -126,9 +134,17 @@ type
   TNexusScriptSourceInclude = class
   private
     FPath: string;
+    FDiscover: Boolean;
+    FRecursive: Boolean;
+    FDiscoverFolder: string;
+    FDiscoverMask: string;
     FSourceRange: TNexusScriptRange;
   public
     property Path: string read FPath write FPath;
+    property Discover: Boolean read FDiscover write FDiscover;
+    property Recursive: Boolean read FRecursive write FRecursive;
+    property DiscoverFolder: string read FDiscoverFolder write FDiscoverFolder;
+    property DiscoverMask: string read FDiscoverMask write FDiscoverMask;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
 

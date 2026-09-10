@@ -222,6 +222,15 @@ begin
       'NexusTools\Script\tests\fixtures\modules\' + AFileName);
 end;
 
+function DiscoveryFixturePath(const AFileName: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\tests\fixtures\discover\' + AFileName);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\tests\fixtures\discover\' + AFileName);
+end;
+
 function CLIFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
@@ -491,6 +500,187 @@ begin
       'Misplaced include diagnostic should be deterministic.');
   finally
     lCompiler.Free;
+  end;
+end;
+
+procedure TestDiscoveryParsing(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('discover.nxscript',
+      'include discover "." "*.include.nxscript"; ' +
+      'include discover recursive "folder" "*.include.nxscript"; ' +
+      'module discover "." "*.module.nxscript"; ' +
+      'module discover recursive "folder" "*.module.nxscript"; ' +
+      'Thing Root {}'), 'Discovery declarations should parse.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Includes[0].Discover,
+      'Include discovery should be retained.');
+    AContext.AssertTrue(not lCompiler.SourceDocument.Includes[0].Recursive,
+      'Plain include discovery should not recurse.');
+    AContext.AssertEquals('.',
+      lCompiler.SourceDocument.Includes[0].DiscoverFolder,
+      'Include discovery should retain its folder.');
+    AContext.AssertEquals('*.include.nxscript',
+      lCompiler.SourceDocument.Includes[0].DiscoverMask,
+      'Include discovery should retain its mask.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Includes[1].Recursive,
+      'Recursive include discovery should be retained.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Modules[0].Discover,
+      'Module discovery should be retained.');
+    AContext.AssertTrue(not lCompiler.SourceDocument.Modules[0].Recursive,
+      'Plain module discovery should not recurse.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Modules[1].Recursive,
+      'Recursive module discovery should be retained.');
+
+    AContext.AssertTrue(not lCompiler.CompileText('missing-folder.nxscript',
+      'include discover; Thing Root {}'),
+      'Include discovery requires a folder and mask.');
+    AContext.AssertEquals('NXS2015', lCompiler.Diagnostics[0].Code,
+      'Malformed include discovery should use the include diagnostic.');
+    AContext.AssertTrue(not lCompiler.CompileText('missing-mask.nxscript',
+      'module discover recursive "."; Thing Root {}'),
+      'Recursive module discovery requires a mask.');
+    AContext.AssertEquals('NXS2002', lCompiler.Diagnostics[0].Code,
+      'Malformed module discovery should use the module diagnostic.');
+    AContext.AssertTrue(not lCompiler.CompileText('selector.nxscript',
+      'module Root discover "." "*.nxscript"; Thing Entry {}'),
+      'Module discovery must not accept a root selector.');
+    AContext.AssertEquals('NXS2002', lCompiler.Diagnostics[0].Code,
+      'Selected-root discovery should use the module diagnostic.');
+    AContext.AssertTrue(not lCompiler.CompileText('standalone.nxscript',
+      'discover "." "*.nxscript"; Thing Root {}'),
+      'Discover should not be a standalone declaration.');
+  finally
+    lCompiler.Free;
+  end;
+end;
+
+procedure TestIncludeDiscovery(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lArtifactContext: TNexusScriptArtifactContext;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
+  try
+    AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
+      'include\nonrecursive\entry.include.nxscript')),
+      'Non-recursive include discovery should compile: ' +
+      lSession.LastError);
+    AContext.AssertEquals(2, lSession.CompilerCount,
+      'Non-recursive include discovery should select its matching sibling ' +
+      'and exclude its declaring document.');
+    lArtifactContext.Build;
+    AContext.AssertEquals(2, lArtifactContext.ArtifactDocuments.Count,
+      'A discovered include should join the artifact set.');
+    AContext.AssertTrue(lSession.FindCompiler(DiscoveryFixturePath(
+      'include\nonrecursive\nested\nested.include.nxscript')) = nil,
+      'Non-recursive discovery should not select nested files.');
+  finally
+    lArtifactContext.Free;
+    lSession.Free;
+  end;
+
+  lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
+  try
+    AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
+      'include\recursive\entry.nxscript')),
+      'Recursive include discovery should compile: ' + lSession.LastError);
+    AContext.AssertEquals(3, lSession.CompilerCount,
+      'Recursive include discovery should select sibling and nested matches.');
+    lArtifactContext.Build;
+    AContext.AssertEquals(3, lArtifactContext.ArtifactDocuments.Count,
+      'Every recursively discovered include should join the artifact set.');
+  finally
+    lArtifactContext.Free;
+    lSession.Free;
+  end;
+
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
+      'empty\entry.nxscript')),
+      'An empty discovery result should be a no-op: ' + lSession.LastError);
+    AContext.AssertEquals(1, lSession.CompilerCount,
+      'An empty discovery result should compile only the entry document.');
+    AContext.AssertTrue(not lSession.CompileFile(DiscoveryFixturePath(
+      'missing-folder.nxscript')),
+      'A missing discovery folder should fail.');
+    AContext.AssertTrue(Pos('folder not found',
+      LowerCase(lSession.LastError)) > 0,
+      'A missing discovery folder should report the discovery failure.');
+  finally
+    lSession.Free;
+  end;
+end;
+
+procedure TestModuleDiscovery(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lRoot: TNexusScriptCompiledDefinition;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
+      'module\nonrecursive\entry.module.nxscript')),
+      'Non-recursive module discovery should compile: ' +
+      lSession.LastError);
+    AContext.AssertEquals(2, lSession.CompilerCount,
+      'Module discovery should select its matching sibling and exclude its ' +
+      'declaring document.');
+    lRoot := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry');
+    AContext.AssertEquals('module',
+      lRoot.FindProperty('Value').Value.EffectiveText,
+      'Discovered module roots should enter normal reference lookup.');
+    AContext.AssertTrue(lSession.FindCompiler(DiscoveryFixturePath(
+      'module\nonrecursive\nested\nested.module.nxscript')) = nil,
+      'Non-recursive module discovery should not select nested files.');
+  finally
+    lSession.Free;
+  end;
+
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
+      'module\recursive\entry.nxscript')),
+      'Recursive module discovery should compile: ' + lSession.LastError);
+    lRoot := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry');
+    AContext.AssertEquals('sibling nested',
+      lRoot.FindProperty('Value').Value.EffectiveText,
+      'Recursive module discovery should expose sibling and nested roots.');
+  finally
+    lSession.Free;
+  end;
+end;
+
+procedure TestDiscoveryRelationshipOverlap(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lArtifactContext: TNexusScriptArtifactContext;
+  lRoot: TNexusScriptCompiledDefinition;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
+  try
+    AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
+      'overlap\entry.nxscript')),
+      'Combined include and module discovery should compile: ' +
+      lSession.LastError);
+    AContext.AssertEquals(2, lSession.CompilerCount,
+      'Both relationships should reuse one compiled dependency document.');
+    lRoot := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry');
+    AContext.AssertEquals('shared',
+      lRoot.FindProperty('Value').Value.EffectiveText,
+      'The module relationship should expose the shared root.');
+    lArtifactContext.Build;
+    AContext.AssertEquals(2, lArtifactContext.ArtifactDocuments.Count,
+      'The include relationship should add the same document to the artifact.');
+  finally
+    lArtifactContext.Free;
+    lSession.Free;
   end;
 end;
 
@@ -1383,6 +1573,43 @@ begin
     raise Exception.CreateFmt('Missing JSON member %s.', [AName]);
 end;
 
+procedure AssertDefinitionSourceRangeJSON(AContext: TNXTestContext;
+  AMetaData: TJSONObject; const ASourceRange: TNexusScriptRange;
+  const ADescription: string);
+var
+  lSourceRange: TJSONObject;
+  lStartPosition: TJSONObject;
+  lEndPosition: TJSONObject;
+begin
+  lSourceRange := RequireJSONObject(RequireJSONMember(AMetaData,
+    'SourceRange'), ADescription + ' source range');
+  lStartPosition := RequireJSONObject(RequireJSONMember(lSourceRange,
+    'StartPosition'), ADescription + ' start position');
+  lEndPosition := RequireJSONObject(RequireJSONMember(lSourceRange,
+    'EndPosition'), ADescription + ' end position');
+  AContext.AssertEquals(ASourceRange.SourceName,
+    RequireJSONMember(lSourceRange, 'SourceName').AsString,
+    ADescription + ' should retain its source name.');
+  AContext.AssertEquals(ASourceRange.StartPosition.Offset,
+    RequireJSONMember(lStartPosition, 'Offset').AsInteger,
+    ADescription + ' should retain its start offset.');
+  AContext.AssertEquals(ASourceRange.StartPosition.Line,
+    RequireJSONMember(lStartPosition, 'Line').AsInteger,
+    ADescription + ' should retain its start line.');
+  AContext.AssertEquals(ASourceRange.StartPosition.Column,
+    RequireJSONMember(lStartPosition, 'Column').AsInteger,
+    ADescription + ' should retain its start column.');
+  AContext.AssertEquals(ASourceRange.EndPosition.Offset,
+    RequireJSONMember(lEndPosition, 'Offset').AsInteger,
+    ADescription + ' should retain its end offset.');
+  AContext.AssertEquals(ASourceRange.EndPosition.Line,
+    RequireJSONMember(lEndPosition, 'Line').AsInteger,
+    ADescription + ' should retain its end line.');
+  AContext.AssertEquals(ASourceRange.EndPosition.Column,
+    RequireJSONMember(lEndPosition, 'Column').AsInteger,
+    ADescription + ' should retain its end column.');
+end;
+
 procedure TestJSONEmitter(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
@@ -1398,22 +1625,30 @@ var
   lNamed: TJSONObject;
   lStructure: TJSONObject;
   lError: string;
+  lCatalogDefinition: TNexusScriptCompiledDefinition;
+  lChildDefinition: TNexusScriptCompiledDefinition;
+  lInlineDefinition: TNexusScriptCompiledDefinition;
+  lSource: string;
 begin
   lCompiler := TNexusScriptCompiler.Create;
   lOtherCompiler := TNexusScriptCompiler.Create;
   lEmitter := TNexusScriptJSONEmitter.Create;
   lData := nil;
   try
-    AContext.AssertTrue(lCompiler.CompileText('artifact.nxscript',
-      'Thing Catalog { Name: DomainName; Count: 17; ' +
+    lSource := 'Thing Catalog { Name: DomainName; Count: 17; ' +
       'EmptyText: ""; EmptyArray: []; ' +
       'Escaped: "quote^" and newline^n"; Unicode: "caf'#233' lambda '#955'"; ' +
       'Label: @Name + "-resolved"; ' +
       'Values: [plain, Selected: named, Group: [inner, Deep: value], ' +
       'Node Row { Name: DomainRow; }]; Copy: @Values; ' +
       'GroupCopy: @Values.Group; SelectedCopy: @Values.Selected; ' +
-      'Thing Child { Name: ChildDomain; } Thing Empty {} Alias: @Child; }'),
+      'Thing Child { Name: ChildDomain; } Thing Empty {} Alias: @Child; }';
+    AContext.AssertTrue(lCompiler.CompileText('artifact.nxscript', lSource),
       'Generic artifact source should compile.');
+    lCatalogDefinition := lCompiler.CompiledDocument.FindDefinition('Catalog');
+    lChildDefinition := lCatalogDefinition.FindChild('Child');
+    lInlineDefinition := lCatalogDefinition.FindProperty('Values').Value.
+      Items[3].StructuralDefinition;
     lEmitter.AddDocument(lCompiler.CompiledDocument);
 
     AContext.AssertTrue(lOtherCompiler.CompileText('other.nxscript',
@@ -1437,6 +1672,14 @@ begin
     AContext.AssertTrue(not RequireJSONMember(lMetaData,
       'IsReference').AsBoolean,
       'Direct definitions should identify themselves as non-references.');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData,
+      lCatalogDefinition.SourceRange, 'Direct definition');
+    AContext.AssertEquals('artifact.nxscript',
+      lCatalogDefinition.SourceRange.SourceName,
+      'CompileText should preserve its caller-supplied source identity.');
+    AContext.AssertEquals(Length(lSource),
+      lCatalogDefinition.SourceRange.EndPosition.Offset,
+      'A definition source range should end after its closing brace.');
     AContext.AssertEquals('DomainName',
       RequireJSONMember(lCatalog, 'Name').AsString,
       'A domain Name property must remain distinct from metadata.');
@@ -1464,28 +1707,37 @@ begin
     AContext.AssertEquals('plain', lValues.Items[0].AsString,
       'Unnamed scalar entries should remain scalar strings.');
     lNamed := RequireJSONObject(lValues.Items[1], 'Named scalar entry');
-    AContext.AssertEquals('Selected', RequireJSONMember(
-      RequireJSONObject(RequireJSONMember(lNamed, '_nx'),
-      'Named scalar metadata'), 'Name').AsString,
+    lMetaData := RequireJSONObject(RequireJSONMember(lNamed, '_nx'),
+      'Named scalar metadata');
+    AContext.AssertEquals('Selected', RequireJSONMember(lMetaData,
+      'Name').AsString,
       'Named scalar entries should expose their name through _nx.');
+    AContext.AssertTrue(lMetaData.Find('SourceRange') = nil,
+      'Named scalar metadata should not claim a definition source range.');
     AContext.AssertEquals('named',
       RequireJSONMember(lNamed, 'Value').AsString,
       'Named scalar entries should retain their value.');
     lNamed := RequireJSONObject(lValues.Items[2], 'Named array entry');
-    AContext.AssertEquals('Group', RequireJSONMember(
-      RequireJSONObject(RequireJSONMember(lNamed, '_nx'),
-      'Named array metadata'), 'Name').AsString,
+    lMetaData := RequireJSONObject(RequireJSONMember(lNamed, '_nx'),
+      'Named array metadata');
+    AContext.AssertEquals('Group', RequireJSONMember(lMetaData,
+      'Name').AsString,
       'Named nested arrays should expose their name through _nx.');
+    AContext.AssertTrue(lMetaData.Find('SourceRange') = nil,
+      'Named array metadata should not claim a definition source range.');
     lNested := RequireJSONArray(RequireJSONMember(lNamed, 'Value'),
       'Named nested array value');
     AContext.AssertEquals('inner', lNested.Items[0].AsString,
       'Nested arrays should retain order and scalar values.');
     lStructure := RequireJSONObject(lValues.Items[3],
       'Structural array entry');
-    AContext.AssertEquals('Row', RequireJSONMember(
-      RequireJSONObject(RequireJSONMember(lStructure, '_nx'),
-      'Structural entry metadata'), 'Name').AsString,
+    lMetaData := RequireJSONObject(RequireJSONMember(lStructure, '_nx'),
+      'Structural entry metadata');
+    AContext.AssertEquals('Row', RequireJSONMember(lMetaData,
+      'Name').AsString,
       'Structural array entries should use definition metadata.');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData,
+      lInlineDefinition.SourceRange, 'Inline definition');
     AContext.AssertEquals('DomainRow',
       RequireJSONMember(lStructure, 'Name').AsString,
       'Structural domain members should be emitted directly.');
@@ -1516,8 +1768,15 @@ begin
     AContext.AssertEquals('Child', RequireJSONMember(lReference,
       'Name').AsString,
       'Reference metadata should retain the resolved target identity.');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData,
+      lChildDefinition.SourceRange, 'Structural reference projection');
     AContext.AssertTrue(lCatalog.Find('Child') <> nil,
       'Direct child definitions should become named object members.');
+    lMetaData := RequireJSONObject(RequireJSONMember(RequireJSONObject(
+      RequireJSONMember(lCatalog, 'Child'), 'Child'), '_nx'),
+      'Child metadata');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData,
+      lChildDefinition.SourceRange, 'Nested definition');
     AContext.AssertEquals(1, RequireJSONObject(
       RequireJSONMember(lCatalog, 'Empty'), 'Empty definition').Count,
       'An empty definition should contain only its _nx metadata.');
@@ -1564,6 +1823,78 @@ begin
     lEmitter.Free;
     lOtherCompiler.Free;
     lCompiler.Free;
+  end;
+end;
+
+procedure TestDefinitionSourceRangeJSON(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lEntry: TNexusScriptCompiledDefinition;
+  lImported: TNexusScriptCompiledDefinition;
+  lDerived: TNexusScriptCompiledDefinition;
+  lModuleChild: TNexusScriptCompiledDefinition;
+  lEntryJSON: TJSONObject;
+  lDerivedJSON: TJSONObject;
+  lModuleChildJSON: TJSONObject;
+  lMetaData: TJSONObject;
+  lEntryFileName: string;
+  lModuleFileName: string;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  lData := nil;
+  try
+    lEntryFileName := ExpandFileName(DiscoveryFixturePath(
+      'module\nonrecursive\entry.module.nxscript'));
+    lModuleFileName := ExpandFileName(DiscoveryFixturePath(
+      'module\nonrecursive\sibling.module.nxscript'));
+    AContext.AssertTrue(lSession.CompileFile(lEntryFileName),
+      'File-backed source-range fixture should compile: ' +
+      lSession.LastError);
+    lEntry := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry');
+    lImported := lSession.EntryCompiler.CompiledDocument.
+      FindDefinition('Shared');
+    lDerived := lEntry.FindChild('Derived');
+    lModuleChild := lDerived.FindChild('ModuleChild');
+    AContext.AssertTrue(SameFileName(lImported.SourceRange.SourceName,
+      lModuleFileName),
+      'A discovered module root should retain its expanded source filename.');
+    AContext.AssertTrue(SameFileName(lEntry.SourceRange.SourceName,
+      lEntryFileName),
+      'The receiving root should retain the entry document filename.');
+    AContext.AssertTrue(SameFileName(lDerived.SourceRange.SourceName,
+      lEntryFileName),
+      'A composed receiver should retain its own declaration filename.');
+    AContext.AssertTrue(SameFileName(lModuleChild.SourceRange.SourceName,
+      lModuleFileName),
+      'A composed child should retain its contributor document filename.');
+
+    lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+    lData := GetJSON(lEmitter.JSON);
+    lEntryJSON := RequireJSONObject(RequireJSONMember(RequireJSONObject(lData,
+      'Artifact root'), 'Entry'), 'Entry');
+    lMetaData := RequireJSONObject(RequireJSONMember(lEntryJSON, '_nx'),
+      'Entry metadata');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData, lEntry.SourceRange,
+      'File-backed receiving root');
+    lDerivedJSON := RequireJSONObject(RequireJSONMember(lEntryJSON, 'Derived'),
+      'Derived');
+    lMetaData := RequireJSONObject(RequireJSONMember(lDerivedJSON, '_nx'),
+      'Derived metadata');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData, lDerived.SourceRange,
+      'Composed receiver');
+    lModuleChildJSON := RequireJSONObject(RequireJSONMember(lDerivedJSON,
+      'ModuleChild'), 'ModuleChild');
+    lMetaData := RequireJSONObject(RequireJSONMember(lModuleChildJSON, '_nx'),
+      'ModuleChild metadata');
+    AssertDefinitionSourceRangeJSON(AContext, lMetaData,
+      lModuleChild.SourceRange, 'Composed child');
+  finally
+    lData.Free;
+    lEmitter.Free;
+    lSession.Free;
   end;
 end;
 
@@ -2747,12 +3078,16 @@ begin
   try
     AContext.AssertTrue(lCompiler.CompileText('owner.nxscript',
       'Thing Root { Thing Constants { Local: correct; Name: @Local; } ' +
-      'Alias: @Root.Constants.Name; Local: wrong; }'),
+      'Alias: @Root.Constants.Name; ChildValue: @Constants.Name; ' +
+      'Local: wrong; }'),
       'Qualified reference should compile.');
     lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
     AContext.AssertEquals('correct',
       lRoot.FindProperty('Alias').Value.EffectiveText,
       'Referenced property should evaluate in its owner scope.');
+    AContext.AssertEquals('correct',
+      lRoot.FindProperty('ChildValue').Value.EffectiveText,
+      'A qualified reference should descend through a local child.');
   finally
     lCompiler.Free;
   end;
@@ -2813,6 +3148,11 @@ begin
   lSuite.AddTest('DoctypeLoading', @TestDoctypeLoading);
   lSuite.AddTest('IncludeParsing', @TestIncludeParsing);
   lSuite.AddTest('IncludeLoading', @TestIncludeLoading);
+  lSuite.AddTest('DiscoveryParsing', @TestDiscoveryParsing);
+  lSuite.AddTest('IncludeDiscovery', @TestIncludeDiscovery);
+  lSuite.AddTest('ModuleDiscovery', @TestModuleDiscovery);
+  lSuite.AddTest('DiscoveryRelationshipOverlap',
+    @TestDiscoveryRelationshipOverlap);
   lSuite.AddTest('LanguageSelfValidation', @TestLanguageSelfValidation);
   lSuite.AddTest('SchemaValidation', @TestSchemaValidation);
   lSuite.AddTest('IndependentContainmentRules',
@@ -2822,6 +3162,8 @@ begin
   lSuite.AddTest('InvalidLanguageDefinition', @TestInvalidLanguageDefinition);
   lSuite.AddTest('LanguageFiniteValues', @TestLanguageFiniteValues);
   lSuite.AddTest('JSONEmitter', @TestJSONEmitter);
+  lSuite.AddTest('DefinitionSourceRangeJSON',
+    @TestDefinitionSourceRangeJSON);
   lSuite.AddTest('DefinitionTagJSON', @TestDefinitionTagJSON);
   lSuite.AddTest('ExternalDataDeclarations', @TestExternalDataDeclarations);
   lSuite.AddTest('ExternalDataCompilation', @TestExternalDataCompilation);

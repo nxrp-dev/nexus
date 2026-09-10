@@ -1,0 +1,6 @@
+Thing Shared {
+    Value: module;
+    Thing ModuleChild {
+        Value: contributed;
+    }
+}

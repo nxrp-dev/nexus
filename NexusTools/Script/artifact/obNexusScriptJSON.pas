@@ -8,6 +8,7 @@ uses
   Classes,
   SysUtils,
   fpjson,
+  tpNexusScript,
   obNexusScriptModel,
   obNexusScriptArtifactModel;
 
@@ -18,6 +19,10 @@ type
   private
     FRoot: TJSONObject;
     FRootNames: TStringList;
+    function DefinitionMetadata(
+      ADefinition: TNexusScriptCompiledDefinition;
+      AReferenceValue: TNexusScriptCompiledValue):
+      TNexusScriptArtifactMetadata;
     function DefinitionJSON(
       ADefinition: TNexusScriptCompiledDefinition;
       AReferenceValue: TNexusScriptCompiledValue = nil): TJSONObject;
@@ -36,8 +41,50 @@ type
 
 implementation
 
-uses
-  tpNexusScript;
+function TNexusScriptJSONEmitter.DefinitionMetadata(
+  ADefinition: TNexusScriptCompiledDefinition;
+  AReferenceValue: TNexusScriptCompiledValue):
+  TNexusScriptArtifactMetadata;
+var
+  lIsReference: Boolean;
+  lTag: string;
+begin
+  Result := TNexusScriptArtifactMetadata.Create;
+  try
+    Result.Kind.Value := ADefinition.Kind;
+    Result.Name.Value := ADefinition.Name;
+    lIsReference := (AReferenceValue <> nil) and
+      (AReferenceValue.Kind = nsvReference);
+    Result.IsReference.Value := lIsReference;
+    Result.SourceRange.SourceName.Value := ADefinition.SourceRange.SourceName;
+    Result.SourceRange.StartPosition.Offset.Value :=
+      ADefinition.SourceRange.StartPosition.Offset;
+    Result.SourceRange.StartPosition.Line.Value :=
+      ADefinition.SourceRange.StartPosition.Line;
+    Result.SourceRange.StartPosition.Column.Value :=
+      ADefinition.SourceRange.StartPosition.Column;
+    Result.SourceRange.EndPosition.Offset.Value :=
+      ADefinition.SourceRange.EndPosition.Offset;
+    Result.SourceRange.EndPosition.Line.Value :=
+      ADefinition.SourceRange.EndPosition.Line;
+    Result.SourceRange.EndPosition.Column.Value :=
+      ADefinition.SourceRange.EndPosition.Column;
+    if lIsReference then
+    begin
+      if AReferenceValue.OriginalDefinitionName = '' then
+        raise ENexusScriptJSON.CreateFmt(
+          'Structural reference %s has no resolved target name.',
+          [AReferenceValue.SourceText]);
+      Result.Reference.Kind.Value := ADefinition.Kind;
+      Result.Reference.Name.Value := AReferenceValue.OriginalDefinitionName;
+    end;
+    for lTag in ADefinition.Tags do
+      Result.Tags.AddString(lTag);
+  except
+    Result.Free;
+    raise;
+  end;
+end;
 
 constructor TNexusScriptJSONEmitter.Create;
 begin
@@ -57,13 +104,17 @@ end;
 function TNexusScriptJSONEmitter.NamedValueJSON(const AName: string;
   AValue: TJSONData): TJSONObject;
 var
-  lMetaData: TJSONObject;
+  lMetaData: TNexusScriptArtifactNamedValueMetadata;
 begin
   Result := TJSONObject.Create;
+  lMetaData := TNexusScriptArtifactNamedValueMetadata.Create;
   try
-    lMetaData := TJSONObject.Create;
-    lMetaData.Add('Name', AName);
-    Result.Add('_nx', lMetaData);
+    try
+      lMetaData.Name.Value := AName;
+      Result.Add('_nx', lMetaData.ToJSONData);
+    finally
+      lMetaData.Free;
+    end;
     Result.Add('Value', AValue);
   except
     Result.Free;
@@ -125,11 +176,7 @@ function TNexusScriptJSONEmitter.DefinitionJSON(
   ADefinition: TNexusScriptCompiledDefinition;
   AReferenceValue: TNexusScriptCompiledValue): TJSONObject;
 var
-  lMetaData: TJSONObject;
-  lReference: TJSONObject;
-  lTags: TJSONArray;
-  lIsReference: Boolean;
-  lTag: string;
+  lMetaData: TNexusScriptArtifactMetadata;
   lProperty: TNexusScriptCompiledProperty;
   lChild: TNexusScriptCompiledDefinition;
 begin
@@ -139,37 +186,17 @@ begin
       'Definition %s uses reserved member _nx.', [ADefinition.Name]);
 
   Result := TJSONObject.Create;
+  lMetaData := nil;
   try
-    lMetaData := TJSONObject.Create;
-    lMetaData.Add('Kind', ADefinition.Kind);
-    lMetaData.Add('Name', ADefinition.Name);
-    lIsReference := (AReferenceValue <> nil) and
-      (AReferenceValue.Kind = nsvReference);
-    lMetaData.Add('IsReference', lIsReference);
-    if lIsReference then
-    begin
-      if AReferenceValue.OriginalDefinitionName = '' then
-        raise ENexusScriptJSON.CreateFmt(
-          'Structural reference %s has no resolved target name.',
-          [AReferenceValue.SourceText]);
-      lReference := TJSONObject.Create;
-      lReference.Add('Kind', ADefinition.Kind);
-      lReference.Add('Name', AReferenceValue.OriginalDefinitionName);
-      lMetaData.Add('Reference', lReference);
-    end;
-    if ADefinition.Tags.Count > 0 then
-    begin
-      lTags := TJSONArray.Create;
-      for lTag in ADefinition.Tags do
-        lTags.Add(lTag);
-      lMetaData.Add('Tags', lTags);
-    end;
-    Result.Add('_nx', lMetaData);
+    lMetaData := DefinitionMetadata(ADefinition, AReferenceValue);
+    Result.Add('_nx', lMetaData.ToJSONData);
+    FreeAndNil(lMetaData);
     for lProperty in ADefinition.Properties do
       Result.Add(lProperty.Name, ValueJSON(lProperty.Value, False));
     for lChild in ADefinition.Children do
       Result.Add(lChild.Name, DefinitionJSON(lChild));
   except
+    lMetaData.Free;
     Result.Free;
     raise;
   end;

@@ -98,7 +98,7 @@ var
   lFieldNames: TStringList;
   lRoot: TJSONObject;
   lDataSource: TJSONObject;
-  lMetaData: TJSONObject;
+  lMetaData: TNexusScriptArtifactMetadata;
   lFieldArray: TJSONArray;
   lRecordArray: TJSONArray;
   lRecord: TJSONArray;
@@ -143,12 +143,16 @@ begin
 
     lDataSource := TJSONObject.Create;
     lRoot.Add('DataSource', lDataSource);
-    lMetaData := TJSONObject.Create;
-    lMetaData.Add('Kind', 'DataSource');
-    lMetaData.Add('Name', ASource.Name);
-    lMetaData.Add('Type', ASource.SourceType);
-    lMetaData.Add('Source', ASource.DeclaredPath);
-    lDataSource.Add('_nx', lMetaData);
+    lMetaData := TNexusScriptArtifactMetadata.Create;
+    try
+      lMetaData.Kind.Value := 'DataSource';
+      lMetaData.Name.Value := ASource.Name;
+      lMetaData.&Type.Value := ASource.SourceType;
+      lMetaData.Source.Value := ASource.DeclaredPath;
+      lDataSource.Add('_nx', lMetaData.ToJSONData);
+    finally
+      lMetaData.Free;
+    end;
 
     lFieldArray := TJSONArray.Create;
     lDataSource.Add('Fields', lFieldArray);

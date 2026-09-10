@@ -1,0 +1,6 @@
+module discover "." "*.module.nxscript";
+
+Thing Entry {
+    Thing Derived (Shared) {}
+    Value: @Derived.Value;
+}

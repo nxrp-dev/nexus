@@ -1,0 +1,3 @@
+include discover "not-present" "*.nxscript";
+
+Thing Entry {}

@@ -411,6 +411,8 @@ var
   lNameToken: TNexusScriptToken;
   lTagToken: TNexusScriptToken;
   lMemberToken: TNexusScriptToken;
+  lEndToken: TNexusScriptToken;
+  lSourceRange: TNexusScriptRange;
   lValue: TNexusScriptSourceValue;
   lChild: TNexusScriptSourceDefinition;
 begin
@@ -515,7 +517,10 @@ begin
         Result.Children.Add(lChild);
     end;
   end;
-  Require(nstRightBrace, '}');
+  lEndToken := Require(nstRightBrace, '}');
+  lSourceRange := Result.SourceRange;
+  lSourceRange.EndPosition := lEndToken.SourceRange.EndPosition;
+  Result.SourceRange := lSourceRange;
 end;
 
 procedure TNexusScriptParser.ParseModule(ADocument: TNexusScriptSourceDocument);
@@ -523,6 +528,7 @@ var
   lModule: TNexusScriptSourceModule;
   lPieces: TStringList;
   lRange: TNexusScriptRange;
+  lJoinPath: Boolean;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
@@ -530,22 +536,49 @@ begin
   lPieces := TStringList.Create;
   try
     lModule.SourceRange := lRange;
+    lJoinPath := False;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
     begin
       if Current.Kind = nstDot then
       begin
         if lPieces.Count > 0 then
           lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + '.';
+        lJoinPath := True;
       end
-      else if (lPieces.Count > 0) and
-        (lPieces[lPieces.Count - 1][Length(lPieces[lPieces.Count - 1])] = '.') then
-        lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text
+      else if (lPieces.Count > 0) and lJoinPath then
+      begin
+        lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text;
+        lJoinPath := False;
+      end
       else
         lPieces.Add(Current.Text);
       Inc(FIndex);
     end;
     Require(nstSemicolon, ';');
-    if lPieces.Count = 1 then
+    if (lPieces.Count > 0) and SameText(lPieces[0], 'discover') then
+    begin
+      lModule.Discover := True;
+      if lPieces.Count = 4 then
+      begin
+        if not SameText(lPieces[1], 'recursive') then
+          FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange)
+        else
+        begin
+          lModule.Recursive := True;
+          lModule.DiscoverFolder := lPieces[2];
+          lModule.DiscoverMask := lPieces[3];
+        end;
+      end
+      else if (lPieces.Count = 3) and
+        not SameText(lPieces[1], 'recursive') then
+      begin
+        lModule.DiscoverFolder := lPieces[1];
+        lModule.DiscoverMask := lPieces[2];
+      end
+      else
+        FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange);
+    end
+    else if lPieces.Count = 1 then
       lModule.Path := lPieces[0]
     else if lPieces.Count = 2 then
     begin
@@ -612,6 +645,7 @@ var
   lInclude: TNexusScriptSourceInclude;
   lPieces: TStringList;
   lRange: TNexusScriptRange;
+  lJoinPath: Boolean;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
@@ -619,22 +653,51 @@ begin
   lPieces := TStringList.Create;
   try
     lInclude.SourceRange := lRange;
+    lJoinPath := False;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
     begin
       if Current.Kind = nstDot then
       begin
         if lPieces.Count > 0 then
           lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + '.';
+        lJoinPath := True;
       end
-      else if (lPieces.Count > 0) and
-        (lPieces[lPieces.Count - 1][Length(lPieces[lPieces.Count - 1])] = '.') then
-        lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text
+      else if (lPieces.Count > 0) and lJoinPath then
+      begin
+        lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text;
+        lJoinPath := False;
+      end
       else
         lPieces.Add(Current.Text);
       Inc(FIndex);
     end;
     Require(nstSemicolon, ';');
-    if lPieces.Count <> 1 then
+    if (lPieces.Count > 0) and SameText(lPieces[0], 'discover') then
+    begin
+      lInclude.Discover := True;
+      if lPieces.Count = 4 then
+      begin
+        if not SameText(lPieces[1], 'recursive') then
+          FCompiler.AddError('NXS2015', 'Invalid include declaration', lRange)
+        else
+        begin
+          lInclude.Recursive := True;
+          lInclude.DiscoverFolder := lPieces[2];
+          lInclude.DiscoverMask := lPieces[3];
+        end;
+      end
+      else if (lPieces.Count = 3) and
+        not SameText(lPieces[1], 'recursive') then
+      begin
+        lInclude.DiscoverFolder := lPieces[1];
+        lInclude.DiscoverMask := lPieces[2];
+      end
+      else
+        FCompiler.AddError('NXS2015', 'Invalid include declaration', lRange);
+      ADocument.Includes.Add(lInclude);
+      lInclude := nil;
+    end
+    else if lPieces.Count <> 1 then
       FCompiler.AddError('NXS2015', 'Invalid include declaration', lRange)
     else
     begin
@@ -1438,7 +1501,8 @@ var
       lScope := AScope;
       while lScope <> nil do
       begin
-        if lScope.FindProperty(lParts[0]) <> nil then
+        if (lScope.FindProperty(lParts[0]) <> nil) or
+          (lScope.FindChild(lParts[0]) <> nil) then
           Exit(ResolveDown(lScope, 0));
         lScope := lScope.Parent;
       end;

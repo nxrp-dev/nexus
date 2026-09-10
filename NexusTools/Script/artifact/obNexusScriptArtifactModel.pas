@@ -7,9 +7,73 @@ interface
 uses
   Generics.Collections,
   tpNexusScript,
+  obNXJSONValues,
   obNexusScriptModel;
 
 type
+  TNexusScriptArtifactPosition = class(TNXJSONObject)
+  private
+    FOffset: TNXJSONInteger;
+    FLine: TNXJSONInteger;
+    FColumn: TNXJSONInteger;
+  published
+    property Offset: TNXJSONInteger read FOffset write FOffset;
+    property Line: TNXJSONInteger read FLine write FLine;
+    property Column: TNXJSONInteger read FColumn write FColumn;
+  end;
+
+  TNexusScriptArtifactSourceRange = class(TNXJSONObject)
+  private
+    FSourceName: TNXJSONString;
+    FStartPosition: TNexusScriptArtifactPosition;
+    FEndPosition: TNexusScriptArtifactPosition;
+  published
+    property SourceName: TNXJSONString read FSourceName write FSourceName;
+    property StartPosition: TNexusScriptArtifactPosition read FStartPosition
+      write FStartPosition;
+    property EndPosition: TNexusScriptArtifactPosition read FEndPosition
+      write FEndPosition;
+  end;
+
+  TNexusScriptArtifactReference = class(TNXJSONObject)
+  private
+    FKind: TNXJSONString;
+    FName: TNXJSONString;
+  published
+    property Kind: TNXJSONString read FKind write FKind;
+    property Name: TNXJSONString read FName write FName;
+  end;
+
+  TNexusScriptArtifactMetadata = class(TNXJSONObject)
+  private
+    FKind: TNXJSONString;
+    FName: TNXJSONString;
+    FIsReference: TNXJSONBoolean;
+    FSourceRange: TNexusScriptArtifactSourceRange;
+    FReference: TNexusScriptArtifactReference;
+    FTags: TNXJSONArray;
+    FType: TNXJSONString;
+    FSource: TNXJSONString;
+  published
+    property Kind: TNXJSONString read FKind write FKind;
+    property Name: TNXJSONString read FName write FName;
+    property IsReference: TNXJSONBoolean read FIsReference write FIsReference;
+    property SourceRange: TNexusScriptArtifactSourceRange read FSourceRange
+      write FSourceRange;
+    property Reference: TNexusScriptArtifactReference read FReference
+      write FReference;
+    property Tags: TNXJSONArray read FTags write FTags;
+    property &Type: TNXJSONString read FType write FType;
+    property Source: TNXJSONString read FSource write FSource;
+  end;
+
+  TNexusScriptArtifactNamedValueMetadata = class(TNXJSONObject)
+  private
+    FName: TNXJSONString;
+  published
+    property Name: TNXJSONString read FName write FName;
+  end;
+
   TNexusScriptArtifactValueKind = (
     nsavInvalid,
     nsavText,

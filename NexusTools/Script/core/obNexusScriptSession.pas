@@ -19,6 +19,9 @@ type
     FEntryCompiler: TNexusScriptCompiler;
     FLastError: string;
     function CompileDocument(const AFileName: string): TNexusScriptCompiler;
+    function ExpandDiscoveries(ADocument: TNexusScriptSourceDocument): Boolean;
+    function SelectDiscoveredFiles(const ASourceName, AFolder,
+      AMask: string; ARecursive: Boolean): TStringList;
     function ResolveDependencyPath(const ASourceName,
       ADeclaredPath: string): string;
     function SelectDefinition(ACompiler: TNexusScriptCompiler;
@@ -63,8 +66,148 @@ end;
 function TNexusScriptCompilationSession.ResolveDependencyPath(
   const ASourceName, ADeclaredPath: string): string;
 begin
-  Result := ExpandFileName(IncludeTrailingPathDelimiter(
-    ExtractFileDir(ASourceName)) + ADeclaredPath);
+  if (ExtractFileDrive(ADeclaredPath) <> '') or
+    ((ADeclaredPath <> '') and IsPathDelimiter(ADeclaredPath, 1)) then
+    Result := ExpandFileName(ADeclaredPath)
+  else
+    Result := ExpandFileName(IncludeTrailingPathDelimiter(
+      ExtractFileDir(ASourceName)) + ADeclaredPath);
+end;
+
+function TNexusScriptCompilationSession.SelectDiscoveredFiles(
+  const ASourceName, AFolder, AMask: string;
+  ARecursive: Boolean): TStringList;
+var
+  lFolderName: string;
+
+  procedure SelectFromFolder(const AFolderName: string);
+  var
+    lSearch: TSearchRec;
+    lFileName: string;
+  begin
+    if FindFirst(IncludeTrailingPathDelimiter(AFolderName) + AMask,
+      faAnyFile, lSearch) = 0 then
+    try
+      repeat
+        if (lSearch.Attr and faDirectory) = 0 then
+        begin
+          lFileName := ExpandFileName(IncludeTrailingPathDelimiter(
+            AFolderName) + lSearch.Name);
+          if not SameFileName(lFileName, ASourceName) then
+            Result.Add(lFileName);
+        end;
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+    if not ARecursive then
+      Exit;
+    if FindFirst(IncludeTrailingPathDelimiter(AFolderName) + '*',
+      faDirectory, lSearch) = 0 then
+    try
+      repeat
+        if ((lSearch.Attr and faDirectory) <> 0) and
+          (lSearch.Name <> '.') and (lSearch.Name <> '..') then
+          SelectFromFolder(IncludeTrailingPathDelimiter(AFolderName) +
+            lSearch.Name);
+      until FindNext(lSearch) <> 0;
+    finally
+      FindClose(lSearch);
+    end;
+  end;
+
+begin
+  Result := TStringList.Create;
+  lFolderName := ResolveDependencyPath(ASourceName, AFolder);
+  if not DirectoryExists(lFolderName) then
+  begin
+    FLastError := 'Unable to discover files for ' + ASourceName +
+      ': folder not found: ' + AFolder;
+    FreeAndNil(Result);
+    Exit;
+  end;
+  try
+    SelectFromFolder(lFolderName);
+  except
+    on E: Exception do
+    begin
+      FLastError := 'Unable to discover files in ' + AFolder + ' for ' +
+        ASourceName + ': ' + E.Message;
+      FreeAndNil(Result);
+    end;
+  end;
+end;
+
+function TNexusScriptCompilationSession.ExpandDiscoveries(
+  ADocument: TNexusScriptSourceDocument): Boolean;
+var
+  lIndex: Integer;
+  lPathIndex: Integer;
+  lPaths: TStringList;
+  lModule: TNexusScriptSourceModule;
+  lInclude: TNexusScriptSourceInclude;
+  lNewModule: TNexusScriptSourceModule;
+  lNewInclude: TNexusScriptSourceInclude;
+  lRange: TNexusScriptRange;
+begin
+  Result := False;
+  lIndex := 0;
+  while lIndex < ADocument.Modules.Count do
+  begin
+    lModule := ADocument.Modules[lIndex];
+    if not lModule.Discover then
+    begin
+      Inc(lIndex);
+      Continue;
+    end;
+    lPaths := SelectDiscoveredFiles(ADocument.SourceName,
+      lModule.DiscoverFolder, lModule.DiscoverMask, lModule.Recursive);
+    if lPaths = nil then
+      Exit;
+    try
+      lRange := lModule.SourceRange;
+      ADocument.Modules.Delete(lIndex);
+      for lPathIndex := 0 to lPaths.Count - 1 do
+      begin
+        lNewModule := TNexusScriptSourceModule.Create;
+        lNewModule.Path := lPaths[lPathIndex];
+        lNewModule.SourceRange := lRange;
+        ADocument.Modules.Insert(lIndex, lNewModule);
+        Inc(lIndex);
+      end;
+    finally
+      lPaths.Free;
+    end;
+  end;
+  lIndex := 0;
+  while lIndex < ADocument.Includes.Count do
+  begin
+    lInclude := ADocument.Includes[lIndex];
+    if not lInclude.Discover then
+    begin
+      Inc(lIndex);
+      Continue;
+    end;
+    lPaths := SelectDiscoveredFiles(ADocument.SourceName,
+      lInclude.DiscoverFolder, lInclude.DiscoverMask, lInclude.Recursive);
+    if lPaths = nil then
+      Exit;
+    try
+      lRange := lInclude.SourceRange;
+      ADocument.Includes.Delete(lIndex);
+      for lPathIndex := 0 to lPaths.Count - 1 do
+      begin
+        lNewInclude := TNexusScriptSourceInclude.Create;
+        lNewInclude.Path := lPaths[lPathIndex];
+        lNewInclude.SourceRange := lRange;
+        ADocument.Includes.Insert(lIndex, lNewInclude);
+        Inc(lIndex);
+      end;
+    finally
+      lPaths.Free;
+    end;
+  end;
+  Result := True;
 end;
 
 function TNexusScriptCompilationSession.SelectDefinition(
@@ -116,6 +259,8 @@ begin
   try
     lCompiler.CompileFile(lCanonicalName);
     lCompiler.ClearImports;
+    if not ExpandDiscoveries(lCompiler.SourceDocument) then
+      Exit;
     lDoctype := lCompiler.SourceDocument.Doctype;
     lDoctypeCompiler := nil;
     lDoctypeSourceName := '';
@@ -174,6 +319,8 @@ begin
           lCompiler.Diagnostics[0].MessageText;
       Exit;
     end;
+    if not ExpandDiscoveries(lCompiler.SourceDocument) then
+      Exit;
     if lDeclaredDoctypePath <> '' then
       lCompiler.CompiledDocument.SetDoctype(lDeclaredDoctypePath,
         lDoctypeSourceName, lDoctypeRange,

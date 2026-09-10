@@ -1,0 +1,4 @@
+include discover "." "*.missing.nxscript";
+module discover "." "*.missing.nxscript";
+
+Thing Entry {}

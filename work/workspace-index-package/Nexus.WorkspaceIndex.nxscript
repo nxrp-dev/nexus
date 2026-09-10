@@ -1,0 +1,401 @@
+doctype "WorkspaceIndex.Language.nxscript";
+
+Workspace Nexus [Pascal, Toolchain] {
+    Description: "Nexus development repository: Object Pascal libraries, tools, language infrastructure, bot hosting, and build/test tooling.";
+    Repository: "nxrp-dev/nexus";
+    Branch: main;
+    Notes: [
+        "This index is an orientation map, not a canonical inventory.",
+        "Load this first for high-level context, then inspect only the files relevant to the current task."
+    ];
+
+    Folder AI [Instructions] {
+        Path: ".ai";
+        Description: "Repository-wide AI standards, protocols, and working guidance.";
+
+        Folder Standards {
+            Path: "standards";
+            Description: "Language and coding standards used by repository agents.";
+        }
+
+        Folder Protocols {
+            Path: "protocols";
+            Description: "Process rules for architecture changes and other controlled workflows.";
+        }
+    }
+
+    File AgentInstructions [Instructions] {
+        Path: "AGENTS.md";
+        Description: "Repository-wide agent instructions and architectural working rules.";
+    }
+
+    Folder NexusLib [Runtime, Libraries] {
+        Path: "NexusLib";
+        Description: "Reusable Nexus runtime and framework libraries shared by tools and applications.";
+
+        Folder Core {
+            Path: "core";
+            Description: "Core utilities including JSON-RPC objects/messages, command-line support, persistence, parsing helpers, and Pascal project/build option models.";
+
+            File JSONRPCMessages {
+                Path: "src/obNXJSONRPCMessages.pas";
+                Description: "JSON-RPC message model used by Nexus protocol infrastructure.";
+            }
+
+            File JSONRPCObjects {
+                Path: "src/obNXJSONRPCObjects.pas";
+                Description: "Typed JSON-RPC object support.";
+            }
+
+            File PascalProject {
+                Path: "src/obNXPascalProject.pas";
+                Description: "Pascal project model used by Nexus tooling.";
+            }
+
+            File FPCBuildOptions {
+                Path: "src/obNXFPCBuildOptions.pas";
+                Description: "Free Pascal build-option representation.";
+            }
+        }
+
+        Folder LSP [LanguageServer] {
+            Path: "lsp";
+            Description: "Shared language-server transport, dispatch, server, logging, and protocol infrastructure.";
+
+            File Server {
+                Path: "src/obNXLSServer.pas";
+                Description: "Shared language-server host/server implementation.";
+            }
+
+            File Dispatcher {
+                Path: "src/obNXLSDispatcher.pas";
+                Description: "Inbound LSP/JSON-RPC dispatch infrastructure.";
+            }
+
+            File Transport {
+                Path: "src/obNXLSTransport.pas";
+                Description: "Transport abstraction used by language servers.";
+            }
+        }
+
+        Folder Net [Networking] {
+            Path: "net";
+            Description: "Networking libraries, currently including substantial XMPP and torrent implementations.";
+
+            Folder XMPP {
+                Path: "src/xmpp";
+                Description: "XMPP client stack: connection, stanza dispatch, MUC, roster, stream management, file sharing, discovery, and related protocol support.";
+
+                File XMPPClient {
+                    Path: "obNXXMPPClient.pas";
+                    Description: "Primary XMPP client facade.";
+                }
+
+                File XMPPConnection {
+                    Path: "obNXXMPPConnection.pas";
+                    Description: "Connection/session handling for XMPP.";
+                }
+
+                File XMPPMUC {
+                    Path: "obNXXMPPMUC.pas";
+                    Description: "Multi-user chat support used by room-oriented bot scenarios.";
+                }
+            }
+
+            Folder Torrent {
+                Path: "src/torrent";
+                Description: "BitTorrent metadata, peer, tracker, session, piece-map, and storage support.";
+            }
+        }
+
+        Folder UI [NexusUI] {
+            Path: "ui";
+            Description: "Custom self-rendered NexusUI framework built around SDL2, with controls, windows, canvas, layout, skinning, and platform support.";
+
+            File Application {
+                Path: "src/obNXApplication.pas";
+                Description: "NexusUI application lifecycle and event-loop owner.";
+            }
+
+            File Canvas {
+                Path: "src/obNXCanvas.pas";
+                Description: "Drawing abstraction used by NexusUI controls.";
+            }
+
+            File Control {
+                Path: "src/obNXControl.pas";
+                Description: "Base control behavior for the widget hierarchy.";
+            }
+
+            File SDL2Backend {
+                Path: "src/obNXSDL2.pas";
+                Description: "SDL2-specific NexusUI backend integration.";
+            }
+        }
+    }
+
+    Folder NexusTools [Tools] {
+        Path: "NexusTools";
+        Description: "Framework-related executables used to build, inspect, test, package, or support Nexus.";
+
+        Folder BotHost [Bots, XMPP] {
+            Path: "BotHost";
+            Description: "Persistent bot host coordinating bot identities, providers, conversations, workspaces, XMPP control, and provider execution.";
+
+            File BotHost {
+                Path: "src/obNXBotHost.pas";
+                Description: "Primary BotHost object.";
+            }
+
+            File Runtime {
+                Path: "src/obNXBotHostRuntime.pas";
+                Description: "BotHost runtime coordination.";
+            }
+
+            File Router {
+                Path: "src/obNXBotHostRouter.pas";
+                Description: "Routes incoming bot-related activity.";
+            }
+
+            File Workspace {
+                Path: "src/obNXBotWorkspace.pas";
+                Description: "Workspace model and preparation used by reference bots.";
+            }
+
+            File OpenAIProvider {
+                Path: "src/obNXOpenAIProvider.pas";
+                Description: "OpenAI provider integration, including local shell-call execution flow.";
+            }
+
+            File CodexProvider {
+                Path: "src/obNXCodexAppServer.pas";
+                Description: "Codex App Server integration.";
+            }
+
+            Folder Catalog {
+                Path: "catalog";
+                Description: "NexusScript bot/workspace catalog dialect and sample/test catalogs.";
+
+                File BotLanguage {
+                    Path: "Bot.Language.nxscript";
+                    Description: "NexusScript dialect defining BotCatalog, Bot, and Workspace configuration.";
+                }
+
+                File Bots {
+                    Path: "Bots.nxscript";
+                    Description: "Current example bot catalog including shared Nexus workspace configuration.";
+                }
+            }
+        }
+
+        Folder Build [BuildSystem] {
+            Path: "Build";
+            Description: "Existing nxbuild implementation area with project loading, planning, execution, and command handling; currently being reconsidered around PasBuild.";
+
+            File ProjectLoader {
+                Path: "src/obNXBuildProjectLoader.pas";
+                Description: "Loads the current Nexus build-project representation.";
+            }
+
+            File Planner {
+                Path: "src/obNXBuildPlanner.pas";
+                Description: "Build planning logic.";
+            }
+
+            File Executor {
+                Path: "src/obNXBuildExecutor.pas";
+                Description: "Executes planned build work.";
+            }
+        }
+
+        Folder Installer {
+            Path: "Installer";
+            Description: "Windows installer packaging, primarily Inno Setup.";
+        }
+
+        Folder LS [Pascal, LanguageServer] {
+            Path: "LS";
+            Description: "Pascal Nexus language server and its comprehensive parser, protocol, diagnostics, completion, symbol, and navigation tests.";
+
+            File Main {
+                Path: "nexusls.lpr";
+                Description: "Pascal NexusLS program entry point.";
+            }
+
+            File LSPModel {
+                Path: "src/obNXLSLSPModel.pas";
+                Description: "Pascal-server LSP model layer; historically a coupling point during language-server restructuring.";
+            }
+
+            File Settings {
+                Path: "src/obNXLSSettings.pas";
+                Description: "Language-server settings.";
+            }
+
+            Folder Tests {
+                Path: "NexusLSTestModule";
+                Description: "Large registered test suite covering NexusLS protocol objects, parser, intelligence, completion, navigation, symbols, and diagnostics.";
+            }
+        }
+
+        Folder Schema [Legacy] {
+            Path: "Schema";
+            Description: "Older NexusSchema implementation retained for parity/reference while NexusScript replaces its language/model role.";
+        }
+
+        Folder Script [NexusScript, Language] {
+            Path: "Script";
+            Description: "NexusScript compiler, validation/dialect system, compilation sessions, artifact layer, CLI, tests, and language-server shell.";
+
+            Folder Core {
+                Path: "core";
+                Description: "Domain-neutral NexusScript parser/compiler/model/session/validator implementation.";
+
+                File Compiler {
+                    Path: "obNexusScriptCompiler.pas";
+                    Description: "NexusScript parser and compiler implementation.";
+                }
+
+                File Model {
+                    Path: "obNexusScriptModel.pas";
+                    Description: "Source and compiled NexusScript model types.";
+                }
+
+                File Session {
+                    Path: "obNexusScriptSession.pas";
+                    Description: "Compilation session, document loading, include/module behavior, discovery expansion, and compiled-document reuse.";
+                }
+
+                File Validator {
+                    Path: "obNexusScriptValidator.pas";
+                    Description: "Validation against NexusScript language/dialect definitions.";
+                }
+
+                File LanguageDefinition {
+                    Path: "obNexusScriptLanguageDefinition.pas";
+                    Description: "Compiled representation and handling of NexusScript language definitions.";
+                }
+            }
+
+            Folder Artifact {
+                Path: "artifact";
+                Description: "Artifact context and manifestation layer built on compiled NexusScript output.";
+
+                File ArtifactContext {
+                    Path: "obNexusScriptArtifactContext.pas";
+                    Description: "Tracks artifact inputs and compiled-document relationships.";
+                }
+
+                File JSON {
+                    Path: "obNexusScriptJSON.pas";
+                    Description: "Generic JSON artifact emitter for compiled NexusScript models.";
+                }
+
+                File Manifest {
+                    Path: "obNexusScriptManifest.pas";
+                    Description: "NexusManifest-driven rendering/manifestation support.";
+                }
+
+                Folder Languages {
+                    Path: "languages";
+                    Description: "NexusScript dialect definitions used by artifact features.";
+                }
+            }
+
+            Folder Tests {
+                Path: "tests";
+                Description: "Registered NexusScript compiler/artifact tests and fixtures.";
+
+                Folder Discover {
+                    Path: "fixtures/discover";
+                    Description: "Fixtures for include/module discovery, recursion, masks, self-exclusion, overlap, and failure behavior.";
+                }
+            }
+
+            Folder LanguageServer {
+                Path: "ls";
+                Description: "NexusScript language-server project and test shell; language analysis remains under development.";
+            }
+
+            Folder Parity {
+                Path: "parity";
+                Description: "NexusSchema parity material and schema-generation fixtures kept outside the domain-neutral core.";
+            }
+        }
+
+        Folder Task [Automation] {
+            Path: "Task";
+            Description: "NexusTask automation/orchestration engine with targets, actions, validation, resolver, CLI, tests, and build/package scripts.";
+
+            File Executor {
+                Path: "src/obNXTaskExecutor.pas";
+                Description: "Executes NexusTask actions/targets.";
+            }
+
+            File Resolver {
+                Path: "src/obNXTaskResolver.pas";
+                Description: "Resolves task structure and target relationships.";
+            }
+
+            Folder Scripts {
+                Path: "scripts";
+                Description: "Current Nexus build/staging/installer automation scripts expressed as NexusTask files.";
+            }
+        }
+
+        Folder Test [Testing] {
+            Path: "Test";
+            Description: "Nexus test framework, module protocol, registry, runner, result model/store, command processing, and optional NexusUI test UI.";
+
+            File TestModule {
+                Path: "src/obNXTestModule.pas";
+                Description: "Test module abstraction used by registered Nexus test modules.";
+            }
+
+            File TestRunner {
+                Path: "src/obNXTestRunner.pas";
+                Description: "Runs registered Nexus test suites/cases.";
+            }
+
+            File Registry {
+                Path: "src/obNXTestRegistry.pas";
+                Description: "Registry of Nexus tests.";
+            }
+        }
+    }
+
+    Folder Libraries [ThirdParty] {
+        Path: "lib";
+        Description: "Third-party or externally maintained libraries included with Nexus.";
+
+        Folder PasBuild [Upstream, BuildSystem] {
+            Path: "pasbuild";
+            Description: "Upstream BSD-licensed PasBuild submodule: Maven-like Pascal build system with project configuration, reactor/multi-module builds, dependency repository, compiler backends, packaging, testing, and plugins.";
+
+            File ProjectConfig {
+                Path: "project.xml";
+                Description: "PasBuild's own native project configuration.";
+            }
+
+            Folder Source {
+                Path: "src/main/pascal";
+                Description: "PasBuild implementation units, including config model/loading, module discovery, reactor commands, dependency resolution, packaging, repository, plugins, and compiler backends.";
+            }
+        }
+    }
+
+    Folder Scripts {
+        Path: "scripts";
+        Description: "Repository maintenance/deployment scripts, including source archive creation, Codex notification, documentation serving/deploy, and Nexus Pascal deployment.";
+    }
+
+    Folder Work [WorkArtifacts] {
+        Path: "work";
+        Description: "Requests, plans, reviews, and related work artifacts used during Nexus development.";
+    }
+
+    Folder Docs {
+        Path: "docs";
+        Description: "Public/project documentation tree. Useful as background, but not the primary source of truth for code behavior.";
+    }
+}

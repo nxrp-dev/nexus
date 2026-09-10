@@ -1,0 +1,3 @@
+include discover recursive "." "*.include.nxscript";
+
+Thing Entry {}

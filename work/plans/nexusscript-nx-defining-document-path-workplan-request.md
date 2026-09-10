@@ -20,7 +20,8 @@ Do not introduce another defining-path field. `SourceRange.SourceName` is alread
 - `CloneDefinition`, `CloneDefinitionForRebinding`, `CloneDefinitionAs`, and reference-projection cloning construct definitions with the source definition's existing range. Imported, composed, projected, and structural definitions therefore already retain their declaration provenance.
 - File compilation expands the filename before parsing, so `SourceRange.SourceName` is a physical expanded filename for files compiled through `CompileFile` and `TNexusScriptCompilationSession`.
 - `CompileText` deliberately accepts a caller-supplied source name. Its `SourceName` is source identity and is not necessarily a filesystem path.
-- `TNexusScriptJSONEmitter.DefinitionJSON` creates `_nx` metadata for direct roots, nested definitions, inline definitions, and structural definition projections.
+- `TNexusScriptJSONEmitter.DefinitionJSON` emits `_nx` metadata for direct roots, nested definitions, inline definitions, and structural definition projections.
+- Fixed JSON contract objects are modeled as `TNXJSONObject` descendants whose published properties are the JSON contract. They are not assembled from free-form `TJSONObject` members.
 - Named scalar and named array values may also contain `_nx`, but they are not definitions and do not own `TNexusScriptCompiledDefinition.SourceRange`.
 
 ## Architecture Problem
@@ -92,10 +93,16 @@ Every JSON object emitted from a `TNexusScriptCompiledDefinition` includes its e
 
 ### Stage 1: Serialize the existing range
 
-1. Add a small JSON-emitter helper that converts `TNexusScriptRange` into the settled object shape.
-2. Add the resulting object as `_nx.SourceRange` inside `DefinitionJSON`.
-3. Leave all compiled-model and clone code unchanged because it already preserves the authoritative range.
-4. Leave named scalar and named array `_nx` construction unchanged.
+1. Model the shared artifact metadata, source ranges, positions, references,
+   and named-value metadata as typed `TNXJSONObject` descendants with published
+   properties. Both compiled-definition and external-source output use that
+   shared metadata object.
+2. Populate the typed source-range object from `TNexusScriptCompiledDefinition.SourceRange` and serialize it through the existing RTTI JSON model.
+3. Extend each source definition's existing range through its closing brace. Leave
+   compiled storage and clone behavior unchanged because they already preserve the
+   source definition's authoritative range.
+4. Keep named scalar and named array metadata range-free, but represent their fixed
+   metadata contract through the same typed RTTI model.
 
 Verification:
 

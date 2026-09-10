@@ -1,0 +1,5 @@
+module discover recursive "." "*.module.nxscript";
+
+Thing Entry {
+    Value: @Sibling.Value + " " + @Nested.Value;
+}

@@ -10,3 +10,7 @@
 	path = lib/pasbuild
 	url = https://github.com/graemeg/PasBuild.git
 	branch = master
+[submodule "lib/fpgui"]
+	path = lib/fpgui
+	url = https://github.com/graemeg/fpgui.git
+	branch = develop

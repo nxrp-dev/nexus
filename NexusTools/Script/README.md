@@ -167,8 +167,8 @@ definitions are members keyed by their domain names. There is no fixed wrapper,
 kind grouping, pluralization, or Schema-specific conversion.
 
 Every definition also has reserved `_nx` metadata containing its NexusScript
-kind and identity. Domain members remain separate, so an ordinary `Name`
-property does not conflict with the definition name.
+kind, identity, and source range. Domain members remain separate, so an
+ordinary `Name` property does not conflict with the definition name.
 
 ```nexusscript
 Catalog Product {
@@ -180,18 +180,47 @@ Catalog Product {
 }
 ```
 
+The range values in this example are illustrative.
+
 ```json
 {
   "Product": {
-    "_nx": { "Kind": "Catalog", "Name": "Product" },
+    "_nx": {
+      "Kind": "Catalog",
+      "Name": "Product",
+      "IsReference": false,
+      "SourceRange": {
+        "SourceName": "Catalog.nxscript",
+        "StartPosition": { "Offset": 0, "Line": 1, "Column": 1 },
+        "EndPosition": { "Offset": 153, "Line": 7, "Column": 2 }
+      }
+    },
     "Name": "Nexus",
     "Fields": [
       {
-        "_nx": { "Kind": "Field", "Name": "ID" },
+        "_nx": {
+          "Kind": "Field",
+          "Name": "ID",
+          "IsReference": false,
+          "SourceRange": {
+            "SourceName": "Catalog.nxscript",
+            "StartPosition": { "Offset": 53, "Line": 4, "Column": 9 },
+            "EndPosition": { "Offset": 77, "Line": 4, "Column": 33 }
+          }
+        },
         "Type": "UUID"
       },
       {
-        "_nx": { "Kind": "Field", "Name": "Created" },
+        "_nx": {
+          "Kind": "Field",
+          "Name": "Created",
+          "IsReference": false,
+          "SourceRange": {
+            "SourceName": "Catalog.nxscript",
+            "StartPosition": { "Offset": 88, "Line": 5, "Column": 9 },
+            "EndPosition": { "Offset": 129, "Line": 5, "Column": 50 }
+          }
+        },
         "Type": "Timestamp"
       }
     ]
@@ -215,6 +244,14 @@ a named scalar or named nested-array entry is represented as an object with
 `_nx.Name` and a `Value` member. A definition that declares a property or child
 named `_nx` is rejected during emission.
 
+`_nx.SourceRange` belongs to definition objects, including nested, inline,
+composed, and structurally referenced definitions. It contains the compiled
+definition's existing `SourceName`, `StartPosition`, and `EndPosition` without
+normalization. File compilation records an expanded physical filename;
+`CompileText` preserves the source identity supplied by its caller. The `_nx`
+objects used only to name scalar or nested-array entries do not contain a
+`SourceRange`.
+
 An entry document may declare `module Path;` to make every root in another
 document addressable under its declared name, or `module Root Path;` to import
 only the named root. A module never renames a root and does not add the imported
@@ -227,3 +264,25 @@ when definitions must be addressable from another document. A `doctype Path;`
 association remains separate and does not contribute artifact content unless
 that document is also included. Root names must be unique across the complete
 artifact document set.
+
+Either dependency declaration may discover its targets by folder and filename
+mask:
+
+```nexusscript
+include discover "." "*.PasBuild.nxscript";
+include discover recursive "." "*.PasBuild.nxscript";
+
+module discover "." "*.Language.nxscript";
+module discover recursive "." "*.Language.nxscript";
+```
+
+The folder is relative to the document containing the declaration. Discovery
+selects matching documents and excludes the declaring document itself. Without
+`recursive`, only the named folder is searched; with it, matching documents in
+subfolders are selected as well. An empty selection is a no-op.
+
+Each discovered include behaves as though it had been named by a separate
+`include Path;` declaration. Each discovered module contributes all of its
+roots as though it had been named by a separate `module Path;` declaration.
+There is no standalone `discover` declaration and no discovered selected-root
+module form.

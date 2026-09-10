@@ -30,6 +30,7 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'docs'); ArchivePath = 'docs' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'scripts'); ArchivePath = 'scripts' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'lib\pasbuild'); ArchivePath = 'lib\pasbuild' },
   [pscustomobject]@{ SourcePath = $ExternalNexusPascalRoot; ArchivePath = 'tools\nexus-pascal' }
 )
 
@@ -38,7 +39,9 @@ $DefaultSourceFiles = @(
 )
 
 $SourceExtensions = @(
+  '.adoc',
   '.bat',
+  '.bash',
   '.cmd',
   '.csv',
   '.css',
@@ -77,7 +80,9 @@ $SourceExtensions = @(
 $SourceFileNames = @(
   '.gitignore',
   '.vscodeignore',
-  'AGENTS.md'
+  'AGENTS.md',
+  'LICENSE',
+  'pasbuild-hello'
 )
 
 $ExcludedFileExtensions = @(
