@@ -34,6 +34,7 @@ The existing source-to-compiled filtering location and dependency propagation re
 - Existing tests cover flat Target parsing, case-sensitive identity, filtering, nested and inline definitions, dependency propagation, composition failure through excluded definitions, and typed `_nx.Targets` emission.
 - The parser currently rejects duplicate root definitions and duplicate child members before Target filtering can occur.
 - `CompileSource.SourceFor` currently recovers a compiled definition's source definition by its name and parent path. Once same-identity source variants are permitted, that lookup can return an excluded variant instead of the exact source definition from which the retained compiled definition was created.
+- `SourceFor` is one proven instance of a broader changed invariant: an unfiltered source scope may now contain several same-identity targeted declarations. Every semantic compiler/session use of source-model name lookup must therefore be audited rather than assuming this is the only affected call site.
 - The current Target implementation is uncommitted and shares the working tree with the separate include/module pattern implementation. The multidimensional change must preserve those unrelated working-tree changes.
 
 ## Architecture Problem
@@ -51,13 +52,13 @@ The definition should be selectable independently by build Target and Platform. 
 
 The model therefore needs named Target clauses on definitions and named Target selections on a compiler/session. The existing source-to-compiled boundary can then evaluate only the kinds actually selected by the caller. Definitions that survive that filtering continue through the normal semantic pipeline and remain subject to the ordinary identity and duplicate-definition rules.
 
-Permitting same-identity variants in the parsed source also makes name-based recovery of source definitions invalid. A retained compiled definition must remain associated with the exact source definition that produced it so composition and any other source-dependent behavior cannot accidentally consume an excluded variant.
+Permitting same-identity variants in the parsed source also makes name-based recovery of source definitions invalid. A retained compiled definition must remain associated with the exact source definition that produced it so composition and any other source-dependent behavior cannot accidentally consume an excluded variant. Semantic name resolution belongs against the post-filter compiled model; source-model lookup remains appropriate only for explicitly source-oriented behavior that does not assume uniqueness.
 
 ## Target Contract
 
 ### Declaration syntax
 
-- A definition may carry zero or more named Target clauses after its name and composition selectors and before its body.
+- A definition header has the fixed order `Kind Name`, optional composition selectors, zero or more named Target clauses, then the body. Target clauses therefore follow composition selectors and precede `{`.
 - Each clause has a Target-kind name followed by a nonempty bracketed value list:
 
   ```nexusscript
@@ -65,6 +66,14 @@ Permitting same-identity variants in the parsed source also makes name-based rec
   }
   ```
 
+- A definition using both composition and Targets is written:
+
+  ```nexusscript
+  ATask Build (WindowsBase) Target[Dev] Platform[Windows] {
+  }
+  ```
+
+- `ATask Build Target[Dev] (WindowsBase)` is not an alternate ordering. This work does not allow clauses and composition selectors to be interleaved.
 - Target-kind names and values follow the existing NexusScript word/quoted-string rules where those tokens are supported by the definition-header grammar. This work does not create a separate identifier grammar.
 - Target-kind names and values are case-sensitive.
 - Values retain declaration order and decoded spelling.
@@ -137,6 +146,7 @@ The same rule handles overlapping applicability naturally. If one `Build` declar
 - A session supplies the same complete selection context to every compiler it creates for entry, doctype, module, include, and discovered documents.
 - The parsed source document remains complete and unchanged. Only compiled-model construction filters definitions.
 - Every compiled definition created from source retains an exact association with the source definition that produced it. Composition and other source-dependent processing use that association rather than recovering a source definition by name.
+- Compiler/session paths that perform semantic name resolution use the post-filter compiled model. Source-model `FindDefinition`, `FindChild`, and equivalent APIs may remain for source-oriented consumers, but compiler semantics must not use their arbitrary first match where targeted variants can coexist.
 - Filtering remains recursive for root, child, and inline structural definitions at every supported nesting level.
 - Compiled-to-compiled copying does not reevaluate selection. It preserves the named Target declarations and appropriate source association of definitions already retained by the source-to-compiled boundary.
 - Exclusion itself is not a diagnostic. Existing unresolved-reference and unresolved-composition diagnostics remain responsible when retained definitions name excluded definitions.
@@ -202,7 +212,8 @@ The same rule handles overlapping applicability naturally. If one `Build` declar
 4. Reject a repeated exact Target-kind name on the same definition with a focused duplicate-kind diagnostic; alternatives for one kind belong in one clause.
 5. Retain the existing diagnostics for empty clauses and duplicate values where their meaning remains the same, correcting message wording only as needed for named clauses.
 6. Ensure the lookahead that distinguishes definition headers and inline definitions recognizes one or more named Target clauses without changing ordinary property, array, composition-selector, or definition parsing.
-7. Remove acceptance of the obsolete anonymous bracket form rather than retaining a compatibility path.
+7. Preserve the fixed header order: optional composition selectors first, followed by all named Target clauses. Reject a composition selector appearing after a Target clause rather than supporting multiple equivalent header orders.
+8. Remove acceptance of the obsolete anonymous bracket form rather than retaining a compatibility path.
 
 ### Stage 3: Generalize compilation filtering
 
@@ -213,8 +224,9 @@ The same rule handles overlapping applicability naturally. If one `Build` declar
 5. Apply the generalized check at the existing source-to-compiled construction points for roots, children, inline definitions, and array entries.
 6. Ensure ordinary duplicate-definition validation for compiled scopes occurs after applicability filtering, so same-identity targeted alternatives may exist in source when a valid selection retains only one. Do not add Target fields to identity and do not add Target-overlap analysis.
 7. Establish and preserve the exact source-definition association when each retained compiled definition is created. Remove source recovery by name from composition and other source-dependent processing; copied or projected definitions must preserve or deliberately supply the association appropriate to their existing semantics.
-8. Preserve the complete named Target collection on each retained compiled definition and through existing clone, import, composition, rebinding, and projection paths.
-9. Continue propagating one immutable selection context through every compiler owned by a compilation session.
+8. Audit every compiler/session call site that recovers source definitions or children by scoped name. Where the caller needs the origin of an already-compiled definition, use its exact source association. Where the caller performs semantic name resolution, resolve against the post-filter compiled model. Do not remove source-model lookup APIs merely because semantic compiler paths can no longer depend upon an arbitrary first match.
+9. Preserve the complete named Target collection on each retained compiled definition and through existing clone, import, composition, rebinding, and projection paths.
+10. Continue propagating one immutable selection context through every compiler owned by a compilation session.
 
 ### Stage 4: Adapt typed artifact metadata
 
@@ -228,27 +240,28 @@ The same rule handles overlapping applicability naturally. If one `Build` declar
 1. Convert existing anonymous Target fixtures and source strings to explicit named clauses.
 2. Prove parsing and model ownership for multiple Target kinds, multiple values, declaration order, and case-sensitive names and values.
 3. Prove repeating the same exact Target-kind name on one definition is rejected, while differently cased kind names remain distinct at the core language level.
-4. Prove fully untargeted compilation retains all eligible definitions when they are otherwise semantically compatible.
-5. Prove same-identity platform variants are accepted in source, `Platform=Windows` retains only the Windows variant, `Platform=Linux` retains only the Linux variant, and an untargeted or insufficiently targeted compilation that retains both produces the existing duplicate-definition diagnostic.
-6. Prove overlapping applicability uses ordinary uniqueness only: for example, `Platform[Windows, Linux]` plus a same-identity `Platform[Windows]` variant is valid for Linux and duplicate-invalid for Windows.
-7. Prove that retained root and nested variants use their exact originating source definitions by giving same-identity variants different composition selectors or other source-dependent behavior and selecting each variant independently. Reverse their declaration order so the test cannot pass through first-name lookup accidentally.
-8. Prove one selected kind filters only that kind while leaving every unselected kind unfiltered.
-9. Prove selecting an unrelated kind that a definition does not declare leaves that definition unrestricted.
-10. Prove two selected kinds produce OR-within and AND-across behavior using `Target` and `Platform` examples.
-11. Prove the semantic result is independent of selection-context insertion/order.
-12. Prove a definition with no clause for a selected kind remains universal for that kind.
-13. Prove case-sensitive identity directly: a case-mismatched kind name is a different, unselected kind and therefore does not filter the definition; a case-mismatched value under the exact selected kind excludes it.
-14. Prove recursive filtering for children, inline definitions, and inline array entries without changing the parsed source model.
-15. Prove the complete named selection context propagates through doctype, explicit and discovered module, and explicit and discovered include documents.
-16. Prove compiler/session ownership is immutable: mutating the caller's original selection after construction cannot change an active compiler/session or its cached compiler behavior.
-17. Prove matching composition succeeds and composition through a definition excluded by either selected kind produces the existing unresolved-composition diagnostic.
-18. Prove typed `_nx.Targets` metadata contains ordered unique `Name` and `Values` entries, excluded definitions are absent, definitions without clauses omit the member, and an ordinary `Targets` property remains independent.
-19. Prove the obsolete anonymous clause is rejected and no `Tags` metadata or model contract returns.
+4. Prove the combined header grammar accepts `ATask Build (WindowsBase) Target[Dev] Platform[Windows]` and rejects composition selectors placed after a Target clause.
+5. Prove fully untargeted compilation retains all eligible definitions when they are otherwise semantically compatible.
+6. Prove same-identity platform variants are accepted in source, `Platform=Windows` retains only the Windows variant, `Platform=Linux` retains only the Linux variant, and an untargeted or insufficiently targeted compilation that retains both produces the existing duplicate-definition diagnostic.
+7. Prove overlapping applicability uses ordinary uniqueness only: for example, `Platform[Windows, Linux]` plus a same-identity `Platform[Windows]` variant is valid for Linux and duplicate-invalid for Windows.
+8. Prove that retained root and nested variants use their exact originating source definitions by giving same-identity variants different composition selectors or other source-dependent behavior and selecting each variant independently. Reverse their declaration order so the test cannot pass through first-name lookup accidentally.
+9. Prove one selected kind filters only that kind while leaving every unselected kind unfiltered.
+10. Prove selecting an unrelated kind that a definition does not declare leaves that definition unrestricted.
+11. Prove two selected kinds produce OR-within and AND-across behavior using `Target` and `Platform` examples.
+12. Prove the semantic result is independent of selection-context insertion/order.
+13. Prove a definition with no clause for a selected kind remains universal for that kind.
+14. Prove case-sensitive identity directly: a case-mismatched kind name is a different, unselected kind and therefore does not filter the definition; a case-mismatched value under the exact selected kind excludes it.
+15. Prove recursive filtering for children, inline definitions, and inline array entries without changing the parsed source model.
+16. Prove the complete named selection context propagates through doctype, explicit and discovered module, and explicit and discovered include documents.
+17. Prove compiler/session ownership is immutable: mutating the caller's original selection after construction cannot change an active compiler/session or its cached compiler behavior.
+18. Prove matching composition succeeds and composition through a definition excluded by either selected kind produces the existing unresolved-composition diagnostic.
+19. Prove typed `_nx.Targets` metadata contains ordered unique `Name` and `Values` entries, excluded definitions are absent, definitions without clauses omit the member, and an ordinary `Targets` property remains independent.
+20. Prove the obsolete anonymous clause is rejected and no `Tags` metadata or model contract returns.
 
 ### Stage 6: Update the language documentation
 
 1. Replace the flat Target examples and single selected Target API description with named multidimensional examples.
-2. Document independent selection, unfiltered unspecified kinds, OR within a kind, AND across applicable selected kinds, case sensitivity, one clause per Target kind, recursive filtering, and dependency propagation.
+2. Document the fixed composition-before-Targets header order together with independent selection, unfiltered unspecified kinds, OR within a kind, AND across applicable selected kinds, case sensitivity, one clause per Target kind, recursive filtering, and dependency propagation.
 3. Document that Target clauses do not participate in identity; duplicate-definition validation applies to the post-filter compiled model, so untargeted or partially targeted compilation may legitimately fail when mutually exclusive variants are both retained.
 4. Document the typed `_nx.Targets` metadata shape and removal of anonymous Target syntax.
 
@@ -286,6 +299,8 @@ Focused source checks must confirm:
 - Target clauses have not been added to definition identity and no Target-overlap analyzer was introduced;
 - duplicate-definition validation for targeted variants occurs only after the relevant applicability filtering;
 - composition and other source-dependent processing use the exact source definition associated during source-to-compiled construction, not a name-based source lookup;
+- no semantic compiler/session path relies on `FindDefinition`, `FindChild`, or an equivalent first-match lookup against the unfiltered source model where same-identity targeted variants can exist;
+- composition selectors precede named Target clauses in the definition header, and no alternate/interleaved ordering was introduced;
 - no PasBuild, `nxbuild`, CLI, validator-policy, language-server, threading, or unrelated include/module behavior changed.
 
 After an approved implementation pass, create and validate the source archive required by the architecture-change protocol.
@@ -299,6 +314,7 @@ After an approved implementation pass, create and validate the source archive re
 - Freeform Target-kind names are intentionally case-sensitive and unselected kinds intentionally do not filter. Therefore a misspelled constrained-dialect kind such as `Platfrom[Windows]` can behave as an unrelated, unselected kind in generic NexusScript. This core change should not add policy validation; dialects such as NexusSetup should later validate their permitted Target-kind names where silent broadening would be unsafe.
 - Deferring duplicate-definition validation until after filtering is a semantic requirement for targeted same-identity variants. Implementation must inspect existing duplicate checks carefully and move/defer only the checks necessary for this behavior without weakening unrelated source diagnostics.
 - Same-identity source variants make name-based source recovery ambiguous. The implementation must preserve exact source association directly and must not repair the ambiguity with ordering assumptions or Target-aware identity.
+- The source-model lookup APIs may remain useful to language tooling and other source-oriented consumers. The required audit concerns semantic compiler/session reliance on first-match source lookup, not the mere existence of those APIs.
 
 ## Approval Gate
 
