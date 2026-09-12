@@ -1,5 +1,5 @@
-include discover "." "*.shared.nxscript";
-module discover "." "*.shared.nxscript";
+include "*.shared.nxscript";
+module "*.shared.nxscript";
 
 Thing Entry {
     Value: @Shared.Value;

@@ -29,6 +29,8 @@ type
   TNexusScriptCompiledValue = class;
   TNexusScriptCompiledDefinition = class;
   TNexusScriptCompiledProperty = class;
+  TNexusScriptTarget = class;
+  TNexusScriptSelectedTarget = class;
 
   TNexusScriptSourceValueList = TObjectList<TNexusScriptSourceValue>;
   TNexusScriptSourceDefinitionList = TObjectList<TNexusScriptSourceDefinition>;
@@ -36,6 +38,55 @@ type
   TNexusScriptCompiledDefinitionList = TObjectList<TNexusScriptCompiledDefinition>;
   TNexusScriptCompiledPropertyList = TObjectList<TNexusScriptCompiledProperty>;
   TNexusScriptDiagnosticList = TObjectList<TNexusScriptDiagnostic>;
+
+  TNexusScriptTarget = class
+  private
+    FName: string;
+    FValues: TStringList;
+    FSourceRange: TNexusScriptRange;
+  public
+    constructor Create(const AName: string;
+      const ASourceRange: TNexusScriptRange);
+    destructor Destroy; override;
+    function Clone: TNexusScriptTarget;
+    function HasValue(const AValue: string): Boolean;
+    property Name: string read FName;
+    property Values: TStringList read FValues;
+    property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+  end;
+
+  TNexusScriptTargetList = class(TObjectList<TNexusScriptTarget>)
+  public
+    function Find(const AName: string): TNexusScriptTarget;
+    procedure Assign(ASource: TNexusScriptTargetList);
+  end;
+
+  TNexusScriptSelectedTarget = class
+  private
+    FName: string;
+    FValue: string;
+  public
+    constructor Create(const AName, AValue: string);
+    property Name: string read FName;
+    property Value: string read FValue;
+  end;
+
+  TNexusScriptTargetSelection = class
+  private
+    FItems: TObjectList<TNexusScriptSelectedTarget>;
+    function GetCount: Integer;
+    function GetItem(AIndex: Integer): TNexusScriptSelectedTarget;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    procedure Add(const AName, AValue: string);
+    procedure Assign(ASource: TNexusScriptTargetSelection);
+    function Find(const AName: string): TNexusScriptSelectedTarget;
+    procedure SetValue(const AName, AValue: string);
+    property Count: Integer read GetCount;
+    property Items[AIndex: Integer]: TNexusScriptSelectedTarget read GetItem;
+      default;
+  end;
 
   TNexusScriptSourceValue = class
   private
@@ -82,7 +133,7 @@ type
     FProperties: TNexusScriptSourcePropertyList;
     FChildren: TNexusScriptSourceDefinitionList;
     FCompositionSelectors: TStringList;
-    FTags: TStringList;
+    FTargets: TNexusScriptTargetList;
     FParent: TNexusScriptSourceDefinition;
     FSourceRange: TNexusScriptRange;
   public
@@ -96,7 +147,7 @@ type
     property Properties: TNexusScriptSourcePropertyList read FProperties;
     property Children: TNexusScriptSourceDefinitionList read FChildren;
     property CompositionSelectors: TStringList read FCompositionSelectors;
-    property Tags: TStringList read FTags;
+    property Targets: TNexusScriptTargetList read FTargets;
     property Parent: TNexusScriptSourceDefinition read FParent write FParent;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
@@ -105,18 +156,12 @@ type
   private
     FRootSelector: string;
     FPath: string;
-    FDiscover: Boolean;
     FRecursive: Boolean;
-    FDiscoverFolder: string;
-    FDiscoverMask: string;
     FSourceRange: TNexusScriptRange;
   public
     property RootSelector: string read FRootSelector write FRootSelector;
     property Path: string read FPath write FPath;
-    property Discover: Boolean read FDiscover write FDiscover;
     property Recursive: Boolean read FRecursive write FRecursive;
-    property DiscoverFolder: string read FDiscoverFolder write FDiscoverFolder;
-    property DiscoverMask: string read FDiscoverMask write FDiscoverMask;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
 
@@ -134,17 +179,11 @@ type
   TNexusScriptSourceInclude = class
   private
     FPath: string;
-    FDiscover: Boolean;
     FRecursive: Boolean;
-    FDiscoverFolder: string;
-    FDiscoverMask: string;
     FSourceRange: TNexusScriptRange;
   public
     property Path: string read FPath write FPath;
-    property Discover: Boolean read FDiscover write FDiscover;
     property Recursive: Boolean read FRecursive write FRecursive;
-    property DiscoverFolder: string read FDiscoverFolder write FDiscoverFolder;
-    property DiscoverMask: string read FDiscoverMask write FDiscoverMask;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
 
@@ -262,7 +301,8 @@ type
     FName: string;
     FProperties: TNexusScriptCompiledPropertyList;
     FChildren: TNexusScriptCompiledDefinitionList;
-    FTags: TStringList;
+    FTargets: TNexusScriptTargetList;
+    FSourceDefinition: TNexusScriptSourceDefinition;
     FParent: TNexusScriptCompiledDefinition;
     FSourceRange: TNexusScriptRange;
     FComposing: Boolean;
@@ -275,10 +315,12 @@ type
     function FindProperty(const AName: string): TNexusScriptCompiledProperty;
     function FindChild(const AName: string): TNexusScriptCompiledDefinition;
     property Kind: string read FKind;
-    property Name: string read FName;
+    property Name: string read FName write FName;
     property Properties: TNexusScriptCompiledPropertyList read FProperties;
     property Children: TNexusScriptCompiledDefinitionList read FChildren;
-    property Tags: TStringList read FTags;
+    property Targets: TNexusScriptTargetList read FTargets;
+    property SourceDefinition: TNexusScriptSourceDefinition
+      read FSourceDefinition write FSourceDefinition;
     property Parent: TNexusScriptCompiledDefinition read FParent write FParent;
     property SourceRange: TNexusScriptRange read FSourceRange;
     property Composing: Boolean read FComposing write FComposing;
@@ -310,6 +352,128 @@ type
   end;
 
 implementation
+
+constructor TNexusScriptTarget.Create(const AName: string;
+  const ASourceRange: TNexusScriptRange);
+begin
+  inherited Create;
+  FName := AName;
+  FSourceRange := ASourceRange;
+  FValues := TStringList.Create;
+  FValues.CaseSensitive := True;
+end;
+
+destructor TNexusScriptTarget.Destroy;
+begin
+  FValues.Free;
+  inherited Destroy;
+end;
+
+function TNexusScriptTarget.Clone: TNexusScriptTarget;
+begin
+  Result := TNexusScriptTarget.Create(FName, FSourceRange);
+  Result.Values.AddStrings(FValues);
+end;
+
+function TNexusScriptTarget.HasValue(const AValue: string): Boolean;
+begin
+  Result := FValues.IndexOf(AValue) >= 0;
+end;
+
+function TNexusScriptTargetList.Find(
+  const AName: string): TNexusScriptTarget;
+var
+  lTarget: TNexusScriptTarget;
+begin
+  Result := nil;
+  for lTarget in Self do
+    if lTarget.Name = AName then
+      Exit(lTarget);
+end;
+
+procedure TNexusScriptTargetList.Assign(ASource: TNexusScriptTargetList);
+var
+  lTarget: TNexusScriptTarget;
+begin
+  Clear;
+  for lTarget in ASource do
+    Add(lTarget.Clone);
+end;
+
+constructor TNexusScriptSelectedTarget.Create(
+  const AName, AValue: string);
+begin
+  inherited Create;
+  FName := AName;
+  FValue := AValue;
+end;
+
+constructor TNexusScriptTargetSelection.Create;
+begin
+  inherited Create;
+  FItems := TObjectList<TNexusScriptSelectedTarget>.Create(True);
+end;
+
+destructor TNexusScriptTargetSelection.Destroy;
+begin
+  FItems.Free;
+  inherited Destroy;
+end;
+
+procedure TNexusScriptTargetSelection.Add(const AName, AValue: string);
+begin
+  if Find(AName) <> nil then
+    raise EArgumentException.CreateFmt(
+      'Target kind %s already has a selected value.', [AName]);
+  FItems.Add(TNexusScriptSelectedTarget.Create(AName, AValue));
+end;
+
+procedure TNexusScriptTargetSelection.Assign(
+  ASource: TNexusScriptTargetSelection);
+var
+  lTarget: TNexusScriptSelectedTarget;
+begin
+  FItems.Clear;
+  if ASource = nil then
+    Exit;
+  for lTarget in ASource.FItems do
+    FItems.Add(TNexusScriptSelectedTarget.Create(lTarget.Name,
+      lTarget.Value));
+end;
+
+function TNexusScriptTargetSelection.Find(
+  const AName: string): TNexusScriptSelectedTarget;
+var
+  lTarget: TNexusScriptSelectedTarget;
+begin
+  Result := nil;
+  for lTarget in FItems do
+    if lTarget.Name = AName then
+      Exit(lTarget);
+end;
+
+procedure TNexusScriptTargetSelection.SetValue(
+  const AName, AValue: string);
+var
+  lTarget: TNexusScriptSelectedTarget;
+begin
+  lTarget := Find(AName);
+  if lTarget = nil then
+    FItems.Add(TNexusScriptSelectedTarget.Create(AName, AValue))
+  else
+    lTarget.FValue := AValue;
+end;
+
+function TNexusScriptTargetSelection.GetCount: Integer;
+begin
+  Result := FItems.Count;
+end;
+
+function TNexusScriptTargetSelection.GetItem(
+  AIndex: Integer): TNexusScriptSelectedTarget;
+begin
+  Result := FItems[AIndex];
+end;
 
 constructor TNexusScriptDiagnostic.Create(const ACode, AMessageText: string;
   const ASourceRange: TNexusScriptRange);
@@ -372,13 +536,12 @@ begin
   FProperties := TNexusScriptSourcePropertyList.Create(True);
   FChildren := TNexusScriptSourceDefinitionList.Create(True);
   FCompositionSelectors := TStringList.Create;
-  FTags := TStringList.Create;
-  FTags.CaseSensitive := True;
+  FTargets := TNexusScriptTargetList.Create(True);
 end;
 
 destructor TNexusScriptSourceDefinition.Destroy;
 begin
-  FTags.Free;
+  FTargets.Free;
   FCompositionSelectors.Free;
   FChildren.Free;
   FProperties.Free;
@@ -511,13 +674,12 @@ begin
   FSourceRange := ASourceRange;
   FProperties := TNexusScriptCompiledPropertyList.Create(True);
   FChildren := TNexusScriptCompiledDefinitionList.Create(True);
-  FTags := TStringList.Create;
-  FTags.CaseSensitive := True;
+  FTargets := TNexusScriptTargetList.Create(True);
 end;
 
 destructor TNexusScriptCompiledDefinition.Destroy;
 begin
-  FTags.Free;
+  FTargets.Free;
   FChildren.Free;
   FProperties.Free;
   inherited Destroy;

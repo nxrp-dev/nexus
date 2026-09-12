@@ -44,6 +44,21 @@ type
     property Name: TNXJSONString read FName write FName;
   end;
 
+  TNexusScriptArtifactTarget = class(TNXJSONObject)
+  private
+    FName: TNXJSONString;
+    FValues: TNXJSONArray;
+  published
+    property Name: TNXJSONString read FName write FName;
+    property Values: TNXJSONArray read FValues write FValues;
+  end;
+
+  TNexusScriptArtifactTargetArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONValueClass; override;
+    function AddTarget: TNexusScriptArtifactTarget;
+  end;
+
   TNexusScriptArtifactMetadata = class(TNXJSONObject)
   private
     FKind: TNXJSONString;
@@ -51,7 +66,7 @@ type
     FIsReference: TNXJSONBoolean;
     FSourceRange: TNexusScriptArtifactSourceRange;
     FReference: TNexusScriptArtifactReference;
-    FTags: TNXJSONArray;
+    FTargets: TNexusScriptArtifactTargetArray;
     FType: TNXJSONString;
     FSource: TNXJSONString;
   published
@@ -62,7 +77,8 @@ type
       write FSourceRange;
     property Reference: TNexusScriptArtifactReference read FReference
       write FReference;
-    property Tags: TNXJSONArray read FTags write FTags;
+    property Targets: TNexusScriptArtifactTargetArray read FTargets
+      write FTargets;
     property &Type: TNXJSONString read FType write FType;
     property Source: TNXJSONString read FSource write FSource;
   end;
@@ -127,6 +143,18 @@ type
   TNexusScriptArtifactDocumentList = TObjectList<TNexusScriptArtifactDocument>;
 
 implementation
+
+class function TNexusScriptArtifactTargetArray.ItemClass: TNXJSONValueClass;
+begin
+  Result := TNexusScriptArtifactTarget;
+end;
+
+function TNexusScriptArtifactTargetArray.AddTarget:
+  TNexusScriptArtifactTarget;
+begin
+  Result := TNexusScriptArtifactTarget(AddObject(
+    TNexusScriptArtifactTarget));
+end;
 
 function TNexusScriptCompiledValueArtifactHelper.GetArtifactValue:
   TNexusScriptCompiledValue;

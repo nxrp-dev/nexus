@@ -56,7 +56,7 @@ begin
   end;
 end;
 
-procedure TestDefinitionTags(AContext: TNXTestContext);
+procedure TestDefinitionTargets(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
   lImportCompiler: TNexusScriptCompiler;
@@ -68,6 +68,8 @@ var
   lRelease: TNexusScriptCompiledDefinition;
   lImportedRoot: TNexusScriptCompiledDefinition;
   lInline: TNexusScriptCompiledDefinition;
+  lSourceTarget: TNexusScriptTarget;
+  lCompiledTarget: TNexusScriptTarget;
 begin
   lCompiler := TNexusScriptCompiler.Create;
   lImportCompiler := TNexusScriptCompiler.Create;
@@ -75,105 +77,548 @@ begin
   lValidatorCompiler := TNexusScriptCompiler.Create;
   lValidator := TNexusScriptValidator.Create;
   try
-    AContext.AssertTrue(lCompiler.CompileText('tags.nxscript',
-      'Thing Root [Production, PRODUCTION, "Cross Reference", ' +
-      '"Line^nBreak", "Build.Production", Environment=Production] { ' +
-      'Tags: domain; ' +
-      'Thing Base [Windows] { Thing MailSettings [Shared] {} } ' +
-      'Thing Release (Base) [Production] {} ' +
-      'Thing Nested [NestedTag] {} Alias: @Nested; ' +
-      'Items: [Node Inline [InlineTag] { Value: yes; }]; }'),
-      'Tagged definitions should compile.');
+    AContext.AssertTrue(lCompiler.CompileText('targets.nxscript',
+      'Thing Root Target[Production, PRODUCTION, "Cross Reference", ' +
+      '"Line^nBreak", "Build.Production", Environment=Production] ' +
+      'Platform[Windows] { ' +
+      'Targets: domain; ' +
+      'Thing Base Platform[Windows] { ' +
+      'Thing MailSettings Scope[Shared] {} } ' +
+      'Thing Release (Base) Target[Production] {} ' +
+      'Thing Nested Target[NestedTarget] {} Alias: @Nested; ' +
+      'Items: [Node Inline Target[InlineTarget] { Value: yes; }]; }'),
+      'Targeted definitions should compile.');
     lSourceRoot := lCompiler.SourceDocument.FindDefinition('Root');
     lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
-    AContext.AssertEquals(6, lSourceRoot.Tags.Count,
-      'Source tags should retain their count.');
-    AContext.AssertEquals('Production', lSourceRoot.Tags[0],
-      'Source tags should retain declaration order and spelling.');
-    AContext.AssertEquals('PRODUCTION', lSourceRoot.Tags[1],
-      'Tag identity should be case-sensitive.');
-    AContext.AssertEquals('Cross Reference', lSourceRoot.Tags[2],
-      'Quoted tag whitespace should be decoded and retained.');
-    AContext.AssertEquals('Line' + #10 + 'Break', lSourceRoot.Tags[3],
-      'Quoted tags should use existing escape decoding.');
-    AContext.AssertEquals('Build.Production', lSourceRoot.Tags[4],
-      'Quoted language punctuation should remain literal tag text.');
-    AContext.AssertEquals('Environment=Production', lSourceRoot.Tags[5],
-      'Punctuation within a word should have no tag semantics.');
-    AContext.AssertTrue(lRoot.Tags <> lSourceRoot.Tags,
-      'Source and compiled definitions should own distinct tag lists.');
-    AContext.AssertEquals(lSourceRoot.Tags.Text, lRoot.Tags.Text,
-      'Compilation should preserve local tags exactly.');
+    AContext.AssertEquals(2, lSourceRoot.Targets.Count,
+      'Source definitions should retain each named Target kind.');
+    lSourceTarget := lSourceRoot.Targets[0];
+    AContext.AssertEquals('Target', lSourceTarget.Name,
+      'Source Target kinds should retain declaration order.');
+    AContext.AssertEquals(6, lSourceTarget.Values.Count,
+      'Source Target values should retain their count.');
+    AContext.AssertEquals('Production', lSourceTarget.Values[0],
+      'Source Targets should retain declaration order and spelling.');
+    AContext.AssertEquals('PRODUCTION', lSourceTarget.Values[1],
+      'Target identity should be case-sensitive.');
+    AContext.AssertEquals('Cross Reference', lSourceTarget.Values[2],
+      'Quoted Target whitespace should be decoded and retained.');
+    AContext.AssertEquals('Line' + #10 + 'Break',
+      lSourceTarget.Values[3],
+      'Quoted Targets should use existing escape decoding.');
+    AContext.AssertEquals('Build.Production', lSourceTarget.Values[4],
+      'Quoted language punctuation should remain literal Target text.');
+    AContext.AssertEquals('Environment=Production',
+      lSourceTarget.Values[5],
+      'Punctuation within a word should remain part of the Target.');
+    AContext.AssertEquals('Platform', lSourceRoot.Targets[1].Name,
+      'A second Target kind should remain distinct.');
+    AContext.AssertEquals('Windows', lSourceRoot.Targets[1].Values[0],
+      'A second Target kind should retain its value.');
+    AContext.AssertTrue(lRoot.Targets <> lSourceRoot.Targets,
+      'Source and compiled definitions should own distinct Target lists.');
+    lCompiledTarget := lRoot.Targets[0];
+    AContext.AssertTrue(lCompiledTarget <> lSourceTarget,
+      'Source and compiled definitions should own distinct Target entries.');
+    AContext.AssertTrue(lCompiledTarget.Values <> lSourceTarget.Values,
+      'Source and compiled Targets should own distinct value lists.');
+    AContext.AssertEquals(lSourceTarget.Values.Text,
+      lCompiledTarget.Values.Text,
+      'Compilation should preserve Target values exactly.');
     AContext.AssertEquals('domain',
-      lRoot.FindProperty('Tags').Value.EffectiveText,
-      'A domain Tags property should remain independent from metadata.');
+      lRoot.FindProperty('Targets').Value.EffectiveText,
+      'A domain Targets property should remain independent from metadata.');
 
     lRelease := lRoot.FindChild('Release');
-    AContext.AssertEquals(1, lRelease.Tags.Count,
-      'Composition should retain only receiver tags.');
-    AContext.AssertEquals('Production', lRelease.Tags[0],
-      'Composition should not copy contributor tags.');
+    AContext.AssertEquals(1, lRelease.Targets.Count,
+      'Composition should retain only receiver Targets.');
+    AContext.AssertEquals('Production', lRelease.Targets[0].Values[0],
+      'Composition should not copy contributor Targets.');
     AContext.AssertEquals('Shared',
-      lRelease.FindChild('MailSettings').Tags[0],
-      'A composed child clone should retain its own local tags.');
-    AContext.AssertEquals('NestedTag', lRoot.FindProperty('Alias').Value.
-      StructuralDefinition.Tags[0],
-      'Structural references should preserve represented-definition tags.');
+      lRelease.FindChild('MailSettings').Targets[0].Values[0],
+      'A composed child clone should retain its own local Targets.');
+    AContext.AssertEquals('NestedTarget', lRoot.FindProperty('Alias').Value.
+      StructuralDefinition.Targets[0].Values[0],
+      'Structural references should preserve represented-definition Targets.');
     lInline := lRoot.FindProperty('Items').Value.Items[0].StructuralDefinition;
-    AContext.AssertEquals('InlineTag', lInline.Tags[0],
-      'Tagged inline definitions should be recognized and preserved.');
+    AContext.AssertEquals('InlineTarget', lInline.Targets[0].Values[0],
+      'Targeted inline definitions should be recognized and preserved.');
 
     lImportCompiler.AddImportedDocument(lCompiler.CompiledDocument);
     AContext.AssertTrue(lImportCompiler.CompileText('import-consumer.nxscript',
-      'Thing Consumer {}'), 'Tagged imported definitions should compile.');
+      'Thing Consumer {}'), 'Targeted imported definitions should compile.');
     lImportedRoot := lImportCompiler.CompiledDocument.FindDefinition('Root');
-    AContext.AssertEquals(lRoot.Tags.Text, lImportedRoot.Tags.Text,
-      'Imported-definition clones should preserve tags.');
-    AContext.AssertTrue(lImportedRoot.Tags <> lRoot.Tags,
-      'Imported definitions should own independent tag lists.');
+    AContext.AssertEquals(lRoot.Targets[0].Values.Text,
+      lImportedRoot.Targets[0].Values.Text,
+      'Imported-definition clones should preserve Targets.');
+    AContext.AssertTrue(lImportedRoot.Targets <> lRoot.Targets,
+      'Imported definitions should own independent Target lists.');
+    AContext.AssertTrue(lImportedRoot.Targets[0] <> lRoot.Targets[0],
+      'Imported definitions should own independent Target entries.');
 
-    AContext.AssertTrue(lValidatorCompiler.CompileText('tag-language.nxscript',
+    AContext.AssertTrue(lValidatorCompiler.CompileText('target-language.nxscript',
       'Language Test { Definitions: [Definition Thing { Root: True; ' +
       'UnknownProperties: Allow; }, Definition Node { ' +
       'UnknownProperties: Allow; }]; }'),
-      'Tag-neutral validator language should compile.');
+      'Target-neutral validator language should compile.');
     AContext.AssertTrue(lValidator.Validate(lCompiler.CompiledDocument,
       lValidatorCompiler.CompiledDocument),
-      'Tags should add no validator policy semantics.');
+      'Targets should add no validator policy semantics.');
 
-    AContext.AssertTrue(not lFailureCompiler.CompileText('empty-tags.nxscript',
-      'Thing Root [] {}'), 'An empty tag clause should fail.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('empty-targets.nxscript',
+      'Thing Root Target[] {}'), 'An empty Target clause should fail.');
     AContext.AssertEquals('NXS3005', lFailureCompiler.Diagnostics[0].Code,
-      'Empty tag clauses should use a stable diagnostic.');
-    AContext.AssertEquals(13, lFailureCompiler.Diagnostics[0].SourceRange.
+      'Empty Target clauses should use a stable diagnostic.');
+    AContext.AssertEquals(19, lFailureCompiler.Diagnostics[0].SourceRange.
       StartPosition.Column,
       'The empty-clause diagnostic should point at the closing bracket.');
-    AContext.AssertTrue(not lFailureCompiler.CompileText('duplicate-tag.nxscript',
-      'Thing Root [Production, "Production"] {}'),
-      'Quoted and unquoted duplicate tags should fail.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('duplicate-target.nxscript',
+      'Thing Root Target[Production, "Production"] {}'),
+      'Quoted and unquoted duplicate Targets should fail.');
     AContext.AssertEquals('NXS3006', lFailureCompiler.Diagnostics[0].Code,
-      'Duplicate tags should use a stable diagnostic.');
-    AContext.AssertEquals(25, lFailureCompiler.Diagnostics[0].SourceRange.
+      'Duplicate Targets should use a stable diagnostic.');
+    AContext.AssertEquals(31, lFailureCompiler.Diagnostics[0].SourceRange.
       StartPosition.Column,
-      'The duplicate diagnostic should point at the repeated tag.');
-    AContext.AssertTrue(not lFailureCompiler.CompileText('nested-tags.nxscript',
-      'Thing Root [Production, [Nested]] {}'),
-      'Nested tag arrays should fail.');
+      'The duplicate diagnostic should point at the repeated Target.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText(
+      'duplicate-target-kind.nxscript',
+      'Thing Root Target[Dev] Target[QA] {}'),
+      'A repeated Target kind should fail.');
+    AContext.AssertEquals('NXS3007', lFailureCompiler.Diagnostics[0].Code,
+      'Duplicate Target kinds should use a stable diagnostic.');
+    AContext.AssertTrue(lFailureCompiler.CompileText(
+      'case-distinct-target-kinds.nxscript',
+      'Thing Root Target[Dev] target[QA] {}'),
+      'Differently cased Target kinds should remain distinct.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText('nested-targets.nxscript',
+      'Thing Root Target[Production, [Nested]] {}'),
+      'Nested Target arrays should fail.');
     AContext.AssertTrue(not lFailureCompiler.CompileText('missing-comma.nxscript',
-      'Thing Root [Production Win64] {}'),
-      'Missing tag separators should fail.');
+      'Thing Root Target[Production Win64] {}'),
+      'Missing Target separators should fail.');
     AContext.AssertTrue(not lFailureCompiler.CompileText('trailing-comma.nxscript',
-      'Thing Root [Production,] {}'),
-      'Trailing tag commas should fail.');
+      'Thing Root Target[Production,] {}'),
+      'Trailing Target commas should fail.');
     AContext.AssertTrue(not lFailureCompiler.CompileText('missing-bracket.nxscript',
-      'Thing Root [Production {}'),
-      'An unterminated tag clause should fail.');
+      'Thing Root Target[Production {}'),
+      'An unterminated Target clause should fail.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText(
+      'anonymous-target.nxscript', 'Thing Root [Dev] {}'),
+      'The obsolete anonymous Target clause should fail.');
+    AContext.AssertTrue(lFailureCompiler.CompileText(
+      'composition-target-order.nxscript',
+      'Thing Base {} Thing Root (Base) Target[Dev] Platform[Windows] {}'),
+      'Composition selectors before named Targets should compile.');
+    AContext.AssertTrue(not lFailureCompiler.CompileText(
+      'invalid-composition-target-order.nxscript',
+      'Thing Base {} Thing Root Target[Dev] (Base) {}'),
+      'Composition selectors after a Target clause should fail.');
   finally
     lValidator.Free;
     lValidatorCompiler.Free;
     lFailureCompiler.Free;
     lImportCompiler.Free;
     lCompiler.Free;
+  end;
+end;
+
+procedure TestTargetFiltering(AContext: TNXTestContext);
+const
+  cSource =
+    'Thing Universal { ' +
+    'Thing Always {} Thing DevChild Target[Dev] {} ' +
+    'Thing QAChild Target[QA] {} ' +
+    'Thing WindowsChild Platform[Windows] {} ' +
+    'Thing LinuxChild Platform[Linux] {} ' +
+    'Items: [Node Common {}, Node DevInline Target[Dev] {}, ' +
+    'Node QAInline Target[QA] {}]; } ' +
+    'Thing DevOnly Target[Dev] {} ' +
+    'Thing QAOrProd Target[QA, Prod] {} ' +
+    'Thing Lower Target[dev] {} ' +
+    'Thing WindowsOnly Platform[Windows] {} ' +
+    'Thing DevWindows Target[Dev] Platform[Windows] {} ' +
+    'Thing DevLinux Target[Dev] Platform[Linux] {}';
+var
+  lCompiler: TNexusScriptCompiler;
+  lOtherCompiler: TNexusScriptCompiler;
+  lRoot: TNexusScriptCompiledDefinition;
+  lSelection: TNexusScriptTargetSelection;
+  lOtherSelection: TNexusScriptTargetSelection;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('all-targets.nxscript', cSource),
+      'Untargeted compilation should compile the complete model.');
+    AContext.AssertEquals(7, lCompiler.CompiledDocument.Definitions.Count,
+      'Untargeted compilation should retain every root definition.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Universal');
+    AContext.AssertEquals(5, lRoot.Children.Count,
+      'Untargeted compilation should retain every child definition.');
+    AContext.AssertEquals(3,
+      lRoot.FindProperty('Items').Value.Items.Count,
+      'Untargeted compilation should retain every inline definition.');
+  finally
+    lCompiler.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'Dev');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('dev-target.nxscript',
+        cSource), 'Dev-targeted compilation should succeed.');
+      AContext.AssertEquals(7, lCompiler.SourceDocument.Definitions.Count,
+        'Target filtering must not alter the parsed source model.');
+      AContext.AssertEquals(5,
+        lCompiler.CompiledDocument.Definitions.Count,
+        'A selected kind should not filter unselected Platform clauses.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'Universal') <> nil, 'Universal roots should apply to every Target.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DevOnly') <> nil, 'A matching Target value should be retained.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'QAOrProd') = nil,
+        'A nonmatching OR Target list should be excluded.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'Lower') = nil, 'Target values should remain case-sensitive.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'WindowsOnly') <> nil,
+        'An unselected Platform kind should remain unfiltered.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DevWindows') <> nil,
+        'A matching selected kind should retain other dimensions.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DevLinux') <> nil,
+        'An unselected Platform must retain all Platform alternatives.');
+      lRoot := lCompiler.CompiledDocument.FindDefinition('Universal');
+      AContext.AssertTrue(lRoot.FindChild('Always') <> nil,
+        'Untargeted children should apply to every Target.');
+      AContext.AssertTrue(lRoot.FindChild('DevChild') <> nil,
+        'A matching targeted child should be retained.');
+      AContext.AssertTrue(lRoot.FindChild('QAChild') = nil,
+        'A nonmatching targeted child should be excluded.');
+      AContext.AssertTrue(lRoot.FindChild('WindowsChild') <> nil,
+        'An unselected child Target kind should remain unfiltered.');
+      AContext.AssertTrue(lRoot.FindChild('LinuxChild') <> nil,
+        'All alternatives of an unselected child kind should remain.');
+      AContext.AssertEquals(2,
+        lRoot.FindProperty('Items').Value.Items.Count,
+        'A nonmatching inline definition should be removed from its array.');
+      AContext.AssertEquals('DevInline', lRoot.FindProperty('Items').Value.
+        Items[1].StructuralDefinition.Name,
+        'The retained inline array entries should not contain placeholders.');
+      AContext.AssertEquals('Dev', lCompiler.CompiledDocument.FindDefinition(
+        'DevOnly').Targets[0].Values[0],
+        'A retained definition should preserve complete Target metadata.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'QA');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('qa-target.nxscript',
+        cSource), 'QA-targeted compilation should succeed.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'QAOrProd') <> nil, 'Any matching value should satisfy an OR list.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DevOnly') = nil,
+        'A nonmatching single Target should be excluded.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'Dev');
+    lSelection.Add('Platform', 'Windows');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    lSelection.SetValue('Platform', 'Linux');
+    try
+      AContext.AssertTrue(lCompiler.CompileText('dev-windows.nxscript',
+        cSource), 'Multidimensional compilation should succeed.');
+      AContext.AssertEquals(4,
+        lCompiler.CompiledDocument.Definitions.Count,
+        'Every selected Target kind should filter independently.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DevWindows') <> nil,
+        'A definition matching every selected kind should survive.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DevLinux') = nil,
+        'A mismatch in one selected kind should exclude a definition.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'WindowsOnly') <> nil,
+        'A definition absent from another selected kind stays universal.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lOtherSelection := TNexusScriptTargetSelection.Create;
+    try
+      lOtherSelection.Add('Platform', 'Windows');
+      lOtherSelection.Add('Target', 'Dev');
+      lOtherCompiler := TNexusScriptCompiler.Create(lOtherSelection);
+      try
+        AContext.AssertTrue(lOtherCompiler.CompileText(
+          'windows-dev.nxscript', cSource),
+          'Reordered Target selections should compile.');
+        AContext.AssertEquals(4,
+          lOtherCompiler.CompiledDocument.Definitions.Count,
+          'Selection insertion order should not change the result.');
+        AContext.AssertTrue(lOtherCompiler.CompiledDocument.FindDefinition(
+          'DevWindows') <> nil,
+          'Reordered selections should retain the same definitions.');
+        AContext.AssertTrue(lOtherCompiler.CompiledDocument.FindDefinition(
+          'DevLinux') = nil,
+          'Reordered selections should exclude the same definitions.');
+      finally
+        lOtherCompiler.Free;
+      end;
+    finally
+      lOtherSelection.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Whatever', 'X');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('unknown-kind.nxscript',
+        cSource), 'An unrelated selected kind should compile.');
+      AContext.AssertEquals(7,
+        lCompiler.CompiledDocument.Definitions.Count,
+        'An unrelated selected kind should leave definitions unrestricted.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lSelection.Add('platform', 'Linux');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText(
+        'case-distinct-kind.nxscript', cSource),
+        'A differently cased Target kind should compile.');
+      AContext.AssertEquals(7,
+        lCompiler.CompiledDocument.Definitions.Count,
+        'A differently cased kind should be unrelated to Platform.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+end;
+
+procedure TestTargetVariants(AContext: TNXTestContext);
+const
+  cRootVariants =
+    'Thing Base Platform[Linux] { Value: linux; } ' +
+    'Thing Base Platform[Windows] { Value: windows; } ' +
+    'Thing Result (Base) {}';
+  cNestedVariants =
+    'Thing Root { ' +
+    'Thing Child Platform[Linux] { Value: linux; } ' +
+    'Thing Child Platform[Windows] { Value: windows; } ' +
+    'Thing Result (Child) {} }';
+var
+  lCompiler: TNexusScriptCompiler;
+  lSelection: TNexusScriptTargetSelection;
+  lDefinition: TNexusScriptCompiledDefinition;
+  lSourceRoot: TNexusScriptSourceDefinition;
+begin
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Platform', 'Windows');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('root-variants.nxscript',
+        cRootVariants), 'A selected root variant should compile.');
+      AContext.AssertEquals(3, lCompiler.SourceDocument.Definitions.Count,
+        'The source model should retain both same-identity root variants.');
+      lDefinition := lCompiler.CompiledDocument.FindDefinition('Base');
+      AContext.AssertTrue(lDefinition.SourceDefinition =
+        lCompiler.SourceDocument.Definitions[1],
+        'A compiled root should retain its exact source association.');
+      AContext.AssertEquals('windows', lCompiler.CompiledDocument.
+        FindDefinition('Result').FindProperty('Value').Value.EffectiveText,
+        'Composition should use the selected root variant, not the first source match.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('nested-variants.nxscript',
+        cNestedVariants), 'A selected nested variant should compile.');
+      lSourceRoot := lCompiler.SourceDocument.FindDefinition('Root');
+      lDefinition := lCompiler.CompiledDocument.FindDefinition('Root').
+        FindChild('Child');
+      AContext.AssertTrue(lDefinition.SourceDefinition =
+        lSourceRoot.Children[1],
+        'A compiled child should retain its exact source association.');
+      AContext.AssertEquals('windows', lCompiler.CompiledDocument.
+        FindDefinition('Root').FindChild('Result').FindProperty('Value').
+        Value.EffectiveText,
+        'Nested composition should use the selected variant.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lSelection.SetValue('Platform', 'Linux');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('linux-root-variant.nxscript',
+        cRootVariants), 'The other selected root variant should compile.');
+      lDefinition := lCompiler.CompiledDocument.FindDefinition('Base');
+      AContext.AssertTrue(lDefinition.SourceDefinition =
+        lCompiler.SourceDocument.Definitions[0],
+        'Selecting Linux should retain the exact Linux source variant.');
+      AContext.AssertEquals('linux', lCompiler.CompiledDocument.
+        FindDefinition('Result').FindProperty('Value').Value.EffectiveText,
+        'Composition should use the selected Linux variant.');
+      AContext.AssertTrue(lCompiler.CompileText('linux-nested-variant.nxscript',
+        cNestedVariants), 'The other selected nested variant should compile.');
+      lSourceRoot := lCompiler.SourceDocument.FindDefinition('Root');
+      lDefinition := lCompiler.CompiledDocument.FindDefinition('Root').
+        FindChild('Child');
+      AContext.AssertTrue(lDefinition.SourceDefinition =
+        lSourceRoot.Children[0],
+        'Selecting Linux should retain the exact nested source variant.');
+      AContext.AssertEquals('linux', lCompiler.CompiledDocument.
+        FindDefinition('Root').FindChild('Result').FindProperty('Value').
+        Value.EffectiveText,
+        'Nested composition should use the selected Linux variant.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('linux-overlap.nxscript',
+        'Thing Build Platform[Windows, Linux] {} ' +
+        'Thing Build Platform[Windows] {}'),
+        'Overlapping variants should compile when only one survives.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lSelection.SetValue('Platform', 'Windows');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(not lCompiler.CompileText('overlap.nxscript',
+        'Thing Build Platform[Windows, Linux] {} ' +
+        'Thing Build Platform[Windows] {}'),
+        'Overlapping variants should fail when both survive filtering.');
+      AContext.AssertEquals('NXS3002', lCompiler.Diagnostics[0].Code,
+        'Overlapping root variants should use the ordinary duplicate diagnostic.');
+    finally
+      lCompiler.Free;
+    end;
+
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(lCompiler.CompileText('filtered-collision.nxscript',
+        'Thing Root { Choice: value; ' +
+        'Thing Choice Platform[Linux] {} }'),
+        'An excluded child should not collide with a retained property.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(not lCompiler.CompileText('untargeted-roots.nxscript',
+      'Thing Build Platform[Windows] {} Thing Build Platform[Linux] {}'),
+      'Untargeted same-identity root variants should fail.');
+    AContext.AssertEquals(2, lCompiler.SourceDocument.Definitions.Count,
+      'Duplicate validation should not remove source variants.');
+    AContext.AssertEquals('NXS3002', lCompiler.Diagnostics[0].Code,
+      'Untargeted root variants should use the ordinary duplicate diagnostic.');
+  finally
+    lCompiler.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'Dev');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(not lCompiler.CompileText('partial-selection.nxscript',
+        'Thing Build Platform[Windows] {} Thing Build Platform[Linux] {}'),
+        'An unrelated selection should not hide duplicate variants.');
+      AContext.AssertEquals('NXS3002', lCompiler.Diagnostics[0].Code,
+        'Partially selected root variants should use the ordinary duplicate diagnostic.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(not lCompiler.CompileText('nested-duplicates.nxscript',
+      'Thing Root { Thing Child Platform[Windows] {} ' +
+      'Thing Child Platform[Linux] {} }'),
+      'Untargeted same-identity children should fail.');
+    AContext.AssertEquals('NXS3001', lCompiler.Diagnostics[0].Code,
+      'Retained child variants should use the ordinary member diagnostic.');
+  finally
+    lCompiler.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Platform', 'Linux');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(not lCompiler.CompileText('retained-collision.nxscript',
+        'Thing Root { Choice: value; ' +
+        'Thing Choice Platform[Linux] {} }'),
+        'A retained child should collide with an existing property.');
+      AContext.AssertEquals('NXS3001', lCompiler.Diagnostics[0].Code,
+        'A retained member collision should use the ordinary diagnostic.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'Dev');
+    lSelection.Add('Platform', 'Linux');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    try
+      AContext.AssertTrue(not lCompiler.CompileText(
+        'platform-composition-excluded.nxscript',
+        'Thing Base Target[Dev] Platform[Windows] { Value: windows; } ' +
+        'Thing Result (Base) Target[Dev] Platform[Linux] {}'),
+        'Composition through a definition excluded by Platform should fail.');
+      AContext.AssertTrue(Pos('Unresolved composition target Base',
+        lCompiler.Diagnostics[0].MessageText) > 0,
+        'Platform exclusion should use the existing composition diagnostic.');
+    finally
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
   end;
 end;
 
@@ -202,6 +647,128 @@ begin
   if not FileExists(Result) then
     Result := ExpandFileName(
       'NexusTools\Script\tests\fixtures\doctype\' + AFileName);
+end;
+
+function TargetFixturePath(const AFileName: string): string;
+begin
+  Result := ExpandFileName(
+    '..\..\..\NexusTools\Script\tests\fixtures\targets\' + AFileName);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'NexusTools\Script\tests\fixtures\targets\' + AFileName);
+end;
+
+procedure TestTargetPropagation(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lArtifactContext: TNexusScriptArtifactContext;
+  lCompiler: TNexusScriptCompiler;
+  lDocument: TNexusScriptCompiledDocument;
+  lSelection: TNexusScriptTargetSelection;
+begin
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'Dev');
+    lSelection.Add('Platform', 'Windows');
+    lSession := TNexusScriptCompilationSession.Create(lSelection);
+    lSelection.SetValue('Target', 'QA');
+    lSelection.SetValue('Platform', 'Linux');
+    lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
+    try
+      AContext.AssertTrue(lSession.CompileFile(TargetFixturePath(
+        'entry.nxscript')), 'The targeted document graph should compile: ' +
+        lSession.LastError);
+      lDocument := lSession.EntryCompiler.CompiledDocument;
+      AContext.AssertTrue(lDocument.FindDefinition('ModuleDev') <> nil,
+        'Explicit modules should retain matching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition('ModuleQA') = nil,
+        'Explicit modules should exclude nonmatching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition('ModuleDevLinux') = nil,
+        'Explicit modules should receive every selected Target kind.');
+      AContext.AssertTrue(lDocument.FindDefinition(
+        'DiscoveredModuleDev') <> nil,
+        'Discovered modules should retain matching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition(
+        'DiscoveredModuleQA') = nil,
+        'Discovered modules should exclude nonmatching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition(
+        'DiscoveredModuleDevLinux') = nil,
+        'Discovered modules should receive every selected Target kind.');
+
+      lDocument := lSession.EntryCompiler.CompiledDocument.DoctypeDocument;
+      AContext.AssertTrue(lDocument.FindDefinition('DoctypeUniversal') <> nil,
+        'Doctype documents should retain universal definitions.');
+      AContext.AssertTrue(lDocument.FindDefinition('DoctypeDev') <> nil,
+        'Doctype documents should retain matching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition('DoctypeQA') = nil,
+        'Doctype documents should exclude nonmatching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition(
+        'DoctypeDevLinux') = nil,
+        'Doctype documents should receive every selected Target kind.');
+
+      lCompiler := lSession.FindCompiler(TargetFixturePath('include.nxscript'));
+      AContext.AssertTrue(lCompiler <> nil,
+        'The explicit include compiler should be available.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'IncludeDev') <> nil,
+        'Explicit includes should retain matching Targets.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'IncludeQA') = nil,
+        'Explicit includes should exclude nonmatching Targets.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'IncludeDevLinux') = nil,
+        'Explicit includes should receive every selected Target kind.');
+
+      lCompiler := lSession.FindCompiler(TargetFixturePath(
+        'includes\discovered.target.nxscript'));
+      AContext.AssertTrue(lCompiler <> nil,
+        'The discovered include compiler should be available.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DiscoveredIncludeDev') <> nil,
+        'Discovered includes should retain matching Targets.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DiscoveredIncludeQA') = nil,
+        'Discovered includes should exclude nonmatching Targets.');
+      AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+        'DiscoveredIncludeDevLinux') = nil,
+        'Discovered includes should receive every selected Target kind.');
+
+      lArtifactContext.Build;
+      AContext.AssertEquals(3, lArtifactContext.ArtifactDocuments.Count,
+        'Target filtering should not alter include artifact membership.');
+      AContext.AssertTrue(lSession.CompileFile(TargetFixturePath(
+        'composition-match.nxscript')),
+        'Composition through a matching imported Target should compile: ' +
+        lSession.LastError);
+      AContext.AssertEquals('module-dev', lSession.EntryCompiler.
+        CompiledDocument.FindDefinition('Result').FindProperty('Value').Value.
+        EffectiveText,
+        'A matching Target should contribute through normal composition.');
+    finally
+      lArtifactContext.Free;
+      lSession.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
+
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'QA');
+    lSession := TNexusScriptCompilationSession.Create(lSelection);
+    try
+      AContext.AssertTrue(not lSession.CompileFile(TargetFixturePath(
+        'composition-excluded.nxscript')),
+        'Composition through an excluded Target should fail.');
+      AContext.AssertTrue(Pos('Unresolved composition target ModuleDev',
+        lSession.LastError) > 0,
+        'Excluded composition Targets should use the existing diagnostic.');
+    finally
+      lSession.Free;
+    end;
+  finally
+    lSelection.Free;
+  end;
 end;
 
 function IncludeFixturePath(const AFileName: string): string;
@@ -503,61 +1070,75 @@ begin
   end;
 end;
 
-procedure TestDiscoveryParsing(AContext: TNXTestContext);
+procedure TestDependencyPatternParsing(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
 begin
   lCompiler := TNexusScriptCompiler.Create;
   try
-    AContext.AssertTrue(lCompiler.CompileText('discover.nxscript',
-      'include discover "." "*.include.nxscript"; ' +
-      'include discover recursive "folder" "*.include.nxscript"; ' +
-      'module discover "." "*.module.nxscript"; ' +
-      'module discover recursive "folder" "*.module.nxscript"; ' +
-      'Thing Root {}'), 'Discovery declarations should parse.');
-    AContext.AssertTrue(lCompiler.SourceDocument.Includes[0].Discover,
-      'Include discovery should be retained.');
+    AContext.AssertTrue(lCompiler.CompileText('patterns.nxscript',
+      'include "*.include.nxscript"; ' +
+      'include recursive "folder/*.include.nxscript"; ' +
+      'include recursive "folder/exact.include.nxscript"; ' +
+      'module "*.module.nxscript"; ' +
+      'module recursive "folder/*.module.nxscript"; ' +
+      'module recursive "folder/exact.module.nxscript"; ' +
+      'Thing Root {}'), 'Dependency path patterns should parse.');
     AContext.AssertTrue(not lCompiler.SourceDocument.Includes[0].Recursive,
-      'Plain include discovery should not recurse.');
-    AContext.AssertEquals('.',
-      lCompiler.SourceDocument.Includes[0].DiscoverFolder,
-      'Include discovery should retain its folder.');
+      'A plain include pattern should not recurse.');
     AContext.AssertEquals('*.include.nxscript',
-      lCompiler.SourceDocument.Includes[0].DiscoverMask,
-      'Include discovery should retain its mask.');
+      lCompiler.SourceDocument.Includes[0].Path,
+      'An include should retain its complete path pattern.');
     AContext.AssertTrue(lCompiler.SourceDocument.Includes[1].Recursive,
-      'Recursive include discovery should be retained.');
-    AContext.AssertTrue(lCompiler.SourceDocument.Modules[0].Discover,
-      'Module discovery should be retained.');
+      'A recursive include pattern should retain recursion.');
+    AContext.AssertEquals('folder/*.include.nxscript',
+      lCompiler.SourceDocument.Includes[1].Path,
+      'A recursive include should retain its path and filename mask.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Includes[2].Recursive,
+      'A recursive exact include should retain recursion.');
+    AContext.AssertEquals('folder/exact.include.nxscript',
+      lCompiler.SourceDocument.Includes[2].Path,
+      'A recursive exact include should retain its complete path.');
     AContext.AssertTrue(not lCompiler.SourceDocument.Modules[0].Recursive,
-      'Plain module discovery should not recurse.');
+      'A plain module pattern should not recurse.');
+    AContext.AssertEquals('*.module.nxscript',
+      lCompiler.SourceDocument.Modules[0].Path,
+      'A module should retain its complete path pattern.');
     AContext.AssertTrue(lCompiler.SourceDocument.Modules[1].Recursive,
-      'Recursive module discovery should be retained.');
+      'A recursive module pattern should retain recursion.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Modules[2].Recursive,
+      'A recursive exact module should retain recursion.');
+    AContext.AssertEquals('folder/exact.module.nxscript',
+      lCompiler.SourceDocument.Modules[2].Path,
+      'A recursive exact module should retain its complete path.');
 
-    AContext.AssertTrue(not lCompiler.CompileText('missing-folder.nxscript',
-      'include discover; Thing Root {}'),
-      'Include discovery requires a folder and mask.');
+    AContext.AssertTrue(not lCompiler.CompileText('missing-path.nxscript',
+      'include recursive; Thing Root {}'),
+      'A recursive include requires a path.');
     AContext.AssertEquals('NXS2015', lCompiler.Diagnostics[0].Code,
-      'Malformed include discovery should use the include diagnostic.');
-    AContext.AssertTrue(not lCompiler.CompileText('missing-mask.nxscript',
-      'module discover recursive "."; Thing Root {}'),
-      'Recursive module discovery requires a mask.');
+      'A malformed include pattern should use the include diagnostic.');
+    AContext.AssertTrue(not lCompiler.CompileText('missing-module-path.nxscript',
+      'module recursive; Thing Root {}'),
+      'A recursive module requires a path.');
     AContext.AssertEquals('NXS2002', lCompiler.Diagnostics[0].Code,
-      'Malformed module discovery should use the module diagnostic.');
-    AContext.AssertTrue(not lCompiler.CompileText('selector.nxscript',
-      'module Root discover "." "*.nxscript"; Thing Entry {}'),
-      'Module discovery must not accept a root selector.');
+      'A malformed module pattern should use the module diagnostic.');
+    AContext.AssertTrue(not lCompiler.CompileText('selector-pattern.nxscript',
+      'module Root "*.nxscript"; Thing Entry {}'),
+      'A wildcard module must not accept a root selector.');
     AContext.AssertEquals('NXS2002', lCompiler.Diagnostics[0].Code,
-      'Selected-root discovery should use the module diagnostic.');
-    AContext.AssertTrue(not lCompiler.CompileText('standalone.nxscript',
-      'discover "." "*.nxscript"; Thing Root {}'),
-      'Discover should not be a standalone declaration.');
+      'A selected-root wildcard should use the module diagnostic.');
+    AContext.AssertTrue(not lCompiler.CompileText('old-include.nxscript',
+      'include discover "." "*.nxscript"; Thing Root {}'),
+      'The old include discover syntax should fail.');
+    AContext.AssertTrue(not lCompiler.CompileText('old-module.nxscript',
+      'module discover "." "*.nxscript"; Thing Root {}'),
+      'The old module discover syntax should fail.');
   finally
     lCompiler.Free;
   end;
 end;
 
-procedure TestIncludeDiscovery(AContext: TNXTestContext);
+procedure TestIncludePatterns(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
   lArtifactContext: TNexusScriptArtifactContext;
@@ -567,17 +1148,17 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
       'include\nonrecursive\entry.include.nxscript')),
-      'Non-recursive include discovery should compile: ' +
+      'A non-recursive include pattern should compile: ' +
       lSession.LastError);
-    AContext.AssertEquals(2, lSession.CompilerCount,
-      'Non-recursive include discovery should select its matching sibling ' +
-      'and exclude its declaring document.');
+    AContext.AssertEquals(3, lSession.CompilerCount,
+      'Non-recursive * and ? patterns should select matching siblings and ' +
+      'exclude the declaring document.');
     lArtifactContext.Build;
-    AContext.AssertEquals(2, lArtifactContext.ArtifactDocuments.Count,
-      'A discovered include should join the artifact set.');
+    AContext.AssertEquals(3, lArtifactContext.ArtifactDocuments.Count,
+      'Files selected by either filename wildcard should join the artifact.');
     AContext.AssertTrue(lSession.FindCompiler(DiscoveryFixturePath(
       'include\nonrecursive\nested\nested.include.nxscript')) = nil,
-      'Non-recursive discovery should not select nested files.');
+      'A non-recursive pattern should not select nested files.');
   finally
     lArtifactContext.Free;
     lSession.Free;
@@ -588,12 +1169,15 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
       'include\recursive\entry.nxscript')),
-      'Recursive include discovery should compile: ' + lSession.LastError);
-    AContext.AssertEquals(3, lSession.CompilerCount,
-      'Recursive include discovery should select sibling and nested matches.');
+      'Recursive include patterns should compile: ' + lSession.LastError);
+    AContext.AssertEquals(4, lSession.CompilerCount,
+      'Recursive include patterns should select wildcard and exact matches.');
+    AContext.AssertTrue(lSession.FindCompiler(DiscoveryFixturePath(
+      'include\recursive\nested\exact.nxscript')) <> nil,
+      'A recursive exact include should find its filename in a subfolder.');
     lArtifactContext.Build;
-    AContext.AssertEquals(3, lArtifactContext.ArtifactDocuments.Count,
-      'Every recursively discovered include should join the artifact set.');
+    AContext.AssertEquals(4, lArtifactContext.ArtifactDocuments.Count,
+      'Every recursively selected include should join the artifact set.');
   finally
     lArtifactContext.Free;
     lSession.Free;
@@ -603,21 +1187,21 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
       'empty\entry.nxscript')),
-      'An empty discovery result should be a no-op: ' + lSession.LastError);
+      'An empty pattern result should be a no-op: ' + lSession.LastError);
     AContext.AssertEquals(1, lSession.CompilerCount,
-      'An empty discovery result should compile only the entry document.');
+      'An empty pattern result should compile only the entry document.');
     AContext.AssertTrue(not lSession.CompileFile(DiscoveryFixturePath(
       'missing-folder.nxscript')),
-      'A missing discovery folder should fail.');
+      'A missing pattern folder should fail.');
     AContext.AssertTrue(Pos('folder not found',
       LowerCase(lSession.LastError)) > 0,
-      'A missing discovery folder should report the discovery failure.');
+      'A missing pattern folder should report the selection failure.');
   finally
     lSession.Free;
   end;
 end;
 
-procedure TestModuleDiscovery(AContext: TNXTestContext);
+procedure TestModulePatterns(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
   lRoot: TNexusScriptCompiledDefinition;
@@ -626,18 +1210,18 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
       'module\nonrecursive\entry.module.nxscript')),
-      'Non-recursive module discovery should compile: ' +
+      'A non-recursive module pattern should compile: ' +
       lSession.LastError);
     AContext.AssertEquals(2, lSession.CompilerCount,
-      'Module discovery should select its matching sibling and exclude its ' +
+      'A module pattern should select its matching sibling and exclude its ' +
       'declaring document.');
     lRoot := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry');
     AContext.AssertEquals('module',
       lRoot.FindProperty('Value').Value.EffectiveText,
-      'Discovered module roots should enter normal reference lookup.');
+      'Pattern-selected module roots should enter normal reference lookup.');
     AContext.AssertTrue(lSession.FindCompiler(DiscoveryFixturePath(
       'module\nonrecursive\nested\nested.module.nxscript')) = nil,
-      'Non-recursive module discovery should not select nested files.');
+      'A non-recursive module pattern should not select nested files.');
   finally
     lSession.Free;
   end;
@@ -646,17 +1230,20 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
       'module\recursive\entry.nxscript')),
-      'Recursive module discovery should compile: ' + lSession.LastError);
+      'Recursive module patterns should compile: ' + lSession.LastError);
     lRoot := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry');
-    AContext.AssertEquals('sibling nested',
+    AContext.AssertEquals('sibling nested exact',
       lRoot.FindProperty('Value').Value.EffectiveText,
-      'Recursive module discovery should expose sibling and nested roots.');
+      'Recursive module patterns should expose wildcard and exact matches.');
+    AContext.AssertTrue(lSession.FindCompiler(DiscoveryFixturePath(
+      'module\recursive\nested\exact.nxscript')) <> nil,
+      'A recursive exact module should find its filename in a subfolder.');
   finally
     lSession.Free;
   end;
 end;
 
-procedure TestDiscoveryRelationshipOverlap(AContext: TNXTestContext);
+procedure TestPatternRelationshipOverlap(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
   lArtifactContext: TNexusScriptArtifactContext;
@@ -667,7 +1254,7 @@ begin
   try
     AContext.AssertTrue(lSession.CompileFile(DiscoveryFixturePath(
       'overlap\entry.nxscript')),
-      'Combined include and module discovery should compile: ' +
+      'Combined include and module patterns should compile: ' +
       lSession.LastError);
     AContext.AssertEquals(2, lSession.CompilerCount,
       'Both relationships should reuse one compiled dependency document.');
@@ -1898,69 +2485,144 @@ begin
   end;
 end;
 
-procedure TestDefinitionTagJSON(AContext: TNXTestContext);
+procedure TestDefinitionTargetJSON(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
   lEmitter: TNexusScriptJSONEmitter;
   lData: TJSONData;
   lCatalog: TJSONObject;
   lMetaData: TJSONObject;
-  lTags: TJSONArray;
+  lTargets: TJSONArray;
+  lTarget: TJSONObject;
+  lValues: TJSONArray;
   lInline: TJSONObject;
 begin
   lCompiler := TNexusScriptCompiler.Create;
   lEmitter := TNexusScriptJSONEmitter.Create;
   lData := nil;
   try
-    AContext.AssertTrue(lCompiler.CompileText('tag-json.nxscript',
-      'Thing Catalog [Production, "Cross Reference"] { Tags: domain; ' +
-      'Thing Nested [NestedTag] {} Thing Empty {} ' +
-      'Items: [Node Inline [InlineTag] {}]; Alias: @Nested; }'),
-      'Tagged JSON source should compile.');
+    AContext.AssertTrue(lCompiler.CompileText('target-json.nxscript',
+      'Thing Catalog Target[Production, "Cross Reference"] ' +
+      'Platform[Windows] { Targets: domain; ' +
+      'Thing Nested Target[NestedTarget] {} Thing Empty {} ' +
+      'Items: [Node Inline Target[InlineTarget] {}]; Alias: @Nested; }'),
+      'Targeted JSON source should compile.');
     lEmitter.AddDocument(lCompiler.CompiledDocument);
     lData := GetJSON(lEmitter.JSON);
     lCatalog := RequireJSONObject(RequireJSONMember(
       RequireJSONObject(lData, 'Artifact root'), 'Catalog'), 'Catalog');
     lMetaData := RequireJSONObject(RequireJSONMember(lCatalog, '_nx'),
       'Catalog metadata');
-    lTags := RequireJSONArray(RequireJSONMember(lMetaData, 'Tags'),
-      'Catalog tags');
-    AContext.AssertEquals(2, lTags.Count,
-      'Tagged metadata should emit every tag.');
-    AContext.AssertEquals('Production', lTags.Items[0].AsString,
-      'JSON tags should retain declaration order.');
-    AContext.AssertEquals('Cross Reference', lTags.Items[1].AsString,
-      'JSON tags should retain decoded text.');
+    lTargets := RequireJSONArray(RequireJSONMember(lMetaData, 'Targets'),
+      'Catalog Targets');
+    AContext.AssertEquals(2, lTargets.Count,
+      'Target metadata should emit every named Target kind.');
+    lTarget := RequireJSONObject(lTargets.Items[0], 'Target metadata entry');
+    AContext.AssertEquals('Target', RequireJSONMember(lTarget,
+      'Name').AsString, 'JSON Target kinds should retain declaration order.');
+    lValues := RequireJSONArray(RequireJSONMember(lTarget, 'Values'),
+      'Target values');
+    AContext.AssertEquals(2, lValues.Count,
+      'JSON Target entries should emit every value.');
+    AContext.AssertEquals('Production', lValues.Items[0].AsString,
+      'JSON Target values should retain declaration order.');
+    AContext.AssertEquals('Cross Reference', lValues.Items[1].AsString,
+      'JSON Target values should retain decoded text.');
+    lTarget := RequireJSONObject(lTargets.Items[1], 'Platform metadata entry');
+    AContext.AssertEquals('Platform', RequireJSONMember(lTarget,
+      'Name').AsString, 'JSON should emit each named Target kind.');
+    AContext.AssertEquals('Windows', RequireJSONArray(RequireJSONMember(
+      lTarget, 'Values'), 'Platform values').Items[0].AsString,
+      'JSON should emit values under their named Target kind.');
     AContext.AssertEquals('domain', RequireJSONMember(lCatalog,
-      'Tags').AsString,
-      'A domain Tags property should coexist with _nx.Tags.');
+      'Targets').AsString,
+      'A domain Targets property should coexist with _nx.Targets.');
     lMetaData := RequireJSONObject(RequireJSONMember(
       RequireJSONObject(RequireJSONMember(lCatalog, 'Nested'), 'Nested'),
       '_nx'), 'Nested metadata');
-    AContext.AssertEquals('NestedTag', RequireJSONArray(
-      RequireJSONMember(lMetaData, 'Tags'), 'Nested tags').Items[0].AsString,
-      'Nested definitions should emit tags.');
+    lTarget := RequireJSONObject(RequireJSONArray(RequireJSONMember(lMetaData,
+      'Targets'), 'Nested Targets').Items[0], 'Nested Target');
+    AContext.AssertEquals('NestedTarget', RequireJSONArray(RequireJSONMember(
+      lTarget, 'Values'), 'Nested Target values').Items[0].AsString,
+      'Nested definitions should emit Targets.');
     lInline := RequireJSONObject(RequireJSONArray(RequireJSONMember(lCatalog,
       'Items'), 'Items').Items[0], 'Inline definition');
-    AContext.AssertEquals('InlineTag', RequireJSONArray(RequireJSONMember(
+    lTarget := RequireJSONObject(RequireJSONArray(RequireJSONMember(
       RequireJSONObject(RequireJSONMember(lInline, '_nx'), 'Inline metadata'),
-      'Tags'), 'Inline tags').Items[0].AsString,
-      'Inline definitions should emit tags.');
+      'Targets'), 'Inline Targets').Items[0], 'Inline Target');
+    AContext.AssertEquals('InlineTarget', RequireJSONArray(RequireJSONMember(
+      lTarget, 'Values'), 'Inline Target values').Items[0].AsString,
+      'Inline definitions should emit Targets.');
     lMetaData := RequireJSONObject(RequireJSONMember(
       RequireJSONObject(RequireJSONMember(lCatalog, 'Alias'), 'Alias'),
       '_nx'), 'Alias metadata');
-    AContext.AssertEquals('NestedTag', RequireJSONArray(
-      RequireJSONMember(lMetaData, 'Tags'), 'Alias tags').Items[0].AsString,
-      'Structural reference projections should emit target tags.');
+    lTarget := RequireJSONObject(RequireJSONArray(RequireJSONMember(lMetaData,
+      'Targets'), 'Alias Targets').Items[0], 'Alias Target');
+    AContext.AssertEquals('NestedTarget', RequireJSONArray(RequireJSONMember(
+      lTarget, 'Values'), 'Alias Target values').Items[0].AsString,
+      'Structural reference projections should emit definition Targets.');
     lMetaData := RequireJSONObject(RequireJSONMember(
       RequireJSONObject(RequireJSONMember(lCatalog, 'Empty'), 'Empty'),
       '_nx'), 'Empty metadata');
-    AContext.AssertTrue(lMetaData.Find('Tags') = nil,
-      'Untagged definitions should omit _nx.Tags.');
+    AContext.AssertTrue(lMetaData.Find('Targets') = nil,
+      'Untargeted definitions should omit _nx.Targets.');
   finally
     lData.Free;
     lEmitter.Free;
     lCompiler.Free;
+  end;
+end;
+
+procedure TestTargetFilteredJSON(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lRoot: TJSONObject;
+  lDefinition: TJSONObject;
+  lMetaData: TJSONObject;
+  lTarget: TJSONObject;
+  lSelection: TNexusScriptTargetSelection;
+begin
+  lSelection := TNexusScriptTargetSelection.Create;
+  try
+    lSelection.Add('Target', 'Dev');
+    lCompiler := TNexusScriptCompiler.Create(lSelection);
+    lEmitter := TNexusScriptJSONEmitter.Create;
+    lData := nil;
+    try
+      AContext.AssertTrue(lCompiler.CompileText('filtered-json.nxscript',
+        'Thing Universal {} Thing Dev Target[Dev] { Targets: domain; } ' +
+        'Thing QA Target[QA] {}'), 'Targeted JSON source should compile.');
+      lEmitter.AddDocument(lCompiler.CompiledDocument);
+      lData := GetJSON(lEmitter.JSON);
+      lRoot := RequireJSONObject(lData, 'Artifact root');
+      AContext.AssertTrue(lRoot.Find('Universal') <> nil,
+        'Targeted JSON should emit universal definitions.');
+      AContext.AssertTrue(lRoot.Find('QA') = nil,
+        'Targeted JSON should omit excluded definitions.');
+      lDefinition := RequireJSONObject(RequireJSONMember(lRoot, 'Dev'), 'Dev');
+      lMetaData := RequireJSONObject(RequireJSONMember(lDefinition, '_nx'),
+        'Dev metadata');
+      lTarget := RequireJSONObject(RequireJSONArray(RequireJSONMember(
+        lMetaData, 'Targets'), 'Dev Targets').Items[0], 'Dev Target');
+      AContext.AssertEquals('Target', RequireJSONMember(lTarget,
+        'Name').AsString, 'Targeted JSON should retain the Target kind.');
+      AContext.AssertEquals('Dev', RequireJSONArray(RequireJSONMember(
+        lTarget, 'Values'), 'Dev Target values').Items[0].AsString,
+        'Targeted JSON should retain declaration metadata.');
+      AContext.AssertTrue(lMetaData.Find('Tags') = nil,
+        'The incorrect _nx.Tags contract should not be emitted.');
+      AContext.AssertEquals('domain', RequireJSONMember(lDefinition,
+        'Targets').AsString,
+        'A domain Targets property should remain separate from metadata.');
+    finally
+      lData.Free;
+      lEmitter.Free;
+      lCompiler.Free;
+    end;
+  finally
+    lSelection.Free;
   end;
 end;
 
@@ -2422,6 +3084,117 @@ begin
       lRoot.FindChild('L').FindProperty('Name').Value.EffectiveText,
       'Inherited reference should bind against effective definition.');
   finally
+    lCompiler.Free;
+  end;
+end;
+
+procedure TestCompiledTransferCloning(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lLibraryCompiler: TNexusScriptCompiler;
+  lValidatorCompiler: TNexusScriptCompiler;
+  lValidator: TNexusScriptValidator;
+  lResult: TNexusScriptCompiledDefinition;
+  lChild: TNexusScriptCompiledDefinition;
+  lItems: TNexusScriptCompiledValue;
+  lReference: TNexusScriptCompiledValue;
+  lValid: Boolean;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('composition-once.nxscript',
+      'Thing Base { ' +
+      'Thing Template { Items: [a]; } ' +
+      'Thing Child (Template) { Items: [b]; } } ' +
+      'Thing Result (Base) {}'),
+      'An inherited composed child should compile.');
+    lChild := lCompiler.CompiledDocument.FindDefinition('Result').
+      FindChild('Child');
+    lItems := lChild.FindProperty('Items').Value;
+    AContext.AssertEquals(2, lItems.Items.Count,
+      'An inherited child should apply its composition exactly once.');
+    AContext.AssertEquals('a', lItems.Items[0].EffectiveText,
+      'The inherited array contribution should occur once.');
+    AContext.AssertEquals('b', lItems.Items[1].EffectiveText,
+      'The child array contribution should occur once.');
+  finally
+    lCompiler.Free;
+  end;
+
+  lCompiler := TNexusScriptCompiler.Create;
+  lLibraryCompiler := TNexusScriptCompiler.Create;
+  lValidatorCompiler := TNexusScriptCompiler.Create;
+  lValidator := TNexusScriptValidator.Create;
+  try
+    AContext.AssertTrue(lLibraryCompiler.CompileText('library.nxscript',
+      'Thing Library { ' +
+      'Template Template { Items: [a]; } ' +
+      'Child Child (Template) { Items: [b]; ' +
+      'Embedded: [Node Embedded {}]; ' +
+      'Peer Peer { Value: library; } PeerReference: @Peer; } }'),
+      'The independently owned library should compile.');
+    lCompiler.AddImportedDocument(lLibraryCompiler.CompiledDocument);
+    FreeAndNil(lLibraryCompiler);
+    AContext.AssertTrue(lCompiler.CompileText('consumer.nxscript',
+      'Result Local (Library) {}'),
+      'A transferred library should outlive and rebind without its producer.');
+    AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition(
+      'Library').SourceDefinition = nil,
+      'Imported definitions should not retain producer source objects.');
+    AContext.AssertTrue(lCompiler.CompiledDocument.FindDefinition('Library').
+      FindChild('Child').SourceDefinition = nil,
+      'Imported child definitions should detach producer source objects.');
+    lReference := lCompiler.CompiledDocument.FindDefinition('Library').
+      FindChild('Child').FindProperty('PeerReference').Value;
+    AContext.AssertTrue((lReference.ResolvedDefinition = nil) and
+      (lReference.ResolvedProperty = nil) and
+      (lReference.ResolvedValue = nil),
+      'Imported values should not retain producer resolution objects.');
+    lReference := lCompiler.CompiledDocument.FindDefinition('Library').
+      FindChild('Child').FindProperty('Embedded').Value.Items[0];
+    AContext.AssertTrue(lReference.InlineSourceDefinition = nil,
+      'Imported values should not retain producer inline source objects.');
+    AContext.AssertTrue(lReference.StructuralDefinition.SourceDefinition = nil,
+      'Imported inline definitions should detach producer source objects.');
+    lResult := lCompiler.CompiledDocument.FindDefinition('Local');
+    lChild := lResult.FindChild('Child');
+    lItems := lChild.FindProperty('Items').Value;
+    AContext.AssertEquals(2, lItems.Items.Count,
+      'Transferred child composition should remain applied exactly once.');
+    AContext.AssertEquals('a', lItems.Items[0].EffectiveText,
+      'Transferred composition should retain its inherited value once.');
+    AContext.AssertEquals('b', lItems.Items[1].EffectiveText,
+      'Transferred composition should retain its local value once.');
+    lReference := lChild.FindProperty('PeerReference').Value;
+    AContext.AssertTrue(lReference.ResolvedDefinition =
+      lChild.FindChild('Peer'),
+      'A transferred reference should resolve into the receiving graph.');
+    AContext.AssertEquals('library', lReference.StructuralDefinition.
+      FindProperty('Value').Value.EffectiveText,
+      'A transferred reference projection should use the cloned member.');
+
+    AContext.AssertTrue(lValidatorCompiler.CompileText(
+      'transfer-language.nxscript',
+      'Language Test { UnknownDefinitions: Allow; Definitions: [' +
+      'Definition Result { Root: True; UnknownProperties: Allow; ' +
+      'Children: [Child Members { Kinds: [Template, Child]; }]; }, ' +
+      'Definition Child { UnknownProperties: Allow; ' +
+      'Children: [Child Members { Kinds: [Peer]; }]; Properties: [' +
+      'Property PeerReference { Value Value { SourceForms: [Reference]; ' +
+      'EffectiveCategories: [Definition]; Reference Reference { ' +
+      'Targets: [Definition]; DefinitionKinds: [Peer]; } } }]; }, ' +
+      'Definition Template { UnknownProperties: Allow; }, ' +
+      'Definition Peer { UnknownProperties: Allow; }]; }'),
+      'The transfer validation language should compile.');
+    lValid := lValidator.Validate(lCompiler.CompiledDocument,
+      lValidatorCompiler.CompiledDocument);
+    AContext.AssertTrue(lValid,
+      'Validation should safely dereference the rebound local target: ' +
+      ValidationFailure(lValidator));
+  finally
+    lValidator.Free;
+    lValidatorCompiler.Free;
+    lLibraryCompiler.Free;
     lCompiler.Free;
   end;
 end;
@@ -3128,8 +3901,12 @@ var
 begin
   lSuite := ARegistry.AddSuite('NexusScript.Compiler');
   lSuite.AddTest('StructureAndValues', @TestStructureAndValues);
-  lSuite.AddTest('DefinitionTags', @TestDefinitionTags);
+  lSuite.AddTest('DefinitionTargets', @TestDefinitionTargets);
+  lSuite.AddTest('TargetFiltering', @TestTargetFiltering);
+  lSuite.AddTest('TargetVariants', @TestTargetVariants);
+  lSuite.AddTest('TargetPropagation', @TestTargetPropagation);
   lSuite.AddTest('Composition', @TestComposition);
+  lSuite.AddTest('CompiledTransferCloning', @TestCompiledTransferCloning);
   lSuite.AddTest('StructuralReferences', @TestStructuralReferences);
   lSuite.AddTest('ArrayEntries', @TestArrayEntries);
   lSuite.AddTest('QualifiedArrayEntryLookup',
@@ -3148,11 +3925,11 @@ begin
   lSuite.AddTest('DoctypeLoading', @TestDoctypeLoading);
   lSuite.AddTest('IncludeParsing', @TestIncludeParsing);
   lSuite.AddTest('IncludeLoading', @TestIncludeLoading);
-  lSuite.AddTest('DiscoveryParsing', @TestDiscoveryParsing);
-  lSuite.AddTest('IncludeDiscovery', @TestIncludeDiscovery);
-  lSuite.AddTest('ModuleDiscovery', @TestModuleDiscovery);
-  lSuite.AddTest('DiscoveryRelationshipOverlap',
-    @TestDiscoveryRelationshipOverlap);
+  lSuite.AddTest('DependencyPatternParsing', @TestDependencyPatternParsing);
+  lSuite.AddTest('IncludePatterns', @TestIncludePatterns);
+  lSuite.AddTest('ModulePatterns', @TestModulePatterns);
+  lSuite.AddTest('PatternRelationshipOverlap',
+    @TestPatternRelationshipOverlap);
   lSuite.AddTest('LanguageSelfValidation', @TestLanguageSelfValidation);
   lSuite.AddTest('SchemaValidation', @TestSchemaValidation);
   lSuite.AddTest('IndependentContainmentRules',
@@ -3164,7 +3941,8 @@ begin
   lSuite.AddTest('JSONEmitter', @TestJSONEmitter);
   lSuite.AddTest('DefinitionSourceRangeJSON',
     @TestDefinitionSourceRangeJSON);
-  lSuite.AddTest('DefinitionTagJSON', @TestDefinitionTagJSON);
+  lSuite.AddTest('DefinitionTargetJSON', @TestDefinitionTargetJSON);
+  lSuite.AddTest('TargetFilteredJSON', @TestTargetFilteredJSON);
   lSuite.AddTest('ExternalDataDeclarations', @TestExternalDataDeclarations);
   lSuite.AddTest('ExternalDataCompilation', @TestExternalDataCompilation);
   lSuite.AddTest('CommandLineParsing', @TestCommandLineParsing);

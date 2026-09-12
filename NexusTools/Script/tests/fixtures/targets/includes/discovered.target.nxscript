@@ -1,0 +1,3 @@
+Thing DiscoveredIncludeDev Target[Dev] Platform[Windows] {}
+Thing DiscoveredIncludeDevLinux Target[Dev] Platform[Linux] {}
+Thing DiscoveredIncludeQA Target[QA] {}

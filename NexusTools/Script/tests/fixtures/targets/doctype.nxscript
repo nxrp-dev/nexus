@@ -1,0 +1,4 @@
+Thing DoctypeUniversal {}
+Thing DoctypeDev Target[Dev] Platform[Windows] {}
+Thing DoctypeDevLinux Target[Dev] Platform[Linux] {}
+Thing DoctypeQA Target[QA] {}

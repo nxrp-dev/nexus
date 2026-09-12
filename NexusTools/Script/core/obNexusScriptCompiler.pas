@@ -14,6 +14,7 @@ uses
 type
   TNexusScriptCompiler = class
   private
+    FSelectedTargets: TNexusScriptTargetSelection;
     FDiagnostics: TNexusScriptDiagnosticList;
     FSourceDocument: TNexusScriptSourceDocument;
     FCompiledDocument: TNexusScriptCompiledDocument;
@@ -22,7 +23,7 @@ type
       const ASourceRange: TNexusScriptRange);
     procedure CompileSource;
   public
-    constructor Create;
+    constructor Create(ASelectedTargets: TNexusScriptTargetSelection = nil);
     destructor Destroy; override;
     function CompileText(const ASourceName, AText: string): Boolean;
     function CompileFile(const AFileName: string): Boolean;
@@ -310,22 +311,36 @@ var
   var
     lTokenIndex: Integer;
   begin
-    Result := (Current.Kind = nstWord) and
-      (FIndex + 2 < FTokens.Count) and
-      (FTokens[FIndex + 1].Kind = nstWord) and
-      (FTokens[FIndex + 2].Kind in [nstLeftBrace, nstLeftParenthesis]);
-    if Result or (Current.Kind <> nstWord) or
-      (FIndex + 3 >= FTokens.Count) or
-      (FTokens[FIndex + 1].Kind <> nstWord) or
-      (FTokens[FIndex + 2].Kind <> nstLeftBracket) then
+    Result := False;
+    if (Current.Kind <> nstWord) or
+      (FIndex + 2 >= FTokens.Count) or
+      (FTokens[FIndex + 1].Kind <> nstWord) then
       Exit;
-    lTokenIndex := FIndex + 3;
-    while (lTokenIndex < FTokens.Count) and
-      (FTokens[lTokenIndex].Kind <> nstRightBracket) do
+    lTokenIndex := FIndex + 2;
+    if FTokens[lTokenIndex].Kind = nstLeftParenthesis then
+    begin
       Inc(lTokenIndex);
-    Result := (lTokenIndex + 1 < FTokens.Count) and
-      (FTokens[lTokenIndex].Kind = nstRightBracket) and
-      (FTokens[lTokenIndex + 1].Kind = nstLeftBrace);
+      while (lTokenIndex < FTokens.Count) and
+        (FTokens[lTokenIndex].Kind <> nstRightParenthesis) do
+        Inc(lTokenIndex);
+      if lTokenIndex >= FTokens.Count then
+        Exit;
+      Inc(lTokenIndex);
+    end;
+    while (lTokenIndex + 1 < FTokens.Count) and
+      (FTokens[lTokenIndex].Kind in [nstWord, nstQuoted]) and
+      (FTokens[lTokenIndex + 1].Kind = nstLeftBracket) do
+    begin
+      Inc(lTokenIndex, 2);
+      while (lTokenIndex < FTokens.Count) and
+        (FTokens[lTokenIndex].Kind <> nstRightBracket) do
+        Inc(lTokenIndex);
+      if lTokenIndex >= FTokens.Count then
+        Exit;
+      Inc(lTokenIndex);
+    end;
+    Result := (lTokenIndex < FTokens.Count) and
+      (FTokens[lTokenIndex].Kind = nstLeftBrace);
   end;
 
   function ParsePart: TNexusScriptSourceValue;
@@ -409,12 +424,16 @@ function TNexusScriptParser.ParseDefinition(
 var
   lKindToken: TNexusScriptToken;
   lNameToken: TNexusScriptToken;
-  lTagToken: TNexusScriptToken;
+  lTargetNameToken: TNexusScriptToken;
+  lTargetToken: TNexusScriptToken;
+  lTargetEndToken: TNexusScriptToken;
   lMemberToken: TNexusScriptToken;
   lEndToken: TNexusScriptToken;
   lSourceRange: TNexusScriptRange;
   lValue: TNexusScriptSourceValue;
   lChild: TNexusScriptSourceDefinition;
+  lTarget: TNexusScriptTarget;
+  lDuplicateTarget: Boolean;
 begin
   lKindToken := Require(nstWord, 'definition kind');
   lNameToken := Require(nstWord, 'definition name');
@@ -434,20 +453,34 @@ begin
       end;
     end;
   end;
-  if Match(nstLeftBracket) then
+  while (Current.Kind in [nstWord, nstQuoted]) and
+    (FIndex + 1 < FTokens.Count) and
+    (FTokens[FIndex + 1].Kind = nstLeftBracket) do
   begin
+    lTargetNameToken := Current;
+    Inc(FIndex, 2);
+    lTargetEndToken.Kind := nstEndOfFile;
+    lTarget := TNexusScriptTarget.Create(lTargetNameToken.Text,
+      lTargetNameToken.SourceRange);
+    lDuplicateTarget := Result.Targets.Find(lTarget.Name) <> nil;
+    if lDuplicateTarget then
+      FCompiler.AddError('NXS3007', 'Duplicate definition Target kind ' +
+        lTarget.Name, lTargetNameToken.SourceRange);
     if Match(nstRightBracket) then
-      FCompiler.AddError('NXS3005', 'Definition tag clause cannot be empty',
-        FTokens[FIndex - 1].SourceRange)
+    begin
+      lTargetEndToken := FTokens[FIndex - 1];
+      FCompiler.AddError('NXS3005', 'Definition Target clause cannot be empty',
+        lTargetEndToken.SourceRange);
+    end
     else
     begin
       while Current.Kind <> nstEndOfFile do
       begin
-        lTagToken := Current;
-        if not (lTagToken.Kind in [nstWord, nstQuoted]) then
+        lTargetToken := Current;
+        if not (lTargetToken.Kind in [nstWord, nstQuoted]) then
         begin
-          FCompiler.AddError('NXS2001', 'Expected definition tag',
-            lTagToken.SourceRange);
+          FCompiler.AddError('NXS2001', 'Expected definition Target',
+            lTargetToken.SourceRange);
           while not (Current.Kind in [nstRightBracket, nstLeftBrace,
             nstEndOfFile]) do
             Inc(FIndex);
@@ -455,13 +488,16 @@ begin
           Break;
         end;
         Inc(FIndex);
-        if Result.Tags.IndexOf(lTagToken.Text) >= 0 then
-          FCompiler.AddError('NXS3006', 'Duplicate definition tag ' +
-            lTagToken.Text, lTagToken.SourceRange)
+        if lTarget.Values.IndexOf(lTargetToken.Text) >= 0 then
+          FCompiler.AddError('NXS3006', 'Duplicate definition Target ' +
+            lTargetToken.Text, lTargetToken.SourceRange)
         else
-          Result.Tags.Add(lTagToken.Text);
+          lTarget.Values.Add(lTargetToken.Text);
         if Match(nstRightBracket) then
+        begin
+          lTargetEndToken := FTokens[FIndex - 1];
           Break;
+        end;
         if not Match(nstComma) then
         begin
           FCompiler.AddError('NXS2001', 'Expected comma or ]',
@@ -474,13 +510,23 @@ begin
         end;
         if Current.Kind = nstRightBracket then
         begin
-          FCompiler.AddError('NXS2001', 'Expected definition tag',
+          FCompiler.AddError('NXS2001', 'Expected definition Target',
             Current.SourceRange);
           Inc(FIndex);
           Break;
         end;
       end;
     end;
+    if lTargetEndToken.Kind = nstRightBracket then
+    begin
+      lSourceRange := lTarget.SourceRange;
+      lSourceRange.EndPosition := lTargetEndToken.SourceRange.EndPosition;
+      lTarget.SourceRange := lSourceRange;
+    end;
+    if lDuplicateTarget then
+      lTarget.Free
+    else
+      Result.Targets.Add(lTarget);
   end;
   Require(nstLeftBrace, '{');
   while (Current.Kind <> nstRightBrace) and
@@ -491,8 +537,7 @@ begin
     begin
       lValue := ParseValue([nstSemicolon]);
       Require(nstSemicolon, ';');
-      if (Result.FindProperty(lMemberToken.Text) <> nil) or
-        (Result.FindChild(lMemberToken.Text) <> nil) then
+      if Result.FindProperty(lMemberToken.Text) <> nil then
       begin
         FCompiler.AddError('NXS3001', 'Duplicate member ' +
           lMemberToken.Text, lMemberToken.SourceRange);
@@ -506,15 +551,7 @@ begin
     begin
       Dec(FIndex);
       lChild := ParseDefinition(Result);
-      if (Result.FindProperty(lChild.Name) <> nil) or
-        (Result.FindChild(lChild.Name) <> nil) then
-      begin
-        FCompiler.AddError('NXS3001', 'Duplicate member ' + lChild.Name,
-          lChild.SourceRange);
-        lChild.Free;
-      end
-      else
-        Result.Children.Add(lChild);
+      Result.Children.Add(lChild);
     end;
   end;
   lEndToken := Require(nstRightBrace, '}');
@@ -529,6 +566,7 @@ var
   lPieces: TStringList;
   lRange: TNexusScriptRange;
   lJoinPath: Boolean;
+  lFirstPieceQuoted: Boolean;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
@@ -537,6 +575,7 @@ begin
   try
     lModule.SourceRange := lRange;
     lJoinPath := False;
+    lFirstPieceQuoted := False;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
     begin
       if Current.Kind = nstDot then
@@ -551,29 +590,21 @@ begin
         lJoinPath := False;
       end
       else
+      begin
+        if lPieces.Count = 0 then
+          lFirstPieceQuoted := Current.Kind = nstQuoted;
         lPieces.Add(Current.Text);
+      end;
       Inc(FIndex);
     end;
     Require(nstSemicolon, ';');
-    if (lPieces.Count > 0) and SameText(lPieces[0], 'discover') then
+    if (lPieces.Count > 0) and not lFirstPieceQuoted and
+      SameText(lPieces[0], 'recursive') then
     begin
-      lModule.Discover := True;
-      if lPieces.Count = 4 then
+      if lPieces.Count = 2 then
       begin
-        if not SameText(lPieces[1], 'recursive') then
-          FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange)
-        else
-        begin
-          lModule.Recursive := True;
-          lModule.DiscoverFolder := lPieces[2];
-          lModule.DiscoverMask := lPieces[3];
-        end;
-      end
-      else if (lPieces.Count = 3) and
-        not SameText(lPieces[1], 'recursive') then
-      begin
-        lModule.DiscoverFolder := lPieces[1];
-        lModule.DiscoverMask := lPieces[2];
+        lModule.Recursive := True;
+        lModule.Path := lPieces[1];
       end
       else
         FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange);
@@ -584,6 +615,8 @@ begin
     begin
       lModule.RootSelector := lPieces[0];
       lModule.Path := lPieces[1];
+      if (Pos('*', lModule.Path) > 0) or (Pos('?', lModule.Path) > 0) then
+        FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange);
     end
     else
       FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange);
@@ -646,6 +679,7 @@ var
   lPieces: TStringList;
   lRange: TNexusScriptRange;
   lJoinPath: Boolean;
+  lFirstPieceQuoted: Boolean;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
@@ -654,6 +688,7 @@ begin
   try
     lInclude.SourceRange := lRange;
     lJoinPath := False;
+    lFirstPieceQuoted := False;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
     begin
       if Current.Kind = nstDot then
@@ -668,29 +703,21 @@ begin
         lJoinPath := False;
       end
       else
+      begin
+        if lPieces.Count = 0 then
+          lFirstPieceQuoted := Current.Kind = nstQuoted;
         lPieces.Add(Current.Text);
+      end;
       Inc(FIndex);
     end;
     Require(nstSemicolon, ';');
-    if (lPieces.Count > 0) and SameText(lPieces[0], 'discover') then
+    if (lPieces.Count > 0) and not lFirstPieceQuoted and
+      SameText(lPieces[0], 'recursive') then
     begin
-      lInclude.Discover := True;
-      if lPieces.Count = 4 then
+      if lPieces.Count = 2 then
       begin
-        if not SameText(lPieces[1], 'recursive') then
-          FCompiler.AddError('NXS2015', 'Invalid include declaration', lRange)
-        else
-        begin
-          lInclude.Recursive := True;
-          lInclude.DiscoverFolder := lPieces[2];
-          lInclude.DiscoverMask := lPieces[3];
-        end;
-      end
-      else if (lPieces.Count = 3) and
-        not SameText(lPieces[1], 'recursive') then
-      begin
-        lInclude.DiscoverFolder := lPieces[1];
-        lInclude.DiscoverMask := lPieces[2];
+        lInclude.Recursive := True;
+        lInclude.Path := lPieces[1];
       end
       else
         FCompiler.AddError('NXS2015', 'Invalid include declaration', lRange);
@@ -782,20 +809,16 @@ begin
     end;
     lHasDefinition := True;
     lDefinition := ParseDefinition(nil);
-    if Result.FindDefinition(lDefinition.Name) <> nil then
-    begin
-      FCompiler.AddError('NXS3002', 'Duplicate root definition ' +
-        lDefinition.Name, lDefinition.SourceRange);
-      lDefinition.Free;
-    end
-    else
-      Result.Definitions.Add(lDefinition);
+    Result.Definitions.Add(lDefinition);
   end;
 end;
 
-constructor TNexusScriptCompiler.Create;
+constructor TNexusScriptCompiler.Create(
+  ASelectedTargets: TNexusScriptTargetSelection);
 begin
   inherited Create;
+  FSelectedTargets := TNexusScriptTargetSelection.Create;
+  FSelectedTargets.Assign(ASelectedTargets);
   FDiagnostics := TNexusScriptDiagnosticList.Create(True);
   FImportedDefinitions := TNexusScriptCompiledDefinitionList.Create(True);
 end;
@@ -806,6 +829,7 @@ begin
   FSourceDocument.Free;
   FImportedDefinitions.Free;
   FDiagnostics.Free;
+  FSelectedTargets.Free;
   inherited Destroy;
 end;
 
@@ -816,13 +840,40 @@ begin
     ASourceRange));
 end;
 
-function CopyDefinition(ASource: TNexusScriptSourceDefinition;
-  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition; forward;
+function DefinitionAppliesToTargets(ASource: TNexusScriptSourceDefinition;
+  ASelectedTargets: TNexusScriptTargetSelection): Boolean;
+var
+  lIndex: Integer;
+  lSelectedTarget: TNexusScriptSelectedTarget;
+  lTarget: TNexusScriptTarget;
+begin
+  Result := True;
+  for lIndex := 0 to ASelectedTargets.Count - 1 do
+  begin
+    lSelectedTarget := ASelectedTargets[lIndex];
+    lTarget := ASource.Targets.Find(lSelectedTarget.Name);
+    if (lTarget <> nil) and not lTarget.HasValue(lSelectedTarget.Value) then
+      Exit(False);
+  end;
+end;
 
-function CopyValue(AValue: TNexusScriptSourceValue): TNexusScriptCompiledValue;
+function CopyDefinition(ACompiler: TNexusScriptCompiler;
+  ASource: TNexusScriptSourceDefinition;
+  AParent: TNexusScriptCompiledDefinition;
+  ASelectedTargets: TNexusScriptTargetSelection):
+  TNexusScriptCompiledDefinition; forward;
+
+function CopyValue(ACompiler: TNexusScriptCompiler;
+  AValue: TNexusScriptSourceValue;
+  ASelectedTargets: TNexusScriptTargetSelection): TNexusScriptCompiledValue;
 var
   lItem: TNexusScriptSourceValue;
+  lCompiledItem: TNexusScriptCompiledValue;
 begin
+  if (AValue.InlineDefinition <> nil) and
+    not DefinitionAppliesToTargets(AValue.InlineDefinition,
+      ASelectedTargets) then
+    Exit(nil);
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.Text;
   Result.EntryName := AValue.EntryName;
@@ -830,38 +881,67 @@ begin
   if AValue.InlineDefinition <> nil then
   begin
     Result.OriginalDefinitionName := AValue.InlineDefinition.Name;
-    Result.StructuralDefinition := CopyDefinition(AValue.InlineDefinition, nil);
+    Result.StructuralDefinition := CopyDefinition(ACompiler,
+      AValue.InlineDefinition, nil, ASelectedTargets);
   end;
   for lItem in AValue.Items do
-    Result.Items.Add(CopyValue(lItem));
+  begin
+    lCompiledItem := CopyValue(ACompiler, lItem, ASelectedTargets);
+    if lCompiledItem <> nil then
+      Result.Items.Add(lCompiledItem);
+  end;
 end;
 
-function CopyDefinition(ASource: TNexusScriptSourceDefinition;
-  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition;
+function CopyDefinition(ACompiler: TNexusScriptCompiler;
+  ASource: TNexusScriptSourceDefinition;
+  AParent: TNexusScriptCompiledDefinition;
+  ASelectedTargets: TNexusScriptTargetSelection):
+  TNexusScriptCompiledDefinition;
 var
   lProperty: TNexusScriptSourceProperty;
   lChild: TNexusScriptSourceDefinition;
+  lCompiledValue: TNexusScriptCompiledValue;
+  lCompiledChild: TNexusScriptCompiledDefinition;
 begin
+  if not DefinitionAppliesToTargets(ASource, ASelectedTargets) then
+    Exit(nil);
   Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, ASource.Name,
     ASource.SourceRange);
   Result.Parent := AParent;
-  Result.Tags.AddStrings(ASource.Tags);
+  Result.SourceDefinition := ASource;
+  Result.Targets.Assign(ASource.Targets);
   for lProperty in ASource.Properties do
-    Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
-      CopyValue(lProperty.Value), lProperty.SourceRange));
+  begin
+    lCompiledValue := CopyValue(ACompiler, lProperty.Value, ASelectedTargets);
+    if lCompiledValue <> nil then
+      Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
+        lCompiledValue, lProperty.SourceRange));
+  end;
   for lChild in ASource.Children do
-    Result.Children.Add(CopyDefinition(lChild, Result));
+  begin
+    lCompiledChild := CopyDefinition(ACompiler, lChild, Result,
+      ASelectedTargets);
+    if lCompiledChild <> nil then
+    begin
+      if (Result.FindProperty(lCompiledChild.Name) <> nil) or
+        (Result.FindChild(lCompiledChild.Name) <> nil) then
+      begin
+        ACompiler.AddError('NXS3001', 'Duplicate member ' +
+          lCompiledChild.Name, lCompiledChild.SourceRange);
+        lCompiledChild.Free;
+      end
+      else
+        Result.Children.Add(lCompiledChild);
+    end;
+  end;
 end;
 
 function CloneDefinition(ASource: TNexusScriptCompiledDefinition;
   AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition; forward;
 
 function CloneDefinitionForRebinding(ASource: TNexusScriptCompiledDefinition;
-  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition; forward;
-
-function CloneDefinitionAs(ASource: TNexusScriptCompiledDefinition;
   AParent: TNexusScriptCompiledDefinition;
-  const AName: string): TNexusScriptCompiledDefinition; forward;
+  ADetachSource: Boolean = False): TNexusScriptCompiledDefinition; forward;
 
 function CloneValue(AValue: TNexusScriptCompiledValue): TNexusScriptCompiledValue;
 var
@@ -899,7 +979,8 @@ begin
 end;
 
 function CloneValueForRebinding(
-  AValue: TNexusScriptCompiledValue): TNexusScriptCompiledValue;
+  AValue: TNexusScriptCompiledValue;
+  ADetachSource: Boolean = False): TNexusScriptCompiledValue;
 var
   lItem: TNexusScriptCompiledValue;
   lContributor: TNexusScriptCompiledValue;
@@ -908,7 +989,8 @@ begin
   Result.SourceText := AValue.SourceText;
   Result.EntryName := AValue.EntryName;
   Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
-  Result.InlineSourceDefinition := AValue.InlineSourceDefinition;
+  if not ADetachSource then
+    Result.InlineSourceDefinition := AValue.InlineSourceDefinition;
   if Result.EntryName <> '' then
     Result.EffectiveName := Result.EntryName
   else if Result.Kind = nsvDefinition then
@@ -916,12 +998,12 @@ begin
   if (Result.Kind = nsvDefinition) and
     (AValue.StructuralDefinition <> nil) then
     Result.StructuralDefinition := CloneDefinitionForRebinding(
-      AValue.StructuralDefinition, nil);
+      AValue.StructuralDefinition, nil, ADetachSource);
   for lItem in AValue.Items do
-    Result.Items.Add(CloneValueForRebinding(lItem));
+    Result.Items.Add(CloneValueForRebinding(lItem, ADetachSource));
   for lContributor in AValue.CompositionContributors do
     Result.CompositionContributors.Add(
-      CloneValueForRebinding(lContributor));
+      CloneValueForRebinding(lContributor, ADetachSource));
 end;
 
 function CloneDefinition(ASource: TNexusScriptCompiledDefinition;
@@ -934,7 +1016,9 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
-  Result.Tags.AddStrings(ASource.Tags);
+  Result.SourceDefinition := ASource.SourceDefinition;
+  Result.Composed := ASource.Composed;
+  Result.Targets.Assign(ASource.Targets);
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValue(lProperty.Value), lProperty.SourceRange));
@@ -943,7 +1027,8 @@ begin
 end;
 
 function CloneDefinitionForRebinding(ASource: TNexusScriptCompiledDefinition;
-  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledDefinition;
+  AParent: TNexusScriptCompiledDefinition;
+  ADetachSource: Boolean): TNexusScriptCompiledDefinition;
 var
   lProperty: TNexusScriptCompiledProperty;
   lChild: TNexusScriptCompiledDefinition;
@@ -952,31 +1037,17 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
-  Result.Tags.AddStrings(ASource.Tags);
+  if not ADetachSource then
+    Result.SourceDefinition := ASource.SourceDefinition;
+  Result.Composed := ASource.Composed;
+  Result.Targets.Assign(ASource.Targets);
   for lProperty in ASource.Properties do
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
-      CloneValueForRebinding(lProperty.Value), lProperty.SourceRange));
+      CloneValueForRebinding(lProperty.Value, ADetachSource),
+      lProperty.SourceRange));
   for lChild in ASource.Children do
-    Result.Children.Add(CloneDefinitionForRebinding(lChild, Result));
-end;
-
-function CloneDefinitionAs(ASource: TNexusScriptCompiledDefinition;
-  AParent: TNexusScriptCompiledDefinition;
-  const AName: string): TNexusScriptCompiledDefinition;
-var
-  lProperty: TNexusScriptCompiledProperty;
-  lChild: TNexusScriptCompiledDefinition;
-begin
-  Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, AName,
-    ASource.SourceRange);
-  Result.ImportedRoot := ASource.ImportedRoot;
-  Result.Parent := AParent;
-  Result.Tags.AddStrings(ASource.Tags);
-  for lProperty in ASource.Properties do
-    Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
-      CloneValue(lProperty.Value), lProperty.SourceRange));
-  for lChild in ASource.Children do
-    Result.Children.Add(CloneDefinition(lChild, Result));
+    Result.Children.Add(CloneDefinitionForRebinding(lChild, Result,
+      ADetachSource));
 end;
 
 function IsScalarProjectionValue(AValue: TNexusScriptCompiledValue): Boolean;
@@ -1052,7 +1123,9 @@ begin
     ASource.SourceRange);
   Result.ImportedRoot := ASource.ImportedRoot;
   Result.Parent := AParent;
-  Result.Tags.AddStrings(ASource.Tags);
+  Result.SourceDefinition := ASource.SourceDefinition;
+  Result.Composed := ASource.Composed;
+  Result.Targets.Assign(ASource.Targets);
   for lProperty in ASource.Properties do
   begin
     if lProperty.Resolving then
@@ -1071,20 +1144,6 @@ procedure TNexusScriptCompiler.CompileSource;
 var
   lSourceDefinition: TNexusScriptSourceDefinition;
   lMaterializingDefinitions: TList<TNexusScriptCompiledDefinition>;
-
-  function SourceFor(ACompiled: TNexusScriptCompiledDefinition): TNexusScriptSourceDefinition;
-  var
-    lSource: TNexusScriptSourceDefinition;
-    lParentSource: TNexusScriptSourceDefinition;
-  begin
-    if ACompiled.Parent = nil then
-      Exit(FSourceDocument.FindDefinition(ACompiled.Name));
-    lParentSource := SourceFor(ACompiled.Parent);
-    Result := nil;
-    for lSource in lParentSource.Children do
-      if SameText(lSource.Name, ACompiled.Name) then
-        Exit(lSource);
-  end;
 
   function EvaluateProperty(AScope: TNexusScriptCompiledDefinition;
     AProperty: TNexusScriptCompiledProperty): Boolean; forward;
@@ -1195,15 +1254,13 @@ var
     end;
   end;
 
-  procedure Compose(ADefinition: TNexusScriptCompiledDefinition;
-    ASource: TNexusScriptSourceDefinition = nil);
+  procedure Compose(ADefinition: TNexusScriptCompiledDefinition);
   var
     lSource: TNexusScriptSourceDefinition;
     lSelector: string;
     lBase: TNexusScriptCompiledDefinition;
     lProperty: TNexusScriptCompiledProperty;
     lChild: TNexusScriptCompiledDefinition;
-    lChildSource: TNexusScriptSourceDefinition;
     lLocalProperties: TNexusScriptCompiledPropertyList;
     lLocalChildren: TNexusScriptCompiledDefinitionList;
 
@@ -1286,9 +1343,7 @@ var
       Exit;
     end;
     ADefinition.Composing := True;
-    lSource := ASource;
-    if lSource = nil then
-      lSource := SourceFor(ADefinition);
+    lSource := ADefinition.SourceDefinition;
     if lSource = nil then
     begin
       ADefinition.Composing := False;
@@ -1302,7 +1357,8 @@ var
         lLocalProperties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
           CloneValue(lProperty.Value), lProperty.SourceRange));
       for lChild in ADefinition.Children do
-        lLocalChildren.Add(CloneDefinition(lChild, ADefinition));
+        lLocalChildren.Add(CloneDefinitionForRebinding(lChild,
+          ADefinition));
       ADefinition.Properties.Clear;
       ADefinition.Children.Clear;
 
@@ -1326,7 +1382,8 @@ var
           else
           begin
             RemoveChild(lChild.Name);
-            ADefinition.Children.Add(CloneDefinition(lChild, ADefinition));
+            ADefinition.Children.Add(CloneDefinitionForRebinding(lChild,
+              ADefinition));
           end;
         end;
       end;
@@ -1341,7 +1398,8 @@ var
         else
         begin
           RemoveChild(lChild.Name);
-          ADefinition.Children.Add(CloneDefinition(lChild, ADefinition));
+          ADefinition.Children.Add(CloneDefinitionForRebinding(lChild,
+            ADefinition));
         end;
       end;
     finally
@@ -1351,12 +1409,7 @@ var
     ADefinition.Composing := False;
     ADefinition.Composed := True;
     for lChild in ADefinition.Children do
-    begin
-      lChildSource := nil;
-      if lSource <> nil then
-        lChildSource := lSource.FindChild(lChild.Name);
-      Compose(lChild, lChildSource);
-    end;
+      Compose(lChild);
   end;
 
   function ResolveNamedArrayItem(AScope: TNexusScriptCompiledDefinition;
@@ -1859,15 +1912,13 @@ var
         begin
           lOriginalDefinition := AValue.StructuralDefinition;
           lOriginalDefinition.Parent := AScope;
-          Compose(lOriginalDefinition, AValue.InlineSourceDefinition);
+          Compose(lOriginalDefinition);
           if not BindDefinition(lOriginalDefinition) then
             Exit;
           lEffectiveName := AValue.EntryName;
           if lEffectiveName = '' then
             lEffectiveName := AValue.OriginalDefinitionName;
-          AValue.StructuralDefinition := CloneDefinitionAs(
-            lOriginalDefinition, AScope, lEffectiveName);
-          lOriginalDefinition.Free;
+          lOriginalDefinition.Name := lEffectiveName;
           AValue.EffectiveName := lEffectiveName;
           Result := True;
         end;
@@ -2047,6 +2098,7 @@ var
 
 var
   lCompiledDefinition: TNexusScriptCompiledDefinition;
+  lExistingDefinition: TNexusScriptCompiledDefinition;
   lImportedDefinition: TNexusScriptCompiledDefinition;
 
   procedure MarkComposed(ADefinition: TNexusScriptCompiledDefinition);
@@ -2070,26 +2122,37 @@ begin
         lImportedDefinition.Name, lImportedDefinition.SourceRange);
       Continue;
     end;
-    lCompiledDefinition := CloneDefinitionAs(lImportedDefinition, nil,
-      lImportedDefinition.Name);
+    lCompiledDefinition := CloneDefinitionForRebinding(lImportedDefinition,
+      nil, True);
     MarkComposed(lCompiledDefinition);
     FCompiledDocument.Definitions.Add(lCompiledDefinition);
   end;
   for lSourceDefinition in FSourceDocument.Definitions do
-    if FCompiledDocument.FindDefinition(lSourceDefinition.Name) <> nil then
-      AddError('NXS3004', 'Imported root collides with local root definition ' +
-        lSourceDefinition.Name, lSourceDefinition.SourceRange)
+  begin
+    if not DefinitionAppliesToTargets(lSourceDefinition,
+      FSelectedTargets) then
+      Continue;
+    lExistingDefinition := FCompiledDocument.FindDefinition(
+      lSourceDefinition.Name);
+    if lExistingDefinition <> nil then
+    begin
+      if lExistingDefinition.ImportedRoot then
+        AddError('NXS3004',
+          'Imported root collides with local root definition ' +
+          lSourceDefinition.Name, lSourceDefinition.SourceRange)
+      else
+        AddError('NXS3002', 'Duplicate root definition ' +
+          lSourceDefinition.Name, lSourceDefinition.SourceRange);
+    end
     else
-      FCompiledDocument.Definitions.Add(CopyDefinition(lSourceDefinition, nil));
+      FCompiledDocument.Definitions.Add(CopyDefinition(Self,
+        lSourceDefinition, nil, FSelectedTargets));
+  end;
   for lCompiledDefinition in FCompiledDocument.Definitions do
     Compose(lCompiledDefinition);
-  for lSourceDefinition in FSourceDocument.Definitions do
-  begin
-    lCompiledDefinition := FCompiledDocument.FindDefinition(
-      lSourceDefinition.Name);
-    if lCompiledDefinition <> nil then
+  for lCompiledDefinition in FCompiledDocument.Definitions do
+    if not lCompiledDefinition.ImportedRoot then
       BindDefinition(lCompiledDefinition);
-  end;
   finally
     lMaterializingDefinitions.Free;
   end;
@@ -2105,7 +2168,7 @@ procedure TNexusScriptCompiler.AddImportedDefinition(
 var
   lImportedDefinition: TNexusScriptCompiledDefinition;
 begin
-  lImportedDefinition := CloneDefinition(ADefinition, nil);
+  lImportedDefinition := CloneDefinitionForRebinding(ADefinition, nil, True);
   lImportedDefinition.ImportedRoot := True;
   FImportedDefinitions.Add(lImportedDefinition);
 end;

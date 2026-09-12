@@ -1,0 +1,11 @@
+Thing DiscoveredModuleDev Target[Dev] Platform[Windows] {
+  Value: discovered-dev;
+}
+
+Thing DiscoveredModuleDevLinux Target[Dev] Platform[Linux] {
+  Value: discovered-dev-linux;
+}
+
+Thing DiscoveredModuleQA Target[QA] {
+  Value: discovered-qa;
+}

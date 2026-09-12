@@ -1,4 +1,4 @@
-module discover "." "*.module.nxscript";
+module "*.module.nxscript";
 
 Thing Entry {
     Thing Derived (Shared) {}

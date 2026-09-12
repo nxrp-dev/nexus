@@ -1,0 +1,3 @@
+Thing IncludeDev Target[Dev] Platform[Windows] {}
+Thing IncludeDevLinux Target[Dev] Platform[Linux] {}
+Thing IncludeQA Target[QA] {}

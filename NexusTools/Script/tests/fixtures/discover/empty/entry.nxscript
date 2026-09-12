@@ -1,4 +1,4 @@
-include discover "." "*.missing.nxscript";
-module discover "." "*.missing.nxscript";
+include "*.missing.nxscript";
+module "*.missing.nxscript";
 
 Thing Entry {}

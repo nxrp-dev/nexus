@@ -132,32 +132,57 @@ Diagnostics are written to stderr so redirected stdout contains only the
 artifact. Filename components such as `.Schema` are decorative and have no
 execution meaning.
 
-## Definition tags
+## Definition Targets
 
-A definition header may include a nonempty tag clause after its name and
-optional composition clause:
+A definition header may contain named Target clauses after its optional
+composition selectors and before its body:
 
 ```nexusscript
-Build Release (CommonBuild) [Production, Win64, "Cross Reference"] {
+Build Release (CommonBuild) Target[Development, QA] Platform[Windows] {
 }
 ```
 
-Tags are valueless, case-sensitive classification identifiers. They use the
-same spelling rules as other NexusScript words: contiguous text that does not
-contain language punctuation may be written directly, while text requiring
-whitespace or punctuation is quoted and uses the ordinary string escapes.
-For example, `Environment=Production` is one opaque tag; it does not declare a
-key/value pair. Duplicate decoded spellings on one definition are rejected.
+Target-kind names and values are case-sensitive and use the ordinary
+NexusScript word and quoted-string rules. Each kind may occur only once on a
+definition, and its nonempty value list contains alternatives. The former
+anonymous form `[Development]` is not supported.
 
-Tags classify only the definition that declares them. Composition does not
-copy or merge contributor tags. A child definition copied by composition keeps
-its own tags because the copy still represents that child declaration.
-Structural references and imported or projected copies likewise retain the
-tags of the definition they represent.
+`TNexusScriptCompiler` and `TNexusScriptCompilationSession` accept a
+`TNexusScriptTargetSelection` containing at most one selected value per named
+kind. Both own a copy of the supplied selection. Parameterless construction is
+untargeted and retains every definition. Selected kinds filter independently
+before composition and effective-value resolution. A definition without a
+clause for a selected kind remains unrestricted by that kind; clauses for kinds
+that were not selected are ignored. Values within one clause use OR semantics,
+and every selected kind declared by the definition must match.
 
-Tagged definitions expose their retained tags in source order as `_nx.Tags`.
-Untagged definitions omit that member. A domain property named `Tags` remains
-an ordinary, separate property.
+The complete selection applies recursively to roots, children, inline
+definitions, doctypes, modules, includes, and discovered documents. The parsed
+source model remains complete; filtering affects only the compiled model.
+References and composition selectors naming excluded definitions fail through
+their normal unresolved-target diagnostics.
+
+Targets do not participate in definition identity. Same-identity targeted
+source alternatives may coexist, but ordinary duplicate-definition validation
+runs after filtering. Untargeted or partially targeted compilation therefore
+fails when it retains multiple definitions with the same scoped identity.
+
+Targets belong to the declaration on which they appear. Composition does not
+copy or merge a contributor's Targets. Retained children, structural
+references, imports, and projections preserve the Targets of the definitions
+they represent.
+
+Definitions expose retained clauses in source order as typed `_nx.Targets`
+entries containing `Name` and `Values`. Definitions without Targets omit that
+member. A domain property named `Targets` remains an ordinary, separate
+property:
+
+```json
+"Targets": [
+  { "Name": "Target", "Values": ["Development", "QA"] },
+  { "Name": "Platform", "Values": ["Windows"] }
+]
+```
 
 ## JSON model
 

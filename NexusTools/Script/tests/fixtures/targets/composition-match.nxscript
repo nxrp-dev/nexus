@@ -1,0 +1,3 @@
+module "module.nxscript";
+
+Thing Result (ModuleDev) Target[Dev] {}

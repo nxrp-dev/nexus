@@ -1,5 +1,6 @@
-module discover recursive "." "*.module.nxscript";
+module recursive "*.module.nxscript";
+module recursive "exact.nxscript";
 
 Thing Entry {
-    Value: @Sibling.Value + " " + @Nested.Value;
+    Value: @Sibling.Value + " " + @Nested.Value + " " + @Exact.Value;
 }

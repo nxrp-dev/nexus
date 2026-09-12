@@ -47,7 +47,9 @@ function TNexusScriptJSONEmitter.DefinitionMetadata(
   TNexusScriptArtifactMetadata;
 var
   lIsReference: Boolean;
-  lTag: string;
+  lTarget: TNexusScriptTarget;
+  lArtifactTarget: TNexusScriptArtifactTarget;
+  lValue: string;
 begin
   Result := TNexusScriptArtifactMetadata.Create;
   try
@@ -78,8 +80,13 @@ begin
       Result.Reference.Kind.Value := ADefinition.Kind;
       Result.Reference.Name.Value := AReferenceValue.OriginalDefinitionName;
     end;
-    for lTag in ADefinition.Tags do
-      Result.Tags.AddString(lTag);
+    for lTarget in ADefinition.Targets do
+    begin
+      lArtifactTarget := Result.Targets.AddTarget;
+      lArtifactTarget.Name.Value := lTarget.Name;
+      for lValue in lTarget.Values do
+        lArtifactTarget.Values.AddString(lValue);
+    end;
   except
     Result.Free;
     raise;

@@ -1,0 +1,10 @@
+doctype "doctype.nxscript";
+module "module.nxscript";
+include "include.nxscript";
+module "modules/*.target.nxscript";
+include "includes/*.target.nxscript";
+
+Thing Entry {
+  ModuleValue: @ModuleDev.Value;
+  DiscoveredValue: @DiscoveredModuleDev.Value;
+}
