@@ -46,8 +46,8 @@
       <Filename Value="..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\NexusTestUI"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..;..\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\ui\src;..\..\..\..\common\sdl\units;..\..\..\..\common\sdl_ext"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\lib\fpgui\framework\src\main\pascal\corelib;..\..\..\lib\fpgui\framework\src\main\pascal\corelib\gdi;..\..\..\lib\fpgui\framework\src\main\resources"/>
+      <OtherUnitFiles Value="..;..\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\ui\src;..\..\..\lib\fpgui\framework\src\main\pascal\corelib;..\..\..\lib\fpgui\framework\src\main\pascal\corelib\render\software;..\..\..\lib\fpgui\framework\src\main\pascal\corelib\gdi;..\..\..\lib\fpgui\framework\src\main\pascal\gui;..\..\..\lib\fpgui\framework\src\main\resources"/>
       <UnitOutputDirectory Value="..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
@@ -56,7 +56,7 @@
       </Debugging>
     </Linking>
     <Other>
-      <CustomOptions Value="-WG"/>
+      <CustomOptions Value="-dGDI -WG"/>
     </Other>
   </CompilerOptions>
   <Debugging>

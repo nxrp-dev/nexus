@@ -4,6 +4,9 @@ program NexusTestUI;
 {$apptype GUI}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   uiNXTestMain;
 
 begin

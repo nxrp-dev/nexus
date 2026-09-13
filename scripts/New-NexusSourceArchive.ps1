@@ -65,6 +65,7 @@ $SourceExtensions = @(
   '.pas',
   '.pp',
   '.ps1',
+  '.sh',
   '.png',
   '.svg',
   '.tab',

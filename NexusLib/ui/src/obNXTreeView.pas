@@ -5,47 +5,24 @@ unit obNXTreeView;
 interface
 
 uses
-  Classes,
-  Math,
-  SysUtils,
-  fgl,
-  tpNXEvents,
-  tpNXPlatform,
-  obNXControl,
-  obNXFont,
-  obNXScrollableControl;
+  Classes, Math, fgl,
+  fpg_base, fpg_main, fpg_scrollbar, fpg_widget;
 
 type
   TNXTreeView = class;
   TNXTreeViewNode = class;
-  TNXTreeViewCell = class;
-  TNXTreeViewColumn = class;
 
-  TNXTreeViewCellAlign = (
-    tvcaLeft,
-    tvcaCenter,
-    tvcaRight
-  );
-
-  TNXTreeViewGlyphKind = (
-    tvgkNone,
-    tvgkCircle,
-    tvgkSquare
-  );
-
-  TNXTreeViewColumnListBase = specialize TFPGObjectList<TNXTreeViewColumn>;
-  TNXTreeViewCellListBase = specialize TFPGObjectList<TNXTreeViewCell>;
-  TNXTreeViewNodeListBase = specialize TFPGObjectList<TNXTreeViewNode>;
-  TNXTreeViewVisibleNodeListBase = specialize TFPGList<TNXTreeViewNode>;
+  TNXTreeViewCellAlign = (tvcaLeft, tvcaCenter, tvcaRight);
+  TNXTreeViewGlyphKind = (tvgkNone, tvgkCircle, tvgkSquare);
 
   TNXTreeViewCell = class
   private
     FAlign: TNXTreeViewCellAlign;
-    FBackColor: TNXColor;
-    FForeColor: TNXColor;
-    FGlyphColor: TNXColor;
+    FBackColor: TfpgColor;
+    FForeColor: TfpgColor;
+    FGlyphColor: TfpgColor;
     FGlyphKind: TNXTreeViewGlyphKind;
-    FImage: TNXImageHandle;
+    FImage: TfpgImage;
     FImageHeight: Integer;
     FImageWidth: Integer;
     FText: string;
@@ -53,15 +30,14 @@ type
     FUseForeColor: Boolean;
     FUseGlyphColor: Boolean;
   public
-    constructor Create; virtual;
-    procedure Clear; virtual;
-
+    constructor Create;
+    procedure Clear;
     property Align: TNXTreeViewCellAlign read FAlign write FAlign;
-    property BackColor: TNXColor read FBackColor write FBackColor;
-    property ForeColor: TNXColor read FForeColor write FForeColor;
-    property GlyphColor: TNXColor read FGlyphColor write FGlyphColor;
+    property BackColor: TfpgColor read FBackColor write FBackColor;
+    property ForeColor: TfpgColor read FForeColor write FForeColor;
+    property GlyphColor: TfpgColor read FGlyphColor write FGlyphColor;
     property GlyphKind: TNXTreeViewGlyphKind read FGlyphKind write FGlyphKind;
-    property Image: TNXImageHandle read FImage write FImage;
+    property Image: TfpgImage read FImage write FImage;
     property ImageHeight: Integer read FImageHeight write FImageHeight;
     property ImageWidth: Integer read FImageWidth write FImageWidth;
     property Text: string read FText write FText;
@@ -78,13 +54,12 @@ type
     FOwner: TNXTreeView;
     FVisible: Boolean;
     FWidth: Integer;
-    procedure InvalidateOwnerContentSize;
+    procedure Changed;
     procedure SetMinWidth(AValue: Integer);
     procedure SetVisible(AValue: Boolean);
     procedure SetWidth(AValue: Integer);
   public
-    constructor Create(const ACaption: string; AWidth: Integer); virtual;
-
+    constructor Create(const ACaption: string; AWidth: Integer);
     property Align: TNXTreeViewCellAlign read FAlign write FAlign;
     property Caption: string read FCaption write FCaption;
     property MinWidth: Integer read FMinWidth write SetMinWidth;
@@ -92,15 +67,19 @@ type
     property Width: Integer read FWidth write SetWidth;
   end;
 
+  TNXTreeViewCellList = specialize TFPGObjectList<TNXTreeViewCell>;
+  TNXTreeViewNodeList = specialize TFPGObjectList<TNXTreeViewNode>;
+  TNXTreeViewColumnListBase = specialize TFPGObjectList<TNXTreeViewColumn>;
+  TNXTreeViewVisibleNodeList = specialize TFPGList<TNXTreeViewNode>;
+
   TNXTreeViewNode = class
   private
-    FCells: TNXTreeViewCellListBase;
-    FChildren: TNXTreeViewNodeListBase;
+    FCells: TNXTreeViewCellList;
+    FChildren: TNXTreeViewNodeList;
     FData: Pointer;
     FExpanded: Boolean;
     FParent: TNXTreeViewNode;
     FSelected: Boolean;
-
     function GetCell(AIndex: Integer): TNXTreeViewCell;
     function GetCellCount: Integer;
     function GetChild(AIndex: Integer): TNXTreeViewNode;
@@ -109,16 +88,15 @@ type
     function GetText: string;
     procedure SetText(const AValue: string);
   public
-    constructor Create(const AText: string = ''; AData: Pointer = nil); virtual;
+    constructor Create(const AText: string = ''; AData: Pointer = nil);
     destructor Destroy; override;
-
-    function AddChild(const AText: string = ''; AData: Pointer = nil): TNXTreeViewNode; virtual;
-    procedure Clear; virtual;
-    procedure ClearCells; virtual;
-    function Contains(ANode: TNXTreeViewNode): Boolean; virtual;
-    procedure EnsureCellCount(ACount: Integer); virtual;
-    function HasChildren: Boolean; virtual;
-
+    function AddChild(const AText: string = '';
+      AData: Pointer = nil): TNXTreeViewNode;
+    procedure Clear;
+    procedure ClearCells;
+    function Contains(ANode: TNXTreeViewNode): Boolean;
+    procedure EnsureCellCount(ACount: Integer);
+    function HasChildren: Boolean;
     property Cell[AIndex: Integer]: TNXTreeViewCell read GetCell;
     property CellCount: Integer read GetCellCount;
     property Child[AIndex: Integer]: TNXTreeViewNode read GetChild;
@@ -131,28 +109,34 @@ type
     property Text: string read GetText write SetText;
   end;
 
-  TNXTreeViewRootList = class(TNXTreeViewNodeListBase)
+  TNXTreeViewRootList = class(TNXTreeViewNodeList)
   public
-    function AddNode(const AText: string = ''; AData: Pointer = nil): TNXTreeViewNode;
+    function AddNode(const AText: string = '';
+      AData: Pointer = nil): TNXTreeViewNode;
   end;
 
   TNXTreeViewColumnList = class(TNXTreeViewColumnListBase)
   public
-    function AddColumn(const ACaption: string; AWidth: Integer): TNXTreeViewColumn;
+    function AddColumn(const ACaption: string;
+      AWidth: Integer): TNXTreeViewColumn;
   end;
 
-  TNXTreeViewVisibleNodeList = class(TNXTreeViewVisibleNodeListBase)
-  end;
+  TNXTreeViewNodeEvent = procedure(Sender: TObject;
+    ANode: TNXTreeViewNode) of object;
+  TNXTreeViewCellEvent = procedure(Sender: TObject;
+    ANode: TNXTreeViewNode; AColumn: Integer) of object;
+  TNXTreeViewColumnEvent = procedure(Sender: TObject;
+    AColumn: Integer) of object;
 
-  TNXTreeViewNodeEvent = procedure(Sender: TObject; ANode: TNXTreeViewNode) of object;
-  TNXTreeViewCellEvent = procedure(Sender: TObject; ANode: TNXTreeViewNode; AColumn: Integer) of object;
-  TNXTreeViewColumnEvent = procedure(Sender: TObject; AColumn: Integer) of object;
-
-  TNXTreeView = class(TNXScrollableControl)
+  TNXTreeView = class(TfpgWidget)
   private
     FColumns: TNXTreeViewColumnList;
+    FContentHeight: Integer;
+    FContentWidth: Integer;
     FDefaultColumnWidth: Integer;
+    FFont: TfpgFontResourceBase;
     FHeaderHeight: Integer;
+    FHorizontalScrollBar: TfpgScrollbar;
     FIndentWidth: Integer;
     FLineHeight: Integer;
     FOnCellActivate: TNXTreeViewCellEvent;
@@ -162,78 +146,103 @@ type
     FOnColumnClick: TNXTreeViewColumnEvent;
     FOnExpanded: TNXTreeViewNodeEvent;
     FRootNodes: TNXTreeViewRootList;
+    FScrollX: Integer;
+    FScrollY: Integer;
     FSelectedColumn: Integer;
     FSelectedNode: TNXTreeViewNode;
     FShowColumnHeaders: Boolean;
     FShowGridLines: Boolean;
+    FVerticalScrollBar: TfpgScrollbar;
     FVisibleNodes: TNXTreeViewVisibleNodeList;
-
     function GetTotalColumnWidth: Integer;
+    function GetViewportRect: TfpgRect;
+    procedure HorizontalScroll(Sender: TObject; APosition: Integer);
+    procedure LayoutChanged;
     procedure SetHeaderHeight(AValue: Integer);
     procedure SetIndentWidth(AValue: Integer);
     procedure SetLineHeight(AValue: Integer);
     procedure SetSelectedNode(AValue: TNXTreeViewNode);
     procedure SetShowColumnHeaders(AValue: Boolean);
+    procedure UpdateLayout;
+    procedure UpdateScrollBars;
+    procedure VerticalScroll(Sender: TObject; APosition: Integer);
   protected
-    procedure AddVisibleNodes(ANodes: TNXTreeViewNodeListBase); virtual;
-    function CellAt(AX, AY: Integer; out AColumn: Integer; out ANode: TNXTreeViewNode): Boolean; virtual;
-    function CellRect(AColumn, AVisibleIndex: Integer): TNXRect; virtual;
-    procedure CollapseNode(ANode: TNXTreeViewNode); virtual;
-    function ColumnAt(AX, AY: Integer; out AColumn: Integer): Boolean; virtual;
-    function ColumnLeft(AColumn: Integer): Integer; virtual;
-    procedure DoCellActivate(ANode: TNXTreeViewNode; AColumn: Integer); virtual;
-    procedure DoCellClick(ANode: TNXTreeViewNode; AColumn: Integer); virtual;
-    procedure DoColumnClick(AColumn: Integer); virtual;
-    procedure DoKeyDown(const AEvent: TNXKeyEventData); override;
-    procedure DoMouseDoubleClick(AX, AY: Integer; AButton: TNXMouseButton); override;
-    procedure DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton); override;
-    procedure DrawCell(ANode: TNXTreeViewNode; AColumn, AVisibleIndex: Integer; const ARect: TNXRect); virtual;
-    procedure DrawCellContent(ANode: TNXTreeViewNode; AColumn: Integer; const ARect: TNXRect); virtual;
-    procedure DrawCellText(const AText: string; const ARect: TNXRect; AAlign: TNXTreeViewCellAlign; const AColor: TNXColor); virtual;
-    procedure DrawExpandGlyph(ANode: TNXTreeViewNode; const ARect: TNXRect); virtual;
-    procedure DrawHeader(AColumn: Integer; const ARect: TNXRect); virtual;
-    procedure DrawStatusGlyph(const ACell: TNXTreeViewCell; const ARect: TNXRect); virtual;
-    procedure EnsureSelectedVisible; virtual;
-    procedure ExpandNode(ANode: TNXTreeViewNode); virtual;
-    function GetContentTop: Integer; virtual;
-    function GetDefaultLineHeight: Integer; virtual;
-    function GetHeaderRect(AColumn: Integer): TNXRect; virtual;
-    function GetNodeGlyphRect(ANode: TNXTreeViewNode; AVisibleIndex: Integer; const ACellRect: TNXRect): TNXRect; virtual;
-    function GetScrollableViewportRect: TNXRect; override;
-    procedure RebuildVisibleNodes; virtual;
-    procedure RenderViewport; override;
-    procedure RenderViewportChrome; override;
-    procedure SelectNode(ANode: TNXTreeViewNode; AColumn: Integer = 0); virtual;
-    procedure ToggleNode(ANode: TNXTreeViewNode); virtual;
-    procedure MeasureContent; override;
+    procedure AddVisibleNodes(ANodes: TNXTreeViewNodeList);
+    function CellAt(AX, AY: Integer; out AColumn: Integer;
+      out ANode: TNXTreeViewNode): Boolean;
+    function CellRect(AColumn, AVisibleIndex: Integer): TfpgRect;
+    procedure CollapseNode(ANode: TNXTreeViewNode);
+    function ColumnAt(AX: Integer; out AColumn: Integer): Boolean;
+    function ColumnLeft(AColumn: Integer): Integer;
+    procedure DrawCell(ANode: TNXTreeViewNode; AColumn: Integer;
+      const ARect: TfpgRect);
+    procedure DrawCellContent(ANode: TNXTreeViewNode; AColumn: Integer;
+      const ARect: TfpgRect);
+    procedure DrawCellText(const AText: string; const ARect: TfpgRect;
+      AAlign: TNXTreeViewCellAlign; AColor: TfpgColor);
+    procedure DrawExpandGlyph(ANode: TNXTreeViewNode;
+      const ARect: TfpgRect);
+    procedure DrawHeader(AColumn: Integer; const ARect: TfpgRect);
+    procedure DrawStatusGlyph(ACell: TNXTreeViewCell;
+      const ARect: TfpgRect);
+    procedure EnsureSelectedVisible;
+    procedure ExpandNode(ANode: TNXTreeViewNode);
+    function GetContentTop: Integer;
+    function GetDefaultLineHeight: Integer;
+    function GetNodeGlyphRect(ANode: TNXTreeViewNode;
+      const ACellRect: TfpgRect): TfpgRect;
+    procedure HandleDoubleClick(AX, AY: Integer; AButton: Word;
+      AShiftState: TShiftState); override;
+    procedure HandleKeyPress(var AKeyCode: Word;
+      var AShiftState: TShiftState; var AConsumed: Boolean); override;
+    procedure HandleLMouseDown(AX, AY: Integer;
+      AShiftState: TShiftState); override;
+    procedure HandleMouseHorizScroll(AX, AY: Integer;
+      AShiftState: TShiftState; ADelta: SmallInt); override;
+    procedure HandleMouseScroll(AX, AY: Integer;
+      AShiftState: TShiftState; ADelta: SmallInt); override;
+    procedure HandlePaint; override;
+    procedure HandleResize(AWidth, AHeight: TfpgCoord); override;
+    procedure RebuildVisibleNodes;
+    procedure SelectNode(ANode: TNXTreeViewNode; AColumn: Integer = 0);
+    procedure ToggleNode(ANode: TNXTreeViewNode);
   public
-    constructor Create(const AParent: INXControlParent); overload; override;
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-
-    function AddChildNode(AParentNode: TNXTreeViewNode; const AText: string = ''; AData: Pointer = nil): TNXTreeViewNode; virtual;
-    function AddColumn(const ACaption: string; AWidth: Integer = 0): TNXTreeViewColumn; virtual;
-    function AddNode(const AText: string = ''; AData: Pointer = nil): TNXTreeViewNode; virtual;
-    procedure Clear; virtual;
-    procedure ClearColumns; virtual;
-    procedure CollapseAll; virtual;
-    procedure ExpandAll; virtual;
-    procedure NodeChanged(ANode: TNXTreeViewNode); virtual;
-
+    function AddChildNode(AParentNode: TNXTreeViewNode;
+      const AText: string = ''; AData: Pointer = nil): TNXTreeViewNode;
+    function AddColumn(const ACaption: string;
+      AWidth: Integer = 0): TNXTreeViewColumn;
+    function AddNode(const AText: string = '';
+      AData: Pointer = nil): TNXTreeViewNode;
+    procedure Clear;
+    procedure ClearColumns;
+    procedure CollapseAll;
+    procedure ExpandAll;
+    procedure NodeChanged(ANode: TNXTreeViewNode);
     property Columns: TNXTreeViewColumnList read FColumns;
-    property DefaultColumnWidth: Integer read FDefaultColumnWidth write FDefaultColumnWidth;
+    property DefaultColumnWidth: Integer read FDefaultColumnWidth
+      write FDefaultColumnWidth;
     property HeaderHeight: Integer read FHeaderHeight write SetHeaderHeight;
     property IndentWidth: Integer read FIndentWidth write SetIndentWidth;
     property LineHeight: Integer read FLineHeight write SetLineHeight;
-    property OnCellActivate: TNXTreeViewCellEvent read FOnCellActivate write FOnCellActivate;
-    property OnCellClick: TNXTreeViewCellEvent read FOnCellClick write FOnCellClick;
+    property OnCellActivate: TNXTreeViewCellEvent read FOnCellActivate
+      write FOnCellActivate;
+    property OnCellClick: TNXTreeViewCellEvent read FOnCellClick
+      write FOnCellClick;
     property OnChange: TNXTreeViewNodeEvent read FOnChange write FOnChange;
-    property OnCollapsed: TNXTreeViewNodeEvent read FOnCollapsed write FOnCollapsed;
-    property OnColumnClick: TNXTreeViewColumnEvent read FOnColumnClick write FOnColumnClick;
-    property OnExpanded: TNXTreeViewNodeEvent read FOnExpanded write FOnExpanded;
+    property OnCollapsed: TNXTreeViewNodeEvent read FOnCollapsed
+      write FOnCollapsed;
+    property OnColumnClick: TNXTreeViewColumnEvent read FOnColumnClick
+      write FOnColumnClick;
+    property OnExpanded: TNXTreeViewNodeEvent read FOnExpanded
+      write FOnExpanded;
     property RootNodes: TNXTreeViewRootList read FRootNodes;
     property SelectedColumn: Integer read FSelectedColumn;
-    property SelectedNode: TNXTreeViewNode read FSelectedNode write SetSelectedNode;
-    property ShowColumnHeaders: Boolean read FShowColumnHeaders write SetShowColumnHeaders;
+    property SelectedNode: TNXTreeViewNode read FSelectedNode
+      write SetSelectedNode;
+    property ShowColumnHeaders: Boolean read FShowColumnHeaders
+      write SetShowColumnHeaders;
     property ShowGridLines: Boolean read FShowGridLines write FShowGridLines;
   end;
 
@@ -245,8 +254,9 @@ const
   cDefaultIndentWidth = 18;
   cDefaultLineHeight = 22;
   cCellPaddingX = 4;
-  cGlyphSize = 9;
+  cExpandGlyphSize = 9;
   cStatusGlyphSize = 10;
+  cScrollBarSize = 16;
 
 constructor TNXTreeViewCell.Create;
 begin
@@ -257,9 +267,9 @@ end;
 procedure TNXTreeViewCell.Clear;
 begin
   FAlign := tvcaLeft;
-  FBackColor := MakeNXColor(0, 0, 0, 0);
-  FForeColor := MakeNXColor(0, 0, 0, 0);
-  FGlyphColor := MakeNXColor(128, 128, 128, 255);
+  FBackColor := clNone;
+  FForeColor := clNone;
+  FGlyphColor := clNone;
   FGlyphKind := tvgkNone;
   FImage := nil;
   FImageHeight := 0;
@@ -280,65 +290,55 @@ begin
   FWidth := Max(FMinWidth, AWidth);
 end;
 
-procedure TNXTreeViewColumn.InvalidateOwnerContentSize;
+procedure TNXTreeViewColumn.Changed;
 begin
   if Assigned(FOwner) then
-    FOwner.InvalidateContentSize;
+    FOwner.LayoutChanged;
 end;
 
 procedure TNXTreeViewColumn.SetMinWidth(AValue: Integer);
 begin
-  AValue := Max(8, AValue);
-  if FMinWidth = AValue then
-    Exit;
-
+  AValue := Max(0, AValue);
+  if FMinWidth = AValue then Exit;
   FMinWidth := AValue;
-  if FWidth < FMinWidth then
-  begin
-    FWidth := FMinWidth;
-    InvalidateOwnerContentSize;
-  end;
+  FWidth := Max(FWidth, FMinWidth);
+  Changed;
+end;
+
+procedure TNXTreeViewColumn.SetVisible(AValue: Boolean);
+begin
+  if FVisible = AValue then Exit;
+  FVisible := AValue;
+  Changed;
 end;
 
 procedure TNXTreeViewColumn.SetWidth(AValue: Integer);
 begin
   AValue := Max(FMinWidth, AValue);
-  if FWidth = AValue then
-    Exit;
-
+  if FWidth = AValue then Exit;
   FWidth := AValue;
-  InvalidateOwnerContentSize;
-end;
-
-procedure TNXTreeViewColumn.SetVisible(AValue: Boolean);
-begin
-  if FVisible = AValue then
-    Exit;
-
-  FVisible := AValue;
-  InvalidateOwnerContentSize;
+  Changed;
 end;
 
 constructor TNXTreeViewNode.Create(const AText: string; AData: Pointer);
 begin
   inherited Create;
-  FCells := TNXTreeViewCellListBase.Create(True);
-  FChildren := TNXTreeViewNodeListBase.Create(True);
+  FCells := TNXTreeViewCellList.Create(True);
+  FChildren := TNXTreeViewNodeList.Create(True);
   FData := AData;
-  FExpanded := False;
-  FParent := nil;
-  FSelected := False;
-  Text := AText;
+  EnsureCellCount(1);
+  FCells[0].Text := AText;
 end;
 
 destructor TNXTreeViewNode.Destroy;
 begin
-  FreeAndNil(FChildren);
-  FreeAndNil(FCells);
+  FChildren.Free;
+  FCells.Free;
   inherited Destroy;
 end;
 
-function TNXTreeViewNode.AddChild(const AText: string; AData: Pointer): TNXTreeViewNode;
+function TNXTreeViewNode.AddChild(const AText: string;
+  AData: Pointer): TNXTreeViewNode;
 begin
   Result := TNXTreeViewNode.Create(AText, AData);
   Result.FParent := Self;
@@ -359,27 +359,15 @@ function TNXTreeViewNode.Contains(ANode: TNXTreeViewNode): Boolean;
 var
   lIndex: Integer;
 begin
+  if Self = ANode then Exit(True);
+  for lIndex := 0 to FChildren.Count - 1 do
+    if FChildren[lIndex].Contains(ANode) then Exit(True);
   Result := False;
-  if ANode = Self then
-  begin
-    Result := True;
-    Exit;
-  end;
-
-  for lIndex := 0 to ChildCount - 1 do
-  begin
-    if Child[lIndex].Contains(ANode) then
-    begin
-      Result := True;
-      Exit;
-    end;
-  end;
 end;
 
 procedure TNXTreeViewNode.EnsureCellCount(ACount: Integer);
 begin
-  while FCells.Count < ACount do
-    FCells.Add(TNXTreeViewCell.Create);
+  while FCells.Count < ACount do FCells.Add(TNXTreeViewCell.Create);
 end;
 
 function TNXTreeViewNode.GetCell(AIndex: Integer): TNXTreeViewCell;
@@ -409,7 +397,7 @@ var
 begin
   Result := 0;
   lNode := FParent;
-  while lNode <> nil do
+  while Assigned(lNode) do
   begin
     Inc(Result);
     lNode := lNode.Parent;
@@ -431,81 +419,88 @@ begin
   Cell[0].Text := AValue;
 end;
 
-function TNXTreeViewRootList.AddNode(const AText: string; AData: Pointer): TNXTreeViewNode;
+function TNXTreeViewRootList.AddNode(const AText: string;
+  AData: Pointer): TNXTreeViewNode;
 begin
   Result := TNXTreeViewNode.Create(AText, AData);
   Add(Result);
 end;
 
-function TNXTreeViewColumnList.AddColumn(const ACaption: string; AWidth: Integer): TNXTreeViewColumn;
+function TNXTreeViewColumnList.AddColumn(const ACaption: string;
+  AWidth: Integer): TNXTreeViewColumn;
 begin
   Result := TNXTreeViewColumn.Create(ACaption, AWidth);
   Add(Result);
 end;
 
-constructor TNXTreeView.Create(const AParent: INXControlParent);
+constructor TNXTreeView.Create(AOwner: TComponent);
 var
   lColumn: TNXTreeViewColumn;
 begin
-  inherited Create(AParent);
-
-  BorderStyle := BS_Single;
-  CanFocus := True;
+  inherited Create(AOwner);
+  BackgroundColor := clListBox;
+  Focusable := True;
   FColumns := TNXTreeViewColumnList.Create(True);
   FDefaultColumnWidth := cDefaultColumnWidth;
+  FFont := fpgApplication.FontManager.GetFont('#Label1');
   FHeaderHeight := cDefaultHeaderHeight;
   FIndentWidth := cDefaultIndentWidth;
-  FLineHeight := cDefaultLineHeight;
+  FLineHeight := GetDefaultLineHeight;
   FRootNodes := TNXTreeViewRootList.Create(True);
   FSelectedColumn := -1;
-  FSelectedNode := nil;
   FShowColumnHeaders := True;
   FShowGridLines := True;
   FVisibleNodes := TNXTreeViewVisibleNodeList.Create;
   lColumn := FColumns.AddColumn('Name', FDefaultColumnWidth);
   lColumn.FOwner := Self;
-  InvalidateContentSize;
+  FHorizontalScrollBar := TfpgScrollbar.Create(Self);
+  FHorizontalScrollBar.Orientation := orHorizontal;
+  FHorizontalScrollBar.OnScroll := @HorizontalScroll;
+  FHorizontalScrollBar.Visible := False;
+  FVerticalScrollBar := TfpgScrollbar.Create(Self);
+  FVerticalScrollBar.Orientation := orVertical;
+  FVerticalScrollBar.OnScroll := @VerticalScroll;
+  FVerticalScrollBar.Visible := False;
+  Width := 500;
+  Height := 250;
 end;
 
 destructor TNXTreeView.Destroy;
 begin
-  FreeAndNil(FVisibleNodes);
-  FreeAndNil(FRootNodes);
-  FreeAndNil(FColumns);
+  FFont := nil;
+  FVisibleNodes.Free;
+  FRootNodes.Free;
+  FColumns.Free;
   inherited Destroy;
 end;
 
-function TNXTreeView.AddChildNode(AParentNode: TNXTreeViewNode; const AText: string; AData: Pointer): TNXTreeViewNode;
+function TNXTreeView.AddChildNode(AParentNode: TNXTreeViewNode;
+  const AText: string; AData: Pointer): TNXTreeViewNode;
 begin
   if Assigned(AParentNode) then
     Result := AParentNode.AddChild(AText, AData)
   else
     Result := FRootNodes.AddNode(AText, AData);
-
   Result.EnsureCellCount(Max(1, FColumns.Count));
-  InvalidateContentSize;
+  LayoutChanged;
 end;
 
-function TNXTreeView.AddColumn(const ACaption: string; AWidth: Integer): TNXTreeViewColumn;
-var
-  lWidth: Integer;
+function TNXTreeView.AddColumn(const ACaption: string;
+  AWidth: Integer): TNXTreeViewColumn;
 begin
-  if AWidth <= 0 then
-    lWidth := FDefaultColumnWidth
-  else
-    lWidth := AWidth;
-
-  Result := FColumns.AddColumn(ACaption, lWidth);
+  if AWidth <= 0 then AWidth := FDefaultColumnWidth;
+  Result := FColumns.AddColumn(ACaption, AWidth);
   Result.FOwner := Self;
-  InvalidateContentSize;
+  LayoutChanged;
 end;
 
-function TNXTreeView.AddNode(const AText: string; AData: Pointer): TNXTreeViewNode;
+function TNXTreeView.AddNode(const AText: string;
+  AData: Pointer): TNXTreeViewNode;
 begin
   Result := AddChildNode(nil, AText, AData);
 end;
 
-procedure TNXTreeView.AddVisibleNodes(ANodes: TNXTreeViewNodeListBase);
+procedure TNXTreeView.AddVisibleNodes(ANodes: TNXTreeViewNodeList);
 var
   lIndex: Integer;
   lNode: TNXTreeViewNode;
@@ -514,9 +509,37 @@ begin
   begin
     lNode := ANodes[lIndex];
     FVisibleNodes.Add(lNode);
-    if lNode.Expanded then
-      AddVisibleNodes(lNode.FChildren);
+    if lNode.Expanded then AddVisibleNodes(lNode.FChildren);
   end;
+end;
+
+function TNXTreeView.CellAt(AX, AY: Integer; out AColumn: Integer;
+  out ANode: TNXTreeViewNode): Boolean;
+var
+  lRow: Integer;
+  lViewport: TfpgRect;
+begin
+  Result := False;
+  ANode := nil;
+  UpdateLayout;
+  lViewport := GetViewportRect;
+  if not lViewport.PointInRect(Point(AX, AY)) then Exit;
+  if FShowColumnHeaders and (AY < lViewport.Top + FHeaderHeight) then Exit;
+  if not ColumnAt(AX, AColumn) then Exit;
+  lRow := (AY - lViewport.Top - GetContentTop + FScrollY) div FLineHeight;
+  if (lRow < 0) or (lRow >= FVisibleNodes.Count) then Exit;
+  ANode := FVisibleNodes[lRow];
+  Result := True;
+end;
+
+function TNXTreeView.CellRect(AColumn, AVisibleIndex: Integer): TfpgRect;
+var
+  lViewport: TfpgRect;
+begin
+  lViewport := GetViewportRect;
+  Result.SetRect(lViewport.Left + ColumnLeft(AColumn) - FScrollX,
+    lViewport.Top + GetContentTop + AVisibleIndex * FLineHeight - FScrollY,
+    FColumns[AColumn].Width, FLineHeight);
 end;
 
 procedure TNXTreeView.Clear;
@@ -524,86 +547,462 @@ begin
   FSelectedColumn := -1;
   FSelectedNode := nil;
   FRootNodes.Clear;
-  FVisibleNodes.Clear;
-  InvalidateContentSize;
+  LayoutChanged;
 end;
 
 procedure TNXTreeView.ClearColumns;
 begin
   FColumns.Clear;
   FSelectedColumn := -1;
-  InvalidateContentSize;
+  LayoutChanged;
 end;
 
 procedure TNXTreeView.CollapseAll;
-var
-  lIndex: Integer;
-
-  procedure CollapseChildren(ANode: TNXTreeViewNode);
-  var
-    lChildIndex: Integer;
+  procedure CollapseNodeAndChildren(ANode: TNXTreeViewNode);
+  var lIndex: Integer;
   begin
     ANode.Expanded := False;
-    for lChildIndex := 0 to ANode.ChildCount - 1 do
-      CollapseChildren(ANode.Child[lChildIndex]);
+    for lIndex := 0 to ANode.ChildCount - 1 do
+      CollapseNodeAndChildren(ANode.Child[lIndex]);
   end;
-
+var lIndex: Integer;
 begin
   for lIndex := 0 to FRootNodes.Count - 1 do
-    CollapseChildren(FRootNodes[lIndex]);
+    CollapseNodeAndChildren(FRootNodes[lIndex]);
+  LayoutChanged;
+end;
 
-  InvalidateContentSize;
-  EnsureSelectedVisible;
+procedure TNXTreeView.CollapseNode(ANode: TNXTreeViewNode);
+begin
+  if not Assigned(ANode) or not ANode.Expanded then Exit;
+  ANode.Expanded := False;
+  if ANode.Contains(FSelectedNode) and (ANode <> FSelectedNode) then
+    SelectNode(ANode, FSelectedColumn);
+  LayoutChanged;
+  if Assigned(FOnCollapsed) then FOnCollapsed(Self, ANode);
+end;
+
+function TNXTreeView.ColumnAt(AX: Integer; out AColumn: Integer): Boolean;
+var
+  lIndex, lLeft, lX: Integer;
+begin
+  lX := AX - GetViewportRect.Left + FScrollX;
+  lLeft := 0;
+  for lIndex := 0 to FColumns.Count - 1 do
+    if FColumns[lIndex].Visible then
+    begin
+      if (lX >= lLeft) and (lX < lLeft + FColumns[lIndex].Width) then
+      begin
+        AColumn := lIndex;
+        Exit(True);
+      end;
+      Inc(lLeft, FColumns[lIndex].Width);
+    end;
+  AColumn := -1;
+  Result := False;
+end;
+
+function TNXTreeView.ColumnLeft(AColumn: Integer): Integer;
+var lIndex: Integer;
+begin
+  Result := 0;
+  for lIndex := 0 to AColumn - 1 do
+    if FColumns[lIndex].Visible then Inc(Result, FColumns[lIndex].Width);
+end;
+
+procedure TNXTreeView.DrawCell(ANode: TNXTreeViewNode; AColumn: Integer;
+  const ARect: TfpgRect);
+var lCell: TNXTreeViewCell;
+begin
+  lCell := ANode.Cell[AColumn];
+  if ANode = FSelectedNode then
+    if Focused then Canvas.SetColor(clSelection)
+    else Canvas.SetColor(clInactiveSel)
+  else if lCell.UseBackColor then Canvas.SetColor(lCell.BackColor)
+  else Canvas.SetColor(clListBox);
+  Canvas.FillRectangle(ARect);
+  DrawCellContent(ANode, AColumn, ARect);
+  if FShowGridLines then
+  begin
+    Canvas.SetColor(clGridLines);
+    Canvas.DrawLine(ARect.Left, ARect.Bottom - 1,
+      ARect.Right - 1, ARect.Bottom - 1);
+    Canvas.DrawLine(ARect.Right - 1, ARect.Top,
+      ARect.Right - 1, ARect.Bottom - 1);
+  end;
+end;
+
+procedure TNXTreeView.DrawCellContent(ANode: TNXTreeViewNode;
+  AColumn: Integer; const ARect: TfpgRect);
+var
+  lCell: TNXTreeViewCell;
+  lColor: TfpgColor;
+  lContent, lGlyph: TfpgRect;
+  lImageHeight, lImageWidth: Integer;
+begin
+  lCell := ANode.Cell[AColumn];
+  lContent := ARect;
+  Inc(lContent.Left, cCellPaddingX);
+  Dec(lContent.Width, cCellPaddingX * 2);
+  if AColumn = 0 then
+  begin
+    lGlyph := GetNodeGlyphRect(ANode, ARect);
+    DrawExpandGlyph(ANode, lGlyph);
+    lContent.Left := lGlyph.Right + cCellPaddingX;
+    lContent.Width := Max(0, ARect.Right - lContent.Left - cCellPaddingX);
+  end;
+  if lCell.GlyphKind <> tvgkNone then
+  begin
+    lGlyph.SetRect(lContent.Left, lContent.Top +
+      Max(0, (lContent.Height - cStatusGlyphSize) div 2),
+      cStatusGlyphSize, cStatusGlyphSize);
+    DrawStatusGlyph(lCell, lGlyph);
+    Inc(lContent.Left, cStatusGlyphSize + cCellPaddingX);
+    Dec(lContent.Width, cStatusGlyphSize + cCellPaddingX);
+  end;
+  if Assigned(lCell.Image) then
+  begin
+    lImageWidth := lCell.ImageWidth;
+    lImageHeight := lCell.ImageHeight;
+    if lImageWidth <= 0 then lImageWidth := lCell.Image.Width;
+    if lImageHeight <= 0 then lImageHeight := lCell.Image.Height;
+    Canvas.DrawImage(lContent.Left, lContent.Top +
+      Max(0, (lContent.Height - lImageHeight) div 2), lCell.Image);
+    Inc(lContent.Left, lImageWidth + cCellPaddingX);
+    Dec(lContent.Width, lImageWidth + cCellPaddingX);
+  end;
+  if (lCell.Text = '') or (lContent.Width <= 0) then Exit;
+  if ANode = FSelectedNode then
+    if Focused then lColor := clSelectionText
+    else lColor := clInactiveSelText
+  else if lCell.UseForeColor then lColor := lCell.ForeColor
+  else lColor := TextColor;
+  DrawCellText(lCell.Text, lContent, lCell.Align, lColor);
+end;
+
+procedure TNXTreeView.DrawCellText(const AText: string;
+  const ARect: TfpgRect; AAlign: TNXTreeViewCellAlign; AColor: TfpgColor);
+var lTextWidth, lTextX, lTextY: Integer;
+begin
+  if AText = '' then Exit;
+  lTextWidth := FFont.GetTextWidth(AText);
+  case AAlign of
+    tvcaCenter: lTextX := ARect.Left + (ARect.Width - lTextWidth) div 2;
+    tvcaRight: lTextX := ARect.Right - lTextWidth - cCellPaddingX;
+  else
+    lTextX := ARect.Left;
+  end;
+  lTextY := ARect.Top + Max(0, (ARect.Height - FFont.GetHeight) div 2);
+  Canvas.SetTextColor(AColor);
+  Canvas.DrawString(lTextX, lTextY, AText);
+end;
+
+procedure TNXTreeView.DrawExpandGlyph(ANode: TNXTreeViewNode;
+  const ARect: TfpgRect);
+var lCenterX, lCenterY: Integer;
+begin
+  if not ANode.HasChildren then Exit;
+  Canvas.SetColor(TextColor);
+  Canvas.DrawRectangle(ARect);
+  lCenterX := ARect.Left + ARect.Width div 2;
+  lCenterY := ARect.Top + ARect.Height div 2;
+  Canvas.DrawLine(ARect.Left + 2, lCenterY, ARect.Right - 3, lCenterY);
+  if not ANode.Expanded then
+    Canvas.DrawLine(lCenterX, ARect.Top + 2, lCenterX, ARect.Bottom - 3);
+end;
+
+procedure TNXTreeView.DrawHeader(AColumn: Integer; const ARect: TfpgRect);
+begin
+  Canvas.SetColor(clGridHeader);
+  Canvas.FillRectangle(ARect);
+  DrawCellText(FColumns[AColumn].Caption, ARect,
+    FColumns[AColumn].Align, clText1);
+  Canvas.SetColor(clGridLines);
+  Canvas.DrawLine(ARect.Left, ARect.Bottom - 1,
+    ARect.Right - 1, ARect.Bottom - 1);
+  Canvas.DrawLine(ARect.Right - 1, ARect.Top,
+    ARect.Right - 1, ARect.Bottom - 1);
+end;
+
+procedure TNXTreeView.DrawStatusGlyph(ACell: TNXTreeViewCell;
+  const ARect: TfpgRect);
+begin
+  if ACell.UseGlyphColor then Canvas.SetColor(ACell.GlyphColor)
+  else Canvas.SetColor(TextColor);
+  case ACell.GlyphKind of
+    tvgkCircle: Canvas.FillArc(ARect.Left, ARect.Top,
+      ARect.Width, ARect.Height, 0, 360);
+    tvgkSquare: Canvas.FillRectangle(ARect);
+  end;
+end;
+
+procedure TNXTreeView.EnsureSelectedVisible;
+var lIndex, lTop, lBottom, lHeight: Integer;
+begin
+  UpdateLayout;
+  if not Assigned(FSelectedNode) then Exit;
+  lIndex := FVisibleNodes.IndexOf(FSelectedNode);
+  if lIndex < 0 then Exit;
+  lTop := lIndex * FLineHeight;
+  lBottom := lTop + FLineHeight;
+  lHeight := GetViewportRect.Height - GetContentTop;
+  if lTop < FScrollY then FScrollY := lTop
+  else if lBottom > FScrollY + lHeight then FScrollY := lBottom - lHeight;
+  UpdateScrollBars;
 end;
 
 procedure TNXTreeView.ExpandAll;
-var
-  lIndex: Integer;
-
-  procedure ExpandChildren(ANode: TNXTreeViewNode);
-  var
-    lChildIndex: Integer;
+  procedure ExpandNodeAndChildren(ANode: TNXTreeViewNode);
+  var lIndex: Integer;
   begin
-    if ANode.HasChildren then
-      ANode.Expanded := True;
-    for lChildIndex := 0 to ANode.ChildCount - 1 do
-      ExpandChildren(ANode.Child[lChildIndex]);
+    ANode.Expanded := ANode.HasChildren;
+    for lIndex := 0 to ANode.ChildCount - 1 do
+      ExpandNodeAndChildren(ANode.Child[lIndex]);
   end;
-
+var lIndex: Integer;
 begin
   for lIndex := 0 to FRootNodes.Count - 1 do
-    ExpandChildren(FRootNodes[lIndex]);
+    ExpandNodeAndChildren(FRootNodes[lIndex]);
+  LayoutChanged;
+end;
 
-  InvalidateContentSize;
-  EnsureSelectedVisible;
+procedure TNXTreeView.ExpandNode(ANode: TNXTreeViewNode);
+begin
+  if not Assigned(ANode) or not ANode.HasChildren or ANode.Expanded then Exit;
+  ANode.Expanded := True;
+  LayoutChanged;
+  if Assigned(FOnExpanded) then FOnExpanded(Self, ANode);
+end;
+
+function TNXTreeView.GetContentTop: Integer;
+begin
+  if FShowColumnHeaders then Result := FHeaderHeight else Result := 0;
+end;
+
+function TNXTreeView.GetDefaultLineHeight: Integer;
+begin
+  if Assigned(FFont) then Result := Max(cDefaultLineHeight, FFont.GetHeight + 6)
+  else Result := cDefaultLineHeight;
+end;
+
+function TNXTreeView.GetNodeGlyphRect(ANode: TNXTreeViewNode;
+  const ACellRect: TfpgRect): TfpgRect;
+begin
+  Result.SetRect(ACellRect.Left + cCellPaddingX +
+    ANode.Level * FIndentWidth,
+    ACellRect.Top + Max(0, (ACellRect.Height - cExpandGlyphSize) div 2),
+    cExpandGlyphSize, cExpandGlyphSize);
 end;
 
 function TNXTreeView.GetTotalColumnWidth: Integer;
-var
-  lIndex: Integer;
+var lIndex: Integer;
 begin
   Result := 0;
   for lIndex := 0 to FColumns.Count - 1 do
-    if FColumns[lIndex].Visible then
-      Inc(Result, FColumns[lIndex].Width);
+    if FColumns[lIndex].Visible then Inc(Result, FColumns[lIndex].Width);
+end;
+
+function TNXTreeView.GetViewportRect: TfpgRect;
+begin
+  Result.SetRect(2, 2, Max(0, ActualWidth - 4), Max(0, ActualHeight - 4));
+  if FVerticalScrollBar.Visible then Dec(Result.Width, cScrollBarSize);
+  if FHorizontalScrollBar.Visible then Dec(Result.Height, cScrollBarSize);
+end;
+
+procedure TNXTreeView.HandleDoubleClick(AX, AY: Integer; AButton: Word;
+  AShiftState: TShiftState);
+var lColumn: Integer; lNode: TNXTreeViewNode;
+begin
+  inherited HandleDoubleClick(AX, AY, AButton, AShiftState);
+  if CellAt(AX, AY, lColumn, lNode) and Assigned(FOnCellActivate) then
+    FOnCellActivate(Self, lNode, lColumn);
+end;
+
+procedure TNXTreeView.HandleKeyPress(var AKeyCode: Word;
+  var AShiftState: TShiftState; var AConsumed: Boolean);
+var lIndex: Integer; lNode: TNXTreeViewNode;
+begin
+  inherited HandleKeyPress(AKeyCode, AShiftState, AConsumed);
+  if AConsumed then Exit;
+  UpdateLayout;
+  lIndex := FVisibleNodes.IndexOf(FSelectedNode);
+  case AKeyCode of
+    keyUp: if lIndex > 0 then SelectNode(FVisibleNodes[lIndex - 1], FSelectedColumn);
+    keyDown:
+      if (lIndex >= 0) and (lIndex < FVisibleNodes.Count - 1) then
+        SelectNode(FVisibleNodes[lIndex + 1], FSelectedColumn)
+      else if (lIndex < 0) and (FVisibleNodes.Count > 0) then
+        SelectNode(FVisibleNodes[0], 0);
+    keyHome: if FVisibleNodes.Count > 0 then SelectNode(FVisibleNodes[0], FSelectedColumn);
+    keyEnd: if FVisibleNodes.Count > 0 then SelectNode(FVisibleNodes[FVisibleNodes.Count - 1], FSelectedColumn);
+    keyLeft:
+      begin
+        lNode := FSelectedNode;
+        if Assigned(lNode) then
+          if lNode.Expanded then CollapseNode(lNode)
+          else if Assigned(lNode.Parent) then SelectNode(lNode.Parent, FSelectedColumn);
+      end;
+    keyRight:
+      begin
+        lNode := FSelectedNode;
+        if Assigned(lNode) then
+          if lNode.HasChildren and not lNode.Expanded then ExpandNode(lNode)
+          else if lNode.HasChildren then SelectNode(lNode.Child[0], FSelectedColumn);
+      end;
+    keyEnter:
+      if Assigned(FSelectedNode) and Assigned(FOnCellActivate) then
+        FOnCellActivate(Self, FSelectedNode, Max(0, FSelectedColumn));
+  else
+    Exit;
+  end;
+  AConsumed := True;
+end;
+
+procedure TNXTreeView.HandleLMouseDown(AX, AY: Integer;
+  AShiftState: TShiftState);
+var
+  lCell, lGlyph: TfpgRect;
+  lColumn, lIndex: Integer;
+  lNode: TNXTreeViewNode;
+begin
+  inherited HandleLMouseDown(AX, AY, AShiftState);
+  SetFocus;
+  UpdateLayout;
+  if FShowColumnHeaders and (AY < GetViewportRect.Top + FHeaderHeight) then
+  begin
+    if ColumnAt(AX, lColumn) and Assigned(FOnColumnClick) then
+      FOnColumnClick(Self, lColumn);
+    Exit;
+  end;
+  if not CellAt(AX, AY, lColumn, lNode) then Exit;
+  SelectNode(lNode, lColumn);
+  if Assigned(FOnCellClick) then FOnCellClick(Self, lNode, lColumn);
+  if lColumn <> 0 then Exit;
+  lIndex := FVisibleNodes.IndexOf(lNode);
+  lCell := CellRect(0, lIndex);
+  lGlyph := GetNodeGlyphRect(lNode, lCell);
+  if lGlyph.PointInRect(Point(AX, AY)) then ToggleNode(lNode);
+end;
+
+procedure TNXTreeView.HandleMouseHorizScroll(AX, AY: Integer;
+  AShiftState: TShiftState; ADelta: SmallInt);
+begin
+  inherited HandleMouseHorizScroll(AX, AY, AShiftState, ADelta);
+  FScrollX := EnsureRange(FScrollX - ADelta * FIndentWidth,
+    0, FHorizontalScrollBar.Max);
+  FHorizontalScrollBar.Position := FScrollX;
+  Invalidate;
+end;
+
+procedure TNXTreeView.HandleMouseScroll(AX, AY: Integer;
+  AShiftState: TShiftState; ADelta: SmallInt);
+begin
+  inherited HandleMouseScroll(AX, AY, AShiftState, ADelta);
+  FScrollY := EnsureRange(FScrollY - ADelta * FLineHeight,
+    0, FVerticalScrollBar.Max);
+  FVerticalScrollBar.Position := FScrollY;
+  Invalidate;
+end;
+
+procedure TNXTreeView.HandlePaint;
+var
+  lColumn, lFirst, lLast, lLine: Integer;
+  lRect, lViewport: TfpgRect;
+begin
+  inherited HandlePaint;
+  UpdateLayout;
+  Canvas.SetFont(FFont);
+  fpgStyle.DrawControlFrame(Canvas, 0, 0, ActualWidth, ActualHeight);
+  lViewport := GetViewportRect;
+  Canvas.SetClipRect(lViewport);
+  if FShowColumnHeaders then
+    for lColumn := 0 to FColumns.Count - 1 do
+      if FColumns[lColumn].Visible then
+      begin
+        lRect.SetRect(lViewport.Left + ColumnLeft(lColumn) - FScrollX,
+          lViewport.Top, FColumns[lColumn].Width, FHeaderHeight);
+        if (lRect.Right > lViewport.Left) and (lRect.Left < lViewport.Right) then
+          DrawHeader(lColumn, lRect);
+      end;
+  lFirst := Max(0, FScrollY div FLineHeight);
+  lLast := Min(FVisibleNodes.Count - 1,
+    (FScrollY + lViewport.Height - GetContentTop) div FLineHeight + 1);
+  for lLine := lFirst to lLast do
+    for lColumn := 0 to FColumns.Count - 1 do
+      if FColumns[lColumn].Visible then
+      begin
+        lRect := CellRect(lColumn, lLine);
+        if (lRect.Right > lViewport.Left) and (lRect.Left < lViewport.Right) and
+          (lRect.Bottom > lViewport.Top + GetContentTop) and
+          (lRect.Top < lViewport.Bottom) then
+          DrawCell(FVisibleNodes[lLine], lColumn, lRect);
+      end;
+  Canvas.ClearClipRect;
+end;
+
+procedure TNXTreeView.HandleResize(AWidth, AHeight: TfpgCoord);
+begin
+  inherited HandleResize(AWidth, AHeight);
+  UpdateScrollBars;
+end;
+
+procedure TNXTreeView.HorizontalScroll(Sender: TObject; APosition: Integer);
+begin
+  FScrollX := APosition;
+  Invalidate;
+end;
+
+procedure TNXTreeView.LayoutChanged;
+begin
+  UpdateLayout;
+  Invalidate;
+end;
+
+procedure TNXTreeView.NodeChanged(ANode: TNXTreeViewNode);
+begin
+  LayoutChanged;
+end;
+
+procedure TNXTreeView.RebuildVisibleNodes;
+begin
+  FVisibleNodes.Clear;
+  AddVisibleNodes(FRootNodes);
+end;
+
+procedure TNXTreeView.SelectNode(ANode: TNXTreeViewNode; AColumn: Integer);
+begin
+  if (FSelectedNode = ANode) and (FSelectedColumn = AColumn) then Exit;
+  if Assigned(FSelectedNode) then FSelectedNode.Selected := False;
+  FSelectedNode := ANode;
+  FSelectedColumn := AColumn;
+  if Assigned(FSelectedNode) then FSelectedNode.Selected := True;
+  EnsureSelectedVisible;
+  Invalidate;
+  if Assigned(FOnChange) then FOnChange(Self, FSelectedNode);
 end;
 
 procedure TNXTreeView.SetHeaderHeight(AValue: Integer);
 begin
-  FHeaderHeight := Max(0, AValue);
-  InvalidateContentSize;
+  AValue := Max(0, AValue);
+  if FHeaderHeight = AValue then Exit;
+  FHeaderHeight := AValue;
+  LayoutChanged;
 end;
 
 procedure TNXTreeView.SetIndentWidth(AValue: Integer);
 begin
-  FIndentWidth := Max(4, AValue);
-  InvalidateContentSize;
+  AValue := Max(4, AValue);
+  if FIndentWidth = AValue then Exit;
+  FIndentWidth := AValue;
+  LayoutChanged;
 end;
 
 procedure TNXTreeView.SetLineHeight(AValue: Integer);
 begin
-  FLineHeight := Max(8, AValue);
-  InvalidateContentSize;
+  AValue := Max(8, AValue);
+  if FLineHeight = AValue then Exit;
+  FLineHeight := AValue;
+  LayoutChanged;
 end;
 
 procedure TNXTreeView.SetSelectedNode(AValue: TNXTreeViewNode);
@@ -613,631 +1012,75 @@ end;
 
 procedure TNXTreeView.SetShowColumnHeaders(AValue: Boolean);
 begin
-  if FShowColumnHeaders = AValue then
-    Exit;
-
+  if FShowColumnHeaders = AValue then Exit;
   FShowColumnHeaders := AValue;
-  InvalidateContentSize;
-end;
-
-function TNXTreeView.CellAt(AX, AY: Integer; out AColumn: Integer; out ANode: TNXTreeViewNode): Boolean;
-var
-  lContentY: Integer;
-  lRow: Integer;
-  lViewportRect: TNXRect;
-begin
-  Result := False;
-  AColumn := -1;
-  ANode := nil;
-  UpdateLayoutIfNeeded;
-
-  lViewportRect := ViewportRect;
-  if (AX < lViewportRect.x) or (AX >= lViewportRect.x + lViewportRect.w) or
-    (AY < lViewportRect.y) or (AY >= lViewportRect.y + lViewportRect.h) then
-    Exit;
-
-  if FShowColumnHeaders and (AY < lViewportRect.y + FHeaderHeight) then
-    Exit;
-
-  if not ColumnAt(AX, AY, AColumn) then
-    Exit;
-
-  lContentY := AY - lViewportRect.y - GetContentTop + ScrollY;
-  if FLineHeight <= 0 then
-    Exit;
-
-  lRow := lContentY div FLineHeight;
-  if (lRow < 0) or (lRow >= FVisibleNodes.Count) then
-    Exit;
-
-  ANode := FVisibleNodes[lRow];
-  Result := Assigned(ANode);
-end;
-
-function TNXTreeView.CellRect(AColumn, AVisibleIndex: Integer): TNXRect;
-begin
-  Result.x := ViewportRect.x + ColumnLeft(AColumn) - ScrollX;
-  Result.y := ViewportRect.y + GetContentTop + (AVisibleIndex * FLineHeight) - ScrollY;
-  Result.w := FColumns[AColumn].Width;
-  Result.h := FLineHeight;
-end;
-
-procedure TNXTreeView.CollapseNode(ANode: TNXTreeViewNode);
-begin
-  if not Assigned(ANode) then
-    Exit;
-
-  if not ANode.Expanded then
-    Exit;
-
-  ANode.Expanded := False;
-  InvalidateContentSize;
-  if ANode.Contains(FSelectedNode) and (ANode <> FSelectedNode) then
-    SelectNode(ANode, FSelectedColumn);
-
-  EnsureSelectedVisible;
-
-  if Assigned(FOnCollapsed) then
-    FOnCollapsed(Self, ANode);
-end;
-
-function TNXTreeView.ColumnAt(AX, AY: Integer; out AColumn: Integer): Boolean;
-var
-  lContentX: Integer;
-  lIndex: Integer;
-  lLeft: Integer;
-  lViewportRect: TNXRect;
-begin
-  Result := False;
-  AColumn := -1;
-  UpdateLayoutIfNeeded;
-
-  lViewportRect := ViewportRect;
-  if (AX < lViewportRect.x) or (AX >= lViewportRect.x + lViewportRect.w) or
-    (AY < lViewportRect.y) or (AY >= lViewportRect.y + lViewportRect.h) then
-    Exit;
-
-  lContentX := AX - lViewportRect.x + ScrollX;
-  lLeft := 0;
-  for lIndex := 0 to FColumns.Count - 1 do
-  begin
-    if not FColumns[lIndex].Visible then
-      Continue;
-
-    if (lContentX >= lLeft) and (lContentX < lLeft + FColumns[lIndex].Width) then
-    begin
-      AColumn := lIndex;
-      Result := True;
-      Exit;
-    end;
-    Inc(lLeft, FColumns[lIndex].Width);
-  end;
-end;
-
-function TNXTreeView.ColumnLeft(AColumn: Integer): Integer;
-var
-  lIndex: Integer;
-begin
-  Result := 0;
-  for lIndex := 0 to AColumn - 1 do
-    if FColumns[lIndex].Visible then
-      Inc(Result, FColumns[lIndex].Width);
-end;
-
-procedure TNXTreeView.DoCellActivate(ANode: TNXTreeViewNode; AColumn: Integer);
-begin
-  if Assigned(FOnCellActivate) then
-    FOnCellActivate(Self, ANode, AColumn);
-end;
-
-procedure TNXTreeView.DoCellClick(ANode: TNXTreeViewNode; AColumn: Integer);
-begin
-  if Assigned(FOnCellClick) then
-    FOnCellClick(Self, ANode, AColumn);
-end;
-
-procedure TNXTreeView.DoColumnClick(AColumn: Integer);
-begin
-  if Assigned(FOnColumnClick) then
-    FOnColumnClick(Self, AColumn);
-end;
-
-procedure TNXTreeView.DoKeyDown(const AEvent: TNXKeyEventData);
-var
-  lIndex: Integer;
-  lNode: TNXTreeViewNode;
-begin
-  inherited DoKeyDown(AEvent);
-
-  UpdateLayoutIfNeeded;
-  lIndex := FVisibleNodes.IndexOf(FSelectedNode);
-
-  case AEvent.Key of
-    nkUp:
-      if lIndex > 0 then
-        SelectNode(FVisibleNodes[lIndex - 1], FSelectedColumn);
-
-    nkDown:
-      if (lIndex >= 0) and (lIndex < FVisibleNodes.Count - 1) then
-        SelectNode(FVisibleNodes[lIndex + 1], FSelectedColumn)
-      else if (lIndex < 0) and (FVisibleNodes.Count > 0) then
-        SelectNode(FVisibleNodes[0], 0);
-
-    nkHome:
-      if FVisibleNodes.Count > 0 then
-        SelectNode(FVisibleNodes[0], FSelectedColumn);
-
-    nkEnd:
-      if FVisibleNodes.Count > 0 then
-        SelectNode(FVisibleNodes[FVisibleNodes.Count - 1], FSelectedColumn);
-
-    nkLeft:
-    begin
-      lNode := FSelectedNode;
-      if Assigned(lNode) then
-      begin
-        if lNode.Expanded then
-          CollapseNode(lNode)
-        else if Assigned(lNode.Parent) then
-          SelectNode(lNode.Parent, FSelectedColumn);
-      end;
-    end;
-
-    nkRight:
-    begin
-      lNode := FSelectedNode;
-      if Assigned(lNode) then
-      begin
-        if lNode.HasChildren and not lNode.Expanded then
-          ExpandNode(lNode)
-        else if lNode.HasChildren then
-          SelectNode(lNode.Child[0], FSelectedColumn);
-      end;
-    end;
-
-    nkEnter:
-      if Assigned(FSelectedNode) then
-        DoCellActivate(FSelectedNode, Max(0, FSelectedColumn));
-  end;
-end;
-
-procedure TNXTreeView.DoMouseDoubleClick(AX, AY: Integer; AButton: TNXMouseButton);
-var
-  lColumn: Integer;
-  lNode: TNXTreeViewNode;
-begin
-  inherited DoMouseDoubleClick(AX, AY, AButton);
-  if AButton <> mbLeft then
-    Exit;
-
-  if CellAt(AX, AY, lColumn, lNode) then
-    DoCellActivate(lNode, lColumn);
-end;
-
-procedure TNXTreeView.DoMouseDown(AX, AY: Integer; AButton: TNXMouseButton);
-var
-  lCellRect: TNXRect;
-  lColumn: Integer;
-  lGlyphRect: TNXRect;
-  lNode: TNXTreeViewNode;
-  lVisibleIndex: Integer;
-begin
-  inherited DoMouseDown(AX, AY, AButton);
-  if AButton <> mbLeft then
-    Exit;
-
-  if FShowColumnHeaders and (AY >= ViewportRect.y) and
-    (AY < ViewportRect.y + FHeaderHeight) then
-  begin
-    if ColumnAt(AX, AY, lColumn) then
-      DoColumnClick(lColumn);
-    Exit;
-  end;
-
-  if not CellAt(AX, AY, lColumn, lNode) then
-    Exit;
-
-  SelectNode(lNode, lColumn);
-  DoCellClick(lNode, lColumn);
-
-  if lColumn <> 0 then
-    Exit;
-
-  lVisibleIndex := FVisibleNodes.IndexOf(lNode);
-  if lVisibleIndex < 0 then
-    Exit;
-
-  lCellRect := CellRect(0, lVisibleIndex);
-  lGlyphRect := GetNodeGlyphRect(lNode, lVisibleIndex, lCellRect);
-  if (AX >= lGlyphRect.x) and (AX < lGlyphRect.x + lGlyphRect.w) and
-    (AY >= lGlyphRect.y) and (AY < lGlyphRect.y + lGlyphRect.h) then
-    ToggleNode(lNode);
-end;
-
-procedure TNXTreeView.DrawCell(ANode: TNXTreeViewNode; AColumn, AVisibleIndex: Integer; const ARect: TNXRect);
-var
-  lCell: TNXTreeViewCell;
-  lSelected: Boolean;
-begin
-  lCell := ANode.Cell[AColumn];
-  lSelected := ANode = FSelectedNode;
-
-  if lSelected then
-  begin
-    if IsFocused then
-      RenderFilledRect(ARect, Skin.SelectedColor)
-    else
-      RenderFilledRect(ARect, Skin.TextBackColor);
-  end
-  else if lCell.UseBackColor then
-    RenderFilledRect(ARect, lCell.BackColor)
-  else
-    RenderFilledRect(ARect, Skin.TextBackColor);
-
-  DrawCellContent(ANode, AColumn, ARect);
-
-  if FShowGridLines then
-  begin
-    RenderLine(ARect.x, ARect.y + ARect.h - 1,
-      ARect.x + ARect.w, ARect.y + ARect.h - 1, Skin.BorderColor);
-    RenderLine(ARect.x + ARect.w - 1, ARect.y,
-      ARect.x + ARect.w - 1, ARect.y + ARect.h, Skin.BorderColor);
-  end;
-end;
-
-procedure TNXTreeView.DrawCellContent(ANode: TNXTreeViewNode; AColumn: Integer; const ARect: TNXRect);
-var
-  lCell: TNXTreeViewCell;
-  lContentRect: TNXRect;
-  lColor: TNXColor;
-  lGlyphRect: TNXRect;
-  lImageHeight: Integer;
-  lImageRect: TNXRect;
-  lImageWidth: Integer;
-  lTextRect: TNXRect;
-begin
-  lCell := ANode.Cell[AColumn];
-  lContentRect := ARect;
-  Inc(lContentRect.x, cCellPaddingX);
-  Dec(lContentRect.w, cCellPaddingX * 2);
-
-  if AColumn = 0 then
-  begin
-    lGlyphRect := GetNodeGlyphRect(ANode, FVisibleNodes.IndexOf(ANode), ARect);
-    DrawExpandGlyph(ANode, lGlyphRect);
-    lContentRect.x := lGlyphRect.x + lGlyphRect.w + cCellPaddingX;
-    lContentRect.w := Max(0, ARect.x + ARect.w - lContentRect.x - cCellPaddingX);
-  end;
-
-  if lCell.GlyphKind <> tvgkNone then
-  begin
-    lGlyphRect := MakeNXRect(lContentRect.x,
-      lContentRect.y + Max(0, (lContentRect.h - cStatusGlyphSize) div 2),
-      cStatusGlyphSize, cStatusGlyphSize);
-    DrawStatusGlyph(lCell, lGlyphRect);
-    Inc(lContentRect.x, cStatusGlyphSize + cCellPaddingX);
-    Dec(lContentRect.w, cStatusGlyphSize + cCellPaddingX);
-  end;
-
-  if Assigned(lCell.Image) then
-  begin
-    lImageWidth := lCell.ImageWidth;
-    lImageHeight := lCell.ImageHeight;
-    if (lImageWidth <= 0) or (lImageHeight <= 0) then
-      Canvas.GetImageSize(lCell.Image, lImageWidth, lImageHeight);
-
-    if (lImageWidth > 0) and (lImageHeight > 0) then
-    begin
-      lImageRect := MakeNXRect(lContentRect.x,
-        lContentRect.y + Max(0, (lContentRect.h - lImageHeight) div 2),
-        lImageWidth, lImageHeight);
-      Canvas.DrawImage(lCell.Image, LocalRectToAbs(lImageRect));
-      Inc(lContentRect.x, lImageWidth + cCellPaddingX);
-      Dec(lContentRect.w, lImageWidth + cCellPaddingX);
-    end;
-  end;
-
-  if lCell.Text = '' then
-    Exit;
-
-  if lCell.UseForeColor then
-    lColor := lCell.ForeColor
-  else
-    lColor := ForeColor;
-
-  lTextRect := lContentRect;
-  if lTextRect.w <= 0 then
-    Exit;
-
-  DrawCellText(lCell.Text, lTextRect, lCell.Align, lColor);
-end;
-
-procedure TNXTreeView.DrawCellText(const AText: string; const ARect: TNXRect; AAlign: TNXTreeViewCellAlign; const AColor: TNXColor);
-var
-  lFont: TNXFont;
-  lTextWidth: Integer;
-  lTextX: Integer;
-  lTextY: Integer;
-  lClipRect: TNXRect;
-begin
-  if AText = '' then
-    Exit;
-
-  lFont := Font;
-  if not Assigned(lFont) then
-    Exit;
-
-  lTextWidth := Canvas.TextWidth(AText, lFont);
-  case AAlign of
-    tvcaCenter:
-      lTextX := ARect.x + (ARect.w div 2) - (lTextWidth div 2);
-    tvcaRight:
-      lTextX := ARect.x + ARect.w - lTextWidth - cCellPaddingX;
-  else
-    lTextX := ARect.x;
-  end;
-
-  lTextY := ARect.y + Max(0, (ARect.h - FontHeight) div 2);
-  lClipRect := LocalRectToAbs(ARect);
-  Canvas.PushClip(lClipRect);
-  try
-    Canvas.DrawText(AText, AbsLeft + lTextX, AbsTop + lTextY, AColor, lFont);
-  finally
-    Canvas.PopClip;
-  end;
-end;
-
-procedure TNXTreeView.DrawExpandGlyph(ANode: TNXTreeViewNode; const ARect: TNXRect);
-var
-  lCenterX: Integer;
-  lCenterY: Integer;
-begin
-  if not Assigned(ANode) or not ANode.HasChildren then
-    Exit;
-
-  RenderRect(ARect, ForeColor);
-  lCenterX := ARect.x + ARect.w div 2;
-  lCenterY := ARect.y + ARect.h div 2;
-
-  RenderLine(ARect.x + 2, lCenterY, ARect.x + ARect.w - 3, lCenterY, ForeColor);
-  if not ANode.Expanded then
-    RenderLine(lCenterX, ARect.y + 2, lCenterX, ARect.y + ARect.h - 3, ForeColor);
-end;
-
-procedure TNXTreeView.DrawHeader(AColumn: Integer; const ARect: TNXRect);
-begin
-  RenderFilledRect(ARect, Skin.BackColor);
-  DrawCellText(FColumns[AColumn].Caption, ARect, FColumns[AColumn].Align, ForeColor);
-
-  if FShowGridLines then
-  begin
-    RenderLine(ARect.x, ARect.y + ARect.h - 1,
-      ARect.x + ARect.w, ARect.y + ARect.h - 1, Skin.BorderColor);
-    RenderLine(ARect.x + ARect.w - 1, ARect.y,
-      ARect.x + ARect.w - 1, ARect.y + ARect.h, Skin.BorderColor);
-  end;
-end;
-
-procedure TNXTreeView.DrawStatusGlyph(const ACell: TNXTreeViewCell; const ARect: TNXRect);
-var
-  lColor: TNXColor;
-begin
-  if ACell.UseGlyphColor then
-    lColor := ACell.GlyphColor
-  else
-    lColor := ForeColor;
-
-  case ACell.GlyphKind of
-    tvgkCircle:
-      Canvas.FillCircle(AbsLeft + ARect.x + (ARect.w div 2),
-        AbsTop + ARect.y + (ARect.h div 2), Min(ARect.w, ARect.h) div 2,
-        lColor);
-    tvgkSquare:
-      RenderFilledRect(ARect, lColor);
-  end;
-end;
-
-procedure TNXTreeView.EnsureSelectedVisible;
-var
-  lIndex: Integer;
-  lLineBottom: Integer;
-  lLineTop: Integer;
-  lVisibleHeight: Integer;
-begin
-  UpdateLayoutIfNeeded;
-
-  if not Assigned(FSelectedNode) then
-    Exit;
-
-  lIndex := FVisibleNodes.IndexOf(FSelectedNode);
-  if lIndex < 0 then
-    Exit;
-
-  lVisibleHeight := Max(0, ViewportHeight - GetContentTop);
-  lLineTop := lIndex * FLineHeight;
-  lLineBottom := lLineTop + FLineHeight;
-
-  if lLineTop < ScrollY then
-    ScrollY := lLineTop
-  else if lLineBottom > ScrollY + lVisibleHeight then
-    ScrollY := lLineBottom - lVisibleHeight;
-end;
-
-procedure TNXTreeView.ExpandNode(ANode: TNXTreeViewNode);
-begin
-  if not Assigned(ANode) then
-    Exit;
-
-  if not ANode.HasChildren then
-    Exit;
-
-  if ANode.Expanded then
-    Exit;
-
-  ANode.Expanded := True;
-  InvalidateContentSize;
-  EnsureSelectedVisible;
-
-  if Assigned(FOnExpanded) then
-    FOnExpanded(Self, ANode);
-end;
-
-function TNXTreeView.GetContentTop: Integer;
-begin
-  if FShowColumnHeaders then
-    Result := FHeaderHeight
-  else
-    Result := 0;
-end;
-
-function TNXTreeView.GetDefaultLineHeight: Integer;
-begin
-  if FontLineSkip > 0 then
-    Result := Max(cDefaultLineHeight, FontLineSkip + 4)
-  else
-    Result := cDefaultLineHeight;
-end;
-
-function TNXTreeView.GetHeaderRect(AColumn: Integer): TNXRect;
-begin
-  Result.x := ViewportRect.x + ColumnLeft(AColumn) - ScrollX;
-  Result.y := ViewportRect.y;
-  Result.w := FColumns[AColumn].Width;
-  Result.h := FHeaderHeight;
-end;
-
-function TNXTreeView.GetNodeGlyphRect(ANode: TNXTreeViewNode; AVisibleIndex: Integer; const ACellRect: TNXRect): TNXRect;
-begin
-  Result := MakeNXRect(ACellRect.x + cCellPaddingX + (ANode.Level * FIndentWidth),
-    ACellRect.y + Max(0, (ACellRect.h - cGlyphSize) div 2), cGlyphSize,
-    cGlyphSize);
-end;
-
-function TNXTreeView.GetScrollableViewportRect: TNXRect;
-var
-  lHeaderHeight: Integer;
-begin
-  Result := inherited GetScrollableViewportRect;
-  lHeaderHeight := Min(GetContentTop, Result.h);
-  Inc(Result.y, lHeaderHeight);
-  Dec(Result.h, lHeaderHeight);
-end;
-
-procedure TNXTreeView.NodeChanged(ANode: TNXTreeViewNode);
-begin
-  InvalidateContentSize;
-  EnsureSelectedVisible;
-end;
-
-procedure TNXTreeView.RebuildVisibleNodes;
-begin
-  FVisibleNodes.Clear;
-  AddVisibleNodes(FRootNodes);
-end;
-
-procedure TNXTreeView.RenderViewport;
-var
-  lColumn: Integer;
-  lFirstLine: Integer;
-  lLastLine: Integer;
-  lLine: Integer;
-  lRect: TNXRect;
-  lScrollableRect: TNXRect;
-  lViewportRight: Integer;
-begin
-  lScrollableRect := ScrollableViewportRect;
-  lViewportRight := lScrollableRect.x + lScrollableRect.w;
-
-  if FLineHeight <= 0 then
-    Exit;
-
-  lFirstLine := Max(0, ScrollY div FLineHeight);
-  lLastLine := Min(FVisibleNodes.Count - 1,
-    (ScrollY + lScrollableRect.h) div FLineHeight + 1);
-
-  for lLine := lFirstLine to lLastLine do
-    for lColumn := 0 to FColumns.Count - 1 do
-    begin
-      if not FColumns[lColumn].Visible then
-        Continue;
-
-      lRect := CellRect(lColumn, lLine);
-      if (lRect.x + lRect.w <= lScrollableRect.x) or
-        (lRect.x >= lViewportRight) or
-        (lRect.y + lRect.h <= lScrollableRect.y) or
-        (lRect.y >= lScrollableRect.y + lScrollableRect.h) then
-        Continue;
-      DrawCell(FVisibleNodes[lLine], lColumn, lLine, lRect);
-    end;
-end;
-
-procedure TNXTreeView.RenderViewportChrome;
-var
-  lColumn: Integer;
-  lRect: TNXRect;
-  lViewportRight: Integer;
-begin
-  if not FShowColumnHeaders then
-    Exit;
-
-  lViewportRight := ViewportRect.x + ViewportWidth;
-  for lColumn := 0 to FColumns.Count - 1 do
-  begin
-    if not FColumns[lColumn].Visible then
-      Continue;
-
-    lRect := GetHeaderRect(lColumn);
-    if (lRect.x + lRect.w <= ViewportRect.x) or (lRect.x >= lViewportRight) then
-      Continue;
-    DrawHeader(lColumn, lRect);
-  end;
-end;
-
-procedure TNXTreeView.SelectNode(ANode: TNXTreeViewNode; AColumn: Integer);
-begin
-  if (FSelectedNode = ANode) and (FSelectedColumn = AColumn) then
-    Exit;
-
-  if Assigned(FSelectedNode) then
-    FSelectedNode.Selected := False;
-
-  FSelectedNode := ANode;
-  FSelectedColumn := AColumn;
-
-  if Assigned(FSelectedNode) then
-    FSelectedNode.Selected := True;
-
-  EnsureSelectedVisible;
-
-  if Assigned(FOnChange) then
-    FOnChange(Self, FSelectedNode);
+  LayoutChanged;
 end;
 
 procedure TNXTreeView.ToggleNode(ANode: TNXTreeViewNode);
 begin
-  if not Assigned(ANode) then
-    Exit;
-
-  if ANode.Expanded then
-    CollapseNode(ANode)
-  else
-    ExpandNode(ANode);
+  if not Assigned(ANode) then Exit;
+  if ANode.Expanded then CollapseNode(ANode) else ExpandNode(ANode);
 end;
 
-procedure TNXTreeView.MeasureContent;
-var
-  lLineHeight: Integer;
+procedure TNXTreeView.UpdateLayout;
 begin
-  if FLineHeight <= 0 then
-  begin
-    lLineHeight := GetDefaultLineHeight;
-    if lLineHeight > 0 then
-      FLineHeight := lLineHeight;
-  end;
-
   RebuildVisibleNodes;
-  ContentWidth := GetTotalColumnWidth;
-  ContentHeight := GetContentTop + (FVisibleNodes.Count * FLineHeight);
+  FContentWidth := GetTotalColumnWidth;
+  FContentHeight := GetContentTop + FVisibleNodes.Count * FLineHeight;
+  UpdateScrollBars;
+end;
+
+procedure TNXTreeView.UpdateScrollBars;
+var
+  lHVisible, lVVisible: Boolean;
+  lHeight, lWidth: Integer;
+begin
+  lWidth := Max(0, ActualWidth - 4);
+  lHeight := Max(0, ActualHeight - 4);
+  lVVisible := FContentHeight > lHeight;
+  if lVVisible then Dec(lWidth, cScrollBarSize);
+  lHVisible := FContentWidth > lWidth;
+  if lHVisible then Dec(lHeight, cScrollBarSize);
+  if not lVVisible and (FContentHeight > lHeight) then
+  begin
+    lVVisible := True;
+    Dec(lWidth, cScrollBarSize);
+  end;
+  FVerticalScrollBar.Visible := lVVisible;
+  FHorizontalScrollBar.Visible := lHVisible;
+  FVerticalScrollBar.Left := ActualWidth - cScrollBarSize - 2;
+  FVerticalScrollBar.Top := 2;
+  FVerticalScrollBar.Width := cScrollBarSize;
+  FVerticalScrollBar.Height := lHeight;
+  FHorizontalScrollBar.Left := 2;
+  FHorizontalScrollBar.Top := ActualHeight - cScrollBarSize - 2;
+  FHorizontalScrollBar.Width := lWidth;
+  FHorizontalScrollBar.Height := cScrollBarSize;
+  FVerticalScrollBar.Min := 0;
+  FVerticalScrollBar.Max := Max(0, FContentHeight - lHeight);
+  FVerticalScrollBar.PageSize := lHeight;
+  FVerticalScrollBar.ScrollStep := FLineHeight;
+  if FContentHeight > 0 then
+    FVerticalScrollBar.SliderSize := Min(1.0, lHeight / FContentHeight)
+  else FVerticalScrollBar.SliderSize := 1.0;
+  FScrollY := EnsureRange(FScrollY, 0, FVerticalScrollBar.Max);
+  FVerticalScrollBar.Position := FScrollY;
+  FHorizontalScrollBar.Min := 0;
+  FHorizontalScrollBar.Max := Max(0, FContentWidth - lWidth);
+  FHorizontalScrollBar.PageSize := lWidth;
+  FHorizontalScrollBar.ScrollStep := FIndentWidth;
+  if FContentWidth > 0 then
+    FHorizontalScrollBar.SliderSize := Min(1.0, lWidth / FContentWidth)
+  else FHorizontalScrollBar.SliderSize := 1.0;
+  FScrollX := EnsureRange(FScrollX, 0, FHorizontalScrollBar.Max);
+  FHorizontalScrollBar.Position := FScrollX;
+end;
+
+procedure TNXTreeView.VerticalScroll(Sender: TObject; APosition: Integer);
+begin
+  FScrollY := APosition;
+  Invalidate;
 end;
 
 end.

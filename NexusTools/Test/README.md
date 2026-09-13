@@ -14,6 +14,8 @@ It includes:
 - reusable module/result-store layer
 - sample test DLL/shared library
 - simple host app that loads the library and calls `NXTest_ExecuteCommand`
+- fpGUI test runner that loads modules, browses suites/categories/tests, and
+  runs all or selected tests
 
 ## Exported module contract
 
@@ -63,13 +65,22 @@ This playground expects `NexusLib/core/src` to be available from the repository 
 
 Windows:
 
-No Windows project file has been added for the sample host/module yet.
+Build the fpGUI runner with:
+
+```bat
+lazbuild NexusTestUI\NexusTestUI.lpi
+```
+
+The executable is written beneath `output\NexusTestUI` at the repository root.
 
 Linux/macOS-ish:
 
 ```sh
 ./build_linux.sh
 ```
+
+The Linux script builds the sample module, sample command-line host, and the
+fpGUI runner. The fpGUI submodule under `lib/fpgui` must be initialized.
 
 ## Example host usage
 
@@ -88,6 +99,12 @@ sample/Host/nxtest_host sample/SampleTests/libnxtest_sampletests.so list
 sample/Host/nxtest_host sample/SampleTests/libnxtest_sampletests.so run-all
 sample/Host/nxtest_host sample/SampleTests/libnxtest_sampletests.so run-test Sample.PassingString
 ```
+
+## GUI runner usage
+
+The module path may be supplied as the first command-line argument or selected
+with the Browse button. The runner preserves the same typed JSON-RPC module
+contract used by the command-line host; fpGUI is only the presentation layer.
 
 ## Current design rule
 

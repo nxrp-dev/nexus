@@ -10,27 +10,16 @@ implementation
 
 uses
   Classes,
-  DynLibs,
   SysUtils,
-  {$IFDEF MSWINDOWS}
-  Windows,
-  CommDlg,
-  {$ENDIF}
-  obNXApplication,
-  obNXButton,
-  obNXControl,
-  obNXEditBox,
-  obNXGroupBox,
-  obNXLabel,
-  obNXMemo,
-  obNXPanel,
+  fpg_base,
+  fpg_form,
+  fpg_main,
+  fpg_stylemanager,
+  obNXControls,
+  obNXTreeView,
   obNXTestModuleClient,
   obNXTestRPCValues,
-  obNXTreeView,
-  tpNXLayout,
-  tpNXPlatform,
-  tpNXTest,
-  tpNXWindow;
+  tpNXTest;
 
 type
   TNXTestUINodeKind = (
@@ -42,30 +31,38 @@ type
 
   TNXTestUINodeRef = class
   private
-    FKind: TNXTestUINodeKind;
+    FCaption: string;
     FCategoryPath: string;
+    FDurationMS: Int64;
+    FKind: TNXTestUINodeKind;
+    FMessageText: string;
+    FStatus: string;
     FSuiteName: string;
     FTestId: string;
     FTestName: string;
   public
-    constructor Create(AKind: TNXTestUINodeKind; const ASuiteName: string;
-      const ATestName: string = ''; const ATestId: string = '';
-      const ACategoryPath: string = '');
+    constructor Create(AKind: TNXTestUINodeKind; const ACaption,
+      ASuiteName: string; const ATestName: string = '';
+      const ATestId: string = ''; const ACategoryPath: string = '');
 
+    property Caption: string read FCaption;
     property CategoryPath: string read FCategoryPath;
+    property DurationMS: Int64 read FDurationMS write FDurationMS;
     property Kind: TNXTestUINodeKind read FKind;
+    property MessageText: string read FMessageText write FMessageText;
+    property Status: string read FStatus write FStatus;
     property SuiteName: string read FSuiteName;
     property TestId: string read FTestId;
     property TestName: string read FTestName;
   end;
 
-  TNXTestUIController = class
+  TNXTestMainForm = class(TNXForm)
   private
     FButtonPanel: TNXPanel;
     FBrowseButton: TNXButton;
+    FClient: TNXTestModuleClient;
     FDetailsBox: TNXGroupBox;
     FDetailsMemo: TNXMemo;
-    FClient: TNXTestModuleClient;
     FLoadButton: TNXButton;
     FModuleFileName: string;
     FModuleLoadError: string;
@@ -78,71 +75,64 @@ type
     FRunSelectedButton: TNXButton;
     FTree: TNXTreeView;
 
-    function AddNodeRef(AKind: TNXTestUINodeKind; const ASuiteName: string;
-      const ATestName: string = ''; const ATestId: string = '';
-      const ACategoryPath: string = ''): TNXTestUINodeRef;
     function AddCategoryPath(ASuiteNode: TNXTreeViewNode;
-      const ASuiteName: string; const ACategory: string): TNXTreeViewNode;
-    procedure BrowseButtonClick(Sender: TObject; X, Y: Integer;
-      Button: TNXMouseButton);
+      const ASuiteName, ACategory: string): TNXTreeViewNode;
+    function AddNodeRef(AKind: TNXTestUINodeKind; const ACaption,
+      ASuiteName: string; const ATestName: string = '';
+      const ATestId: string = '';
+      const ACategoryPath: string = ''): TNXTestUINodeRef;
+    procedure BrowseButtonClick(Sender: TObject);
     procedure ClearNodeRefs;
     function CountTestNodes(ANode: TNXTreeViewNode): Integer;
     function FindCategoryChild(AParentNode: TNXTreeViewNode;
       const AName: string): TNXTreeViewNode;
     function FindNodeByTestId(ANode: TNXTreeViewNode;
       const ATestId: string): TNXTreeViewNode;
-    procedure LoadButtonClick(Sender: TObject; X, Y: Integer;
-      Button: TNXMouseButton);
+    procedure LoadButtonClick(Sender: TObject);
     procedure LoadModule(const AModuleFileName: string);
     function NodeRef(ANode: TNXTreeViewNode): TNXTestUINodeRef;
     procedure PopulateTree;
+    procedure RefreshButtonClick(Sender: TObject);
     function RolledUpStatus(ANode: TNXTreeViewNode): string;
-    procedure RefreshButtonClick(Sender: TObject; X, Y: Integer;
-      Button: TNXMouseButton);
-    procedure RunAllButtonClick(Sender: TObject; X, Y: Integer;
-      Button: TNXMouseButton);
-    procedure RunSelectedButtonClick(Sender: TObject; X, Y: Integer;
-      Button: TNXMouseButton);
+    procedure RunAllButtonClick(Sender: TObject);
+    procedure RunSelectedButtonClick(Sender: TObject);
     procedure RunTestsUnderNode(ANode: TNXTreeViewNode);
     procedure SetNodeStatus(ANode: TNXTreeViewNode; const AStatus: string;
-      ADurationMs: Int64 = 0; const AMessage: string = '');
+      ADurationMS: Int64 = 0; const AMessage: string = '');
     procedure TreeChange(Sender: TObject; ANode: TNXTreeViewNode);
     procedure UpdateDetails(ANode: TNXTreeViewNode);
+    procedure UpdateNodeText(ANode: TNXTreeViewNode);
     procedure UpdateParentStatuses(ANode: TNXTreeViewNode);
     procedure UpdateResult(AResult: TNXTestResultValue);
     procedure UpdateResults(AResults: TNXTestResultArray);
   public
-    constructor Create(const AModuleFileName: string);
+    constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-
-    procedure BuildUI;
+    procedure AfterCreate; override;
   end;
 
-function BrowseForModuleFile(const AInitialFileName: string;
-  out AFileName: string): Boolean; forward;
-
 constructor TNXTestUINodeRef.Create(AKind: TNXTestUINodeKind;
-  const ASuiteName: string; const ATestName: string; const ATestId: string;
-  const ACategoryPath: string);
+  const ACaption, ASuiteName: string; const ATestName: string;
+  const ATestId: string; const ACategoryPath: string);
 begin
   inherited Create;
-  FKind := AKind;
+  FCaption := ACaption;
   FCategoryPath := ACategoryPath;
+  FKind := AKind;
+  FStatus := cNXTestStatusNotRun;
   FSuiteName := ASuiteName;
-  FTestName := ATestName;
   FTestId := ATestId;
+  FTestName := ATestName;
 end;
 
-constructor TNXTestUIController.Create(const AModuleFileName: string);
+constructor TNXTestMainForm.Create(AOwner: TComponent);
 begin
-  inherited Create;
-  FNodeRefs := TList.Create;
+  inherited Create(AOwner);
   FClient := TNXTestModuleClient.Create;
-
-  LoadModule(AModuleFileName);
+  FNodeRefs := TList.Create;
 end;
 
-destructor TNXTestUIController.Destroy;
+destructor TNXTestMainForm.Destroy;
 begin
   ClearNodeRefs;
   FreeAndNil(FNodeRefs);
@@ -150,17 +140,8 @@ begin
   inherited Destroy;
 end;
 
-function TNXTestUIController.AddNodeRef(AKind: TNXTestUINodeKind;
-  const ASuiteName: string; const ATestName: string;
-  const ATestId: string; const ACategoryPath: string): TNXTestUINodeRef;
-begin
-  Result := TNXTestUINodeRef.Create(AKind, ASuiteName, ATestName, ATestId,
-    ACategoryPath);
-  FNodeRefs.Add(Result);
-end;
-
-function TNXTestUIController.AddCategoryPath(ASuiteNode: TNXTreeViewNode;
-  const ASuiteName: string; const ACategory: string): TNXTreeViewNode;
+function TNXTestMainForm.AddCategoryPath(ASuiteNode: TNXTreeViewNode;
+  const ASuiteName, ACategory: string): TNXTreeViewNode;
 var
   lCategory: string;
   lCategoryNode: TNXTreeViewNode;
@@ -201,7 +182,7 @@ begin
     if not Assigned(lCategoryNode) then
     begin
       lCategoryNode := FTree.AddChildNode(lParentNode, lSegment,
-        AddNodeRef(nkCategory, ASuiteName, '', '', lCategoryPath));
+        AddNodeRef(nkCategory, lSegment, ASuiteName, '', '', lCategoryPath));
       SetNodeStatus(lCategoryNode, cNXTestStatusNotRun);
     end;
 
@@ -210,96 +191,144 @@ begin
   end;
 end;
 
-procedure TNXTestUIController.BuildUI;
+function TNXTestMainForm.AddNodeRef(AKind: TNXTestUINodeKind;
+  const ACaption, ASuiteName: string; const ATestName: string;
+  const ATestId: string; const ACategoryPath: string): TNXTestUINodeRef;
 begin
-  FButtonPanel := TNXPanel.Create(Application.RootWindow);
+  Result := TNXTestUINodeRef.Create(AKind, ACaption, ASuiteName, ATestName,
+    ATestId, ACategoryPath);
+  FNodeRefs.Add(Result);
+end;
+
+procedure TNXTestMainForm.AfterCreate;
+begin
+  inherited AfterCreate;
+  Name := 'NexusTestMainForm';
+  Left := 100;
+  Top := 80;
+  Width := 1100;
+  Height := 720;
+  WindowPosition := wpScreenCenter;
+  WindowTitle := 'NexusTest';
+  MinWidth := 760;
+  MinHeight := 480;
+
+  FButtonPanel := TNXPanel.Create(Self);
+  FButtonPanel.Align := alTop;
   FButtonPanel.Height := 70;
-  FButtonPanel.BorderStyle := BS_None;
-  FButtonPanel.Align := caTop;
 
   FModulePathLabel := TNXLabel.Create(FButtonPanel);
-  FModulePathLabel.SetBounds(8, 10, 80, 20);
-  FModulePathLabel.Caption := 'Module:';
-  FModulePathLabel.VertA := VAlign_Center;
+  FModulePathLabel.Left := 8;
+  FModulePathLabel.Top := 12;
+  FModulePathLabel.Width := 72;
+  FModulePathLabel.Height := 22;
+  FModulePathLabel.Text := 'Module:';
 
   FModulePathEdit := TNXEditBox.Create(FButtonPanel);
-  FModulePathEdit.SetBounds(88, 8, 700, 24);
-  FModulePathEdit.Text := FModuleFileName;
-  FModulePathEdit.Placeholder := 'Choose or enter an NXTest DLL/shared library path';
+  FModulePathEdit.Left := 82;
+  FModulePathEdit.Top := 8;
+  FModulePathEdit.Width := 786;
+  FModulePathEdit.Height := 26;
+  FModulePathEdit.Anchors := [anLeft, anRight, anTop];
 
   FBrowseButton := TNXButton.Create(FButtonPanel);
-  FBrowseButton.SetBounds(796, 7, 82, 24);
-  FBrowseButton.Caption := 'Browse...';
-  FBrowseButton.OnMouseClick := @BrowseButtonClick;
+  FBrowseButton.Left := 876;
+  FBrowseButton.Top := 8;
+  FBrowseButton.Width := 96;
+  FBrowseButton.Height := 26;
+  FBrowseButton.Anchors := [anRight, anTop];
+  FBrowseButton.Text := 'Browse...';
+  FBrowseButton.OnClick := @BrowseButtonClick;
 
   FLoadButton := TNXButton.Create(FButtonPanel);
-  FLoadButton.SetBounds(886, 7, 70, 24);
-  FLoadButton.Caption := 'Load';
-  FLoadButton.OnMouseClick := @LoadButtonClick;
+  FLoadButton.Left := 980;
+  FLoadButton.Top := 8;
+  FLoadButton.Width := 96;
+  FLoadButton.Height := 26;
+  FLoadButton.Anchors := [anRight, anTop];
+  FLoadButton.Text := 'Load';
+  FLoadButton.OnClick := @LoadButtonClick;
 
   FRunAllButton := TNXButton.Create(FButtonPanel);
-  FRunAllButton.SetBounds(8, 39, 90, 24);
-  FRunAllButton.Caption := 'Run All';
-  FRunAllButton.OnMouseClick := @RunAllButtonClick;
+  FRunAllButton.Left := 8;
+  FRunAllButton.Top := 40;
+  FRunAllButton.Width := 96;
+  FRunAllButton.Height := 24;
+  FRunAllButton.Text := 'Run All';
+  FRunAllButton.OnClick := @RunAllButtonClick;
 
   FRunSelectedButton := TNXButton.Create(FButtonPanel);
-  FRunSelectedButton.SetBounds(106, 39, 105, 24);
-  FRunSelectedButton.Caption := 'Run Selected';
-  FRunSelectedButton.OnMouseClick := @RunSelectedButtonClick;
+  FRunSelectedButton.Left := 112;
+  FRunSelectedButton.Top := 40;
+  FRunSelectedButton.Width := 112;
+  FRunSelectedButton.Height := 24;
+  FRunSelectedButton.Text := 'Run Selected';
+  FRunSelectedButton.OnClick := @RunSelectedButtonClick;
 
   FRefreshButton := TNXButton.Create(FButtonPanel);
-  FRefreshButton.SetBounds(219, 39, 90, 24);
-  FRefreshButton.Caption := 'Refresh';
-  FRefreshButton.OnMouseClick := @RefreshButtonClick;
+  FRefreshButton.Left := 232;
+  FRefreshButton.Top := 40;
+  FRefreshButton.Width := 96;
+  FRefreshButton.Height := 24;
+  FRefreshButton.Text := 'Refresh';
+  FRefreshButton.OnClick := @RefreshButtonClick;
 
-  FDetailsBox := TNXGroupBox.Create(Application.RootWindow, 'Details',
-    MakeNXRect(0, 0, 100, 170));
-  FDetailsBox.Align := caBottom;
+  FDetailsBox := TNXGroupBox.Create(Self);
+  FDetailsBox.Align := alRight;
+  FDetailsBox.Width := 520;
+  FDetailsBox.Text := 'Details';
 
-  FDetailsMemo := TNXMemo.Create(FDetailsBox.ContentPanel);
-  FDetailsMemo.Align := caClient;
-  FDetailsMemo.BorderStyle := BS_None;
-  FDetailsMemo.TabStop := False;
+  FDetailsMemo := TNXMemo.Create(FDetailsBox);
+  FDetailsMemo.Align := alClient;
+  FDetailsMemo.ReadOnly := True;
 
-  FTree := TNXTreeView.Create(Application.RootWindow);
-  FTree.Align := caClient;
-  FTree.Columns[0].Caption := 'Name';
-  FTree.Columns[0].Width := 320;
-  FTree.AddColumn('Status', 120);
-  FTree.AddColumn('Duration', 100);
-  FTree.AddColumn('Message', 460);
+  FTree := TNXTreeView.Create(Self);
+  FTree.Align := alClient;
+  FTree.Columns[0].Width := 300;
+  FTree.AddColumn('Status', 110);
+  FTree.AddColumn('Duration', 90);
+  FTree.AddColumn('Message', 360);
   FTree.OnChange := @TreeChange;
 
+  if ParamCount > 0 then
+    FModuleFileName := ParamStr(1);
+  FModulePathEdit.Text := FModuleFileName;
+  LoadModule(FModuleFileName);
   PopulateTree;
 end;
 
-procedure TNXTestUIController.BrowseButtonClick(Sender: TObject; X,
-  Y: Integer; Button: TNXMouseButton);
+procedure TNXTestMainForm.BrowseButtonClick(Sender: TObject);
 var
-  lFileName: string;
+  lDialog: TNXFileDialog;
 begin
-  if Button <> mbLeft then
-    Exit;
-
-  lFileName := FModulePathEdit.Text;
-  if BrowseForModuleFile(lFileName, lFileName) then
-  begin
-    FModulePathEdit.Text := lFileName;
-    LoadModule(lFileName);
-    PopulateTree;
+  lDialog := TNXFileDialog.Create(Self);
+  try
+    lDialog.Filter := 'Shared libraries (*.dll;*.so;*.dylib)|' +
+      '*.dll;*.so;*.dylib|All files (*)|*';
+    lDialog.FileName := FModulePathEdit.Text;
+    if lDialog.RunOpenFile then
+    begin
+      FModulePathEdit.Text := lDialog.FileName;
+      LoadModule(lDialog.FileName);
+      PopulateTree;
+    end;
+  finally
+    lDialog.Free;
   end;
 end;
 
-procedure TNXTestUIController.ClearNodeRefs;
+procedure TNXTestMainForm.ClearNodeRefs;
 var
   lIndex: Integer;
 begin
+  if not Assigned(FNodeRefs) then
+    Exit;
   for lIndex := 0 to FNodeRefs.Count - 1 do
     TObject(FNodeRefs[lIndex]).Free;
   FNodeRefs.Clear;
 end;
 
-function TNXTestUIController.CountTestNodes(ANode: TNXTreeViewNode): Integer;
+function TNXTestMainForm.CountTestNodes(ANode: TNXTreeViewNode): Integer;
 var
   lIndex: Integer;
   lRef: TNXTestUINodeRef;
@@ -316,9 +345,10 @@ begin
     Inc(Result, CountTestNodes(ANode.Child[lIndex]));
 end;
 
-function TNXTestUIController.FindCategoryChild(AParentNode: TNXTreeViewNode;
+function TNXTestMainForm.FindCategoryChild(AParentNode: TNXTreeViewNode;
   const AName: string): TNXTreeViewNode;
 var
+  lChild: TNXTreeViewNode;
   lIndex: Integer;
   lRef: TNXTestUINodeRef;
 begin
@@ -328,14 +358,15 @@ begin
 
   for lIndex := 0 to AParentNode.ChildCount - 1 do
   begin
-    lRef := NodeRef(AParentNode.Child[lIndex]);
+    lChild := AParentNode.Child[lIndex];
+    lRef := NodeRef(lChild);
     if Assigned(lRef) and (lRef.Kind = nkCategory) and
-      SameText(AParentNode.Child[lIndex].Text, AName) then
-      Exit(AParentNode.Child[lIndex]);
+      SameText(lRef.Caption, AName) then
+      Exit(lChild);
   end;
 end;
 
-function TNXTestUIController.FindNodeByTestId(ANode: TNXTreeViewNode;
+function TNXTestMainForm.FindNodeByTestId(ANode: TNXTreeViewNode;
   const ATestId: string): TNXTreeViewNode;
 var
   lIndex: Integer;
@@ -346,7 +377,8 @@ begin
     Exit;
 
   lRef := NodeRef(ANode);
-  if Assigned(lRef) and (lRef.Kind = nkTest) and SameText(lRef.TestId, ATestId) then
+  if Assigned(lRef) and (lRef.Kind = nkTest) and
+    SameText(lRef.TestId, ATestId) then
     Exit(ANode);
 
   for lIndex := 0 to ANode.ChildCount - 1 do
@@ -357,17 +389,13 @@ begin
   end;
 end;
 
-procedure TNXTestUIController.LoadButtonClick(Sender: TObject; X, Y: Integer;
-  Button: TNXMouseButton);
+procedure TNXTestMainForm.LoadButtonClick(Sender: TObject);
 begin
-  if Button <> mbLeft then
-    Exit;
-
   LoadModule(FModulePathEdit.Text);
   PopulateTree;
 end;
 
-procedure TNXTestUIController.LoadModule(const AModuleFileName: string);
+procedure TNXTestMainForm.LoadModule(const AModuleFileName: string);
 begin
   FModuleLoadError := '';
   FModuleFileName := AModuleFileName;
@@ -383,27 +411,28 @@ begin
   try
     FClient.LoadModule(AModuleFileName);
     FModuleFileName := FClient.LibraryName;
+    FModulePathEdit.Text := FModuleFileName;
   except
     on E: Exception do
       FModuleLoadError := E.Message;
   end;
 end;
 
-function TNXTestUIController.NodeRef(ANode: TNXTreeViewNode): TNXTestUINodeRef;
+function TNXTestMainForm.NodeRef(ANode: TNXTreeViewNode): TNXTestUINodeRef;
 begin
   Result := nil;
   if Assigned(ANode) then
     Result := TNXTestUINodeRef(ANode.Data);
 end;
 
-procedure TNXTestUIController.PopulateTree;
+procedure TNXTestMainForm.PopulateTree;
 var
   lRegistry: TNXTestRegistryValue;
-  lSuiteIndex: Integer;
-  lTestIndex: Integer;
   lSuite: TNXTestSuiteInfoValue;
+  lSuiteIndex: Integer;
   lSuiteNode: TNXTreeViewNode;
   lTest: TNXTestCaseInfoValue;
+  lTestIndex: Integer;
   lTestNode: TNXTreeViewNode;
   lTestParentNode: TNXTreeViewNode;
 begin
@@ -412,9 +441,8 @@ begin
 
   FTree.Clear;
   ClearNodeRefs;
-
   FRootNode := FTree.AddNode('NexusTest',
-    AddNodeRef(nkRoot, ''));
+    AddNodeRef(nkRoot, 'NexusTest', ''));
   SetNodeStatus(FRootNode, cNXTestStatusNotRun);
 
   if FModuleLoadError <> '' then
@@ -442,7 +470,7 @@ begin
     begin
       lSuite := TNXTestSuiteInfoValue(lRegistry.suites[lSuiteIndex]);
       lSuiteNode := FTree.AddChildNode(FRootNode, lSuite.name.Value,
-        AddNodeRef(nkSuite, lSuite.name.Value));
+        AddNodeRef(nkSuite, lSuite.name.Value, lSuite.name.Value));
       SetNodeStatus(lSuiteNode, cNXTestStatusNotRun);
 
       for lTestIndex := 0 to lSuite.tests.Count - 1 do
@@ -451,8 +479,8 @@ begin
         lTestParentNode := AddCategoryPath(lSuiteNode, lSuite.name.Value,
           lTest.category.Value);
         lTestNode := FTree.AddChildNode(lTestParentNode, lTest.name.Value,
-          AddNodeRef(nkTest, lSuite.name.Value, lTest.name.Value,
-          lTest.id.Value, lTest.category.Value));
+          AddNodeRef(nkTest, lTest.name.Value, lSuite.name.Value,
+          lTest.name.Value, lTest.id.Value, lTest.category.Value));
         SetNodeStatus(lTestNode, cNXTestStatusNotRun);
       end;
     end;
@@ -465,42 +493,37 @@ begin
   UpdateDetails(FRootNode);
 end;
 
-procedure TNXTestUIController.RefreshButtonClick(Sender: TObject; X,
-  Y: Integer; Button: TNXMouseButton);
+procedure TNXTestMainForm.RefreshButtonClick(Sender: TObject);
 begin
-  if Button <> mbLeft then
-    Exit;
-
   PopulateTree;
 end;
 
-function TNXTestUIController.RolledUpStatus(ANode: TNXTreeViewNode): string;
+function TNXTestMainForm.RolledUpStatus(ANode: TNXTreeViewNode): string;
 var
-  lIndex: Integer;
-  lStatus: string;
+  lAllNotRun: Boolean;
+  lAllPassedOrSkipped: Boolean;
   lAnyError: Boolean;
   lAnyFailed: Boolean;
   lAnyRunning: Boolean;
-  lAllPassedOrSkipped: Boolean;
-  lAllNotRun: Boolean;
+  lChild: TNXTreeViewNode;
+  lIndex: Integer;
+  lStatus: string;
 begin
   Result := cNXTestStatusNotRun;
   if not Assigned(ANode) then
     Exit;
+  if ANode.ChildCount = 0 then
+    Exit(NodeRef(ANode).Status);
 
-  if ANode.ChildCount <= 0 then
-    Exit(ANode.Cell[1].Text);
-
+  lAllNotRun := True;
+  lAllPassedOrSkipped := True;
   lAnyError := False;
   lAnyFailed := False;
   lAnyRunning := False;
-  lAllPassedOrSkipped := True;
-  lAllNotRun := True;
-
   for lIndex := 0 to ANode.ChildCount - 1 do
   begin
-    lStatus := ANode.Child[lIndex].Cell[1].Text;
-
+    lChild := ANode.Child[lIndex];
+    lStatus := NodeRef(lChild).Status;
     if SameText(lStatus, cNXTestStatusError) then
       lAnyError := True
     else if SameText(lStatus, cNXTestStatusFailed) then
@@ -511,7 +534,6 @@ begin
     if not (SameText(lStatus, cNXTestStatusPassed) or
       SameText(lStatus, cNXTestStatusSkipped)) then
       lAllPassedOrSkipped := False;
-
     if not SameText(lStatus, cNXTestStatusNotRun) then
       lAllNotRun := False;
   end;
@@ -530,17 +552,12 @@ begin
     Result := cNXTestStatusMixed;
 end;
 
-procedure TNXTestUIController.RunAllButtonClick(Sender: TObject; X,
-  Y: Integer; Button: TNXMouseButton);
+procedure TNXTestMainForm.RunAllButtonClick(Sender: TObject);
 var
   lResult: TNXTestRunAllResultValue;
 begin
-  if Button <> mbLeft then
-    Exit;
-
   SetNodeStatus(FRootNode, cNXTestStatusRunning);
-  Application.Render;
-
+  fpgApplication.ProcessMessages;
   try
     lResult := FClient.RunAll;
     try
@@ -556,17 +573,13 @@ begin
   UpdateDetails(FTree.SelectedNode);
 end;
 
-procedure TNXTestUIController.RunSelectedButtonClick(Sender: TObject; X,
-  Y: Integer; Button: TNXMouseButton);
+procedure TNXTestMainForm.RunSelectedButtonClick(Sender: TObject);
 var
   lNode: TNXTreeViewNode;
   lRef: TNXTestUINodeRef;
   lResult: TNXTestResultValue;
   lSuiteResult: TNXTestRunSuiteResultValue;
 begin
-  if Button <> mbLeft then
-    Exit;
-
   lNode := FTree.SelectedNode;
   lRef := NodeRef(lNode);
   if not Assigned(lRef) then
@@ -574,12 +587,11 @@ begin
 
   case lRef.Kind of
     nkRoot:
-      RunAllButtonClick(Sender, X, Y, Button);
-
+      RunAllButtonClick(Sender);
     nkSuite:
     begin
       SetNodeStatus(lNode, cNXTestStatusRunning);
-      Application.Render;
+      fpgApplication.ProcessMessages;
       try
         lSuiteResult := FClient.RunSuite(lRef.SuiteName);
         try
@@ -593,19 +605,17 @@ begin
           SetNodeStatus(lNode, cNXTestStatusError, 0, E.Message);
       end;
     end;
-
     nkCategory:
     begin
       SetNodeStatus(lNode, cNXTestStatusRunning);
-      Application.Render;
+      fpgApplication.ProcessMessages;
       RunTestsUnderNode(lNode);
       UpdateParentStatuses(FRootNode);
     end;
-
     nkTest:
     begin
       SetNodeStatus(lNode, cNXTestStatusRunning);
-      Application.Render;
+      fpgApplication.ProcessMessages;
       try
         lResult := FClient.RunTest(lRef.TestId);
         try
@@ -620,11 +630,10 @@ begin
       end;
     end;
   end;
-
   UpdateDetails(FTree.SelectedNode);
 end;
 
-procedure TNXTestUIController.RunTestsUnderNode(ANode: TNXTreeViewNode);
+procedure TNXTestMainForm.RunTestsUnderNode(ANode: TNXTreeViewNode);
 var
   lIndex: Integer;
   lRef: TNXTestUINodeRef;
@@ -632,12 +641,11 @@ var
 begin
   if not Assigned(ANode) then
     Exit;
-
   lRef := NodeRef(ANode);
   if Assigned(lRef) and (lRef.Kind = nkTest) then
   begin
     SetNodeStatus(ANode, cNXTestStatusRunning);
-    Application.Render;
+    fpgApplication.ProcessMessages;
     try
       lResult := FClient.RunTest(lRef.TestId);
       try
@@ -656,209 +664,167 @@ begin
     RunTestsUnderNode(ANode.Child[lIndex]);
 end;
 
-procedure TNXTestUIController.SetNodeStatus(ANode: TNXTreeViewNode;
-  const AStatus: string; ADurationMs: Int64; const AMessage: string);
+procedure TNXTestMainForm.SetNodeStatus(ANode: TNXTreeViewNode;
+  const AStatus: string; ADurationMS: Int64; const AMessage: string);
+var
+  lRef: TNXTestUINodeRef;
 begin
-  if not Assigned(ANode) then
+  lRef := NodeRef(ANode);
+  if not Assigned(lRef) then
     Exit;
-
-  ANode.Cell[1].Text := AStatus;
-  ANode.Cell[1].GlyphKind := tvgkCircle;
-  ANode.Cell[1].UseGlyphColor := True;
-
-  if SameText(AStatus, cNXTestStatusPassed) then
-    ANode.Cell[1].GlyphColor := MakeNXColor(60, 190, 95, 255)
-  else if SameText(AStatus, cNXTestStatusFailed) or
-    SameText(AStatus, cNXTestStatusError) then
-    ANode.Cell[1].GlyphColor := MakeNXColor(215, 70, 70, 255)
-  else if SameText(AStatus, cNXTestStatusRunning) then
-    ANode.Cell[1].GlyphColor := MakeNXColor(70, 145, 230, 255)
-  else if SameText(AStatus, cNXTestStatusMixed) then
-    ANode.Cell[1].GlyphColor := MakeNXColor(210, 165, 60, 255)
-  else
-    ANode.Cell[1].GlyphColor := MakeNXColor(130, 130, 130, 255);
-
-  if ADurationMs > 0 then
-    ANode.Cell[2].Text := IntToStr(ADurationMs) + ' ms'
-  else
-    ANode.Cell[2].Text := '';
-  ANode.Cell[3].Text := AMessage;
-  FTree.NodeChanged(ANode);
+  lRef.Status := AStatus;
+  lRef.DurationMS := ADurationMS;
+  lRef.MessageText := AMessage;
+  UpdateNodeText(ANode);
 end;
 
-procedure TNXTestUIController.TreeChange(Sender: TObject;
-  ANode: TNXTreeViewNode);
+procedure TNXTestMainForm.TreeChange(Sender: TObject; ANode: TNXTreeViewNode);
 begin
   UpdateDetails(ANode);
 end;
 
-procedure TNXTestUIController.UpdateParentStatuses(ANode: TNXTreeViewNode);
-var
-  lIndex: Integer;
-begin
-  if not Assigned(ANode) then
-    Exit;
-
-  for lIndex := 0 to ANode.ChildCount - 1 do
-    UpdateParentStatuses(ANode.Child[lIndex]);
-
-  if ANode.ChildCount > 0 then
-    SetNodeStatus(ANode, RolledUpStatus(ANode));
-end;
-
-procedure TNXTestUIController.UpdateDetails(ANode: TNXTreeViewNode);
+procedure TNXTestMainForm.UpdateDetails(ANode: TNXTreeViewNode);
 var
   lRef: TNXTestUINodeRef;
 begin
   if not Assigned(FDetailsMemo) then
     Exit;
-
   FDetailsMemo.Clear;
   if not Assigned(ANode) then
   begin
-    FDetailsMemo.AddLine('No selection.');
+    FDetailsMemo.Lines.Add('No selection.');
     Exit;
   end;
 
   lRef := NodeRef(ANode);
   if not Assigned(lRef) then
   begin
-    FDetailsMemo.AddLine(ANode.Text);
+    FDetailsMemo.Lines.Add(ANode.Text);
     Exit;
   end;
 
   case lRef.Kind of
     nkRoot:
     begin
-      FDetailsMemo.AddLine('Root: NexusTest');
-      if Assigned(FModulePathEdit) and (FModulePathEdit.Text <> '') then
-        FDetailsMemo.AddLine('Module: ' + FModulePathEdit.Text)
-      else if FModuleFileName <> '' then
-        FDetailsMemo.AddLine('Module: ' + FModuleFileName)
+      FDetailsMemo.Lines.Add('Root: NexusTest');
+      if FModulePathEdit.Text <> '' then
+        FDetailsMemo.Lines.Add('Module: ' + FModulePathEdit.Text)
       else if FClient.LibraryName <> '' then
-        FDetailsMemo.AddLine('Module: ' + FClient.LibraryName);
+        FDetailsMemo.Lines.Add('Module: ' + FClient.LibraryName);
     end;
     nkSuite:
     begin
-      FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
-      FDetailsMemo.AddLine('Tests: ' + IntToStr(CountTestNodes(ANode)));
+      FDetailsMemo.Lines.Add('Suite: ' + lRef.SuiteName);
+      FDetailsMemo.Lines.Add('Tests: ' + IntToStr(CountTestNodes(ANode)));
     end;
     nkCategory:
     begin
-      FDetailsMemo.AddLine('Category: ' + lRef.CategoryPath);
-      FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
-      FDetailsMemo.AddLine('Tests: ' + IntToStr(CountTestNodes(ANode)));
+      FDetailsMemo.Lines.Add('Category: ' + lRef.CategoryPath);
+      FDetailsMemo.Lines.Add('Suite: ' + lRef.SuiteName);
+      FDetailsMemo.Lines.Add('Tests: ' + IntToStr(CountTestNodes(ANode)));
     end;
     nkTest:
     begin
-      FDetailsMemo.AddLine('Test: ' + lRef.TestName);
-      FDetailsMemo.AddLine('Suite: ' + lRef.SuiteName);
+      FDetailsMemo.Lines.Add('Test: ' + lRef.TestName);
+      FDetailsMemo.Lines.Add('Suite: ' + lRef.SuiteName);
       if lRef.CategoryPath <> '' then
-        FDetailsMemo.AddLine('Category: ' + lRef.CategoryPath);
-      FDetailsMemo.AddLine('ID: ' + lRef.TestId);
+        FDetailsMemo.Lines.Add('Category: ' + lRef.CategoryPath);
+      FDetailsMemo.Lines.Add('ID: ' + lRef.TestId);
     end;
   end;
 
-  FDetailsMemo.AddLine('Status: ' + ANode.Cell[1].Text);
-  if ANode.Cell[2].Text <> '' then
-    FDetailsMemo.AddLine('Duration: ' + ANode.Cell[2].Text);
-  if ANode.Cell[3].Text <> '' then
-    FDetailsMemo.AddLine('Message: ' + ANode.Cell[3].Text);
+  FDetailsMemo.Lines.Add('Status: ' + lRef.Status);
+  if lRef.DurationMS > 0 then
+    FDetailsMemo.Lines.Add('Duration: ' + IntToStr(lRef.DurationMS) + ' ms');
+  if lRef.MessageText <> '' then
+    FDetailsMemo.Lines.Add('Message: ' + lRef.MessageText);
 end;
 
-function BrowseForModuleFile(const AInitialFileName: string;
-  out AFileName: string): Boolean;
-{$IFDEF MSWINDOWS}
+procedure TNXTestMainForm.UpdateNodeText(ANode: TNXTreeViewNode);
 var
-  lDialog: TOpenFileName;
-  lFileName: array[0..4095] of Char;
-  lFilter: string;
-  lInitialDir: string;
+  lRef: TNXTestUINodeRef;
 begin
-  FillChar(lDialog, SizeOf(lDialog), 0);
-  FillChar(lFileName, SizeOf(lFileName), 0);
-  StrPLCopy(lFileName, AInitialFileName, High(lFileName));
+  lRef := NodeRef(ANode);
+  if not Assigned(lRef) then
+    Exit;
+  ANode.Text := lRef.Caption;
+  ANode.Cell[1].Text := lRef.Status;
+  ANode.Cell[1].GlyphKind := tvgkCircle;
+  ANode.Cell[1].UseGlyphColor := True;
 
-  lInitialDir := ExtractFilePath(AInitialFileName);
-  lFilter := 'Shared libraries (*.dll;*.so;*.dylib)'#0'*.dll;*.so;*.dylib'#0 +
-    'All files (*.*)'#0'*.*'#0#0;
+  if SameText(lRef.Status, cNXTestStatusPassed) then
+    ANode.Cell[1].GlyphColor := clGreen
+  else if SameText(lRef.Status, cNXTestStatusFailed) or
+    SameText(lRef.Status, cNXTestStatusError) then
+    ANode.Cell[1].GlyphColor := clRed
+  else if SameText(lRef.Status, cNXTestStatusRunning) then
+    ANode.Cell[1].GlyphColor := clBlue
+  else if SameText(lRef.Status, cNXTestStatusSkipped) then
+    ANode.Cell[1].GlyphColor := clYellow
+  else
+    ANode.Cell[1].GlyphColor := clGray;
 
-  lDialog.lStructSize := SizeOf(lDialog);
-  lDialog.lpstrFile := lFileName;
-  lDialog.nMaxFile := SizeOf(lFileName);
-  lDialog.lpstrFilter := PChar(lFilter);
-  lDialog.lpstrTitle := 'Select NXTest Module';
-  if lInitialDir <> '' then
-    lDialog.lpstrInitialDir := PChar(lInitialDir);
-  lDialog.Flags := OFN_FILEMUSTEXIST or OFN_PATHMUSTEXIST or
-    OFN_HIDEREADONLY or OFN_NOCHANGEDIR;
-
-  Result := GetOpenFileName(@lDialog);
-  if Result then
-    AFileName := StrPas(lFileName);
+  if lRef.DurationMS > 0 then
+    ANode.Cell[2].Text := IntToStr(lRef.DurationMS) + ' ms'
+  else
+    ANode.Cell[2].Text := '';
+  ANode.Cell[3].Text := lRef.MessageText;
+  FTree.NodeChanged(ANode);
 end;
-{$ELSE}
+
+procedure TNXTestMainForm.UpdateParentStatuses(ANode: TNXTreeViewNode);
+var
+  lIndex: Integer;
 begin
-  Result := False;
+  if not Assigned(ANode) then
+    Exit;
+  for lIndex := 0 to ANode.ChildCount - 1 do
+    UpdateParentStatuses(ANode.Child[lIndex]);
+  if ANode.ChildCount > 0 then
+    SetNodeStatus(ANode, RolledUpStatus(ANode));
 end;
-{$ENDIF}
 
-procedure TNXTestUIController.UpdateResult(AResult: TNXTestResultValue);
+procedure TNXTestMainForm.UpdateResult(AResult: TNXTestResultValue);
 var
   lMessage: string;
   lNode: TNXTreeViewNode;
 begin
   if not Assigned(AResult) then
     Exit;
-
   lNode := FindNodeByTestId(FRootNode, AResult.id.Value);
   if not Assigned(lNode) then
     Exit;
-
   lMessage := AResult.message.Value;
   if lMessage = '' then
     lMessage := AResult.errorMessage.Value;
-
   SetNodeStatus(lNode, AResult.status.Value, AResult.durationMs.Value,
     lMessage);
 end;
 
-procedure TNXTestUIController.UpdateResults(AResults: TNXTestResultArray);
+procedure TNXTestMainForm.UpdateResults(AResults: TNXTestResultArray);
 var
   lIndex: Integer;
 begin
   if not Assigned(AResults) then
     Exit;
-
   for lIndex := 0 to AResults.Count - 1 do
     UpdateResult(TNXTestResultValue(AResults[lIndex]));
 end;
 
 procedure RunNexusTestUI;
 var
-  lController: TNXTestUIController;
-  lModuleFileName: string;
-  lResourceRoot: string;
+  lMainForm: TNXTestMainForm;
 begin
-  if ParamCount > 0 then
-    lModuleFileName := ParamStr(1)
-  else
-    lModuleFileName := '';
-
-  lResourceRoot := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-    '..' + PathDelim + '..' + PathDelim + '..' + PathDelim + '..' +
-    PathDelim + 'nexus-lab' + PathDelim + 'LifeStatNX';
-  if DirectoryExists(lResourceRoot) then
-    SetCurrentDir(lResourceRoot);
-
-  Application.Initialize('NexusTest UI', 1100, 720, wspCentered);
-
-  lController := TNXTestUIController.Create(lModuleFileName);
+  fpgApplication.Initialize;
+  fpgStyleManager.SetStyle('Plastic Dark');
+  fpgStyle := fpgStyleManager.Style;
+  fpgApplication.AppTitle := 'NexusTest';
+  lMainForm := TNXTestMainForm.Create(nil);
   try
-    lController.BuildUI;
-    Application.Run;
+    lMainForm.Show;
+    fpgApplication.Run;
   finally
-    lController.Free;
+    lMainForm.Free;
   end;
 end;
 
