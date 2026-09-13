@@ -14,6 +14,7 @@ uses
 type
   TNexusScriptCompilationSession = class
   private
+    FDialectRoot: string;
     FSelectedTargets: TNexusScriptTargetSelection;
     FCompilers: TStringList;
     FActiveFiles: TStringList;
@@ -24,6 +25,8 @@ type
     function SelectMatchingFiles(const ASourceName, APattern: string;
       ARecursive: Boolean): TStringList;
     function ResolveDependencyPath(const ASourceName,
+      ADeclaredPath: string): string;
+    function ResolveDialectPath(const ASourceName,
       ADeclaredPath: string): string;
     function SelectDefinition(ACompiler: TNexusScriptCompiler;
       const ASelector: string): TNexusScriptCompiledDefinition;
@@ -37,6 +40,7 @@ type
     function FindCompiler(const AFileName: string): TNexusScriptCompiler;
     property CompilerCount: Integer read GetCompilerCount;
     property Compilers[AIndex: Integer]: TNexusScriptCompiler read GetCompiler;
+    property DialectRoot: string read FDialectRoot write FDialectRoot;
     property LastError: string read FLastError;
   end;
 
@@ -77,6 +81,20 @@ begin
   else
     Result := ExpandFileName(IncludeTrailingPathDelimiter(
       ExtractFileDir(ASourceName)) + ADeclaredPath);
+end;
+
+function TNexusScriptCompilationSession.ResolveDialectPath(
+  const ASourceName, ADeclaredPath: string): string;
+var
+  lLocalName: string;
+begin
+  lLocalName := ResolveDependencyPath(ASourceName, ADeclaredPath);
+  if FileExists(lLocalName) or (FDialectRoot = '') or
+    (ExtractFileDrive(ADeclaredPath) <> '') or
+    ((ADeclaredPath <> '') and IsPathDelimiter(ADeclaredPath, 1)) then
+    Exit(lLocalName);
+  Result := ExpandFileName(IncludeTrailingPathDelimiter(FDialectRoot) +
+    ADeclaredPath);
 end;
 
 function TNexusScriptCompilationSession.SelectMatchingFiles(
@@ -243,11 +261,11 @@ var
   lImportedCompiler: TNexusScriptCompiler;
   lImportedDefinition: TNexusScriptCompiledDefinition;
   lImportedName: string;
-  lDoctype: TNexusScriptSourceDoctype;
-  lDoctypeCompiler: TNexusScriptCompiler;
-  lDoctypeSourceName: string;
-  lDeclaredDoctypePath: string;
-  lDoctypeRange: TNexusScriptRange;
+  lDialect: TNexusScriptSourceDialect;
+  lDialectCompiler: TNexusScriptCompiler;
+  lDialectSourceName: string;
+  lDeclaredDialectPath: string;
+  lDialectRange: TNexusScriptRange;
   lInclude: TNexusScriptSourceInclude;
   lIncludedCompiler: TNexusScriptCompiler;
   lIncludedName: string;
@@ -274,20 +292,20 @@ begin
     lCompiler.ClearImports;
     if not ExpandPatterns(lCompiler.SourceDocument) then
       Exit;
-    lDoctype := lCompiler.SourceDocument.Doctype;
-    lDoctypeCompiler := nil;
-    lDoctypeSourceName := '';
-    lDeclaredDoctypePath := '';
-    if lDoctype <> nil then
+    lDialect := lCompiler.SourceDocument.Dialect;
+    lDialectCompiler := nil;
+    lDialectSourceName := '';
+    lDeclaredDialectPath := '';
+    if lDialect <> nil then
     begin
-      lDeclaredDoctypePath := lDoctype.Path;
-      lDoctypeRange := lDoctype.SourceRange;
-      lDoctypeSourceName := ResolveDependencyPath(lCanonicalName,
-        lDeclaredDoctypePath);
-      lDoctypeCompiler := CompileDocument(lDoctypeSourceName);
-      if lDoctypeCompiler = nil then
+      lDeclaredDialectPath := lDialect.Path;
+      lDialectRange := lDialect.SourceRange;
+      lDialectSourceName := ResolveDialectPath(lCanonicalName,
+        lDeclaredDialectPath);
+      lDialectCompiler := CompileDocument(lDialectSourceName);
+      if lDialectCompiler = nil then
       begin
-        FLastError := 'Unable to load doctype for ' + lCanonicalName +
+        FLastError := 'Unable to load dialect for ' + lCanonicalName +
           ': ' + FLastError;
         Exit;
       end;
@@ -334,10 +352,10 @@ begin
     end;
     if not ExpandPatterns(lCompiler.SourceDocument) then
       Exit;
-    if lDeclaredDoctypePath <> '' then
-      lCompiler.CompiledDocument.SetDoctype(lDeclaredDoctypePath,
-        lDoctypeSourceName, lDoctypeRange,
-        lDoctypeCompiler.CompiledDocument);
+    if lDeclaredDialectPath <> '' then
+      lCompiler.CompiledDocument.SetDialect(lDeclaredDialectPath,
+        lDialectSourceName, lDialectRange,
+        lDialectCompiler.CompiledDocument);
     FCompilers.AddObject(lCanonicalName, lCompiler);
     Result := lCompiler;
     lCompiler := nil;

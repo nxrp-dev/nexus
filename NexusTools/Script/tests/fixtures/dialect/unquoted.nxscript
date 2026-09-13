@@ -1,0 +1,3 @@
+dialect type.nxscript;
+
+Thing Root {}

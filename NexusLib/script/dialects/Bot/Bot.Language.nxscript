@@ -1,3 +1,5 @@
+dialect "../Language/Language.nxscript";
+
 Language Bot {
     UnknownDefinitions: Reject;
     Definitions: [

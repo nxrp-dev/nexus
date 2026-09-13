@@ -1,0 +1,3 @@
+data DIALECT_DATA "state.csv";
+
+Thing DialectRules {}

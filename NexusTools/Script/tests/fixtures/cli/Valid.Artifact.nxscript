@@ -1,4 +1,4 @@
-doctype "Artifact.Language.nxscript";
+dialect "Artifact.Language.nxscript";
 
 Schema Example {
     Setting Prefix {

@@ -1,4 +1,4 @@
-doctype "type.nxscript";
+dialect "type.nxscript";
 module "type.nxscript";
 
 Thing Root {

@@ -24,7 +24,7 @@ tests. Prefer `rg --files` for file discovery and `rg` for text search.
 ## Reading the Workspace Index
 
 `Nexus.WorkspaceIndex.nxscript` is validated by
-`WorkspaceIndex.Language.nxscript`.
+`NexusLib/script/dialects/WorkspaceIndex/WorkspaceIndex.Language.nxscript`.
 
 - A `Workspace` is a repository or separately meaningful working tree.
 - A `Folder` describes a directory.
@@ -44,11 +44,11 @@ current location and report that the index is stale when appropriate.
 
 NexusScript is a generic declarative language. A document contains definitions,
 properties, child definitions, arrays, references, and dependency declarations.
-A doctype supplies validation rules; it does not create a separate parser or
+A dialect supplies validation rules; it does not create a separate parser or
 change the core grammar.
 
 ```nexusscript
-doctype "WorkspaceIndex.Language.nxscript";
+dialect "WorkspaceIndex/WorkspaceIndex.Language.nxscript";
 
 Workspace Nexus [Pascal, Toolchain] {
     Description: "Nexus repository";
@@ -102,7 +102,7 @@ structurally referenced output.
 
 ## Documents and Dependencies
 
-- `doctype Path;` selects the NexusScript language definition used to validate
+- `dialect Path;` selects the NexusScript language definition used to validate
   the document.
 - `module Path;` makes roots from another document addressable without adding
   that document to the artifact set.
@@ -118,7 +118,7 @@ Discovery folders are relative to the declaring document. Discovery excludes
 the declaring document itself and an empty match is a no-op. There is no bare
 `discover` declaration.
 
-Dependency paths and doctype paths are part of the source contract. Confirm the
+Dependency paths and dialect paths are part of the source contract. Confirm the
 target documents are present beside the deployed file or at the declared
 relative location before diagnosing compiler or validator behavior.
 
@@ -159,4 +159,3 @@ current code or explicit human direction.
 Do not guess about a path, compiler rule, platform behavior, or ownership
 boundary. Verify it. If the available evidence conflicts, state the conflict
 clearly before proposing a change.
-

@@ -1,4 +1,4 @@
-doctype "BotProviderTest.Language.nxscript";
+dialect "BotProviderTest.Language.nxscript";
 
 BotCatalog NexusBots {
     Bots: [

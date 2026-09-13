@@ -167,7 +167,7 @@ type
 
   TNexusScriptSourceModuleList = TObjectList<TNexusScriptSourceModule>;
 
-  TNexusScriptSourceDoctype = class
+  TNexusScriptSourceDialect = class
   private
     FPath: string;
     FSourceRange: TNexusScriptRange;
@@ -209,8 +209,8 @@ type
     FModules: TNexusScriptSourceModuleList;
     FIncludes: TNexusScriptSourceIncludeList;
     FDataSources: TNexusScriptSourceDataList;
-    FDoctype: TNexusScriptSourceDoctype;
-    procedure SetDoctype(AValue: TNexusScriptSourceDoctype);
+    FDialect: TNexusScriptSourceDialect;
+    procedure SetDialect(AValue: TNexusScriptSourceDialect);
   public
     constructor Create(const ASourceName: string);
     destructor Destroy; override;
@@ -221,7 +221,7 @@ type
     property Modules: TNexusScriptSourceModuleList read FModules;
     property Includes: TNexusScriptSourceIncludeList read FIncludes;
     property DataSources: TNexusScriptSourceDataList read FDataSources;
-    property Doctype: TNexusScriptSourceDoctype read FDoctype write SetDoctype;
+    property Dialect: TNexusScriptSourceDialect read FDialect write SetDialect;
   end;
 
   TNexusScriptCompiledValue = class
@@ -332,23 +332,23 @@ type
   private
     FSourceName: string;
     FDefinitions: TNexusScriptCompiledDefinitionList;
-    FDoctypePath: string;
-    FDoctypeSourceRange: TNexusScriptRange;
-    FDoctypeSourceName: string;
-    FDoctypeDocument: TNexusScriptCompiledDocument;
+    FDialectPath: string;
+    FDialectSourceRange: TNexusScriptRange;
+    FDialectSourceName: string;
+    FDialectDocument: TNexusScriptCompiledDocument;
   public
     constructor Create(const ASourceName: string);
     destructor Destroy; override;
     function FindDefinition(const AName: string): TNexusScriptCompiledDefinition;
-    procedure SetDoctype(const APath, ASourceName: string;
+    procedure SetDialect(const APath, ASourceName: string;
       const ASourceRange: TNexusScriptRange;
       ADocument: TNexusScriptCompiledDocument);
     property SourceName: string read FSourceName;
     property Definitions: TNexusScriptCompiledDefinitionList read FDefinitions;
-    property DoctypePath: string read FDoctypePath;
-    property DoctypeSourceRange: TNexusScriptRange read FDoctypeSourceRange;
-    property DoctypeSourceName: string read FDoctypeSourceName;
-    property DoctypeDocument: TNexusScriptCompiledDocument read FDoctypeDocument;
+    property DialectPath: string read FDialectPath;
+    property DialectSourceRange: TNexusScriptRange read FDialectSourceRange;
+    property DialectSourceName: string read FDialectSourceName;
+    property DialectDocument: TNexusScriptCompiledDocument read FDialectDocument;
   end;
 
 implementation
@@ -582,7 +582,7 @@ end;
 
 destructor TNexusScriptSourceDocument.Destroy;
 begin
-  FDoctype.Free;
+  FDialect.Free;
   FDataSources.Free;
   FIncludes.Free;
   FModules.Free;
@@ -590,12 +590,12 @@ begin
   inherited Destroy;
 end;
 
-procedure TNexusScriptSourceDocument.SetDoctype(
-  AValue: TNexusScriptSourceDoctype);
+procedure TNexusScriptSourceDocument.SetDialect(
+  AValue: TNexusScriptSourceDialect);
 begin
-  if FDoctype = AValue then Exit;
-  FDoctype.Free;
-  FDoctype := AValue;
+  if FDialect = AValue then Exit;
+  FDialect.Free;
+  FDialect := AValue;
 end;
 
 function TNexusScriptSourceDocument.FindDefinition(
@@ -731,14 +731,14 @@ begin
       Exit(lDefinition);
 end;
 
-procedure TNexusScriptCompiledDocument.SetDoctype(const APath,
+procedure TNexusScriptCompiledDocument.SetDialect(const APath,
   ASourceName: string; const ASourceRange: TNexusScriptRange;
   ADocument: TNexusScriptCompiledDocument);
 begin
-  FDoctypePath := APath;
-  FDoctypeSourceRange := ASourceRange;
-  FDoctypeSourceName := ASourceName;
-  FDoctypeDocument := ADocument;
+  FDialectPath := APath;
+  FDialectSourceRange := ASourceRange;
+  FDialectSourceName := ASourceName;
+  FDialectDocument := ADocument;
 end;
 
 end.

@@ -69,7 +69,7 @@ type
     function ParseValue(const AStopKinds: TNexusScriptTokenKindSet): TNexusScriptSourceValue;
     function ParseDefinition(AParent: TNexusScriptSourceDefinition): TNexusScriptSourceDefinition;
     procedure ParseModule(ADocument: TNexusScriptSourceDocument);
-    procedure ParseDoctype(ADocument: TNexusScriptSourceDocument);
+    procedure ParseDialect(ADocument: TNexusScriptSourceDocument);
     procedure ParseInclude(ADocument: TNexusScriptSourceDocument);
     procedure ParseData(ADocument: TNexusScriptSourceDocument);
   public
@@ -628,19 +628,19 @@ begin
   end;
 end;
 
-procedure TNexusScriptParser.ParseDoctype(
+procedure TNexusScriptParser.ParseDialect(
   ADocument: TNexusScriptSourceDocument);
 var
-  lDoctype: TNexusScriptSourceDoctype;
+  lDialect: TNexusScriptSourceDialect;
   lPieces: TStringList;
   lRange: TNexusScriptRange;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
-  lDoctype := TNexusScriptSourceDoctype.Create;
+  lDialect := TNexusScriptSourceDialect.Create;
   lPieces := TStringList.Create;
   try
-    lDoctype.SourceRange := lRange;
+    lDialect.SourceRange := lRange;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
     begin
       if Current.Kind = nstDot then
@@ -657,18 +657,18 @@ begin
     end;
     Require(nstSemicolon, ';');
     if lPieces.Count <> 1 then
-      FCompiler.AddError('NXS2011', 'Invalid doctype declaration', lRange)
-    else if ADocument.Doctype <> nil then
-      FCompiler.AddError('NXS2012', 'Duplicate doctype declaration', lRange)
+      FCompiler.AddError('NXS2011', 'Invalid dialect declaration', lRange)
+    else if ADocument.Dialect <> nil then
+      FCompiler.AddError('NXS2012', 'Duplicate dialect declaration', lRange)
     else
     begin
-      lDoctype.Path := lPieces[0];
-      ADocument.Doctype := lDoctype;
-      lDoctype := nil;
+      lDialect.Path := lPieces[0];
+      ADocument.Dialect := lDialect;
+      lDialect := nil;
     end;
   finally
     lPieces.Free;
-    lDoctype.Free;
+    lDialect.Free;
   end;
 end;
 
@@ -783,12 +783,12 @@ begin
       ParseModule(Result);
       Continue;
     end;
-    if (Current.Kind = nstWord) and SameText(Current.Text, 'doctype') then
+    if (Current.Kind = nstWord) and SameText(Current.Text, 'dialect') then
     begin
       if lHasDefinition then
         FCompiler.AddError('NXS2014',
-          'Doctype declaration must precede definitions', Current.SourceRange);
-      ParseDoctype(Result);
+          'Dialect declaration must precede definitions', Current.SourceRange);
+      ParseDialect(Result);
       Continue;
     end;
     if (Current.Kind = nstWord) and SameText(Current.Text, 'include') then

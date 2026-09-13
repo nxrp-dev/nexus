@@ -38,15 +38,16 @@ own diagnostics, which also contain severity and related source ranges. Codes
 beginning `NSV1` describe an invalid language definition. Codes beginning
 `NSV2` or `NSV3` describe an invalid subject.
 
-The foundational definition is `../tests/fixtures/validation/Language.nxscript`. It has no
-`doctype`, is compiled normally, normalized by the public model's concrete
+The foundational definition is
+`../../../NexusLib/script/dialects/Language/Language.nxscript`. It has no
+`dialect`, is compiled normally, normalized by the public model's concrete
 language vocabulary,
 and then validated against its own normalized rules. No parser mode or second
 meta-validator is involved.
 
 Language-definition filenames follow the ordinary three-part convention. The
 second component identifies the language definition named by the document's
-explicit relative `doctype`:
+explicit relative `dialect`:
 
 ```text
 Language.nxscript
@@ -58,12 +59,12 @@ Language.nxscript
         GeneratedFiles.NexusManifest.nxscript
 ```
 
-`Language.nxscript` is foundational and therefore has no self-doctype.
+`Language.nxscript` is foundational and therefore has no self-dialect.
 
-The production manifest language definition is owned by the artifact
-consumer at `../artifact/languages/NexusManifest.Language.nxscript`.
+The production manifest language definition is shared at
+`../../../NexusLib/script/dialects/NexusManifest/NexusManifest.Language.nxscript`.
 
-Documents associate their semantic document type explicitly with `doctype`.
+Documents associate their semantic document type explicitly with `dialect`.
 The Validator API does not infer, locate, or enforce language-definition
 filenames; a
-caller may pass a compiled document's `DoctypeDocument` to `Validate`.
+caller may pass a compiled document's `DialectDocument` to `Validate`.

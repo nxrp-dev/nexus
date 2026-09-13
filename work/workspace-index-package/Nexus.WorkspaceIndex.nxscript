@@ -1,4 +1,4 @@
-doctype "WorkspaceIndex.Language.nxscript";
+dialect "WorkspaceIndex/WorkspaceIndex.Language.nxscript";
 
 Workspace Nexus [Pascal, Toolchain] {
     Description: "Nexus development repository: Object Pascal libraries, tools, language infrastructure, bot hosting, and build/test tooling.";

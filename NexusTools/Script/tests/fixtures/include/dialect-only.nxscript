@@ -1,0 +1,3 @@
+dialect "leaf.nxscript";
+
+Thing Entry {}

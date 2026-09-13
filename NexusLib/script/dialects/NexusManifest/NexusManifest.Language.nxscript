@@ -1,4 +1,4 @@
-doctype "../../tests/fixtures/validation/Language.nxscript";
+dialect "../Language/Language.nxscript";
 
 Language NexusManifest {
     UnknownDefinitions: Reject;

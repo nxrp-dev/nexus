@@ -98,11 +98,11 @@ var
   lDiagnostic: TNexusScriptValidationDiagnostic;
   lMessage: string;
 begin
-  if ADocument.DoctypeDocument = nil then
+  if ADocument.DialectDocument = nil then
     Exit;
   lValidator := TNexusScriptValidator.Create;
   try
-    if lValidator.Validate(ADocument, ADocument.DoctypeDocument) then
+    if lValidator.Validate(ADocument, ADocument.DialectDocument) then
       Exit;
     lMessage := 'Validation failed';
     for lDiagnostic in lValidator.Diagnostics do
@@ -131,9 +131,12 @@ begin
   TNXCommandLine.RegisterFlag('manifest', False, True, '',
     'NexusScript template manifest',
     'Compile declared models and render each template against their JSON.');
+  TNXCommandLine.RegisterFlag('dialect-root', False, True, '',
+    'Shared NexusScript dialect root',
+    'Resolve relative dialects from this directory after the source directory.');
   TNXCommandLine.RegisterFlag('validate', False, False, '',
     'Validate before output',
-    'Apply each input model''s declared doctype before output.');
+    'Apply each input model''s declared dialect before output.');
 end;
 
 class procedure TNexusScriptCommand.Execute(AStdOut: TStream);
@@ -142,6 +145,7 @@ var
   lOutputFile: string;
   lTemplateFile: string;
   lManifestFile: string;
+  lDialectRoot: string;
   lSession: TNexusScriptCompilationSession;
   lArtifactContext: TNexusScriptArtifactContext;
   lJSONEmitter: TNexusScriptJSONEmitter;
@@ -152,6 +156,7 @@ begin
   lOutputFile := TNXCommandLine.GetValueDefault('output', '');
   lTemplateFile := TNXCommandLine.GetValueDefault('template', '');
   lManifestFile := TNXCommandLine.GetValueDefault('manifest', '');
+  lDialectRoot := TNXCommandLine.GetValueDefault('dialect-root', '');
   if (lTemplateFile <> '') and (lManifestFile <> '') then
     raise ENexusScriptCommand.Create(
       'Command line flags "template" and "manifest" are mutually exclusive.');
@@ -169,11 +174,12 @@ begin
       'Command line flag "validate" does not accept a value.');
   if lManifestFile <> '' then
   begin
-    TNexusScriptManifest.Render(lManifestFile, lOutputFile,
+    TNexusScriptManifest.Render(lManifestFile, lOutputFile, lDialectRoot,
       TNXCommandLine.Supplied('validate'));
     Exit;
   end;
   lSession := TNexusScriptCompilationSession.Create;
+  lSession.DialectRoot := lDialectRoot;
   lArtifactContext := nil;
   try
     if not lSession.CompileFile(lInputFile) then

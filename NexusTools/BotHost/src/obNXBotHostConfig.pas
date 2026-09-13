@@ -92,6 +92,7 @@ type
     FBindings: TNXBotDeploymentList;
     FCatalogFile: string;
     FControllerFullJID: string;
+    FDialectRoot: string;
     FImpliedReplyTimeoutMS: Integer;
     FOperationCapacity: Integer;
     FOperators: TStringList;
@@ -105,6 +106,7 @@ type
     property CatalogFile: string read FCatalogFile write FCatalogFile;
     property ControllerFullJID: string read FControllerFullJID
       write FControllerFullJID;
+    property DialectRoot: string read FDialectRoot write FDialectRoot;
     property ImpliedReplyTimeoutMS: Integer read FImpliedReplyTimeoutMS
       write FImpliedReplyTimeoutMS;
     property OperationCapacity: Integer read FOperationCapacity
@@ -408,6 +410,7 @@ var
   lIndex: Integer;
 begin
   FCatalogFile := NXResolveConfigPath(FCatalogFile, AConfigFile);
+  FDialectRoot := NXResolveConfigPath(FDialectRoot, AConfigFile);
   for lIndex := 0 to FBindings.Count - 1 do
   begin
     lBinding := FBindings.Binding(lIndex);

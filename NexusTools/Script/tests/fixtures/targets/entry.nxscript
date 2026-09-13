@@ -1,4 +1,4 @@
-doctype "doctype.nxscript";
+dialect "dialect.nxscript";
 module "module.nxscript";
 include "include.nxscript";
 module "modules/*.target.nxscript";

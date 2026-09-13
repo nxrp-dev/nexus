@@ -640,13 +640,13 @@ begin
       AFileName);
 end;
 
-function DoctypeFixturePath(const AFileName: string): string;
+function DialectFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\doctype\' + AFileName);
+    '..\..\..\NexusTools\Script\tests\fixtures\dialect\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\doctype\' + AFileName);
+      'NexusTools\Script\tests\fixtures\dialect\' + AFileName);
 end;
 
 function TargetFixturePath(const AFileName: string): string;
@@ -695,16 +695,16 @@ begin
         'DiscoveredModuleDevLinux') = nil,
         'Discovered modules should receive every selected Target kind.');
 
-      lDocument := lSession.EntryCompiler.CompiledDocument.DoctypeDocument;
-      AContext.AssertTrue(lDocument.FindDefinition('DoctypeUniversal') <> nil,
-        'Doctype documents should retain universal definitions.');
-      AContext.AssertTrue(lDocument.FindDefinition('DoctypeDev') <> nil,
-        'Doctype documents should retain matching Targets.');
-      AContext.AssertTrue(lDocument.FindDefinition('DoctypeQA') = nil,
-        'Doctype documents should exclude nonmatching Targets.');
+      lDocument := lSession.EntryCompiler.CompiledDocument.DialectDocument;
+      AContext.AssertTrue(lDocument.FindDefinition('DialectUniversal') <> nil,
+        'Dialect documents should retain universal definitions.');
+      AContext.AssertTrue(lDocument.FindDefinition('DialectDev') <> nil,
+        'Dialect documents should retain matching Targets.');
+      AContext.AssertTrue(lDocument.FindDefinition('DialectQA') = nil,
+        'Dialect documents should exclude nonmatching Targets.');
       AContext.AssertTrue(lDocument.FindDefinition(
-        'DoctypeDevLinux') = nil,
-        'Doctype documents should receive every selected Target kind.');
+        'DialectDevLinux') = nil,
+        'Dialect documents should receive every selected Target kind.');
 
       lCompiler := lSession.FindCompiler(TargetFixturePath('include.nxscript'));
       AContext.AssertTrue(lCompiler <> nil,
@@ -876,8 +876,23 @@ begin
   end;
 end;
 
+function SharedDialectRoot: string;
+begin
+  Result := ExpandFileName('..\..\..\NexusLib\script\dialects');
+  if not DirectoryExists(Result) then
+    Result := ExpandFileName('NexusLib\script\dialects');
+end;
+
+function SharedDialectPath(const ARelativePath: string): string;
+begin
+  Result := ExpandFileName(IncludeTrailingPathDelimiter(SharedDialectRoot) +
+    ARelativePath);
+end;
+
 function ExecuteCLI(const AArguments: array of string): string;
 var
+  lArguments: array of string;
+  lIndex: Integer;
   lOutput: TMemoryStream;
 begin
   TNXCommandLine.ClearRegisteredFlags;
@@ -885,7 +900,11 @@ begin
   TNXCommandLine.AllowUnknownFlags := False;
   lOutput := TMemoryStream.Create;
   try
-    TNXCommandLine.ParseArguments(AArguments);
+    SetLength(lArguments, Length(AArguments) + 1);
+    for lIndex := Low(AArguments) to High(AArguments) do
+      lArguments[lIndex] := AArguments[lIndex];
+    lArguments[High(lArguments)] := '/dialect-root=' + SharedDialectRoot;
+    TNXCommandLine.ParseArguments(lArguments);
     TNXCommandLine.Validate;
     TNexusScriptCommand.Execute(lOutput);
     Result := StreamText(lOutput);
@@ -906,88 +925,93 @@ begin
   end;
 end;
 
-procedure TestDoctypeParsing(AContext: TNXTestContext);
+procedure TestDialectParsing(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
 begin
   lCompiler := TNexusScriptCompiler.Create;
   try
     AContext.AssertTrue(lCompiler.CompileText('none.nxscript',
-      'Thing Root {}'), 'Document without doctype should compile.');
-    AContext.AssertTrue(lCompiler.SourceDocument.Doctype = nil,
-      'Document without doctype should retain no declaration.');
+      'Thing Root {}'), 'Document without dialect should compile.');
+    AContext.AssertTrue(lCompiler.SourceDocument.Dialect = nil,
+      'Document without dialect should retain no declaration.');
 
     AContext.AssertTrue(lCompiler.CompileText('quoted.nxscript',
-      'doctype "folder/type.nxscript"; Thing Root {}'),
-      'Quoted doctype path should parse.');
+      'dialect "folder/type.nxscript"; Thing Root {}'),
+      'Quoted dialect path should parse.');
     AContext.AssertEquals('folder/type.nxscript',
-      lCompiler.SourceDocument.Doctype.Path,
-      'Quoted doctype path should be retained.');
+      lCompiler.SourceDocument.Dialect.Path,
+      'Quoted dialect path should be retained.');
     AContext.AssertTrue(
-      lCompiler.SourceDocument.Doctype.SourceRange.SourceName = 'quoted.nxscript',
-      'Doctype source range should retain its source identity.');
+      lCompiler.SourceDocument.Dialect.SourceRange.SourceName = 'quoted.nxscript',
+      'Dialect source range should retain its source identity.');
 
     AContext.AssertTrue(lCompiler.CompileText('unquoted.nxscript',
-      'module "module.nxscript"; doctype folder/type.nxscript; ' +
+      'module "module.nxscript"; dialect folder/type.nxscript; ' +
       'Thing Root {}'),
-      'Unquoted doctype path should parse beside a module.');
+      'Unquoted dialect path should parse beside a module.');
     AContext.AssertEquals('folder/type.nxscript',
-      lCompiler.SourceDocument.Doctype.Path,
-      'Unquoted doctype path should retain punctuation.');
+      lCompiler.SourceDocument.Dialect.Path,
+      'Unquoted dialect path should retain punctuation.');
 
-    AContext.AssertTrue(not lCompiler.CompileText('duplicate-doctype.nxscript',
-      'doctype "one.nxscript"; doctype "two.nxscript"; ' +
-      'Thing Root {}'), 'Duplicate doctype should fail compilation.');
+    AContext.AssertTrue(not lCompiler.CompileText('duplicate-dialect.nxscript',
+      'dialect "one.nxscript"; dialect "two.nxscript"; ' +
+      'Thing Root {}'), 'Duplicate dialect should fail compilation.');
     AContext.AssertEquals('NXS2012', lCompiler.Diagnostics[0].Code,
-      'Duplicate doctype diagnostic should be deterministic.');
+      'Duplicate dialect diagnostic should be deterministic.');
 
-    AContext.AssertTrue(not lCompiler.CompileText('misplaced-doctype.nxscript',
-      'Thing Root {} doctype "type.nxscript";'),
-      'Doctype after a definition should fail compilation.');
+    AContext.AssertTrue(not lCompiler.CompileText('misplaced-dialect.nxscript',
+      'Thing Root {} dialect "type.nxscript";'),
+      'Dialect after a definition should fail compilation.');
     AContext.AssertEquals('NXS2014', lCompiler.Diagnostics[0].Code,
-      'Misplaced doctype diagnostic should be deterministic.');
+      'Misplaced dialect diagnostic should be deterministic.');
 
-    AContext.AssertTrue(not lCompiler.CompileText('malformed-doctype.nxscript',
-      'doctype; Thing Root {}'),
-      'Doctype without a path should fail compilation.');
+    AContext.AssertTrue(not lCompiler.CompileText('malformed-dialect.nxscript',
+      'dialect; Thing Root {}'),
+      'Dialect without a path should fail compilation.');
     AContext.AssertEquals('NXS2011', lCompiler.Diagnostics[0].Code,
-      'Malformed doctype diagnostic should be deterministic.');
+      'Malformed dialect diagnostic should be deterministic.');
 
-    AContext.AssertTrue(not lCompiler.CompileText('named-doctype.nxscript',
-      'doctype Rules "type.nxscript"; Thing Root {}'),
-      'The removed named doctype form should fail compilation.');
+    AContext.AssertTrue(not lCompiler.CompileText('named-dialect.nxscript',
+      'dialect Rules "type.nxscript"; Thing Root {}'),
+      'The removed named dialect form should fail compilation.');
     AContext.AssertEquals('NXS2011', lCompiler.Diagnostics[0].Code,
-      'Named doctype rejection should use the declaration diagnostic.');
+      'Named dialect rejection should use the declaration diagnostic.');
+
+    AContext.AssertTrue(not lCompiler.CompileText('legacy-doctype.nxscript',
+      'doctype "type.nxscript"; Thing Root {}'),
+      'The former doctype keyword must not remain as a compatibility alias.');
   finally
     lCompiler.Free;
   end;
 end;
 
-procedure TestDoctypeLoading(AContext: TNXTestContext);
+procedure TestDialectLoading(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
   lDocument: TNexusScriptCompiledDocument;
   lRoot: TNexusScriptCompiledDefinition;
 begin
   lSession := TNexusScriptCompilationSession.Create;
+  lSession.DialectRoot := SharedDialectRoot;
   try
     AContext.AssertTrue(lSession.CompileFile(
-      DoctypeFixturePath('subject.nxscript')),
-      'Doctype subject should compile: ' + lSession.LastError);
+      DialectFixturePath('subject.nxscript')),
+      'Dialect subject should compile: ' + lSession.LastError);
     lDocument := lSession.EntryCompiler.CompiledDocument;
-    AContext.AssertEquals('type.nxscript', lDocument.DoctypePath,
-      'Declared doctype path should be retained.');
-    AContext.AssertTrue(lDocument.DoctypeDocument <> nil,
-      'Compiled doctype document should be associated.');
-    AContext.AssertTrue(lDocument.DoctypeDocument.FindDefinition('TypeRule') <>
-      nil, 'Doctype document should be compiled normally.');
-    AContext.AssertTrue(SameText(lDocument.DoctypeSourceName,
-      ExpandFileName(DoctypeFixturePath('type.nxscript'))),
-      'Compiled doctype should retain canonical source identity.');
+    AContext.AssertEquals('type.nxscript', lDocument.DialectPath,
+      'Declared dialect path should be retained.');
+    AContext.AssertTrue(lDocument.DialectDocument <> nil,
+      'Compiled dialect document should be associated.');
+    AContext.AssertTrue(lDocument.DialectDocument.FindDefinition('TypeRule') <>
+      nil, 'Dialect document should be compiled normally.');
+    AContext.AssertTrue(SameText(lDocument.DialectSourceName,
+      ExpandFileName(DialectFixturePath('type.nxscript'))),
+      'Compiled dialect should retain canonical source identity.');
     lRoot := lDocument.FindDefinition('Root');
     AContext.AssertEquals('metadata',
       lRoot.FindProperty('Imported').Value.EffectiveText,
-      'A cached document should remain usable as both doctype and module.');
+      'A cached document should remain usable as both dialect and module.');
   finally
     lSession.Free;
   end;
@@ -995,16 +1019,16 @@ begin
   lSession := TNexusScriptCompilationSession.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(
-      DoctypeFixturePath('unquoted.nxscript')),
-      'Unquoted doctype path should load: ' + lSession.LastError);
+      DialectFixturePath('unquoted.nxscript')),
+      'Unquoted dialect path should load: ' + lSession.LastError);
     AContext.AssertTrue(not lSession.CompileFile(
-      DoctypeFixturePath('invisible.nxscript')),
-      'Doctype definitions must not enter reference lookup.');
+      DialectFixturePath('invisible.nxscript')),
+      'Dialect definitions must not enter reference lookup.');
     AContext.AssertTrue(not lSession.CompileFile(
-      DoctypeFixturePath('missing.nxscript')),
-      'Missing doctype file should fail.');
-    AContext.AssertTrue(Pos('doctype', LowerCase(lSession.LastError)) > 0,
-      'Missing doctype failure should identify the relationship.');
+      DialectFixturePath('missing.nxscript')),
+      'Missing dialect file should fail.');
+    AContext.AssertTrue(Pos('dialect', LowerCase(lSession.LastError)) > 0,
+      'Missing dialect failure should identify the relationship.');
   finally
     lSession.Free;
   end;
@@ -1012,10 +1036,10 @@ begin
   lSession := TNexusScriptCompilationSession.Create;
   try
     AContext.AssertTrue(not lSession.CompileFile(
-      DoctypeFixturePath('cycle-a.nxscript')),
-      'Doctype dependency cycle should fail.');
+      DialectFixturePath('cycle-a.nxscript')),
+      'Dialect dependency cycle should fail.');
     AContext.AssertTrue(Pos('cycle', LowerCase(lSession.LastError)) > 0,
-      'Doctype cycle failure should be deterministic.');
+      'Dialect cycle failure should be deterministic.');
   finally
     lSession.Free;
   end;
@@ -1023,8 +1047,8 @@ begin
   lSession := TNexusScriptCompilationSession.Create;
   try
     AContext.AssertTrue(not lSession.CompileFile(
-      DoctypeFixturePath('mixed-a.nxscript')),
-      'Mixed doctype/module dependency cycle should fail.');
+      DialectFixturePath('mixed-a.nxscript')),
+      'Mixed dialect/module dependency cycle should fail.');
     AContext.AssertTrue(Pos('cycle', LowerCase(lSession.LastError)) > 0,
       'Mixed dependency cycle failure should be deterministic.');
   finally
@@ -1329,11 +1353,11 @@ begin
     AContext.AssertEquals(1, lArtifactContext.ArtifactDocuments.Count,
       'Module dependencies should not automatically become artifacts.');
     AContext.AssertTrue(lSession.CompileFile(
-      IncludeFixturePath('doctype-only.nxscript')),
-      'A doctype-only dependency should compile: ' + lSession.LastError);
+      IncludeFixturePath('dialect-only.nxscript')),
+      'A dialect-only dependency should compile: ' + lSession.LastError);
     lArtifactContext.Build;
     AContext.AssertEquals(1, lArtifactContext.ArtifactDocuments.Count,
-      'Doctype dependencies should not automatically become artifacts.');
+      'Dialect dependencies should not automatically become artifacts.');
   finally
     lArtifactContext.Free;
     lSession.Free;
@@ -1359,7 +1383,7 @@ begin
       'Include cycle failure should be deterministic.');
     AContext.AssertTrue(not lSession.CompileFile(
       IncludeFixturePath('mixed-a.nxscript')),
-      'Mixed include, doctype, and module dependency cycle should fail.');
+      'Mixed include, dialect, and module dependency cycle should fail.');
     AContext.AssertTrue(Pos('cycle', LowerCase(lSession.LastError)) > 0,
       'Mixed dependency cycle failure should be deterministic.');
   finally
@@ -1388,7 +1412,7 @@ begin
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(
-      ValidatorFixturePath('Language.nxscript')),
+      SharedDialectPath('Language\Language.nxscript')),
       'Language definition should compile: ' + lSession.LastError);
     AContext.AssertTrue(lLanguageDefinition.Normalize(
       lSession.EntryCompiler.CompiledDocument),
@@ -1419,18 +1443,22 @@ var
   lLanguageDocument: TNexusScriptCompiledDocument;
 begin
   lSubjectSession := TNexusScriptCompilationSession.Create;
+  lSubjectSession.DialectRoot := SharedDialectRoot;
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lSubjectSession.CompileFile(
       ValidatorFixturePath('Customer.Schema.nxscript')),
       'Schema subject should compile: ' + lSubjectSession.LastError);
     lSubjectDocument := lSubjectSession.EntryCompiler.CompiledDocument;
-    lSchemaDocument := lSubjectDocument.DoctypeDocument;
+    lSchemaDocument := lSubjectDocument.DialectDocument;
     AContext.AssertTrue(lSchemaDocument <> nil,
-      'Subject should retain its compiled Schema doctype.');
-    lLanguageDocument := lSchemaDocument.DoctypeDocument;
+      'Subject should retain its compiled Schema dialect.');
+    lLanguageDocument := lSchemaDocument.DialectDocument;
     AContext.AssertTrue(lLanguageDocument <> nil,
-      'Schema should retain its compiled Language doctype.');
+      'Schema should retain its compiled Language dialect.');
+    AContext.AssertTrue(SameFileName(lLanguageDocument.SourceName,
+      SharedDialectPath('Language\Language.nxscript')),
+      'A missing local dialect should resolve from the shared dialect root.');
     AContext.AssertTrue(lValidator.Validate(lSchemaDocument,
       lLanguageDocument),
       'Schema language should satisfy the Language contract: ' +
@@ -1441,6 +1469,41 @@ begin
   finally
     lValidator.Free;
     lSubjectSession.Free;
+  end;
+end;
+
+procedure TestSharedDialectCatalog(AContext: TNXTestContext);
+const
+  cDialectPaths: array[0..2] of string = (
+    'Bot\Bot.Language.nxscript',
+    'NexusManifest\NexusManifest.Language.nxscript',
+    'WorkspaceIndex\WorkspaceIndex.Language.nxscript');
+var
+  lDocument: TNexusScriptCompiledDocument;
+  lIndex: Integer;
+  lSession: TNexusScriptCompilationSession;
+  lValidator: TNexusScriptValidator;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lSession.DialectRoot := SharedDialectRoot;
+  lValidator := TNexusScriptValidator.Create;
+  try
+    for lIndex := Low(cDialectPaths) to High(cDialectPaths) do
+    begin
+      AContext.AssertTrue(lSession.CompileFile(
+        SharedDialectPath(cDialectPaths[lIndex])),
+        cDialectPaths[lIndex] + ' should compile: ' + lSession.LastError);
+      lDocument := lSession.EntryCompiler.CompiledDocument;
+      AContext.AssertTrue(Assigned(lDocument.DialectDocument),
+        cDialectPaths[lIndex] + ' should resolve the foundational dialect.');
+      AContext.AssertTrue(lValidator.Validate(lDocument,
+        lDocument.DialectDocument),
+        cDialectPaths[lIndex] + ' should validate against Language: ' +
+        ValidationFailure(lValidator));
+    end;
+  finally
+    lValidator.Free;
+    lSession.Free;
   end;
 end;
 
@@ -1616,7 +1679,7 @@ begin
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lMetaSession.CompileFile(
-      ValidatorFixturePath('Language.nxscript')),
+      SharedDialectPath('Language\Language.nxscript')),
       'Foundational Language definition should compile: ' +
       lMetaSession.LastError);
 
@@ -1675,6 +1738,8 @@ begin
       'Generated help should include template.');
     AContext.AssertTrue(Pos('/manifest', TNXCommandLine.HelpText) > 0,
       'Generated help should include manifest.');
+    AContext.AssertTrue(Pos('/dialect-root', TNXCommandLine.HelpText) > 0,
+      'Generated help should include the shared dialect root.');
 
     TNXCommandLine.ParseArguments([]);
     try
@@ -1729,15 +1794,15 @@ var
   lDocument: TNexusScriptCompiledDocument;
 begin
   lSession := TNexusScriptCompilationSession.Create;
+  lSession.DialectRoot := SharedDialectRoot;
   lValidator := TNexusScriptValidator.Create;
   try
-    AContext.AssertTrue(lSession.CompileFile(ExpandFileName(
-      ExtractFileDir(ManifestFixturePath('Valid.NexusManifest.nxscript')) +
-      '\..\..\..\artifact\languages\NexusManifest.Language.nxscript')),
+    AContext.AssertTrue(lSession.CompileFile(SharedDialectPath(
+      'NexusManifest\NexusManifest.Language.nxscript')),
       'NexusManifest language should compile with the foundational Language definition.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'NexusManifest language should validate against Language.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1745,7 +1810,7 @@ begin
       'Manifest with auxiliary properties should compile.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'A manifest with only Template renderers should validate.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1753,7 +1818,7 @@ begin
       'Manifest with only SourceTemplate renderers should compile.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'A manifest with only SourceTemplate renderers should validate.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1761,7 +1826,7 @@ begin
       'Manifest with both renderer kinds should compile.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'A manifest with both renderer kinds should validate.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1769,7 +1834,7 @@ begin
       'Structurally invalid manifest should still compile.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'Manifest missing Output should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1777,7 +1842,7 @@ begin
       'Manifest missing Model should compile structurally.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'Manifest missing Model should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1785,7 +1850,7 @@ begin
       'Manifest missing a renderer should compile structurally.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'Manifest missing both renderer kinds should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1793,7 +1858,7 @@ begin
       'Manifest missing Model.Source should compile structurally.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'Manifest missing Model.Source should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1801,7 +1866,7 @@ begin
       'Manifest with unknown child should compile structurally.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'Manifest with unknown child should fail validation.');
 
     AContext.AssertTrue(lSession.CompileFile(
@@ -1809,7 +1874,7 @@ begin
       'Manifest with nested Model should compile structurally.');
     lDocument := lSession.EntryCompiler.CompiledDocument;
     AContext.AssertTrue(not lValidator.Validate(lDocument,
-      lDocument.DoctypeDocument),
+      lDocument.DialectDocument),
       'Model outside the manifest root should fail validation.');
   finally
     lValidator.Free;
@@ -2119,12 +2184,12 @@ begin
   lActual := ExecuteCLI(['/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
     '/validate']);
   AContext.AssertTrue(Pos('"Example"', lActual) > 0,
-    'Successful doctype validation should allow artifact generation.');
+    'Successful dialect validation should allow artifact generation.');
 
   lActual := ExecuteCLI(['/input=' +
     FixturePath('nexusscript\inForceMain.Schema.nxscript'), '/validate']);
   AContext.AssertTrue(Pos('"inForce"', lActual) > 0,
-    'Successful compilation should validate a document without a doctype.');
+    'Successful compilation should validate a document without a dialect.');
 
   lError := CLIError(['/input=' +
     CLIFixturePath('InvalidValidation.Schema.nxscript'), '/validate']);
@@ -2692,11 +2757,11 @@ begin
     end;
 
     AContext.AssertTrue(lSession.CompileFile(
-      ExternalDataFixturePath('doctype-entry.nxscript')),
-      'A doctype dependency fixture should compile: ' + lSession.LastError);
+      ExternalDataFixturePath('dialect-entry.nxscript')),
+      'A dialect dependency fixture should compile: ' + lSession.LastError);
     lArtifactContext.Build;
     AContext.AssertEquals(0, lArtifactContext.ExternalSources.Count,
-      'Doctype documents must not contribute model-owned data sources.');
+      'Dialect documents must not contribute model-owned data sources.');
   finally
     lArtifactContext.Free;
     lSession.Free;
@@ -3921,8 +3986,8 @@ begin
   lSuite.AddTest('CompileFailures', @TestCompileFailures);
   lSuite.AddTest('ModuleCompilation', @TestModuleCompilation);
   lSuite.AddTest('ModuleFailures', @TestModuleFailures);
-  lSuite.AddTest('DoctypeParsing', @TestDoctypeParsing);
-  lSuite.AddTest('DoctypeLoading', @TestDoctypeLoading);
+  lSuite.AddTest('DialectParsing', @TestDialectParsing);
+  lSuite.AddTest('DialectLoading', @TestDialectLoading);
   lSuite.AddTest('IncludeParsing', @TestIncludeParsing);
   lSuite.AddTest('IncludeLoading', @TestIncludeLoading);
   lSuite.AddTest('DependencyPatternParsing', @TestDependencyPatternParsing);
@@ -3931,6 +3996,7 @@ begin
   lSuite.AddTest('PatternRelationshipOverlap',
     @TestPatternRelationshipOverlap);
   lSuite.AddTest('LanguageSelfValidation', @TestLanguageSelfValidation);
+  lSuite.AddTest('SharedDialectCatalog', @TestSharedDialectCatalog);
   lSuite.AddTest('SchemaValidation', @TestSchemaValidation);
   lSuite.AddTest('IndependentContainmentRules',
     @TestIndependentContainmentRules);

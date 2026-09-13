@@ -1,4 +1,4 @@
-doctype "Bot.Language.nxscript";
+dialect "Bot/Bot.Language.nxscript";
 
 BotCatalog NexusBots {
     Workspaces: [

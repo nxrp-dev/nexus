@@ -1,4 +1,4 @@
-doctype "type.nxscript";
+dialect "type.nxscript";
 
 Thing Root {
     Invalid: @TypeRule;

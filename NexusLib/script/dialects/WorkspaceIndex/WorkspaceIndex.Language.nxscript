@@ -1,4 +1,4 @@
-doctype "Language.nxscript";
+dialect "../Language/Language.nxscript";
 
 Language WorkspaceIndex {
     UnknownDefinitions: Reject;

@@ -1,4 +1,4 @@
-doctype "Schema.Language.nxscript";
+dialect "Schema.Language.nxscript";
 
 Table Customer {
     TableName: CUSTOMER;

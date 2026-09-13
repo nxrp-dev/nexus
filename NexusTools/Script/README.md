@@ -15,7 +15,7 @@ NexusScript /input=Customer.Schema.nxscript
 NexusScript /input=Customer.Schema.nxscript /output=Customer.json
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache /output=Customer.sql
-NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated
+NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=../../NexusLib/script/dialects
 ```
 
 ## Options
@@ -29,8 +29,11 @@ NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated
   compiles its direct `Model` sources, renders each direct `Template` against
   their combined JSON, and renders declared external data through matching
   `SourceTemplate` rules.
-- `/validate` applies each input model's declared `doctype` before producing
-  output. Successful compilation is sufficient when a model has no doctype.
+- `/validate` applies each input model's declared `dialect` before producing
+  output. Successful compilation is sufficient when a model has no dialect.
+- `/dialect-root=<directory>` provides the shared dialect catalog used when a
+  relative `dialect` does not exist beside its declaring document. Local
+  dialects take precedence.
 - `/help` displays generated command-line help.
 
 Without `/template` or `/manifest`, JSON is the final artifact. With
@@ -46,7 +49,7 @@ composition apply; those values are not interpreted as Mustache. Sources are
 relative to the manifest document.
 
 Every model compiles independently with its own NexusScript module, include,
-doctype, and reference context. The manifest does not create namespaces,
+dialect, and reference context. The manifest does not create namespaces,
 aliases, wrappers, merges, or precedence. Artifact documents from every model
 contribute to one global JSON object, and root names must be unique across that
 complete context. The same canonical artifact source reached through multiple
@@ -59,7 +62,7 @@ that exact JSON string. Processing stops on the first template failure without
 rolling back files written by earlier templates.
 
 ```nexusscript
-doctype "path/to/NexusManifest.Language.nxscript";
+dialect "NexusManifest/NexusManifest.Language.nxscript";
 
 NexusManifest FirebirdBuild {
     Model Domain { Source: "models/Domain.nxscript"; }
@@ -93,7 +96,7 @@ Schema Domain {}
 The declared path is relative to the declaring document. Data declarations are
 not definitions, references, modules, includes, or generic JSON roots. They are
 collected separately across the entry document, includes, and imported modules;
-doctype documents do not contribute data dependencies.
+dialect documents do not contribute data dependencies.
 
 `SourceTemplate` maps normalized source types to one built-in compiler and one
 Mustache template. `CommaDelimited` supports `csv` and `jcsv`;
@@ -157,7 +160,7 @@ that were not selected are ignored. Values within one clause use OR semantics,
 and every selected kind declared by the definition must match.
 
 The complete selection applies recursively to roots, children, inline
-definitions, doctypes, modules, includes, and discovered documents. The parsed
+definitions, dialects, modules, includes, and discovered documents. The parsed
 source model remains complete; filtering affects only the compiled model.
 References and composition selectors naming excluded definitions fail through
 their normal unresolved-target diagnostics.
@@ -285,7 +288,7 @@ document to the artifact set.
 An entry document may declare `include Path;` dependencies. Included documents
 are compiled separately, contribute to the same artifact in deterministic
 entry-first order, and do not introduce reference namespaces. Use `module`
-when definitions must be addressable from another document. A `doctype Path;`
+when definitions must be addressable from another document. A `dialect Path;`
 association remains separate and does not contribute artifact content unless
 that document is also included. Root names must be unique across the complete
 artifact document set.

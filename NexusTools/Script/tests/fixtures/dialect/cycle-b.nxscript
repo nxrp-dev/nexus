@@ -1,0 +1,3 @@
+dialect "cycle-a.nxscript";
+
+Thing B {}

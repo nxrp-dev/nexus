@@ -259,20 +259,21 @@ begin
   lValidator := nil;
   try
     lSession := TNexusScriptCompilationSession.Create;
+    lSession.DialectRoot := AConfig.DialectRoot;
     lValidator := TNexusScriptValidator.Create;
     if not lSession.CompileFile(AFileName) then
     begin
       FDiagnostics.Add(lSession.LastError);
       Exit(False);
     end;
-    if not Assigned(lSession.EntryCompiler.CompiledDocument.DoctypeDocument)
+    if not Assigned(lSession.EntryCompiler.CompiledDocument.DialectDocument)
       then
     begin
       FDiagnostics.Add('The bot catalog must declare its language definition.');
       Exit(False);
     end;
     if not lValidator.Validate(lSession.EntryCompiler.CompiledDocument,
-      lSession.EntryCompiler.CompiledDocument.DoctypeDocument) then
+      lSession.EntryCompiler.CompiledDocument.DialectDocument) then
     begin
       for lIndex := 0 to lValidator.Diagnostics.Count - 1 do
         FDiagnostics.Add(lValidator.Diagnostics[lIndex].Code + ': ' +

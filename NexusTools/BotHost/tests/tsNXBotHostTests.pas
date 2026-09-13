@@ -47,6 +47,15 @@ uses
   tpNXXMPPMessageTypes,
   tpNXXMPPTypes;
 
+function SharedDialectRoot: string;
+begin
+  Result := ExpandFileName('..' + PathDelim + '..' + PathDelim + '..' +
+    PathDelim + 'NexusLib' + PathDelim + 'script' + PathDelim + 'dialects');
+  if not DirectoryExists(Result) then
+    Result := ExpandFileName('NexusLib' + PathDelim + 'script' + PathDelim +
+      'dialects');
+end;
+
 function RunTestGit(const AArguments: array of string): string;
 var
   lIndex: Integer;
@@ -108,10 +117,6 @@ begin
   AFileName := IncludeTrailingPathDelimiter(ARoot) + 'Bots.nxscript';
   lText := TStringList.Create;
   try
-    lText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
-      PathDelim + 'catalog' + PathDelim + 'Bot.Language.nxscript'));
-    lText.SaveToFile(IncludeTrailingPathDelimiter(ARoot) +
-      'Bot.Language.nxscript');
     lText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
       PathDelim + 'catalog' + PathDelim + 'Bots.nxscript'));
     lLocation := StringReplace(IncludeTrailingPathDelimiter(ARoot) +
@@ -1132,6 +1137,8 @@ begin
       'Implied room ownership should expire after two minutes by default.');
     lController.CatalogFile := '..' + PathDelim + 'catalog' + PathDelim +
       'Bots.nxscript';
+    lController.DialectRoot := '..' + PathDelim + '..' + PathDelim +
+      'NexusLib' + PathDelim + 'script' + PathDelim + 'dialects';
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
     lBinding.CAFile := 'certs' + PathDelim + 'server.crt';
@@ -1143,6 +1150,11 @@ begin
     lBinding.ExchangeDirectory := 'exchange-nexus';
     lController.Bindings.Add(lBinding);
     lController.ResolvePaths(lControllerFile);
+    AContext.AssertEquals(ExpandFileName(ExtractFileDir(lControllerFile) +
+      PathDelim + '..' + PathDelim + '..' + PathDelim + 'NexusLib' +
+      PathDelim + 'script' + PathDelim + 'dialects'),
+      lController.DialectRoot,
+      'Relative dialect roots must resolve from the controller file.');
     AContext.AssertEquals(ExpandFileName(ExtractFileDir(lControllerFile) +
       PathDelim + 'certs' + PathDelim + 'server.crt'), lBinding.CAFile,
       'Relative deployment paths must resolve from the controller file.');
@@ -1194,6 +1206,7 @@ begin
   lRuntime := nil;
   try
     lController.CatalogFile := lCatalogFile;
+    lController.DialectRoot := SharedDialectRoot;
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
     lBinding.CAFile := 'ca.pem';
@@ -1300,6 +1313,7 @@ begin
   lConfig := TNXBotControllerConfig.Create;
   lCatalog := TNXBotCatalog.Create;
   try
+    lConfig.DialectRoot := SharedDialectRoot;
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
     lBinding.CAFile := 'ca.pem';
@@ -1427,6 +1441,7 @@ begin
     lFreshConfig := TNXBotControllerConfig.Create;
     lFreshCatalog := TNXBotCatalog.Create;
     try
+      lFreshConfig.DialectRoot := SharedDialectRoot;
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
         'A missing deployment binding must fail a fresh catalog.');
       AContext.AssertEquals(0, lFreshCatalog.Entries.Count,
@@ -1484,12 +1499,12 @@ begin
 
       lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
         PathDelim + 'catalog' + PathDelim +
-        'BotsMissingDoctype.Bot.nxscript');
+        'BotsMissingDialect.Bot.nxscript');
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
-        'A missing doctype must fail catalog loading.');
+        'A missing dialect must fail catalog loading.');
       AContext.AssertTrue(Pos('declare its language definition',
         lFreshCatalog.Diagnostics.Text) > 0,
-        'A missing doctype should produce the catalog diagnostic.');
+        'A missing dialect should produce the catalog diagnostic.');
 
       lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
         PathDelim + 'catalog' + PathDelim + 'Missing.Bot.nxscript');
@@ -1614,6 +1629,7 @@ begin
   lCatalog := TNXBotCatalog.Create;
   lConfig := TNXBotControllerConfig.Create;
   try
+    lConfig.DialectRoot := SharedDialectRoot;
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
     lBinding.CAFile := 'ca.pem';
@@ -2072,16 +2088,6 @@ begin
   lWorkspace := IncludeTrailingPathDelimiter(lRoot) + 'workspace';
   lCatalogFile := IncludeTrailingPathDelimiter(lRoot) + 'Bots.nxscript';
   ForceDirectories(lSource);
-  lCatalogText := TStringList.Create;
-  try
-    lCatalogText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim +
-      'BotHost' + PathDelim + 'catalog' + PathDelim +
-      'Bot.Language.nxscript'));
-    lCatalogText.SaveToFile(IncludeTrailingPathDelimiter(lRoot) +
-      'Bot.Language.nxscript');
-  finally
-    lCatalogText.Free;
-  end;
   lSourceFile := TStringList.Create;
   try
     lSourceFile.Text := 'known workspace content';
@@ -2101,7 +2107,7 @@ begin
 
   lCatalogText := TStringList.Create;
   try
-    lCatalogText.Add('doctype "Bot.Language.nxscript";');
+    lCatalogText.Add('dialect "Bot/Bot.Language.nxscript";');
     lCatalogText.Add('BotCatalog NexusBots {');
     lCatalogText.Add('  Workspaces: [');
     lCatalogText.Add('  Workspace Nexus {');
@@ -2137,6 +2143,7 @@ begin
   lController := nil;
   lHost := nil;
   try
+    lConfig.DialectRoot := SharedDialectRoot;
     lBinding := TNXBotDeploymentBinding.Create;
     lBinding.BotName := 'NexusBot';
     lBinding.CAFile := 'ca.pem';

@@ -26,7 +26,7 @@ type
       ARelativePath: string): string; static;
   public
     class procedure Render(const AManifestFile,
-      AOutputDirectory: string; AValidate: Boolean); static;
+      AOutputDirectory, ADialectRoot: string; AValidate: Boolean); static;
   end;
 
 implementation
@@ -196,11 +196,11 @@ class procedure TNexusScriptManifest.ValidateDocument(
 var
   lValidator: TNexusScriptValidator;
 begin
-  if ADocument.DoctypeDocument = nil then
+  if ADocument.DialectDocument = nil then
     Exit;
   lValidator := TNexusScriptValidator.Create;
   try
-    if not lValidator.Validate(ADocument, ADocument.DoctypeDocument) then
+    if not lValidator.Validate(ADocument, ADocument.DialectDocument) then
       raise ENexusScriptCommand.Create(
         ValidationFailureText(lValidator.Diagnostics));
   finally
@@ -228,7 +228,7 @@ begin
 end;
 
 class procedure TNexusScriptManifest.Render(const AManifestFile,
-  AOutputDirectory: string; AValidate: Boolean);
+  AOutputDirectory, ADialectRoot: string; AValidate: Boolean);
 var
   lManifestSession: TNexusScriptCompilationSession;
   lModelSessions: TObjectList<TNexusScriptCompilationSession>;
@@ -315,6 +315,7 @@ var
   end;
 begin
   lManifestSession := TNexusScriptCompilationSession.Create;
+  lManifestSession.DialectRoot := ADialectRoot;
   lModelSessions := TObjectList<TNexusScriptCompilationSession>.Create(True);
   lArtifactContexts := TObjectList<TNexusScriptArtifactContext>.Create(True);
   lSourceRules := TObjectList<TNexusScriptSourceTemplateRule>.Create(True);
@@ -340,9 +341,9 @@ begin
     if not lManifestSession.CompileFile(AManifestFile) then
       raise ENexusScriptCommand.Create(lManifestSession.LastError);
     lDocument := lManifestSession.EntryCompiler.CompiledDocument;
-    if lDocument.DoctypeDocument = nil then
+    if lDocument.DialectDocument = nil then
       raise ENexusScriptCommand.Create(
-        'NexusScript manifest requires an explicit doctype association.');
+        'NexusScript manifest requires an explicit dialect association.');
     ValidateDocument(lDocument);
 
     if (lDocument.Definitions.Count <> 1) or
@@ -452,6 +453,7 @@ begin
         lModelSources.Add(lSourceFile);
 
         lModelSession := TNexusScriptCompilationSession.Create;
+        lModelSession.DialectRoot := ADialectRoot;
         lModelSessions.Add(lModelSession);
         if not lModelSession.CompileFile(lSourceFile) then
           raise ENexusScriptCommand.Create(lModelSession.LastError);

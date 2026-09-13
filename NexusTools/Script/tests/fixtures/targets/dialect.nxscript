@@ -1,0 +1,4 @@
+Thing DialectUniversal {}
+Thing DialectDev Target[Dev] Platform[Windows] {}
+Thing DialectDevLinux Target[Dev] Platform[Linux] {}
+Thing DialectQA Target[QA] {}

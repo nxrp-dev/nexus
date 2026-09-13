@@ -1,4 +1,4 @@
-doctype "../../../artifact/languages/NexusManifest.Language.nxscript";
+dialect "NexusManifest/NexusManifest.Language.nxscript";
 
 NexusManifest DuplicateModel {
     Model First {

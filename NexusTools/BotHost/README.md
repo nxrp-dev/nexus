@@ -5,8 +5,9 @@ provider-backed bots on NexusXMPP. The distinguished `NexusBot` instance
 receives ordinary addressed MUC conversation and owns the control endpoint for
 the catalog.
 
-Bot behavior is defined by `catalog/Bots.nxscript` using the small Bot language
-in `catalog/Bot.Language.nxscript`. Bot definitions contain `Provider`,
+Bot behavior is defined by `catalog/Bots.nxscript` using the shared Bot
+language in `../../NexusLib/script/dialects/Bot/Bot.Language.nxscript`.
+Bot definitions contain `Provider`,
 `Model`, `Instructions`, and optional plural `Workspaces` references. Provider names are resolved by a
 case-sensitive BotHost registry; `Codex` and `OpenAI` are registered providers.
 Deployment data is separate RTTI-persisted configuration. Catalog loading
