@@ -1,4 +1,4 @@
-dialect "Language/Language.nxscript";
+dialect "../Language/Language.nxscript";
 
 Language Schema {
     UnknownDefinitions: Reject;

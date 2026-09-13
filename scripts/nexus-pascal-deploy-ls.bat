@@ -1,7 +1,7 @@
 @echo off
 setlocal
 
-REM Build and promote NexusLS into the local Nexus Pascal VS Code extension bin.
+REM Build and promote both Nexus language servers into the local extension bin.
 REM This script does not stop running language-server processes. If nexusls.exe
 REM is locked, close/reload VS Code and run this again.
 
@@ -10,6 +10,7 @@ set "ExtensionRoot=C:\gitdev\tools\nexus-pascal"
 set "TargetTriple=x86_64-win64"
 
 set "SourceDir=%NexusRoot%\output\NexusLS\%TargetTriple%"
+set "ScriptSourceDir=%NexusRoot%\output\NexusScriptLS\%TargetTriple%"
 set "TargetDir=%ExtensionRoot%\bin\%TargetTriple%"
 
 if not exist "%NexusRoot%\NexusTools\LS\nexusls.lpi" (
@@ -28,10 +29,18 @@ pushd "%NexusRoot%"
 if errorlevel 1 goto DoneFail
 lazbuild NexusTools\LS\nexusls.lpi
 if errorlevel 1 goto Fail
+echo Building NexusScriptLS...
+lazbuild NexusTools\Script\ls\NexusScriptLS.lpi
+if errorlevel 1 goto Fail
 popd
 
 if not exist "%SourceDir%\nexusls.exe" (
     echo ERROR: Built nexusls.exe was not found at "%SourceDir%\nexusls.exe".
+    goto DoneFail
+)
+
+if not exist "%ScriptSourceDir%\NexusScriptLS.exe" (
+    echo ERROR: Built NexusScriptLS.exe was not found at "%ScriptSourceDir%\NexusScriptLS.exe".
     goto DoneFail
 )
 
@@ -48,6 +57,19 @@ if errorlevel 1 (
     goto DoneFail
 )
 
+copy /Y "%ScriptSourceDir%\NexusScriptLS.exe" "%TargetDir%\nexusscriptls.exe" >nul
+if errorlevel 1 (
+    echo ERROR: Could not copy nexusscriptls.exe. It may be locked by VS Code.
+    goto DoneFail
+)
+
+if not exist "%ExtensionRoot%\dialects" mkdir "%ExtensionRoot%\dialects"
+xcopy /E /I /Y "%NexusRoot%\NexusLib\script\dialects\*" "%ExtensionRoot%\dialects\" >nul
+if errorlevel 1 (
+    echo ERROR: Could not deploy the NexusScript dialect catalog.
+    goto DoneFail
+)
+
 if exist "%SourceDir%\sqlite3.dll" (
     copy /Y "%SourceDir%\sqlite3.dll" "%TargetDir%\sqlite3.dll" >nul
     if errorlevel 1 goto DoneFail
@@ -59,7 +81,7 @@ if exist "%SourceDir%\nexuspas-search-paths.json" (
 )
 
 echo.
-echo NexusLS deployed to:
+echo NexusLS and NexusScriptLS deployed to:
 echo   %TargetDir%
 echo Restart VS Code or run "Developer: Reload Window" to use the update.
 goto DoneSuccess

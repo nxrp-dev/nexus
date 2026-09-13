@@ -16,6 +16,7 @@ how the root is supplied.
 - `Language/` defines NexusScript language definitions themselves.
 - `Bot/` defines NexusBot catalogs.
 - `NexusManifest/` defines artifact manifests.
+- `Schema/` defines Nexus schema models.
 - `WorkspaceIndex/` defines Nexus workspace indexes.
 
 Test-only dialects remain with the tests that own them. Runtime behavior and

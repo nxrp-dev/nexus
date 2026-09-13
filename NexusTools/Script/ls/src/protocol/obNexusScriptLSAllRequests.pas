@@ -8,6 +8,11 @@ implementation
 
 uses
   obNexusScriptLSLifecycleRequests,
-  obNexusScriptLSDocumentSyncRequests;
+  obNexusScriptLSDocumentSyncRequests,
+  obNexusScriptLSSymbols,
+  obNexusScriptLSCompletion,
+  obNexusScriptLSNavigation,
+  obNexusScriptLSSemanticRequests,
+  obNexusScriptLSReferences;
 
 end.

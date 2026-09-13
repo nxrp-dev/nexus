@@ -1,3 +1,3 @@
-dialect "../validation/Schema.Language.nxscript";
+dialect "Schema/Schema.Language.nxscript";
 
 Schema Invalid {}

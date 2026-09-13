@@ -63,6 +63,8 @@ Language.nxscript
 
 The production manifest language definition is shared at
 `../../../NexusLib/script/dialects/NexusManifest/NexusManifest.Language.nxscript`.
+The production schema language definition is shared at
+`../../../NexusLib/script/dialects/Schema/Schema.Language.nxscript`.
 
 Documents associate their semantic document type explicitly with `dialect`.
 The Validator API does not infer, locate, or enforce language-definition

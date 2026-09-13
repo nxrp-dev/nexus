@@ -25,6 +25,9 @@ begin
     'TCP/IP host address', 'Used when /mode=tcp or /mode=tcpip.');
   TNXCommandLine.RegisterFlag('port', False, True, '2088',
     'TCP/IP port', 'Used when /mode=tcp or /mode=tcpip.');
+  TNXCommandLine.RegisterFlag('dialect-root', False, True, '',
+    'NexusScript dialect root',
+    'Shared dialect catalog used when a dialect is not beside its document.');
 end;
 
 function GetCommunicationMode: string;
@@ -51,6 +54,7 @@ begin
     TNXCommandLine.Validate;
     lTransport := TNXLSTransportFactory.CreateTransport(GetCommunicationMode);
     lModel := TNexusScriptLSModel.Create;
+    lModel.DialectRoot := TNXCommandLine.GetValueDefault('dialect-root', '');
     TNexusScriptLSModel.SetCurrent(lModel);
     lServer := TNXLSServer.Create(lTransport, lModel);
     try

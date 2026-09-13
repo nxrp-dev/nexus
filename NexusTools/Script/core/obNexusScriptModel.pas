@@ -21,7 +21,7 @@ type
       const ASourceRange: TNexusScriptRange);
     property Code: string read FCode;
     property MessageText: string read FMessageText;
-    property SourceRange: TNexusScriptRange read FSourceRange;
+    property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
   end;
 
   TNexusScriptSourceValue = class;
@@ -38,12 +38,15 @@ type
   TNexusScriptCompiledDefinitionList = TObjectList<TNexusScriptCompiledDefinition>;
   TNexusScriptCompiledPropertyList = TObjectList<TNexusScriptCompiledProperty>;
   TNexusScriptDiagnosticList = TObjectList<TNexusScriptDiagnostic>;
+  TNexusScriptRangeList = TList<TNexusScriptRange>;
 
   TNexusScriptTarget = class
   private
     FName: string;
     FValues: TStringList;
     FSourceRange: TNexusScriptRange;
+    FNameRange: TNexusScriptRange;
+    FValueRanges: TNexusScriptRangeList;
   public
     constructor Create(const AName: string;
       const ASourceRange: TNexusScriptRange);
@@ -53,6 +56,8 @@ type
     property Name: string read FName;
     property Values: TStringList read FValues;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+    property NameRange: TNexusScriptRange read FNameRange write FNameRange;
+    property ValueRanges: TNexusScriptRangeList read FValueRanges;
   end;
 
   TNexusScriptTargetList = class(TObjectList<TNexusScriptTarget>)
@@ -96,6 +101,7 @@ type
     FSourceRange: TNexusScriptRange;
     FEntryName: string;
     FInlineDefinition: TNexusScriptSourceDefinition;
+    FReferenceRanges: TNexusScriptRangeList;
   public
     constructor Create(AKind: TNexusScriptValueKind;
       const ASourceRange: TNexusScriptRange);
@@ -104,10 +110,11 @@ type
     property Kind: TNexusScriptValueKind read FKind;
     property Text: string read FText write FText;
     property Items: TNexusScriptSourceValueList read FItems;
-    property SourceRange: TNexusScriptRange read FSourceRange;
+    property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
     property EntryName: string read FEntryName write FEntryName;
     property InlineDefinition: TNexusScriptSourceDefinition
       read FInlineDefinition write FInlineDefinition;
+    property ReferenceRanges: TNexusScriptRangeList read FReferenceRanges;
   end;
 
   TNexusScriptSourceProperty = class
@@ -115,13 +122,17 @@ type
     FName: string;
     FValue: TNexusScriptSourceValue;
     FSourceRange: TNexusScriptRange;
+    FNameRange: TNexusScriptRange;
+    FValueRange: TNexusScriptRange;
   public
     constructor Create(const AName: string; AValue: TNexusScriptSourceValue;
       const ASourceRange: TNexusScriptRange);
     destructor Destroy; override;
     property Name: string read FName;
     property Value: TNexusScriptSourceValue read FValue;
-    property SourceRange: TNexusScriptRange read FSourceRange;
+    property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+    property NameRange: TNexusScriptRange read FNameRange write FNameRange;
+    property ValueRange: TNexusScriptRange read FValueRange write FValueRange;
   end;
 
   TNexusScriptSourcePropertyList = TObjectList<TNexusScriptSourceProperty>;
@@ -136,6 +147,11 @@ type
     FTargets: TNexusScriptTargetList;
     FParent: TNexusScriptSourceDefinition;
     FSourceRange: TNexusScriptRange;
+    FKindRange: TNexusScriptRange;
+    FNameRange: TNexusScriptRange;
+    FCompositionSelectorRanges: TNexusScriptRangeList;
+    FCompositionTargetRanges: TNexusScriptRangeList;
+    FBodyEndRange: TNexusScriptRange;
   public
     constructor Create(const AKind, AName: string;
       const ASourceRange: TNexusScriptRange);
@@ -150,6 +166,14 @@ type
     property Targets: TNexusScriptTargetList read FTargets;
     property Parent: TNexusScriptSourceDefinition read FParent write FParent;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+    property KindRange: TNexusScriptRange read FKindRange write FKindRange;
+    property NameRange: TNexusScriptRange read FNameRange write FNameRange;
+    property CompositionSelectorRanges: TNexusScriptRangeList
+      read FCompositionSelectorRanges;
+    property CompositionTargetRanges: TNexusScriptRangeList
+      read FCompositionTargetRanges;
+    property BodyEndRange: TNexusScriptRange read FBodyEndRange
+      write FBodyEndRange;
   end;
 
   TNexusScriptSourceModule = class
@@ -158,11 +182,18 @@ type
     FPath: string;
     FRecursive: Boolean;
     FSourceRange: TNexusScriptRange;
+    FAliasRange: TNexusScriptRange;
+    FPathRange: TNexusScriptRange;
+    FRootSelectorRange: TNexusScriptRange;
   public
     property RootSelector: string read FRootSelector write FRootSelector;
     property Path: string read FPath write FPath;
     property Recursive: Boolean read FRecursive write FRecursive;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+    property AliasRange: TNexusScriptRange read FAliasRange write FAliasRange;
+    property PathRange: TNexusScriptRange read FPathRange write FPathRange;
+    property RootSelectorRange: TNexusScriptRange read FRootSelectorRange
+      write FRootSelectorRange;
   end;
 
   TNexusScriptSourceModuleList = TObjectList<TNexusScriptSourceModule>;
@@ -171,9 +202,11 @@ type
   private
     FPath: string;
     FSourceRange: TNexusScriptRange;
+    FPathRange: TNexusScriptRange;
   public
     property Path: string read FPath write FPath;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+    property PathRange: TNexusScriptRange read FPathRange write FPathRange;
   end;
 
   TNexusScriptSourceInclude = class
@@ -181,10 +214,12 @@ type
     FPath: string;
     FRecursive: Boolean;
     FSourceRange: TNexusScriptRange;
+    FPathRange: TNexusScriptRange;
   public
     property Path: string read FPath write FPath;
     property Recursive: Boolean read FRecursive write FRecursive;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
+    property PathRange: TNexusScriptRange read FPathRange write FPathRange;
   end;
 
   TNexusScriptSourceIncludeList = TObjectList<TNexusScriptSourceInclude>;
@@ -244,6 +279,7 @@ type
     FCompositionContributors: TNexusScriptCompiledValueList;
     FEvaluationState: TNexusScriptValueEvaluationState;
     FArrayPreparationState: TNexusScriptArrayPreparationState;
+    FReferenceRanges: TNexusScriptRangeList;
   public
     constructor Create(AKind: TNexusScriptValueKind;
       const ASourceRange: TNexusScriptRange);
@@ -277,6 +313,7 @@ type
       read FEvaluationState write FEvaluationState;
     property ArrayPreparationState: TNexusScriptArrayPreparationState
       read FArrayPreparationState write FArrayPreparationState;
+    property ReferenceRanges: TNexusScriptRangeList read FReferenceRanges;
   end;
 
   TNexusScriptCompiledProperty = class
@@ -359,12 +396,15 @@ begin
   inherited Create;
   FName := AName;
   FSourceRange := ASourceRange;
+  FNameRange := ASourceRange;
   FValues := TStringList.Create;
   FValues.CaseSensitive := True;
+  FValueRanges := TNexusScriptRangeList.Create;
 end;
 
 destructor TNexusScriptTarget.Destroy;
 begin
+  FValueRanges.Free;
   FValues.Free;
   inherited Destroy;
 end;
@@ -373,6 +413,8 @@ function TNexusScriptTarget.Clone: TNexusScriptTarget;
 begin
   Result := TNexusScriptTarget.Create(FName, FSourceRange);
   Result.Values.AddStrings(FValues);
+  Result.FNameRange := FNameRange;
+  Result.FValueRanges.AddRange(FValueRanges);
 end;
 
 function TNexusScriptTarget.HasValue(const AValue: string): Boolean;
@@ -491,10 +533,12 @@ begin
   FKind := AKind;
   FSourceRange := ASourceRange;
   FItems := TNexusScriptSourceValueList.Create(True);
+  FReferenceRanges := TNexusScriptRangeList.Create;
 end;
 
 destructor TNexusScriptSourceValue.Destroy;
 begin
+  FReferenceRanges.Free;
   FInlineDefinition.Free;
   FItems.Free;
   inherited Destroy;
@@ -536,11 +580,15 @@ begin
   FProperties := TNexusScriptSourcePropertyList.Create(True);
   FChildren := TNexusScriptSourceDefinitionList.Create(True);
   FCompositionSelectors := TStringList.Create;
+  FCompositionSelectorRanges := TNexusScriptRangeList.Create;
+  FCompositionTargetRanges := TNexusScriptRangeList.Create;
   FTargets := TNexusScriptTargetList.Create(True);
 end;
 
 destructor TNexusScriptSourceDefinition.Destroy;
 begin
+  FCompositionTargetRanges.Free;
+  FCompositionSelectorRanges.Free;
   FTargets.Free;
   FCompositionSelectors.Free;
   FChildren.Free;
@@ -628,10 +676,12 @@ begin
   FSourceRange := ASourceRange;
   FItems := TNexusScriptCompiledValueList.Create(True);
   FCompositionContributors := TNexusScriptCompiledValueList.Create(True);
+  FReferenceRanges := TNexusScriptRangeList.Create;
 end;
 
 destructor TNexusScriptCompiledValue.Destroy;
 begin
+  FReferenceRanges.Free;
   FEffectiveValue.Free;
   FCompositionContributors.Free;
   FStructuralDefinition.Free;

@@ -65,7 +65,8 @@ type
     function Match(AKind: TNexusScriptTokenKind): Boolean;
     function Require(AKind: TNexusScriptTokenKind;
       const ADescription: string): TNexusScriptToken;
-    function ParsePath: string;
+    function ParsePath(out ARange: TNexusScriptRange;
+      ARanges: TNexusScriptRangeList = nil): string;
     function ParseValue(const AStopKinds: TNexusScriptTokenKindSet): TNexusScriptSourceValue;
     function ParseDefinition(AParent: TNexusScriptSourceDefinition): TNexusScriptSourceDefinition;
     procedure ParseModule(ADocument: TNexusScriptSourceDocument);
@@ -292,11 +293,24 @@ begin
   end;
 end;
 
-function TNexusScriptParser.ParsePath: string;
+function TNexusScriptParser.ParsePath(out ARange: TNexusScriptRange;
+  ARanges: TNexusScriptRangeList): string;
+var
+  lToken: TNexusScriptToken;
 begin
-  Result := Require(nstWord, 'name').Text;
+  lToken := Require(nstWord, 'name');
+  Result := lToken.Text;
+  ARange := lToken.SourceRange;
+  if ARanges <> nil then
+    ARanges.Add(lToken.SourceRange);
   while Match(nstDot) do
-    Result := Result + '.' + Require(nstWord, 'name').Text;
+  begin
+    lToken := Require(nstWord, 'name');
+    Result := Result + '.' + lToken.Text;
+    ARange.EndPosition := lToken.SourceRange.EndPosition;
+    if ARanges <> nil then
+      ARanges.Add(lToken.SourceRange);
+  end;
 end;
 
 function TNexusScriptParser.ParseValue(
@@ -306,6 +320,7 @@ var
   lText: string;
   lEntry: TNexusScriptSourceValue;
   lEntryName: string;
+  lResultRange: TNexusScriptRange;
 
   function StartsInlineDefinition: Boolean;
   var
@@ -346,12 +361,15 @@ var
   function ParsePart: TNexusScriptSourceValue;
   var
     lRange: TNexusScriptRange;
+    lToken: TNexusScriptToken;
   begin
     lRange := Current.SourceRange;
     if Match(nstAt) then
     begin
       Result := TNexusScriptSourceValue.Create(nsvReference, lRange);
-      Result.Text := ParsePath;
+      Result.Text := ParsePath(lRange, Result.ReferenceRanges);
+      lRange.StartPosition := Result.SourceRange.StartPosition;
+      Result.SourceRange := lRange;
     end
     else if Current.Kind = nstQuoted then
     begin
@@ -366,12 +384,15 @@ var
       while not (Current.Kind in AStopKinds + [nstPlus, nstComma,
         nstRightBracket, nstEndOfFile]) do
       begin
+        lToken := Current;
         if lText <> '' then
           lText := lText + ' ';
         lText := lText + Current.Text;
         Inc(FIndex);
+        lRange.EndPosition := lToken.SourceRange.EndPosition;
       end;
       Result.Text := Trim(lText);
+      Result.SourceRange := lRange;
     end;
   end;
 
@@ -406,6 +427,13 @@ begin
         Break;
       end;
     end;
+    if (FIndex > 0) and (FTokens[FIndex - 1].Kind = nstRightBracket) then
+    begin
+      lResultRange := Result.SourceRange;
+      lResultRange.EndPosition :=
+        FTokens[FIndex - 1].SourceRange.EndPosition;
+      Result.SourceRange := lResultRange;
+    end;
     Exit;
   end;
 
@@ -417,6 +445,10 @@ begin
   Result.Items.Add(lPart);
   while Match(nstPlus) do
     Result.Items.Add(ParsePart);
+  lResultRange := Result.SourceRange;
+  lResultRange.EndPosition :=
+    Result.Items[Result.Items.Count - 1].SourceRange.EndPosition;
+  Result.SourceRange := lResultRange;
 end;
 
 function TNexusScriptParser.ParseDefinition(
@@ -434,18 +466,22 @@ var
   lChild: TNexusScriptSourceDefinition;
   lTarget: TNexusScriptTarget;
   lDuplicateTarget: Boolean;
+  lSelectorRange: TNexusScriptRange;
 begin
   lKindToken := Require(nstWord, 'definition kind');
   lNameToken := Require(nstWord, 'definition name');
   Result := TNexusScriptSourceDefinition.Create(lKindToken.Text,
     lNameToken.Text, lKindToken.SourceRange);
+  Result.KindRange := lKindToken.SourceRange;
+  Result.NameRange := lNameToken.SourceRange;
   Result.Parent := AParent;
   if Match(nstLeftParenthesis) then
   begin
     while not Match(nstRightParenthesis) and
       (Current.Kind <> nstEndOfFile) do
     begin
-      Result.CompositionSelectors.Add(ParsePath);
+      Result.CompositionSelectors.Add(ParsePath(lSelectorRange));
+      Result.CompositionSelectorRanges.Add(lSelectorRange);
       if not Match(nstComma) then
       begin
         Require(nstRightParenthesis, ')');
@@ -462,6 +498,7 @@ begin
     lTargetEndToken.Kind := nstEndOfFile;
     lTarget := TNexusScriptTarget.Create(lTargetNameToken.Text,
       lTargetNameToken.SourceRange);
+    lTarget.NameRange := lTargetNameToken.SourceRange;
     lDuplicateTarget := Result.Targets.Find(lTarget.Name) <> nil;
     if lDuplicateTarget then
       FCompiler.AddError('NXS3007', 'Duplicate definition Target kind ' +
@@ -492,7 +529,10 @@ begin
           FCompiler.AddError('NXS3006', 'Duplicate definition Target ' +
             lTargetToken.Text, lTargetToken.SourceRange)
         else
+        begin
           lTarget.Values.Add(lTargetToken.Text);
+          lTarget.ValueRanges.Add(lTargetToken.SourceRange);
+        end;
         if Match(nstRightBracket) then
         begin
           lTargetEndToken := FTokens[FIndex - 1];
@@ -536,7 +576,7 @@ begin
     if Match(nstColon) then
     begin
       lValue := ParseValue([nstSemicolon]);
-      Require(nstSemicolon, ';');
+      lEndToken := Require(nstSemicolon, ';');
       if Result.FindProperty(lMemberToken.Text) <> nil then
       begin
         FCompiler.AddError('NXS3001', 'Duplicate member ' +
@@ -544,8 +584,18 @@ begin
         lValue.Free;
       end
       else
+      begin
         Result.Properties.Add(TNexusScriptSourceProperty.Create(
           lMemberToken.Text, lValue, lMemberToken.SourceRange));
+        Result.Properties[Result.Properties.Count - 1].NameRange :=
+          lMemberToken.SourceRange;
+        Result.Properties[Result.Properties.Count - 1].ValueRange :=
+          lValue.SourceRange;
+        lSourceRange := lMemberToken.SourceRange;
+        lSourceRange.EndPosition := lEndToken.SourceRange.EndPosition;
+        Result.Properties[Result.Properties.Count - 1].SourceRange :=
+          lSourceRange;
+      end;
     end
     else
     begin
@@ -558,6 +608,7 @@ begin
   lSourceRange := Result.SourceRange;
   lSourceRange.EndPosition := lEndToken.SourceRange.EndPosition;
   Result.SourceRange := lSourceRange;
+  Result.BodyEndRange := lEndToken.SourceRange;
 end;
 
 procedure TNexusScriptParser.ParseModule(ADocument: TNexusScriptSourceDocument);
@@ -567,11 +618,14 @@ var
   lRange: TNexusScriptRange;
   lJoinPath: Boolean;
   lFirstPieceQuoted: Boolean;
+  lPieceRanges: TNexusScriptRangeList;
+  lTokenRange: TNexusScriptRange;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
   lModule := TNexusScriptSourceModule.Create;
   lPieces := TStringList.Create;
+  lPieceRanges := TNexusScriptRangeList.Create;
   try
     lModule.SourceRange := lRange;
     lJoinPath := False;
@@ -587,6 +641,9 @@ begin
       else if (lPieces.Count > 0) and lJoinPath then
       begin
         lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text;
+        lTokenRange := lPieceRanges[lPieceRanges.Count - 1];
+        lTokenRange.EndPosition := Current.SourceRange.EndPosition;
+        lPieceRanges[lPieceRanges.Count - 1] := lTokenRange;
         lJoinPath := False;
       end
       else
@@ -594,6 +651,7 @@ begin
         if lPieces.Count = 0 then
           lFirstPieceQuoted := Current.Kind = nstQuoted;
         lPieces.Add(Current.Text);
+        lPieceRanges.Add(Current.SourceRange);
       end;
       Inc(FIndex);
     end;
@@ -605,16 +663,22 @@ begin
       begin
         lModule.Recursive := True;
         lModule.Path := lPieces[1];
+        lModule.PathRange := lPieceRanges[1];
       end
       else
         FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange);
     end
     else if lPieces.Count = 1 then
-      lModule.Path := lPieces[0]
+    begin
+      lModule.Path := lPieces[0];
+      lModule.PathRange := lPieceRanges[0];
+    end
     else if lPieces.Count = 2 then
     begin
       lModule.RootSelector := lPieces[0];
       lModule.Path := lPieces[1];
+      lModule.RootSelectorRange := lPieceRanges[0];
+      lModule.PathRange := lPieceRanges[1];
       if (Pos('*', lModule.Path) > 0) or (Pos('?', lModule.Path) > 0) then
         FCompiler.AddError('NXS2002', 'Invalid module declaration', lRange);
     end
@@ -623,6 +687,7 @@ begin
     ADocument.Modules.Add(lModule);
     lModule := nil;
   finally
+    lPieceRanges.Free;
     lPieces.Free;
     lModule.Free;
   end;
@@ -633,12 +698,15 @@ procedure TNexusScriptParser.ParseDialect(
 var
   lDialect: TNexusScriptSourceDialect;
   lPieces: TStringList;
+  lPieceRanges: TNexusScriptRangeList;
   lRange: TNexusScriptRange;
+  lTokenRange: TNexusScriptRange;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
   lDialect := TNexusScriptSourceDialect.Create;
   lPieces := TStringList.Create;
+  lPieceRanges := TNexusScriptRangeList.Create;
   try
     lDialect.SourceRange := lRange;
     while not (Current.Kind in [nstSemicolon, nstEndOfFile]) do
@@ -650,9 +718,18 @@ begin
       end
       else if (lPieces.Count > 0) and
         (lPieces[lPieces.Count - 1][Length(lPieces[lPieces.Count - 1])] = '.') then
-        lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text
+      begin
+        lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] +
+          Current.Text;
+        lTokenRange := lPieceRanges[lPieceRanges.Count - 1];
+        lTokenRange.EndPosition := Current.SourceRange.EndPosition;
+        lPieceRanges[lPieceRanges.Count - 1] := lTokenRange;
+      end
       else
+      begin
         lPieces.Add(Current.Text);
+        lPieceRanges.Add(Current.SourceRange);
+      end;
       Inc(FIndex);
     end;
     Require(nstSemicolon, ';');
@@ -663,10 +740,12 @@ begin
     else
     begin
       lDialect.Path := lPieces[0];
+      lDialect.PathRange := lPieceRanges[0];
       ADocument.Dialect := lDialect;
       lDialect := nil;
     end;
   finally
+    lPieceRanges.Free;
     lPieces.Free;
     lDialect.Free;
   end;
@@ -680,11 +759,14 @@ var
   lRange: TNexusScriptRange;
   lJoinPath: Boolean;
   lFirstPieceQuoted: Boolean;
+  lPieceRanges: TNexusScriptRangeList;
+  lTokenRange: TNexusScriptRange;
 begin
   lRange := Current.SourceRange;
   Inc(FIndex);
   lInclude := TNexusScriptSourceInclude.Create;
   lPieces := TStringList.Create;
+  lPieceRanges := TNexusScriptRangeList.Create;
   try
     lInclude.SourceRange := lRange;
     lJoinPath := False;
@@ -700,6 +782,9 @@ begin
       else if (lPieces.Count > 0) and lJoinPath then
       begin
         lPieces[lPieces.Count - 1] := lPieces[lPieces.Count - 1] + Current.Text;
+        lTokenRange := lPieceRanges[lPieceRanges.Count - 1];
+        lTokenRange.EndPosition := Current.SourceRange.EndPosition;
+        lPieceRanges[lPieceRanges.Count - 1] := lTokenRange;
         lJoinPath := False;
       end
       else
@@ -707,6 +792,7 @@ begin
         if lPieces.Count = 0 then
           lFirstPieceQuoted := Current.Kind = nstQuoted;
         lPieces.Add(Current.Text);
+        lPieceRanges.Add(Current.SourceRange);
       end;
       Inc(FIndex);
     end;
@@ -718,6 +804,7 @@ begin
       begin
         lInclude.Recursive := True;
         lInclude.Path := lPieces[1];
+        lInclude.PathRange := lPieceRanges[1];
       end
       else
         FCompiler.AddError('NXS2015', 'Invalid include declaration', lRange);
@@ -729,10 +816,12 @@ begin
     else
     begin
       lInclude.Path := lPieces[0];
+      lInclude.PathRange := lPieceRanges[0];
       ADocument.Includes.Add(lInclude);
       lInclude := nil;
     end;
   finally
+    lPieceRanges.Free;
     lPieces.Free;
     lInclude.Free;
   end;
@@ -876,6 +965,7 @@ begin
     Exit(nil);
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.Text;
+  Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.InlineSourceDefinition := AValue.InlineDefinition;
   if AValue.InlineDefinition <> nil then
@@ -950,6 +1040,7 @@ var
 begin
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.SourceText;
+  Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.EffectiveName := AValue.EffectiveName;
   Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
@@ -987,6 +1078,7 @@ var
 begin
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.SourceText;
+  Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
   if not ADetachSource then
@@ -1083,6 +1175,7 @@ var
 begin
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.SourceText;
+  Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.EffectiveName := AValue.EffectiveName;
   Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
@@ -1263,6 +1356,7 @@ var
     lChild: TNexusScriptCompiledDefinition;
     lLocalProperties: TNexusScriptCompiledPropertyList;
     lLocalChildren: TNexusScriptCompiledDefinitionList;
+    lEmptyRange: TNexusScriptRange;
 
     procedure RemoveProperty(const AName: string);
     var
@@ -1362,15 +1456,22 @@ var
       ADefinition.Properties.Clear;
       ADefinition.Children.Clear;
 
+      lEmptyRange := Default(TNexusScriptRange);
       for lSelector in lSource.CompositionSelectors do
       begin
         lBase := FindDefinitionPath(ADefinition.Parent, lSelector);
         if lBase = nil then
         begin
+          lSource.CompositionTargetRanges.Add(lEmptyRange);
           AddError('NXS4002', 'Unresolved composition target ' + lSelector,
             ADefinition.SourceRange);
           Continue;
         end;
+        if lBase.SourceDefinition <> nil then
+          lSource.CompositionTargetRanges.Add(
+            lBase.SourceDefinition.NameRange)
+        else
+          lSource.CompositionTargetRanges.Add(lBase.SourceRange);
         Compose(lBase);
         for lProperty in lBase.Properties do
           ApplyProperty(lProperty);

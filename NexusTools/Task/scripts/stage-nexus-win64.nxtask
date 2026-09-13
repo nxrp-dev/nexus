@@ -10,6 +10,11 @@ StageNexusWin64 Group {
     Quiet: true
   }
 
+  BuildNexusScriptLanguageServer LazBuild {
+    Project: "../../../NexusTools/Script/ls/NexusScriptLS.lpi"
+    Quiet: true
+  }
+
   BuildNexusBuild LazBuild {
     Project: "../../../NexusTools/Build/nexusbuild.lpi"
     Quiet: true
@@ -31,6 +36,12 @@ StageNexusWin64 Group {
   InstallLanguageServer CopyFile {
     Source: "../../../output/NexusLS/x86_64-win64/nexusls.exe"
     Destination: "../../../dist/nexus-win64/bin/nexusls.exe"
+    Overwrite: true
+  }
+
+  InstallNexusScriptLanguageServer CopyFile {
+    Source: "../../../output/NexusScriptLS/x86_64-win64/NexusScriptLS.exe"
+    Destination: "../../../dist/nexus-win64/bin/nexusscriptls.exe"
     Overwrite: true
   }
 

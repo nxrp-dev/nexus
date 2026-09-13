@@ -67,6 +67,13 @@ begin
   lResult.capabilities.textDocumentSync.openClose.Value := True;
   lResult.capabilities.textDocumentSync.change.Value := 1;
   lResult.capabilities.textDocumentSync.save.Value := True;
+  lResult.capabilities.documentSymbolProvider.Value := True;
+  lResult.capabilities.completionProvider.Assigned := True;
+  lResult.capabilities.hoverProvider.Value := True;
+  lResult.capabilities.definitionProvider.Value := True;
+  lResult.capabilities.referencesProvider.Value := True;
+  lResult.capabilities.documentHighlightProvider.Value := True;
+  lResult.capabilities.renameProvider.Assigned := True;
   lResult.serverInfo.name.Value := 'NexusScriptLS';
   Result := lResult;
 end;

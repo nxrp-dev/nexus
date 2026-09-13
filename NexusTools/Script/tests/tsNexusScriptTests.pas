@@ -1474,9 +1474,10 @@ end;
 
 procedure TestSharedDialectCatalog(AContext: TNXTestContext);
 const
-  cDialectPaths: array[0..2] of string = (
+  cDialectPaths: array[0..3] of string = (
     'Bot\Bot.Language.nxscript',
     'NexusManifest\NexusManifest.Language.nxscript',
+    'Schema\Schema.Language.nxscript',
     'WorkspaceIndex\WorkspaceIndex.Language.nxscript');
 var
   lDocument: TNexusScriptCompiledDocument;
