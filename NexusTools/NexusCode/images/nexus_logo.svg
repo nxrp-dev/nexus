@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Nexus Logo</title>
+  <desc id="desc">A geometric Nexus logo with an interlinked N-shaped node network inside a rounded hexagonal frame.</desc>
+
+  <defs>
+    <linearGradient id="nexusGradient" x1="208" y1="176" x2="816" y2="848" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#66E3FF"/>
+      <stop offset="0.5" stop-color="#4C7DFF"/>
+      <stop offset="1" stop-color="#9A5CFF"/>
+    </linearGradient>
+
+    <linearGradient id="frameGradient" x1="160" y1="128" x2="864" y2="896" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8DF2FF"/>
+      <stop offset="1" stop-color="#5B49FF"/>
+    </linearGradient>
+
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.32"/>
+    </filter>
+
+    <filter id="nodeGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="192" fill="#0D111A"/>
+
+  <g filter="url(#softShadow)">
+    <path
+      d="M512 96
+         C543 96 574 104 601 120
+         L778 222
+         C832 253 866 311 866 374
+         V650
+         C866 713 832 771 778 802
+         L601 904
+         C574 920 543 928 512 928
+         C481 928 450 920 423 904
+         L246 802
+         C192 771 158 713 158 650
+         V374
+         C158 311 192 253 246 222
+         L423 120
+         C450 104 481 96 512 96Z"
+      fill="#121927"
+      stroke="url(#frameGradient)"
+      stroke-width="28"
+      stroke-linejoin="round"/>
+  </g>
+
+  <g opacity="0.18">
+    <path d="M260 512H764" stroke="#FFFFFF" stroke-width="3"/>
+    <path d="M512 220V804" stroke="#FFFFFF" stroke-width="3"/>
+    <path d="M314 330L710 694" stroke="#FFFFFF" stroke-width="3"/>
+    <path d="M710 330L314 694" stroke="#FFFFFF" stroke-width="3"/>
+  </g>
+
+  <g fill="none" stroke="url(#nexusGradient)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M304 704V320L720 704V320" stroke-width="86"/>
+    <path d="M304 704L720 320" stroke-width="36" opacity="0.85"/>
+  </g>
+
+  <g filter="url(#nodeGlow)">
+    <circle cx="304" cy="320" r="42" fill="#66E3FF"/>
+    <circle cx="304" cy="704" r="42" fill="#4C7DFF"/>
+    <circle cx="720" cy="320" r="42" fill="#4C7DFF"/>
+    <circle cx="720" cy="704" r="42" fill="#9A5CFF"/>
+    <circle cx="512" cy="512" r="34" fill="#FFFFFF"/>
+  </g>
+
+  <g opacity="0.96">
+    <circle cx="304" cy="320" r="19" fill="#0D111A"/>
+    <circle cx="304" cy="704" r="19" fill="#0D111A"/>
+    <circle cx="720" cy="320" r="19" fill="#0D111A"/>
+    <circle cx="720" cy="704" r="19" fill="#0D111A"/>
+    <circle cx="512" cy="512" r="14" fill="#0D111A"/>
+  </g>
+
+  <path
+    d="M292 790
+       C360 834 437 856 512 856
+       C587 856 664 834 732 790"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="12"
+    stroke-linecap="round"
+    opacity="0.12"/>
+</svg>

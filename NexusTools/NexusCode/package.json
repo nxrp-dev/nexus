@@ -1,0 +1,530 @@
+{
+  "name": "nexus-pascal",
+  "displayName": "Nexus Pascal",
+  "description": "Nexus Pascal IDE support for Free Pascal and Lazarus projects.",
+  "version": "0.9.1",
+  "engines": {
+    "vscode": "^1.89.0"
+  },
+  "extensionDependencies": [
+    "ms-vscode.cpptools"
+  ],
+  "icon": "images/logo.png",
+  "categories": [
+    "Programming Languages"
+  ],
+  "publisher": "nxrp-dev",
+  "author": "nxrp-dev",
+  "license": "MPL-2.0-no-copyleft-exception",
+  "keywords": [
+    "free",
+    "pascal",
+    "freepascal",
+    "fpc",
+    "lazarus",
+    "objectpascal",
+    "delphi"
+  ],
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nxrp-dev/nexus.git",
+    "directory": "NexusTools/NexusCode"
+  },
+  "bugs": {
+    "url": "https://github.com/nxrp-dev/nexus/issues"
+  },
+  "activationEvents": [
+    "onDebug",
+    "onLanguage:objectpascal",
+    "onLanguage:pascal",
+    "onLanguage:lazarusform",
+    "onLanguage:nexusscript",
+    "onTaskType:fpc",
+    "onTaskType:lazarus",
+    "onTaskType:nexus",
+    "onCommand:nexusPascal.project.newNexusProject",
+    "onCommand:nexusPascal.project.importLazarusProject",
+    "onCommand:nexusPascal.project.createTestModule",
+    "onCommand:nexusPascal.project.buildLazarusProject",
+    "onCommand:nexusPascal.project.runLazarusProject",
+    "onCommand:nexusPascal.project.selectActiveProject",
+    "onCommand:nexusPascal.project.rescanProjects",
+    "onCommand:nexusPascal.project.showActiveProject",
+    "onCommand:nexusPascal.project.setActiveProject",
+    "onCommand:nexusPascal.project.selectProjectFromFolder",
+    "onCommand:nexusPascal.toolchain.configure",
+    "onCommand:nexusPascal.code.complete"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "objectpascal",
+        "aliases": [
+          "Object-Pascal"
+        ],
+        "extensions": [
+          ".pas",
+          ".pp",
+          ".lpr",
+          ".inc",
+          ".p",
+          ".dfm",
+          ".fmx",
+          ".dpr",
+          ".dpk",
+          ".dpr",
+          ".lpr"
+        ],
+        "configuration": "./pascal-configuration.json"
+      },
+      {
+        "id": "lazarusform",
+        "aliases": [
+          "Lazarus Form",
+          "LFM"
+        ],
+        "extensions": [
+          ".lfm"
+        ],
+        "configuration": "./pascal-configuration.json"
+      },
+      {
+        "id": "pascal",
+        "configuration": "./pascal-configuration.json"
+      },
+      {
+        "id": "nexusscript",
+        "aliases": [
+          "NexusScript"
+        ],
+        "extensions": [
+          ".nxscript"
+        ],
+        "configuration": "./nexusscript-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "objectpascal",
+        "scopeName": "source.pascal",
+        "path": "./syntaxes/fpc.tmLanguage"
+      },
+      {
+        "language": "pascal",
+        "scopeName": "source.pascal",
+        "path": "./syntaxes/fpc.tmLanguage"
+      },
+      {
+        "language": "lazarusform",
+        "scopeName": "source.pascal",
+        "path": "./syntaxes/fpc.tmLanguage"
+      },
+      {
+        "language": "nexusscript",
+        "scopeName": "source.nexusscript",
+        "path": "./syntaxes/nexusscript.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "objectpascal",
+        "path": "./snippets/pascal.json"
+      },
+      {
+        "language": "objectpascal",
+        "path": "./snippets/nexus.json"
+      },
+      {
+        "language": "pascal",
+        "path": "./snippets/pascal.json"
+      },
+      {
+        "language": "pascal",
+        "path": "./snippets/nexus.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "nexusPascal.project.newNexusProject",
+        "title": "%project.newNexusProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.importLazarusProject",
+        "title": "%project.importLazarusProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.createTestModule",
+        "title": "%project.createTestModule%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.buildLazarusProject",
+        "title": "%project.buildLazarusProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.runLazarusProject",
+        "title": "%project.runLazarusProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.selectActiveProject",
+        "title": "%project.selectActiveProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.rescanProjects",
+        "title": "%project.rescanProjects%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.showActiveProject",
+        "title": "%project.showActiveProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.setActiveProject",
+        "title": "%project.setActiveProject%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.project.selectProjectFromFolder",
+        "title": "%project.selectProjectFromFolder%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.toolchain.configure",
+        "title": "%toolchain.configure%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.routine.gotoImplementation",
+        "title": "%routine.gotoImplementation%",
+        "category": "Nexus Pascal"
+      },
+      {
+        "command": "nexusPascal.routine.gotoDeclaration",
+        "title": "%routine.gotoDeclaration%",
+        "category": "Nexus Pascal"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "nexusPascal.project.setActiveProject",
+          "when": "resourceExtname == .lpi",
+          "group": "nexusPascal@0"
+        },
+        {
+          "command": "nexusPascal.project.importLazarusProject",
+          "when": "resourceExtname == .lpi",
+          "group": "nexusPascal@1"
+        },
+        {
+          "command": "nexusPascal.project.buildLazarusProject",
+          "when": "resourceExtname == .lpi",
+          "group": "nexusPascal@2"
+        },
+        {
+          "command": "nexusPascal.project.runLazarusProject",
+          "when": "resourceExtname == .lpi",
+          "group": "nexusPascal@3"
+        },
+        {
+          "command": "nexusPascal.project.createTestModule",
+          "when": "resourceExtname == .lpi",
+          "group": "nexusPascal@10"
+        },
+        {
+          "command": "nexusPascal.project.selectProjectFromFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "nexusPascal@20"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "key": "ctrl+shift+down",
+        "command": "nexusPascal.routine.gotoImplementation",
+        "when": "editorTextFocus && !isInEmbeddedEditor && (editorLangId == objectpascal || editorLangId == pascal)"
+      },
+      {
+        "key": "ctrl+shift+up",
+        "command": "nexusPascal.routine.gotoDeclaration",
+        "when": "editorTextFocus && !isInEmbeddedEditor && (editorLangId == objectpascal || editorLangId == pascal)"
+      },
+      {
+        "key": "ctrl+shift+c",
+        "command": "nexusPascal.code.complete",
+        "when": "editorTextFocus && !isInEmbeddedEditor"
+      }
+    ],
+    "taskDefinitions": [
+      {
+        "type": "fpc",
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "%task.file%"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "%task.cwd%"
+          },
+          "buildOption": {
+            "type": "object",
+            "properties": {
+              "targetOS": {
+                "type": "string",
+                "description": "%task.buildOption.targetOS%",
+                "examples": [
+                  "linux",
+                  "win32",
+                  "win64",
+                  "Darwin"
+                ]
+              },
+              "targetCPU": {
+                "type": "string",
+                "description": "%task.buildOption.targetCPU%",
+                "examples": [
+                  "x86_64",
+                  "aarch64",
+                  "i386"
+                ]
+              },
+              "searchPath": {
+                "type": "array",
+                "description": "%task.buildOption.searchPath%",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "libPath": {
+                "type": "array",
+                "description": "%task.buildOption.libPath%",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "unitOutputDir": {
+                "type": "string",
+                "description": "%task.buildOption.unitOutputDir%"
+              },
+              "outputFile": {
+                "type": "string",
+                "description": "%task.buildOption.outputFile%"
+              },
+              "syntaxMode": {
+                "type": "string",
+                "description": "%task.buildOption.syntaxMode%",
+                "default": "ObjFPC",
+                "examples": [
+                  "fpc",
+                  "Delphi",
+                  "DelphiUnicode",
+                  "ObjFPC"
+                ]
+              },
+              "optimizationLevel": {
+                "type": "number",
+                "description": "%task.buildOption.optimizationLevel%",
+                "enum": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "forceRebuild": {
+                "type": "boolean",
+                "description": "%task.buildOption.forceRebuild%",
+                "default": false
+              },
+              "msgIgnore": {
+                "type": "array",
+                "items": {
+                  "type": "number"
+                },
+                "description": "%task.buildOption.msgIgnore%"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "lazarus",
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Lazarus project or package file (.lpi or .lpk)"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "%task.cwd%"
+          },
+          "buildMode": {
+            "type": "string",
+            "description": "Lazarus build mode to pass to lazbuild"
+          },
+          "forceRebuild": {
+            "type": "boolean",
+            "description": "Build all project/package files with lazbuild",
+            "default": false
+          }
+        }
+      },
+      {
+        "type": "nexus",
+        "required": [
+          "project"
+        ],
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Nexus project file (.nxp)"
+          },
+          "cwd": {
+            "type": "string",
+            "description": "%task.cwd%"
+          }
+        }
+      }
+    ],
+    "configuration": [
+      {
+        "title": "Nexus Pascal Toolchain",
+        "properties": {
+          "nexusPascal.activeProject": {
+            "type": "string",
+            "scope": "window",
+            "default": "",
+            "markdownDescription": "%config.activeProject%"
+          },
+          "nexusPascal.toolchains": {
+            "type": "object",
+            "scope": "application",
+            "default": {},
+            "markdownDescription": "%config.toolchains%"
+          }
+        }
+      },
+      {
+        "title": "Nexus Pascal Debugging",
+        "properties": {
+          "nexusPascal.debug.autoBuildBeforeLaunch": {
+            "type": "boolean",
+            "default": true,
+            "description": "%config.debug.autoBuildBeforeLaunch%"
+          }
+        }
+      },
+      {
+        "title": "Nexus Pascal Language Server",
+        "properties": {
+          "nexusPascal.languageServer.trace.server": {
+            "scope": "window",
+            "type": "string",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "off",
+            "description": "%config.languageServer.trace.server%"
+          },
+          "nexusPascal.languageServer.initializationOptions.checkSyntax": {
+            "type": "boolean",
+            "scope": "application",
+            "default": false,
+            "description": "%config.languageServer.initializationOptions.checkSyntax%"
+          },
+          "nexusPascal.languageServer.initializationOptions.publishDiagnostics": {
+            "type": "boolean",
+            "scope": "application",
+            "default": false,
+            "description": "%config.languageServer.initializationOptions.publishDiagnostics%"
+          },
+          "nexusPascal.languageServer.initializationOptions.showSyntaxErrors": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "%config.languageServer.initializationOptions.showSyntaxErrors%"
+          },
+          "nexusPascal.nexusScript.targets": {
+            "type": "array",
+            "scope": "window",
+            "default": [],
+            "description": "Workspace Target selection used for NexusScript analysis.",
+            "items": {
+              "type": "object",
+              "required": [
+                "kind",
+                "value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "fpc",
+        "owner": "external",
+        "pattern": [
+          {
+            "regexp": "Compiling ([^\\s].*(p|pp|pas|lpr|dpr|inc))$",
+            "file": 1
+          },
+          {
+            "regexp": "^([\\w]+\\.(p|pp|pas|lpr|dpr|inc))\\((\\d+)\\,(\\d+)\\)\\s(Fatal|Error|Warning|Note):(.*)",
+            "line": 3,
+            "column": 4,
+            "severity": 5,
+            "message": 6,
+            "loop": true
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "vscode:prepublish": "npm run compile && npm run build-base -- --minify",
+    "esbuild": "npm run compile && npm run build-base -- --sourcemap",
+    "build-base": "esbuild ./out/extension.js --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.8.0",
+    "vscode-languageclient": "^8.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.126",
+    "@types/vscode": "^1.120.0",
+    "esbuild": "^0.27.7",
+    "typescript": "^5.8.3"
+  },
+  "homepage": "https://github.com/nxrp-dev/nexus/tree/main/NexusTools/NexusCode"
+}

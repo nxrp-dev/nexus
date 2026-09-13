@@ -1,0 +1,14 @@
+.vscode/**
+.gitignore
+media
+node_modules
+src
+out
+dist/*.map
+.github
+**/tsconfig.json
+**/.eslintrc.json
+**/*.ts
+.kiro
+scripts
+bin/debug

@@ -10,6 +10,11 @@ BuildNexusPascalVSIX Group {
     Quiet: true
   }
 
+  BuildNexusScriptLanguageServer LazBuild {
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Script/ls/NexusScriptLS.lpi"
+    Quiet: true
+  }
+
   BuildNexusBuild LazBuild {
     Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Build/nexusbuild.lpi"
     Quiet: true
@@ -23,32 +28,41 @@ BuildNexusPascalVSIX Group {
     OutputName: "nxtest_host"
   }
 
-  FetchExtension Git {
-    Repository: "https://github.com/nxrp-dev/nexus-pascal.git"
-    Directory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
-  }
-
   InstallLanguageServer CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusLS/x86_64-win64/nexusls.exe"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/bin/x86_64-win64/nexusls.exe"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/bin/x86_64-win64/nexusls.exe"
     Overwrite: true
+  }
+
+  InstallNexusScriptLanguageServer CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusScriptLS/x86_64-win64/NexusScriptLS.exe"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/bin/x86_64-win64/nexusscriptls.exe"
+    Overwrite: true
+  }
+
+  InstallNexusScriptDialects CopyFile {
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusLib/script/dialects"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/dialects"
+    Recursive: true
+    Overwrite: true
+    CleanDestination: true
   }
 
   InstallNexusBuild CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusBuild/x86_64-win64/nexusbuild.exe"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/bin/x86_64-win64/nexusbuild.exe"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/bin/x86_64-win64/nexusbuild.exe"
     Overwrite: true
   }
 
   InstallNexusTestHost CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost/nxtest_host"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/bin/x86_64-win64/nxtest_host.exe"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/bin/x86_64-win64/nxtest_host.exe"
     Overwrite: true
   }
 
   InstallNexusLibSDK CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusLib"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusLib"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/sdk/nexus/NexusLib"
     Recursive: true
     Overwrite: true
     CleanDestination: true
@@ -57,7 +71,7 @@ BuildNexusPascalVSIX Group {
 
   InstallNexusTestSDK CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Test/src"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/NexusTools/Test/src"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/sdk/nexus/NexusTools/Test/src"
     Recursive: true
     Overwrite: true
     CleanDestination: true
@@ -66,7 +80,7 @@ BuildNexusPascalVSIX Group {
 
   InstallSynapseSDK CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/lib/synapse"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/thirdparty/synapse"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/sdk/nexus/thirdparty/synapse"
     Recursive: true
     Overwrite: true
     CleanDestination: true
@@ -75,7 +89,7 @@ BuildNexusPascalVSIX Group {
 
   InstallDMustacheSDK CopyFile {
     Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/lib/dmustache"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/sdk/nexus/thirdparty/dmustache"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/sdk/nexus/thirdparty/dmustache"
     Recursive: true
     Overwrite: true
     CleanDestination: true
@@ -83,14 +97,14 @@ BuildNexusPascalVSIX Group {
   }
 
   RemoveBundledLazarus DeletePath {
-    Path: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/toolchain/lazarus"
+    Path: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/toolchain/lazarus"
     Recursive: true
     MissingOk: true
   }
 
   InstallBundledLazarus CopyFile {
     Source: "C:/nexusdeployment/pruned/lazarus"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal/toolchain/lazarus"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode/toolchain/lazarus"
     Recursive: true
     Overwrite: true
     ExcludeNames: ".git;.gitignore;.gitattributes"
@@ -98,21 +112,21 @@ BuildNexusPascalVSIX Group {
 
   InstallExtensionDependencies Npm {
     Command: "ci"
-    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode"
   }
 
   PinVSCodeTypes Npm {
     Command: "install --save-dev @types/vscode@1.89.0"
-    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode"
   }
 
   BundleExtension Npm {
     Script: "esbuild"
-    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode"
   }
 
   PackageVSIX Npm {
     Command: "exec --yes --package @vscode/vsce -- vsce package"
-    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus-pascal"
+    WorkingDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/NexusCode"
   }
 }

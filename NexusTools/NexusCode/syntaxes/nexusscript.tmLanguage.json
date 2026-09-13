@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "NexusScript",
+  "scopeName": "source.nexusscript",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#directives" },
+    { "match": "[@+,:;{}\\[\\]()]", "name": "punctuation.nexusscript" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "begin": "/\\*", "end": "\\*/", "name": "comment.block.nexusscript" },
+        { "match": "//.*$", "name": "comment.line.double-slash.nexusscript" }
+      ]
+    },
+    "strings": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.nexusscript",
+      "patterns": [{ "match": "\\^.", "name": "constant.character.escape.nexusscript" }]
+    },
+    "directives": {
+      "match": "\\b(dialect|module|include|recursive|data)\\b",
+      "name": "keyword.control.nexusscript"
+    }
+  }
+}

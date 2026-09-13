@@ -5,8 +5,8 @@ REM Build and promote both Nexus language servers into the local extension bin.
 REM This script does not stop running language-server processes. If nexusls.exe
 REM is locked, close/reload VS Code and run this again.
 
-set "NexusRoot=C:\gitdev\nexus"
-set "ExtensionRoot=C:\gitdev\tools\nexus-pascal"
+for %%I in ("%~dp0..") do set "NexusRoot=%%~fI"
+set "ExtensionRoot=%NexusRoot%\NexusTools\NexusCode"
 set "TargetTriple=x86_64-win64"
 
 set "SourceDir=%NexusRoot%\output\NexusLS\%TargetTriple%"

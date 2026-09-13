@@ -1,0 +1,11 @@
+node_modules
+out
+dist
+*.vsix
+*.mov
+.DS_Store
+req.txt
+media
+.kiro
+scripts
+bin/debug

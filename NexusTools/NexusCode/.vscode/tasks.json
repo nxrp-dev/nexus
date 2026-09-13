@@ -1,0 +1,46 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"watch"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: watch",
+			"detail": "tsc -watch -p ./"
+		},
+		{
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"compile"
+			],
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: compile",
+			"detail": "tsc -p ./"
+		},
+		{
+			"type": "shell",
+			"command": "npm.cmd",
+			"args": [
+				"run",
+				"esbuild"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"problemMatcher": [],
+			"label": "npm: esbuild",
+			"detail": "npm run -S esbuild-base -- --sourcemap"
+		}
+	]
+}

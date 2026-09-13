@@ -1,0 +1,294 @@
+import * as vscode from 'vscode';
+import {
+    CloseAction,
+    CloseHandlerResult,
+    ErrorAction,
+    ErrorHandler,
+    ErrorHandlerResult,
+    LanguageClient,
+    Message,
+    ExecuteCommandParams,
+    ExecuteCommandRequest,
+    State,
+    Trace
+} from 'vscode-languageclient/node';
+
+import * as fs from 'fs';
+import { PascalProjectWorkspaceService } from '../services/pascalProjectWorkspaceService';
+import { ExtensionPaths } from '../services/extensionPaths';
+import { ClientLifecycleLock } from './clientLifecycle';
+import { InactiveRegions } from './inactiveRegions';
+import { InitializationOptions } from './options';
+import { getGlobalUnitPaths, getServerEnvironment } from './serverEnvironment';
+import { prepareServerExecutable, ServerExecutableResolver } from './serverExecutable';
+import { ServerNotifications } from './serverNotifications';
+import { createLanguageClientOptions, createServerOptions } from './serverOptions';
+import { getGlobalToolchains, resolvePascalToolchain } from '../toolchain/toolchainResolver';
+
+export class PascalLanguageClientService implements ErrorHandler {
+    private client: LanguageClient | undefined;
+    private targetOS?: string;
+    private targetCPU?: string;
+    private readonly inactiveRegions = new InactiveRegions();
+    private notifications?: ServerNotifications;
+    private readonly lifecycle = new ClientLifecycleLock();
+    private readonly executableResolver: ServerExecutableResolver;
+    private readonly traceOutputChannel: vscode.OutputChannel;
+
+    public constructor(
+        public projectWorkspace: PascalProjectWorkspaceService,
+        private readonly extensionPaths: ExtensionPaths,
+        private readonly logger: vscode.OutputChannel,
+        private readonly serverStoragePath?: string
+    ) {
+        this.executableResolver = new ServerExecutableResolver(this.extensionPaths);
+        this.traceOutputChannel = vscode.window.createOutputChannel('Nexus Pascal Language Server Trace');
+    }
+
+    public error(error: Error, message: Message | undefined, count: number | undefined): ErrorHandlerResult {
+        this.logger.appendLine(error.name + ' ' + error.message);
+        return { action: ErrorAction.Continue } as ErrorHandlerResult;
+    }
+
+    public closed(): CloseHandlerResult {
+        this.logger.appendLine('Server closed.');
+        return { action: CloseAction.Restart } as CloseHandlerResult;
+    }
+
+    public async doOnReady(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
+        this.notifications = new ServerNotifications(this.client, this.inactiveRegions, this.logger);
+        this.notifications.register();
+    }
+
+    public async doInit(): Promise<void> {
+        await this.lifecycle.run(() => this.doInitInternal());
+    }
+
+    private async doInitInternal(): Promise<void> {
+        if (this.client) {
+            await this.stopInternal();
+        }
+
+        console.log('Greetings from pascal-language-server');
+        const executableInfo = this.executableResolver.resolve();
+        const executable = executableInfo.executable;
+        this.targetOS = executableInfo.targetOS;
+        this.targetCPU = executableInfo.targetCPU;
+
+        if (!prepareServerExecutable(executable, this.logger)) {
+            return;
+        }
+
+        console.log('executable: ' + executable);
+
+        const toolchain = resolvePascalToolchain();
+        const envVars = getServerEnvironment(this.serverStoragePath, toolchain);
+        this.logger.appendLine(`Environment PP: ${envVars['PP']}`);
+        this.logger.appendLine(`Environment FPCDIR: ${envVars['FPCDIR']}`);
+        this.logger.appendLine(`Environment LAZARUSDIR: ${envVars['LAZARUSDIR']}`);
+        this.logger.appendLine(`Environment LAZARUSSRC: ${envVars['LAZARUSSRC']}`);
+
+        const fpcDir = envVars['FPCDIR'];
+        this.logger.appendLine('fpcDir: ' + fpcDir);
+        if (!fpcDir || !fs.existsSync(fpcDir) || !fs.lstatSync(fpcDir).isDirectory()) {
+            const configureToolchains = vscode.l10n.t('Configure Toolchains');
+            vscode.window.showWarningMessage(
+                vscode.l10n.t('Nexus Pascal could not resolve the Free Pascal install directory. Configure and enable a Lazarus or Free Pascal toolchain.'),
+                configureToolchains
+            ).then(selection => {
+                if (selection === configureToolchains) {
+                    vscode.commands.executeCommand('nexusPascal.toolchain.configure');
+                }
+            });
+        }
+
+        const serverOptions = createServerOptions(executable, envVars);
+
+        const initializationOptions = new InitializationOptions();
+        initializationOptions.toolchains = getGlobalToolchains();
+
+        const projectContext = await this.projectWorkspace.getDefaultLanguageServerContext();
+        initializationOptions.updateByProjectContext(projectContext);
+        this.logger.appendLine(`Language server project context: ${projectContext.kind} ${projectContext.projectFile}`);
+
+
+        if (projectContext.allowFpcGlobalUnitPaths) {
+            const compilerPath = envVars['PP'];
+            if (!compilerPath) {
+                const configureToolchains = vscode.l10n.t('Configure Toolchains');
+                vscode.window.showWarningMessage(
+                    vscode.l10n.t('Nexus Pascal could not resolve the Free Pascal compiler. Configure and enable a Lazarus or Free Pascal toolchain.'),
+                    configureToolchains
+                ).then(selection => {
+                    if (selection === configureToolchains) {
+                        vscode.commands.executeCommand('nexusPascal.toolchain.configure');
+                    }
+                });
+                this.logger.appendLine('Skipped FPC global unit paths because no compiler is configured.');
+            } else {
+                const globalUnitPaths = await getGlobalUnitPaths(
+                    compilerPath,
+                    this.targetOS,
+                    this.targetCPU,
+                    projectContext.workingDirectory
+                );
+                globalUnitPaths.forEach(unitPath => {
+                    const option = `-Fu${unitPath}`;
+                    if (!initializationOptions.fpcOptions.includes(option)) {
+                        initializationOptions.fpcOptions.push(option);
+                    }
+                });
+                this.logger.appendLine(`Added ${globalUnitPaths.length} FPC global unit paths to language server context`);
+            }
+        } else {
+            this.logger.appendLine(`Skipped FPC global unit paths for ${projectContext.kind} language server context`);
+        }
+
+        const clientOptions = createLanguageClientOptions(
+            initializationOptions,
+            this,
+            this.logger,
+            this.traceOutputChannel
+        );
+
+        this.logger.appendLine('Language server document selector: objectpascal, pascal');
+        this.client = new LanguageClient('nexusPascal.languageServer', 'Free Pascal Language Server', serverOptions, clientOptions);
+        await this.applyTraceSetting();
+    }
+
+    private async stopInternal(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
+        try {
+            if (this.client.state === State.Starting) {
+                this.logger.appendLine('Client is starting, waiting for it to become running before stopping...');
+                let count = 0;
+                while (this.client.state === State.Starting && count < 50) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    count++;
+                }
+            }
+
+            if (this.client.state === State.Running) {
+                this.logger.appendLine('Stopping language server...');
+                await this.client.stop(10000);
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            this.logger.appendLine(`Failed to stop language client: ${message}`);
+        } finally {
+            try {
+                this.client?.dispose();
+                this.logger.appendLine('Language client disposed.');
+            } catch (error) {
+                this.logger.appendLine(`Error disposing client: ${error}`);
+            }
+            this.client = undefined;
+            this.notifications = undefined;
+            this.inactiveRegions.clear();
+        }
+    }
+
+    private getTraceSetting(): Trace {
+        const configured = vscode.workspace
+            .getConfiguration('nexusPascal.languageServer')
+            .get<string>('trace.server', 'off');
+
+        switch (configured) {
+            case 'messages':
+                return Trace.Messages;
+            case 'verbose':
+                return Trace.Verbose;
+            default:
+                return Trace.Off;
+        }
+    }
+
+    public async applyTraceSetting(): Promise<void> {
+        if (!this.client) {
+            return;
+        }
+
+        await this.client.setTrace(this.getTraceSetting());
+    }
+
+    public onDidChangeVisibleTextEditor(editor: vscode.TextEditor): void {
+        this.inactiveRegions.applyToEditor(editor);
+    }
+
+    public async start(): Promise<void> {
+        await this.lifecycle.run(() => this.startInternal());
+    }
+
+    private async startInternal(): Promise<void> {
+        if (!this.client) {
+            this.logger.appendLine('Cannot start: client is undefined. Call doInit first.');
+            return;
+        }
+        try {
+            if (this.client.state === State.Running) {
+                return;
+            }
+            this.logger.appendLine('Starting language client...');
+            await this.client.start();
+            this.logger.appendLine('Language client started successfully.');
+            await this.doOnReady();
+        } catch (error) {
+            this.logger.appendLine(`Critical: Failed to start language client: ${error}`);
+            throw error;
+        }
+    }
+
+    public async stop(): Promise<void> {
+        await this.lifecycle.run(() => this.stopInternal());
+    }
+
+    public dispose(): void {
+        this.traceOutputChannel.dispose();
+    }
+
+    public async restart(): Promise<void> {
+        await this.lifecycle.run(async () => {
+            await this.stopInternal();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await this.doInitInternal();
+            await this.startInternal();
+        });
+    }
+
+    public async doCodeComplete(editor: vscode.TextEditor): Promise<void> {
+        if (!this.notifications && this.client) {
+            this.notifications = new ServerNotifications(this.client, this.inactiveRegions, this.logger);
+        }
+
+        await this.notifications?.completeCode(editor);
+    }
+
+    public async executeCommand<T = unknown>(command: string, args: unknown[] = []): Promise<T> {
+        if (!this.client) {
+            this.logger.appendLine(`Language server client is not available for command ${command}`);
+            throw new Error('Language server client is not available.');
+        }
+
+        const request: ExecuteCommandParams = {
+            command,
+            arguments: args
+        };
+        return this.client.sendRequest(ExecuteCommandRequest.type, request) as Promise<T>;
+    }
+
+    public async sendCustomRequest<T = unknown>(method: string, params?: unknown): Promise<T> {
+        if (!this.client) {
+            this.logger.appendLine(`Language server client is not available for request ${method}`);
+            throw new Error('Language server client is not available.');
+        }
+
+        return this.client.sendRequest(method, params) as Promise<T>;
+    }
+}

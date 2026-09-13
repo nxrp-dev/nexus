@@ -21,8 +21,6 @@ $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $OutputPath = Join-Path $OutputDirectory $ArchiveName
 $StagePath = Join-Path $env:TEMP ('nexus-source-chatgpt-{0}' -f ([guid]::NewGuid().ToString('N')))
 $ArchiveFileNamePattern = '^nexus-source-chatgpt-\d{8}-\d{6}\.zip$'
-$ExternalNexusPascalRoot = 'C:\gitdev\tools\nexus-pascal'
-
 $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLib'); ArchivePath = 'NexusLib' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusTools'); ArchivePath = 'NexusTools' },
@@ -30,8 +28,7 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'docs'); ArchivePath = 'docs' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'scripts'); ArchivePath = 'scripts' },
-  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'lib\pasbuild'); ArchivePath = 'lib\pasbuild' },
-  [pscustomobject]@{ SourcePath = $ExternalNexusPascalRoot; ArchivePath = 'tools\nexus-pascal' }
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'lib\pasbuild'); ArchivePath = 'lib\pasbuild' }
 )
 
 $DefaultSourceFiles = @(

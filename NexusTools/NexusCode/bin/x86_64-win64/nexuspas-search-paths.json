@@ -1,0 +1,313 @@
+{
+  "Class" : "TNXPasSearchPathTemplateList",
+  "Items" : [
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LCL",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\lcl"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LCL Interfaces",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\lcl\\interfaces"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LCL Win32",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\lcl\\interfaces\\win32"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LCL GTK2",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\lcl\\interfaces\\gtk2"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LCL QT5",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\lcl\\interfaces\\qt5"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LCL QT6",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\lcl\\interfaces\\qt6"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus LazUtils",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\lazutils"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus Packager",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\packager"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus IDEIntf",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\ideintf"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus SynEdit",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\synedit"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus DebuggerIntf",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\debuggerintf"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus Project Groups",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\projectgroups"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus AnchorDocking",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\anchordocking"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus Printer4Lazarus",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\printer4lazarus"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus DateTimeCtrls",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\datetimectrls"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus TAChart",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\tachart"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus VirtualTreeView",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\virtualtreeview"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Lazarus DBExport",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(LazarusSrcDir)\\components\\dbexport"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL Target",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\$(TargetOS)"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL Win",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\win"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL Unix",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\unix"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL ObjPas",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\objpas"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL ObjPas Classes",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\objpas\\classes"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL ObjPas SysUtils",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\objpas\\sysutils"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL Inc",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\rtl\\inc"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL Base",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-base\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL JSON",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-json\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL XML",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-xml\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL DB",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-db\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL Image",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-image\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL Net",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-net\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL Process",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-process\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL Reg",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-registry\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC FCL Web Base",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-web\\src\\base"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RTL Extra",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\rtl-extra\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC PasJPEG",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\pasjpeg\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC Hash",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\hash\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC RegExpr",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\regexpr\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC CHM",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\chm\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC SQLite",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\sqlite\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC MySQL",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\mysql\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC PostgreSQL",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\postgres\\src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "FPC IBase",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(FPCSrcDir)\\packages\\ibase\\src"
+    }
+  ]
+}
