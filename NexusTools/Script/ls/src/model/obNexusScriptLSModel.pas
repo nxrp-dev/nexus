@@ -17,8 +17,6 @@ uses
   obNexusScriptLSDocument;
 
 type
-  TNexusScriptCompilationSessionClass = class of TNexusScriptCompilationSession;
-
   TNexusScriptLSAnalysisEntry = class
   private
     FURI: string;
@@ -40,7 +38,6 @@ type
     FDialectRoot: string;
     FTransport: TNXLSTransport;
     FOutboundDispatcher: TNXLSOutboundDispatcher;
-    FCompilationSessionClass: TNexusScriptCompilationSessionClass;
     FInitializeReceived: Boolean;
     FInitialized: Boolean;
     FShutdownRequested: Boolean;
@@ -76,8 +73,6 @@ type
     procedure SetTargets(ASelection: TNexusScriptTargetSelection);
     property DialectRoot: string read FDialectRoot write FDialectRoot;
     property SourceProvider: TNexusScriptLSOverlayProvider read FSourceProvider;
-    property CompilationSessionClass: TNexusScriptCompilationSessionClass
-      read FCompilationSessionClass;
     property InitializeReceived: Boolean read FInitializeReceived;
     property Initialized: Boolean read FInitialized;
     property ShutdownRequested: Boolean read FShutdownRequested;
@@ -121,7 +116,6 @@ begin
   FSourceProvider := TNexusScriptLSOverlayProvider.Create;
   FOutboundDispatcher := TNXLSOutboundDispatcher.Create;
   FSelectedTargets := TNexusScriptTargetSelection.Create;
-  FCompilationSessionClass := TNexusScriptCompilationSession;
 end;
 
 destructor TNexusScriptLSModel.Destroy;
@@ -196,23 +190,12 @@ begin
 end;
 
 function TNexusScriptLSModel.SourceNameForURI(const AURI: string): string;
-var
-  lCharacter: Char;
-  lHash: Cardinal;
 begin
   Result := '';
   if URIToFilename(AURI, Result) then
     Exit;
-  if Pos('untitled:', AURI) <> 1 then
-    Exit;
-  lHash := 2166136261;
-  for lCharacter in AURI do
-  begin
-    lHash := lHash xor Ord(lCharacter);
-    lHash := lHash * 16777619;
-  end;
-  Result := IncludeTrailingPathDelimiter(GetTempDir(False)) +
-    'NexusScriptLS-untitled-' + IntToHex(lHash, 8) + '.nxscript';
+  if Pos('untitled:', AURI) = 1 then
+    Result := AURI;
 end;
 
 procedure TNexusScriptLSModel.Reanalyze;

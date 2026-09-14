@@ -41,12 +41,19 @@ type
     function SelectFiles(const AFolderName, AFileNamePattern: string;
       ARecursive: Boolean): TStringList; override;
     function SameIdentity(const ALeft, ARight: string): Boolean; override;
+    function SupportsRelativePaths(const ASourceName: string): Boolean;
+      override;
   end;
 
 implementation
 
 uses
   SysUtils;
+
+function IsUntitledIdentity(const ASourceName: string): Boolean;
+begin
+  Result := Pos('untitled:', ASourceName) = 1;
+end;
 
 function WildcardMatch(const AValue, AMask: string): Boolean;
 var
@@ -128,13 +135,26 @@ end;
 function TNexusScriptLSOverlayProvider.CanonicalName(
   const ASourceName: string): string;
 begin
-  Result := FBacking.CanonicalName(ASourceName);
+  if IsUntitledIdentity(ASourceName) then
+    Result := ASourceName
+  else
+    Result := FBacking.CanonicalName(ASourceName);
 end;
 
 function TNexusScriptLSOverlayProvider.SameIdentity(const ALeft,
   ARight: string): Boolean;
 begin
-  Result := FBacking.SameIdentity(ALeft, ARight);
+  if IsUntitledIdentity(ALeft) or IsUntitledIdentity(ARight) then
+    Result := ALeft = ARight
+  else
+    Result := FBacking.SameIdentity(ALeft, ARight);
+end;
+
+function TNexusScriptLSOverlayProvider.SupportsRelativePaths(
+  const ASourceName: string): Boolean;
+begin
+  Result := not IsUntitledIdentity(ASourceName) and
+    FBacking.SupportsRelativePaths(ASourceName);
 end;
 
 function TNexusScriptLSOverlayProvider.FindSource(
@@ -179,7 +199,9 @@ end;
 function TNexusScriptLSOverlayProvider.Exists(
   const ASourceName: string): Boolean;
 begin
-  Result := (FindSource(ASourceName) <> nil) or FBacking.Exists(ASourceName);
+  Result := FindSource(ASourceName) <> nil;
+  if not Result and not IsUntitledIdentity(ASourceName) then
+    Result := FBacking.Exists(ASourceName);
 end;
 
 function TNexusScriptLSOverlayProvider.FolderExists(

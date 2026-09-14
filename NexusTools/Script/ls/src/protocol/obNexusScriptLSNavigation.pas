@@ -174,6 +174,85 @@ begin
   end;
 end;
 
+function PropertyAt(ADefinitions: TNexusScriptCompiledDefinitionList;
+  ALine, AColumn: Integer): TNexusScriptCompiledProperty;
+var
+  lDefinition: TNexusScriptCompiledDefinition;
+  lProperty: TNexusScriptCompiledProperty;
+begin
+  Result := nil;
+  for lDefinition in ADefinitions do
+  begin
+    for lProperty in lDefinition.Properties do
+      if NXScriptRangeContains(lProperty.Value.SourceRange,
+        ALine, AColumn) then
+        Exit(lProperty);
+    Result := PropertyAt(lDefinition.Children, ALine, AColumn);
+    if Result <> nil then
+      Exit;
+  end;
+end;
+
+function EffectiveText(AValue: TNexusScriptCompiledValue): string;
+begin
+  if AValue.HasEffectiveText then
+    Exit(AValue.EffectiveText);
+  Result := AValue.SourceText;
+end;
+
+function SourceDescription(const ARange: TNexusScriptRange): string;
+begin
+  Result := TNexusScriptLSModel.Current.URIForSourceName(ARange.SourceName) +
+    ':' + IntToStr(ARange.StartPosition.Line);
+end;
+
+function TargetsDescription(ADefinition: TNexusScriptCompiledDefinition): string;
+var
+  lTarget: TNexusScriptTarget;
+  lValue: string;
+begin
+  Result := '';
+  for lTarget in ADefinition.Targets do
+    for lValue in lTarget.Values do
+    begin
+      if Result <> '' then
+        Result := Result + ', ';
+      Result := Result + lTarget.Name + '=' + lValue;
+    end;
+end;
+
+function SourceTargetsDescription(
+  ADefinition: TNexusScriptSourceDefinition): string;
+var
+  lTarget: TNexusScriptTarget;
+  lValue: string;
+begin
+  Result := '';
+  for lTarget in ADefinition.Targets do
+    for lValue in lTarget.Values do
+    begin
+      if Result <> '' then
+        Result := Result + ', ';
+      Result := Result + lTarget.Name + '=' + lValue;
+    end;
+end;
+
+function SourceDefinitionAt(ADefinitions: TNexusScriptSourceDefinitionList;
+  ALine, AColumn: Integer): TNexusScriptSourceDefinition;
+var
+  lDefinition: TNexusScriptSourceDefinition;
+begin
+  Result := nil;
+  for lDefinition in ADefinitions do
+  begin
+    Result := SourceDefinitionAt(lDefinition.Children, ALine, AColumn);
+    if Result <> nil then
+      Exit;
+    if NXScriptRangeContains(lDefinition.SourceRange, ALine, AColumn) then
+      Exit(lDefinition);
+  end;
+end;
+
 class function TNexusScriptLSDefinitionRequest.GetFactoryName: string;
 begin
   Result := 'textDocument/definition';
@@ -231,33 +310,70 @@ var
   lAnalysis: TNexusScriptAnalysis;
   lValue: TNexusScriptCompiledValue;
   lDefinition: TNexusScriptCompiledDefinition;
+  lSourceDefinition: TNexusScriptSourceDefinition;
+  lProperty: TNexusScriptCompiledProperty;
   lResult: TNXLSHover;
   lText: string;
+  lTargets: string;
 begin
   lAnalysis := TNexusScriptLSModel.Current.FindAnalysis(
     params.textDocument.uri.Value);
   if (lAnalysis = nil) or (lAnalysis.EntryCompiler = nil) then
     Exit(TNXJSONNull.Create);
+  lProperty := PropertyAt(lAnalysis.EntryCompiler.CompiledDocument.Definitions,
+    params.position.line.Value + 1, params.position.character.Value + 1);
   lValue := NXScriptFindValueAt(lAnalysis.EntryCompiler.CompiledDocument,
     params.position.line.Value + 1, params.position.character.Value + 1);
-  if lValue <> nil then
+  if lProperty <> nil then
   begin
-    if lValue.ResolvedDefinition <> nil then
-      lText := lValue.ResolvedDefinition.Kind + ' ' +
+    lText := 'Property ' + lProperty.Name + LineEnding +
+      'Effective: ' + EffectiveText(lProperty.Value) + LineEnding +
+      'Local: ' + BoolToStr(lProperty.SourceRange.SourceName =
+        lAnalysis.EntryCompiler.CompiledDocument.SourceName, True) +
+        LineEnding +
+      'Source: ' + SourceDescription(lProperty.SourceRange);
+    if lProperty.ContributorRanges.Count > 1 then
+      lText := lText + LineEnding + 'Contributors: ' +
+        IntToStr(lProperty.ContributorRanges.Count);
+    if (lValue <> nil) and (lValue.ResolvedDefinition <> nil) then
+      lText := lText + LineEnding + 'Resolves to: ' +
+        lValue.ResolvedDefinition.Kind + ' ' +
         lValue.ResolvedDefinition.Name
-    else if lValue.ResolvedProperty <> nil then
-      lText := 'Property ' + lValue.ResolvedProperty.Name
-    else
-      lText := lValue.SourceText;
+    else if (lValue <> nil) and (lValue.ResolvedProperty <> nil) then
+      lText := lText + LineEnding + 'Resolves to property: ' +
+        lValue.ResolvedProperty.Name;
   end
   else
   begin
     lDefinition := NXScriptFindDefinitionAt(
       lAnalysis.EntryCompiler.CompiledDocument,
       params.position.line.Value + 1, params.position.character.Value + 1);
-    if lDefinition = nil then
-      Exit(TNXJSONNull.Create);
-    lText := lDefinition.Kind + ' ' + lDefinition.Name;
+    if lDefinition <> nil then
+    begin
+      lText := lDefinition.Kind + ' ' + lDefinition.Name + LineEnding +
+        'Applicable: True' + LineEnding +
+        'Local: ' + BoolToStr(lDefinition.SourceRange.SourceName =
+          lAnalysis.EntryCompiler.CompiledDocument.SourceName, True) +
+          LineEnding + 'Source: ' +
+          SourceDescription(lDefinition.SourceRange);
+      lTargets := TargetsDescription(lDefinition);
+    end
+    else
+    begin
+      lSourceDefinition := SourceDefinitionAt(
+        lAnalysis.EntrySourceCompiler.SourceDocument.Definitions,
+        params.position.line.Value + 1,
+        params.position.character.Value + 1);
+      if lSourceDefinition = nil then
+        Exit(TNXJSONNull.Create);
+      lText := lSourceDefinition.Kind + ' ' + lSourceDefinition.Name +
+        LineEnding + 'Applicable: False' + LineEnding + 'Local: True' +
+        LineEnding + 'Source: ' +
+        SourceDescription(lSourceDefinition.SourceRange);
+      lTargets := SourceTargetsDescription(lSourceDefinition);
+    end;
+    if lTargets <> '' then
+      lText := lText + LineEnding + 'Targets: ' + lTargets;
   end;
   lResult := TNXLSHover(PrepareResult);
   lResult.contents.kind.Value := 'plaintext';

@@ -18,6 +18,8 @@ type
     function SelectFiles(const AFolderName, AFileNamePattern: string;
       ARecursive: Boolean): TStringList; virtual; abstract;
     function SameIdentity(const ALeft, ARight: string): Boolean; virtual; abstract;
+    function SupportsRelativePaths(const ASourceName: string): Boolean;
+      virtual; abstract;
   end;
 
   TNexusScriptFileSourceProvider = class(TNexusScriptSourceProvider)
@@ -30,6 +32,8 @@ type
     function SelectFiles(const AFolderName, AFileNamePattern: string;
       ARecursive: Boolean): TStringList; override;
     function SameIdentity(const ALeft, ARight: string): Boolean; override;
+    function SupportsRelativePaths(const ASourceName: string): Boolean;
+      override;
   end;
 
 implementation
@@ -122,6 +126,12 @@ function TNexusScriptFileSourceProvider.SameIdentity(const ALeft,
   ARight: string): Boolean;
 begin
   Result := SameFileName(CanonicalName(ALeft), CanonicalName(ARight));
+end;
+
+function TNexusScriptFileSourceProvider.SupportsRelativePaths(
+  const ASourceName: string): Boolean;
+begin
+  Result := True;
 end;
 
 end.

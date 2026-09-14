@@ -11,8 +11,19 @@ export interface NexusScriptNode {
     children?: NexusScriptNode[];
     sourceUri?: string;
     local?: boolean;
+    applicable?: boolean;
+    overrides?: boolean;
     effectiveValue?: string;
+    effectiveSourceUri?: string;
+    effectiveRange?: Range;
+    contributors?: NexusScriptProvenance[];
     allowedOperations?: string[];
+}
+
+export interface NexusScriptProvenance {
+    sourceUri: string;
+    range: Range;
+    winner: boolean;
 }
 
 export interface NexusScriptDialectPropertyRule {

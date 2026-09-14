@@ -91,63 +91,257 @@ begin
 end;
 
 function NodeID(ARevision: Integer; const ANodeType: string;
-  const ARange: TNexusScriptRange): string;
+  const ARange: TNexusScriptRange; const AOccurrencePath: string): string;
 begin
   Result := IntToStr(ARevision) + ':' + ANodeType + ':' +
-    IntToStr(ARange.StartPosition.Offset);
+    IntToStr(ARange.StartPosition.Offset) + ':' + AOccurrencePath;
 end;
 
-procedure AddDefinitionNodes(ADefinitions: TNexusScriptSourceDefinitionList;
-  ARevision: Integer; AResult: TNexusScriptLSNodeArray);
+function ChildPath(const AParentPath: string; AIndex: Integer): string;
+begin
+  if AParentPath = '' then
+    Result := IntToStr(AIndex)
+  else
+    Result := AParentPath + '.' + IntToStr(AIndex);
+end;
+
+function SameRange(const ALeft, ARight: TNexusScriptRange): Boolean;
+begin
+  Result := (ALeft.SourceName = ARight.SourceName) and
+    (ALeft.StartPosition.Offset = ARight.StartPosition.Offset) and
+    (ALeft.EndPosition.Offset = ARight.EndPosition.Offset);
+end;
+
+function EffectiveText(AValue: TNexusScriptCompiledValue): string;
+begin
+  if AValue = nil then
+    Exit('');
+  if AValue.HasEffectiveText then
+    Exit(AValue.EffectiveText);
+  Result := AValue.SourceText;
+end;
+
+function FindCompiledDefinition(ADefinitions: TNexusScriptCompiledDefinitionList;
+  ASource: TNexusScriptSourceDefinition): TNexusScriptCompiledDefinition;
+var
+  lDefinition: TNexusScriptCompiledDefinition;
+begin
+  Result := nil;
+  if ADefinitions = nil then
+    Exit;
+  for lDefinition in ADefinitions do
+    if lDefinition.SourceDefinition = ASource then
+      Exit(lDefinition);
+end;
+
+function HasSourceDefinition(ADefinitions: TNexusScriptSourceDefinitionList;
+  ASource: TNexusScriptSourceDefinition): Boolean;
 var
   lDefinition: TNexusScriptSourceDefinition;
+begin
+  Result := False;
+  for lDefinition in ADefinitions do
+    if lDefinition = ASource then
+      Exit(True);
+end;
+
+procedure AddProvenance(AProperty: TNexusScriptCompiledProperty;
+  ANode: TNexusScriptLSNode);
+var
+  lRange: TNexusScriptRange;
+  lProvenance: TNexusScriptLSProvenance;
+begin
+  if AProperty = nil then
+    Exit;
+  ANode.effectiveSourceUri.Value :=
+    TNexusScriptLSModel.Current.URIForSourceName(
+      AProperty.SourceRange.SourceName);
+  SetRange(ANode.effectiveRange, AProperty.SourceRange);
+  ANode.contributors.Assigned := AProperty.ContributorRanges.Count > 0;
+  for lRange in AProperty.ContributorRanges do
+  begin
+    lProvenance := TNexusScriptLSProvenance(
+      ANode.contributors.AddObject(TNexusScriptLSProvenance));
+    lProvenance.sourceUri.Value :=
+      TNexusScriptLSModel.Current.URIForSourceName(lRange.SourceName);
+    SetRange(lProvenance.range, lRange);
+    lProvenance.winner.Value :=
+      (AProperty.Value.CompositionContributors.Count = 0) and
+      SameRange(lRange, AProperty.SourceRange);
+  end;
+end;
+
+procedure AddCompiledDefinitionNode(
+  ADefinition: TNexusScriptCompiledDefinition; ARevision: Integer;
+  AResult: TNexusScriptLSNodeArray;
+  const AParentPath: string); forward;
+
+procedure AddDefinitionNodes(ADefinitions: TNexusScriptSourceDefinitionList;
+  ACompiledDefinitions: TNexusScriptCompiledDefinitionList;
+  ARevision: Integer; AResult: TNexusScriptLSNodeArray;
+  const AParentPath: string);
+var
+  lDefinition: TNexusScriptSourceDefinition;
+  lCompiledDefinition: TNexusScriptCompiledDefinition;
+  lCompiledChild: TNexusScriptCompiledDefinition;
+  lCompiledProperty: TNexusScriptCompiledProperty;
   lProperty: TNexusScriptSourceProperty;
   lNode: TNexusScriptLSNode;
+  lNodePath: string;
   lPropertyNode: TNexusScriptLSNode;
+  lPropertyPath: string;
 begin
   for lDefinition in ADefinitions do
   begin
+    lCompiledDefinition := FindCompiledDefinition(ACompiledDefinitions,
+      lDefinition);
+    lNodePath := ChildPath(AParentPath, AResult.Count);
     lNode := TNexusScriptLSNode(AResult.AddObject(TNexusScriptLSNode));
     lNode.id.Value := NodeID(ARevision, 'definition',
-      lDefinition.SourceRange);
+      lDefinition.SourceRange, lNodePath);
     lNode.nodeType.Value := 'definition';
     lNode.kind.Value := lDefinition.Kind;
     lNode.name.Value := lDefinition.Name;
     lNode.sourceUri.Value := TNexusScriptLSModel.Current.URIForSourceName(
       lDefinition.SourceRange.SourceName);
     lNode.local.Value := True;
+    lNode.applicable.Value := lCompiledDefinition <> nil;
     lNode.allowedOperations.AddString('rename');
     lNode.allowedOperations.AddString('addChild');
     lNode.allowedOperations.AddString('setProperty');
-    lNode.allowedOperations.AddString('createOverride');
+    if (lCompiledDefinition <> nil) and
+      ((lCompiledDefinition.Properties.Count > lDefinition.Properties.Count) or
+       (lCompiledDefinition.Children.Count > lDefinition.Children.Count)) then
+      lNode.allowedOperations.AddString('createOverride');
     SetRange(lNode.range, lDefinition.SourceRange);
     SetRange(lNode.selectionRange, lDefinition.NameRange);
     if (lDefinition.Properties.Count > 0) or
-      (lDefinition.Children.Count > 0) then
+      (lDefinition.Children.Count > 0) or
+      ((lCompiledDefinition <> nil) and
+       ((lCompiledDefinition.Properties.Count > 0) or
+        (lCompiledDefinition.Children.Count > 0))) then
       lNode.children.Assigned := True;
     for lProperty in lDefinition.Properties do
     begin
+      lCompiledProperty := nil;
+      if lCompiledDefinition <> nil then
+        lCompiledProperty := lCompiledDefinition.FindProperty(lProperty.Name);
+      lPropertyPath := ChildPath(lNodePath, lNode.children.Count);
       lPropertyNode := TNexusScriptLSNode(lNode.children.AddObject(
         TNexusScriptLSNode));
       lPropertyNode.id.Value := NodeID(ARevision, 'property',
-        lProperty.SourceRange);
+        lProperty.SourceRange, lPropertyPath);
       lPropertyNode.nodeType.Value := 'property';
       lPropertyNode.name.Value := lProperty.Name;
       lPropertyNode.value.Value := lProperty.Value.Text;
-      lPropertyNode.effectiveValue.Value := lProperty.Value.Text;
       lPropertyNode.sourceUri.Value :=
         TNexusScriptLSModel.Current.URIForSourceName(
         lProperty.SourceRange.SourceName);
       lPropertyNode.local.Value := True;
+      lPropertyNode.applicable.Value := lCompiledProperty <> nil;
       lPropertyNode.allowedOperations.AddString('rename');
       lPropertyNode.allowedOperations.AddString('setReference');
       lPropertyNode.allowedOperations.AddString('removeProperty');
-      lPropertyNode.allowedOperations.AddString('resetOverride');
+      if lCompiledProperty <> nil then
+      begin
+        lPropertyNode.effectiveValue.Value :=
+          EffectiveText(lCompiledProperty.Value);
+        lPropertyNode.overrides.Value :=
+          (lCompiledProperty.ContributorRanges.Count > 1) and
+          (lCompiledProperty.Value.CompositionContributors.Count = 0);
+        if lPropertyNode.overrides.Value then
+          lPropertyNode.allowedOperations.AddString('resetOverride');
+        AddProvenance(lCompiledProperty, lPropertyNode);
+      end;
       SetRange(lPropertyNode.range, lProperty.ValueRange);
       SetRange(lPropertyNode.selectionRange, lProperty.NameRange);
     end;
-    AddDefinitionNodes(lDefinition.Children, ARevision, lNode.children);
+    if lCompiledDefinition <> nil then
+      for lCompiledProperty in lCompiledDefinition.Properties do
+        if lDefinition.FindProperty(lCompiledProperty.Name) = nil then
+        begin
+          lPropertyPath := ChildPath(lNodePath, lNode.children.Count);
+          lPropertyNode := TNexusScriptLSNode(lNode.children.AddObject(
+            TNexusScriptLSNode));
+          lPropertyNode.id.Value := NodeID(ARevision, 'effective-property',
+            lCompiledProperty.SourceRange, lPropertyPath);
+          lPropertyNode.nodeType.Value := 'property';
+          lPropertyNode.name.Value := lCompiledProperty.Name;
+          lPropertyNode.effectiveValue.Value :=
+            EffectiveText(lCompiledProperty.Value);
+          lPropertyNode.sourceUri.Value :=
+            TNexusScriptLSModel.Current.URIForSourceName(
+              lCompiledProperty.SourceRange.SourceName);
+          lPropertyNode.local.Value := False;
+          lPropertyNode.applicable.Value := True;
+          SetRange(lPropertyNode.range, lCompiledProperty.SourceRange);
+          SetRange(lPropertyNode.selectionRange,
+            lCompiledProperty.SourceRange);
+          AddProvenance(lCompiledProperty, lPropertyNode);
+        end;
+    if lCompiledDefinition = nil then
+      AddDefinitionNodes(lDefinition.Children, nil, ARevision,
+        lNode.children, lNodePath)
+    else
+    begin
+      AddDefinitionNodes(lDefinition.Children, lCompiledDefinition.Children,
+        ARevision, lNode.children, lNodePath);
+      for lCompiledChild in lCompiledDefinition.Children do
+        if not HasSourceDefinition(lDefinition.Children,
+          lCompiledChild.SourceDefinition) then
+          AddCompiledDefinitionNode(lCompiledChild, ARevision,
+            lNode.children, lNodePath);
+    end;
   end;
+end;
+
+procedure AddCompiledDefinitionNode(
+  ADefinition: TNexusScriptCompiledDefinition; ARevision: Integer;
+  AResult: TNexusScriptLSNodeArray; const AParentPath: string);
+var
+  lChild: TNexusScriptCompiledDefinition;
+  lProperty: TNexusScriptCompiledProperty;
+  lNode: TNexusScriptLSNode;
+  lNodePath: string;
+  lPropertyNode: TNexusScriptLSNode;
+  lPropertyPath: string;
+begin
+  lNodePath := ChildPath(AParentPath, AResult.Count);
+  lNode := TNexusScriptLSNode(AResult.AddObject(TNexusScriptLSNode));
+  lNode.id.Value := NodeID(ARevision, 'effective-definition',
+    ADefinition.SourceRange, lNodePath);
+  lNode.nodeType.Value := 'definition';
+  lNode.kind.Value := ADefinition.Kind;
+  lNode.name.Value := ADefinition.Name;
+  lNode.sourceUri.Value := TNexusScriptLSModel.Current.URIForSourceName(
+    ADefinition.SourceRange.SourceName);
+  lNode.local.Value := False;
+  lNode.applicable.Value := True;
+  SetRange(lNode.range, ADefinition.SourceRange);
+  SetRange(lNode.selectionRange, ADefinition.SourceRange);
+  if (ADefinition.Properties.Count > 0) or
+    (ADefinition.Children.Count > 0) then
+    lNode.children.Assigned := True;
+  for lProperty in ADefinition.Properties do
+  begin
+    lPropertyPath := ChildPath(lNodePath, lNode.children.Count);
+    lPropertyNode := TNexusScriptLSNode(lNode.children.AddObject(
+      TNexusScriptLSNode));
+    lPropertyNode.id.Value := NodeID(ARevision, 'effective-property',
+      lProperty.SourceRange, lPropertyPath);
+    lPropertyNode.nodeType.Value := 'property';
+    lPropertyNode.name.Value := lProperty.Name;
+    lPropertyNode.effectiveValue.Value := EffectiveText(lProperty.Value);
+    lPropertyNode.sourceUri.Value := TNexusScriptLSModel.Current.URIForSourceName(
+      lProperty.SourceRange.SourceName);
+    lPropertyNode.local.Value := False;
+    lPropertyNode.applicable.Value := True;
+    SetRange(lPropertyNode.range, lProperty.SourceRange);
+    SetRange(lPropertyNode.selectionRange, lProperty.SourceRange);
+    AddProvenance(lProperty, lPropertyNode);
+  end;
+  for lChild in ADefinition.Children do
+    AddCompiledDefinitionNode(lChild, ARevision, lNode.children, lNodePath);
 end;
 
 function ScalarKindName(AKind: TNSScalarKind): string;
@@ -209,12 +403,18 @@ end;
 function NodeOffset(const ANodeID, ANodeType: string; ARevision: Integer): Integer;
 var
   lPrefix: string;
+  lOffsetText: string;
+  lSeparator: Integer;
   lCode: Integer;
 begin
   lPrefix := IntToStr(ARevision) + ':' + ANodeType + ':';
   if Copy(ANodeID, 1, Length(lPrefix)) <> lPrefix then
     raise Exception.Create('Stale or invalid NexusScript semantic node.');
-  Val(Copy(ANodeID, Length(lPrefix) + 1, MaxInt), Result, lCode);
+  lOffsetText := Copy(ANodeID, Length(lPrefix) + 1, MaxInt);
+  lSeparator := Pos(':', lOffsetText);
+  if lSeparator > 0 then
+    Delete(lOffsetText, lSeparator, MaxInt);
+  Val(lOffsetText, Result, lCode);
   if lCode <> 0 then
     raise Exception.Create('Invalid NexusScript semantic node identifier.');
 end;
@@ -282,8 +482,14 @@ begin
     if (lCompiler <> nil) and (lCompiler.SourceDocument <> nil) then
     begin
       lResult.nodes.Assigned := True;
-      AddDefinitionNodes(lCompiler.SourceDocument.Definitions,
-        lAnalysis.Revision, lResult.nodes);
+      if (lAnalysis.EntryCompiler <> nil) and
+        (lAnalysis.EntryCompiler.CompiledDocument <> nil) then
+        AddDefinitionNodes(lCompiler.SourceDocument.Definitions,
+          lAnalysis.EntryCompiler.CompiledDocument.Definitions,
+          lAnalysis.Revision, lResult.nodes, '')
+      else
+        AddDefinitionNodes(lCompiler.SourceDocument.Definitions, nil,
+          lAnalysis.Revision, lResult.nodes, '');
     end;
   end;
   Result := lResult;
@@ -437,7 +643,9 @@ begin
     raise Exception.Create('No NexusScript source model is available.');
   Result := PrepareResult;
 
-  if (params.operation.Value = 'rename') or
+  if ((params.operation.Value = 'rename') and
+      (Pos(IntToStr(lAnalysis.Revision) + ':property:',
+        params.nodeId.Value) = 1)) or
     (params.operation.Value = 'removeProperty') or
     (params.operation.Value = 'setReference') or
     (params.operation.Value = 'resetOverride') then

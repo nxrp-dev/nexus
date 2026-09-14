@@ -36,6 +36,37 @@ begin
   end;
 end;
 
+function SemanticEdit(const AURI: string; AVersion, ARevision: Integer;
+  const ANodeID, AOperation, AAdditionalFields: string): TJSONData;
+begin
+  Result := GetJSON(DispatchJSON('{"jsonrpc":"2.0","id":90,' +
+    '"method":"nexusscript/semanticEdit","params":{' +
+    '"textDocument":{"uri":"' + AURI + '"},"version":' +
+    IntToStr(AVersion) + ',"revision":' + IntToStr(ARevision) +
+    ',"nodeId":"' + ANodeID + '","operation":"' + AOperation + '"' +
+    AAdditionalFields + '}}'));
+end;
+
+function FirstSemanticEdit(AJSON: TJSONData): TJSONObject;
+begin
+  Result := TJSONObject(TJSONObject(TJSONObject(AJSON).Objects['result'].
+    Arrays['documentChanges'][0]).Arrays['edits'][0]);
+end;
+
+function FindNode(AItems: TJSONArray; const AName: string): TJSONObject;
+var
+  lIndex: Integer;
+  lNode: TJSONObject;
+begin
+  Result := nil;
+  for lIndex := 0 to AItems.Count - 1 do
+  begin
+    lNode := TJSONObject(AItems[lIndex]);
+    if lNode.Get('name', '') = AName then
+      Exit(lNode);
+  end;
+end;
+
 procedure TestOverlayAnalysisAndDependencyRefresh(AContext: TNXTestContext);
 const
   cEntryURI = 'file:///C:/work/entry.nxscript';
@@ -239,12 +270,26 @@ begin
   TNexusScriptLSModel.SetCurrent(lModel);
   lJSON := nil;
   try
-    lModel.OpenDocument(cURI, 'nexusscript', 1, 'Thing Unsaved {}');
+    lModel.OpenDocument(cURI, 'nexusscript', 1,
+      'module "relative.nxscript"; Thing Unsaved {}');
     lAnalysis := lModel.FindAnalysis(cURI);
-    AContext.AssertTrue((lAnalysis <> nil) and lAnalysis.Succeeded,
-      'An untitled buffer should receive local NexusScript analysis.');
+    AContext.AssertTrue((lAnalysis <> nil) and not lAnalysis.Succeeded,
+      'An untitled buffer must not resolve relative filesystem dependencies.');
+    AContext.AssertTrue(lAnalysis.EntrySourceCompiler <> nil,
+      'Failed untitled dependency analysis should retain its source compiler.');
+    AContext.AssertEquals(cURI,
+      lAnalysis.EntrySourceCompiler.SourceDocument.SourceName,
+      'Untitled analysis should retain its opaque document identity.');
     AContext.AssertEquals(1, lAnalysis.Session.AttemptedVersions[0],
       'Untitled analysis should retain the open-buffer version.');
+    AContext.AssertTrue(Pos('requires a filesystem source',
+      lAnalysis.Session.LastError) > 0,
+      'Untitled relative dependency failure should state the missing identity.');
+
+    lModel.ChangeDocument(cURI, 2, 'Thing Unsaved {}');
+    lAnalysis := lModel.FindAnalysis(cURI);
+    AContext.AssertTrue((lAnalysis <> nil) and lAnalysis.Succeeded,
+      'An untitled buffer should still receive local NexusScript analysis.');
     lResponse := DispatchJSON('{"jsonrpc":"2.0","id":40,' +
       '"method":"nexusscript/documentModel","params":{' +
       '"textDocument":{"uri":"' + cURI + '"}}}');
@@ -483,6 +528,176 @@ begin
   end;
 end;
 
+procedure TestSemanticModelProvenanceAndEdits(AContext: TNXTestContext);
+const
+  cURI = 'file:///C:/work/semantic-provenance.nxscript';
+  cText = 'Thing Base {' + LineEnding +
+    '  Value: base;' + LineEnding +
+    '  InheritedOnly: inherited;' + LineEnding +
+    '  Items: [a];' + LineEnding +
+    '  Thing Inherited {}' + LineEnding +
+    '}' + LineEnding +
+    'Thing Derived (Base) {' + LineEnding +
+    '  // keep this comment' + LineEnding +
+    '  Value: local;' + LineEnding +
+    '  Items: [b];' + LineEnding +
+    '  Thing Local {}' + LineEnding +
+    '}' + LineEnding +
+    'Thing Other (Base) {}';
+var
+  lDerived: TJSONObject;
+  lEdit: TJSONObject;
+  lInherited: TJSONObject;
+  lInheritedOnly: TJSONObject;
+  lItems: TJSONObject;
+  lJSON: TJSONData;
+  lLocal: TJSONObject;
+  lModel: TNexusScriptLSModel;
+  lNodes: TJSONArray;
+  lOther: TJSONObject;
+  lOtherInheritedOnly: TJSONObject;
+  lResponse: string;
+  lRevision: Integer;
+  lValue: TJSONObject;
+  lDerivedID: string;
+  lLocalID: string;
+  lValueID: string;
+begin
+  lModel := TNexusScriptLSModel.Create;
+  TNexusScriptLSModel.SetCurrent(lModel);
+  lJSON := nil;
+  try
+    lModel.OpenDocument(cURI, 'nexusscript', 4, cText);
+    AContext.AssertTrue(lModel.FindAnalysis(cURI).Succeeded,
+      'The composed semantic-edit fixture should compile.');
+    lResponse := DispatchJSON('{"jsonrpc":"2.0","id":80,' +
+      '"method":"nexusscript/documentModel","params":{' +
+      '"textDocument":{"uri":"' + cURI + '"}}}');
+    lJSON := GetJSON(lResponse);
+    lRevision := TJSONObject(lJSON).Objects['result'].Integers['revision'];
+    lNodes := TJSONObject(lJSON).Objects['result'].Arrays['nodes'];
+    lDerived := FindNode(lNodes, 'Derived');
+    AContext.AssertTrue(lDerived <> nil,
+      'The semantic model should expose the local derived definition.');
+    AContext.AssertTrue(lDerived.Booleans['local'] and
+      lDerived.Booleans['applicable'],
+      'A retained source definition should be local and applicable.');
+    lValue := FindNode(lDerived.Arrays['children'], 'Value');
+    AContext.AssertEquals('local', lValue.Strings['effectiveValue'],
+      'A local override should report its compiled effective value.');
+    AContext.AssertTrue(lValue.Booleans['overrides'],
+      'A property with inherited and local contributors should be an override.');
+    AContext.AssertEquals(2, lValue.Arrays['contributors'].Count,
+      'The property should expose both composition contributors.');
+    AContext.AssertTrue(TJSONObject(lValue.Arrays['contributors'][1]).
+      Booleans['winner'],
+      'The local contributor should be identified as the effective winner.');
+    lInheritedOnly := FindNode(lDerived.Arrays['children'], 'InheritedOnly');
+    AContext.AssertTrue((lInheritedOnly <> nil) and
+      not lInheritedOnly.Booleans['local'],
+      'An inherited effective property should be distinct from local source.');
+    AContext.AssertEquals('inherited',
+      lInheritedOnly.Strings['effectiveValue'],
+      'An inherited property should expose its compiled effective value.');
+    lItems := FindNode(lDerived.Arrays['children'], 'Items');
+    AContext.AssertTrue(not lItems.Booleans['overrides'],
+      'Additive composition should not be reported as replacement override.');
+    AContext.AssertEquals(2, lItems.Arrays['contributors'].Count,
+      'Additive composition should expose every contributing declaration.');
+    AContext.AssertTrue(
+      not TJSONObject(lItems.Arrays['contributors'][0]).Booleans['winner'] and
+      not TJSONObject(lItems.Arrays['contributors'][1]).Booleans['winner'],
+      'Additive composition should have no single replacement winner.');
+    lLocal := FindNode(lDerived.Arrays['children'], 'Local');
+    lInherited := FindNode(lDerived.Arrays['children'], 'Inherited');
+    AContext.AssertTrue((lLocal <> nil) and lLocal.Booleans['local'],
+      'A declared child should remain local.');
+    AContext.AssertTrue((lInherited <> nil) and
+      not lInherited.Booleans['local'],
+      'An inherited compiled child should be represented as inherited.');
+    lOther := FindNode(lNodes, 'Other');
+    lOtherInheritedOnly := FindNode(lOther.Arrays['children'],
+      'InheritedOnly');
+    AContext.AssertTrue(lInheritedOnly.Strings['id'] <>
+      lOtherInheritedOnly.Strings['id'],
+      'Repeated projections of one inherited property need distinct node IDs.');
+    lDerivedID := lDerived.Strings['id'];
+    lLocalID := lLocal.Strings['id'];
+    lValueID := lValue.Strings['id'];
+
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lValueID,
+      'rename', ',"name":"Renamed"');
+    AContext.AssertEquals('Renamed', FirstSemanticEdit(lJSON).Strings['newText'],
+      'Property rename should edit only the property name.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lValueID,
+      'setReference', ',"value":"Other"');
+    AContext.AssertEquals('@Other', FirstSemanticEdit(lJSON).Strings['newText'],
+      'Set-reference should replace only the property value.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lValueID,
+      'removeProperty', '');
+    lEdit := FirstSemanticEdit(lJSON);
+    AContext.AssertEquals('', lEdit.Strings['newText'],
+      'Property removal should be a deletion edit.');
+    AContext.AssertEquals(8, lEdit.Objects['range'].Objects['start'].
+      Integers['line'],
+      'Property removal must not consume the preceding comment line.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lValueID,
+      'resetOverride', '');
+    AContext.AssertEquals('', FirstSemanticEdit(lJSON).Strings['newText'],
+      'Reset override should remove only the local property declaration.');
+    FreeAndNil(lJSON);
+
+    lJSON := SemanticEdit(cURI, 4, lRevision, lDerivedID,
+      'rename', ',"name":"DerivedRenamed"');
+    AContext.AssertEquals('DerivedRenamed',
+      FirstSemanticEdit(lJSON).Strings['newText'],
+      'Definition rename should edit the definition name.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lDerivedID,
+      'setProperty', ',"name":"Value","value":"changed"');
+    AContext.AssertEquals('changed', FirstSemanticEdit(lJSON).Strings['newText'],
+      'Set-property should replace an existing local value surgically.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lDerivedID,
+      'createOverride',
+      ',"name":"InheritedOnly","value":"override"');
+    AContext.AssertEquals(' InheritedOnly: override;',
+      FirstSemanticEdit(lJSON).Strings['newText'],
+      'Create-override should insert a local property at the body boundary.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lDerivedID,
+      'addChild', ',"kind":"Thing","name":"Added"');
+    AContext.AssertEquals(' Thing Added {}',
+      FirstSemanticEdit(lJSON).Strings['newText'],
+      'Add-child should insert one child at the body boundary.');
+    FreeAndNil(lJSON);
+    lJSON := SemanticEdit(cURI, 4, lRevision, lLocalID,
+      'removeChild', '');
+    AContext.AssertEquals('', FirstSemanticEdit(lJSON).Strings['newText'],
+      'Remove-child should delete only the selected local child.');
+
+    FreeAndNil(lJSON);
+    lResponse := DispatchJSON('{"jsonrpc":"2.0","id":81,' +
+      '"method":"textDocument/hover","params":{' +
+      '"textDocument":{"uri":"' + cURI + '"},' +
+      '"position":{"line":8,"character":10}}}');
+    lJSON := GetJSON(lResponse);
+    lResponse := TJSONObject(lJSON).Objects['result'].Objects['contents'].
+      Strings['value'];
+    AContext.AssertTrue((Pos('Effective: local', lResponse) > 0) and
+      (Pos('Contributors: 2', lResponse) > 0),
+      'Hover should expose effective value and composition provenance.');
+  finally
+    lJSON.Free;
+    TNexusScriptLSModel.SetCurrent(nil);
+    lModel.Free;
+  end;
+end;
+
 procedure TestDialectModelAndCompletion(AContext: TNXTestContext);
 const
   cURI = 'file:///C:/work/language-subject.nxscript';
@@ -538,6 +753,7 @@ var
   lJSON: TJSONData;
   lModel: TNexusScriptLSModel;
   lResponse: string;
+  lTargetColumn: Integer;
 begin
   lModel := TNexusScriptLSModel.Create;
   TNexusScriptLSModel.SetCurrent(lModel);
@@ -574,6 +790,18 @@ begin
       '"targets":[{"kind":"Target","value":"Dev"}]}}');
     AContext.AssertTrue(lModel.FindAnalysis(cTargetURI).Succeeded,
       'Changing workspace Targets should rebuild analysis with that selection.');
+    lTargetColumn := Pos('Thing Choice Target[Prod]', cTargetText) - 1;
+    lResponse := DispatchJSON('{"jsonrpc":"2.0","id":33,' +
+      '"method":"textDocument/hover","params":{' +
+      '"textDocument":{"uri":"' + cTargetURI + '"},' +
+      '"position":{"line":0,"character":' + IntToStr(lTargetColumn) +
+      '}}}');
+    lJSON := GetJSON(lResponse);
+    lResponse := TJSONObject(lJSON).Objects['result'].Objects['contents'].
+      Strings['value'];
+    AContext.AssertTrue((Pos('Applicable: False', lResponse) > 0) and
+      (Pos('Target=Prod', lResponse) > 0),
+      'Hover should explain why a source Target alternative is filtered out.');
   finally
     lJSON.Free;
     TNexusScriptLSModel.SetCurrent(nil);
@@ -597,6 +825,8 @@ begin
   lSuite.AddTest('ProtocolLifecycleAndCapabilities',
     @TestProtocolLifecycleAndCapabilities);
   lSuite.AddTest('SemanticProtocolFeatures', @TestSemanticProtocolFeatures);
+  lSuite.AddTest('SemanticModelProvenanceAndEdits',
+    @TestSemanticModelProvenanceAndEdits);
   lSuite.AddTest('DialectModelAndCompletion', @TestDialectModelAndCompletion);
   lSuite.AddTest('NavigationAndTargetContext', @TestNavigationAndTargetContext);
 end;

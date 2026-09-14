@@ -321,6 +321,7 @@ type
     FName: string;
     FValue: TNexusScriptCompiledValue;
     FSourceRange: TNexusScriptRange;
+    FContributorRanges: TNexusScriptRangeList;
     FResolving: Boolean;
   public
     constructor Create(const AName: string; AValue: TNexusScriptCompiledValue;
@@ -329,6 +330,7 @@ type
     property Name: string read FName;
     property Value: TNexusScriptCompiledValue read FValue;
     property SourceRange: TNexusScriptRange read FSourceRange;
+    property ContributorRanges: TNexusScriptRangeList read FContributorRanges;
     property Resolving: Boolean read FResolving write FResolving;
   end;
 
@@ -707,10 +709,14 @@ begin
   FName := AName;
   FValue := AValue;
   FSourceRange := ASourceRange;
+  FContributorRanges := TNexusScriptRangeList.Create;
+  if ASourceRange.SourceName <> '' then
+    FContributorRanges.Add(ASourceRange);
 end;
 
 destructor TNexusScriptCompiledProperty.Destroy;
 begin
+  FContributorRanges.Free;
   FValue.Free;
   inherited Destroy;
 end;

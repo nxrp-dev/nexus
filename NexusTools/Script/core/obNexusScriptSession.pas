@@ -123,6 +123,8 @@ begin
   if (ExtractFileDrive(ADeclaredPath) <> '') or
     ((ADeclaredPath <> '') and IsPathDelimiter(ADeclaredPath, 1)) then
     Result := FSourceProvider.CanonicalName(ADeclaredPath)
+  else if not FSourceProvider.SupportsRelativePaths(ASourceName) then
+    Result := ''
   else
     Result := FSourceProvider.CanonicalName(IncludeTrailingPathDelimiter(
       ExtractFileDir(ASourceName)) + ADeclaredPath);
@@ -134,7 +136,8 @@ var
   lLocalName: string;
 begin
   lLocalName := ResolveDependencyPath(ASourceName, ADeclaredPath);
-  if FSourceProvider.Exists(lLocalName) or (FDialectRoot = '') or
+  if ((lLocalName <> '') and FSourceProvider.Exists(lLocalName)) or
+    (FDialectRoot = '') or
     (ExtractFileDrive(ADeclaredPath) <> '') or
     ((ADeclaredPath <> '') and IsPathDelimiter(ADeclaredPath, 1)) then
     Exit(lLocalName);
@@ -158,7 +161,7 @@ begin
     lDeclaredFolder := '.';
   lFileNamePattern := ExtractFileName(APattern);
   lFolderName := ResolveDependencyPath(ASourceName, lDeclaredFolder);
-  if not FSourceProvider.FolderExists(lFolderName) then
+  if (lFolderName = '') or not FSourceProvider.FolderExists(lFolderName) then
   begin
     FLastError := 'Unable to select files for ' + ASourceName +
       ': folder not found: ' + lDeclaredFolder;
@@ -347,6 +350,13 @@ begin
     for lModule in lCompiler.SourceDocument.Modules do
     begin
       lImportedName := ResolveDependencyPath(lCanonicalName, lModule.Path);
+      if lImportedName = '' then
+      begin
+        FLastError := 'Relative module path requires a filesystem source: ' +
+          lModule.Path;
+        AddDiagnostic('module-load-failed', FLastError, lModule.PathRange);
+        Exit;
+      end;
       lImportedCompiler := CompileDocument(lImportedName);
       if lImportedCompiler = nil then
       begin
@@ -373,6 +383,14 @@ begin
     for lInclude in lCompiler.SourceDocument.Includes do
     begin
       lIncludedName := ResolveDependencyPath(lCanonicalName, lInclude.Path);
+      if lIncludedName = '' then
+      begin
+        FLastError := 'Relative include path requires a filesystem source: ' +
+          lInclude.Path;
+        AddDiagnostic('include-load-failed', FLastError,
+          lInclude.PathRange);
+        Exit;
+      end;
       lIncludedCompiler := CompileDocument(lIncludedName);
       if lIncludedCompiler = nil then
       begin

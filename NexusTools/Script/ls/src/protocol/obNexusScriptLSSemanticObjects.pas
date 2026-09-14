@@ -12,8 +12,25 @@ uses
 
 type
   TNexusScriptLSNodeArray = class;
+  TNexusScriptLSProvenanceArray = class;
   TNexusScriptLSDialectPropertyRuleArray = class;
   TNexusScriptLSDialectChildRuleArray = class;
+
+  TNexusScriptLSProvenance = class(TNXJSONObject)
+  private
+    FSourceURI: TNXJSONString;
+    FRange: TNXLSRange;
+    FWinner: TNXJSONBoolean;
+  published
+    property sourceUri: TNXJSONString read FSourceURI write FSourceURI;
+    property range: TNXLSRange read FRange write FRange;
+    property winner: TNXJSONBoolean read FWinner write FWinner;
+  end;
+
+  TNexusScriptLSProvenanceArray = class(TNXJSONArray)
+  public
+    class function ItemClass: TNXJSONRPCValueClass; override;
+  end;
 
   TNexusScriptLSNode = class(TNXJSONObject)
   private
@@ -27,7 +44,12 @@ type
     FChildren: TNexusScriptLSNodeArray;
     FSourceURI: TNXJSONString;
     FLocal: TNXJSONBoolean;
+    FApplicable: TNXJSONBoolean;
+    FOverrides: TNXJSONBoolean;
     FEffectiveValue: TNXJSONString;
+    FEffectiveSourceURI: TNXJSONString;
+    FEffectiveRange: TNXLSRange;
+    FContributors: TNexusScriptLSProvenanceArray;
     FAllowedOperations: TNXJSONStringArray;
   published
     property id: TNXJSONString read FID write FID;
@@ -40,8 +62,16 @@ type
     property children: TNexusScriptLSNodeArray read FChildren write FChildren;
     property sourceUri: TNXJSONString read FSourceURI write FSourceURI;
     property local: TNXJSONBoolean read FLocal write FLocal;
+    property applicable: TNXJSONBoolean read FApplicable write FApplicable;
+    property overrides: TNXJSONBoolean read FOverrides write FOverrides;
     property effectiveValue: TNXJSONString read FEffectiveValue
       write FEffectiveValue;
+    property effectiveSourceUri: TNXJSONString read FEffectiveSourceURI
+      write FEffectiveSourceURI;
+    property effectiveRange: TNXLSRange read FEffectiveRange
+      write FEffectiveRange;
+    property contributors: TNexusScriptLSProvenanceArray read FContributors
+      write FContributors;
     property allowedOperations: TNXJSONStringArray read FAllowedOperations
       write FAllowedOperations;
   end;
@@ -188,6 +218,12 @@ type
   end;
 
 implementation
+
+class function TNexusScriptLSProvenanceArray.ItemClass:
+  TNXJSONRPCValueClass;
+begin
+  Result := TNexusScriptLSProvenance;
+end;
 
 class function TNexusScriptLSNodeArray.ItemClass: TNXJSONRPCValueClass;
 begin

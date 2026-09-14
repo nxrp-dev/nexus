@@ -154,7 +154,7 @@ NexusScript core
 - Document symbols describe source declarations, not compiled-only inherited material.
 - Completion derives legal members, child kinds, scalar values, arrays, and reference candidates from syntax context plus the normalized dialect model.
 - Hover and navigation use resolved semantic objects, exact source association, and provenance.
-- References initially cover documents present in current owned analyses/dependency maps.
+- References initially cover documents present in the current owned analysis set.
 - Rename is introduced only after navigation/reference identity is proven and operates on resolved identities and precise ranges, never textual replacement.
 
 ### Typed custom protocol
@@ -168,6 +168,10 @@ NexusScript core
 ### Analysis-scoped semantic identity and edits
 
 - Node IDs are opaque and exact only within the analysis/document version that produced them.
+- Node IDs distinguish semantic occurrences, including repeated projections of
+  the same inherited source member under different compiled receivers.
+- Provenance `winner` identifies replacement semantics. Additive composition
+  retains all contributors and intentionally has no single winner.
 - “Exact source identity” means exact ownership and provenance within that analysis; it is not a promise that an ID survives refresh.
 - Every node-addressed request carries the analysis/document version.
 - A stale version is rejected; the client refreshes its document model before retrying.
@@ -265,8 +269,10 @@ Acceptance:
 
 ### Stage 3 — Live diagnostics and baseline extension integration
 
-1. Add a NexusScriptLS analysis service owning per-entry results and a simple reverse dependency map.
-2. Reanalyze on open/change/save/close and LS-known dependency changes.
+1. Add a NexusScriptLS analysis service owning per-entry results.
+2. Reanalyze the complete open-document set on open/change/save/close. This is
+   the intentional initial invalidation rule; a reverse dependency map is
+   deferred until measured workspace scale demonstrates that it is needed.
 3. Publish parser, compiler, dependency, dialect-normalization, and validation diagnostics using canonical source ranges.
 4. Clear stale diagnostics when an error disappears, an analysis stops owning a diagnostic, or an open source closes.
 5. Register `.nxscript`/`nexusscript` in the Nexus Pascal extension with a generic syntax grammar.

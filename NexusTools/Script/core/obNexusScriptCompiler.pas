@@ -1033,6 +1033,13 @@ function CloneDefinitionForRebinding(ASource: TNexusScriptCompiledDefinition;
   AParent: TNexusScriptCompiledDefinition;
   ADetachSource: Boolean = False): TNexusScriptCompiledDefinition; forward;
 
+procedure CopyContributorRanges(ASource,
+  ADestination: TNexusScriptCompiledProperty);
+begin
+  ADestination.ContributorRanges.Clear;
+  ADestination.ContributorRanges.AddRange(ASource.ContributorRanges);
+end;
+
 function CloneValue(AValue: TNexusScriptCompiledValue): TNexusScriptCompiledValue;
 var
   lItem: TNexusScriptCompiledValue;
@@ -1112,8 +1119,12 @@ begin
   Result.Composed := ASource.Composed;
   Result.Targets.Assign(ASource.Targets);
   for lProperty in ASource.Properties do
+  begin
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValue(lProperty.Value), lProperty.SourceRange));
+    CopyContributorRanges(lProperty,
+      Result.Properties[Result.Properties.Count - 1]);
+  end;
   for lChild in ASource.Children do
     Result.Children.Add(CloneDefinition(lChild, Result));
 end;
@@ -1134,9 +1145,13 @@ begin
   Result.Composed := ASource.Composed;
   Result.Targets.Assign(ASource.Targets);
   for lProperty in ASource.Properties do
+  begin
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneValueForRebinding(lProperty.Value, ADetachSource),
       lProperty.SourceRange));
+    CopyContributorRanges(lProperty,
+      Result.Properties[Result.Properties.Count - 1]);
+  end;
   for lChild in ASource.Children do
     Result.Children.Add(CloneDefinitionForRebinding(lChild, Result,
       ADetachSource));
@@ -1228,6 +1243,8 @@ begin
       Continue;
     Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
       CloneProjectionValue(lProperty.Value, Result), lProperty.SourceRange));
+    CopyContributorRanges(lProperty,
+      Result.Properties[Result.Properties.Count - 1]);
   end;
   for lChild in ASource.Children do
     Result.Children.Add(CloneReferenceProjection(lChild, Result, lChild.Name));
@@ -1394,6 +1411,7 @@ var
     var
       lExisting: TNexusScriptCompiledProperty;
       lMergedValue: TNexusScriptCompiledValue;
+      lResultProperty: TNexusScriptCompiledProperty;
 
       function CanHaveArrayResult(
         AValue: TNexusScriptCompiledValue): Boolean;
@@ -1417,15 +1435,28 @@ var
         lMergedValue.ArrayPreparationState := nsapsUnprepared;
         AppendCompositionLayers(lMergedValue, lExisting.Value);
         AppendCompositionLayers(lMergedValue, AProperty.Value);
+        lResultProperty := TNexusScriptCompiledProperty.Create(
+          AProperty.Name, lMergedValue, AProperty.SourceRange);
+        lResultProperty.ContributorRanges.Clear;
+        lResultProperty.ContributorRanges.AddRange(
+          lExisting.ContributorRanges);
+        lResultProperty.ContributorRanges.AddRange(
+          AProperty.ContributorRanges);
         RemoveProperty(AProperty.Name);
-        ADefinition.Properties.Add(TNexusScriptCompiledProperty.Create(
-          AProperty.Name, lMergedValue, AProperty.SourceRange));
+        ADefinition.Properties.Add(lResultProperty);
         Exit;
       end;
-      RemoveProperty(AProperty.Name);
-      ADefinition.Properties.Add(TNexusScriptCompiledProperty.Create(
+      lResultProperty := TNexusScriptCompiledProperty.Create(
         AProperty.Name, CloneValueForRebinding(AProperty.Value),
-        AProperty.SourceRange));
+        AProperty.SourceRange);
+      lResultProperty.ContributorRanges.Clear;
+      if lExisting <> nil then
+        lResultProperty.ContributorRanges.AddRange(
+          lExisting.ContributorRanges);
+      lResultProperty.ContributorRanges.AddRange(
+        AProperty.ContributorRanges);
+      RemoveProperty(AProperty.Name);
+      ADefinition.Properties.Add(lResultProperty);
     end;
   begin
     if ADefinition.Composed then
@@ -1448,8 +1479,12 @@ var
     lLocalChildren := TNexusScriptCompiledDefinitionList.Create(True);
     try
       for lProperty in ADefinition.Properties do
+      begin
         lLocalProperties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
           CloneValue(lProperty.Value), lProperty.SourceRange));
+        CopyContributorRanges(lProperty,
+          lLocalProperties[lLocalProperties.Count - 1]);
+      end;
       for lChild in ADefinition.Children do
         lLocalChildren.Add(CloneDefinitionForRebinding(lChild,
           ADefinition));
