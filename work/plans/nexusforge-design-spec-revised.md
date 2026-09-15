@@ -10,6 +10,7 @@ Date: 2026-09-15
 - Settled review: use existing Targets; Forge reports zero/multiple applicable manifestations at execution time. No validation-language uniqueness extension.
 - Settled review: start with native executables, beginning with FPC. The developer supplies the environment and PATH. Do not manage tool versions or repair environments.
 - Settled review: use existing Mustache/process techniques; ordinary paths containing spaces and `&` are verification cases. Do not invent an argument language to anticipate limitations.
+- Final review clarification: document dialect declaration, effective language composition, and dialect file resolution are separate concerns. An internal `DialectRoot` is only a fallback file-resolution directory; the normal Forge CLI exposes no dialect-selection or dialect-root option.
 - Governing instructions: `AGENTS.md`, `.ai/protocols/architecture-change.md`, `.ai/protocols/codex-workplan-format.md`, `.ai/standards/pascal.md`, and applicable folder instructions.
 
 ## Summary
@@ -21,6 +22,7 @@ This plan delivers the complete first execution milestone specified in section 3
 ## Verified Findings
 
 - `NexusTools/Script/core/obNexusScriptSession.pas`: `TNexusScriptCompilationSession` accepts `TNexusScriptTargetSelection`, owns compilation attempts, resolves dependencies/dialects, and exposes the compiled entry document and diagnostics.
+- In that session, `ResolveDialectPath` first tries the document-relative declared dialect path, then uses `DialectRoot` as a fallback for a relative path. It does not select a different dialect or assemble language rules. `ExpandPatterns` supports module/include discovery; discovery alone is not evidence that the imported pieces form the required effective `Language.Definitions`.
 - `NexusTools/Script/core/obNexusScriptModel.pas`: Target selection has an existing `Add(Name, Value)` API. Forge can supply the same selection to operation and manifest compilation without implementing another filtering system.
 - `NexusTools/Script/cli/obNexusScriptCommand.pas`: compilation and dialect validation are distinct calls. Forge must invoke validation explicitly; successful compilation alone is insufficient.
 - `NexusTools/Script/artifact/obNexusScriptJSON.pas`: the generic emitter consumes compiled documents and emits resolved definitions with metadata. Its public API currently exposes document emission, not a selected-definition render context.
@@ -41,9 +43,11 @@ Ordinary tool support should be data: legal operation structure, applicable mani
 ### Entry and execution context
 
 - New executable: `nxforge`, under `NexusTools/Forge`.
-- Proposed CLI inputs: operation document, explicit manifest file, optional dialect root, and explicit named Target selections. Reuse repository command-line conventions; document exact flag spelling in Stage 1. The operation itself does not select its template.
+- Proposed CLI inputs: operation document, explicit manifest file, and explicit named Target selections. Reuse repository command-line conventions; document exact flag spelling in Stage 1. The operation itself does not select its template.
 - Compile operation and manifest documents with the same Target selection. Validate their declared dialects before execution. Missing dialects or invalid operation/manifest structures fail clearly.
-- Initial operation vocabulary is one small Forge language definition containing FPC and the second-tool operation. Use existing dialect/module capabilities; no new wildcard/catalog import syntax is needed for this milestone.
+- Forge documents identify their dialect through the normal NexusScript declaration. The initial vocabulary is one effective Forge language assembled from the core Forge definition and operation-specific definition pieces using existing NexusScript module/import and composition mechanisms. FPC and Git contribute rules to that effective language; they are not separate document dialects.
+- The normal Forge CLI exposes no dialect-selection or dialect-root option. Any internal dialect search root only locates the document-declared dialect; it does not override that declaration or determine which operation definitions compose the language. Preserve the existing file-resolution mechanism; no new discovery system or wildcard/catalog import syntax is needed for this milestone.
+- The initial fixtures must demonstrate separate core, FPC, and Git definition pieces composing into one effective `Language.Definitions` that validates both operation kinds. Finding/importing the files alone does not satisfy this requirement.
 - Execute root operations in their resolved declaration order. Definitions used only through composition/reference are not independently scheduled. Confirm order from actual compiled fixtures, including composition and filtering; do not derive order by sorting JSON keys or names.
 - The default working directory is the entry Forge document's directory. A generic explicit working-directory override, if supplied, resolves relative to that directory. Template paths resolve relative to their declaring manifest file. Child-relative source/output arguments remain relative to the operation working directory.
 - Inherit the developer-supplied environment, including PATH. No first-pass environment mutation, discovery, activation, or compiler selection facility. Resolve native tools by name using that PATH and report launch failures clearly.
@@ -79,7 +83,7 @@ Expected new files/areas:
 - `NexusTools/Forge/tests/NexusForgeTests.lpi`, console runner, focused cases, and fixtures.
 - `NexusTools/Forge/examples/`: a small FPC build and second-tool example with manifests/templates; no machine-specific absolute tool paths.
 - `NexusTools/Forge/docs/contracts.md`: actual CLI, document/manifest examples, environment responsibility, failure behavior, and verification instructions.
-- `NexusLib/script/dialects/NexusForge/`: shared initial operation vocabulary.
+- `NexusLib/script/dialects/NexusForge/`: the shared effective Forge language, assembled from its core and separate FPC/Git operation-definition pieces.
 
 Expected narrow existing changes:
 
@@ -104,9 +108,9 @@ Unit boundaries may be combined where a separate unit has no useful responsibili
 
 ### Stage 1: Establish concrete documents and integration boundaries
 
-Create the Forge project skeleton, minimal operation dialect, and process manifest vocabulary. Specify CLI flags and create FPC plus Git fixtures (Git is the second native executable; it is already used in this repository). Demonstrate host-target filtering and preserve declared operation order using the real compiler and validator. Keep Git behavior in definitions/templates; use a local fixture repository, with no network access.
+Create the Forge project skeleton, composed operation dialect, and process manifest vocabulary. Specify CLI flags without dialect-selection or dialect-root options. Create separate core, FPC, and Git language-definition pieces and demonstrate their composition into one effective Forge language using existing mechanisms. Create FPC plus Git operation fixtures (Git is the second native executable; it is already used in this repository). Demonstrate host-target filtering and preserve declared operation order using the real compiler and validator. Keep Git behavior in definitions/templates; use a local fixture repository, with no network access.
 
-Acceptance: valid fixtures compile/validate; invalid properties fail; zero/one/multiple manifestation cases are represented; existing artifact manifests still validate. No custom compiler semantics or task classes.
+Acceptance: both operation kinds validate against the document-declared, composed Forge language; invalid operation-specific properties fail. Verify effective rules, not only successful file discovery. Document how the declared dialect is located using existing resolution behavior. Zero/one/multiple manifestation cases are represented; existing artifact manifests still validate. No custom compiler semantics or task classes.
 
 ### Stage 2: Resolve and render
 
@@ -152,6 +156,8 @@ Set the new project targets under `output/NexusForge` and `output/NexusForgeTest
 | Area | Required evidence |
 | --- | --- |
 | Validation | Unknown/missing properties and invalid values fail before execution; compiler diagnostics retain source context. |
+| Language composition | Separate core, FPC, and Git pieces produce one effective `Language.Definitions`; both operation kinds validate and their invalid properties fail. Discovery/import success alone is insufficient. |
+| Dialect resolution | The document declaration remains authoritative; document-relative lookup and any internal fallback root locate that declared file. The CLI has no dialect-selection or dialect-root option. |
 | Targets | Host/target dimensions stay separate; inactive entries are excluded by existing filtering; variants coexist in one manifest. |
 | Selection | One proceeds; zero names the operation; multiple names operation and matches; no child starts after selection preflight fails. |
 | Rendering | Resolved/inherited values, lists, and multiple operation names render correctly; existing generic JSON output remains unchanged. |
