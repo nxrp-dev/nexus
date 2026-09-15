@@ -1,6 +1,6 @@
 # Work Plan: Nexus BindingSource-Style Data Binding Core
 
-Status: Proposed; awaiting direct implementation authorization.
+Status: Approved with the requested revisions incorporated; awaiting direct implementation authorization.
 Date: 2026-09-13
 
 ## Inputs
@@ -8,6 +8,7 @@ Date: 2026-09-13
 - Human request: "Go ahead and generate the work plan."
 - Reviewed source: `C:\Users\kcollins\Downloads\nexus-bindingsource-workplan-request (1).md`.
 - Conversation review accepted the revised request as planning input. The production coordinator is a settled requirement; this is not a contracts-only implementation.
+- Owner review requires explicit caller operations instead of a policy interface and includes DateTime and Currency in the initial scalar carrier. The remaining plan is approved; this revision does not begin implementation.
 - This single plan uses the topic filename without the browser download suffix. No repository request copy or alternative plan is created.
 - Governing files: `AGENTS.md`, `.ai/protocols/architecture-change.md`, `.ai/protocols/codex-workplan-format.md`, `.ai/standards/pascal.md`.
 - Existing architectural note: `docs/nexus-ui/data-binding.md`. Its tentative context class names are not requirements for this new subsystem.
@@ -16,7 +17,7 @@ Date: 2026-09-13
 
 Implement a GUI-independent binding subsystem around one canonical `TNXBindingSource`. Upstream contracts expose indexed items and resolvable values; the coordinator owns public currency and bindings; target contracts expose values and edit submission. All participating contracts are non-owning interfaces. Production helper objects may implement the coordinator's internal binding, subscription, and edit bookkeeping.
 
-Prove the production subsystem using ordinary Pascal test sources, targets, converters, validators, and edit sessions. No production control, data adapter, reflection mechanism, or event loop is involved. This plan specifies proposed behavior for approval, not existing APIs or verified compiler results.
+Prove the production subsystem using ordinary Pascal test sources, targets, converters, validators, and edit sessions. No production control, data adapter, reflection mechanism, or event loop is involved. This plan specifies the approved target behavior, not existing APIs or verified compiler results.
 
 ## Verified Findings
 
@@ -40,7 +41,7 @@ These responsibilities need one defined coordinating implementation and independ
 ### Ownership and state flow
 
 - An application/form/service owner creates and destroys `TNXBindingSource`.
-- The coordinator owns individual binding objects and its subscription registrations. It owns copies of pending values and error results, but not upstream items, endpoints, converters, validators, policies, or edit sessions.
+- The coordinator owns individual binding objects and its subscription registrations. It owns copies of pending values and error results, but not upstream items, endpoints, converters, validators, or edit sessions.
 - The upstream owner owns its source, items, and member endpoints. The target owner owns targets. Providers of optional collaborators keep them alive until explicitly detached.
 - State flows from upstream item source through current-item resolution and a binding to a target. Two-way bindings submit proposed target values back through conversion, validation, and endpoint writes.
 - Rendering, persistence, focus handling, and input events remain adapter responsibilities. A future focus-loss handler calls an explicit submit operation; the core does not infer focus or depend on a GUI event loop.
@@ -64,11 +65,11 @@ No Lazarus package or global build-system change is required for the first pass.
 
 ### Values and operation results
 
-Use a small copied value record, `TNXBindingValue`, with explicit state (`unset`, `null`, `value`) and scalar kind (`Boolean`, `Int64`, `Double`, `UTF8String`). Store managed text as an ordinary managed record field, not a managed variant-record arm. Only the field identified by the kind is meaningful. No arbitrary object pointers, JSON values, implicit Variant coercion, or serialized payloads.
+Use a small copied value record, `TNXBindingValue`, with explicit state (`unset`, `null`, `value`) and scalar kind (`Boolean`, `Int64`, `Double`, `UTF8String`, `DateTime`, `Currency`). DateTime and Currency have distinct kind tags and typed payload fields (`TDateTime` and Pascal `Currency`); they do not masquerade as Double or Int64 endpoints. Store managed text as an ordinary managed record field, not a managed variant-record arm. Only the field identified by the kind is meaningful. No arbitrary object pointers, JSON values, implicit Variant coercion, or serialized payloads.
 
 - An endpoint descriptor declares its stable scalar kind and acceptance of null/unset. Unset is absence of a supplied value; null is a supplied null value; an empty string is a present string of length zero.
-- A binding without a converter requires matching kinds. Conversion between kinds is explicit. Date, decimal, binary, and composite values are outside the first scalar contract; no claim is made that this carrier already supports every future domain type.
-- `TryRead(out AValue)` and `TryWrite(const AValue)` return a structured result. Expected outcomes include success, unavailable, read-only, wrong kind, conversion failure/incomplete input, validation failure, rejected write, unsupported, busy, and source changed. Results carry a stable code and copied diagnostic text; no exception object is retained.
+- A binding without a converter requires matching kinds. Conversion between kinds is explicit, including DateTime/Double and Currency/Int64 or Double. DateTime transfers the supplied date/time value without implicit time-zone conversion; Currency retains its native fixed-point value without a floating-point intermediate. Display formatting and parsing belong to converters. General decimal types, enums, sets, binary values, objects, arrays, and other composites remain deferred.
+- `TryRead(out AValue)` and `TryWrite(const AValue)` return a structured result. Expected outcomes include success, unavailable, read-only, wrong kind, conversion failure/incomplete input, validation failure, rejected write, unsupported, busy, and source changed. Navigation also exposes the explicit `PendingEdits` result. Results carry a stable code and copied diagnostic text; no exception object is retained.
 - A refused write makes no endpoint value change. A successful write may normalize the value; the coordinator reads it back and distributes the actual accepted value.
 - No-op writes produce no value-change notification. Expected failures use results; unexpected exceptions propagate after internal guards and registrations are restored in `finally` blocks. Do not disguise programming errors as user validation errors.
 - Readability/writability changing with item state is endpoint state, distinct from whether an object implements a capability interface. State-change notifications make these transitions observable.
@@ -89,7 +90,6 @@ The names and operation shapes below are the intended API surface. Stage 1 suppl
 | `INXBindingConverter` | Direction-explicit conversion using input value and destination descriptor; return converted value or a structured failure. |
 | `INXBindingValidator` | Validate a proposed source value against the item/member context without mutating it. |
 | `INXBindingEditSession` | Optional current-item transaction capability: begin, dirty state, commit, cancel, and notifications. Implemented by an item/test participant, not simulated by the binding engine. |
-| `INXBindingEditPolicy` | Optional synchronous decision on requested currency transition or source change during pending input. Return one of the defined decisions; do not perform the transition inside the callback. |
 
 Use `{$interfaces corba}` for these contracts and plain explicitly owned objects. Capability discovery must use compiler-supported interface checks, with stable interface identifiers where required; verify this in the Stage 1 compile. Do not add a custom capability registry, `SupportsX` boolean catalogue, `TInterfacedObject`, or casting workaround.
 
@@ -106,7 +106,7 @@ Use `{$interfaces corba}` for these contracts and plain explicitly owned objects
 - Binding definitions remain registered when unavailable and retry resolution on a current-item or source reset event. A converter/read/write failure marks the affected binding; it does not restore the old currency after the transition has already been accepted.
 - Upstream structural events distinguish insertion, removal, replacement, and reset. Insertion/removal before Current adjusts Position while retaining current identity. Removing Current selects the successor at the old index, otherwise the preceding final item, otherwise none. Replacement at the same position is a Current change if identity differs. Reset searches for the retained identity, otherwise selects first or none.
 - Removal events are emitted after the list changes but before removed objects are freed. Endpoints additionally issue Closing before destruction. Upstream lifetime must span the complete synchronous notification dispatch.
-- External removal cannot be refused by an edit policy. Detach the removed item's endpoints immediately. Preserve any copied pending input as an orphaned edit with its old identity and an unavailable result; never submit it to the replacement item. Explicit cancellation clears it and refreshes from the new current item.
+- External removal cannot be refused. Detach the removed item's endpoints immediately. Preserve any copied pending input as an orphaned edit with its old identity and an unavailable result; never submit it to the replacement item. Explicit cancellation clears it and refreshes from the new current item.
 
 ### Binding direction, initial synchronization, and updates
 
@@ -133,13 +133,13 @@ Multi-binding submission is not falsely atomic. If a later binding rejects, earl
 
 An edit-session Cancel must restore its session baseline atomically or refuse without mutation. Commit failure must preserve the session for correction/retry/cancel. An application requiring more than one item's atomic transaction supplies that separately; it is not a first-pass coordinator responsibility.
 
-### Edit policy decisions
+### Explicit caller operations and deterministic failures
 
-The coordinator supplies a copied transition description to an optional policy. The callback is synchronous and side-effect-free; it decides, and the coordinator performs the selected mechanics.
+The caller decides how to respond to failed transitions through the ordinary public API. There is no policy interface, callback, coordinator-owned policy state, or automatic commit/cancel-and-navigate operation.
 
-For requested navigation with local pending input or a dirty item session, decisions are refuse, submit/commit then move, or cancel then move. With no policy, refuse with `pending edits`; callers can explicitly submit/commit/cancel and retry. Submit/commit means submit all pending input and commit an edit session if present; without a session, successful submissions suffice for this transition. Failed submission/session operation leaves currency unchanged. Cancellation requiring rollback without a session returns unsupported. Local pending input alone can be cancelled without a session. No asynchronous prompt continuation is introduced; the caller may obtain user input outside the core and retry. Explicit source replacement/detachment follows the same edit transition rules; forced Closing cannot be refused.
+Requested navigation that would change Current while local pending input or a dirty item session exists returns `PendingEdits` without changing currency, submitting, committing, or cancelling anything. The caller may submit pending input and commit an edit session if present, or cancel pending input/session edits, then retry `TrySetPosition`. Failed submission/session operations leave the edit unresolved, so a retry still refuses. Local pending input can be cancelled without a session; undoing accepted writes still requires the session capability. A no-op navigation request remains a no-op. Explicit source replacement/detachment follows the same refusal rule; forced Closing cannot be refused. No automatic retry, prompt, or continuation is retained by the coordinator.
 
-For a source change while local target input is pending, the default is preserve the target input, record that the baseline changed, and expose the current source value and result. Policy may instead replace pending input from source or explicitly allow resubmission against the new baseline. In the default case ordinary Submit returns source-changed until the caller explicitly chooses to discard/refresh or acknowledges the latest baseline and retries. This is a local edit condition, not a general conflict-resolution service.
+When the source changes while local target input is pending, preserve the target input, mark the baseline/source-changed condition, and expose the current source value and result. Ordinary Submit refuses with source-changed. The caller may explicitly discard pending input and refresh through `CancelPending`, or acknowledge/rebase against the latest available source baseline while retaining the proposal, then explicitly retry Submit. Acknowledgement itself performs no write and bypasses neither conversion nor validation. A subsequent source change marks the condition again. Ordinary Refresh must not silently discard pending input or acknowledge the changed baseline. This is a local edit condition, not a general conflict-resolution service.
 
 Source notifications from another binding count as external changes for a pending sibling. Orphaned input after item removal is never eligible for baseline acknowledgement against a different item. No business-specific choice is built into the coordinator.
 
@@ -151,7 +151,7 @@ Source notifications from another binding count as external changes for a pendin
 - Within an accepted currency operation, stage the new currency and binding states first, perform target synchronization, then publish PositionChanged if needed, CurrentChanged if needed, binding-state events in registration order, and one DataChanged. Public coordinator observers see the final state. Raw target observers may see individual transfers; cross-target atomic display is not promised.
 - While an operation or coordinator notification is active, reentrant public navigation, submit, refresh, or registration requests return Busy with no side effects. Unsubscribe and safe binding removal remain allowed; reclamation of internal objects waits until the active call unwinds.
 - Synchronous endpoint notifications caused by an expected write are recorded under that binding's active-transfer guard. They do not recursively submit. After the write returns, re-read the accepted value and publish the completed change. Scope guards per operation/binding; do not mute unrelated binding notifications with one blanket flag.
-- Participant observers and converter/validator/policy callbacks must not initiate independent data/list mutations from inside notification dispatch. Coordinator-controlled transfers are the permitted internal path, including read-back normalization of the originating target while its initial notification is still active. Writable targets must support this nested transfer; the binding guard prevents its notification from becoming another proposal. Upstream list mutation during its own structural dispatch is refused with Busy. This first pass deliberately provides no unbounded fixed-point propagation loop or application event queue.
+- Participant observers and converter/validator callbacks must not initiate independent data/list mutations from inside notification dispatch. Coordinator-controlled transfers are the permitted internal path, including read-back normalization of the originating target while its initial notification is still active. Writable targets must support this nested transfer; the binding guard prevents its notification from becoming another proposal. Upstream list mutation during its own structural dispatch is refused with Busy. This first pass deliberately provides no unbounded fixed-point propagation loop or application event queue.
 - Closing events may invalidate references during a callback. Check registration/liveness after every external call before further use. Destroying the coordinator or a currently executing participant from its own callback is prohibited; disconnect/remove may be requested, and the owner frees it after the outer call returns.
 - Callback exceptions are contract violations. Restore guards, finish required internal invalidation, and propagate; do not silently swallow them or claim notification delivery completed. Closing cleanup must still clear local borrowed references in `finally` paths.
 
@@ -161,7 +161,7 @@ Each observable owns its registration storage; the subscriber owns the responsib
 
 Coordinator destruction first marks it closing, disables outward updates, unsubscribes all live subjects, clears borrowed collaborators, and then frees bindings/registration storage. Target Closing removes that target's subscriptions and disables its bindings without reading or writing it again. Source Closing clears Current/Position and all item subscriptions, retains only copied pending input and binding definitions, and publishes unavailable state to surviving consumers.
 
-After receiving Closing, subscribers discard both subject references and tokens; they do not later call Unsubscribe on that subject. Subscribe on a closing subject fails. Standalone observer owners unregister before destruction. Converters, validators, policies, and sessions must be detached or outlive their registration; they are never freed by the coordinator. Test both explicit disconnection and Closing paths.
+After receiving Closing, subscribers discard both subject references and tokens; they do not later call Unsubscribe on that subject. Subscribe on a closing subject fails. Standalone observer owners unregister before destruction. Converters, validators, and sessions must be detached or outlive their registration; they are never freed by the coordinator. Test both explicit disconnection and Closing paths.
 
 ## Scope
 
@@ -169,7 +169,7 @@ Create the units, contract documentation, test fixtures, and console project lis
 
 ## Out Of Scope
 
-fpGUI integration/adapters; databases, datasets, SQL, SQLite; RTTI/property adapters; JSON and NexusScript adapters; real grids, trees, or editors; designers; declarative syntax; inherited contexts; property expressions; templates; automatic UI generation; sorting/filtering/searching engines; asynchronous policy callbacks; cross-thread dispatch; automatic persistence; multi-item transactions; arbitrary value-object serialization.
+fpGUI integration/adapters; databases, datasets, SQL, SQLite; RTTI/property adapters; JSON and NexusScript adapters; real grids, trees, or editors; designers; declarative syntax; inherited contexts; property expressions; templates; automatic UI generation; sorting/filtering/searching engines; application-policy interfaces/callbacks; cross-thread dispatch; automatic persistence; multi-item transactions; arbitrary value-object serialization.
 
 The established semantics must remain usable by later adapters. Additional scalar kinds or capabilities may be justified later; this pass does not promise that every eventual consumer can be expressed without any contract additions.
 
@@ -177,7 +177,7 @@ The established semantics must remain usable by later adapters. Additional scala
 
 ### Stage 1: Declare and compile the contracts
 
-Create the new folder guidance, `tpNXBinding`, normative contract document, and console project skeleton. Define full method signatures, value states, results, identifiers, subscription events, and policy decisions before coordinator logic. Supply minimal fake read-only and writable endpoints to compile capability discovery and non-owning ownership paths.
+Create the new folder guidance, `tpNXBinding`, normative contract document, and console project skeleton. Define full method signatures, all six scalar kinds, value states, results, identifiers, subscription events, and explicit caller operations before coordinator logic. Supply minimal fake read-only and writable endpoints to compile capability discovery and non-owning ownership paths.
 
 Acceptance: declarations and fixtures compile using the installed compiler; dropping interface variables does not destroy explicitly owned test objects; absence/presence of write and edit capabilities is correctly observable. No GUI, JSON, RTTI, or production data unit enters the test dependency graph. All state transitions above have named results and documented pre/postconditions.
 
@@ -193,9 +193,9 @@ Implement indexed source attachment, identity-based currency, navigation, curren
 
 Acceptance: navigation and externally changed list tests pass; old endpoints cannot update current bindings; position-only shifts preserve current identity; callback traces match the specified ordering.
 
-### Stage 4: Editing and policy interactions
+### Stage 4: Editing and explicit caller transitions
 
-Implement pending state, explicit/OnChange submission, source edit-session orchestration, pending navigation decisions, source baseline acknowledgement, and orphaned edits. Converters, validators, policy implementations, and edit-session implementations remain test objects.
+Implement pending state, explicit/OnChange submission, source edit-session orchestration, deterministic `PendingEdits` refusal, source baseline acknowledgement, and orphaned edits. Exercise submit/commit/cancel/rebase and navigation retries as separate caller operations. Converters, validators, and edit-session implementations remain test objects.
 
 Acceptance: incomplete input survives refusal; commit/cancel and partial-failure results match the contract; unsupported rollback is reported honestly; no pending value can be submitted to a replacement item accidentally.
 
@@ -220,7 +220,6 @@ Implementation remains local; this plan authorizes no sub-agent use.
 | `TTestConverter` | Integer/text conversion, incomplete text, failure, normalization. |
 | `TTestValidator` | Accepted/rejected proposals; verifies invocation order and no mutation. |
 | `TTestEditSession` | Baseline/current copies, begin/commit/cancel failure injection and dirty state. |
-| `TTestEditPolicy` | Fixed explicit decisions for each transition; records supplied context. |
 | `TTestObserver` | Event sequence, unsubscribe during callback, Busy requests, Closing assertions. |
 
 Fixtures expose factory/setup operations so endpoint/source capability tests can later run against real adapters. Tests assert public state and event traces, not private list layout. Coordinator tests always instantiate `TNXBindingSource`.
@@ -229,7 +228,7 @@ Fixtures expose factory/setup operations so endpoint/source capability tests can
 
 | Area | Required cases and observable assertions |
 | --- | --- |
-| Values | Present/empty string/null/unset distinct; kinds enforced; copied text survives participant destruction; availability and runtime read-only transitions visible. |
+| Values | Present/empty string/null/unset distinct; all six kinds enforced; DateTime and Currency round-trip through same-kind endpoints without numeric coercion; mismatched numeric kinds require conversion; negative/fractional Currency retains exact native value; DateTime date/time portion survives transfer; copied text survives participant destruction; availability and runtime read-only transitions visible. |
 | Initial transfer | Default source-first, explicit target-first in two-way, failed initial conversion retained, late source attachment and unavailable member. |
 | Direction | One-way never writes source; two-way transfers both ways; no-op values do not notify; source normalization is read back. |
 | Updates | OnChange vs Explicit; two members and multiple clean targets update correctly; converter/validator order and rejected writes retain input. |
@@ -238,8 +237,8 @@ Fixtures expose factory/setup operations so endpoint/source capability tests can
 | Collection change | Insert/remove before Current; delete Current with successor/predecessor/empty; reset retains identity; removed objects freed only after dispatch. |
 | Editing | `"-"` to integer; dirty/clean/error transitions; explicit cancellation; accepted write differs from transaction commit; failed commit/cancel retains state. |
 | Multi-binding edit | Failure after earlier acceptance is reported without false rollback; differing proposals to one member refuse before writes; equal proposals converge. |
-| Navigation policy | No-policy refusal; commit-then-move success/failure; cancel-then-move; unsupported rollback; clean navigation needs no policy. |
-| Pending source change | Target A pending while B writes; preserve/error, replace, and explicit acknowledgement paths; repeated source change requires renewed acknowledgement. |
+| Caller navigation sequence | `PendingEdits` refusal performs no write/commit/cancel; caller explicitly submits/commits then retries; caller explicitly cancels then retries; failed edit operation keeps retry refused; unsupported rollback; clean/no-op navigation. |
+| Pending source change | Target A pending while B writes; preserve input and refuse Submit; caller discard/refresh or rebase then Submit; rebase does not write or bypass validation; ordinary Refresh preserves pending input; repeated source change requires renewed acknowledgement. |
 | Forced removal | Pending edit becomes orphaned with old identity; replacement item untouched; copied input survives old item destruction; cancel refreshes new item. |
 | Subscriptions | Multiple observers, stable order, self-unsubscribe, remove next subscriber, add during dispatch, idempotent unsubscribe, invalid handle. |
 | Teardown | Coordinator first, source first, target first; explicit disconnect and Closing; remaining observers safe; no retained dead interface/token. |
@@ -272,12 +271,12 @@ Inspect actual `uses` closure rather than treating grep absence as proof. Contra
 
 ## Risks And Questions
 
-- The scalar carrier is intentionally limited. If the owner requires first-pass dates, exact decimals, binary values, or arbitrary objects, settle those requirements before coding value storage; do not silently encode them as strings.
+- The scalar carrier includes Boolean, Int64, Double, UTF8String, DateTime, and Currency. Currency is the native fixed-point scalar, not a general arbitrary-precision decimal facility. Enums, sets, blobs, objects, arrays, and other composite/general decimal types remain deferred; do not silently encode them as strings or numeric stand-ins.
 - Non-owning interfaces cannot protect against an owner freeing an object without disconnecting. Closing and owner discipline are contractual requirements, tested but not replaced by reference counting.
 - This synchronous first pass restricts mutation from observer callbacks and refuses public reentrancy. If application-driven recursive mutation must be supported, that is an architectural change requiring explicit revised scheduling semantics, not a hidden queue added during implementation.
 - Source transactions are optional and do not confer cross-item atomicity. Partial accepted writes must remain visible in results and tests.
 - A future cursor-based adapter must reconcile its private cursor with the indexed item contract while the coordinator retains public currency. This plan neither implements nor proves that adapter; stable item identity/value resolution remain its obligations.
-- No unresolved external policy choice blocks the proposed first pass: refusal/preservation defaults and explicit decisions are specified above. Approval should cover these proposed semantics, particularly limited scalar kinds, synchronous callback restrictions, and non-atomic multi-binding submission. Any incompatible requirement discovered before implementation should revise this same plan.
+- No application-policy abstraction is required: deterministic refusal/preservation and explicit caller operations cover the required scenarios. The owner approved the plan with removal of policy machinery and addition of DateTime/Currency; those changes are incorporated here. Any incompatible requirement discovered before implementation should revise this same plan.
 
 ## Approval Gate
 
