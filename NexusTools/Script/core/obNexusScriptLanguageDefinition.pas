@@ -5,7 +5,8 @@ unit obNexusScriptLanguageDefinition;
 interface
 
 uses
-  Classes, Generics.Collections, tpNexusScript, obNexusScriptModel;
+  Classes, Generics.Collections, tpNexusScript, obNexusScriptModel,
+  obNexusScriptDefinitionView;
 
 const
   cNexusScriptUnbounded = -1;
@@ -1007,11 +1008,14 @@ var
   lText: string;
   lIndex: Integer;
   lRuleName: string;
+  lView: TNexusScriptDefinitionView;
+  lPolicy: TNSUnknownPolicy;
 begin
   Result := False;
   FDiagnostics.Clear;
   FDefinitionRules.Clear;
   FUnknownDefinitions := nupReject;
+  lView := TNexusScriptDefinitionView.Create;
   try
   if (ADocument = nil) or (ADocument.Definitions.Count <> 1) then
   begin
@@ -1019,7 +1023,17 @@ begin
       Default(TNexusScriptRange));
     Exit;
   end;
-  lLanguageDefinition := ADocument.Definitions[0];
+  try
+    lView.AddDocument(ADocument);
+  except
+    on E: Exception do
+    begin
+      AddDiagnostic('NSV1006', E.Message, Default(TNexusScriptRange));
+      Exit;
+    end;
+  end;
+  for lLanguageDefinition in lView.Roots do
+  begin
   if not SameText(lLanguageDefinition.Kind, 'Language') then
   begin
     AddDiagnostic('NSV1002', 'Language definition root must have kind Language.',
@@ -1034,12 +1048,22 @@ begin
     Exit;
   end;
   if PropertyText(lLanguageDefinition, 'UnknownDefinitions', lText) then
-    if not ParseUnknownPolicy(lText, FUnknownDefinitions) then
+  begin
+    if not ParseUnknownPolicy(lText, lPolicy) then
     begin
       AddDiagnostic('NSV1003', 'UnknownDefinitions must be Allow or Reject.',
         lLanguageDefinition.FindProperty('UnknownDefinitions').SourceRange);
       Exit;
     end;
+    if lLanguageDefinition = ADocument.Definitions[0] then
+      FUnknownDefinitions := lPolicy
+    else if lPolicy <> FUnknownDefinitions then
+    begin
+      AddDiagnostic('NSV1003', 'Included language policy conflicts with the declared language.',
+        lLanguageDefinition.FindProperty('UnknownDefinitions').SourceRange);
+      Exit;
+    end;
+  end;
   lArray := PropertyArray(lLanguageDefinition, 'Definitions');
   if lArray = nil then
   begin
@@ -1074,6 +1098,7 @@ begin
     end;
     lRule.FKindName := lRuleName;
     FDefinitionRules.Add(lRule);
+  end;
   end;
   for lRule in FDefinitionRules do
   begin
@@ -1122,6 +1147,7 @@ begin
   end;
     Result := True;
   finally
+    lView.Free;
     if not Result then
     begin
       FDefinitionRules.Clear;

@@ -369,6 +369,7 @@ type
 
   TNexusScriptCompiledDocument = class
   private
+    FIncludedDocuments: TList<TNexusScriptCompiledDocument>;
     FSourceName: string;
     FDefinitions: TNexusScriptCompiledDefinitionList;
     FDialectPath: string;
@@ -384,6 +385,7 @@ type
       ADocument: TNexusScriptCompiledDocument);
     property SourceName: string read FSourceName;
     property Definitions: TNexusScriptCompiledDefinitionList read FDefinitions;
+    property IncludedDocuments: TList<TNexusScriptCompiledDocument> read FIncludedDocuments;
     property DialectPath: string read FDialectPath;
     property DialectSourceRange: TNexusScriptRange read FDialectSourceRange;
     property DialectSourceName: string read FDialectSourceName;
@@ -768,10 +770,12 @@ begin
   inherited Create;
   FSourceName := ASourceName;
   FDefinitions := TNexusScriptCompiledDefinitionList.Create(True);
+  FIncludedDocuments := TList<TNexusScriptCompiledDocument>.Create;
 end;
 
 destructor TNexusScriptCompiledDocument.Destroy;
 begin
+  FIncludedDocuments.Free;
   FDefinitions.Free;
   inherited Destroy;
 end;

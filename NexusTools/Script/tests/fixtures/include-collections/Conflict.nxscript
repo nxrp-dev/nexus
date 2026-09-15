@@ -1,0 +1,2 @@
+include "Base.nxscript";
+Table Base { Extra: forbidden; }

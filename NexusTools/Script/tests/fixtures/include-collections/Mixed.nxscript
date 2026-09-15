@@ -1,0 +1,8 @@
+module "Base.nxscript";
+include "Base.nxscript";
+include "Base.nxscript";
+
+Table Concrete (Base) {
+    Original: @Base;
+    Fields: [Field ID { Type: UUID; }];
+}

@@ -1,0 +1,3 @@
+Language ProdRules Target[Prod] {
+    Definitions: [Definition Prod { Root: True; UnknownProperties: Allow; }];
+}

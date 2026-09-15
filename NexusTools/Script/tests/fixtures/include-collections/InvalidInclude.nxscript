@@ -1,0 +1,2 @@
+dialect "Language.nxscript";
+include "Invalid.nxscript";

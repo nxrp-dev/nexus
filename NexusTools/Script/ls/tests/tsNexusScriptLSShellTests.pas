@@ -20,6 +20,7 @@ uses
   obNexusScriptLSDocument,
   obNexusScriptLSModel,
   obNexusScriptAnalysis,
+  obNexusScriptDefinitionView,
   obNexusScriptLSAllRequests,
   obNXTestContext,
   obNXTestSuite;
@@ -809,6 +810,108 @@ begin
   end;
 end;
 
+procedure TestIncludedDefinitionRefresh(AContext: TNXTestContext);
+const
+  cEntry = 'file:///C:/work/include-refresh/entry.nxscript';
+  cChild = 'file:///C:/work/include-refresh/child.nxscript';
+var
+  lModel: TNexusScriptLSModel;
+  lAnalysis: TNexusScriptAnalysis;
+  lView: TNexusScriptDefinitionView;
+  lRevision: Integer;
+begin
+  lModel := TNexusScriptLSModel.Create;
+  try
+    lModel.OpenDocument(cChild, 'nexusscript', 1, 'Thing Old { Value: before; }');
+    lModel.OpenDocument(cEntry, 'nexusscript', 1, 'include "child.nxscript"; Thing Entry {}');
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(lAnalysis.Succeeded, 'Included overlay compiles.');
+    lRevision := lAnalysis.Revision;
+    lView := TNexusScriptDefinitionView.Create;
+    try
+      lView.AddDocument(lAnalysis.EntryCompiler.CompiledDocument);
+      AContext.AssertEquals(2, lView.Roots.Count, 'Entry and old child are visible.');
+      AContext.AssertEquals('Old', lView.Roots[1].Name, 'Original included name is visible.');
+    finally
+      lView.Free;
+    end;
+    lModel.ChangeDocument(cChild, 2, 'Thing New { Value: after; }');
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(lAnalysis.Succeeded and (lAnalysis.Revision > lRevision),
+      'Changing an include rebuilds the dependent analysis.');
+    lView := TNexusScriptDefinitionView.Create;
+    try
+      lView.AddDocument(lAnalysis.EntryCompiler.CompiledDocument);
+      AContext.AssertEquals(2, lView.Roots.Count, 'Replacement does not accumulate old roots.');
+      AContext.AssertEquals('New', lView.Roots[1].Name, 'Old name is replaced.');
+      AContext.AssertEquals('after', lView.Roots[1].FindProperty('Value').Value.EffectiveText,
+        'Changed values are visible in the rebuilt view.');
+    finally
+      lView.Free;
+    end;
+    lModel.ChangeDocument(cChild, 3, '');
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(lAnalysis.Succeeded, 'Removing all child definitions compiles.');
+    lView := TNexusScriptDefinitionView.Create;
+    try
+      lView.AddDocument(lAnalysis.EntryCompiler.CompiledDocument);
+      AContext.AssertEquals(1, lView.Roots.Count, 'Removed definitions disappear.');
+    finally
+      lView.Free;
+    end;
+  finally
+    lModel.Free;
+  end;
+end;
+
+procedure TestIncludedLanguageRefresh(AContext: TNXTestContext);
+const
+  cEntry = 'file:///C:/work/rule-refresh/entry.nxscript';
+  cLanguage = 'file:///C:/work/rule-refresh/language.nxscript';
+  cPiece = 'file:///C:/work/rule-refresh/rules.nxscript';
+  cOtherRules = 'Language Rules { Definitions: [Definition Other { Root: True; }]; }';
+var
+  lModel: TNexusScriptLSModel;
+  lAnalysis: TNexusScriptAnalysis;
+begin
+  lModel := TNexusScriptLSModel.Create;
+  try
+    lModel.OpenDocument(cPiece, 'nexusscript', 1,
+      'Language Rules { Definitions: [Definition Thing { Root: True; }]; }');
+    lModel.OpenDocument(cLanguage, 'nexusscript', 1,
+      'include "rules.nxscript"; Language Master { Definitions: []; }');
+    lModel.OpenDocument(cEntry, 'nexusscript', 1,
+      'dialect "language.nxscript"; Thing Entry {}');
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(lAnalysis.Succeeded and (lAnalysis.Language.DiagnosticCount = 0),
+      'Included overlay language normalizes.');
+    AContext.AssertEquals(0, lAnalysis.Validator.Diagnostics.Count, 'Initial rule validates.');
+    lModel.ChangeDocument(cPiece, 2, cOtherRules);
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(lAnalysis.Language.FindDefinitionRule('Thing') = nil,
+      'Removed language rule does not survive refresh.');
+    AContext.AssertTrue(lAnalysis.Language.FindDefinitionRule('Other') <> nil,
+      'Replacement rule reaches the dependent entry.');
+    AContext.AssertTrue(lAnalysis.Validator.Diagnostics.Count > 0,
+      'The formerly legal Thing operation now fails validation.');
+    lModel.ChangeDocument(cEntry, 2, 'dialect "language.nxscript"; Other Entry {}');
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertEquals(0, lAnalysis.Validator.Diagnostics.Count,
+      'The new operation validates against the new rule.');
+    lModel.ChangeDocument(cPiece, 3, 'Language Rules {');
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(not lAnalysis.Succeeded, 'A malformed rule dependency fails analysis.');
+    lModel.ChangeDocument(cPiece, 4, cOtherRules);
+    lAnalysis := lModel.FindAnalysis(cEntry);
+    AContext.AssertTrue(lAnalysis.Succeeded and (lAnalysis.Language.DiagnosticCount = 0),
+      'Correcting the dependency restores analysis.');
+    AContext.AssertEquals(0, lAnalysis.Validator.Diagnostics.Count,
+      'No stale diagnostics remain after recovery.');
+  finally
+    lModel.Free;
+  end;
+end;
+
 procedure RegisterNexusScriptLSShellTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -829,6 +932,8 @@ begin
     @TestSemanticModelProvenanceAndEdits);
   lSuite.AddTest('DialectModelAndCompletion', @TestDialectModelAndCompletion);
   lSuite.AddTest('NavigationAndTargetContext', @TestNavigationAndTargetContext);
+  lSuite.AddTest('IncludedDefinitionRefresh', @TestIncludedDefinitionRefresh);
+  lSuite.AddTest('IncludedLanguageRefresh', @TestIncludedLanguageRefresh);
 end;
 
 end.

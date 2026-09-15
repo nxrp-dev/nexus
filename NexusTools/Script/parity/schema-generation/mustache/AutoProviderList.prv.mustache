@@ -3,7 +3,7 @@
   <Provider_Server>
     <Categories>
       <Items>
-{{#Storm}}
+{{#_nx.Collections.Schema}}
 {{#_nx}}
         <TProviderCategory Name="AUTO_{{Name}}">
           <Providers>
@@ -24,29 +24,7 @@
           </Providers>
         </TProviderCategory>
 {{/_nx}}
-{{/Storm}}
-{{#inForce}}
-{{#_nx}}
-        <TProviderCategory Name="AUTO_{{Name}}">
-          <Providers>
-            <Items>
-{{#Tables}}
-{{#_nx}}
-              <TProviderDefinition Name="{{Name}}Edit" ResolveToDataset="False" CustomResolution="False" UpdateMode="upWhereAll" ProviderOptions="poFetchDetailsOnDemand" KeyFields="{{Name}}{{Firebird.MODULE_ID_POSTFIX}}">
-                <SQLStatement KeyFields="{{Name}}{{Firebird.MODULE_ID_POSTFIX}}">
-                  <Items>
-                    <TSQLElement Name="SQL92" SelectSQL="select * from {{Name}}{{Firebird.MODULE_POSTFIX}} where {{Name}}{{Firebird.MODULE_ID_POSTFIX}} = :{{Name}}{{Firebird.MODULE_ID_POSTFIX}}"/>
-                  </Items>
-                </SQLStatement>
-                <Header IsSingtleton="False" IsLookupTable="False"/>
-              </TProviderDefinition>
-{{/_nx}}
-{{/Tables}}
-            </Items>
-          </Providers>
-        </TProviderCategory>
-{{/_nx}}
-{{/inForce}}
+{{/_nx.Collections.Schema}}
       </Items>
     </Categories>
     <Databases>

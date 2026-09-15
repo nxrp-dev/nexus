@@ -1,41 +1,19 @@
-# Nexus UI Data Binding
+# Nexus Data Binding
 
-Nexus UI does not currently have an implemented data binding layer. The repo
-tracks the idea in planning notes, but no `TNXDataContext` or `TNXObjectContext`
-runtime API exists yet.
+`TNXBindingSource` connects a source's current values to bound consumers. The
+source owns navigation; the coordinator checks pending edits and synchronizes
+values through non-owning CORBA interfaces.
 
-## Desired Direction
+The core lives in `NexusLib/binding`, independently of Nexus UI and fpGUI. It
+supports one-way/two-way binding, source-first initialization, conversion,
+validation, pending input, and optional source edit sessions. Application code
+explicitly submits, commits, cancels, or retries navigation.
 
-The data-aware layer should be designed before it is coded. The likely shape is
-small and explicit:
+See the [binding contracts](../../NexusLib/binding/docs/contracts.md) for the
+connection API, source/target obligations, and lifetime rules. The console tests
+exercise the real coordinator with ordinary Pascal sources and targets,
+including a reusable current-record facade and an object-list source.
 
-- `TNXDataContext`
-- `TNXObjectContext`
-- field/value state
-- dirty tracking
-- validation state
-- edit, commit, cancel, and end-edit behavior
-- simple control binding
-
-## Design Principles
-
-The binding layer should avoid arbitrary binding complexity. Nexus UI favors a
-clear source-of-truth model where edit state, validation, and commit/cancel
-behavior are visible in the Pascal object graph.
-
-Controls should not gain hidden knowledge of every possible data source. A
-binding layer should adapt source state to controls through explicit contracts.
-
-## Before Implementation
-
-Before adding runtime binding classes, write down:
-
-- which object owns edit state
-- how validation errors are represented
-- when control edits become dirty source values
-- how commit and cancel interact with focused controls
-- how list/grid/tree controls expose selection and row state
-- whether binding belongs in core controls or adapter objects
-
-Until that design exists, application code should set and read control values
-directly.
+Production GUI and data adapters are not included yet. Existing controls still
+use direct value access until they implement the endpoint contracts. The core
+does not provide indexing, numeric lookup, sorting/filtering, or a View layer.

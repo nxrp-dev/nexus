@@ -1,0 +1,3 @@
+dialect "Language.nxscript";
+FPC Compile { Source: hello.lpr; }
+Git Inspect { Repository: "."; }

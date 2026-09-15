@@ -1,0 +1,6 @@
+dialect "Language.nxscript";
+module "Shared.nxscript";
+include "Left.nxscript";
+include "Right.nxscript";
+Dev EntryDev Target[Dev] { Value: @DevShared.Value; }
+Prod EntryProd Target[Prod] { Value: @ProdShared.Value; }

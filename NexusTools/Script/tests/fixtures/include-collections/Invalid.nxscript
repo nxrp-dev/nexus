@@ -1,0 +1,2 @@
+dialect "Language.nxscript";
+FPC Compile { Repository: "."; }

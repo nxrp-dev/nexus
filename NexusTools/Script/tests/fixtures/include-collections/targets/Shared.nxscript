@@ -1,0 +1,2 @@
+Dev DevShared Target[Dev] { Value: development; }
+Prod ProdShared Target[Prod] { Value: production; }

@@ -1,0 +1,7 @@
+dialect "../Language/Language.nxscript";
+include "pieces/*.nxscript";
+
+Language NexusForge {
+    UnknownDefinitions: Reject;
+    Definitions: [];
+}

@@ -1,0 +1,2 @@
+dialect "RuleConflict.nxscript";
+FPC Compile { Source: hello.lpr; }

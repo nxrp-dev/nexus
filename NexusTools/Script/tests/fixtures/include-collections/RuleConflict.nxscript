@@ -1,0 +1,4 @@
+include "language/FPC.nxscript";
+Language Aggregate {
+    Definitions: [Definition FPC { Root: True; }];
+}

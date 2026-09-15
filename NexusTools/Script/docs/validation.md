@@ -7,6 +7,13 @@ select validators from filenames, or mutate either document. Language
 definitions are normalized through the public read-only
 `TNexusScriptLanguageDefinition` model, which the Validator consumes directly.
 
+Compiled documents retain non-owning links to their included documents. The
+validator consumes their combined definition view: included subject definitions
+are validated, and included language fragments contribute their rule entries.
+Module-only roots remain reference/composition dependencies. See
+[include presentation](include-presentation.md) for the collection and ownership
+rules. The compilation session must outlive validation and its borrowed view.
+
 Language definitions are ordinary NexusScript. The engine assigns meaning to
 seven consumer-defined kinds:
 

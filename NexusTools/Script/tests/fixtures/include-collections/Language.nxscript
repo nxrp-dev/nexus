@@ -1,0 +1,5 @@
+include "language/*.nxscript";
+Language Aggregate {
+    UnknownDefinitions: Reject;
+    Definitions: [];
+}

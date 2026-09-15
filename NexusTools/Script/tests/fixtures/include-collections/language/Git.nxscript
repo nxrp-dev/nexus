@@ -1,0 +1,10 @@
+Language GitPart {
+    Definitions: [Definition Git {
+        Root: True;
+        UnknownProperties: Reject;
+        Properties: [Property Repository {
+            Required: True;
+            Value Value { EffectiveCategories: [Text]; }
+        }];
+    }];
+}

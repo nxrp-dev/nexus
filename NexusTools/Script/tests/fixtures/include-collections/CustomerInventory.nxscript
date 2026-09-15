@@ -1,0 +1,2 @@
+include "Inventory.nxscript";
+include "Customer.nxscript";

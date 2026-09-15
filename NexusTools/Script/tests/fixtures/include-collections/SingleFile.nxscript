@@ -1,0 +1,18 @@
+Schema Inventory {
+    Tables: [
+        Table Product { Fields: [Field ID { Type: Integer; }]; },
+        Table Stock { Fields: [Field ID { Type: Integer; }]; },
+        Table Warehouse { Fields: [Field ID { Type: Integer; }]; },
+        Table Movement { Fields: [Field ID { Type: Integer; }]; },
+        Table Supplier { Fields: [Field ID { Type: Integer; }]; }
+    ];
+}
+Constants Shared { IDType: Integer; }
+Schema Customer {
+    Tables: [
+        Table Account { Fields: [Field ID { Type: Integer; }]; },
+        Table Contact { Fields: [Field ID { Type: Integer; }]; },
+        Table Address { Fields: [Field ID { Type: Integer; }]; },
+        Table Invoice { Fields: [Field ID { Type: Integer; }]; }
+    ];
+}

@@ -1,0 +1,10 @@
+dialect "../../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript";
+
+FPC CompileExample {
+    Source: "hello world & test.lpr";
+    Output: "hello world & test.exe";
+}
+
+Git InspectRepository {
+    Repository: ".";
+}

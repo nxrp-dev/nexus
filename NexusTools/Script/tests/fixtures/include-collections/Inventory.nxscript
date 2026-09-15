@@ -1,0 +1,11 @@
+include "Shared.nxscript";
+
+Schema Inventory {
+    Tables: [
+        Table Product { Fields: [Field ID { Type: Integer; }]; },
+        Table Stock { Fields: [Field ID { Type: Integer; }]; },
+        Table Warehouse { Fields: [Field ID { Type: Integer; }]; },
+        Table Movement { Fields: [Field ID { Type: Integer; }]; },
+        Table Supplier { Fields: [Field ID { Type: Integer; }]; }
+    ];
+}

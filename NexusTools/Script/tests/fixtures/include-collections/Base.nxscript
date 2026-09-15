@@ -1,0 +1,3 @@
+Table Base {
+    Fields: [Field ID { Type: Integer; }];
+}

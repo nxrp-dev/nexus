@@ -1,0 +1,3 @@
+Language DevRules Target[Dev] {
+    Definitions: [Definition Dev { Root: True; UnknownProperties: Allow; }];
+}

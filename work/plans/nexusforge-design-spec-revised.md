@@ -11,6 +11,7 @@ Date: 2026-09-15
 - Settled review: start with native executables, beginning with FPC. The developer supplies the environment and PATH. Do not manage tool versions or repair environments.
 - Settled review: use existing Mustache/process techniques; ordinary paths containing spaces and `&` are verification cases. Do not invent an argument language to anticipate limitations.
 - Final review clarification: document dialect declaration, effective language composition, and dialect file resolution are separate concerns. An internal `DialectRoot` is only a fallback file-resolution directory; the normal Forge CLI exposes no dialect-selection or dialect-root option.
+- Implementation clarification from the owner: `module` is for references/composition; `include` is for aggregation. The initial explicit `(ForgeCore, ForgeFPC, ForgeGit)` composition fixture was rejected. Independent pieces now contribute through `include`, with a shared included-definition view used by presentation and validation. This foundational correction is implemented separately for review before continuing the Forge runtime.
 - Governing instructions: `AGENTS.md`, `.ai/protocols/architecture-change.md`, `.ai/protocols/codex-workplan-format.md`, `.ai/standards/pascal.md`, and applicable folder instructions.
 
 ## Summary

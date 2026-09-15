@@ -1,0 +1,10 @@
+Language FPCPart {
+    Definitions: [Definition FPC {
+        Root: True;
+        UnknownProperties: Reject;
+        Properties: [Property Source {
+            Required: True;
+            Value Value { EffectiveCategories: [Text]; }
+        }];
+    }];
+}

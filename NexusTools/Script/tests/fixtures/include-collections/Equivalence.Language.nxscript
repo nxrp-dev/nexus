@@ -1,0 +1,9 @@
+Language Equivalence {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Schema { Root: True; UnknownProperties: Allow; },
+        Definition Constants { Root: True; UnknownProperties: Allow; },
+        Definition Table { Parents: [Schema]; UnknownProperties: Allow; },
+        Definition Field { Parents: [Table]; UnknownProperties: Allow; }
+    ];
+}

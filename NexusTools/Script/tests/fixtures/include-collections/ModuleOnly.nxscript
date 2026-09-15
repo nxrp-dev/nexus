@@ -1,0 +1,5 @@
+module "Base.nxscript";
+
+Table Concrete (Base) {
+    Original: @Base;
+}

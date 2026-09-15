@@ -3961,6 +3961,333 @@ begin
   end;
 end;
 
+function CollectionFixturePath(const AName: string): string;
+begin
+  Result := IncludeFixturePath('..\include-collections\' + AName);
+end;
+
+procedure TestIncludeCollections(AContext: TNXTestContext);
+var
+  lData: TJSONData;
+  lRoot, lCollections, lTable, lMetadata: TJSONObject;
+  lTables, lFields: TJSONArray;
+  lIndex: Integer;
+  lText: string;
+begin
+  lData := GetJSON(ExecuteCLI(['/input=' +
+    CollectionFixturePath('CustomerInventory.nxscript')]));
+  try
+    lRoot := RequireJSONObject(lData, 'root');
+    lCollections := RequireJSONObject(RequireJSONMember(RequireJSONObject(
+      RequireJSONMember(lRoot, '_nx'), 'metadata'), 'Collections'), 'collections');
+    lTables := RequireJSONArray(RequireJSONMember(lCollections, 'Table'), 'tables');
+    AContext.AssertEquals(9, lTables.Count, 'All nine nested tables are presented together.');
+    AContext.AssertEquals(1, RequireJSONArray(RequireJSONMember(lCollections,
+      'Constants'), 'constants').Count, 'A diamond include contributes Shared once.');
+    for lIndex := 0 to lTables.Count - 1 do
+    begin
+      lTable := RequireJSONObject(lTables.Items[lIndex], 'table');
+      lFields := RequireJSONArray(RequireJSONMember(lTable, 'Fields'), 'fields');
+      AContext.AssertEquals(1, lFields.Count, 'Each table keeps its own fields.');
+      lMetadata := RequireJSONObject(RequireJSONMember(lTable, '_nx'), 'metadata');
+      AContext.AssertTrue(Pos('.nxscript', RequireJSONMember(RequireJSONObject(
+        RequireJSONMember(lMetadata, 'SourceRange'), 'source'), 'SourceName').AsString) > 0,
+        'Collected tables retain their declaring source.');
+    end;
+  finally
+    lData.Free;
+  end;
+  lText := ExecuteCLI(['/input=' + CollectionFixturePath('CustomerInventory.nxscript'),
+    '/template=' + CollectionFixturePath('Tables.mustache')]);
+  AContext.AssertEquals('Product:ID' + LineEnding + 'Stock:ID' + LineEnding +
+    'Warehouse:ID' + LineEnding + 'Movement:ID' + LineEnding + 'Supplier:ID' +
+    LineEnding + 'Account:ID' + LineEnding + 'Contact:ID' + LineEnding +
+    'Address:ID' + LineEnding + 'Invoice:ID', Trim(lText),
+    'One template iteration emits the nine tables in include order.');
+end;
+
+procedure TestIncludeModuleCollections(AContext: TNXTestContext);
+var
+  lData: TJSONData;
+  lRoot, lCollections, lConcrete, lBase, lField: TJSONObject;
+  lVariant: Integer;
+  lFileName: string;
+begin
+  for lVariant := 0 to 1 do
+  begin
+    if lVariant = 0 then lFileName := 'ModuleOnly.nxscript'
+    else lFileName := 'Mixed.nxscript';
+    lData := GetJSON(ExecuteCLI(['/input=' + CollectionFixturePath(lFileName)]));
+    try
+      lRoot := RequireJSONObject(lData, 'root');
+      lCollections := RequireJSONObject(RequireJSONMember(RequireJSONObject(
+        RequireJSONMember(lRoot, '_nx'), 'metadata'), 'Collections'), 'collections');
+      AContext.AssertEquals(1 + lVariant, RequireJSONArray(
+        RequireJSONMember(lCollections, 'Table'), 'tables').Count,
+        'Module-only bases are excluded; mixed includes contribute the base once.');
+      lConcrete := RequireJSONObject(RequireJSONMember(lRoot, 'Concrete'), 'concrete');
+      AContext.AssertTrue(RequireJSONMember(lConcrete, 'Fields') <> nil,
+        'Composition retains inherited fields.');
+      if lVariant = 1 then
+      begin
+        lField := RequireJSONObject(RequireJSONArray(RequireJSONMember(
+          lConcrete, 'Fields'), 'concrete fields').Items[0], 'concrete ID');
+        AContext.AssertEquals('UUID', RequireJSONMember(lField, 'Type').AsString,
+          'Derived ID overrides only the derived table.');
+        lBase := RequireJSONObject(RequireJSONMember(lRoot, 'Base'), 'base');
+        lField := RequireJSONObject(RequireJSONArray(RequireJSONMember(
+          lBase, 'Fields'), 'base fields').Items[0], 'base ID');
+        AContext.AssertEquals('Integer', RequireJSONMember(lField, 'Type').AsString,
+          'The original table keeps its original ID type.');
+        lBase := RequireJSONObject(RequireJSONMember(lConcrete, 'Original'), 'original');
+        lField := RequireJSONObject(RequireJSONArray(RequireJSONMember(
+          lBase, 'Fields'), 'alias fields').Items[0], 'alias ID');
+        AContext.AssertEquals('Integer', RequireJSONMember(lField, 'Type').AsString,
+          'A reference to the original still denotes the original table.');
+      end;
+      AContext.AssertEquals('Base', RequireJSONMember(RequireJSONObject(
+        RequireJSONMember(RequireJSONObject(RequireJSONMember(RequireJSONObject(
+          RequireJSONMember(lConcrete, 'Original'), 'original'), '_nx'),
+          'metadata'), 'Reference'), 'reference'), 'Name').AsString,
+        'References still target the original base.');
+    finally
+      lData.Free;
+    end;
+  end;
+  AContext.AssertTrue(Pos('duplicate artifact root', LowerCase(CLIError([
+    '/input=' + CollectionFixturePath('Conflict.nxscript')]))) > 0,
+    'Distinct same-named roots fail; they are never merged.');
+  AContext.AssertTrue(Pos('duplicate artifact root', LowerCase(CLIError([
+    '/input=' + CollectionFixturePath('CaseConflict.nxscript')]))) > 0,
+    'Case variation does not bypass root-name collisions.');
+end;
+
+procedure TestIncludedLanguageRules(AContext: TNXTestContext);
+begin
+  AContext.AssertTrue(Pos('Compile', ExecuteCLI(['/input=' +
+    CollectionFixturePath('Valid.nxscript'), '/validate'])) > 0,
+    'Discovered FPC and Git rule pieces both validate.');
+  AContext.AssertTrue(Pos('Validation failed', CLIError(['/input=' +
+    CollectionFixturePath('Invalid.nxscript'), '/validate'])) > 0,
+    'Operation-specific invalid properties fail.');
+  AContext.AssertTrue(Pos('Validation failed', CLIError(['/input=' +
+    CollectionFixturePath('InvalidInclude.nxscript'), '/validate'])) > 0,
+    'Included subject definitions are validated too.');
+  AContext.AssertTrue(Pos('Duplicate definition rule FPC', CLIError(['/input=' +
+    CollectionFixturePath('DuplicateRule.nxscript'), '/validate'])) > 0,
+    'Same-named rules from different fragments fail rather than merge.');
+end;
+
+procedure RemoveDefinitionProvenance(AData: TJSONData);
+var
+  lObject, lMetadata: TJSONObject;
+  lIndex: Integer;
+begin
+  if AData.JSONType = jtObject then
+  begin
+    lObject := RequireJSONObject(AData, 'object');
+    if lObject.Find('_nx', lMetadata) then
+    begin
+      lIndex := lMetadata.IndexOfName('SourceRange');
+      if lIndex >= 0 then lMetadata.Delete(lIndex);
+    end;
+  end;
+  for lIndex := 0 to AData.Count - 1 do
+    RemoveDefinitionProvenance(AData.Items[lIndex]);
+end;
+
+procedure TestIncludeFileEquivalence(AContext: TNXTestContext);
+var
+  lSingle, lSplit: TJSONData;
+  lLanguage, lSubject: TNexusScriptCompilationSession;
+  lValidator: TNexusScriptValidator;
+  lIndex: Integer;
+  lFileName: string;
+begin
+  lSingle := GetJSON(ExecuteCLI(['/input=' + CollectionFixturePath('SingleFile.nxscript')]));
+  lSplit := nil;
+  try
+    lSplit := GetJSON(ExecuteCLI(['/input=' + CollectionFixturePath('CustomerInventory.nxscript')]));
+    AContext.AssertTrue(lSingle.AsJSON <> lSplit.AsJSON,
+      'Actual source provenance must differ between layouts.');
+    RemoveDefinitionProvenance(lSingle);
+    RemoveDefinitionProvenance(lSplit);
+    AContext.AssertEquals(lSingle.AsJSON, lSplit.AsJSON,
+      'Splitting into includes changes only source provenance, not the presented model.');
+  finally
+    lSplit.Free;
+    lSingle.Free;
+  end;
+  AContext.AssertEquals(ExecuteCLI(['/input=' + CollectionFixturePath('SingleFile.nxscript'),
+    '/template=' + CollectionFixturePath('Tables.mustache')]),
+    ExecuteCLI(['/input=' + CollectionFixturePath('CustomerInventory.nxscript'),
+    '/template=' + CollectionFixturePath('Tables.mustache')]),
+    'Generated output must not depend on file boundaries.');
+  lLanguage := TNexusScriptCompilationSession.Create;
+  lValidator := TNexusScriptValidator.Create;
+  try
+    AContext.AssertTrue(lLanguage.CompileFile(CollectionFixturePath('Equivalence.Language.nxscript')),
+      'Equivalence language compiles.');
+    for lIndex := 0 to 1 do
+    begin
+      if lIndex = 0 then lFileName := 'SingleFile.nxscript'
+      else lFileName := 'CustomerInventory.nxscript';
+      lSubject := TNexusScriptCompilationSession.Create;
+      try
+        AContext.AssertTrue(lSubject.CompileFile(CollectionFixturePath(lFileName)), lSubject.LastError);
+        AContext.AssertTrue(lValidator.Validate(lSubject.EntryCompiler.CompiledDocument,
+          lLanguage.EntryCompiler.CompiledDocument), 'Both layouts validate against the same rules.');
+      finally
+        lSubject.Free;
+      end;
+    end;
+  finally
+    lValidator.Free;
+    lLanguage.Free;
+  end;
+end;
+
+procedure TestCompleteSQLContract(AContext: TNXTestContext);
+var
+  lActual, lExpected: string;
+begin
+  lActual := ExecuteCLI(['/input=' + CollectionFixturePath('SQL.nxscript'),
+    '/template=' + CollectionFixturePath('SQL.mustache')]);
+  lExpected := FileText(CollectionFixturePath('SQL.expected.txt'));
+  { Normalize platform line endings only. Do not rewrite expected content. }
+  lActual := StringReplace(lActual, #13#10, #10, [rfReplaceAll]);
+  lExpected := StringReplace(lExpected, #13#10, #10, [rfReplaceAll]);
+  AContext.AssertEquals(lExpected, lActual,
+    'Complete handwritten SQL contract: columns, ordering, index, and reference target.');
+end;
+
+procedure TestTargetedIncludeCollections(AContext: TNXTestContext);
+var
+  lSelection: TNexusScriptTargetSelection;
+  lSession: TNexusScriptCompilationSession;
+  lValidator: TNexusScriptValidator;
+  lRules: TNexusScriptLanguageDefinition;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lCollections: TJSONObject;
+  lSelected, lExcluded: string;
+  lIndex: Integer;
+begin
+  for lIndex := 0 to 1 do
+  begin
+    if lIndex = 0 then begin lSelected := 'Dev'; lExcluded := 'Prod'; end
+    else begin lSelected := 'Prod'; lExcluded := 'Dev'; end;
+    lSelection := TNexusScriptTargetSelection.Create;
+    lSelection.Add('Target', lSelected);
+    lSession := TNexusScriptCompilationSession.Create(lSelection);
+    lValidator := TNexusScriptValidator.Create;
+    lRules := TNexusScriptLanguageDefinition.Create;
+    lEmitter := TNexusScriptJSONEmitter.Create;
+    lData := nil;
+    try
+      AContext.AssertTrue(lSession.CompileFile(CollectionFixturePath('targets\Entry.nxscript')),
+        lSession.LastError);
+      AContext.AssertTrue(lValidator.Validate(lSession.EntryCompiler.CompiledDocument,
+        lSession.EntryCompiler.CompiledDocument.DialectDocument), 'Selected rules validate selected includes.');
+      AContext.AssertTrue(lRules.Normalize(lSession.EntryCompiler.CompiledDocument.DialectDocument),
+        'Selected language normalizes.');
+      AContext.AssertTrue(lRules.FindDefinitionRule(lSelected) <> nil, 'Selected rule exists.');
+      AContext.AssertTrue(lRules.FindDefinitionRule(lExcluded) = nil, 'Excluded rule does not leak.');
+      lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+      lData := GetJSON(lEmitter.JSON);
+      lCollections := RequireJSONObject(RequireJSONMember(RequireJSONObject(
+        RequireJSONMember(RequireJSONObject(lData, 'root'), '_nx'), 'metadata'),
+        'Collections'), 'collections');
+      AContext.AssertEquals(2, RequireJSONArray(RequireJSONMember(lCollections,
+        lSelected), 'selected collection').Count, 'Entry and shared include appear once each.');
+      AContext.AssertTrue(lCollections.Find(lExcluded) = nil, 'Excluded collection is absent.');
+    finally
+      lData.Free;
+      lEmitter.Free;
+      lRules.Free;
+      lValidator.Free;
+      lSession.Free;
+      lSelection.Free;
+    end;
+  end;
+end;
+
+procedure TestEmitterFailureAndLifetime(AContext: TNXTestContext);
+var
+  lCompiler, lOther: TNexusScriptCompiler;
+  lEmitter: TNexusScriptJSONEmitter;
+  lBefore, lAfter: string;
+  lFailed: Boolean;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lOther := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('stable.nxscript',
+      'Thing Stable { Value: original; }'), 'Initial input compiles.');
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lBefore := lEmitter.JSON;
+    AContext.AssertTrue(lOther.CompileText('bad.nxscript',
+      'Thing Fresh {} Thing Invalid { _nx: forbidden; }'), 'Invalid output input compiles.');
+    lFailed := False;
+    try
+      lEmitter.AddDocument(lOther.CompiledDocument);
+    except
+      on E: ENexusScriptJSON do lFailed := True;
+    end;
+    AContext.AssertTrue(lFailed, 'Reserved metadata fails during emission.');
+    AContext.AssertEquals(lBefore, lEmitter.JSON,
+      'Failure after staging a valid root must leave all prior output unchanged.');
+    AContext.AssertTrue(lOther.CompileText('good.nxscript', 'Thing Fresh { Value: accepted; }'),
+      'Recovery input compiles.');
+    lEmitter.AddDocument(lOther.CompiledDocument);
+    lAfter := lEmitter.JSON;
+    AContext.AssertTrue(Pos('accepted', lAfter) > 0, 'A valid addition succeeds after failure.');
+    AContext.AssertTrue(lCompiler.CompileText('stable.nxscript',
+      'Thing Changed { Value: replacement; }'), 'Source can be recompiled after emission.');
+    FreeAndNil(lCompiler);
+    FreeAndNil(lOther);
+    AContext.AssertEquals(lAfter, lEmitter.JSON,
+      'Recompilation and source destruction cannot alter copied output.');
+    AContext.AssertEquals(lAfter, lEmitter.JSON, 'Repeated serialization is deterministic.');
+  finally
+    lEmitter.Free;
+    lOther.Free;
+    lCompiler.Free;
+  end;
+end;
+
+procedure TestStructuralReferenceAliasJSON(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lRoot, lAlias: TJSONObject;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('reference-alias.nxscript',
+      'Thing Root { Thing Base { Value: original; } ' +
+      'Original: @Root.Base; Alias: @Original; }'),
+      'A reference to a structural reference compiles.');
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lData := GetJSON(lEmitter.JSON);
+    try
+      lRoot := RequireJSONObject(RequireJSONMember(
+        RequireJSONObject(lData, 'root'), 'Root'), 'definition');
+      lAlias := RequireJSONObject(RequireJSONMember(lRoot, 'Alias'), 'alias');
+      AContext.AssertEquals('original', RequireJSONMember(lAlias, 'Value').AsString,
+        'The alias presents the original definition value.');
+    finally
+      lData.Free;
+    end;
+  finally
+    lEmitter.Free;
+    lCompiler.Free;
+  end;
+end;
+
 procedure RegisterNexusScriptTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -4022,6 +4349,14 @@ begin
   lSuite.AddTest('SchemaGenerationMockData',
     @TestSchemaGenerationMockData);
   lSuite.AddTest('CommandValidation', @TestCommandValidation);
+  lSuite.AddTest('IncludeCollections', @TestIncludeCollections);
+  lSuite.AddTest('IncludeModuleCollections', @TestIncludeModuleCollections);
+  lSuite.AddTest('IncludedLanguageRules', @TestIncludedLanguageRules);
+  lSuite.AddTest('IncludeFileEquivalence', @TestIncludeFileEquivalence);
+  lSuite.AddTest('CompleteSQLContract', @TestCompleteSQLContract);
+  lSuite.AddTest('TargetedIncludeCollections', @TestTargetedIncludeCollections);
+  lSuite.AddTest('EmitterFailureAndLifetime', @TestEmitterFailureAndLifetime);
+  lSuite.AddTest('StructuralReferenceAliasJSON', @TestStructuralReferenceAliasJSON);
 end;
 
 end.

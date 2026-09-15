@@ -421,6 +421,13 @@ begin
       lCompiler.CompiledDocument.SetDialect(lDeclaredDialectPath,
         lDialectSourceName, lDialectRange,
         lDialectCompiler.CompiledDocument);
+    for lInclude in lCompiler.SourceDocument.Includes do
+    begin
+      lIncludedName := ResolveDependencyPath(lCanonicalName, lInclude.Path);
+      lIncludedCompiler := FindCompiler(lIncludedName);
+      lCompiler.CompiledDocument.IncludedDocuments.Add(
+        lIncludedCompiler.CompiledDocument);
+    end;
     FCompilers.AddObject(lCanonicalName, lCompiler);
     Result := lCompiler;
   finally

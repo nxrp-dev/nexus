@@ -50,7 +50,8 @@ implementation
 
 uses
   Classes,
-  SysUtils;
+  SysUtils,
+  obNexusScriptDefinitionView;
 
 type
   TNSValidatorEngine = class
@@ -443,6 +444,7 @@ var
   lDefinition: TNexusScriptCompiledDefinition;
   lDiagnostic: TNSLanguageDiagnostic;
   lIndex: Integer;
+  lView: TNexusScriptDefinitionView;
 begin
   FLanguage.Free;
   FLanguage := TNexusScriptLanguageDefinition.Create;
@@ -464,10 +466,23 @@ begin
     Exit(False);
   end;
   FVisited.Clear;
-  for lDefinition in ASubject.Definitions do
-    ValidateDefinition(lDefinition, nil, True);
+  lView := TNexusScriptDefinitionView.Create;
+  try
+    try
+      lView.AddDocument(ASubject);
+    except
+      on E: Exception do
+      begin
+        AddDiagnostic('NSV2000', E.Message, Default(TNexusScriptRange));
+        Exit(False);
+      end;
+    end;
+    for lDefinition in lView.Roots do
+      ValidateDefinition(lDefinition, nil, True);
+  finally
+    lView.Free;
+  end;
   Result := FDiagnostics.Count = 0;
 end;
 
 end.
-

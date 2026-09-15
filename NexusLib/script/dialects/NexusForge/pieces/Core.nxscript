@@ -1,0 +1,4 @@
+Language ForgeCore {
+    UnknownDefinitions: Reject;
+    Definitions: [];
+}

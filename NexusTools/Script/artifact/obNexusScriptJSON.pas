@@ -10,6 +10,7 @@ uses
   fpjson,
   tpNexusScript,
   obNexusScriptModel,
+  obNexusScriptDefinitionView,
   obNexusScriptArtifactModel;
 
 type
@@ -19,6 +20,8 @@ type
   private
     FRoot: TJSONObject;
     FRootNames: TStringList;
+    FCollectedNames: TStringList;
+    FCollections: TJSONObject;
     function DefinitionMetadata(
       ADefinition: TNexusScriptCompiledDefinition;
       AReferenceValue: TNexusScriptCompiledValue):
@@ -94,15 +97,24 @@ begin
 end;
 
 constructor TNexusScriptJSONEmitter.Create;
+var
+  lMetadata: TJSONObject;
 begin
   inherited Create;
   FRoot := TJSONObject.Create;
   FRootNames := TStringList.Create;
   FRootNames.CaseSensitive := False;
+  FCollectedNames := TStringList.Create;
+  FCollectedNames.CaseSensitive := False;
+  lMetadata := TJSONObject.Create;
+  FRoot.Add('_nx', lMetadata);
+  FCollections := TJSONObject.Create;
+  lMetadata.Add('Collections', FCollections);
 end;
 
 destructor TNexusScriptJSONEmitter.Destroy;
 begin
+  FCollectedNames.Free;
   FRootNames.Free;
   FRoot.Free;
   inherited Destroy;
@@ -213,16 +225,70 @@ procedure TNexusScriptJSONEmitter.AddDocument(
   ADocument: TNexusScriptCompiledDocument);
 var
   lDefinition: TNexusScriptCompiledDefinition;
+  lView: TNexusScriptDefinitionView;
+  lRoots, lDefinitions: TJSONObject;
+  lCollection: TJSONArray;
+  lIndex, lExisting: Integer;
+  lKey, lName: string;
 begin
-  for lDefinition in ADocument.Definitions do
-  begin
-    if lDefinition.ImportedRoot then
-      Continue;
-    if FRootNames.IndexOf(lDefinition.Name) >= 0 then
-      raise ENexusScriptJSON.CreateFmt(
-        'Duplicate artifact root name %s.', [lDefinition.Name]);
-    FRoot.Add(lDefinition.Name, DefinitionJSON(lDefinition));
-    FRootNames.Add(lDefinition.Name);
+  lView := TNexusScriptDefinitionView.Create;
+  lRoots := TJSONObject.Create;
+  lDefinitions := TJSONObject.Create;
+  try
+    try
+      lView.AddDocument(ADocument);
+    except
+      on E: Exception do raise ENexusScriptJSON.Create(E.Message);
+    end;
+    for lDefinition in lView.Roots do
+    begin
+      if SameText(lDefinition.Name, '_nx') then
+        raise ENexusScriptJSON.Create('Artifact root uses reserved name _nx.');
+      lExisting := FRootNames.IndexOfName(lDefinition.Name);
+      if lExisting >= 0 then
+      begin
+        if FRootNames.ValueFromIndex[lExisting] = lDefinition.SourceRange.SourceName then
+          Continue;
+        raise ENexusScriptJSON.CreateFmt('Duplicate artifact root name %s.',
+          [lDefinition.Name]);
+      end;
+      lRoots.Add(lDefinition.Name, DefinitionJSON(lDefinition));
+    end;
+    for lIndex := 0 to lView.Definitions.Count - 1 do
+    begin
+      lDefinition := lView.Definitions[lIndex];
+      lKey := lView.ScopedNames[lIndex];
+      if FCollectedNames.IndexOf(lKey) < 0 then
+        lDefinitions.Add(lKey, DefinitionJSON(lDefinition));
+    end;
+    { Commit copied JSON only after all rendering succeeds. The caller may
+      release or recompile its documents after this method returns. }
+    while lRoots.Count > 0 do
+    begin
+      lName := lRoots.Names[0];
+      FRoot.Add(lName, lRoots.Extract(0));
+    end;
+    for lDefinition in lView.Roots do
+      if FRootNames.IndexOfName(lDefinition.Name) < 0 then
+        FRootNames.Add(lDefinition.Name + '=' + lDefinition.SourceRange.SourceName);
+    for lIndex := 0 to lView.Definitions.Count - 1 do
+    begin
+      lKey := lView.ScopedNames[lIndex];
+      lExisting := lDefinitions.IndexOfName(lKey);
+      if lExisting < 0 then Continue;
+      lDefinition := lView.Definitions[lIndex];
+      if not FCollections.Find(lDefinition.Kind, lCollection) then
+      begin
+        lCollection := TJSONArray.Create;
+        FCollections.Add(lDefinition.Kind, lCollection);
+      end;
+      lCollection.Add(lDefinitions.Extract(lExisting));
+      FCollectedNames.Add(lKey);
+    end;
+  finally
+    lDefinitions.Free;
+    lRoots.Free;
+    lView.Free;
   end;
 end;
 

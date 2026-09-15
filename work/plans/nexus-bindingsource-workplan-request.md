@@ -1,6 +1,6 @@
 # Work Plan: Nexus BindingSource-Style Data Binding Core
 
-Status: Approved with the requested revisions incorporated; awaiting direct implementation authorization.
+Status: Implementation authorized; core and contract tests implemented locally for owner review.
 Date: 2026-09-13
 Revised: 2026-09-14
 
@@ -11,6 +11,7 @@ Revised: 2026-09-14
 - Conversation review accepted the revised request as planning input. The production coordinator is a settled requirement; this is not a contracts-only implementation.
 - Owner review requires explicit caller operations instead of a policy interface and includes DateTime and Currency in the initial scalar carrier. The remaining plan is approved; this revision does not begin implementation.
 - Owner correction: DataSet is the primary eventual integration target. Contracts cover data awareness through source-owned navigation and current values, not general collection access. Numeric lookup and indexing remain underlying-data responsibilities.
+- Implementation authorization: "perfect. make it so", followed by permission to continue after verifying standard CORBA capability discovery. Object connection points use standard Supports checks, not capability getters.
 - This single plan uses the topic filename without the browser download suffix. No repository request copy or alternative plan is created.
 - Governing files: `AGENTS.md`, `.ai/protocols/architecture-change.md`, `.ai/protocols/codex-workplan-format.md`, `.ai/standards/pascal.md`.
 - Existing architectural note: `docs/nexus-ui/data-binding.md`. Its tentative context class names are not requirements for this new subsystem.
@@ -62,6 +63,7 @@ These responsibilities need one defined coordinating implementation and independ
 | `NexusLib/binding/AGENTS.md` | Reference the repository Pascal standard and the GUI-independent scope. |
 | `NexusLib/binding/src/tpNXBinding.pas` | The single definitions of value/result/event types, identifiers, enums, and non-owning interfaces. |
 | `NexusLib/binding/src/obNXBindingSource.pas` | Canonical `TNXBindingSource`; small owned binding/subscription helpers initially stay in its implementation section where possible. |
+| `NexusLib/binding/src/obNXBindingSubscriptions.pas` | Small owned registration store; deterministic removal and Closing delivery without owning observers. |
 | `NexusLib/binding/docs/contracts.md` | Normative method semantics, ownership rules, event traces, and capability requirements for adapter authors. |
 | `NexusLib/binding/tests/obNXBindingTestObjects.pas` | Fake participants and event recorder; no replacement binding engine. |
 | `NexusLib/binding/tests/tsNXBindingContracts.pas` | Reusable endpoint/source/subscription capability tests driven by fixture creation methods. |
@@ -100,6 +102,12 @@ The names and operation shapes below are the intended API surface. Stage 1 suppl
 | `INXBindingEditSession` | Optional current-item transaction capability: begin, dirty state, commit, cancel, and notifications. Supplied by the source for its current item, not simulated by the binding engine. |
 
 Use `{$interfaces corba}` for these contracts and plain explicitly owned objects. Capability discovery must use compiler-supported interface checks, with stable interface identifiers where required; verify this in the Stage 1 compile. Do not add a custom capability registry, `SupportsX` boolean catalogue, `TInterfacedObject`, or casting workaround.
+
+Verified in FPC 3.2.2: object-to-CORBA is/as, Supports, and GetInterface work;
+cross-CORBA-interface is/as and Supports do not. Attach, Bind, member resolution,
+and notification subject identity use borrowed TObject references at the
+connection boundary. All behavior uses discovered interface contracts.
+Optional writer/session capability getters were removed before implementation.
 
 `INXItemSource` provides navigation and current values for data awareness. No separate list or View abstraction is needed. Count, numeric Position, indexed item retrieval, and arbitrary lookup are not binding requirements. Sorting, filtering, searching, insertion, deletion commands, and tree traversal remain outside this phase. The coordinator reacts to changes that affect current bindings, not to a general collection-change protocol.
 
@@ -265,7 +273,7 @@ lazbuild NexusLib\binding\tests\NexusBindingTests.lpi
 & .\output\NexusBindingTests\x86_64-win64\NexusBindingTests.exe
 ```
 
-The new LPI will explicitly set that output path and separate unit output directory. Its search paths are `tests`, `../src`, and `../../../NexusTools/Test/src`; it must not need UI/core JSON unit paths. The runner enumerates `TNXTestRegistry` suites/cases, invokes `Execute`, prints failures and totals, frees results, and returns nonzero for failure/error or unexpected skips. This is a proposed command for the project to be created, not a claim that it already builds.
+The LPI sets that output path and a separate unit output directory. Its search paths are `tests`, `../src`, and `../../../NexusTools/Test/src`; it needs no UI/core JSON unit paths. The runner enumerates `TNXTestRegistry` suites/cases, invokes `Execute`, prints failures and totals, frees results, and returns nonzero for failure/error or unexpected skips.
 
 Compile after each structural stage and run the affected suites, then the complete suite at Stage 5. Use a final heap-check build where supported by the new project's verified compiler settings; record any test-host allocation noise separately and resolve actual binding leaks. No GUI manual test is required: manually review the console totals and recorded event traces for cursor changes, rejected edits, and teardown.
 
@@ -290,4 +298,22 @@ Inspect actual `uses` closure rather than treating grep absence as proof. Contra
 
 ## Approval Gate
 
-This artifact authorizes planning only. No implementation, build, test run, control/data integration, or implementation archive begins until the human owner directly authorizes implementation. Commit and push this plan alone as the required planning handoff; implementation commits remain a separate owner decision.
+### Implementation verification: 2026-09-14
+
+- Rebuilt with `lazbuild -B NexusLib\binding\tests\NexusBindingTests.lpi`
+  using installed FPC 3.2.2 for Win64. All 38 tests passed, with no failures,
+  errors, or skips. Heap tracing reported zero unfreed blocks.
+- Tests exercise the real coordinator with scalar endpoints, an object-list
+  source, a reusable current-record facade, and optional source edit sessions.
+  Capability tests verify standard object-to-CORBA `is`, `as`, and `Supports`,
+  including missing capabilities and non-owning lifetime behavior.
+- Production unit dependencies are the binding units and `SysUtils` only.
+  No UI/data adapter, reference-counting base, custom query registry, indexed
+  access, or policy callback was introduced. `git diff --check` passed.
+- DataSet compatibility was reviewed against the FPC API; a production
+  DataSet adapter and GUI integration were not implemented or tested.
+
+The owner directly authorized implementation in the conversation. Core code,
+tests, documentation, and the implementation archive are covered by that
+authorization. Production GUI/data adapters remain out of scope. Implementation
+commits remain a separate owner decision.
