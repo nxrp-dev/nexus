@@ -1,6 +1,6 @@
 # Work Plan: BotHost Database Through Schema and Forge
 
-Status: Revised for owner review; no implementation authorized.
+Status: Implemented and verified locally following owner authorization; awaiting review.
 Date: 2026-09-15
 
 ## Inputs
@@ -51,7 +51,7 @@ This delivers generation artifacts and proof of a usable database, not a live
 BotHost database service. Existing tools stay in place; this is one concrete step
 toward Forge consolidation, not a wholesale migration or deletion of them.
 
-## Verified Findings
+## Findings At Planning Time
 
 - `tpNXBotControl.pas` defines list/status/invite/dismiss operations, verified caller
   identity inputs, and current bot status. It has no git-patch control operation.
@@ -249,7 +249,7 @@ native database acceptance.
 
 ## Scope
 
-- `NexusTools/BotHost/database/`: Schema documents, shared Environment configuration,
+- `NexusLib/script/bothost/database/`: Schema documents, shared Environment configuration,
   Firebird Mustache, Forge package, and concise usage instructions.
 - A minimal `Render.ForgeDef.nxscript` piece and Forge's generic artifact execution
   integration alongside its native command path.
@@ -335,17 +335,55 @@ suite selection before executing. No builds/tests were run for this plan revisio
 
 - The five-table/direct-grant model remains the proposed minimal domain design.
   This demonstration is not a completed production security integration.
-- Firebird tools are installed; disposable connection access is still unverified.
-  Discuss an actual connection blocker instead of guessing credentials or changing
-  the installation.
 - Bringing artifact generation into Forge requires one real generic execution
   capability. Keep that change bounded; do not turn it into an operation framework
   or a broad consolidation project.
 - If existing reference, include, composition, or presentation rules prevent the
   intended script, pause for owner discussion before changing those semantics.
 
-## Approval Gate
+## Authorization and implementation record
 
-This revision authorizes planning only. Only this plan is committed/pushed under
-repository protocol. Implementation, builds, database creation, and runtime changes
-wait for explicit owner authorization. Automatic archives remain paused.
+The owner approved implementation and subsequently authorized the diagnosed
+selective-module dependency correction: ?Proceed, test, verify and then continue
+with your work.? No sub-agents or archives were used.
+
+Implemented:
+
+- Generic Forge Render operation, declared language piece, in-process source
+  compilation/validation, explicit Environment context, provenance-aware paths,
+  ordered preflight and file writing, and honest invocation state.
+- Five-table BotHost Schema, Firebird Environment and template, package artifact,
+  and usage/configuration documentation under `NexusLib/script/bothost/database/`.
+- Selective-import correction: private owned external bindings survive transfer
+  without exposing dependency roots or retargeting them to consumer names. Internal
+  composition references still rebind. Reproduction and regression cases are under
+  `NexusTools/Script/tests/fixtures/modules/selected-dependency/`.
+- Registered `NexusBotHost.Database.Firebird` fixture in the existing test module,
+  with SQL assertions under `tests/fixtures/database/`.
+
+Verification on 2026-09-15:
+
+- Forge CLI, Forge tests, NexusScript CLI/tests, language-server tests, and BotHost
+  test module built.
+- 60 compiler tests, 12 language-server tests, and 23 Forge tests passed with zero
+  failures/errors/skips and zero unfreed heap blocks.
+- Registered Firebird test passed with both standard and overridden Environment
+  key suffixes; package reuse, constraints, status, and permission assertions passed.
+  Disposable databases were dropped. Logs/scripts remain under
+  `output/BotHostDatabaseVerification/`.
+- Real Forge CLI generated the declared BotHost SQL artifact and reused it on a
+  subsequent request. No NexusScript child process or database connection is needed
+  for generation.
+- Firebird 5 required execution outside the sandbox after a reproducible OS access
+  denial. No service, installation, configuration, or credential changes were made.
+
+The remaining limits are the approved scope: presence-only readiness, deferred
+unique/index vocabulary, and no live BotHost persistence or IQ/patch integration.
+Automatic archives remain paused. Implementation changes are not committed.
+
+
+Subsequent owner-approved consolidation: maintained scripts moved into
+`NexusLib/script/`, including the BotHost package. Test fixtures remain with their
+suites. NexusSchema is retired; CSV compilation is now available as the standalone
+nxcsv tool and an ordinary Forge operation. The updated 25-test Forge suite and
+relocated BotHost database/catalog checks passed. See `NexusTools/CSV/README.md`.

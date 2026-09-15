@@ -1,0 +1,34 @@
+Language ForgeCSV {
+    Definitions: [
+        Definition CSV {
+            Root: True;
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Source { Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text, Definition];
+                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                    }
+                },
+                Property SourceTemplate { Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text, Definition];
+                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                    }
+                },
+                Property Output { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Compiler {
+                    Value Value {
+                        EffectiveCategories: [Text, Definition];
+                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                    }
+                },
+                Property Name { Value Value { EffectiveCategories: [Text]; } },
+                Property Delimiter { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}

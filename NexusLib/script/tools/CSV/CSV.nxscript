@@ -1,0 +1,3 @@
+dialect "../../dialects/NexusForge/NexusForge.Language.nxscript";
+
+CSV CompileCSV { Template: "CSV.mustache"; }

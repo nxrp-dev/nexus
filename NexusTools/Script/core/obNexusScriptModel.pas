@@ -26,6 +26,7 @@ type
 
   TNexusScriptSourceValue = class;
   TNexusScriptSourceDefinition = class;
+  TNexusScriptImportContext = class;
   TNexusScriptCompiledValue = class;
   TNexusScriptCompiledDefinition = class;
   TNexusScriptCompiledProperty = class;
@@ -261,6 +262,8 @@ type
 
   TNexusScriptCompiledValue = class
   private
+    // Borrowed from the imported root's owned ImportContext.
+    FImportBinding: TNexusScriptCompiledValue;
     FKind: TNexusScriptValueKind;
     FSourceText: string;
     FItems: TNexusScriptCompiledValueList;
@@ -285,6 +288,7 @@ type
       const ASourceRange: TNexusScriptRange);
     destructor Destroy; override;
     function FindNamedItem(const AName: string): TNexusScriptCompiledValue;
+    property ImportBinding: TNexusScriptCompiledValue read FImportBinding write FImportBinding;
     property Kind: TNexusScriptValueKind read FKind write FKind;
     property SourceText: string read FSourceText write FSourceText;
     property Items: TNexusScriptCompiledValueList read FItems;
@@ -336,6 +340,7 @@ type
 
   TNexusScriptCompiledDefinition = class
   private
+    FImportContext: TNexusScriptImportContext;
     FKind: string;
     FName: string;
     FProperties: TNexusScriptCompiledPropertyList;
@@ -353,6 +358,7 @@ type
     destructor Destroy; override;
     function FindProperty(const AName: string): TNexusScriptCompiledProperty;
     function FindChild(const AName: string): TNexusScriptCompiledDefinition;
+    property ImportContext: TNexusScriptImportContext read FImportContext write FImportContext;
     property Kind: string read FKind;
     property Name: string read FName write FName;
     property Properties: TNexusScriptCompiledPropertyList read FProperties;
@@ -365,6 +371,20 @@ type
     property Composing: Boolean read FComposing write FComposing;
     property Composed: Boolean read FComposed write FComposed;
     property ImportedRoot: Boolean read FImportedRoot write FImportedRoot;
+  end;
+
+  // Owns private imported binding data; never part of the public definition view.
+  TNexusScriptImportContext = class
+  private
+    FDefinitions: TNexusScriptCompiledDefinitionList;
+    FProperties: TNexusScriptCompiledPropertyList;
+    FValues: TNexusScriptCompiledValueList;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    property Definitions: TNexusScriptCompiledDefinitionList read FDefinitions;
+    property Properties: TNexusScriptCompiledPropertyList read FProperties;
+    property Values: TNexusScriptCompiledValueList read FValues;
   end;
 
   TNexusScriptCompiledDocument = class
@@ -737,6 +757,7 @@ end;
 
 destructor TNexusScriptCompiledDefinition.Destroy;
 begin
+  FImportContext.Free;
   FTargets.Free;
   FChildren.Free;
   FProperties.Free;
@@ -763,6 +784,22 @@ begin
   for lDefinition in FChildren do
     if SameText(lDefinition.Name, AName) then
       Exit(lDefinition);
+end;
+
+constructor TNexusScriptImportContext.Create;
+begin
+  inherited Create;
+  FDefinitions := TNexusScriptCompiledDefinitionList.Create(True);
+  FProperties := TNexusScriptCompiledPropertyList.Create(True);
+  FValues := TNexusScriptCompiledValueList.Create(True);
+end;
+
+destructor TNexusScriptImportContext.Destroy;
+begin
+  FValues.Free;
+  FProperties.Free;
+  FDefinitions.Free;
+  inherited Destroy;
 end;
 
 constructor TNexusScriptCompiledDocument.Create(const ASourceName: string);

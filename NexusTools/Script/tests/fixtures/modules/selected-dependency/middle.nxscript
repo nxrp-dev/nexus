@@ -1,0 +1,2 @@
+module Dependency "dependency.nxscript";
+Thing Middle { Link: @Dependency; }

@@ -117,8 +117,8 @@ begin
   AFileName := IncludeTrailingPathDelimiter(ARoot) + 'Bots.nxscript';
   lText := TStringList.Create;
   try
-    lText.LoadFromFile(ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
-      PathDelim + 'catalog' + PathDelim + 'Bots.nxscript'));
+    lText.LoadFromFile(ExpandFileName('NexusLib' + PathDelim + 'script' +
+      PathDelim + 'bothost' + PathDelim + 'Bots.nxscript'));
     lLocation := StringReplace(IncludeTrailingPathDelimiter(ARoot) +
       'workspace', '\', '/', [rfReplaceAll]);
     lText.Text := StringReplace(lText.Text,

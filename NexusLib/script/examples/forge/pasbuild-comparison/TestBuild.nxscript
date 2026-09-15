@@ -1,0 +1,9 @@
+dialect "../../../dialects/NexusForge/NexusForge.Language.nxscript";
+module "Shared.nxscript";
+
+// Explicit compile only. This does not imply a test-running lifecycle.
+FPC Test (CompileTests) {
+    UnitOutput: @BuildPaths.Directory;
+    Source: "src/test/pascal/TestRunner.pas";
+    Output: @BuildPaths.Directory + "/TestRunner" + @Platform.ExecutableSuffix;
+}

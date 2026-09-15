@@ -6,7 +6,7 @@ This page will define common terms used across Nexus documentation.
 
 ## Nexus UI
 
-## Nexus Schema
+## NexusForge
 
 ## Free Pascal
 

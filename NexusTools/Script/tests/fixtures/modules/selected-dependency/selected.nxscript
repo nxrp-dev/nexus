@@ -1,0 +1,2 @@
+module Middle "middle.nxscript";
+Thing Entry { Link: @Middle; }

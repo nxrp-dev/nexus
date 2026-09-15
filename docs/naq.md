@@ -56,11 +56,11 @@ NexusUI gives Nexus a code-first Pascal UI framework with explicit ownership, re
 
 It is built for applications where the code should remain readable and the framework should not hide important behavior behind designer metadata.
 
-## Why build NexusSchema?
+## Why build NexusForge?
 
 Repeated structure is a source of bugs. Database scripts, provider lists, import files, code stubs, and other generated artifacts often describe the same facts in different places.
 
-NexusSchema keeps schema intent in one place and renders repeatable output through templates.
+NexusForge keeps schema intent in one place and renders repeatable output through templates.
 
 ## Why build NexusTest?
 

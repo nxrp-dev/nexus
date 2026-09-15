@@ -11,8 +11,8 @@ procedure RegisterForgeTests(ARegistry: TNXTestRegistry);
 implementation
 
 uses Classes, SysUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
-  obNXForge, obNXForgeProcess, obNexusScriptModel, obNexusScriptSession,
-  obNexusScriptLanguageDefinition, obNexusScriptJSON;
+  obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
+  obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine;
 
 function Root: string;
 begin
@@ -232,7 +232,7 @@ begin
   lDirectory := TestDir('native tools & paths');
   Save(lDirectory + 'hello world & test.lpr', 'program Hello; begin WriteLn(''forge-ok''); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusTools/Forge/examples/Shared.nxscript"; ' +
+    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/examples/forge/Shared.nxscript"; ' +
     'FPC Compile (CompileFPC) { Source: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
     'Git Inspect (GitStatus) { Repository: "."; }');
   lInvocation := TNXForgeInvocation.Create;
@@ -326,11 +326,194 @@ begin
   end;
 end;
 
+procedure TestRender(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lOutput: string;
+  lText: TStringList;
+  lTargets: TNexusScriptTargetSelection;
+begin
+  lDirectory := TestDir('render');
+  ForceDirectories(lDirectory + 'config');
+  Save(lDirectory + 'model.nxscript', Dialect('Schema') +
+    'Table Demo TargetDB[One] { TableName: FIRST; Fields: [Field Name { Type: varchar(20); }]; } ' +
+    'Table Demo TargetDB[Two] { TableName: SECOND; Fields: [Field Name { Type: varchar(20); }]; }');
+  Save(lDirectory + 'config/settings.nxscript', Dialect('NexusForge') +
+    'Environment Settings { Template: "text.mustache"; Source: "../model.nxscript"; Prefix: base; }');
+  Save(lDirectory + 'config/text.mustache',
+    '{{Environment.Prefix}}:{{#_nx.Collections.Table}}{{TableName}}{{/_nx.Collections.Table}}' + LineEnding);
+  Save(lDirectory + 'config/override.nxscript', Dialect('NexusForge') +
+    'module Settings "settings.nxscript"; Environment Selected (Settings) { Prefix: override; }');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'module Selected "config/override.nxscript"; module Settings "config/settings.nxscript"; ' +
+    'Render Generate { Source: @Settings.Source; Template: @Settings.Template; ' +
+    'Environment: @Selected; Output: "artifact.txt"; }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('TargetDB', 'Two');
+  lForge := TNXForge.Create(lTargets);
+  lText := TStringList.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    lOutput := lDirectory + 'artifact.txt';
+    lText.LoadFromFile(lOutput);
+    AContext.AssertEquals('override:SECOND' + LineEnding, lText.Text,
+      'Source targets, composed Environment and inherited path provenance reach rendering');
+    AContext.AssertTrue(lForge.Invocations[0].Completed, 'Render completed');
+    AContext.AssertFalse(lForge.Invocations[0].Exited, 'Render does not fabricate a process exit');
+
+    Save(lDirectory + 'model.nxscript', Dialect('Schema') +
+      'Table Environment { TableName: COLLISION; Fields: [Field Name { Type: varchar(20); }]; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Context collisions fail');
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertTrue(Pos('collides', lForge.Diagnostic) > 0, lForge.Diagnostic);
+  finally
+    lText.Free;
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestRenderFailures(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lBadSource: string;
+  lIndex: Integer;
+const
+  cBadSources: array[0..1] of string = ('Table Broken {', 'Table Broken { Wrong: value; }');
+begin
+  lDirectory := TestDir('render-failures');
+  Save(lDirectory + 'artifact.mustache', 'untouched');
+  Save(lDirectory + 'native.mustache', ChildCommand('success'));
+  Save(lDirectory + 'model.nxscript', Dialect('Schema') +
+    'Table Demo { TableName: DEMO; Fields: [Field Name { Type: varchar(20); }]; }');
+  lForge := TNXForge.Create;
+  try
+    for lIndex := 0 to 2 do
+    begin
+      lBadSource := 'missing.nxscript';
+      if lIndex < 2 then
+      begin
+        lBadSource := 'bad.nxscript';
+        Save(lDirectory + lBadSource, Dialect('Schema') + cBadSources[lIndex]);
+      end;
+      Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+        'Render First { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "never.txt"; } ' +
+        'Git Next { Template: "native.mustache"; Repository: repo; } ' +
+        'Render Bad { Source: "' + lBadSource + '"; Template: "artifact.mustache"; Output: "bad.txt"; }');
+      AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Bad render fails preflight');
+      AssertNoLaunch(AContext, lForge);
+      AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'Preflight writes nothing');
+    end;
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Render Bad { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "missing/out.txt"; } ' +
+      'Git Next { Template: "native.mustache"; Repository: repo; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Write failure stops execution');
+    AContext.AssertTrue(lForge.Invocations[0].Started, 'Write attempted');
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Later native command was not launched');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Git First { Template: "native.mustache"; Repository: repo; } ' +
+      'Render Bad { Source: "model.nxscript"; Template: "missing.mustache"; Output: "bad.txt"; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing artifact template fails');
+    AssertNoLaunch(AContext, lForge);
+    Save(lDirectory + 'artifact.mustache', '');
+    Save(lDirectory + 'native.mustache', ChildCommand('ok'));
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Render Empty { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "empty.txt"; } ' +
+      'Git Next { Template: "native.mustache"; Repository: repo; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertTrue(FileExists(lDirectory + 'empty.txt'), 'An empty artifact is still a file');
+    AContext.AssertEquals('', lForge.Invocations[0].ArtifactText, 'Empty content is preserved');
+    AContext.AssertTrue(lForge.Invocations[1].Exited, 'Mixed list executes the native command');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestCommandLinePathValues(AContext: TNXTestContext);
+var
+  lRejected: Boolean;
+begin
+  TNXCommandLine.ClearRegisteredFlags;
+  try
+    TNXCommandLine.RegisterFlag('input', True, True, '', 'Source');
+    TNXCommandLine.ParseArguments(['/input=some/folder/file.csv']);
+    TNXCommandLine.Validate;
+    AContext.AssertEquals('some/folder/file.csv', TNXCommandLine.GetValueDefault('input', ''),
+      'Slash characters belong to the value, not the flag name');
+    lRejected := False;
+    try
+      TNXCommandLine.ParseArguments(['//input=file.csv']);
+    except
+      on E: ENXCommandLine do lRejected := True;
+    end;
+    AContext.AssertTrue(lRejected, 'Extra slash in the flag name remains invalid');
+  finally
+    TNXCommandLine.ClearRegisteredFlags;
+  end;
+end;
+
+procedure TestCSVTool(AContext: TNXTestContext);
+var
+  lDirectory, lTool, lTemplate, lOutput: string;
+  lForge: TNXForge;
+  lText: TStringList;
+begin
+  lDirectory := TestDir('csv source & output');
+  ForceDirectories(lDirectory + 'artifacts');
+  lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/x86_64-win64/nxcsv.exe'), '\', '/', [rfReplaceAll]);
+  AContext.AssertTrue(FileExists(lTool), 'Build NexusTools/CSV/NexusCSV.lpi first');
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/SQL.mustache';
+  Save(lDirectory + 'source.csv', 'ID,NAME,NOTE' + LineEnding +
+    '1,O''Brien,"comma, and ""quote"""' + LineEnding + '2,,' + LineEnding);
+  Save(lDirectory + 'native.mustache', ChildCommand('ok'));
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/CSV.nxscript"; ' +
+    'CSV Generate (CompileCSV) { Compiler: "' + lTool + '"; Source: "source.csv"; ' +
+    'SourceTemplate: "' + lTemplate + '"; Output: "artifacts/seed.sql"; Name: DEMO; } ' +
+    'Git Next { Template: "native.mustache"; Repository: repo; }');
+  lForge := TNXForge.Create;
+  lText := TStringList.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertTrue(lForge.Invocations[0].Exited, 'CSV is an ordinary native compiler invocation');
+    lOutput := lDirectory + 'artifacts/seed.sql';
+    lText.LoadFromFile(lOutput);
+    AContext.AssertTrue(Pos('''O''''Brien''', lText.Text) > 0, 'Template explicitly SQL-quotes apostrophes');
+    AContext.AssertTrue(Pos('comma, and "quote"', lText.Text) > 0, 'CSV quoting is preserved');
+    AContext.AssertTrue(Pos('VALUES (''2'', '''', '''');', lText.Text) > 0, 'Empty fields remain empty strings');
+    AContext.AssertTrue(lForge.Invocations[1].Succeeded, 'Next ordinary command executes');
+    Save(lDirectory + 'source.csv', 'ID,NAME' + LineEnding + '1' + LineEnding);
+    Save(lOutput, 'previous artifact');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Bad CSV fails the operation');
+    AContext.AssertTrue(lForge.Invocations[0].ExitStatus <> 0, 'Tool reports a failed compilation');
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Failure stops later operations');
+    lText.LoadFromFile(lOutput);
+    AContext.AssertEquals('previous artifact', Trim(lText.Text), 'Failed input preserves existing output');
+
+    Save(lDirectory + 'source.csv', 'ID' + #9 + 'NAME' + LineEnding + '1' + #9 + 'O''Brien' + LineEnding);
+    Save(lDirectory + 'plain.mustache', '{{#DataSource.Records}}{{#.}}[{{{.}}}]{{/.}}{{/DataSource.Records}}');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/CSV.nxscript"; ' +
+      'CSV Plain (CompileCSV) { Compiler: "' + lTool + '"; Source: "source.csv"; ' +
+      'Delimiter: tab; SourceTemplate: "plain.mustache"; Output: "artifacts/plain.txt"; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    lText.LoadFromFile(lDirectory + 'artifacts/plain.txt');
+    AContext.AssertEquals('[1][O''Brien]', Trim(lText.Text), 'Non-SQL template receives original data unchanged');
+  finally
+    lText.Free;
+    lForge.Free;
+  end;
+end;
+
 procedure RegisterForgeTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NexusForge');
+  lSuite.AddTest('CommandLinePathValues', @TestCommandLinePathValues);
+  lSuite.AddTest('CSVTool', @TestCSVTool);
+  lSuite.AddTest('Render', @TestRender);
+  lSuite.AddTest('RenderFailures', @TestRenderFailures);
   lSuite.AddTest('LanguagePieces', @TestLanguagePieces);
   lSuite.AddTest('Validation', @TestValidation);
   lSuite.AddTest('TemplateComposition', @TestTemplateComposition);

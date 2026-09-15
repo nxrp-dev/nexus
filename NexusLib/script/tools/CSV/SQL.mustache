@@ -1,0 +1,7 @@
+{{#DataSource}}
+{{#Records}}
+INSERT INTO {{_nx.Name}} ({{#Fields}}{{{.}}}{{^-last}}, {{/-last}}{{/Fields}})
+VALUES ({{#.}}{{{sql .}}}{{^-last}}, {{/-last}}{{/.}});
+{{/Records}}
+COMMIT;
+{{/DataSource}}

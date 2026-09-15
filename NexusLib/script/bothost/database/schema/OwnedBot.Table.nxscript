@@ -1,0 +1,17 @@
+dialect "../../../dialects/Schema/Schema.Language.nxscript";
+module Host "Host.Table.nxscript";
+
+Table OwnedBot {
+    TableName: OWNED_BOT;
+    Fields: [
+        Field HOST_ID { Type: "bigint"; Reference: @Host; },
+        Field NAME { Type: "varchar(100)"; },
+        Field BARE_JID { Type: "varchar(255)"; },
+        Field ENABLED { Type: "smallint"; },
+        Field ACTIVE { Type: "smallint"; },
+        Field PROVIDER_STATE { Type: "varchar(32)"; },
+        Field XMPP_STATE { Type: "varchar(32)"; },
+        Field DIAGNOSTIC { Type: "varchar(1000)"; },
+        Field UPDATED_AT { Type: "timestamp"; }
+    ];
+}

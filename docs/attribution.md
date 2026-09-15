@@ -42,7 +42,7 @@ SDL2, SDL2_image, and SDL2_ttf are external dependencies and are not part of Nex
 
 ### Mustache
 
-NexusSchema renders generated output through Mustache templates. The schema model supplies structured metadata; templates describe target-specific output.
+NexusForge renders generated output through Mustache templates. The schema model supplies structured metadata; templates describe target-specific output.
 
 ### SQLite
 

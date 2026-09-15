@@ -359,9 +359,6 @@ begin
   if lArgument = '' then
     raise ENXCommandLine.Create('Command line argument "/" is invalid. Use /name or /name=value syntax.');
 
-  if Pos('/', lArgument) > 0 then
-    raise ENXCommandLine.CreateFmt('Command line argument "%s" is invalid. Use one slash prefix only.', [AArgument]);
-
   lPos := Pos('=', lArgument);
 
   if lPos > 0 then

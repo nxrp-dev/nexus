@@ -1,0 +1,27 @@
+-- Generated BotHost schema. Naming and key standards come from Environment.
+{{#_nx.Collections.Table}}
+CREATE TABLE {{{TableName}}}{{{Environment.MODULE_POSTFIX}}} (
+    {{{TableName}}}{{{Environment.MODULE_ID_POSTFIX}}} {{{Environment.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}} NOT NULL{{#Fields}},
+    {{{_nx.Name}}} {{#Reference}}{{{Environment.NEXUS_SCHEMA_PRIMARY_KEY_TYPE}}}{{/Reference}}{{^Reference}}{{{Type}}}{{/Reference}}{{/Fields}},
+    PRIMARY KEY ({{{TableName}}}{{{Environment.MODULE_ID_POSTFIX}}})
+);
+CREATE SEQUENCE {{{Environment.GENERATOR_PREFIX}}}{{{TableName}}}{{{Environment.MODULE_ID_POSTFIX}}};
+SET TERM ^ ;
+CREATE TRIGGER BI_{{{TableName}}}_KEY FOR {{{TableName}}}{{{Environment.MODULE_POSTFIX}}}
+ACTIVE BEFORE INSERT POSITION 0 AS
+BEGIN
+    IF (NEW.{{{TableName}}}{{{Environment.MODULE_ID_POSTFIX}}} IS NULL) THEN
+        NEW.{{{TableName}}}{{{Environment.MODULE_ID_POSTFIX}}} = GEN_ID({{{Environment.GENERATOR_PREFIX}}}{{{TableName}}}{{{Environment.MODULE_ID_POSTFIX}}}, 1);
+END^
+SET TERM ; ^
+COMMIT;
+{{/_nx.Collections.Table}}
+
+-- All tables exist before their references are declared.
+{{#_nx.Collections.Table}}{{#Fields}}{{#Reference._nx.IsReference}}
+ALTER TABLE {{{TableName}}}{{{Environment.MODULE_POSTFIX}}}
+    ADD CONSTRAINT FK_{{{TableName}}}_{{{_nx.Name}}}
+    FOREIGN KEY ({{{_nx.Name}}}) REFERENCES {{{Reference.TableName}}}{{{Environment.MODULE_POSTFIX}}}
+    ({{{Reference.TableName}}}{{{Environment.MODULE_ID_POSTFIX}}});
+{{/Reference._nx.IsReference}}{{/Fields}}{{/_nx.Collections.Table}}
+COMMIT;

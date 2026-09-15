@@ -837,10 +837,10 @@ end;
 function SchemaGenerationPath(const ARelativePath: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\parity\schema-generation\' + ARelativePath);
+    '..\..\..\NexusLib\script\examples\schema\' + ARelativePath);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\parity\schema-generation\' + ARelativePath);
+      'NexusLib\script\examples\schema\' + ARelativePath);
 end;
 
 function NewOutputDirectory(const APrefix: string): string;
@@ -3078,6 +3078,103 @@ begin
   end;
 end;
 
+procedure TestSelectedModuleDependencyReference(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lMiddle, lDependency: TNexusScriptCompiledDefinition;
+  lCompiled: Boolean;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    AContext.AssertTrue(lSession.CompileFile(ModuleFixturePath(
+      'selected-dependency/middle.nxscript')), lSession.LastError);
+    lMiddle := lSession.EntryCompiler.CompiledDocument.FindDefinition('Middle');
+    lDependency := lMiddle.FindProperty('Link').Value.ResolvedDefinition;
+    AContext.AssertTrue(lDependency <> nil, 'Dependency binds in the declaring module');
+    AContext.AssertEquals('original', lDependency.FindProperty('Value').Value.EffectiveText,
+      'Declaring module resolves its original dependency');
+
+    AContext.AssertTrue(lSession.CompileFile(ModuleFixturePath(
+      'selected-dependency/whole.nxscript')),
+      'Whole-document import control: ' + lSession.LastError);
+    lCompiled := lSession.CompileFile(ModuleFixturePath(
+      'selected-dependency/selected.nxscript'));
+    AContext.AssertTrue(lCompiled,
+      'Selected root must retain its dependency reference: ' + lSession.LastError);
+    AContext.AssertTrue(lSession.EntryCompiler.CompiledDocument.FindDefinition('Dependency') = nil,
+      'Retaining a binding must not expose unselected roots in the consumer');
+    lMiddle := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry').
+      FindProperty('Link').Value.ResolvedDefinition;
+    lDependency := lMiddle.FindProperty('Link').Value.ResolvedDefinition;
+    AContext.AssertTrue(lDependency <> nil, 'Imported definition keeps its dependency binding');
+    AContext.AssertEquals('original', lDependency.FindProperty('Value').Value.EffectiveText,
+      'Imported reference still points at the declaring module dependency');
+  finally
+    lSession.Free;
+  end;
+end;
+
+procedure TestSelectedModuleDependencyOwnership(AContext: TNXTestContext);
+var
+  lProducer, lConsumer: TNexusScriptCompiler;
+  lLocal, lTarget: TNexusScriptCompiledDefinition;
+  lCompiled: Boolean;
+begin
+  lProducer := TNexusScriptCompiler.Create;
+  lConsumer := TNexusScriptCompiler.Create;
+  try
+    lCompiled := lProducer.CompileText('producer.nxscript',
+      'Thing Library { Thing Dependency { Value: original; Items: [a, b]; } ' +
+      'Thing Middle { Link: @Library.Dependency; Again: @Library.Dependency; ' +
+      'Text: @Library.Dependency.Value; List: @Library.Dependency.Items; ' +
+      'Thing Peer { Value: local; } Local: @Peer; } }');
+    AContext.AssertTrue(lCompiled, 'Producer with shared dependency should compile');
+    lConsumer.AddImportedDefinition(lProducer.CompiledDocument.FindDefinition('Library').FindChild('Middle'));
+    FreeAndNil(lProducer);
+    AContext.AssertTrue(lConsumer.CompileText('consumer.nxscript',
+      'Thing Dependency { Value: unrelated; } Thing Result (Middle) {}'), 'Consumer should compile without its producer');
+    lConsumer.ClearImports;
+    lLocal := lConsumer.CompiledDocument.FindDefinition('Result');
+    lTarget := lLocal.FindProperty('Link').Value.ResolvedDefinition;
+    AContext.AssertEquals('original', lTarget.FindProperty('Value').Value.EffectiveText,
+      'External binding survives producer destruction and clearing import inputs');
+    AContext.AssertTrue(lTarget = lLocal.FindProperty('Again').Value.ResolvedDefinition,
+      'Shared external references retain one target');
+    AContext.AssertEquals('original', lLocal.FindProperty('Text').Value.EffectiveText,
+      'External property reference survives transfer');
+    AContext.AssertEquals(2, lLocal.FindProperty('List').Value.EffectiveValue.Items.Count,
+      'External array reference survives transfer');
+    AContext.AssertTrue(lLocal.FindProperty('Local').Value.ResolvedDefinition =
+      lLocal.FindChild('Peer'), 'Internal references still bind to the receiving composition');
+  finally
+    lConsumer.Free;
+    lProducer.Free;
+  end;
+end;
+
+procedure TestSelectedModuleDependencyCapture(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lMiddle, lDependency: TNexusScriptCompiledDefinition;
+  lCompiled: Boolean;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    lCompiled := lSession.CompileFile(ModuleFixturePath(
+      'selected-dependency/shadowed.nxscript'));
+    AContext.AssertTrue(lCompiled, lSession.LastError);
+    lMiddle := lSession.EntryCompiler.CompiledDocument.FindDefinition('Entry').
+      FindProperty('Link').Value.ResolvedDefinition;
+    lDependency := lMiddle.FindProperty('Link').Value.ResolvedDefinition;
+    AContext.AssertTrue(lDependency <> nil, 'Imported definition keeps its external reference');
+    AContext.AssertEquals('original', lDependency.FindProperty('Value').Value.EffectiveText,
+      'A consumer import must not capture the selected root dependency; actual value: ' +
+      lDependency.FindProperty('Value').Value.EffectiveText);
+  finally
+    lSession.Free;
+  end;
+end;
+
 procedure TestModuleFailures(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
@@ -4343,6 +4440,9 @@ begin
   lSuite.AddTest('QualifiedOwner', @TestQualifiedOwner);
   lSuite.AddTest('CompileFailures', @TestCompileFailures);
   lSuite.AddTest('ModuleCompilation', @TestModuleCompilation);
+  lSuite.AddTest('SelectedModuleDependencyReference', @TestSelectedModuleDependencyReference);
+  lSuite.AddTest('SelectedModuleDependencyOwnership', @TestSelectedModuleDependencyOwnership);
+  lSuite.AddTest('SelectedModuleDependencyCapture', @TestSelectedModuleDependencyCapture);
   lSuite.AddTest('ModuleFailures', @TestModuleFailures);
   lSuite.AddTest('DialectParsing', @TestDialectParsing);
   lSuite.AddTest('DialectLoading', @TestDialectLoading);

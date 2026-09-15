@@ -6,9 +6,9 @@ This page tracks status at the module level. It is intentionally brief; detailed
 
 Active. The framework has a useful control set and is being hardened around layout, clipping, focus, popups, window management, skins, and retained-control behavior.
 
-## NexusSchema
+## NexusForge
 
-Active. The project owns schema structure, metadata, command-line behavior, templates, and generation targets.
+Active. Forge coordinates packages, native tools and in-process artifact rendering. Schema definitions and target templates live in the common script library; CSV compilation runs through nxcsv.
 
 ## NexusLS
 

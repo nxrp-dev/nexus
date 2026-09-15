@@ -1,0 +1,12 @@
+dialect "../../../dialects/Schema/Schema.Language.nxscript";
+module BotUser "BotUser.Table.nxscript";
+module OwnedBot "OwnedBot.Table.nxscript";
+
+Table UserBotGrant {
+    TableName: USER_BOT_GRANT;
+    Fields: [
+        Field USER_ID { Type: "bigint"; Reference: @BotUser; },
+        Field BOT_ID { Type: "bigint"; Reference: @OwnedBot; },
+        Field OPERATION_CODE { Type: "varchar(64)"; }
+    ];
+}

@@ -1,0 +1,10 @@
+dialect "../../../dialects/Schema/Schema.Language.nxscript";
+module OwnedBot "OwnedBot.Table.nxscript";
+
+Table BotGrant {
+    TableName: BOT_GRANT;
+    Fields: [
+        Field BOT_ID { Type: "bigint"; Reference: @OwnedBot; },
+        Field OPERATION_CODE { Type: "varchar(64)"; }
+    ];
+}

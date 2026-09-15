@@ -37,7 +37,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\..\Script\core;..\..\Test\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\net\src\xmpp;..\..\..\lib\synapse"/>
+      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\..\Script\core;..\..\Script\artifact;..\..\Forge\src;..\..\..\lib\dmustache;..\..\Test\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\net\src\xmpp;..\..\..\lib\synapse"/>
       <UnitOutputDirectory Value="..\..\..\output\NexusBotHostTestModule\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

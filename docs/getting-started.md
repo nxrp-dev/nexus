@@ -16,7 +16,7 @@ Start with `NexusTools/Test` if you need to create or run test suites through th
 
 ## Work on Schema Generation
 
-Start with `NexusSchema` if the task is about schema definitions, metadata, generation, or command-line schema tooling.
+Start with `NexusForge` if the task is about schema definitions, metadata, generation, or command-line schema tooling.
 
 ## Work on Shared Runtime Code
 

@@ -59,7 +59,7 @@ Use a clear, confident, technical voice.
 Prefer:
 
 - "Nexus Pascal adds VS Code workflows for Free Pascal and Lazarus projects."
-- "NexusSchema keeps schema intent in one place and generates repeatable output from templates."
+- "NexusForge keeps schema intent in one place and generates repeatable output from templates."
 - "NexusTest runs tests through a shared-library boundary so test modules can be loaded and monitored by tools."
 
 Avoid:

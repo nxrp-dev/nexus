@@ -1,0 +1,2 @@
+dialect "../../dialects/Schema/Schema.Language.nxscript";
+include "schema/*.Table.nxscript";

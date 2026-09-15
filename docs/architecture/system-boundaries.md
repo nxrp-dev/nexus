@@ -8,7 +8,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 - `NexusTools/LS` contains the Pascal language server. It owns Pascal documents, CodeTools integration, custom project/toolchain/refactoring protocol values, concrete requests, diagnostics, navigation, completion, symbols, and Pascal language-server test coverage.
 - `NexusTools/Script` owns the NexusScript language core, artifact production, CLI, and the separate `NexusScriptLS` process. Its language server currently owns only lifecycle and full-text open-document state; editor intelligence is not implemented in this restructuring pass.
 - `NexusTools/Test` contains NexusTest, a first-pass test framework and module contract. It owns test registration, suites, cases, result values, JSON-RPC test commands, a module boundary, sample host/module code, and a small UI.
-- `NexusSchema` contains schema-oriented tooling.
+- `NexusTools/Forge` coordinates packages, native tool execution, and generic artifact rendering. `NexusTools/CSV` owns the standalone delimited-data compiler. Maintained scripts and templates live under `NexusLib/script`.
 - `docs` contains the MkDocs documentation site.
 
 ## Integration boundaries
@@ -21,7 +21,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 `NexusLib/ui` is a UI runtime library. It owns UI source, tests, docs, resources, and bin output conventions, but not language-server or test-framework semantics. `NexusTestUI` can use it as a client interface, but that does not move NexusTest ownership into the UI library.
 
-`NexusSchema` is separate from UI, language-server, and testing concerns. Its documentation and implementation should describe schema inputs and generation behavior, not become a catch-all for other Nexus modules.
+`NexusForge` coordinates execution; operation-specific command and artifact templates supply tool and target behavior. It delegates CSV compilation to nxcsv and contains no SQL or CSV parsing logic.
 
 ## Current direction
 

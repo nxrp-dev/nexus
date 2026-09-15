@@ -8,7 +8,7 @@ Nexus uses top-level module folders for ownership and shorter lower-case slugs f
 - `NexusTools/LS`: Pascal language server.
 - `NexusTools/Script`: NexusScript core, artifact producers, CLI, and dedicated language server.
 - `NexusTools/Test`: NexusTest framework, module protocol, host, sample tests, and test UI.
-- `NexusSchema`: schema tooling.
+- `NexusForge`: schema tooling.
 
 Documentation slugs should stay readable and stable:
 
@@ -16,7 +16,7 @@ Documentation slugs should stay readable and stable:
 - `docs/nexus-ls`
 - `docs/nexus-test`
 - `docs/nexus-ui`
-- `docs/nexus-schema`
+- `docs/nexus-forge`
 
 ## Source naming patterns
 
@@ -34,7 +34,7 @@ These are current conventions visible in the source tree. They should be followe
 
 Each top-level module or library family owns its own source, examples, tests, and module-specific documentation. Cross-module pages should describe boundaries and dependency direction instead of taking ownership away from the source module.
 
-`NexusLib` should avoid depending on higher-level modules. A dependency from `NexusLib` into `NexusTools/LS`, `NexusTools/Test`, `NexusTools/Schema`, or top-level example folders would make the shared layer harder to reuse.
+`NexusLib` should avoid depending on higher-level modules. A dependency from `NexusLib` into `NexusTools/LS`, `NexusTools/Test`, `NexusTools/Forge`, or top-level example folders would make the shared layer harder to reuse.
 
 Standard LSP values and language-neutral process mechanics belong to `NexusLib/lsp`. Concrete requests, documents, lifecycle state, analysis, and language-specific protocol extensions belong to the server that implements them. NexusScript language semantics remain in `NexusTools/Script/core`, not in the shared LSP library.
 

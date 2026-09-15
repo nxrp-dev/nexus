@@ -276,7 +276,7 @@ begin
     'Outputs: [Output Executable TargetCPU[x64] { Path: "bin/x64/hello & package.exe"; }, ' +
     'Output Executable TargetCPU[x86] { Path: "bin/x86/hello & package.exe"; }]; ' +
     'PackageOutput CompilerPath { Requirement: Tools; Output: Executable; } ' +
-    'FPC Compile { Template: ' + NXString(Root + 'NexusTools/Forge/examples/FPC.mustache') + '; Compiler: @App.CompilerPath; Source: "hello & package.lpr"; UnitOutput: "bin/x64"; Output: "bin/x64/hello & package.exe"; } }');
+    'FPC Compile { Template: ' + NXString(Root + 'NexusLib/script/examples/forge/FPC.mustache') + '; Compiler: @App.CompilerPath; Source: "hello & package.lpr"; UnitOutput: "bin/x64"; Output: "bin/x64/hello & package.exe"; } }');
   Save(lDirectory + 'hello & package.lpr', 'program Hello; uses ExampleUnit; begin WriteLn(MessageText); end.');
   Save(lDirectory + 'ExampleUnit.pas', 'unit ExampleUnit; interface const MessageText = ''package-ok''; implementation end.');
   lPackages := TNXForgePackages.Create;

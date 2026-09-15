@@ -38,18 +38,8 @@ nav:
       - Styling: nexus-ui/styling.md
       - Data Binding: nexus-ui/data-binding.md
       - Cross Platform: nexus-ui/cross-platform.md
-  - NexusSchema:
-      - Overview: nexus-schema/index.md
-      - Philosophy: nexus-schema/philosophy.md
-      - Getting Started: nexus-schema/getting-started.md
-      - Architecture: nexus-schema/architecture.md
-      - Metadata Model: nexus-schema/metadata-model.md
-      - Syntax: nexus-schema/schema-language.md
-      - Templates: nexus-schema/templates.md
-      - Database Generation: nexus-schema/database-generation.md
-      - Code Generation: nexus-schema/code-generation.md
-      - Command Line: nexus-schema/command-line.md
-      - Examples: nexus-schema/examples.md
+  - NexusForge:
+      - Overview: nexus-forge/index.md
   - NexusLS:
       - Overview: nexus-ls/index.md
   - NexusTest:

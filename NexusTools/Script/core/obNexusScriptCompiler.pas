@@ -38,6 +38,8 @@ type
 
 implementation
 
+uses obNexusScriptImport;
+
 type
   TNexusScriptTokenKind = (
     nstWord, nstQuoted, nstLeftBrace, nstRightBrace, nstColon, nstSemicolon,
@@ -1047,6 +1049,7 @@ var
 begin
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.SourceText;
+  Result.ImportBinding := AValue.ImportBinding;
   Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.EffectiveName := AValue.EffectiveName;
@@ -1076,6 +1079,32 @@ begin
     Result.CompositionContributors.Add(CloneValue(lContributor));
 end;
 
+procedure RestoreImportBinding(AValue: TNexusScriptCompiledValue;
+  AParent: TNexusScriptCompiledDefinition = nil);
+var
+  lBinding: TNexusScriptCompiledValue;
+begin
+  lBinding := AValue.ImportBinding;
+  if (lBinding = nil) or (AValue.EvaluationState = nsvesCompleted) or
+    (AValue.CompositionContributors.Count > 0) then Exit;
+  AValue.ResolvedDefinition := lBinding.ResolvedDefinition;
+  AValue.ResolvedProperty := lBinding.ResolvedProperty;
+  AValue.ResolvedValue := lBinding.ResolvedValue;
+  AValue.EffectiveText := lBinding.EffectiveText;
+  AValue.HasEffectiveText := lBinding.HasEffectiveText;
+  AValue.EffectiveName := lBinding.EffectiveName;
+  AValue.OriginalDefinitionName := lBinding.OriginalDefinitionName;
+  AValue.EffectiveValue.Free;
+  AValue.EffectiveValue := nil;
+  if lBinding.EffectiveValue <> nil then AValue.EffectiveValue := CloneValue(lBinding.EffectiveValue);
+  AValue.StructuralDefinition.Free;
+  AValue.StructuralDefinition := nil;
+  if lBinding.StructuralDefinition <> nil then
+    AValue.StructuralDefinition := CloneDefinition(lBinding.StructuralDefinition, AParent);
+  AValue.EvaluationState := lBinding.EvaluationState;
+  AValue.ArrayPreparationState := lBinding.ArrayPreparationState;
+end;
+
 function CloneValueForRebinding(
   AValue: TNexusScriptCompiledValue;
   ADetachSource: Boolean = False): TNexusScriptCompiledValue;
@@ -1085,6 +1114,7 @@ var
 begin
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.SourceText;
+  Result.ImportBinding := AValue.ImportBinding;
   Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
@@ -1190,6 +1220,7 @@ var
 begin
   Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
   Result.SourceText := AValue.SourceText;
+  Result.ImportBinding := AValue.ImportBinding;
   Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
   Result.EntryName := AValue.EntryName;
   Result.EffectiveName := AValue.EffectiveName;
@@ -1754,6 +1785,7 @@ var
     lPropertyOwner: TNexusScriptCompiledDefinition;
     lDirectValue: TNexusScriptCompiledValue;
   begin
+    RestoreImportBinding(AValue, AScope);
     if AValue.EffectiveName <> '' then
       Exit(True);
     if AValue.EntryName <> '' then
@@ -1811,6 +1843,7 @@ var
     lSucceeded: Boolean;
   begin
     AArrayValue := nil;
+    RestoreImportBinding(AValue, AScope);
     case AValue.ArrayPreparationState of
       nsapsPrepared:
         begin
@@ -2017,6 +2050,7 @@ var
     lArrayValue: TNexusScriptCompiledValue;
     lSucceeded: Boolean;
   begin
+    RestoreImportBinding(AValue, AScope);
     case AValue.EvaluationState of
       nsvesCompleted:
         Exit(True);
@@ -2269,6 +2303,7 @@ begin
     end;
     lCompiledDefinition := CloneDefinitionForRebinding(lImportedDefinition,
       nil, True);
+    PreserveNexusScriptImportBindings(lImportedDefinition, lCompiledDefinition);
     MarkComposed(lCompiledDefinition);
     FCompiledDocument.Definitions.Add(lCompiledDefinition);
   end;
@@ -2314,6 +2349,7 @@ var
   lImportedDefinition: TNexusScriptCompiledDefinition;
 begin
   lImportedDefinition := CloneDefinitionForRebinding(ADefinition, nil, True);
+  PreserveNexusScriptImportBindings(ADefinition, lImportedDefinition);
   lImportedDefinition.ImportedRoot := True;
   FImportedDefinitions.Add(lImportedDefinition);
 end;

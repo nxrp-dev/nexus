@@ -21,7 +21,7 @@ That balance matters. Nexus is meant to be useful in real Pascal shops, includin
 
 ## Generated Output
 
-NexusSchema and other Nexus tools may generate source files, database scripts, configuration files, or project artifacts.
+NexusForge and other Nexus tools may generate source files, database scripts, configuration files, or project artifacts.
 
 Generated output belongs to the project that generated it unless a template, source file, or project policy says otherwise. Using a Nexus generator should not, by itself, impose the Nexus source license on the generated files.
 

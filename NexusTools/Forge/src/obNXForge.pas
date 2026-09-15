@@ -5,7 +5,7 @@ unit obNXForge;
 interface
 
 uses Classes, SysUtils, Generics.Collections, obNexusScriptModel,
-  obNexusScriptSession, obNXForgeProcess;
+  obNexusScriptSession, obNXForgeProcess, obNXForgeInvocation;
 
 type
   ENXForge = class(Exception);
@@ -16,6 +16,8 @@ type
     FOperations: TNexusScriptCompilationSession;
     FInvocations: TObjectList<TNXForgeInvocation>;
     FDiagnostic: string;
+    procedure PrepareRender(AOperation: TNexusScriptCompiledDefinition;
+      AInvocation: TNXForgeInvocation; const AContextJSON: string);
     procedure Prepare(AOperations: TNexusScriptCompiledDefinitionList;
       const AWorkingDirectory: string; AContexts: TStrings);
   public
@@ -38,7 +40,8 @@ function ForgeRelativePath(const ABase, APath: string): string;
 implementation
 
 uses SynMustache, obNexusScriptJSON, obNexusScriptValidator,
-  obNexusScriptDefinitionView, obNexusScriptArtifactModel, tpNexusScript;
+  obNexusScriptDefinitionView, obNexusScriptArtifactModel, tpNexusScript,
+  fpjson, jsonparser, tpNXForge;
 
 function ReadForgeText(const AFileName: string): string;
 var
@@ -116,14 +119,15 @@ begin
   end;
 end;
 
-function OperationTemplatePath(ADefinition: TNexusScriptCompiledDefinition): string;
+function OperationFilePath(ADefinition: TNexusScriptCompiledDefinition;
+  const AProperty: string): string;
 var
   lValue: TNexusScriptCompiledValue;
   lTemplate: string;
 begin
-  lTemplate := ForgePropertyText(ADefinition, 'Template');
-  if lTemplate = '' then raise ENXForge.Create(ADefinition.Name + ': empty Template');
-  lValue := ADefinition.FindProperty('Template').Value;
+  lTemplate := ForgePropertyText(ADefinition, AProperty);
+  if lTemplate = '' then raise ENXForge.Create(ADefinition.Name + ': empty ' + AProperty);
+  lValue := ADefinition.FindProperty(AProperty).Value;
   while True do
   begin
     lValue := lValue.ArtifactValue;
@@ -133,6 +137,69 @@ begin
     else Break;
   end;
   Result := ForgeRelativePath(ExtractFilePath(lValue.SourceRange.SourceName), lTemplate);
+end;
+
+procedure TNXForge.PrepareRender(AOperation: TNexusScriptCompiledDefinition;
+  AInvocation: TNXForgeInvocation; const AContextJSON: string);
+var
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptJSONEmitter;
+  lModel, lOperation: TJSONObject;
+  lEnvironment: TJSONData;
+  lTemplate: string;
+begin
+  AInvocation.Kind := fokRender;
+  AInvocation.SourcePath := OperationFilePath(AOperation, 'Source');
+  AInvocation.OutputPath := ForgeRelativePath(AInvocation.WorkingDirectory,
+    ForgePropertyText(AOperation, 'Output'));
+  lSession := TNexusScriptCompilationSession.Create(FTargets);
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  try
+    CompileForgeDocument(lSession, AInvocation.SourcePath);
+    lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+    lModel := GetJSON(lEmitter.JSON) as TJSONObject;
+    try
+      lOperation := GetJSON(AContextJSON) as TJSONObject;
+      try
+        lEnvironment := lOperation.Find('Environment');
+        if lEnvironment <> nil then
+        begin
+          if lModel.Find('Environment') <> nil then
+            raise ENXForge.Create('Render source collides with explicit Environment context');
+          lModel.Add('Environment', lEnvironment.Clone);
+        end;
+        lTemplate := ReadForgeText(AInvocation.TemplatePath);
+        AInvocation.ArtifactText := string(TSynMustache.Parse(UTF8String(lTemplate)).
+          RenderJSON(UTF8String(lModel.AsJSON)));
+      finally
+        lOperation.Free;
+      end;
+    finally
+      lModel.Free;
+    end;
+  finally
+    lEmitter.Free;
+    lSession.Free;
+  end;
+end;
+
+procedure WriteForgeArtifact(AInvocation: TNXForgeInvocation);
+var
+  lFile: TFileStream;
+begin
+  AInvocation.Started := True;
+  try
+    lFile := TFileStream.Create(AInvocation.OutputPath, fmCreate);
+    try
+      if AInvocation.ArtifactText <> '' then
+        lFile.WriteBuffer(AInvocation.ArtifactText[1], Length(AInvocation.ArtifactText));
+    finally
+      lFile.Free;
+    end;
+    AInvocation.Completed := True;
+  except
+    on E: Exception do AInvocation.Diagnostic := E.Message;
+  end;
 end;
 
 procedure TNXForge.Prepare(AOperations: TNexusScriptCompiledDefinitionList;
@@ -156,18 +223,23 @@ begin
       lInvocation.OperationName := lOperation.Name;
       lInvocation.WorkingDirectory := AWorkingDirectory;
       try
-        lInvocation.TemplatePath := OperationTemplatePath(lOperation);
-        lTemplate := ReadForgeText(lInvocation.TemplatePath);
+        lInvocation.TemplatePath := OperationFilePath(lOperation, 'Template');
         if AContexts <> nil then lJSON := AContexts[lIndex]
         else lJSON := lEmitter.RenderDefinition(lOperation);
-        lInvocation.Command := Trim(string(TSynMustache.Parse(UTF8String(lTemplate)).
-          RenderJSON(UTF8String(lJSON))));
-        if lInvocation.Command = '' then raise ENXForge.Create('Empty command');
+        if SameText(lOperation.Kind, 'Render') then
+          PrepareRender(lOperation, lInvocation, lJSON)
+        else
+        begin
+          lTemplate := ReadForgeText(lInvocation.TemplatePath);
+          lInvocation.Command := Trim(string(TSynMustache.Parse(UTF8String(lTemplate)).
+            RenderJSON(UTF8String(lJSON))));
+          if lInvocation.Command = '' then raise ENXForge.Create('Empty command');
+        end;
       except
         on E: Exception do
         begin
           lInvocation.Diagnostic := lInvocation.OperationName + ' [' +
-            lInvocation.TemplatePath + ']: ' + E.Message;
+            lInvocation.TemplatePath + '] source [' + lInvocation.SourcePath + ']: ' + E.Message;
           raise ENXForge.Create(lInvocation.Diagnostic);
         end;
       end;
@@ -223,7 +295,8 @@ begin
     Prepare(AOperations, AWorkingDirectory, AContexts);
     for lInvocation in FInvocations do
     begin
-      ExecuteForgeProcess(lInvocation);
+      if lInvocation.Kind = fokRender then WriteForgeArtifact(lInvocation)
+      else ExecuteForgeProcess(lInvocation);
       if not lInvocation.Succeeded then
       begin
         FDiagnostic := lInvocation.OperationName + ' [' +

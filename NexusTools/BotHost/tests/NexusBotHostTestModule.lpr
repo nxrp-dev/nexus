@@ -16,6 +16,7 @@ uses
   tsNXBotHostTests,
   tsNXBotFileExchangeTests,
   tsNXOpenAIProviderTests,
+  tsNXBotDatabaseTests,
   tsNXBotHostLiveTests;
 
 var
@@ -24,6 +25,7 @@ var
 procedure RegisterTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXBotHostTests(ARegistry);
+  RegisterNXBotDatabaseTests(ARegistry);
   RegisterNXBotFileExchangeTests(ARegistry);
   RegisterNXOpenAIProviderTests(ARegistry);
   RegisterNXBotHostLiveTests(ARegistry);

@@ -1,0 +1,22 @@
+Language ForgeRender {
+    Definitions: [
+        Definition Render {
+            Root: True;
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Output { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Environment {
+                    Value Value {
+                        SourceForms: [Reference];
+                        EffectiveCategories: [Definition];
+                        Reference Reference { Targets: [Definition]; DefinitionKinds: [Environment]; }
+                    }
+                }
+            ];
+        }
+    ];
+}

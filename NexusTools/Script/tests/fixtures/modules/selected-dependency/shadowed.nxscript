@@ -1,0 +1,3 @@
+module Middle "middle.nxscript";
+module Dependency "other-dependency.nxscript";
+Thing Entry { Link: @Middle; }

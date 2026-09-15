@@ -1,0 +1,12 @@
+dialect "../../dialects/NexusForge/NexusForge.Language.nxscript";
+module "../../tools/CSV/CSV.nxscript";
+
+Package LookupSQL {
+    Outputs: [Output StateSQL { Path: "generated/state.sql"; }];
+    CSV States (CompileCSV) {
+        Source: "../../data/lookup/STATE.csv";
+        SourceTemplate: "../../tools/CSV/SQL.mustache";
+        Name: STATE_TBL;
+        Output: @LookupSQL.Outputs.StateSQL.Path;
+    }
+}

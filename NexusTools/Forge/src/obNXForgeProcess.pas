@@ -4,34 +4,13 @@ unit obNXForgeProcess;
 
 interface
 
-uses Classes, SysUtils;
-
-type
-  TNXForgeInvocation = class
-  public
-    OperationName: string;
-    TemplatePath: string;
-    Command: string;
-    WorkingDirectory: string;
-    StdOut: string;
-    StdErr: string;
-    Diagnostic: string;
-    Started: Boolean;
-    Exited: Boolean;
-    ExitStatus: Integer;
-    function Succeeded: Boolean;
-  end;
+uses Classes, SysUtils, obNXForgeInvocation;
 
 procedure ExecuteForgeProcess(AInvocation: TNXForgeInvocation);
 
 implementation
 
 uses Process, Pipes;
-
-function TNXForgeInvocation.Succeeded: Boolean;
-begin
-  Result := Exited and (ExitStatus = 0) and (Diagnostic = '');
-end;
 
 procedure DrainPipe(APipe: TInputPipeStream; AOutput: TMemoryStream);
 var
@@ -77,6 +56,7 @@ begin
       until False;
       AInvocation.ExitStatus := lProcess.ExitStatus;
       AInvocation.Exited := True;
+      AInvocation.Completed := True;
     except
       on E: Exception do
       begin

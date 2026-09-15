@@ -1,0 +1,8 @@
+dialect "../../../dialects/Schema/Schema.Language.nxscript";
+
+Table Host {
+    TableName: BOT_HOST;
+    Fields: [
+        Field HOST_KEY { Type: "varchar(100)"; }
+    ];
+}

@@ -13,7 +13,7 @@ Use the issue title to name the affected area when possible:
 - `Nexus Pascal: build task does not find Lazarus project`
 - `NexusLS: go to definition misses property type`
 - `NexusUI: popup loses mouse capture`
-- `NexusSchema: generated Firebird script has wrong field type`
+- `NexusForge: generated Firebird script has wrong field type`
 - `NexusTest: test module result cannot be read twice`
 
 ## What To Include

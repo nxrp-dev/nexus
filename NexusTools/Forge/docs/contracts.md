@@ -1,8 +1,8 @@
 # NexusForge execution contracts
 
 `nxforge` compiles and validates a Forge document, renders each concrete
-operation's `Template` with Mustache, and executes the commands sequentially.
-FPC and Git use the same execution code.
+operation's `Template` with Mustache, and executes operations sequentially.
+FPC and Git use the native command path; Render writes a generated artifact.
 
 ## CLI
 
@@ -11,7 +11,7 @@ From the repository root, with working `fpc` and `git` executables on PATH:
 ```powershell
 lazbuild NexusTools\Forge\NexusForge.lpi
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=NexusTools\Forge\examples\Build.nxscript
+  /input=NexusLib\script\examples\forge\Build.nxscript
 ```
 
 The example compiles `hello world & test.lpr` and runs local `git status --short`.
@@ -33,7 +33,7 @@ environment repair, or activation logic.
 ## Language pieces
 
 `NexusForge.Language.nxscript` includes `pieces/*.ForgeDef.nxscript`. Core, FPC,
-Git, Package, and Environment definitions form one effective Forge language
+Git, CSV, Render, Package, and Environment definitions form one effective Forge language
 through the included-definition view. The master does not name individual tools.
 `ForgeDef` is a convention selected by this include pattern, not a filename rule.
 The document declaration identifies its dialect.
@@ -105,6 +105,43 @@ construction. Raw interpolation avoids HTML escaping. The executor uses FPC's
 `TProcess.CommandLine` parsing and adds no shell. Spaces and `&` in quoted paths
 are verified; shell expansion and compound commands are not implicit.
 
+## CSV compilation
+
+CSV is an ordinary native operation. Import
+`NexusLib/script/tools/CSV/CSV.nxscript`, compose CompileCSV, and provide Source,
+SourceTemplate, and Output. Its Template builds the command; SourceTemplate is
+passed to nxcsv for artifact rendering. Optional Compiler, Name, and Delimiter
+values remain explicit tool arguments. Forge contains no CSV loader or SQL logic.
+See [NexusCSV](../../CSV/README.md) for the tool contract and tests.
+
+## Render artifacts
+
+Render declares required Source, Output, and Template text values and an optional
+explicit Environment definition reference. Its Template generates artifact content.
+The source declares its own dialect; Forge compiles and validates it in-process
+with the current target selection. The template receives the source's generic
+JSON, including the combined included-definition collections. An explicit
+Environment is added at `Environment`; a source root with that name is rejected
+when the operation supplies this context. This operation renders model definitions;
+it does not import external seed-data rows.
+
+Relative Source and Template retain the origin of the supplying value, including
+module references and composition. Output resolves from the operation working
+directory (the package root for package operations). Package coordination prepares
+declared artifact parents. Standalone Render does not invent output directories.
+This Output meaning belongs to Render, not to arbitrary operation properties.
+
+All operations prepare before any executes. Source compilation/validation or
+missing-template failures therefore launch no commands and write no artifacts.
+Execution writes the rendered bytes without trimming, including an empty file.
+Write failure stops subsequent operations. An invocation records SourcePath,
+OutputPath, Started, and Completed; it does not fabricate a process exit status.
+Native and Render operations can occur in the same ordered list.
+
+See [the BotHost database example](../../../NexusLib/script/bothost/database/README.md) for a complete
+package and target-selected Environment. It renders Firebird SQL with no database
+semantics in Forge and no separate NexusScript executable.
+
 ## Execution and failure
 
 The child inherits the developer's environment. Input is closed after launch.
@@ -122,6 +159,7 @@ Completed output remains available. Success returns exit status 0; failure 1.
 
 ```powershell
 lazbuild NexusTools\Forge\NexusForge.lpi
+lazbuild NexusTools\CSV\NexusCSV.lpi
 lazbuild NexusTools\Forge\tests\NexusForgeTests.lpi
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
 lazbuild NexusTools\Script\tests\NexusScriptTests.lpi
@@ -130,7 +168,7 @@ lazbuild NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
 
-Verified 2026-09-15: 21 Forge tests, 57 NexusScript compiler tests, and 12
+Verified 2026-09-15: 25 Forge tests, 60 NexusScript compiler tests, and 12
 language-server tests passed with zero failures/errors/skips and zero heap leaks.
 Tests use the real compiler, validator, renderer, and process paths. Coverage
 includes partial bases, required concrete properties, target selection, two FPC
@@ -144,6 +182,8 @@ outside final artifact directories, and environment-derived artifact filenames.
 Native tests compile and run Pascal source and execute Git against a local
 repository. The PasBuild comparison builds default/debug/release through the
 shared configurations; its application/test templates remain project-specific.
-No NexusScript core rules changed. Compiler bootstrap and cross-compilation
+The selective-import dependency fix preserves private external bindings while
+retaining internal composition rebinding; the compiler regressions cover ownership
+after producer destruction and same-name consumer capture. Compiler bootstrap and cross-compilation
 remain separate work. Linux suffix selection is tested; Linux native execution
 has not been established by these Windows runs.

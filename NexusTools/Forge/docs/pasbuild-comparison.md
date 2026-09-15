@@ -14,8 +14,8 @@ Selected [PasBuild's own project.xml](../../../lib/pasbuild/project.xml), versio
 1.10.0-SNAPSHOT. Unlike its single-file sample, it declares filtered resources,
 two compiler profiles, tests, and an additional source-archive directory.
 
-- [Corresponding Forge package](../examples/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
-- [Shared environments and operation configurations](../examples/pasbuild-comparison/Shared.nxscript)
+- [Corresponding Forge package](../../../NexusLib/script/examples/forge/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
+- [Shared environments and operation configurations](../../../NexusLib/script/examples/forge/pasbuild-comparison/Shared.nxscript)
 - [Repeatable comparison script](../../../scripts/Compare-ForgePasBuild.ps1)
 - [Recorded results](../../../output/ForgePasBuildComparison/20260915-095939/results.json)
 - [Test failure comparison](../../../output/ForgePasBuildComparison/20260915-095939/test-comparison.json)

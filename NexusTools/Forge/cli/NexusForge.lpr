@@ -3,13 +3,19 @@ program NexusForge;
 {$mode delphi}{$H+}
 
 uses Classes, SysUtils, obNXCommandLine, obNexusScriptModel,
-  obNXForge, obNXForgeProcess, obNXForgePackages;
+  obNXForge, obNXForgeInvocation, obNXForgePackages, tpNXForge;
 
 procedure PrintInvocation(AInvocation: TNXForgeInvocation);
 begin
   WriteLn(AInvocation.OperationName, ' [', AInvocation.TemplatePath, ']');
   WriteLn('cwd: ', AInvocation.WorkingDirectory);
-  WriteLn('command: ', AInvocation.Command);
+  if AInvocation.Kind = fokRender then
+  begin
+    WriteLn('source: ', AInvocation.SourcePath);
+    WriteLn('output: ', AInvocation.OutputPath);
+    if AInvocation.Completed then WriteLn('written') else WriteLn('not written');
+  end
+  else WriteLn('command: ', AInvocation.Command);
   if AInvocation.Started then WriteLn('started') else WriteLn('not started');
   Write(AInvocation.StdOut);
   Write(StdErr, AInvocation.StdErr);

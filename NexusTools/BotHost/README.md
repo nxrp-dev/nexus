@@ -5,7 +5,7 @@ provider-backed bots on NexusXMPP. The distinguished `NexusBot` instance
 receives ordinary addressed MUC conversation and owns the control endpoint for
 the catalog.
 
-Bot behavior is defined by `catalog/Bots.nxscript` using the shared Bot
+Bot behavior is defined by `NexusLib/script/bothost/Bots.nxscript` using the shared Bot
 language in `../../NexusLib/script/dialects/Bot/Bot.Language.nxscript`.
 Bot definitions contain `Provider`,
 `Model`, `Instructions`, and optional plural `Workspaces` references. Provider names are resolved by a
