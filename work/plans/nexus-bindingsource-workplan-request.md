@@ -2,6 +2,7 @@
 
 Status: Approved with the requested revisions incorporated; awaiting direct implementation authorization.
 Date: 2026-09-13
+Revised: 2026-09-14
 
 ## Inputs
 
@@ -15,7 +16,7 @@ Date: 2026-09-13
 
 ## Summary
 
-Implement a GUI-independent binding subsystem around one canonical `TNXBindingSource`. Upstream contracts expose indexed items and resolvable values; the coordinator owns public currency and bindings; target contracts expose values and edit submission. All participating contracts are non-owning interfaces. Production helper objects may implement the coordinator's internal binding, subscription, and edit bookkeeping.
+Implement a GUI-independent binding subsystem around one canonical `TNXBindingSource`. Upstream contracts expose indexed items and resolvable values; the coordinator owns the public cursor and bindings; target contracts expose values and edit submission. All participating contracts are non-owning interfaces. Production helper objects may implement the coordinator's internal binding, subscription, and edit bookkeeping.
 
 Prove the production subsystem using ordinary Pascal test sources, targets, converters, validators, and edit sessions. No production control, data adapter, reflection mechanism, or event loop is involved. This plan specifies the approved target behavior, not existing APIs or verified compiler results.
 
@@ -37,6 +38,13 @@ Value synchronization alone does not establish a data-aware system. Multiple con
 These responsibilities need one defined coordinating implementation and independently implementable contracts. The coordinator must not acquire knowledge of model classes, control classes, business validation, or storage transactions.
 
 ## Target Contract
+
+### Terminology
+
+- **Cursor**: the coordinator's navigation state.
+- **`Current`**: the item at the cursor.
+- **`Position`**: the cursor's index.
+- **`Currency`**: exclusively the Pascal fixed-point monetary datatype.
 
 ### Ownership and state flow
 
@@ -95,15 +103,15 @@ Use `{$interfaces corba}` for these contracts and plain explicitly owned objects
 
 `INXItemSource` is already an indexed collection contract, so an additional `INXBindingList` adds nothing here. Navigation belongs to `INXBindingSource`. Sorting, filtering, searching, insertion, deletion commands, and tree traversal capabilities are deferred; this phase must observe external collection changes but need not initiate those operations.
 
-### Currency and current-item resolution
+### Cursor and value resolution
 
 - Positions are zero-based. No current item means Position = -1 and Current = nil. An empty source always has this state. Initial attachment selects item zero when nonempty.
 - `TrySetPosition(-1)` explicitly clears selection, even in a nonempty source. Other out-of-range positions return a range failure without mutation. First/Last on empty and movement past an edge are successful no-ops. Next from no selection chooses first; Prior from no selection chooses last.
 - Source-local item identities remain stable while an item exists and are not reused during a source attachment. Identity is independent of position and does not require retaining a dead object.
 - Member identity is an opaque, case-sensitive UTF-8 key compared exactly. It is not parsed: punctuation has no property-path meaning. Fakes may implement a simple member table.
-- On accepted currency change, detach old member subscriptions, resolve the same member identities on the new item, attach new subscriptions, and synchronize source-to-target. Target-to-source initial transfer is never repeated implicitly on navigation.
+- On an accepted cursor change, detach old member subscriptions, resolve the same member identities on the new item, attach new subscriptions, and synchronize source-to-target. Target-to-source initial transfer is never repeated implicitly on navigation.
 - A missing member, no current item, or unreadable value puts that binding into an explicit unavailable state. Do not write a fabricated null/default into the target. The target may retain its display, but cannot submit against the old item; consumers observe availability separately.
-- Binding definitions remain registered when unavailable and retry resolution on a current-item or source reset event. A converter/read/write failure marks the affected binding; it does not restore the old currency after the transition has already been accepted.
+- Binding definitions remain registered when unavailable and retry resolution on a current-item or source reset event. A converter/read/write failure marks the affected binding; it does not restore the old cursor after the transition has already been accepted.
 - Upstream structural events distinguish insertion, removal, replacement, and reset. Insertion/removal before Current adjusts Position while retaining current identity. Removing Current selects the successor at the old index, otherwise the preceding final item, otherwise none. Replacement at the same position is a Current change if identity differs. Reset searches for the retained identity, otherwise selects first or none.
 - Removal events are emitted after the list changes but before removed objects are freed. Endpoints additionally issue Closing before destruction. Upstream lifetime must span the complete synchronous notification dispatch.
 - External removal cannot be refused. Detach the removed item's endpoints immediately. Preserve any copied pending input as an orphaned edit with its old identity and an unavailable result; never submit it to the replacement item. Explicit cancellation clears it and refreshes from the new current item.
@@ -137,7 +145,7 @@ An edit-session Cancel must restore its session baseline atomically or refuse wi
 
 The caller decides how to respond to failed transitions through the ordinary public API. There is no policy interface, callback, coordinator-owned policy state, or automatic commit/cancel-and-navigate operation.
 
-Requested navigation that would change Current while local pending input or a dirty item session exists returns `PendingEdits` without changing currency, submitting, committing, or cancelling anything. The caller may submit pending input and commit an edit session if present, or cancel pending input/session edits, then retry `TrySetPosition`. Failed submission/session operations leave the edit unresolved, so a retry still refuses. Local pending input can be cancelled without a session; undoing accepted writes still requires the session capability. A no-op navigation request remains a no-op. Explicit source replacement/detachment follows the same refusal rule; forced Closing cannot be refused. No automatic retry, prompt, or continuation is retained by the coordinator.
+Requested navigation that would change Current while local pending input or a dirty item session exists returns `PendingEdits` without changing the cursor, submitting, committing, or cancelling anything. The caller may submit pending input and commit an edit session if present, or cancel pending input/session edits, then retry `TrySetPosition`. Failed submission/session operations leave the edit unresolved, so a retry still refuses. Local pending input can be cancelled without a session; undoing accepted writes still requires the session capability. A no-op navigation request remains a no-op. Explicit source replacement/detachment follows the same refusal rule; forced Closing cannot be refused. No automatic retry, prompt, or continuation is retained by the coordinator.
 
 When the source changes while local target input is pending, preserve the target input, mark the baseline/source-changed condition, and expose the current source value and result. Ordinary Submit refuses with source-changed. The caller may explicitly discard pending input and refresh through `CancelPending`, or acknowledge/rebase against the latest available source baseline while retaining the proposal, then explicitly retry Submit. Acknowledgement itself performs no write and bypasses neither conversion nor validation. A subsequent source change marks the condition again. Ordinary Refresh must not silently discard pending input or acknowledge the changed baseline. This is a local edit condition, not a general conflict-resolution service.
 
@@ -148,7 +156,7 @@ Source notifications from another binding count as external changes for a pendin
 - Notifications are synchronous and follow state mutation. Subscribers observe a coherent subject state. Registration order determines delivery order; a subscription added during dispatch begins with the next event.
 - Unsubscribe is idempotent and effective immediately, including for a later callback in the active dispatch. Use token entries with active flags/deferred compaction, not a snapshot containing unprotected observer pointers.
 - No-op value/position changes do not notify. Coordinator event categories distinguish PositionChanged, CurrentChanged, BindingStateChanged, and DataChanged. A structural data change is not misreported as a value edit.
-- Within an accepted currency operation, stage the new currency and binding states first, perform target synchronization, then publish PositionChanged if needed, CurrentChanged if needed, binding-state events in registration order, and one DataChanged. Public coordinator observers see the final state. Raw target observers may see individual transfers; cross-target atomic display is not promised.
+- Within an accepted cursor operation, stage the new cursor state and binding states first, perform target synchronization, then publish PositionChanged if needed, CurrentChanged if needed, binding-state events in registration order, and one DataChanged. Public coordinator observers see the final state. Raw target observers may see individual transfers; cross-target atomic display is not promised.
 - While an operation or coordinator notification is active, reentrant public navigation, submit, refresh, or registration requests return Busy with no side effects. Unsubscribe and safe binding removal remain allowed; reclamation of internal objects waits until the active call unwinds.
 - Synchronous endpoint notifications caused by an expected write are recorded under that binding's active-transfer guard. They do not recursively submit. After the write returns, re-read the accepted value and publish the completed change. Scope guards per operation/binding; do not mute unrelated binding notifications with one blanket flag.
 - Participant observers and converter/validator callbacks must not initiate independent data/list mutations from inside notification dispatch. Coordinator-controlled transfers are the permitted internal path, including read-back normalization of the originating target while its initial notification is still active. Writable targets must support this nested transfer; the binding guard prevents its notification from becoming another proposal. Upstream list mutation during its own structural dispatch is refused with Busy. This first pass deliberately provides no unbounded fixed-point propagation loop or application event queue.
@@ -165,7 +173,7 @@ After receiving Closing, subscribers discard both subject references and tokens;
 
 ## Scope
 
-Create the units, contract documentation, test fixtures, and console project listed above. Implement complete first-pass scalar/currency/edit coordination in the real coordinator. Update the existing binding documentation only after the implementation establishes those APIs. No existing UI, persistence, networking, scripting, or test framework refactor is included.
+Create the units, contract documentation, test fixtures, and console project listed above. Implement complete first-pass scalar binding, cursor, and edit coordination in the real coordinator. Update the existing binding documentation only after the implementation establishes those APIs. No existing UI, persistence, networking, scripting, or test framework refactor is included.
 
 ## Out Of Scope
 
@@ -187,9 +195,9 @@ Implement the real coordinator's binding registration/removal, initial direction
 
 Acceptance: scalar tests, failure retention, normalization, multiple subscribers/targets, and teardown tests pass; each successful source change reaches each clean target once without recursive source writes.
 
-### Stage 3: Currency and item resolution
+### Stage 3: Cursor and value resolution
 
-Implement indexed source attachment, identity-based currency, navigation, current member resolution, endpoint replacement, empty/missing states, and structural list changes. Add shared-consumer scenarios with at least two items and two members.
+Implement indexed source attachment, an identity-based cursor, navigation, current member resolution, endpoint replacement, empty/missing states, and structural list changes. Add shared-consumer scenarios with at least two items and two members.
 
 Acceptance: navigation and externally changed list tests pass; old endpoints cannot update current bindings; position-only shifts preserve current identity; callback traces match the specified ordering.
 
@@ -232,7 +240,7 @@ Fixtures expose factory/setup operations so endpoint/source capability tests can
 | Initial transfer | Default source-first, explicit target-first in two-way, failed initial conversion retained, late source attachment and unavailable member. |
 | Direction | One-way never writes source; two-way transfers both ways; no-op values do not notify; source normalization is read back. |
 | Updates | OnChange vs Explicit; two members and multiple clean targets update correctly; converter/validator order and rejected writes retain input. |
-| Currency | Empty, first/last/edges, -1, invalid position; same item/no-op; position-only shift; item replacement with same position; no-current transitions. |
+| Cursor | Empty, first/last/edges, -1, invalid position; same item/no-op; position-only shift; item replacement with same position; no-current transitions. |
 | Resolution | Old member detached; new member subscribed; missing/read-only/wrong-kind members; reset retries resolution; stale old notifications cannot write current targets. |
 | Collection change | Insert/remove before Current; delete Current with successor/predecessor/empty; reset retains identity; removed objects freed only after dispatch. |
 | Editing | `"-"` to integer; dirty/clean/error transitions; explicit cancellation; accepted write differs from transaction commit; failed commit/cancel retains state. |
@@ -244,7 +252,7 @@ Fixtures expose factory/setup operations so endpoint/source capability tests can
 | Teardown | Coordinator first, source first, target first; explicit disconnect and Closing; remaining observers safe; no retained dead interface/token. |
 | Reentrancy | Write echo does not resubmit; public nested mutation returns Busy; independent bindings are not silently muted; binding removal during callback is safe. |
 | Exceptions | Unexpected converter/observer exception releases guards; required Closing invalidation survives exceptions; next valid operation is usable. |
-| Event order | Currency/binding states coherent at coordinator callbacks; PositionChanged/CurrentChanged reflect actual differences; failure results precede completion observation. |
+| Event order | Cursor and binding states coherent at coordinator callbacks; PositionChanged/CurrentChanged reflect actual differences; failure results precede completion observation. |
 
 ### Build and run
 
@@ -257,7 +265,7 @@ lazbuild NexusLib\binding\tests\NexusBindingTests.lpi
 
 The new LPI will explicitly set that output path and separate unit output directory. Its search paths are `tests`, `../src`, and `../../../NexusTools/Test/src`; it must not need UI/core JSON unit paths. The runner enumerates `TNXTestRegistry` suites/cases, invokes `Execute`, prints failures and totals, frees results, and returns nonzero for failure/error or unexpected skips. This is a proposed command for the project to be created, not a claim that it already builds.
 
-Compile after each structural stage and run the affected suites, then the complete suite at Stage 5. Use a final heap-check build where supported by the new project's verified compiler settings; record any test-host allocation noise separately and resolve actual binding leaks. No GUI manual test is required: manually review the console totals and recorded event traces for currency, rejected edits, and teardown.
+Compile after each structural stage and run the affected suites, then the complete suite at Stage 5. Use a final heap-check build where supported by the new project's verified compiler settings; record any test-host allocation noise separately and resolve actual binding leaks. No GUI manual test is required: manually review the console totals and recorded event traces for cursor changes, rejected edits, and teardown.
 
 Focused review commands:
 
@@ -275,7 +283,7 @@ Inspect actual `uses` closure rather than treating grep absence as proof. Contra
 - Non-owning interfaces cannot protect against an owner freeing an object without disconnecting. Closing and owner discipline are contractual requirements, tested but not replaced by reference counting.
 - This synchronous first pass restricts mutation from observer callbacks and refuses public reentrancy. If application-driven recursive mutation must be supported, that is an architectural change requiring explicit revised scheduling semantics, not a hidden queue added during implementation.
 - Source transactions are optional and do not confer cross-item atomicity. Partial accepted writes must remain visible in results and tests.
-- A future cursor-based adapter must reconcile its private cursor with the indexed item contract while the coordinator retains public currency. This plan neither implements nor proves that adapter; stable item identity/value resolution remain its obligations.
+- A future cursor-based adapter must reconcile its private cursor with the indexed item contract while the coordinator retains the public cursor. This plan neither implements nor proves that adapter; stable item identity/value resolution remain its obligations.
 - No application-policy abstraction is required: deterministic refusal/preservation and explicit caller operations cover the required scenarios. The owner approved the plan with removal of policy machinery and addition of DateTime/Currency; those changes are incorporated here. Any incompatible requirement discovered before implementation should revise this same plan.
 
 ## Approval Gate
