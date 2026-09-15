@@ -1,326 +1,351 @@
 # Work Plan: BotHost Database Through Schema and Forge
 
-Status: Proposed for owner review; no implementation authorized.
+Status: Revised for owner review; no implementation authorized.
 Date: 2026-09-15
 
 ## Inputs
 
-- Owner request: draft a work plan for a Firebird BotHost database, using Schema
-  and preferably Forge to exercise the existing declarative generation system.
-- Required domain: bots actually controlled by a host, their current status, and
-  operation permissions for both those bots and the users making IQ requests.
-- `git.patch` is the first concrete permission example. Patch execution and live
-  database use are not needed yet.
-- Keep the first pass small. Future SQLite/SQL Server support means room for new
-  target definitions/templates, not implementing those engines now.
-- Existing decisions: include aggregates definitions; module provides references
-  and reusable configurations; ordinary composition supplies operation Template.
-  Generic runtime must not infer tool semantics from arbitrary property names.
-- The package-child execution-classification question remains deferred by the
-  owner. This task does not redesign it.
-- Repository architecture/work-plan protocols and applicable folder AGENTS.md
-  apply. No sub-agents. Automatic archives remain paused.
+- Owner request: use the BotHost database as real work demonstrating Schema/Forge
+  scripting, targeting Firebird with room for other database environments later.
+- Required data: bots actually controlled by a host, current status, and operation
+  permissions for both bots and users requesting operations through IQ commands.
+- `git.patch` is the first permission example. Live persistence and patch execution
+  are not needed in this pass.
+- Owner clarification: Forge is the intended front end. NexusBuild, NexusTask,
+  and NexusScript remain while their behavior is accounted for; their current
+  executable boundaries are not requirements for the future architecture.
+- Owner clarification: an Environment supplies the database template and standards,
+  including primary-key naming, SQL type, and generation conventions. Ordinary
+  composition can override an environment configuration when needed.
+- Owner clarification: indexes, unique constraints, and broader constraint
+  vocabulary are deferred. Primary keys already follow conventions; do not replace
+  those with mandatory explicit per-table key declarations.
+- Owner rule: never use composite primary or foreign keys. Every table, including
+  join/grant tables, has its own single-column primary key. Composite indexes are
+  a separate concept and remain deferred in this pass.
+- Include aggregates definitions; module supplies references/configuration;
+  ordinary composition supplies completed values. Generic runtime must not infer
+  tool semantics from arbitrary properties.
+- Package-child execution classification remains deferred until a real case needs
+  it. No sub-agents. Automatic archives remain paused.
+- Repository architecture/work-plan protocols and applicable AGENTS.md apply.
 
 ## Summary
 
-Create a small, useful BotHost schema and demonstrate the complete path:
+Build a small BotHost schema and prove this path:
 
 ```text
-BotHost Schema documents
-  -> target-selected NexusScript artifact manifest
-  -> generic JSON and Firebird Mustache
-  -> generated creation DDL (a Forge package artifact)
-  -> disposable Firebird database and SQL verification
+Forge package + selected Environment
+  -> compile and validate Schema documents
+  -> render their generic JSON with the Environment's Mustache template
+  -> generated Firebird creation SQL, declared as a package artifact
+  -> disposable Firebird database and verification
 ```
 
-Forge orchestrates SQL generation through an ordinary native NexusScript command.
-The database test applies that generated SQL using installed Firebird tooling.
-This pass delivers schema and generation artifacts, plus proof they create a real
-usable database. It does not deliver a production database service or IQ handler.
+Forge owns the user-facing workflow. Reuse the existing compiler, validator, JSON
+emitter, and Mustache implementation directly. Do not require NexusScript.exe as
+an intermediate command, extend its CLI for this task, or create a second database
+selection mechanism in a NexusScript artifact manifest.
+
+This delivers generation artifacts and proof of a usable database, not a live
+BotHost database service. Existing tools stay in place; this is one concrete step
+toward Forge consolidation, not a wholesale migration or deletion of them.
 
 ## Verified Findings
 
-- `NexusTools/BotHost/src/tpNXBotControl.pas` defines list, status, invite, and
-  dismiss operations. It has caller bare-JID/origin fields and bot status fields
-  including Active, ProviderState, XMPPState, Diagnostic, and Rooms. There is no
-  git-patch control operation in that contract.
-- `obNXBotController.Authorized` currently uses configured Operators/Readers and
-  specific verified-room rules. The proposed database does not replace those
-  live rules during this task.
-- `obNXXMPPBotControl.pas` registers IQ handlers for the existing operations and
-  extracts the caller identity. Persisted authorization must ultimately use that
-  verified identity, not a room nickname or a claimed identity in a command body.
-- The shared `Schema.Language.nxscript` currently validates root Table definitions
-  with TableName and Fields; Field supports Type and a Table Reference. It has
-  no declared primary-key, required-field, or composite-unique-key vocabulary.
-- The generic NexusScript emitter already supplies completed definition data and
-  `_nx.Collections`; compiler tests cover included collections and schema-shaped
-  Mustache generation. No Schema-specific compiler/JSON producer is needed.
-- Existing schema-generation fixtures include legacy application-specific history,
-  reporting tables, and Firebird conventions. Those templates cannot simply be
-  applied to BotHost unchanged. Some fixture models lack a dialect declaration;
-  successful rendering of those fixtures is not proof of validated Schema input.
-- `NexusScript` supports artifact manifest rendering and `/validate`, but its CLI
-  has no `/targets` flag. `TNexusScriptManifest.Render` creates both manifest and
-  model compilation sessions without caller target selections. This is a concrete
-  integration gap for target-selected database generation.
-- Forge accepts explicit Targets and renders each completed operation's Template.
-  Its shipped operation pieces currently cover FPC and Git, not NexusScript
-  generation. A new operation definition/template can invoke NexusScript without
-  adding a compiler-specific execution branch.
-- Forge package readiness is artifact presence only. Declared artifact parents are
-  prepared; arbitrary operation properties do not govern package readiness/layout.
-- `C:/Program Files/Firebird/Firebird_5_0/` contains isql.exe and fbclient.dll.
-  Neither isql nor isql-fb is on the inspected PATH. Installation presence does
-  not establish a working test connection; no database was opened during planning.
+- `tpNXBotControl.pas` defines list/status/invite/dismiss operations, verified caller
+  identity inputs, and current bot status. It has no git-patch control operation.
+- `obNXBotController.Authorized` uses configured Operators/Readers and specific
+  verified-room rules. Those live rules are unchanged by this demonstration.
+- The shared Schema dialect declares TableName, Fields, field Type, and Table
+  Reference. The absence of explicit constraint properties does not mean the old
+  generation path had no constraints: its template implements conventions.
+- The existing Firebird constants are MODULE_POSTFIX, MODULE_ID_POSTFIX,
+  GENERATOR_PREFIX, and NEXUS_SCHEMA_PRIMARY_KEY_TYPE. The legacy template derives
+  primary-key names, emits NOT NULL/primary keys, and creates generators and insert
+  triggers. It also includes application-specific reporting/history behavior that
+  does not belong in the BotHost schema.
+- The old template uses definition-name metadata as its table-name base. The
+  current validated Schema contract separately exposes TableName. This example
+  must consistently use TableName for physical SQL names and reference targets;
+  do not accidentally alternate between logical definition names and TableName.
+- Generic JSON and included-definition collections already support Schema-shaped
+  rendering. No Schema-specific compiler or JSON producer is required.
+- Forge already supports target-selected environments and composed Template values,
+  but currently renders native command lines. It does not yet expose direct
+  compile/validate/render-to-file execution as a Forge operation.
+- Existing artifact-rendering code is reusable implementation material, not a
+  requirement to preserve the separate NexusScript CLI/manifest workflow.
+- Package readiness is declared artifact presence. Declared artifact parents are
+  prepared, without inferring semantics from arbitrary operation Output properties.
+- Firebird 5 is installed under `C:/Program Files/Firebird/Firebird_5_0/`, including
+  isql.exe and fbclient.dll. A working disposable connection has not been verified.
 
 ## Architecture Problem
 
-We need to prove that the existing generic language and execution machinery can
-produce a useful database, while keeping three responsibilities distinct:
+The missing capability is generic artifact generation inside Forge. Preserve the
+separation of responsibilities while putting them behind that front end:
 
-1. Schema declares tables, relationships, and constraints.
-2. The manifest selects database-specific rendering through ordinary Targets.
-3. Forge invokes the generator and verifies declared generated artifacts.
+- Schema documents describe tables and fields.
+- The selected Environment supplies rendering and primary-key standards.
+- A declared generation operation compiles its source, validates it, and renders
+  a file through shared language/artifact facilities.
+- Package coordination checks the explicitly declared generated artifact.
 
-Firebird spelling belongs in selected definitions/templates. Neither the compiler
-nor Forge gains a Firebird switch or a BotHost-specific producer. The necessary
-changes are a small Schema contract extension, target propagation through artifact
-rendering, and a declarative Forge operation for invoking the generator.
+The renderer does not understand primary keys, Firebird, or bots. Those meanings
+belong to the definitions and template. Rendering SQL to a file must be an explicit
+operation behavior; do not render it and accidentally send it to a process launcher.
 
 ## Target Contract
 
-### Ownership and status
+### Environment and primary-key conventions
 
-Proposed initial tables, to be implemented as actual schema declarations:
+Use normal Forge target selection and ordinary module/reference/composition rules.
+A shared configuration document (the manifest/configuration in this workflow)
+contains the Environment; it is not a second independently selected process catalog.
 
-| Table | Minimum content and purpose |
-| --- | --- |
-| BOT_HOST | ID and unique stable HostKey; identifies the controlling host. |
-| OWNED_BOT | ID, HostID, catalog Name, BareJID, Enabled, Active, ProviderState, XMPPState, Diagnostic, UpdatedAt. Unique HostID + Name. |
-| BOT_USER | ID, unique normalized BareJID, Enabled. A requester identity, not a stored login/password. |
-| BOT_GRANT | BotID + OperationCode composite key. Row presence grants the bot that operation. |
-| USER_BOT_GRANT | UserID + BotID + OperationCode composite key. Row presence grants that user the operation through that bot. |
-
-The host owns bot registration. A channel occupant is not automatically an owned
-bot. Room membership does not establish ownership or grant privileged operations.
-Status is a current snapshot, not an event history. UpdatedAt describes when that
-snapshot was recorded; a persisted Active value alone is not proof of live liveness.
-
-Use primary keys, required identifiers, foreign keys, and the listed unique keys.
-No cascaded history machinery, generated CRUD/provider layer, or implicit primary
-key generator. Fixture IDs may be explicit; a live ID-allocation policy is deferred.
-
-### Security demonstration
-
-OperationCode is explicit data, initially `git.patch`; no new permission grammar.
-For the demonstration query to allow a user-requested operation:
-
-- the bot belongs to the specified controlling HostKey and is enabled;
-- the requesting user is registered and enabled;
-- BOT_GRANT contains the bot/operation pair;
-- USER_BOT_GRANT contains the user/bot/operation combination.
-
-Missing either grant means denied. Grant removal is revocation. No roles,
-inheritance, wildcard grants, deny precedence, or implicit administrator bypass.
-A bot's grant does not authorize an otherwise unauthorized human requester.
-
-Demonstrate this with SQL and synthetic identities. This establishes the stored
-policy contract only; a future IQ execution path must consult it before acting.
-No claim that database rows alone enforce authorization in the current host.
-Autonomous patch execution, repository/workspace scope rules, and new IQ protocol
-payloads are outside this pass.
-
-### Schema and Firebird rendering
-
-Extend the existing shared Schema dialect only for constraints needed above:
-required fields, explicit primary-key field lists, composite unique keys, and
-foreign-key target fields where the existing Reference contract is insufficient.
-Use ordinary properties, arrays, definitions, and references. Do not change parser
-syntax, reference lookup, include aggregation, or generic JSON presentation.
-
-The Field Type values may initially use the SQL types required by Firebird.
-Do not claim these are already portable across all future engines. Backend type
-mapping can be expressed by selected definition pieces/templates when another
-engine is actually added; no type-mapping framework is required now.
-
-Write a clean Firebird creation template consuming the generic compiled schema.
-Generate tables before inter-table foreign keys so declaration order need not
-solve dependency ordering. Do not carry over reporting/history tables from the
-legacy application template. Include only essential seed/reference data, if any;
-permission demonstration data belongs in test fixtures, not production grants.
-
-### Manifest targets
-
-Use `TargetDB[Firebird]` on the manifest's renderer definition. Illustrative shape:
+Illustrative Environment using existing constant names:
 
 ```nexusscript
-NexusManifest BotHostDatabase {
-    Model Domain { Source: "BotHost.Schema.nxscript"; }
-    Template CreateSchema TargetDB[Firebird] {
-        Source: "templates/Firebird.create.mustache";
-        Output: "BotHost.create.sql";
-    }
+Environment Firebird TargetDB[Firebird] {
+    Template: "templates/Firebird.create.mustache";
+    MODULE_POSTFIX: "_TBL";
+    MODULE_ID_POSTFIX: "_ID";
+    GENERATOR_PREFIX: "GEN_";
+    NEXUS_SCHEMA_PRIMARY_KEY_TYPE: "BIGINT";
 }
 ```
 
-The real document declares NexusManifest normally. Future backends add selected
-renderer definitions; there is no engine-selection switch in Pascal runtime.
-This pass supplies only the Firebird renderer. Unsupported selections must fail
-rather than produce an empty successful build.
+The actual document declares its normal dialect and is imported as a module.
+The operation explicitly references this Environment and its Template. The resolved
+Environment values must be available to that template as explicit render input;
+merely loading a module must not inject all its definitions into the render context.
+Use one named Environment context alongside the source model's generic JSON,
+rejecting a name collision rather than silently replacing source data.
 
-Add `/targets=Name:Value,...` to NexusScript using its existing target-selection
-model and the established Forge CLI spelling. Pass one explicit selection set to
-manifest compilation and each model session, including their normal dependencies
-and dialect loading. Also support it consistently in direct input/template mode.
-Omitting targets preserves existing callers; the BotHost package requires TargetDB
-and restricts this first implementation to Firebird. Do not add implicit defaults
-or change the meaning of an omitted target in the language.
+For this example, the convention is:
 
-Proposed generator command after implementation:
+- Physical table: TableName + MODULE_POSTFIX.
+- Primary-key column: TableName + MODULE_ID_POSTFIX.
+- Primary-key type: NEXUS_SCHEMA_PRIMARY_KEY_TYPE.
+- Generator: GENERATOR_PREFIX + the derived primary-key column name.
+- The selected Firebird template supplies the corresponding insert trigger and
+  creates the primary key with the existing non-null convention.
+- Reference rendering uses the referenced table's same TableName and Environment
+  conventions, so declaration and reference cannot disagree.
 
-```text
-NexusScript /manifest=BotHost.NexusManifest.nxscript /targets=TargetDB:Firebird /output=generated/Firebird /validate
-```
+Every table, including permission and join tables, gets its own conventional
+single-column generated primary key. Foreign keys reference that single column.
+Composite primary and foreign keys are prohibited, not a deferred option.
+Do not explicitly duplicate that key in Fields. BIGINT is the example Environment
+value; it avoids depending on an undeclared legacy DOM_INDEX domain. Neither that
+value nor the naming suffixes are runtime defaults.
+
+An explicitly composed Environment may override constants or Template using normal
+language behavior. Prove an override of the key suffix, including matching foreign
+references. There is no per-table override system, key-policy callback, or new
+configuration framework in this pass.
+
+Only Firebird is implemented. Another backend can later supply an Environment and
+Mustache implementation without adding engine branches to Forge. Do not claim the
+initial SQL type choices are already portable across SQLite and SQL Server.
+
+### Ownership, status, and security data
+
+Proposed initial tables; each receives its conventional primary key:
+
+| TableName | Additional fields and purpose |
+| --- | --- |
+| BOT_HOST | HostKey; identifies the controlling host. |
+| OWNED_BOT | Host reference, catalog Name, BareJID, Enabled, Active, ProviderState, XMPPState, Diagnostic, UpdatedAt. |
+| BOT_USER | Normalized BareJID and Enabled; requester identity, not a password record. |
+| BOT_GRANT | Bot reference and OperationCode; row presence grants that bot the operation. |
+| USER_BOT_GRANT | User reference, Bot reference, and OperationCode; grants that user the operation through that bot. |
+
+A channel occupant is not automatically a registered owned bot. Room membership
+establishes neither ownership nor privileged permission. Status is a current
+snapshot, not an event history; its timestamp does not prove live liveness.
+
+The demonstration uses explicit fixture identities and primary-key relationships.
+It does not promise database-enforced uniqueness of HostKey, BareJID, bot names,
+or grant combinations. Those indexes/constraints are deferred. Use existence-based
+permission checks so duplicate grant rows do not multiply results. Revocation
+removes all grants for the selected relationship. Do not build deduplication or
+identity-resolution infrastructure to compensate for the deferred constraints.
+
+For a user-requested `git.patch` demonstration, require all of:
+
+- the selected bot belongs to the specified host and is enabled;
+- the selected user is registered and enabled;
+- a matching BOT_GRANT exists;
+- a matching USER_BOT_GRANT exists for that user, bot, and operation.
+
+Missing either grant denies the operation. A bot's grant does not authorize an
+otherwise unauthorized human. No roles, wildcard grants, deny precedence, or
+administrator bypass. Use SQL and synthetic identities to demonstrate the stored
+policy. The future IQ handler must supply verified identities and enforce the
+check; this task does not connect it or execute patches.
+
+### Schema and template
+
+Use the existing Schema vocabulary and conventional key/reference behavior.
+Do not add index lists, unique-key declarations, explicit primary-key lists,
+required-field vocabulary, or general constraint validation in this pass.
+
+Create a clean Firebird template consuming generic model data plus the explicit
+Environment input. Emit tables before foreign keys. Implement ordinary existing
+Table references against convention-derived keys; no composite-reference model.
+Carry over neither legacy reporting/history tables nor unrelated generators.
+
+Separate ownership/status and security declarations where existing inclusion and
+references permit clean authoring. Verify each table appears once in the combined
+collection. Keep parser, lookup, include, and JSON semantics unchanged. If a real
+incompatibility prevents this, pause to discuss it rather than inventing a workaround.
 
 ### Forge integration and lifecycle
 
-Add a `NexusScript.ForgeDef.nxscript` operation piece and a native command template.
-Its explicit data describes the generator executable, artifact manifest, destination,
-and forwarded target selections. These are operation-specific contract properties;
-Forge's executor merely renders and launches the command.
+Add one small, explicitly declared generic file-generation operation to Forge.
+Working name: Render. Its contract describes Source, destination Output, Template,
+and the explicit Environment render input. This is proposed operation vocabulary,
+not new NexusScript syntax or a hierarchy of operation classes.
 
-Define one BotHost schema-generation package with TargetDB required and a named
-SchemaSQL artifact at `generated/Firebird/BotHost.create.sql`. Supply executable
-location and reusable command configuration through ordinary module composition.
-The package/configuration explicitly forwards the selected database target to the
-child generator; do not assume Forge targets automatically cross a process boundary.
+For Render, Template is the artifact template, not a native command template.
+The declared Render operation selects compile/validate/render-to-file behavior;
+ordinary FPC/Git commands keep their existing execution path. Do not select the
+behavior by file extension, property presence, or rendered text. This adds one
+concrete execution capability without reopening package-child classification.
 
-Artifact-presence reuse remains unchanged. Verification starts with missing output
-or an isolated directory; changing schema source alone does not invalidate an
-existing generated SQL artifact. No hashing, freshness tracking, or readiness markers.
+Reuse the existing compilation/session, validation, generic JSON, and Mustache
+code in-process. Extract or share only the small artifact functionality needed;
+do not duplicate the compiler or import a CLI program as a runtime dependency.
+Forward the current package request's target selections into the source compilation
+session, including its normal dependencies/dialect processing. Standalone Render
+uses the current Forge invocation selections. This is API plumbing under Forge,
+not a required new NexusScript command-line switch.
 
-The disposable database belongs to the test fixture, not a production deployment.
-Apply the generated DDL with isql and stop on SQL failure. Connection configuration
-must be explicit, with no credentials in source control or printed command lines.
-Do not install/reconfigure Firebird, modify security5.fdb, or touch existing databases.
-Prove SQL application separately from file generation; a generated SQL file alone
-is not acceptance of the database portion.
+Relative Source and inherited Template paths retain their declaring-source context;
+package artifact Output resolves from the package root. Document and test those
+specific contracts so moving configuration into a module does not change its paths.
+Diagnostics identify the operation/source/template and actual failure. A compilation,
+validation, or rendering failure stops subsequent operations. Preflight preparation
+must preserve the existing guarantee that a later preparation failure does not
+allow earlier commands to run; artifact writes are execution effects, not preflight.
+
+Define a BotHost generation package with TargetDB required, initially restricted
+to Firebird, and a named SchemaSQL artifact at generated/Firebird/BotHost.create.sql.
+Its Render operation references that artifact Path and the selected Environment.
+There is one target selection authority. No parallel manifest renderer selection,
+separate generator executable setting, or automatic subprocess target forwarding.
+
+Keep presence-only reuse. Fresh verification uses absent generated artifacts;
+source changes alone do not request rebuilding. Output-file semantics belong to
+Render's declared contract, never to arbitrary operations with an Output property.
+
+A registered database fixture applies the generated SQL with installed Firebird
+isql to a fresh isolated database. Explicit connection configuration; no credentials
+in tracked files or printed command lines. Do not alter services, installation,
+security5.fdb, or existing databases. A generated SQL file alone does not complete
+native database acceptance.
 
 ## Scope
 
-- New BotHost-owned artifacts under `NexusTools/BotHost/database/`: Schema documents,
-  artifact manifest, Firebird Mustache, Forge package/configuration, and short README.
-- `NexusLib/script/dialects/Schema/Schema.Language.nxscript`: minimal constraint data.
-- `NexusLib/script/dialects/NexusForge/pieces/NexusScript.ForgeDef.nxscript` and its
-  reusable operation template/configuration in Forge examples.
-- `NexusTools/Script/cli/obNexusScriptCommand.pas` and
-  `artifact/obNexusScriptManifest.pas`: explicit target plumbing and affected callers.
-- Existing NexusScript and Forge tests for these behaviors; new BotHost database
-  tests registered with `NexusBotHostTestModule`, using the existing test host.
-- Related current documentation and focused generation examples.
+- `NexusTools/BotHost/database/`: Schema documents, shared Environment configuration,
+  Firebird Mustache, Forge package, and concise usage instructions.
+- A minimal `Render.ForgeDef.nxscript` piece and Forge's generic artifact execution
+  integration alongside its native command path.
+- Existing shared compilation/artifact APIs as needed for in-process reuse and
+  explicit target/context propagation; affected callers only.
+- NexusScript and Forge regression tests; BotHost database tests registered with
+  NexusBotHostTestModule and run through the existing test host.
+- Current documentation for these contracts and measured results.
 
 ## Out Of Scope
 
-- Live BotHost persistence, catalog replacement, database-backed IQ enforcement,
-  git patch execution, and modifications to current Operators/Readers behavior.
-- Room tracking, conversations/messages, operation queues, audit/history tables,
-  credentials, roles, repository ACLs, migrations, upgrades, or a general ORM.
-- SQLite/SQL Server implementation, cross-engine compatibility claims, engine
-  discovery, Firebird installation, connection pools, or background workers.
-- NexusTools/Schema legacy tool changes or restoration of its removed producer.
-- Package execution classification, artifact freshness, or automatic archives.
+- Indexes, unique constraints, broad constraint vocabulary, and per-table
+  primary-key overrides. Composite primary/foreign keys are prohibited outright.
+- Live database persistence, catalog replacement, IQ changes, git patch execution,
+  and modifications to existing Operators/Readers behavior.
+- Room/conversation history, operation queues, audit tables, roles, repository ACLs,
+  migrations, ORM/provider generation, and credential storage.
+- SQLite/SQL Server implementation, engine discovery, Firebird installation,
+  connection pools, background workers, and variant freshness tracking.
+- Wholesale NexusBuild/NexusTask/NexusScript migration/removal, expansion of their
+  standalone CLIs for this task, and restoration of a Schema-specific producer.
+- Package-child execution classification and automatic archives.
 
 ## Staged Implementation Plan
 
-1. Author the five-table model and the smallest needed Schema constraint vocabulary.
-   Separate ownership/status from security where existing include/reference semantics
-   permit it cleanly. Validate the combined schema and verify each table appears
-   once in the generic collection. Reuse module/reference semantics as they stand.
-2. Add and test target propagation through NexusScript CLI and artifact rendering.
-   Prove the selected manifest renderer and selected model values receive the same
-   target. A second synthetic renderer may test exclusion; it is not SQLite support.
-3. Implement the Firebird DDL template and expected-output checks for columns,
-   required fields, primary/unique keys, and foreign keys. Preserve existing schema
-   fixtures and regression expectations except deliberate additive contract changes.
-4. Add the declarative Forge generator operation and BotHost package. Exercise the
-   real NexusScript executable, explicit target forwarding, artifact creation/reuse,
-   invalid input, and child-process failure. Add no generator-specific runtime branch.
-5. Register a BotHost database fixture that creates an isolated Firebird database,
-   applies the generated DDL, inserts synthetic hosts/bots/users/grants, and verifies
-   constraints, status round-trips, and the authorization query. Cleanup only that
-   fixture's verified-owned files/database. If connection setup is unavailable,
-   report that exact blocker and do not mark database acceptance complete.
-6. Document the actual scripts, commands, target convention, known remaining gaps,
-   and measured verification results. Remove resolved gap entries rather than
-   keeping a growing list of resolved issues.
+1. Author the five-table Schema and shared Firebird Environment using existing
+   conventions. Validate included model data and explicit Environment composition.
+   Establish the exact normal reference paths before writing the final template.
+2. Add the minimal generic Render contract/path under Forge. Reuse language/artifact
+   code directly, pass explicit targets and Environment data, preserve provenance,
+   and distinguish preparation from artifact-writing execution.
+3. Author the clean Firebird template and the BotHost generation package. Verify
+   Environment-driven naming/type/generation, consistent reference names, normal
+   composition overrides, and no legacy application-specific output.
+4. Exercise the real Forge front end to generate SQL and verify artifact reuse.
+   Test failures and mixed native-command/render ordering without changing the
+   existing package-child classification contract.
+5. Register/run the disposable Firebird fixture. Verify generated keys, ordinary
+   foreign keys, status round-trips, and both-sided grant queries. If a connection
+   is unavailable, report that exact blocker; do not claim native acceptance.
+6. Update documentation with the actual scripts and results. Remove resolved gap
+   items rather than appending resolved annotations. No archive without a request.
 
 ## Sub-Agent Delegation
 
-Implementation remains local. The owner has not authorized sub-agent use.
+Implementation remains local. No sub-agent use is authorized.
 
 ## Verification Plan
 
-- Build NexusScript CLI, NexusForge CLI, both console test projects, and the
-  BotHost test module. Run the full NexusScript and Forge suites. Run the full
-  language-server suite because shared Schema validation changes affect analysis.
-- Register domain/native database tests with NexusBotHostTestModule and run the
-  focused database suite through NexusTestHost. Do not launch unrelated live bot,
-  network/provider, or patch-execution tests.
-- Verify normal compile/validate/render behavior remains unchanged without targets;
-  selected renderer/model values agree; malformed selections fail clearly; no
-  matching renderer fails; a child generator's nonzero exit fails Forge.
-- Validate the actual BotHost schema, not merely unvalidated synthetic models.
-  Assert exactly the intended five tables and no legacy report/history structures.
-- Apply generated SQL to Firebird, then inspect actual relations, columns, keys,
-  and foreign keys. Reject duplicate bot names per host, duplicate identities and
-  grants, invalid foreign keys, and null required identifiers.
-- Verify permission cases: both grants allow; either grant absent denies; disabled
-  bot/user denies; wrong controlling host, wrong bot, and unregistered user deny;
-  removing a grant revokes access. Room presence alone supplies no permission.
-- Store/read status without requiring a room association. Use synthetic names and
-  a text value containing an apostrophe to verify SQL value handling in the fixture;
-  do not introduce general seed-data interpolation or quietly rely on raw quoting.
-- Verify a missing generated artifact builds and a present artifact reuses. A later
-  database test always uses a fresh isolated database, not a stale file's presence.
-- Focused source scan: no Firebird/BotHost branches in compiler/executor, no revived
-  Schema producer, no inferred operation Output handling, and no live IQ changes.
-- Record real totals and separate unrun or blocked native tests. No archive unless
-  the owner explicitly requests another one.
+- Build Forge CLI/tests, the existing NexusScript CLI/tests to verify shared-code
+  integration, and the BotHost test module. Run full Forge and compiler suites;
+  run the language-server suite for shared compilation/validation/context changes.
+- Run focused BotHost database tests through NexusTestHost; do not launch unrelated
+  live provider/network tests or patch operations. No separate BotHost test app.
+- Prove Forge invokes shared generation code without requiring NexusScript.exe.
+  Check target-selected Environment, source-model target propagation, inherited
+  template origin, composed overrides, and explicit render context without collisions.
+- Use a second synthetic Environment to prove selection/exclusion without claiming
+  another database implementation. Unsupported package selections fail clearly.
+- Verify exactly five tables. Check convention-derived key names/types/generators,
+  key non-null behavior, and foreign-key names after an Environment suffix override.
+  Compare logical definition names differing from TableName to catch accidental mixing.
+- Apply DDL to a fresh Firebird database. Insert a row without explicitly providing
+  its primary key and verify generation. Reject duplicate primary keys and invalid
+  conventional foreign keys. Do not require deferred uniqueness/index behavior.
+- Verify both grants allow; either absent denies; disabled bot/user, wrong host,
+  wrong bot, and unknown user deny. Duplicate matching grants still yield one Boolean
+  decision, and removing the matching grants revokes it.
+- Store/read status without a room. Use synthetic text including an apostrophe in
+  database fixtures with proper SQL value handling; no general seed-data importer.
+- Verify compile/validation/render failure stops later work, preparation failures
+  launch/write nothing, a missing output builds, and a present output reuses.
+- Confirm no Firebird/BotHost semantics or primary-key defaults in generic runtime,
+  no inferred OutputDirectory behavior, and no changes to live IQ authorization.
+- Record actual totals, heap results, and any blocked native checks. Only fixture-owned
+  databases/files may be cleaned up; no service or installation changes.
 
-Expected build entry points:
-
-```text
-lazbuild NexusTools/Script/NexusScript.lpi
-lazbuild NexusTools/Script/tests/NexusScriptTests.lpi
-lazbuild NexusTools/Script/ls/tests/NexusScriptLSTests.lpi
-lazbuild NexusTools/Forge/NexusForge.lpi
-lazbuild NexusTools/Forge/tests/NexusForgeTests.lpi
-lazbuild NexusTools/BotHost/tests/NexusBotHostTestModule.lpi
-```
-
-Confirm executable/module output paths and test-host invocation from current
-project files before running; do not create a separate BotHost test application.
+Build entry points remain the existing Forge, NexusScript, language-server test,
+and NexusBotHostTestModule projects. Confirm current output paths and NexusTestHost
+suite selection before executing. No builds/tests were run for this plan revision.
 
 ## Risks And Questions
 
-- The five-table model and direct per-user/per-bot grants are proposed first-pass
-  choices, not a claim that the owner requested a complete security design.
-- Firebird tools are installed, but a usable local connection has not been proven.
-  Verify a disposable connection during implementation; discuss an actual blocker
-  rather than guessing passwords or changing installation settings.
-- Shared Schema is currently small. Add only the constraint vocabulary needed by
-  this schema. If it requires a parser/model/presentation redesign, pause for owner
-  discussion instead of expanding this work implicitly.
-- Existing dialect discovery, inclusion, composition, and bounded references must
-  be proved by the actual scripts. Pause before choosing a workaround or changing
-  their semantics if the proposed authoring encounters a real conflict.
-- Current room-based permissions for existing IQ operations remain unchanged.
-  The demonstration's git.patch policy is deliberately not yet connected to them.
+- The five-table/direct-grant model remains the proposed minimal domain design.
+  This demonstration is not a completed production security integration.
+- Firebird tools are installed; disposable connection access is still unverified.
+  Discuss an actual connection blocker instead of guessing credentials or changing
+  the installation.
+- Bringing artifact generation into Forge requires one real generic execution
+  capability. Keep that change bounded; do not turn it into an operation framework
+  or a broad consolidation project.
+- If existing reference, include, composition, or presentation rules prevent the
+  intended script, pause for owner discussion before changing those semantics.
 
 ## Approval Gate
 
-This request authorizes planning only. No implementation, builds, database creation,
-service changes, or IQ/runtime changes begin until the owner explicitly authorizes
-implementation. Only this work-plan artifact is committed/pushed for review under
-repository protocol. Automatic archives remain paused.
+This revision authorizes planning only. Only this plan is committed/pushed under
+repository protocol. Implementation, builds, database creation, and runtime changes
+wait for explicit owner authorization. Automatic archives remain paused.
