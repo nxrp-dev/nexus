@@ -2129,6 +2129,15 @@ var
                 lProperty.Value.EffectiveValue)
             else if lProperty.Value.Kind = nsvArray then
               AValue.EffectiveValue := CloneValue(lProperty.Value);
+            if lProperty.Value.StructuralDefinition <> nil then
+            begin
+              AValue.StructuralDefinition := CloneReferenceProjection(
+                lProperty.Value.StructuralDefinition, AScope, AReceiverName);
+              AValue.ResolvedDefinition := lProperty.Value.ResolvedDefinition;
+              AValue.OriginalDefinitionName :=
+                lProperty.Value.OriginalDefinitionName;
+              AValue.EffectiveName := AReceiverName;
+            end;
             Result := True;
           end;
           if lDefinition <> nil then

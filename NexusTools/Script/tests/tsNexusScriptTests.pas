@@ -4040,10 +4040,11 @@ begin
         AContext.AssertEquals('Integer', RequireJSONMember(lField, 'Type').AsString,
           'The original table keeps its original ID type.');
         lBase := RequireJSONObject(RequireJSONMember(lConcrete, 'Original'), 'original');
-        lField := RequireJSONObject(RequireJSONArray(RequireJSONMember(
-          lBase, 'Fields'), 'alias fields').Items[0], 'alias ID');
-        AContext.AssertEquals('Integer', RequireJSONMember(lField, 'Type').AsString,
-          'A reference to the original still denotes the original table.');
+        AContext.AssertTrue(lBase.Find('Fields') = nil,
+          'The bounded reference projection omits structural arrays.');
+        AContext.AssertEquals('Integer', RequireJSONMember(
+          lConcrete, 'OriginalIDType').AsString,
+          'An explicit path into the original accesses the omitted field.');
       end;
       AContext.AssertEquals('Base', RequireJSONMember(RequireJSONObject(
         RequireJSONMember(RequireJSONObject(RequireJSONMember(RequireJSONObject(
@@ -4263,14 +4264,24 @@ var
   lEmitter: TNexusScriptJSONEmitter;
   lData: TJSONData;
   lRoot, lAlias: TJSONObject;
+  lDefinition: TNexusScriptCompiledDefinition;
+  lDiagnostic: TNexusScriptDiagnostic;
+  lHasCycle: Boolean;
 begin
   lCompiler := TNexusScriptCompiler.Create;
   lEmitter := TNexusScriptJSONEmitter.Create;
   try
     AContext.AssertTrue(lCompiler.CompileText('reference-alias.nxscript',
       'Thing Root { Thing Base { Value: original; } ' +
-      'Original: @Root.Base; Alias: @Original; }'),
+      'Chain: @Alias; Original: @Root.Base; Alias: @Original; }'),
       'A reference to a structural reference compiles.');
+    lDefinition := lCompiler.CompiledDocument.FindDefinition('Root');
+    AContext.AssertTrue(lDefinition.FindProperty('Alias').Value.StructuralDefinition <>
+      lDefinition.FindProperty('Original').Value.StructuralDefinition,
+      'The alias owns a separate projection.');
+    AContext.AssertTrue(lDefinition.FindProperty('Chain').Value.StructuralDefinition <>
+      lDefinition.FindProperty('Alias').Value.StructuralDefinition,
+      'Each hop owns its projection.');
     lEmitter.AddDocument(lCompiler.CompiledDocument);
     lData := GetJSON(lEmitter.JSON);
     try
@@ -4279,9 +4290,28 @@ begin
       lAlias := RequireJSONObject(RequireJSONMember(lRoot, 'Alias'), 'alias');
       AContext.AssertEquals('original', RequireJSONMember(lAlias, 'Value').AsString,
         'The alias presents the original definition value.');
+      lAlias := RequireJSONObject(RequireJSONMember(lRoot, 'Chain'), 'chain');
+      AContext.AssertEquals('original', RequireJSONMember(lAlias, 'Value').AsString,
+        'A forward alias chain retains the value.');
+      lAlias := RequireJSONObject(RequireJSONMember(lAlias, '_nx'), 'metadata');
+      AContext.AssertEquals('Chain', RequireJSONMember(lAlias, 'Name').AsString,
+        'The projection has the receiving property name.');
+      lAlias := RequireJSONObject(RequireJSONMember(lAlias, 'Reference'), 'reference');
+      AContext.AssertEquals('Base', RequireJSONMember(lAlias, 'Name').AsString,
+        'Reference identity remains the original definition.');
+      lAlias := RequireJSONObject(RequireJSONMember(lRoot, 'Base'), 'base');
+      AContext.AssertEquals('original', RequireJSONMember(lAlias, 'Value').AsString,
+        'The base value is unchanged.');
     finally
       lData.Free;
     end;
+    AContext.AssertTrue(not lCompiler.CompileText('alias-cycle.nxscript',
+      'Thing Root { First: @Second; Second: @First; }'),
+      'An alias cycle fails compilation.');
+    lHasCycle := False;
+    for lDiagnostic in lCompiler.Diagnostics do
+      lHasCycle := lHasCycle or (lDiagnostic.Code = 'NXS5002');
+    AContext.AssertTrue(lHasCycle, 'The failure identifies a value dependency cycle.');
   finally
     lEmitter.Free;
     lCompiler.Free;

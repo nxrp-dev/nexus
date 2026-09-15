@@ -42,6 +42,35 @@ Reusable bases placed in an included file are exposed just like any other
 definition. Keep them in module-only files when they should not be generated.
 There is no automatic classification or exclusion of templates.
 
+## Reference projection boundary
+
+A reference to a definition exposes a bounded projection of that definition.
+Scalar properties, recursively scalar arrays, and ordinary child definitions
+are retained. Arrays containing definitions or definition references are omitted
+entirely, including mixed arrays and nested arrays with a structural leaf.
+The same projection rule applies recursively to child definitions.
+
+This deliberately prevents expansion through structural arrays from following
+self-references or mutually referring definitions indefinitely. The original
+definition remains complete. Access deeper details through an explicit path to
+that original, rather than expecting its reference projection to contain them.
+
+For example, given a module providing `Table Base` with
+`Fields: [Field ID { Type: Integer; }];`:
+
+```nexusscript
+Table Concrete (Base) {
+    Original: @Base;
+    OriginalIDType: @Base.Fields.ID.Type;
+    Fields: [Field ID { Type: UUID; }];
+}
+```
+
+`Original` retains the identity of `Base` but omits `Fields`.
+`OriginalIDType` is `Integer`, while Concrete's own ID type is `UUID`.
+Inclusion does not change this reference rule. Aliases preserve the same bounded
+projection; they do not expand it into a complete copy of the original.
+
 ## Included language rules
 
 A declared language can include independently named language fragments:

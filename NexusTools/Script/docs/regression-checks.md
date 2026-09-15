@@ -44,18 +44,22 @@ The existing individual feature tests continue to cover composition, arrays,
 references, targets, discovery, diagnostics, metadata, manifests, and external
 data. The cases above protect their interactions.
 
-## Unresolved findings from the added checks
+## Findings from the added checks
 
-The strengthened `IncludeModuleCollections` case finds that `Concrete.Original`
-retains reference metadata for `Base` but lacks the base's `Fields` in JSON.
-The separately emitted base still has its fields. The test requires the referenced
-base to retain its contents, not merely its name.
+The initial strengthened `IncludeModuleCollections` assertion incorrectly required
+`Concrete.Original` to contain the base's structural `Fields` array. Existing
+`ReferenceArrayProjection` tests explicitly require these arrays to be omitted
+to bound recursive expansion. The corrected test checks that omission, original
+reference identity, unchanged base fields, the derived override, and explicit
+access through `@Base.Fields.ID.Type`. This corrects a test expectation, not the
+language contract. See [the projection boundary](include-presentation.md#reference-projection-boundary).
 
-`StructuralReferenceAliasJSON` reproduces a second problem without any include
+`StructuralReferenceAliasJSON` reproduced a second problem without any include
 or module: `Thing Root { Thing Base { Value: original; } Original: @Root.Base;
-Alias: @Original; }` compiles, but JSON emission reports
+Alias: @Original; }` compiled, but JSON emission reported
 `Property has no completed artifact value.`
 
-These remain ordinary failing tests, not skipped tests or expected failures.
-The regression-test change does not modify production reference behavior.
-The compiler suite must not be reported as passing until these are resolved.
+The property-reference evaluator now clones the completed structural projection
+and preserves its original reference identity. The regression passes, including
+forward alias chains, independently owned projections, unchanged base values,
+receiving names, original reference identity, and cycle rejection.
