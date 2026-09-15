@@ -1,0 +1,14 @@
+dialect "../../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript";
+
+Environment Platform TargetOS[Windows] { ExecutableSuffix: ".exe"; }
+Environment Platform TargetOS[Linux] { ExecutableSuffix: ""; }
+
+Environment BuildPaths BuildMode[default] { Directory: "target/default"; }
+Environment BuildPaths BuildMode[debug] { Directory: "target/debug"; }
+Environment BuildPaths BuildMode[release] { Directory: "target/release"; }
+
+// Reusable partial configurations; concrete operations supply Source and Output.
+FPC CompileApplication BuildMode[default] { Template: "default.mustache"; }
+FPC CompileApplication BuildMode[debug] { Template: "debug.mustache"; Defines: [DEBUG]; }
+FPC CompileApplication BuildMode[release] { Template: "release.mustache"; Defines: [RELEASE]; }
+FPC CompileTests { Template: "test.mustache"; }

@@ -1,0 +1,20 @@
+Language ForgeGit {
+    Definitions: [
+        Definition Git {
+            Root: True;
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Repository {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text, Definition];
+                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                    }
+                }
+            ];
+        }
+    ];
+}

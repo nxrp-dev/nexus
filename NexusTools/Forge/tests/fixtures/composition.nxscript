@@ -1,10 +1,12 @@
 dialect "../../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript";
 
 FPC CompileExample {
+    Template: "../../examples/FPC.mustache";
     Source: "hello world & test.lpr";
     Output: "hello world & test.exe";
 }
 
 Git InspectRepository {
+    Template: "../../examples/Git.mustache";
     Repository: ".";
 }

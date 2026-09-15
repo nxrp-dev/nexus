@@ -1,0 +1,4 @@
+dialect "../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript";
+
+FPC CompileFPC { Template: "FPC.mustache"; UnitOutput: "."; }
+Git GitStatus { Template: "Git.mustache"; }

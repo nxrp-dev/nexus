@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General><MainUnit Value="0"/><Title Value="NexusForgeTests"/><UseAppBundle Value="False"/></General>
+    <Units Count="1"><Unit0><Filename Value="NexusForgeTests.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target><Filename Value="../../../output/NexusForgeTests/$(TargetCPU)-$(TargetOS)/NexusForgeTests"/></Target>
+    <SearchPaths>
+      <OtherUnitFiles Value=".;../src;../../Script/core;../../Script/artifact;../../Test/src;../../../NexusLib/core/src;../../../lib/dmustache"/>
+      <UnitOutputDirectory Value="../../../output/NexusForgeTests/$(TargetCPU)-$(TargetOS)/units"/>
+    </SearchPaths>
+    <Other><CustomOptions Value="-gh -gl"/></Other>
+  </CompilerOptions>
+</CONFIG>
+

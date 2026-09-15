@@ -1,0 +1,15 @@
+dialect "../../../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript";
+module "compiler.ForgePackage.nxscript";
+
+Package Application {
+    Targets: [
+        Dimension TargetCPU { Required: True; Allowed: [x86, x64]; },
+        Dimension TargetOS { Required: True; Allowed: [Windows, Linux]; }
+    ];
+    Requires: [Requirement Tools {
+        Package: @Compiler;
+        Targets: [Selection TargetCPU { Value: x64; }, Selection TargetOS { Value: Windows; }];
+    }];
+    Outputs: [Output Application { Path: "bin/application.exe"; }];
+    PackageOutput CompilerPath { Requirement: Tools; Output: Compiler; }
+}

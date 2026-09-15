@@ -1,0 +1,39 @@
+Language ForgeFPC {
+    Definitions: [
+        Definition FPC {
+            Root: True;
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Compiler {
+                    Value Value {
+                        EffectiveCategories: [Text, Definition];
+                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                    }
+                },
+                Property Source {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text, Definition];
+                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                    }
+                },
+                Property Output {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property UnitOutput {
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property Defines {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        }
+    ];
+}

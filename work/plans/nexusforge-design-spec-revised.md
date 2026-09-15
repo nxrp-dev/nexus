@@ -1,6 +1,13 @@
 # Work Plan: NexusForge Declarative Execution
 
-Status: Proposed; awaiting owner implementation authorization.
+> Execution-model amendment (2026-09-15): the owner approved ordinary module
+> configurations and composition, with each completed operation supplying its
+> own `Template`. This supersedes this original plan's separate process-manifest
+> matching and `/manifest` argument. See the current
+> [execution contracts](../../NexusTools/Forge/docs/contracts.md) and
+> [package contracts](../../NexusTools/Forge/docs/packages.md).
+
+Status: First execution milestone implemented and verified; uncommitted owner review.
 Date: 2026-09-15
 
 ## Inputs
@@ -12,6 +19,7 @@ Date: 2026-09-15
 - Settled review: use existing Mustache/process techniques; ordinary paths containing spaces and `&` are verification cases. Do not invent an argument language to anticipate limitations.
 - Final review clarification: document dialect declaration, effective language composition, and dialect file resolution are separate concerns. An internal `DialectRoot` is only a fallback file-resolution directory; the normal Forge CLI exposes no dialect-selection or dialect-root option.
 - Implementation clarification from the owner: `module` is for references/composition; `include` is for aggregation. The initial explicit `(ForgeCore, ForgeFPC, ForgeGit)` composition fixture was rejected. Independent pieces now contribute through `include`, with a shared included-definition view used by presentation and validation. This foundational correction is implemented separately for review before continuing the Forge runtime.
+- Resumption clarification: operation pieces use `*.ForgeDef.nxscript`, a Forge packaging convention rather than a NexusScript filename requirement. The include pattern selects these contributions without naming individual tools.
 - Governing instructions: `AGENTS.md`, `.ai/protocols/architecture-change.md`, `.ai/protocols/codex-workplan-format.md`, `.ai/standards/pascal.md`, and applicable folder instructions.
 
 ## Summary
@@ -46,7 +54,7 @@ Ordinary tool support should be data: legal operation structure, applicable mani
 - New executable: `nxforge`, under `NexusTools/Forge`.
 - Proposed CLI inputs: operation document, explicit manifest file, and explicit named Target selections. Reuse repository command-line conventions; document exact flag spelling in Stage 1. The operation itself does not select its template.
 - Compile operation and manifest documents with the same Target selection. Validate their declared dialects before execution. Missing dialects or invalid operation/manifest structures fail clearly.
-- Forge documents identify their dialect through the normal NexusScript declaration. The initial vocabulary is one effective Forge language assembled from the core Forge definition and operation-specific definition pieces using existing NexusScript module/import and composition mechanisms. FPC and Git contribute rules to that effective language; they are not separate document dialects.
+- Forge documents identify their dialect through the normal NexusScript declaration. The initial vocabulary is one effective Forge language assembled from the core Forge definition and operation-specific definition pieces using the existing NexusScript include mechanism. FPC and Git contribute rules to that effective language; they are not separate document dialects.
 - The normal Forge CLI exposes no dialect-selection or dialect-root option. Any internal dialect search root only locates the document-declared dialect; it does not override that declaration or determine which operation definitions compose the language. Preserve the existing file-resolution mechanism; no new discovery system or wildcard/catalog import syntax is needed for this milestone.
 - The initial fixtures must demonstrate separate core, FPC, and Git definition pieces composing into one effective `Language.Definitions` that validates both operation kinds. Finding/importing the files alone does not satisfy this requirement.
 - Execute root operations in their resolved declaration order. Definitions used only through composition/reference are not independently scheduled. Confirm order from actual compiled fixtures, including composition and filtering; do not derive order by sorting JSON keys or names.
@@ -189,4 +197,4 @@ Review matches in context: test data/documentation may mention excluded behavior
 
 ## Approval Gate
 
-This request authorizes the work-plan artifact and its required commit/push handoff only. No implementation, builds, tests, or implementation archive begins until the human owner explicitly authorizes it. Unrelated pending binding work is excluded from the planning commit.
+The original planning request authorized only the plan handoff. The owner subsequently authorized implementation and explicitly resumed Forge after the include/projection corrections. This implementation is ready for owner review; no implementation commit or push was requested.

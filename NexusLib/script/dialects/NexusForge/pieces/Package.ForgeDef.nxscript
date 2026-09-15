@@ -1,0 +1,60 @@
+Language ForgePackages {
+    Definitions: [
+        Definition Package {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Allow;
+            Properties: [
+                Property Version { Value Value { EffectiveCategories: [Text]; } },
+                Property Author { Value Value { EffectiveCategories: [Text]; } },
+                Property License { Value Value { EffectiveCategories: [Text]; } },
+                Property Targets { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Definition]; DefinitionKinds: [Dimension]; } } },
+                Property Requires { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Definition]; DefinitionKinds: [Requirement]; } } },
+                Property Outputs { Required: True; Value Value { EffectiveCategories: [Array]; Array Array { Minimum: 1; EntryEffectiveCategories: [Definition]; DefinitionKinds: [Output]; } } }
+            ];
+        },
+        Definition Dimension {
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Required { Value Value { Scalar: Boolean; } },
+                Property Allowed { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } } }
+            ];
+        },
+        Definition Requirement {
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Children: [Child Selections { Kinds: [Selection]; }];
+            Properties: [
+                Property Package { Required: True; Value Value { SourceForms: [Reference]; EffectiveCategories: [Definition]; Reference Reference { Targets: [Definition]; DefinitionKinds: [Package]; } } },
+                Property Targets { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Definition]; DefinitionKinds: [Selection]; } } }
+            ];
+        },
+        Definition Selection {
+            Parents: [Requirement];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [Property Value { Required: True; Value Value { EffectiveCategories: [Text]; } }];
+        },
+        Definition Output {
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Path { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Directory { Value Value { Scalar: Boolean; } }
+            ];
+        },
+        Definition PackageOutput {
+            Parents: [Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Requirement { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Output { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}

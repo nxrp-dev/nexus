@@ -1,0 +1,9 @@
+Language ForgeEnvironment {
+    Definitions: [
+        Definition Environment {
+            Root: True;
+            UnknownProperties: Allow;
+            UnknownChildren: Reject;
+        }
+    ];
+}

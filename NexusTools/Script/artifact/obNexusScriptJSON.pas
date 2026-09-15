@@ -39,10 +39,24 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure AddDocument(ADocument: TNexusScriptCompiledDocument);
+    function RenderDefinition(ADefinition: TNexusScriptCompiledDefinition): string;
     function JSON: string;
   end;
 
 implementation
+
+function TNexusScriptJSONEmitter.RenderDefinition(
+  ADefinition: TNexusScriptCompiledDefinition): string;
+var
+  lData: TJSONObject;
+begin
+  lData := DefinitionJSON(ADefinition);
+  try
+    Result := lData.AsJSON;
+  finally
+    lData.Free;
+  end;
+end;
 
 function TNexusScriptJSONEmitter.DefinitionMetadata(
   ADefinition: TNexusScriptCompiledDefinition;
