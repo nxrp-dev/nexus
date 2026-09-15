@@ -109,7 +109,7 @@ Use `{$interfaces corba}` for these contracts and plain explicitly owned objects
 - `TrySetPosition(-1)` explicitly clears selection, even in a nonempty source. Other out-of-range positions return a range failure without mutation. First/Last on empty and movement past an edge are successful no-ops. Next from no selection chooses first; Prior from no selection chooses last.
 - Source-local item identities remain stable while an item exists and are not reused during a source attachment. Identity is independent of position and does not require retaining a dead object.
 - Member identity is an opaque, case-sensitive UTF-8 key compared exactly. It is not parsed: punctuation has no property-path meaning. Fakes may implement a simple member table.
-- On an accepted cursor change, detach old member subscriptions, resolve the same member identities on the new item, attach new subscriptions, and synchronize source-to-target. Target-to-source initial transfer is never repeated implicitly on navigation.
+- On an accepted cursor change, detach old member subscriptions, resolve the same member identities on the new item, attach new subscriptions, and synchronize source-to-target. Navigation never submits a target value to the source.
 - A missing member, no current item, or unreadable value puts that binding into an explicit unavailable state. Do not write a fabricated null/default into the target. The target may retain its display, but cannot submit against the old item; consumers observe availability separately.
 - Binding definitions remain registered when unavailable and retry resolution on a current-item or source reset event. A converter/read/write failure marks the affected binding; it does not restore the old cursor after the transition has already been accepted.
 - Upstream structural events distinguish insertion, removal, replacement, and reset. Insertion/removal before Current adjusts Position while retaining current identity. Removing Current selects the successor at the old index, otherwise the preceding final item, otherwise none. Replacement at the same position is a Current change if identity differs. Reset searches for the retained identity, otherwise selects first or none.
@@ -120,7 +120,7 @@ Use `{$interfaces corba}` for these contracts and plain explicitly owned objects
 
 Each binding definition names a member, target endpoint, mode, update trigger, and optional converter/validator. `OneWay` means source-to-target. `TwoWay` also accepts target proposals. No implicit target-to-source-only mode is needed.
 
-- Default initial transfer is source-to-target. Two-way registration may explicitly request target-to-source initial submission through the normal conversion/validation/write path. Registration returns an observable binding handle even when initial transfer fails, so the pending input/error is inspectable and removable.
+- Registration always initializes the target from the source, for both one-way and two-way bindings. There is no initial-direction option and registration never writes to the source. Registration returns an observable binding handle even when source-to-target conversion or the target write fails, so the binding state/error remains inspectable and removable. An initialization failure does not turn the target's existing value into a pending source submission. Later target proposals follow the normal update trigger and Submit contract.
 - The target must be writable for source display. Two-way additionally requires a readable target and source write capability. If current source writability later changes, existing display still works and submissions return read-only.
 - Triggers are `OnChange` and `Explicit`. OnChange attempts submission when a target reports a change. Explicit captures pending input but waits for `Submit`. A future focus-loss adapter calls Submit; there is no core focus abstraction.
 - Binding handles are coordinator-local numeric identifiers, not borrowed internal object pointers. Removed handles are invalid and are not reused during that coordinator lifetime.
@@ -191,7 +191,7 @@ Acceptance: declarations and fixtures compile using the installed compiler; drop
 
 ### Stage 2: Endpoints, subscriptions, and scalar binding
 
-Implement the real coordinator's binding registration/removal, initial direction, one-way/two-way transfer, conversion/validation, state reporting, and synchronous echo guards. Add source/target Closing and safe subscription removal at this stage rather than retrofitting lifetime later.
+Implement the real coordinator's binding registration/removal, source-first initialization, one-way/two-way transfer, conversion/validation, state reporting, and synchronous echo guards. Add source/target Closing and safe subscription removal at this stage rather than retrofitting lifetime later.
 
 Acceptance: scalar tests, failure retention, normalization, multiple subscribers/targets, and teardown tests pass; each successful source change reaches each clean target once without recursive source writes.
 
@@ -237,7 +237,7 @@ Fixtures expose factory/setup operations so endpoint/source capability tests can
 | Area | Required cases and observable assertions |
 | --- | --- |
 | Values | Present/empty string/null/unset distinct; all six kinds enforced; DateTime and Currency round-trip through same-kind endpoints without numeric coercion; mismatched numeric kinds require conversion; negative/fractional Currency retains exact native value; DateTime date/time portion survives transfer; copied text survives participant destruction; availability and runtime read-only transitions visible. |
-| Initial transfer | Default source-first, explicit target-first in two-way, failed initial conversion retained, late source attachment and unavailable member. |
+| Initial transfer | Source initializes target in both modes; registration makes zero source writes, including with OnChange and target write echoes; conversion/target-write failures remain inspectable without creating pending source submissions; late source attachment and unavailable member. |
 | Direction | One-way never writes source; two-way transfers both ways; no-op values do not notify; source normalization is read back. |
 | Updates | OnChange vs Explicit; two members and multiple clean targets update correctly; converter/validator order and rejected writes retain input. |
 | Cursor | Empty, first/last/edges, -1, invalid position; same item/no-op; position-only shift; item replacement with same position; no-current transitions. |
