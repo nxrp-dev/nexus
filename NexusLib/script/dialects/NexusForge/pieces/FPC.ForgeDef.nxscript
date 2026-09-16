@@ -15,6 +15,10 @@ Language ForgeFPC {
                 },
                 Property Source {
                     Required: True;
+                    Value Value { EffectiveCategories: [Array]; Array Array { Minimum: 1; EntryEffectiveCategories: [Text]; } }
+                },
+                Property EntryPoint {
+                    Required: True;
                     Value Value {
                         EffectiveCategories: [Text, Definition];
                         Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }

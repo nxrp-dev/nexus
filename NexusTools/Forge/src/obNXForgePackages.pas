@@ -32,6 +32,7 @@ type
     procedure CheckTargets;
     procedure PrepareOutputDirectories;
     procedure WriteBuildLog(const ADiagnostic: string);
+    function HasEntryPoint: Boolean;
   public
     constructor Create(ATargets: TNexusScriptTargetSelection);
     destructor Destroy; override;
@@ -335,6 +336,15 @@ begin
   inherited Destroy;
 end;
 
+function TNXPackageRequest.HasEntryPoint: Boolean;
+var
+  lOperation: TNexusScriptCompiledDefinition;
+begin
+  for lOperation in FDefinition.Children do
+    if lOperation.FindProperty('EntryPoint') <> nil then Exit(True);
+  Result := False;
+end;
+
 function TNXForgePackages.Obtain(const AFileName, APackageName: string;
   ATargets: TNexusScriptTargetSelection): TNXPackageRequest;
 var
@@ -358,7 +368,7 @@ begin
   finally
     lRequest.Free;
   end;
-  if Result.OutputsPresent then
+  if Result.OutputsPresent and not Result.HasEntryPoint then
   begin
     Result.FReady := True;
     Result.FReused := True;

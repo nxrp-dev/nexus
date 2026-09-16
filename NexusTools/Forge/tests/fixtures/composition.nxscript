@@ -2,7 +2,8 @@ dialect "../../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxs
 
 FPC CompileExample {
     Template: "../../examples/FPC.mustache";
-    Source: "hello world & test.lpr";
+    Source: ["hello world & test.lpr"];
+    EntryPoint: "hello world & test.lpr";
     Output: "hello world & test.exe";
 }
 

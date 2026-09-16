@@ -86,11 +86,11 @@ end;
 procedure TestValidation(AContext: TNXTestContext);
 const
   cInvalidOperations: array[0..4] of string = (
-    'FPC Bad { Template: "command.mustache"; Source: a; Output: b; Bogus: x; }',
+    'FPC Bad { Template: "command.mustache"; Source: [a]; EntryPoint: a; Output: b; Bogus: x; }',
     'Git Bad { Template: "command.mustache"; }',
-    'FPC Bad { Template: "command.mustache"; Source: a; }',
-    'FPC Bad { Template: "command.mustache"; Source: a; Output: b; Defines: text; }',
-    'FPC Bad { Template: "command.mustache"; Source: a; Output: b; UnitOutput: [invalid]; }');
+    'FPC Bad { Template: "command.mustache"; Source: [a]; EntryPoint: a; }',
+    'FPC Bad { Template: "command.mustache"; Source: [a]; EntryPoint: a; Output: b; Defines: text; }',
+    'FPC Bad { Template: "command.mustache"; Source: [a]; EntryPoint: a; Output: b; UnitOutput: [invalid]; }');
 var
   lForge: TNXForge;
   lDirectory, lOperation: string;
@@ -123,6 +123,9 @@ var
   lDirectory: string;
 begin
   lDirectory := TestDir('template-composition');
+  Save(lDirectory + 'app.pas', '');
+  Save(lDirectory + 'tests.pas', '');
+  Save(lDirectory + 'other.pas', '');
   ForceDirectories(lDirectory + 'library/nested');
   Save(lDirectory + 'library/Paths.nxscript', 'Environment Paths { Command: "command.mustache"; }');
   Save(lDirectory + 'library/Shared.nxscript', Dialect('NexusForge') + 'module "Paths.nxscript"; ' +
@@ -136,9 +139,9 @@ begin
   Save(lDirectory + 'library/tests.mustache', ChildCommand('ok') + ' tests');
   Fixture(lDirectory, 'module "library/Shared.nxscript"; module Defaults "library/nested/Presets.nxscript"; ' +
     'Environment Local { Template: "must-not-run.mustache"; } ' +
-    'FPC Build (Defaults) { Source: "app.pas"; Output: "app" + @Platform.ExecutableSuffix; } ' +
-    'FPC Check (Tests) { Source: "tests.pas"; Output: "tests.exe"; } ' +
-    'FPC Override (Defaults) { Template: "command.mustache"; Source: "other.pas"; Output: "other.exe"; }',
+    'FPC Build (Defaults) { Source: ["app.pas"]; EntryPoint: "app.pas"; Output: "app" + @Platform.ExecutableSuffix; } ' +
+    'FPC Check (Tests) { Source: ["tests.pas"]; EntryPoint: "tests.pas"; Output: "tests.exe"; } ' +
+    'FPC Override (Defaults) { Template: "command.mustache"; Source: ["other.pas"]; EntryPoint: "other.pas"; Output: "other.exe"; }',
     ChildCommand('ok') + ' override');
   lTargets := TNexusScriptTargetSelection.Create;
   lTargets.Add('TargetOS', 'Windows');
@@ -167,12 +170,13 @@ var
   lDirectory: string;
 begin
   lDirectory := TestDir('order');
+  Save(lDirectory + 'source', '');
   Save(lDirectory + 'Base.nxscript',
-    'FPC Defaults HostOS[Win32] { Template: "command.mustache"; Source: source; Output: output; Defines: [ONE, TWO]; } ' +
+    'FPC Defaults HostOS[Win32] { Template: "command.mustache"; Source: [source]; EntryPoint: source; Output: output; Defines: [ONE, TWO]; } ' +
     'FPC Defaults HostOS[Linux] { Template: "absent.mustache"; }');
   Fixture(lDirectory, 'module "Base.nxscript"; ' +
     'FPC Zulu (Defaults) {} FPC Hidden HostOS[Linux] {} FPC Alpha (Defaults) { Output: other; }',
-    ChildCommand('ok') + ' {{{_nx.Name}}} {{{Source}}} {{{Output}}}{{#Defines}} {{{.}}}{{/Defines}}');
+    ChildCommand('ok') + ' {{{_nx.Name}}} {{{EntryPoint}}} {{{Output}}}{{#Defines}} {{{.}}}{{/Defines}}');
   lTargets := TNexusScriptTargetSelection.Create;
   lTargets.Add('HostOS', 'Win32');
   lForge := TNXForge.Create(lTargets);
@@ -180,9 +184,9 @@ begin
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
     AContext.AssertEquals(2, lForge.Invocations.Count, 'Inactive and module roots not scheduled');
     AContext.AssertEquals('Zulu', lForge.Invocations[0].OperationName, 'Declaration order');
-    AContext.AssertEquals(ChildCommand('ok') + ' Zulu source output ONE TWO',
+    AContext.AssertEquals(ChildCommand('ok') + ' Zulu ' + ExpandFileName(lDirectory + 'source') + ' output ONE TWO',
       lForge.Invocations[0].Command, 'Exact resolved template context');
-    AContext.AssertEquals(ChildCommand('ok') + ' Alpha source other ONE TWO',
+    AContext.AssertEquals(ChildCommand('ok') + ' Alpha ' + ExpandFileName(lDirectory + 'source') + ' other ONE TWO',
       lForge.Invocations[1].Command, 'Same template, different name and override');
   finally
     lForge.Free;
@@ -233,7 +237,7 @@ begin
   Save(lDirectory + 'hello world & test.lpr', 'program Hello; begin WriteLn(''forge-ok''); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/examples/forge/Shared.nxscript"; ' +
-    'FPC Compile (CompileFPC) { Source: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
+    'FPC Compile (CompileFPC) { Source: ["hello world & test.lpr"]; EntryPoint: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
     'Git Inspect (GitStatus) { Repository: "."; }');
   lInvocation := TNXForgeInvocation.Create;
   lForge := TNXForge.Create;
@@ -295,6 +299,53 @@ begin
   end;
 end;
 
+procedure TestSourceSelections(AContext: TNXTestContext);
+var
+  lDirectory, lExpected: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('source-selections');
+  ForceDirectories(lDirectory + 'src/nested');
+  ForceDirectories(lDirectory + 'elsewhere');
+  Save(lDirectory + 'src/a.pas', '');
+  Save(lDirectory + 'src/b.pas', '');
+  Save(lDirectory + 'src/ignored.txt', '');
+  Save(lDirectory + 'src/nested/c.pas', '');
+  Save(lDirectory + 'Base.nxscript', 'FPC Base { Source: ["src/a.pas"]; }');
+  Fixture(lDirectory, 'module "Base.nxscript"; FPC Compile (Base) { ' +
+    'Source: ["src/*.pas", "src/**/*.pas"]; EntryPoint: "src/a.pas"; ' +
+    'Output: app; Template: "command.mustache"; }',
+    ChildCommand('ok') + '{{#Source}} "{{{.}}}"{{/Source}}' +
+    '{{#_nx.SourcePaths}} "{{{.}}}"{{/_nx.SourcePaths}}');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript', 'elsewhere'), lForge.Diagnostic);
+    AContext.AssertEquals(1, lForge.Invocations.Count, 'One command for all source selections');
+    lExpected := ChildCommand('ok') + ' "' + ExpandFileName(lDirectory + 'src/a.pas') +
+      '" "' + ExpandFileName(lDirectory + 'src/b.pas') +
+      '" "' + ExpandFileName(lDirectory + 'src/nested/c.pas') +
+      '" "' + ExpandFileName(lDirectory + 'src') +
+      '" "' + ExpandFileName(lDirectory + 'src/nested') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Composed selections expand, deduplicate and anchor to declaration, not working directory');
+    Fixture(lDirectory, 'FPC Compile { Source: ["src/*.absent"]; EntryPoint: "src/a.pas"; ' +
+      'Output: app; Template: "command.mustache"; }', ChildCommand('ok'));
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Empty selection fails');
+    AContext.AssertTrue(Pos('matched no files', lForge.Diagnostic) > 0, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    Fixture(lDirectory, 'FPC Compile { Source: "src/a.pas"; EntryPoint: "src/a.pas"; ' +
+      'Output: app; Template: "command.mustache"; }', ChildCommand('ok'));
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Scalar Source is invalid');
+    AssertNoLaunch(AContext, lForge);
+    Fixture(lDirectory, 'FPC Compile { Source: ["src/a.pas"]; ' +
+      'Output: app; Template: "command.mustache"; }', ChildCommand('ok'));
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Concrete FPC operation needs EntryPoint');
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
 procedure TestSelectedDefinition(AContext: TNXTestContext);
 var
   lSession: TNexusScriptCompilationSession;
@@ -313,7 +364,7 @@ begin
       lSession.EntryCompiler.CompiledDocument.FindDefinition('CompileExample'),
       lSession.EntryCompiler.CompiledDocument));
     try
-      AContext.AssertEquals('hello world & test.lpr', lJSON.FindPath('Source').AsString,
+      AContext.AssertEquals('hello world & test.lpr', lJSON.FindPath('EntryPoint').AsString,
         'Selected context contains direct resolved properties');
       AContext.AssertEquals('CompileExample', lJSON.FindPath('_nx.Name').AsString, 'Metadata retained');
       AContext.AssertEquals(DateToISO8601(lSession.EntryCompiler.CompiledDocument.CompiledAt),
@@ -551,6 +602,7 @@ begin
   lSuite.AddTest('NativeTools', @TestNativeTools);
   lSuite.AddTest('WorkingDirectory', @TestWorkingDirectory);
   lSuite.AddTest('CompilationTimestamp', @TestCompilationTimestamp);
+  lSuite.AddTest('SourceSelections', @TestSourceSelections);
   lSuite.AddTest('SelectedDefinition', @TestSelectedDefinition);
 end;
 

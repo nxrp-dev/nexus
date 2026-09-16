@@ -1,1 +1,1 @@
-{{#Compiler}}"{{{Compiler}}}"{{/Compiler}}{{^Compiler}}fpc{{/Compiler}} "{{{Source}}}" "-o{{{Output}}}"{{#UnitOutput}} "-FU{{{UnitOutput}}}"{{/UnitOutput}}{{#Defines}} -d{{{.}}}{{/Defines}}
+{{#Compiler}}"{{{Compiler}}}"{{/Compiler}}{{^Compiler}}fpc{{/Compiler}} "{{{EntryPoint}}}" "-o{{{Output}}}"{{#UnitOutput}} "-FU{{{UnitOutput}}}"{{/UnitOutput}}{{#Defines}} -d{{{.}}}{{/Defines}}{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}

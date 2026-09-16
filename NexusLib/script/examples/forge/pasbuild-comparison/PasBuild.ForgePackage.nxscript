@@ -25,7 +25,8 @@ Package PasBuild {
     }
     FPC Compile (CompileApplication) {
         UnitOutput: @BuildPaths.Directory;
-        Source: "src/main/pascal/PasBuild.pas";
+        Source: ["src/main/pascal/*.pas"];
+        EntryPoint: "src/main/pascal/PasBuild.pas";
         Output: @PasBuild.Outputs.Executable.Path;
     }
 }

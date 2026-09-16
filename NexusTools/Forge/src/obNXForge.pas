@@ -41,7 +41,7 @@ implementation
 
 uses SynMustache, obNexusScriptJSON, obNexusScriptValidator,
   obNexusScriptDefinitionView, obNexusScriptArtifactModel, tpNexusScript,
-  fpjson, jsonparser, tpNXForge;
+  fpjson, jsonparser, tpNXForge, obNXForgeSources;
 
 function ReadForgeText(const AFileName: string): string;
 var
@@ -210,6 +210,9 @@ var
   lEmitter: TNexusScriptJSONEmitter;
   lTemplate, lJSON: string;
   lIndex: Integer;
+  lContext: TJSONObject;
+  lSources: TNXForgeSources;
+  lRoot: TNexusScriptCompiledDefinition;
 begin
   if (AContexts <> nil) and (AContexts.Count <> AOperations.Count) then
     raise ENXForge.Create('Operation context count mismatch');
@@ -230,6 +233,20 @@ begin
           PrepareRender(lOperation, lInvocation, lJSON)
         else
         begin
+          lRoot := lOperation;
+          while lRoot.Parent <> nil do lRoot := lRoot.Parent;
+          lContext := GetJSON(lJSON) as TJSONObject;
+          lSources := TNXForgeSources.Create;
+          try
+            lSources.Resolve(lContext, ExtractFileDir(lRoot.SourceRange.SourceName));
+            if lContext.Find('EntryPoint') <> nil then
+              lContext.Strings['EntryPoint'] := ForgeRelativePath(
+                ExtractFileDir(lRoot.SourceRange.SourceName), lContext.Strings['EntryPoint']);
+            lJSON := lContext.AsJSON;
+          finally
+            lSources.Free;
+            lContext.Free;
+          end;
           lTemplate := ReadForgeText(lInvocation.TemplatePath);
           lInvocation.Command := Trim(string(TSynMustache.Parse(UTF8String(lTemplate)).
             RenderJSON(UTF8String(lJSON))));

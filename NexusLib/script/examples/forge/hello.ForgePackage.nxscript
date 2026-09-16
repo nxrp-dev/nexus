@@ -8,7 +8,8 @@ Package Hello {
     ];
     Outputs: [Output Application { Path: "hello package.exe"; }];
     FPC Compile (CompileFPC) {
-        Source: "hello world & test.lpr";
+        Source: ["hello world & test.lpr"];
+        EntryPoint: "hello world & test.lpr";
         Output: @Hello.Outputs.Application.Path;
     }
 }

@@ -1,1 +1,1 @@
-fpc -Mobjfpc -O1 "{{{Source}}}" "-o{{{Output}}}" "-FU{{{UnitOutput}}}" -Futarget/default -Fusrc/main/pascal -Fusrc/test/pascal -Fitarget/default
+fpc -Mobjfpc -O1 "{{{EntryPoint}}}" "-o{{{Output}}}" "-FU{{{UnitOutput}}}" -Futarget/default -Fusrc/main/pascal -Fusrc/test/pascal -Fitarget/default{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}

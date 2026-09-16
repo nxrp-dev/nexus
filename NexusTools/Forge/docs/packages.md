@@ -1,8 +1,9 @@
 # Using Forge packages
 
 Packages declare named outputs, requirements, accepted Targets, and ordinary
-Forge operations. Existing artifacts satisfy the request. Missing artifacts cause
-Forge to obtain the prerequisites and execute the package's operations sequentially.
+Forge operations. Packages with an EntryPoint operation always execute; other
+packages reuse existing artifacts. When execution is required, Forge obtains the
+prerequisites and runs the package's operations sequentially.
 Every declared output must exist afterward.
 
 From the repository root:
@@ -14,8 +15,9 @@ From the repository root:
   /targets=TargetCPU:x64,TargetOS:Windows
 ```
 
-The first run compiles the example; subsequent runs reuse `hello package.exe`.
-Removing that output requests another build. Source changes alone do not.
+Every request invokes FPC once for the application EntryPoint, including when
+`hello package.exe` already exists. FPC decides which units need recompilation.
+Packages without an EntryPoint operation retain artifact-presence reuse.
 The CLI reports package completion, native commands, exits, and output paths.
 
 Each actual package build writes `build.log` beside the first declared output,
@@ -60,7 +62,8 @@ Package Hello {
     ];
     Outputs: [Output Application { Path: "hello package.exe"; }];
     FPC Compile (CompileFPC) {
-        Source: "hello world & test.lpr";
+        Source: ["hello world & test.lpr"];
+        EntryPoint: "hello world & test.lpr";
         Output: @Hello.Outputs.Application.Path;
     }
 }
@@ -92,7 +95,7 @@ directory, which is the package root for managed builds.
 ## Shared configuration and artifact names
 
 The examples' Shared.nxscript supplies `FPC CompileFPC` with Template and UnitOutput properties.
-The concrete operation inherits it and supplies its Source and Output. Validation
+The concrete operation inherits it and supplies its Source, EntryPoint, and Output. Validation
 applies to that completed operation; a module base can be partial. The executor
 renders its resolved Template directly, without selecting a separate process entry.
 
@@ -103,7 +106,8 @@ ExecutableSuffix property. A package then defines the name once:
 ```nexusscript
 Outputs: [Output Application { Path: "app" + @Platform.ExecutableSuffix; }];
 FPC Compile (CompileFPC) {
-    Source: "app.lpr";
+    Source: ["app.lpr"];
+    EntryPoint: "app.lpr";
     UnitOutput: ".";
     Output: @App.Outputs.Application.Path;
 }
@@ -140,7 +144,8 @@ Package App {
     PackageOutput CompilerPath { Requirement: Tools; Output: Compiler; }
     FPC Compile (CompileFPC) {
         Compiler: @App.CompilerPath;
-        Source: "app.lpr";
+        Source: ["app.lpr"];
+        EntryPoint: "app.lpr";
         Output: @App.Outputs.Application.Path;
     }
 }
@@ -150,7 +155,7 @@ The referenced Compiler package must declare the named Compiler output and its
 own target contract. Each requirement supplies its dependency's selections
 explicitly. Forge obtains that request, then resolves CompilerPath to the
 output's absolute path in the rendering context. No reference syntax or generic
-JSON behavior is changed. The descriptor can also supply FPC Source or Git
+JSON behavior is changed. The descriptor can also supply FPC EntryPoint or Git
 Repository values.
 
 Each package imports its own shared configurations. A dependency request compiles
@@ -163,8 +168,9 @@ definition files.
 
 Prerequisite failures prevent consumer execution. Operation failures stop the
 recipe; exit zero with missing outputs also fails. Partial artifacts remain.
-If all artifacts exist on a later request, they satisfy it even after an earlier
-failure: there are no success receipts, timestamps, or hashes.
+For packages without EntryPoint, existing artifacts satisfy a later request even
+after an earlier failure. EntryPoint packages invoke their compiler again. Forge
+maintains no success receipts, timestamps, or hashes.
 
 The coordinator owns its request records, compilation sessions, and runners.
 Exposed request/result references are borrowed until the next Execute or destruction.
@@ -180,7 +186,7 @@ prerequisite failure, and partial artifacts. It also compiles real Pascal source
 using an installed FPC executable exposed as a package output.
 
 This verifies compiler consumption, not an FPC bootstrap or cross-compiler recipe.
-No version solver, downloads, freshness tracking, or NexusScript rule changes
+No version solver, downloads, Forge freshness tracking, or NexusScript core changes
 are included. Standalone Forge operation execution remains available.
 
 ## Generated artifacts

@@ -2,7 +2,7 @@
 
 Status: First implementation available for review; see [usage](packages.md).
 Date: 2026-09-15
-Revision: Module-composed operation configurations, direct Template rendering, and shared environment data.
+Revision: Source selections, EntryPoint, and compiler-managed application freshness.
 
 Implementation uses existing NexusScript loading and target rules unchanged.
 The earlier incomplete target example is discussed in
@@ -10,8 +10,8 @@ The earlier incomplete target example is discussed in
 
 ## Purpose
 
-A package describes a usable build result and how to produce it when it is
-missing. It may represent a compiler, a library, a section of code, or an
+A package describes a usable build result and how to produce it. Entry-point
+builds execute on request; other packages build when outputs are missing. It may represent a compiler, a library, a section of code, or an
 application. Consumers request the package and use its named outputs rather than
 reconstructing its build layout.
 
@@ -27,10 +27,10 @@ is not a required part of the package contract.
 
 These are owner decisions, not open questions for this review:
 
-1. **Artifact presence determines readiness.** If all declared target artifacts
-   for the requested package variant are present, the package is built. If any
-   are absent, it needs building. No hashing, timestamps, source-change detection,
-   build receipts, or freshness tracking in this pass.
+1. **Entry-point builds reach their compiler.** Packages containing an operation
+   with EntryPoint execute on each new request, even with existing artifacts. The
+   compiler manages dependency freshness. Other packages use artifact-presence
+   readiness. Forge adds no hashing, source timestamps, or build receipts.
 2. **The package definition resides in the package root directory.** Its containing
    directory establishes the package root. No independently configured root and
    no detached package definition pointing at another root.
@@ -262,7 +262,7 @@ Require a package and variant
     locate and validate its root definition
     validate its target contract and the requested selections
     select its declared outputs
-    all outputs present?
+    all outputs present and no operation declares EntryPoint?
         yes: return the named output paths
         no:
             obtain its declared build requirements
@@ -281,7 +281,7 @@ not prove anything about its contents. Declare required files individually when
 that distinction matters. No output globbing or inferred completeness rules are
 needed initially.
 
-A ready package does not rebuild or require its build prerequisites to be rebuilt.
+A presence-reused package does not rebuild or obtain its build prerequisites.
 An already-built compiler, for example, need not retain its bootstrap compiler.
 These requirements describe building the package; they are not a new runtime
 dependency-management facility.
@@ -370,7 +370,7 @@ a required output absent is a failed package build and names the missing output.
 Logs should distinguish reuse from building and identify the package, selected
 variant, and relevant paths. This does not require a persistent build database.
 
-Artifact presence is intentionally not proof of freshness or provenance. Source
+Artifact presence is intentionally not proof of freshness or provenance. For packages without EntryPoint, source
 edits do not invalidate existing outputs. Likewise, a failed recipe may leave
 files behind: that request fails, but a later request applies the same presence
 rule and may reuse them if every declared output now exists. This is a consequence
@@ -425,9 +425,9 @@ compiler executable through its named output. See [usage](packages.md).
 
 ## Acceptance examples
 
-- A package with all selected outputs present is reused without launching a tool.
+- A package without EntryPoint and with all selected outputs present is reused without launching a tool.
 - Removing one required output runs the recipe; success requires all outputs afterward.
-- Source changes alone do not trigger rebuilding.
+- EntryPoint packages always reach the compiler; changed dependencies are handled by that compiler.
 - Invoking from a different directory preserves package-relative behavior.
 - Several package files in one directory retain distinct definition identities
   while resolving their outputs and operations from the same physical root.
@@ -449,7 +449,7 @@ compiler executable through its named output. See [usage](packages.md).
 - Stable output names resolve to the selected variant's declared folder paths.
 - Where an executable is shared across targets, missing target-specific required
   artifacts still cause that variant to need building.
-- A ready package works without rebuilding its build prerequisites.
+- A presence-reused package works without rebuilding its build prerequisites.
 - Missing package definitions, unknown outputs, and unresolved variants fail clearly.
 - A cycle among packages needing builds reports the chain.
 - Prerequisite failure prevents consumer execution.
@@ -458,7 +458,7 @@ compiler executable through its named output. See [usage](packages.md).
 
 ## Explicit exclusions
 
-Hashing, timestamps, source freshness, persistent build-state tracking, automatic
+Forge hashing, source timestamps, freshness tracking, persistent build-state tracking, automatic
 partial-output cleanup, remote repositories, downloads, version solving, automatic
 compiler installation, environment activation/repair, parallel package builds,
 fine-grained incremental scheduling, and automatic variant-folder construction

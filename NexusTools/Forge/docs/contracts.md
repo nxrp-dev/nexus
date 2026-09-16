@@ -55,17 +55,19 @@ A consumer imports it and uses normal composition and references:
 ```nexusscript
 module "Shared.nxscript";
 FPC Compile (CompileApplication) {
-    Source: "app.lpr";
+    Source: ["app.lpr"];
+    EntryPoint: "app.lpr";
     Output: "app" + @Platform.ExecutableSuffix;
 }
 FPC Test (CompileTests) {
-    Source: "tests.lpr";
+    Source: ["tests.lpr"];
+    EntryPoint: "tests.lpr";
     Output: "tests" + @Platform.ExecutableSuffix;
 }
 ```
 
 Select TargetOS explicitly for this example. The completed concrete operations
-must satisfy the FPC contract, including Template, Source, and Output. Imported
+must satisfy the FPC contract, including Template, Source, EntryPoint, and Output. Imported
 partial bases need not independently supply every required operation property.
 They remain module definitions, not additional commands. Existing module root
 selectors can limit which definitions a consumer imports.
@@ -78,6 +80,33 @@ There is no separate process catalog or matching by operation kind. Two FPC
 operations can inherit different templates. All selected operations are rendered
 before any child in that operation list starts. Declaration order is preserved,
 including included roots; module-only roots are not scheduled.
+
+## Source selections and entry points
+
+FPC `Source` is a nonempty list of explicit files or filename masks, for example
+`Source: ["src/*.pas", "src/app.lpr"]`. `EntryPoint: "src/app.lpr"` names the
+single input passed to FPC. Partial composed configurations can contribute Source
+entries without an EntryPoint; a concrete FPC operation requires both.
+
+Forge expands command-operation Source arrays relative to the declaring package
+root (or the declaring operation file outside a package). `src/*.pas` selects
+that directory only; `src/**/*.pas` explicitly includes subdirectories. There is
+no extension inference. Missing directories or selections matching no files fail
+preparation before commands launch. Entries retain selection order, matches are
+sorted, and duplicate files and directories are removed.
+
+The command render context receives absolute file names in `Source`, unique
+containing directories in `_nx.SourcePaths`, and an absolute `EntryPoint`.
+Templates translate those directories to switches such as `-Fu`. This does not
+change the compiled NexusScript document. Scalar Source values for CSV and Render
+retain their existing contracts. A Source list does not create multiple commands.
+
+FPC searches these directories for dependencies and decides whether compiled units
+are usable. The selected files establish search directories, not a restriction on
+which other dependencies FPC may load from those directories. Forge does not hash
+sources, generate bootstrap programs, or compile every selected unit independently.
+An operation with EntryPoint causes its package to execute on each new request;
+within a request graph, an already obtained variant is still shared.
 
 ## Template paths and rendering
 
@@ -103,7 +132,7 @@ template receives the compiled source document's timestamp instead. This
 metadata does not participate in package artifact-presence or reuse checks.
 
 ```mustache
-fpc "{{{Source}}}" "-o{{{Output}}}"{{#Defines}} -d{{{.}}}{{/Defines}}
+fpc "{{{EntryPoint}}}" "-o{{{Output}}}"{{#Defines}} -d{{{.}}}{{/Defines}}{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}
 ```
 
 Mustache is the template language. Templates own native quoting and command
@@ -174,15 +203,18 @@ lazbuild NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
 
-Verified 2026-09-15: 29 Forge tests, 61 NexusScript compiler tests, and 12
-language-server tests passed with zero failures/errors/skips and zero heap leaks.
+Source/EntryPoint verification: 30 Forge tests and 61 NexusScript compiler tests
+passed with zero failures/errors/skips and zero heap leaks. The shared FCL example
+also builds and runs. Language-server code and the shared compiler are unchanged;
+the earlier 12-test language-server result is not a new run for this correction.
 Tests use the real compiler, validator, renderer, and process paths. Coverage
 includes partial bases, required concrete properties, target selection, two FPC
 configurations with different templates, nested inheritance, referenced template
 paths, local overrides, module/data roots excluded from execution, preflight
 failures, independent output streams, working directories, and runner reuse.
 Package tests cover artifact presence, dependencies with their own targets,
-artifact directory preparation, explicit FPC unit placement, intermediate outputs
+artifact directory preparation, source-selection composition and expansion,
+unchanged-unit reuse and changed-unit rebuilding, explicit FPC unit placement, intermediate outputs
 outside final artifact directories, and environment-derived artifact filenames.
 
 Native tests compile and run Pascal source and execute Git against a local

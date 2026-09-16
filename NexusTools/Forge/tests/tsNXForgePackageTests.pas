@@ -8,7 +8,7 @@ procedure RegisterForgePackageTests(ARegistry: TNXTestRegistry);
 
 implementation
 uses Classes, SysUtils, DateUtils, obNXTestContext, obNXTestSuite, obNXForgePackages, obNXForge,
-  obNexusScriptModel;
+  obNexusScriptModel, obNXForgeInvocation, obNXForgeProcess;
 
 function Root: string;
 begin
@@ -274,6 +274,8 @@ end;
 procedure TestCompilerOutput(AContext: TNXTestContext);
 var
   lDirectory, lFPC: string;
+  lUnitDate: LongInt;
+  lRun: TNXForgeInvocation;
   lPackages: TNXForgePackages;
   lTargets: TNexusScriptTargetSelection;
 begin
@@ -289,9 +291,10 @@ begin
     'Outputs: [Output Executable TargetCPU[x64] { Path: "bin/x64/hello & package.exe"; }, ' +
     'Output Executable TargetCPU[x86] { Path: "bin/x86/hello & package.exe"; }]; ' +
     'PackageOutput CompilerPath { Requirement: Tools; Output: Executable; } ' +
-    'FPC Compile { Template: ' + NXString(Root + 'NexusLib/script/examples/forge/FPC.mustache') + '; Compiler: @App.CompilerPath; Source: "hello & package.lpr"; UnitOutput: "bin/x64"; Output: "bin/x64/hello & package.exe"; } }');
+    'FPC Compile { Template: ' + NXString(Root + 'NexusLib/script/examples/forge/FPC.mustache') + '; Compiler: @App.CompilerPath; Source: ["hello & package.lpr", "units/*.pas"]; EntryPoint: "hello & package.lpr"; UnitOutput: "bin/x64"; Output: "bin/x64/hello & package.exe"; } }');
   Save(lDirectory + 'hello & package.lpr', 'program Hello; uses ExampleUnit; begin WriteLn(MessageText); end.');
-  Save(lDirectory + 'ExampleUnit.pas', 'unit ExampleUnit; interface const MessageText = ''package-ok''; implementation end.');
+  ForceDirectories(lDirectory + 'units');
+  Save(lDirectory + 'units/ExampleUnit.pas', 'unit ExampleUnit; interface const MessageText = ''package-ok''; implementation end.');
   lPackages := TNXForgePackages.Create;
   lTargets := Targets;
   try
@@ -304,6 +307,29 @@ begin
     AContext.AssertFalse(DirectoryExists(lDirectory + 'bin/x86'), 'Unselected target directory not created');
     AContext.AssertTrue(Pos(lFPC, lPackages.PackageResult.Runner.Invocations[0].Command) > 0,
       'Template receives exact declared compiler path');
+    lUnitDate := FileAge(lDirectory + 'bin/x64/ExampleUnit.ppu');
+    AContext.AssertTrue(lPackages.Execute(lDirectory + 'app.nxscript', 'App', lTargets), lPackages.Diagnostic);
+    AContext.AssertFalse(lPackages.PackageResult.Reused, 'Existing executable still reaches FPC');
+    AContext.AssertEquals(1, lPackages.PackageResult.Runner.Invocations.Count, 'One FPC invocation');
+    AContext.AssertEquals(lUnitDate, FileAge(lDirectory + 'bin/x64/ExampleUnit.ppu'), 'Unchanged unit reused');
+    AContext.AssertTrue(Pos('exampleunit.pas', LowerCase(
+      lPackages.PackageResult.Runner.Invocations[0].StdOut)) = 0, 'FPC does not recompile unchanged unit');
+    // FPC uses source timestamps; cross its timestamp resolution before editing.
+    Sleep(2100);
+    Save(lDirectory + 'units/ExampleUnit.pas', 'unit ExampleUnit; interface const MessageText = ''updated-unit''; implementation end.');
+    AContext.AssertTrue(lPackages.Execute(lDirectory + 'app.nxscript', 'App', lTargets), lPackages.Diagnostic);
+    AContext.AssertTrue(FileAge(lDirectory + 'bin/x64/ExampleUnit.ppu') > lUnitDate, 'Changed unit rebuilt');
+    lRun := TNXForgeInvocation.Create;
+    try
+      lRun.Command := '"' + ExpandFileName(lDirectory + 'bin/x64/hello & package.exe') + '"';
+      lRun.WorkingDirectory := lDirectory;
+      ExecuteForgeProcess(lRun);
+      AContext.AssertTrue(lRun.Succeeded, lRun.Diagnostic);
+      AContext.AssertEquals('updated-unit', Trim(lRun.StdOut), 'Rebuilt executable uses changed unit');
+    finally
+      lRun.Free;
+    end;
+
   finally
     lTargets.Free;
     lPackages.Free;
@@ -444,10 +470,11 @@ begin
   lDirectory := FreshDirectory;
   // Intermediate preparation belongs to the recipe; it is explicit in this fixture.
   ForceDirectories(lDirectory + 'temp');
+  Save(lDirectory + 'app.pas', '');
   Save(lDirectory + 'package.nxscript', Dialect('NexusForge') +
     'Package Example { ' + Contract +
     'Outputs: [Output Result { Path: "done.txt"; }]; ' +
-    'FPC Compile { Template: "compile.mustache"; Source: "app.pas"; Output: "temp/foo.o"; } ' +
+    'FPC Compile { Template: "compile.mustache"; Source: ["app.pas"]; EntryPoint: "app.pas"; Output: "temp/foo.o"; } ' +
     'Git Link { Template: "link.mustache"; Repository: "temp/foo.o"; } }');
   Save(lDirectory + 'compile.mustache', Helper('create') +
     ' "{{{Output}}}"{{#OutputDirectory}} UNEXPECTED{{/OutputDirectory}}');
@@ -484,7 +511,9 @@ begin
   Save(lDirectory + 'package.nxscript', Dialect('NexusForge') + 'module "Shared.nxscript"; ' +
     'Package Example { ' + Contract +
     'Outputs: [Output Result { Path: "product" + @Platform.ExecutableSuffix; }]; ' +
-    'FPC Compile (CompileApplication) { Source: "app.pas"; Output: @Example.Outputs.Result.Path; } }');
+    'FPC Compile (CompileApplication) { Source: ["app.pas"]; EntryPoint: "app.pas"; Output: @Example.Outputs.Result.Path; } }');
+  Save(lDirectory + 'app.pas', '');
+  Save(lDirectory + 'missing.mustache', Helper('create') + ' "{{{Output}}}"');
   Save(lDirectory + 'product.exe', 'Windows artifact');
   Save(lDirectory + 'product', 'Linux artifact');
   lPackages := TNXForgePackages.Create;
@@ -494,7 +523,7 @@ begin
   lLinux.Add('TargetOS', 'Linux');
   try
     AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Example', lWindows), lPackages.Diagnostic);
-    AContext.AssertTrue(lPackages.PackageResult.Reused, 'Windows artifact reused without reading template');
+    AContext.AssertFalse(lPackages.PackageResult.Reused, 'Existing application still invokes its compiler');
     AContext.AssertEquals(ExpandFileName(lDirectory + 'product.exe'),
       lPackages.PackageResult.Outputs[0].Path, 'Selected environment resolves before readiness');
     AContext.AssertEquals('product.exe', ForgePropertyText(
@@ -505,6 +534,7 @@ begin
     AContext.AssertEquals('product', ForgePropertyText(
       lPackages.PackageResult.Definition.FindChild('Compile'), 'Output'), 'Linux compiler destination matches artifact');
     DeleteFile(lDirectory + 'product.exe');
+    DeleteFile(lDirectory + 'missing.mustache');
     AContext.AssertFalse(lPackages.Execute(lDirectory + 'package.nxscript', 'Example', lWindows),
       'Linux artifact cannot satisfy Windows request; missing template prevents build');
     AContext.AssertTrue(lPackages.Requests[0].Runner <> nil, 'Missing selected artifact attempts build');
@@ -521,12 +551,13 @@ var
   lPackages: TNXForgePackages;
 begin
   lDirectory := FreshDirectory;
+  Save(lDirectory + 'unused', '');
   lTemplate := '"' + ParamStr(0) + '" child create "{{Output}}" {{_nx.CompiledAt}}';
   Save(lDirectory + 'stamp.mustache', lTemplate);
   Save(lDirectory + 'package.nxscript', Dialect('NexusForge') +
     'Package Stamp { Outputs: [Output Result { Path: "done.txt"; }]; ' +
-    'FPC First { Template: "stamp.mustache"; Source: unused; Output: "done.txt"; } ' +
-    'FPC Second { Template: "stamp.mustache"; Source: unused; Output: "done.txt"; } }');
+    'FPC First { Template: "stamp.mustache"; Source: [unused]; EntryPoint: unused; Output: "done.txt"; } ' +
+    'FPC Second { Template: "stamp.mustache"; Source: [unused]; EntryPoint: unused; Output: "done.txt"; } }');
   lPackages := TNXForgePackages.Create;
   try
     AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Stamp', nil), lPackages.Diagnostic);
@@ -536,8 +567,8 @@ begin
       Length(lPackages.PackageResult.Runner.Invocations[0].Command) - 23, 24);
     AContext.AssertTrue(ISO8601ToDate(lStamp) > 0, 'Package rendering exposes CompiledAt');
     AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Stamp', nil), lPackages.Diagnostic);
-    AContext.AssertTrue(lPackages.PackageResult.Reused, 'Compile metadata does not invalidate an existing artifact');
-    AContext.AssertTrue(lPackages.PackageResult.Runner = nil, 'Reused package does not run timestamp-driven operations');
+    AContext.AssertFalse(lPackages.PackageResult.Reused, 'Entry point requests reach the compiler despite existing artifacts');
+    AContext.AssertEquals(2, lPackages.PackageResult.Runner.Invocations.Count, 'Application operations execute again');
   finally
     lPackages.Free;
   end;

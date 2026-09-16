@@ -1,1 +1,1 @@
-fpc -Mobjfpc -O1 "{{{Source}}}" "-o{{{Output}}}" "-FU{{{UnitOutput}}}" -Fusrc/main/pascal -Fitarget/debug{{#Defines}} -d{{{.}}}{{/Defines}} -g -gl -gh -Criot
+fpc -Mobjfpc -O1 "{{{EntryPoint}}}" "-o{{{Output}}}" "-FU{{{UnitOutput}}}" -Fusrc/main/pascal -Fitarget/debug{{#Defines}} -d{{{.}}}{{/Defines}} -g -gl -gh -Criot{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}

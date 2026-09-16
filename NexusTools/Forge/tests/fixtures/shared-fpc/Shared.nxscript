@@ -6,10 +6,12 @@ FPC StandardFPC {
     Template: "FPC.mustache";
     UnitPaths: [
         @Installation.Units + "/rtl",
-        @Installation.Units + "/rtl-objpas",
-        @Installation.Packages + "/fcl-base/src",
-        @Installation.Packages + "/fcl-json/src",
-        @Installation.Packages + "/fcl-xml/src"
+        @Installation.Units + "/rtl-objpas"
+    ];
+    Source: [
+        @Installation.Packages + "/fcl-base/src/*.pp",
+        @Installation.Packages + "/fcl-json/src/*.pp",
+        @Installation.Packages + "/fcl-xml/src/*.pp"
     ];
     IncludePaths: [@Installation.Packages + "/fcl-base/src"];
 }

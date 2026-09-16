@@ -93,7 +93,7 @@ $null = Invoke-Logged 'baseline-source-package' $baselineRoot $pasbuildExe @('so
 foreach ($mode in @('default', 'debug', 'release')) {
     $null = Invoke-ForgePackage ('forge-clean-' + $mode) $mode
 }
-$null = Invoke-ForgePackage 'forge-reuse-default' 'default'
+$null = Invoke-ForgePackage 'forge-repeat-default' 'default'
 $null = Invoke-Logged 'forge-built-version' $forgeRoot (Join-Path $forgeRoot 'target/default/pasbuild.exe') @('--version')
 
 # Test fixtures and test invocation remain explicit harness
@@ -116,7 +116,7 @@ $probe = $probe.Replace('FPC Test (CompileTests) {', 'FPC Test (CompileTests) { 
 $null = Invoke-Logged 'forge-options-contract-probe' $forgeRoot $forgeExe @(
     '/input=UnsupportedOptions.nxscript', '/targets=TargetCPU:x64,TargetOS:Windows,BuildMode:default')
 
-# Demonstrate the deliberately different freshness contract using only copies.
+# Exercise changed-source rejection by both compilers using only copies.
 foreach ($side in @('baseline', 'forge')) {
     $projectRoot = Join-Path $runRoot $side
     $sourcePath = Join-Path $projectRoot 'src/main/pascal/PasBuild.pas'

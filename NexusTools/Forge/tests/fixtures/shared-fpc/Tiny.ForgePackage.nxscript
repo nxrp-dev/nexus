@@ -4,11 +4,10 @@ module "Shared.nxscript";
 Package Tiny {
     Outputs: [Output Application { Path: "../../../../../output/ForgeSharedFPC/tiny.exe"; }];
     FPC Compile (StandardFPC) {
-        Source: "src/Tiny.lpr";
+        Source: ["src/Tiny.lpr", "src/support/*.pas"];
+        EntryPoint: "src/Tiny.lpr";
         Output: @Tiny.Outputs.Application.Path;
         UnitOutput: "../../../../../output/ForgeSharedFPC";
-        // Unnamed array entries append to the inherited search paths.
-        UnitPaths: ["src/support"];
         IncludePaths: ["src/include"];
     }
 }

@@ -40,8 +40,8 @@ report version 1.10.0-SNAPSHOT and the correctly substituted build date.
 
 The translation deliberately stores variants in target/default, target/debug,
 and target/release. PasBuild's XML uses one target directory for all profiles;
-sharing that executable path would cause Forge's presence-only reuse to accept
-one profile's executable for another. Separate paths use the agreed folder model.
+separate paths keep executables and compiled units for different profiles apart
+and use the agreed folder model.
 CPU/OS are restricted to the Windows x64 host actually tested.
 
 ## What happened
@@ -75,6 +75,15 @@ PasBuild's recursive unit/include scanning and conditional paths exist in the
 compiler-command implementation. This project's flat source layout does not prove
 equivalence for nested/conditional paths. The explicit flags in this translation
 are sufficient for the selected tree, not a replacement for that scanning behavior.
+
+## Current source and rebuild contract
+
+The earlier results record the presence-only implementation at the time of those
+runs. Application requests now always invoke FPC using EntryPoint, even when their
+executable exists. Source is a file/pattern list whose directories reach FPC
+through the template. Compiler-managed unit reuse and rebuilding a changed
+dependency are covered by the Forge package integration suite; the old
+changed-source reuse observation is historical.
 
 ## Source anchors
 

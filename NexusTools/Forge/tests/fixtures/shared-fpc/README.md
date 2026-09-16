@@ -10,11 +10,12 @@ Read these in order:
 1. `Installation.nxscript`: this machine's FPC root and target, declared once.
 2. `Shared.nxscript`: reusable `StandardFPC` configuration with library paths.
 3. `Tiny.ForgePackage.nxscript`: application composes that configuration and adds
-   its local unit/include paths. Ordinary unnamed array entries append.
+   its local source selections and include paths. Unnamed array entries append.
 4. `FPC.mustache`: translates the completed properties into compiler switches.
 
-The only shared dialect additions are text arrays `UnitPaths` and `IncludePaths`.
-There are no Forge runtime or NexusScript compiler changes.
+Source is an explicit file/pattern list; EntryPoint is the one application input.
+Forge expands selections and supplies `_nx.SourcePaths` to the template, which
+translates them into FPC unit search switches.
 
 ## Run
 
@@ -41,16 +42,12 @@ the RTL paths explicitly and the FCL source directories for JSON and XML. Those
 library sources compile into `output/ForgeSharedFPC` along with the application.
 The template preserves array order; FPC determines search precedence.
 
-Package reuse still checks artifact presence. After editing, remove only the
-example executable to request another build:
+Every application request reaches FPC, even with the executable present. FPC
+reuses compatible units and rebuilds dependencies when required. Try changing the
+greeting include and running the same command again. No deletion or Forge source
+hashing is needed.
 
-```powershell
-Remove-Item -LiteralPath .\output\ForgeSharedFPC\tiny.exe
-```
-
-Try changing the greeting include, adding a local unit path, or adding a library
-path once in Shared.nxscript. Another application can compose the same StandardFPC
-definition without repeating its library paths.
-
-This establishes the small FPC example first. LCL/widgetset definitions and clean
-LCL dependency builds remain the next experiment; source fingerprinting stays on hold.
+The Source lists combine shared FCL selections with the application's local files.
+This example establishes the FPC mechanism. LCL/widgetset and fpGUI installation
+configurations remain separate follow-up work; no dependency-export framework is
+introduced here.
