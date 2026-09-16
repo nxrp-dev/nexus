@@ -41,6 +41,7 @@ begin
       WriteLn('package: ', lRequest.Description, ' root: ', lRequest.Root);
       if lRequest.Reused then WriteLn('reused')
       else if lRequest.Ready then WriteLn('built') else WriteLn('not ready');
+      if FileExists(lRequest.LogPath) then WriteLn('log: ', lRequest.LogPath);
       if lRequest.Runner <> nil then
         for lInvocation in lRequest.Runner.Invocations do PrintInvocation(lInvocation);
       for lOutput in lRequest.Outputs do WriteLn(lOutput.Name, ': ', lOutput.Path);

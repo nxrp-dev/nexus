@@ -24,13 +24,14 @@ type
     FSession: TNexusScriptCompilationSession;
     FTargets: TNexusScriptTargetSelection;
     FDefinition: TNexusScriptCompiledDefinition;
-    FKey, FRoot, FDescription: string;
+    FKey, FRoot, FDescription, FLogPath: string;
     FOutputs: TObjectList<TNXPackageOutput>;
     FBuilding, FReady, FReused: Boolean;
     FRunner: TNXForge;
     procedure Load(const AFileName, APackageName: string);
     procedure CheckTargets;
     procedure PrepareOutputDirectories;
+    procedure WriteBuildLog(const ADiagnostic: string);
   public
     constructor Create(ATargets: TNexusScriptTargetSelection);
     destructor Destroy; override;
@@ -39,6 +40,7 @@ type
     property Definition: TNexusScriptCompiledDefinition read FDefinition;
     property Root: string read FRoot;
     property Description: string read FDescription;
+    property LogPath: string read FLogPath;
     property Outputs: TObjectList<TNXPackageOutput> read FOutputs;
     property Reused: Boolean read FReused;
     property Ready: Boolean read FReady;
@@ -71,7 +73,7 @@ type
 implementation
 
 uses jsonparser, tpNexusScript, obNexusScriptArtifactModel, obNexusScriptDefinitionView,
-  obNexusScriptJSON;
+  obNexusScriptJSON, obNXForgeInvocation, tpNXForge;
 
 function DefinitionArray(ADefinition: TNexusScriptCompiledDefinition;
   const AName: string): TNexusScriptCompiledValue;
@@ -199,6 +201,7 @@ var
   lArray: TNexusScriptCompiledValue;
   lItem: TNexusScriptCompiledValue;
   lPath: string;
+  lOutput: TNXPackageOutput;
 begin
   CompileForgeDocument(FSession, AFileName);
   lView := TNexusScriptDefinitionView.Create;
@@ -229,6 +232,10 @@ begin
       FOutputs.Add(TNXPackageOutput.Create(lDefinition.Name,
         ForgeRelativePath(FRoot, lPath), BooleanProperty(lDefinition, 'Directory')));
     end;
+    FLogPath := IncludeTrailingPathDelimiter(ExtractFileDir(FOutputs[0].Path)) + 'build.log';
+    for lOutput in FOutputs do
+      if SameFileName(lOutput.Path, FLogPath) then
+        raise ENXForge.Create('Package output conflicts with diagnostic log: ' + FLogPath);
   finally
     lView.Free;
   end;
@@ -262,6 +269,53 @@ begin
     lDirectory := ExtractFileDir(lOutput.Path);
     if not ForceDirectories(lDirectory) then
       raise ENXForge.Create('Unable to create package output directory: ' + lDirectory);
+  end;
+end;
+
+procedure TNXPackageRequest.WriteBuildLog(const ADiagnostic: string);
+var
+  lText: TStringList;
+  lInvocation: TNXForgeInvocation;
+begin
+  lText := TStringList.Create;
+  try
+    lText.Add('Package: ' + FDescription);
+    lText.Add('Root: ' + FRoot);
+    if FRunner <> nil then
+      for lInvocation in FRunner.Invocations do
+      begin
+        lText.Add('');
+        lText.Add('Operation: ' + lInvocation.OperationName);
+        lText.Add('Template: ' + lInvocation.TemplatePath);
+        lText.Add('Working directory: ' + lInvocation.WorkingDirectory);
+        if lInvocation.Kind = fokRender then
+        begin
+          lText.Add('Source: ' + lInvocation.SourcePath);
+          lText.Add('Output: ' + lInvocation.OutputPath);
+        end
+        else lText.Add('Command: ' + lInvocation.Command);
+        lText.Add('Started: ' + BoolToStr(lInvocation.Started, True));
+        lText.Add('Completed: ' + BoolToStr(lInvocation.Completed, True));
+        if lInvocation.Exited then
+          lText.Add('Exit status: ' + IntToStr(lInvocation.ExitStatus));
+        lText.Add('Stdout:');
+        lText.Add(lInvocation.StdOut);
+        lText.Add('Stderr:');
+        lText.Add(lInvocation.StdErr);
+        if lInvocation.Diagnostic <> '' then lText.Add('Diagnostic: ' + lInvocation.Diagnostic);
+      end;
+    lText.Add('');
+    if ADiagnostic = '' then lText.Add('Build succeeded')
+    else lText.Add('Build failed: ' + ADiagnostic);
+    try
+      lText.SaveToFile(FLogPath);
+    except
+      on E: Exception do
+        raise ENXForge.Create(ADiagnostic + LineEnding +
+          'Unable to write build log ' + FLogPath + ': ' + E.Message);
+    end;
+  finally
+    lText.Free;
   end;
 end;
 
@@ -314,12 +368,23 @@ begin
   Result.FBuilding := True;
   FActive.Add(Result.Description);
   try
-    Build(Result);
-    if not Result.OutputsPresent then
-      for lOutput in Result.Outputs do
-        if not lOutput.Exists then
-          raise ENXForge.Create(Result.Definition.Name + ': missing output ' +
-            lOutput.Name + ': ' + lOutput.Path);
+    // Logging stays outside artifact readiness and never creates a directory artifact.
+    Result.PrepareOutputDirectories;
+    try
+      Build(Result);
+      if not Result.OutputsPresent then
+        for lOutput in Result.Outputs do
+          if not lOutput.Exists then
+            raise ENXForge.Create(Result.Definition.Name + ': missing output ' +
+              lOutput.Name + ': ' + lOutput.Path);
+    except
+      on E: Exception do
+      begin
+        Result.WriteBuildLog(E.Message);
+        raise;
+      end;
+    end;
+    Result.WriteBuildLog('');
     Result.FReady := True;
   finally
     FActive.Delete(FActive.Count - 1);
@@ -413,7 +478,7 @@ begin
       if not SameText(lChild.Kind, 'PackageOutput') then
       begin
         lOperations.Add(lChild);
-        lJSON := GetJSON(lEmitter.RenderDefinition(lChild)) as TJSONObject;
+        lJSON := GetJSON(lEmitter.RenderDefinition(lChild, ARequest.FSession.EntryCompiler.CompiledDocument)) as TJSONObject;
         try
           ResolveOutputValues(lJSON, lDependencies);
           lContexts.Add(lJSON.AsJSON);
@@ -421,9 +486,9 @@ begin
           lJSON.Free;
         end;
       end;
-    ARequest.PrepareOutputDirectories;
     ARequest.FRunner := TNXForge.Create(ARequest.FTargets);
-    if not ARequest.FRunner.ExecuteDefinitions(lOperations, ARequest.Root, lContexts) then
+    if not ARequest.FRunner.ExecuteDefinitions(lOperations,
+      ARequest.FSession.EntryCompiler.CompiledDocument, ARequest.Root, lContexts) then
       raise ENXForge.Create(ARequest.Definition.Name + ': ' + ARequest.FRunner.Diagnostic);
   finally
     lEmitter.Free;

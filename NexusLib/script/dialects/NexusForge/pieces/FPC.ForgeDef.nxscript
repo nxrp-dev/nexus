@@ -27,6 +27,12 @@ Language ForgeFPC {
                 Property UnitOutput {
                     Value Value { EffectiveCategories: [Text]; }
                 },
+                Property UnitPaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property IncludePaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
                 Property Defines {
                     Value Value {
                         EffectiveCategories: [Array];

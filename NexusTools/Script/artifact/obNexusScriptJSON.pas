@@ -19,6 +19,7 @@ type
   TNexusScriptJSONEmitter = class
   private
     FRoot: TJSONObject;
+    FMetadata: TJSONObject;
     FRootNames: TStringList;
     FCollectedNames: TStringList;
     FCollections: TJSONObject;
@@ -39,19 +40,24 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure AddDocument(ADocument: TNexusScriptCompiledDocument);
-    function RenderDefinition(ADefinition: TNexusScriptCompiledDefinition): string;
+    function RenderDefinition(ADefinition: TNexusScriptCompiledDefinition;
+      ADocument: TNexusScriptCompiledDocument): string;
     function JSON: string;
   end;
 
 implementation
 
+uses DateUtils;
+
 function TNexusScriptJSONEmitter.RenderDefinition(
-  ADefinition: TNexusScriptCompiledDefinition): string;
+  ADefinition: TNexusScriptCompiledDefinition;
+  ADocument: TNexusScriptCompiledDocument): string;
 var
   lData: TJSONObject;
 begin
   lData := DefinitionJSON(ADefinition);
   try
+    lData.Objects['_nx'].Add('CompiledAt', DateToISO8601(ADocument.CompiledAt));
     Result := lData.AsJSON;
   finally
     lData.Free;
@@ -111,8 +117,6 @@ begin
 end;
 
 constructor TNexusScriptJSONEmitter.Create;
-var
-  lMetadata: TJSONObject;
 begin
   inherited Create;
   FRoot := TJSONObject.Create;
@@ -120,10 +124,10 @@ begin
   FRootNames.CaseSensitive := False;
   FCollectedNames := TStringList.Create;
   FCollectedNames.CaseSensitive := False;
-  lMetadata := TJSONObject.Create;
-  FRoot.Add('_nx', lMetadata);
+  FMetadata := TJSONObject.Create;
+  FRoot.Add('_nx', FMetadata);
   FCollections := TJSONObject.Create;
-  lMetadata.Add('Collections', FCollections);
+  FMetadata.Add('Collections', FCollections);
 end;
 
 destructor TNexusScriptJSONEmitter.Destroy;
@@ -277,6 +281,8 @@ begin
     end;
     { Commit copied JSON only after all rendering succeeds. The caller may
       release or recompile its documents after this method returns. }
+    if FMetadata.Find('CompiledAt') = nil then
+      FMetadata.Add('CompiledAt', DateToISO8601(ADocument.CompiledAt));
     while lRoots.Count > 0 do
     begin
       lName := lRoots.Names[0];

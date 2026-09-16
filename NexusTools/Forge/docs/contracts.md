@@ -96,6 +96,12 @@ supplies resolved dependency output paths. It assigns no special semantics to
 operation properties named Output and injects no directory properties. FPC
 configurations explicitly supply UnitOutput when their template needs -FU.
 
+`{{_nx.CompiledAt}}` exposes the entry document's compilation timestamp in
+ISO 8601 UTC form, including milliseconds and a trailing `Z`. Operations from
+the same compiled package share that timestamp. A Render operation's artifact
+template receives the compiled source document's timestamp instead. This
+metadata does not participate in package artifact-presence or reuse checks.
+
 ```mustache
 fpc "{{{Source}}}" "-o{{{Output}}}"{{#Defines}} -d{{{.}}}{{/Defines}}
 ```
@@ -168,7 +174,7 @@ lazbuild NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
 
-Verified 2026-09-15: 25 Forge tests, 60 NexusScript compiler tests, and 12
+Verified 2026-09-15: 29 Forge tests, 61 NexusScript compiler tests, and 12
 language-server tests passed with zero failures/errors/skips and zero heap leaks.
 Tests use the real compiler, validator, renderer, and process paths. Coverage
 includes partial bases, required concrete properties, target selection, two FPC

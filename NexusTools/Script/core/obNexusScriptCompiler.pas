@@ -25,7 +25,8 @@ type
   public
     constructor Create(ASelectedTargets: TNexusScriptTargetSelection = nil);
     destructor Destroy; override;
-    function CompileText(const ASourceName, AText: string): Boolean;
+    function CompileText(const ASourceName, AText: string;
+      ACompiledAt: TDateTime = 0): Boolean;
     function CompileFile(const AFileName: string): Boolean;
     procedure ClearImports;
     procedure AddImportedDefinition(
@@ -38,7 +39,7 @@ type
 
 implementation
 
-uses obNexusScriptImport;
+uses obNexusScriptImport, DateUtils;
 
 type
   TNexusScriptTokenKind = (
@@ -2291,8 +2292,6 @@ var
 begin
   lMaterializingDefinitions := TList<TNexusScriptCompiledDefinition>.Create;
   try
-    FCompiledDocument := TNexusScriptCompiledDocument.Create(
-      FSourceDocument.SourceName);
   for lImportedDefinition in FImportedDefinitions do
   begin
     if FCompiledDocument.FindDefinition(lImportedDefinition.Name) <> nil then
@@ -2364,13 +2363,15 @@ begin
 end;
 
 function TNexusScriptCompiler.CompileText(const ASourceName,
-  AText: string): Boolean;
+  AText: string; ACompiledAt: TDateTime): Boolean;
 var
   lParser: TNexusScriptParser;
 begin
+  if ACompiledAt = 0 then ACompiledAt := LocalTimeToUniversal(Now);
   FDiagnostics.Clear;
   FreeAndNil(FCompiledDocument);
   FreeAndNil(FSourceDocument);
+  FCompiledDocument := TNexusScriptCompiledDocument.Create(ASourceName, ACompiledAt);
   lParser := TNexusScriptParser.Create(Self, ASourceName, AText);
   try
     FSourceDocument := lParser.Parse;

@@ -14,6 +14,7 @@ implementation
 uses
   Classes,
   SysUtils,
+  DateUtils,
   fpjson,
   jsonparser,
   obNXTestContext,
@@ -2084,6 +2085,8 @@ end;
 
 procedure TestCommandJSONArtifact(AContext: TNXTestContext);
 var
+  lStdoutJSON: TJSONData;
+  lFileJSON: TJSONData;
   lActual: string;
   lIncluded: string;
   lModuleJSON: string;
@@ -2102,10 +2105,28 @@ begin
       '/output=' + lOutputFile]);
     AContext.AssertEquals('', lActual,
       'File output should leave stdout empty.');
-    AContext.AssertEquals(ExecuteCLI([
-      '/input=' + CLIFixturePath('Valid.Artifact.nxscript')]),
-      FileText(lOutputFile),
-      'File output should match stdout JSON exactly.');
+    lStdoutJSON := GetJSON(ExecuteCLI([
+      '/input=' + CLIFixturePath('Valid.Artifact.nxscript')]));
+    try
+      lFileJSON := GetJSON(FileText(lOutputFile));
+      try
+        AContext.AssertTrue(ISO8601ToDate(
+          lStdoutJSON.FindPath('_nx.CompiledAt').AsString) > 0,
+          'Stdout should contain a compilation timestamp.');
+        AContext.AssertTrue(ISO8601ToDate(
+          lFileJSON.FindPath('_nx.CompiledAt').AsString) > 0,
+          'File output should contain a compilation timestamp.');
+        // Separate CLI invocations have independent compilation timestamps.
+        TJSONObject(lStdoutJSON.FindPath('_nx')).Delete('CompiledAt');
+        TJSONObject(lFileJSON.FindPath('_nx')).Delete('CompiledAt');
+        AContext.AssertEquals(lStdoutJSON.AsJSON, lFileJSON.AsJSON,
+          'File output should match stdout JSON except compilation time.');
+      finally
+        lFileJSON.Free;
+      end;
+    finally
+      lStdoutJSON.Free;
+    end;
   finally
     DeleteFile(lOutputFile);
   end;
@@ -4208,10 +4229,13 @@ begin
     lSplit := GetJSON(ExecuteCLI(['/input=' + CollectionFixturePath('CustomerInventory.nxscript')]));
     AContext.AssertTrue(lSingle.AsJSON <> lSplit.AsJSON,
       'Actual source provenance must differ between layouts.');
+    // Independent compilations intentionally have different document timestamps.
+    TJSONObject(lSingle.FindPath('_nx')).Delete('CompiledAt');
+    TJSONObject(lSplit.FindPath('_nx')).Delete('CompiledAt');
     RemoveDefinitionProvenance(lSingle);
     RemoveDefinitionProvenance(lSplit);
     AContext.AssertEquals(lSingle.AsJSON, lSplit.AsJSON,
-      'Splitting into includes changes only source provenance, not the presented model.');
+      'Splitting into includes changes only source and compilation metadata, not the presented model.');
   finally
     lSplit.Free;
     lSingle.Free;
@@ -4415,6 +4439,74 @@ begin
   end;
 end;
 
+procedure TestCompilationTimestamp(AContext: TNXTestContext);
+var
+  lCompiler, lOther: TNexusScriptCompiler;
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptJSONEmitter;
+  lJSON: TJSONData;
+  lBefore, lAfter, lStamp: TDateTime;
+  lText: string;
+  lIndex: Integer;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lOther := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  lSession := TNexusScriptCompilationSession.Create;
+  try
+    lBefore := LocalTimeToUniversal(Now);
+    AContext.AssertTrue(lCompiler.CompileText('clock.nxscript', 'Thing Clock {}'), 'Compile with clock');
+    lAfter := LocalTimeToUniversal(Now);
+    AContext.AssertTrue((lCompiler.CompiledDocument.CompiledAt >= lBefore) and
+      (lCompiler.CompiledDocument.CompiledAt <= lAfter), 'Capture UTC during compilation');
+    lStamp := EncodeDateTime(2026, 9, 15, 12, 34, 56, 789);
+    AContext.AssertTrue(lCompiler.CompileText('first.nxscript',
+      'Thing First { CompiledAt: user; Thing Child {} }', lStamp), 'Compile first document');
+    AContext.AssertTrue(lOther.CompileText('second.nxscript', 'Thing Second {}',
+      lStamp + 1), 'Compile second document');
+    lCompiler.CompiledDocument.IncludedDocuments.Add(lOther.CompiledDocument);
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lEmitter.AddDocument(lOther.CompiledDocument);
+    lJSON := GetJSON(lEmitter.JSON);
+    try
+      AContext.AssertEquals('2026-09-15T12:34:56.789Z',
+        lJSON.FindPath('_nx.CompiledAt').AsString, 'Entry timestamp survives includes and aggregation');
+      AContext.AssertEquals('user', lJSON.FindPath('First.CompiledAt').AsString,
+        'Timestamp stays in metadata, not user properties');
+      AContext.AssertTrue(lJSON.FindPath('First._nx.CompiledAt') = nil,
+        'Document timestamp is not copied into every definition');
+      AContext.AssertTrue(lJSON.FindPath('First.Child._nx.CompiledAt') = nil,
+        'Nested definitions retain their own existing metadata');
+    finally
+      lJSON.Free;
+    end;
+    lJSON := GetJSON(lEmitter.RenderDefinition(lCompiler.CompiledDocument.FindDefinition('First'),
+      lCompiler.CompiledDocument));
+    try
+      AContext.AssertEquals('2026-09-15T12:34:56.789Z', lJSON.FindPath('_nx.CompiledAt').AsString,
+        'Selected-definition context receives its document timestamp');
+    finally
+      lJSON.Free;
+    end;
+    lText := lEmitter.JSON;
+    FreeAndNil(lCompiler);
+    FreeAndNil(lOther);
+    AContext.AssertEquals(lText, lEmitter.JSON, 'Emission does not recapture time or borrow document storage');
+
+    AContext.AssertTrue(lSession.CompileFile(CollectionFixturePath('CustomerInventory.nxscript')),
+      lSession.LastError);
+    for lIndex := 0 to lSession.CompilerCount - 1 do
+      AContext.AssertTrue(lSession.EntryCompiler.CompiledDocument.CompiledAt <=
+        lSession.Compilers[lIndex].CompiledDocument.CompiledAt,
+        'Entry start precedes dependencies; the final binding pass retains that start');
+  finally
+    lSession.Free;
+    lEmitter.Free;
+    lOther.Free;
+    lCompiler.Free;
+  end;
+end;
+
 procedure RegisterNexusScriptTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -4462,6 +4554,7 @@ begin
   lSuite.AddTest('ValidatorReferences', @TestValidatorReferences);
   lSuite.AddTest('InvalidLanguageDefinition', @TestInvalidLanguageDefinition);
   lSuite.AddTest('LanguageFiniteValues', @TestLanguageFiniteValues);
+  lSuite.AddTest('CompilationTimestamp', @TestCompilationTimestamp);
   lSuite.AddTest('JSONEmitter', @TestJSONEmitter);
   lSuite.AddTest('DefinitionSourceRangeJSON',
     @TestDefinitionSourceRangeJSON);

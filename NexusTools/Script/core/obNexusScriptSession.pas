@@ -407,7 +407,9 @@ begin
       FLastError := 'Document file not found: ' + lCanonicalName;
       Exit;
     end;
-    if not lCompiler.CompileText(lCanonicalName, lSourceText) then
+    // The dependency-discovery pass and binding pass are one document compilation.
+    if not lCompiler.CompileText(lCanonicalName, lSourceText,
+      lCompiler.CompiledDocument.CompiledAt) then
     begin
       FLastError := 'Compilation failed: ' + lCanonicalName;
       if lCompiler.Diagnostics.Count > 0 then

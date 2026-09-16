@@ -7,7 +7,7 @@ uses obNXTestRegistry;
 procedure RegisterForgePackageTests(ARegistry: TNXTestRegistry);
 
 implementation
-uses Classes, SysUtils, obNXTestContext, obNXTestSuite, obNXForgePackages, obNXForge,
+uses Classes, SysUtils, DateUtils, obNXTestContext, obNXTestSuite, obNXForgePackages, obNXForge,
   obNexusScriptModel;
 
 function Root: string;
@@ -31,6 +31,19 @@ begin
   lStream := TFileStream.Create(AFileName, fmCreate);
   try
     if AText <> '' then lStream.WriteBuffer(AText[1], Length(AText));
+  finally
+    lStream.Free;
+  end;
+end;
+
+function ReadLog(const AFileName: string): string;
+var
+  lStream: TStringStream;
+begin
+  lStream := TStringStream.Create('');
+  try
+    lStream.LoadFromFile(AFileName);
+    Result := lStream.DataString;
   finally
     lStream.Free;
   end;
@@ -502,12 +515,110 @@ begin
   end;
 end;
 
+procedure TestCompilationTimestamp(AContext: TNXTestContext);
+var
+  lDirectory, lTemplate, lStamp: string;
+  lPackages: TNXForgePackages;
+begin
+  lDirectory := FreshDirectory;
+  lTemplate := '"' + ParamStr(0) + '" child create "{{Output}}" {{_nx.CompiledAt}}';
+  Save(lDirectory + 'stamp.mustache', lTemplate);
+  Save(lDirectory + 'package.nxscript', Dialect('NexusForge') +
+    'Package Stamp { Outputs: [Output Result { Path: "done.txt"; }]; ' +
+    'FPC First { Template: "stamp.mustache"; Source: unused; Output: "done.txt"; } ' +
+    'FPC Second { Template: "stamp.mustache"; Source: unused; Output: "done.txt"; } }');
+  lPackages := TNXForgePackages.Create;
+  try
+    AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Stamp', nil), lPackages.Diagnostic);
+    AContext.AssertEquals(lPackages.PackageResult.Runner.Invocations[0].Command,
+      lPackages.PackageResult.Runner.Invocations[1].Command, 'Package contexts share one timestamp');
+    lStamp := Copy(lPackages.PackageResult.Runner.Invocations[0].Command,
+      Length(lPackages.PackageResult.Runner.Invocations[0].Command) - 23, 24);
+    AContext.AssertTrue(ISO8601ToDate(lStamp) > 0, 'Package rendering exposes CompiledAt');
+    AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Stamp', nil), lPackages.Diagnostic);
+    AContext.AssertTrue(lPackages.PackageResult.Reused, 'Compile metadata does not invalidate an existing artifact');
+    AContext.AssertTrue(lPackages.PackageResult.Runner = nil, 'Reused package does not run timestamp-driven operations');
+  finally
+    lPackages.Free;
+  end;
+end;
+
+procedure TestBuildLog(AContext: TNXTestContext);
+var
+  lDirectory, lPath, lText: string;
+  lPackages: TNXForgePackages;
+begin
+  lDirectory := FreshDirectory;
+  Save(lDirectory + 'package.nxscript', Dialect('NexusForge') +
+    'Package Logged { Outputs: [Output Result { Path: "bin/ready"; }]; ' +
+    'Git Report { Template: "report.mustache"; Repository: dot; } ' +
+    'Git Build { Template: "command.mustache"; Repository: "bin/ready"; } }');
+  Save(lDirectory + 'report.mustache', Helper('ok'));
+  CommandTemplate(lDirectory, Helper('create') + ' "{{{Repository}}}"');
+  lPackages := TNXForgePackages.Create;
+  try
+    AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), lPackages.Diagnostic);
+    lPath := lPackages.PackageResult.LogPath;
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'bin/build.log'), lPath, 'Log beside selected output');
+    lText := ReadLog(lPath);
+    AContext.AssertTrue(Pos('Command: ' + Helper('ok'), lText) > 0, 'Command retained');
+    AContext.AssertTrue(Pos('Working directory: ' + lPackages.PackageResult.Root, lText) > 0, 'Working directory retained');
+    AContext.AssertTrue(Pos('Stdout:' + LineEnding + 'ok', lText) > 0, 'Stdout retained');
+    AContext.AssertTrue(Pos('Exit status: 0', lText) > 0, 'Exit status retained');
+    AContext.AssertTrue(Pos('Build succeeded', lText) > 0, 'Success recorded');
+    Save(lPath, lText + 'reuse sentinel');
+    AContext.AssertTrue(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), lPackages.Diagnostic);
+    AContext.AssertEquals(lText + 'reuse sentinel', ReadLog(lPath), 'Reuse leaves log untouched');
+    DeleteFile(lDirectory + 'bin/ready');
+    CommandTemplate(lDirectory, Helper('fail'));
+    AContext.AssertFalse(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), 'Existing log is not readiness');
+    lText := ReadLog(lPath);
+    AContext.AssertTrue(Pos('reuse sentinel', lText) = 0, 'New attempt overwrites log');
+    AContext.AssertTrue(Pos('Stderr:' + LineEnding + 'failure', lText) > 0, 'Failure stderr retained');
+    AContext.AssertTrue(Pos('Exit status: 7', lText) > 0, 'Failed exit retained');
+    AContext.AssertTrue(Pos('Build failed:', lText) > 0, 'Failure recorded');
+    CommandTemplate(lDirectory, Helper('ok'));
+    AContext.AssertFalse(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), 'Missing output fails');
+    AContext.AssertTrue(Pos('missing output Result', ReadLog(lPath)) > 0, 'Post-build failure recorded');
+    DeleteFile(lDirectory + 'command.mustache');
+    AContext.AssertFalse(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), 'Preparation fails');
+    AContext.AssertTrue(Pos(lPackages.Diagnostic, ReadLog(lPath)) > 0, 'Preparation diagnostic recorded');
+  finally
+    lPackages.Free;
+  end;
+end;
+
+procedure TestBuildLogDirectoryArtifact(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lPackages: TNXForgePackages;
+begin
+  lDirectory := FreshDirectory;
+  Save(lDirectory + 'package.nxscript', Dialect('NexusForge') +
+    'Package Logged { Outputs: [Output Result { Path: "bin/artifact"; Directory: True; }]; }');
+  lPackages := TNXForgePackages.Create;
+  try
+    AContext.AssertFalse(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), 'Log cannot create directory artifact');
+    AContext.AssertTrue(FileExists(lDirectory + 'bin/build.log'), 'Failure log beside directory artifact');
+    AContext.AssertFalse(DirectoryExists(lDirectory + 'bin/artifact'), 'Directory artifact remains absent');
+    Save(lDirectory + 'package.nxscript', Dialect('NexusForge') +
+      'Package Logged { Outputs: [Output Result { Path: "bin/build.log"; }]; }');
+    AContext.AssertFalse(lPackages.Execute(lDirectory + 'package.nxscript', 'Logged', nil), 'Log cannot be declared as readiness artifact');
+    AContext.AssertTrue(Pos('conflicts with diagnostic log', lPackages.Diagnostic) > 0, lPackages.Diagnostic);
+  finally
+    lPackages.Free;
+  end;
+end;
+
 procedure RegisterForgePackageTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NexusForge.Packages');
+  lSuite.AddTest('CompilationTimestamp', @TestCompilationTimestamp);
   lSuite.AddTest('BuildAndReuse', @TestBuildAndReuse);
+  lSuite.AddTest('BuildLog', @TestBuildLog);
+  lSuite.AddTest('BuildLogDirectoryArtifact', @TestBuildLogDirectoryArtifact);
   lSuite.AddTest('TargetContract', @TestTargetContract);
   lSuite.AddTest('Dependencies', @TestDependencies);
   lSuite.AddTest('MissingOutputs', @TestMissingOutputs);

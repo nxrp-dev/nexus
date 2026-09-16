@@ -18,6 +18,22 @@ The first run compiles the example; subsequent runs reuse `hello package.exe`.
 Removing that output requests another build. Source changes alone do not.
 The CLI reports package completion, native commands, exits, and output paths.
 
+Each actual package build writes `build.log` beside the first declared output,
+after target selection. A directory output places the log beside that directory,
+not inside it. Each attempt replaces the previous log; artifact reuse leaves it
+untouched. Packages sharing an output directory therefore share this log location.
+
+The log contains the package and targets, operation templates, working directories,
+commands, separate stdout/stderr sections, exit statuses, and build diagnostics.
+Render operations record their source and output paths. Preparation and missing-output
+failures are recorded too, provided the log directory can be created and written.
+It is a completed-attempt record, not a live stream. Operations that did not start
+are marked accordingly. Log-write failures are reported to the caller.
+
+The log is not a readiness artifact and cannot be declared as an output at that
+reserved path. Creating it never creates a directory artifact. Source inventories
+and source-change tracking are not part of logging.
+
 ## Definition and target contract
 
 Package supports optional text properties `Version`, `Author`, and `License`.

@@ -1,5 +1,5 @@
 # Diagnostic comparison, not a Forge build implementation.
-# Resource preparation below exposes work absent from the translated package.
+# Resource preparation below is only for bootstrapping the baseline tool.
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repoRoot 'lib/pasbuild'
@@ -60,6 +60,13 @@ $baselineRoot = Copy-Project 'baseline'
 $forgeRoot = Copy-Project 'forge'
 Get-ChildItem -LiteralPath $exampleRoot -File | ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination $forgeRoot
+    if ($_.Extension -eq '.nxscript') {
+        # Staged packages retain access to the single shared dialect library.
+        $stagedPath = Join-Path $forgeRoot $_.Name
+        $dialectRoot = (Join-Path $repoRoot 'NexusLib/script/dialects/').Replace('\', '/')
+        $text = [IO.File]::ReadAllText($stagedPath).Replace('../../../dialects/', $dialectRoot)
+        [IO.File]::WriteAllText($stagedPath, $text)
+    }
 }
 $sourceHash = (Get-FileHash -LiteralPath (Join-Path $sourceRoot 'project.xml') -Algorithm SHA256).Hash
 "Input: lib/pasbuild/project.xml`r`nSHA256: $sourceHash" | Set-Content (Join-Path $runRoot 'input.txt')
@@ -83,10 +90,8 @@ $null = Invoke-Logged 'baseline-test' $baselineRoot $pasbuildExe @('test', '-v')
 $null = Invoke-Logged 'baseline-package' $baselineRoot $pasbuildExe @('package', '-p', 'release', '-v')
 $null = Invoke-Logged 'baseline-source-package' $baselineRoot $pasbuildExe @('source-package')
 
-$null = Invoke-ForgePackage 'forge-clean-missing-resources' 'default'
 foreach ($mode in @('default', 'debug', 'release')) {
-    Prepare-Resources $forgeRoot ('target/' + $mode)
-    $null = Invoke-ForgePackage ('forge-custom-' + $mode) $mode
+    $null = Invoke-ForgePackage ('forge-clean-' + $mode) $mode
 }
 $null = Invoke-ForgePackage 'forge-reuse-default' 'default'
 $null = Invoke-Logged 'forge-built-version' $forgeRoot (Join-Path $forgeRoot 'target/default/pasbuild.exe') @('--version')

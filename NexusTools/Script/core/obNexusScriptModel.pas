@@ -391,19 +391,22 @@ type
   private
     FIncludedDocuments: TList<TNexusScriptCompiledDocument>;
     FSourceName: string;
+    FCompiledAt: TDateTime;
     FDefinitions: TNexusScriptCompiledDefinitionList;
     FDialectPath: string;
     FDialectSourceRange: TNexusScriptRange;
     FDialectSourceName: string;
     FDialectDocument: TNexusScriptCompiledDocument;
   public
-    constructor Create(const ASourceName: string);
+    constructor Create(const ASourceName: string; ACompiledAt: TDateTime);
     destructor Destroy; override;
     function FindDefinition(const AName: string): TNexusScriptCompiledDefinition;
     procedure SetDialect(const APath, ASourceName: string;
       const ASourceRange: TNexusScriptRange;
       ADocument: TNexusScriptCompiledDocument);
     property SourceName: string read FSourceName;
+    // UTC start time, captured once for this document compilation.
+    property CompiledAt: TDateTime read FCompiledAt;
     property Definitions: TNexusScriptCompiledDefinitionList read FDefinitions;
     property IncludedDocuments: TList<TNexusScriptCompiledDocument> read FIncludedDocuments;
     property DialectPath: string read FDialectPath;
@@ -802,10 +805,12 @@ begin
   inherited Destroy;
 end;
 
-constructor TNexusScriptCompiledDocument.Create(const ASourceName: string);
+constructor TNexusScriptCompiledDocument.Create(const ASourceName: string;
+  ACompiledAt: TDateTime);
 begin
   inherited Create;
   FSourceName := ASourceName;
+  FCompiledAt := ACompiledAt;
   FDefinitions := TNexusScriptCompiledDefinitionList.Create(True);
   FIncludedDocuments := TList<TNexusScriptCompiledDocument>.Create;
 end;

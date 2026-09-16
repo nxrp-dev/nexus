@@ -1,0 +1,8 @@
+// Machine-specific location and target: edit these to try another installation.
+Environment Installation {
+    FPC: "C:/lazarus/fpc/3.2.2";
+    Target: "x86_64-win64";
+    Compiler: @FPC + "/bin/" + @Target + "/fpc.exe";
+    Units: @FPC + "/units/" + @Target;
+    Packages: @FPC + "/source/packages";
+}

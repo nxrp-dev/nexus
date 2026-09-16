@@ -1,0 +1,15 @@
+module "Installation.nxscript";
+
+// A reusable environment. Applications do not repeat the library layout.
+FPC StandardFPC {
+    Compiler: @Installation.Compiler;
+    Template: "FPC.mustache";
+    UnitPaths: [
+        @Installation.Units + "/rtl",
+        @Installation.Units + "/rtl-objpas",
+        @Installation.Packages + "/fcl-base/src",
+        @Installation.Packages + "/fcl-json/src",
+        @Installation.Packages + "/fcl-xml/src"
+    ];
+    IncludePaths: [@Installation.Packages + "/fcl-base/src"];
+}

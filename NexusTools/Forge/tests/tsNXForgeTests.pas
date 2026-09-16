@@ -10,7 +10,7 @@ procedure RegisterForgeTests(ARegistry: TNXTestRegistry);
 
 implementation
 
-uses Classes, SysUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
+uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
   obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine;
 
@@ -310,11 +310,14 @@ begin
     lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
     lBefore := lEmitter.JSON;
     lJSON := GetJSON(lEmitter.RenderDefinition(
-      lSession.EntryCompiler.CompiledDocument.FindDefinition('CompileExample')));
+      lSession.EntryCompiler.CompiledDocument.FindDefinition('CompileExample'),
+      lSession.EntryCompiler.CompiledDocument));
     try
       AContext.AssertEquals('hello world & test.lpr', lJSON.FindPath('Source').AsString,
         'Selected context contains direct resolved properties');
       AContext.AssertEquals('CompileExample', lJSON.FindPath('_nx.Name').AsString, 'Metadata retained');
+      AContext.AssertEquals(DateToISO8601(lSession.EntryCompiler.CompiledDocument.CompiledAt),
+        lJSON.FindPath('_nx.CompiledAt').AsString, 'Selected operation retains document timestamp');
       AContext.AssertTrue(lJSON.FindPath('InspectRepository') = nil, 'Other roots excluded');
       AContext.AssertEquals(lBefore, lEmitter.JSON, 'Document output unchanged');
     finally
@@ -429,6 +432,31 @@ begin
   end;
 end;
 
+procedure TestCompilationTimestamp(AContext: TNXTestContext);
+var
+  lDirectory, lCommand: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('timestamp');
+  lCommand := ChildCommand('ok');
+  Save(lDirectory + 'stamp.mustache', lCommand + ' {{_nx.CompiledAt}}');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Git First { Template: "stamp.mustache"; Repository: repo; } ' +
+    'Git Second { Template: "stamp.mustache"; Repository: repo; }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(lForge.Invocations[0].Command, lForge.Invocations[1].Command,
+      'Operations share the entry document timestamp');
+    lCommand := Copy(lForge.Invocations[0].Command, Length(lCommand) + 2, MaxInt);
+    AContext.AssertEquals(24, Length(lCommand), 'Template receives ISO 8601 timestamp with milliseconds');
+    AContext.AssertEquals('Z', Copy(lCommand, 24, 1), 'Timestamp explicitly identifies UTC');
+    AContext.AssertTrue(ISO8601ToDate(lCommand) > 0, 'Timestamp is parseable');
+  finally
+    lForge.Free;
+  end;
+end;
+
 procedure TestCommandLinePathValues(AContext: TNXTestContext);
 var
   lRejected: Boolean;
@@ -522,6 +550,7 @@ begin
   lSuite.AddTest('Streams', @TestStreams);
   lSuite.AddTest('NativeTools', @TestNativeTools);
   lSuite.AddTest('WorkingDirectory', @TestWorkingDirectory);
+  lSuite.AddTest('CompilationTimestamp', @TestCompilationTimestamp);
   lSuite.AddTest('SelectedDefinition', @TestSelectedDefinition);
 end;
 

@@ -5,7 +5,8 @@ Date: 2026-09-15. Status: comparison rerun after approved Forge corrections.
 Forge builds the selected PasBuild project in default, debug, and release variants
 using module-composed configurations. It prepares artifact directories, derives
 filenames from shared environment data, and inherits each operation's command
-Template. The harness still prepares resources; that remains a demonstrated gap.
+Template. Two Render operations generate version.inc and build-date.inc before
+FPC runs, using the package's Version and the source document's UTC CompiledAt.
 The table below contains only outstanding behavior differences.
 
 ## Input and reproducibility
@@ -19,6 +20,7 @@ two compiler profiles, tests, and an additional source-archive directory.
 - [Repeatable comparison script](../../../scripts/Compare-ForgePasBuild.ps1)
 - [Recorded results](../../../output/ForgePasBuildComparison/20260915-095939/results.json)
 - [Test failure comparison](../../../output/ForgePasBuildComparison/20260915-095939/test-comparison.json)
+- [Clean resource generation and reuse verification](../../../output/ForgeResources/20260915-152714/results.json)
 
 Run from the repository root:
 
@@ -47,8 +49,7 @@ CPU/OS are restricted to the Windows x64 host actually tested.
 | Attempt | Observed result |
 | --- | --- |
 | PasBuild compile: default, debug, release | All succeeded. |
-| Forge package with inherited project template, clean tree | Created its selected artifact directory, then failed on missing version.inc. |
-| Forge with prepared resources and project-specific compiler templates | All three variants compiled successfully. |
+| Forge package with inherited project template, clean tree | All three variants rendered their includes and compiled successfully. |
 | Repeat the default Forge request | Reused the executable without starting FPC. |
 | Add CompilerOptions to an FPC operation | Validation rejected it: NSV2102, Unknown property CompilerOptions. |
 | PasBuild test | 251 tests, zero errors, 12 failures. |
@@ -58,25 +59,17 @@ CPU/OS are restricted to the Windows x64 host actually tested.
 
 Matching test failures are baseline failures in this environment, not evidence of
 a Forge regression. Their underlying causes were not investigated in this task.
-The standalone Forge test run required explicit fixture copying and an external invocation from target/default. It is not a complete Forge test lifecycle.
+The comparison harness copied fixtures and invoked the test executable from target/default.
 
 ## Outstanding gaps and decisions
 
 “Missing” below means absent from the current shipped Forge vocabulary/workflow.
 It does not mean the generic executor cannot invoke a tool that performs the work.
-Harness resource preparation, fixture copying, and external test execution remain
-outside Forge.
 
 | PasBuild behavior used by this project | Current Forge translation | Classification / decision |
 | --- | --- | --- |
-| Copy/filter main resources | Harness generates version.inc and build-date.inc. No resource operation exists in the shipped Forge pieces. | Needed by this real build. Decide the explicit generation/copy mechanism; do not assume all PasBuild interpolation variables must be copied wholesale. |
 | Compiler flags and unit/include search paths | Custom templates still provide flags and input search paths. | Declarative compiler flags and input search paths remain incomplete. |
-| Debug and release defines/profiles | Defines and templates are inherited from target-selected configurations; templates supply profile flags. Separate paths preserve variants. | Both individual profiles proven. PasBuild also supports ordered comma-separated profile composition; this one-of-three BuildMode translation does not reproduce it. Composition is source-verified, not separately exercised here. |
-| Copy test fixtures, run tests with framework options from output directory, propagate exit code | Harness performs these steps outside Forge. | Missing test-running vocabulary/workflow. Package operations currently use the package root, whereas PasBuild runs this suite from target. Decide how to express execution context and an explicit test request. |
-| Binary distribution ZIP | PasBuild produced pasbuild-1.10.0-SNAPSHOT-x86_64-win64.zip containing pasbuild.exe, LICENSE, README.adoc. No Forge archive produced. | Missing archive recipe and metadata/naming/content conventions. Forge Package means an obtainable build result, not automatically a distribution archive. |
-| Source distribution ZIP plus configured docs inclusion | PasBuild produced PasBuild-1.10.0-SNAPSHOT-src.zip with sources, project.xml, docs, and standard accompanying files. | Missing source-archive recipe. Preserve the fact that docs was explicitly requested before deciding its replacement. |
 | Goal dependencies: compile prepares resources; test compiles and prepares fixtures; package cleans then compiles | Only an explicitly authored sequence and package prerequisites are available. No clean/test/package goal vocabulary is supplied. | Workflow difference. Decide which actions need explicit recipes; importing PasBuild's entire lifecycle is not required by this finding. |
-| Source inventories and status files; compiler.log for nonverbose builds | Forge captures command/stdout/stderr/exit in its run objects and CLI. Harness saves logs. No equivalent automatic status-file inventory. | Convenience/diagnostic difference. Source-verified; this comparison used verbose baseline builds. |
 
 PasBuild's recursive unit/include scanning and conditional paths exist in the
 compiler-command implementation. This project's flat source layout does not prove
@@ -95,10 +88,8 @@ are sufficient for the selected tree, not a replacement for that scanning behavi
 
 ## Scope and next decisions
 
-The remaining demonstrated needs for a clean build are resource generation and
-declarative FPC settings currently supplied by custom templates. Tests and archives
-are additional real requirements declared by or conventionally consumed from this
-project.xml; they have not been silently discarded.
+Clean builds now succeed directly. Declarative FPC settings are currently supplied
+by custom templates.
 
 This project declares no library, module dependency, or installed-package dependency.
 It therefore does not establish parity for library bootstrap generation, reactor
@@ -126,5 +117,16 @@ The explicit UnitOutput correction was verified separately in a fresh
 [build run](../../../output/ForgeUnitOutput/20260915-103604/results.json).
 Default, debug, and release each compiled successfully with 29 units in the
 configured artifact directory; standalone test compilation also succeeded.
-Resources were explicitly prepared by the verification harness. This focused run
-did not repeat baseline tests or archive production.
+That earlier run used harness-prepared resources.
+
+The subsequent [resource-generation run](../../../output/ForgeResources/20260915-152714/results.json)
+started with a fresh source copy and no generated includes or target directories.
+The package's two Render operations generated the includes for default, debug,
+and release; all three compiled and reported the declared version and generated
+timestamp through --version. Each repeat request reused its executable.
+build-date.inc intentionally contains the complete ISO 8601 UTC timestamp, whereas
+PasBuild's original resource substitution emitted only a date. The harness now
+prepares resources only for bootstrapping the baseline PasBuild tool.
+This focused run did not repeat baseline tests or produce archives. The debug
+PasBuild executable's --version reported two unfreed blocks (168 bytes) in its
+own CLI/backend code; all three commands returned zero.

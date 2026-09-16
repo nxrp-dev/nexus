@@ -2,7 +2,7 @@ dialect "../../../dialects/NexusForge/NexusForge.Language.nxscript";
 module "Shared.nxscript";
 
 // Translation of lib/pasbuild/project.xml. See the comparison report for gaps.
-// Resource generation remains separate; Forge prepares the artifact folders.
+// Forge prepares artifact folders, renders includes, then invokes FPC.
 Package PasBuild {
     Version: "1.10.0-SNAPSHOT";
     Author: "Graeme Geldenhuys";
@@ -13,6 +13,16 @@ Package PasBuild {
         Dimension BuildMode { Required: True; Allowed: [default, debug, release]; }
     ];
     Outputs: [Output Executable { Path: @BuildPaths.Directory + "/pasbuild" + @Platform.ExecutableSuffix; }];
+    Render VersionInclude {
+        Source: "PasBuild.ForgePackage.nxscript";
+        Template: "version.mustache";
+        Output: @BuildPaths.Directory + "/version.inc";
+    }
+    Render BuildDateInclude {
+        Source: "PasBuild.ForgePackage.nxscript";
+        Template: "build-date.mustache";
+        Output: @BuildPaths.Directory + "/build-date.inc";
+    }
     FPC Compile (CompileApplication) {
         UnitOutput: @BuildPaths.Directory;
         Source: "src/main/pascal/PasBuild.pas";

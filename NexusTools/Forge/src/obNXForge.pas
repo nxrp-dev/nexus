@@ -19,14 +19,14 @@ type
     procedure PrepareRender(AOperation: TNexusScriptCompiledDefinition;
       AInvocation: TNXForgeInvocation; const AContextJSON: string);
     procedure Prepare(AOperations: TNexusScriptCompiledDefinitionList;
-      const AWorkingDirectory: string; AContexts: TStrings);
+      ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings);
   public
     constructor Create(ATargets: TNexusScriptTargetSelection = nil);
     destructor Destroy; override;
     function Execute(const AInput: string;
       const AWorkingDirectory: string = ''): Boolean;
     function ExecuteDefinitions(AOperations: TNexusScriptCompiledDefinitionList;
-      const AWorkingDirectory: string; AContexts: TStrings = nil): Boolean;
+      ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings = nil): Boolean;
     property Invocations: TObjectList<TNXForgeInvocation> read FInvocations;
     property Diagnostic: string read FDiagnostic;
   end;
@@ -203,7 +203,7 @@ begin
 end;
 
 procedure TNXForge.Prepare(AOperations: TNexusScriptCompiledDefinitionList;
-  const AWorkingDirectory: string; AContexts: TStrings);
+  ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings);
 var
   lOperation: TNexusScriptCompiledDefinition;
   lInvocation: TNXForgeInvocation;
@@ -225,7 +225,7 @@ begin
       try
         lInvocation.TemplatePath := OperationFilePath(lOperation, 'Template');
         if AContexts <> nil then lJSON := AContexts[lIndex]
-        else lJSON := lEmitter.RenderDefinition(lOperation);
+        else lJSON := lEmitter.RenderDefinition(lOperation, ADocument);
         if SameText(lOperation.Kind, 'Render') then
           PrepareRender(lOperation, lInvocation, lJSON)
         else
@@ -273,7 +273,7 @@ begin
         lDirectory := ForgeRelativePath(lDirectory, AWorkingDirectory);
       for lDefinition in lView.Roots do
         if not SameText(lDefinition.Kind, 'Environment') then lOperations.Add(lDefinition);
-      Result := ExecuteDefinitions(lOperations, lDirectory);
+      Result := ExecuteDefinitions(lOperations, FOperations.EntryCompiler.CompiledDocument, lDirectory);
     except
       on E: Exception do FDiagnostic := E.Message;
     end;
@@ -284,7 +284,7 @@ begin
 end;
 
 function TNXForge.ExecuteDefinitions(AOperations: TNexusScriptCompiledDefinitionList;
-  const AWorkingDirectory: string; AContexts: TStrings): Boolean;
+  ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings): Boolean;
 var
   lInvocation: TNXForgeInvocation;
 begin
@@ -292,7 +292,7 @@ begin
   FDiagnostic := '';
   FInvocations.Clear;
   try
-    Prepare(AOperations, AWorkingDirectory, AContexts);
+    Prepare(AOperations, ADocument, AWorkingDirectory, AContexts);
     for lInvocation in FInvocations do
     begin
       if lInvocation.Kind = fokRender then WriteForgeArtifact(lInvocation)

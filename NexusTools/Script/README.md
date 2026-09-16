@@ -280,6 +280,14 @@ normalization. File compilation records an expanded physical filename;
 objects used only to name scalar or nested-array entries do not contain a
 `SourceRange`.
 
+The top-level document metadata contains `_nx.CompiledAt`, an ISO 8601 UTC
+timestamp such as `2026-09-15T12:34:56.789Z`. It records the start of document
+compilation once, including both internal compilation passes. Repeated emission
+of that compiled document retains the same value. An aggregate uses its first
+(entry) document's timestamp; included documents do not replace it. This value
+is available to Mustache as `{{_nx.CompiledAt}}` and is not copied into nested
+definition metadata. Separate compilations may produce different timestamps.
+
 An entry document may declare `module Path;` to make every root in another
 document addressable under its declared name, or `module Root Path;` to import
 only the named root. A module never renames a root and does not add the imported

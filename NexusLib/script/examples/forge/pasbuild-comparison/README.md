@@ -16,7 +16,9 @@ its FPC Output references that same Path.
 
 Forge prepares selected artifact directories. UnitOutput explicitly references
 BuildPaths.Directory so compiler units share the selected directory. The
-clean attempt demonstrates the missing-resource gap. After explicit resource
-preparation, the project templates compile all three application variants.
+package renders version.inc from its own Version and build-date.inc from the
+source document's UTC `_nx.CompiledAt` before FPC compiles each variant. Both
+use the existing Render operation, just like SQL generation. The build-date
+string contains the full ISO 8601 timestamp rather than a date alone.
 TestBuild compiles tests only. Fixture copying and test execution remain external
 comparison steps, not hidden Forge functionality.
