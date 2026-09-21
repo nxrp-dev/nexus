@@ -8,14 +8,14 @@ NexusManifest ExternalDataSQL {
   SourceTemplate CSVData {
     Types: [csv, jcsv];
     Compiler: CommaDelimited;
-    Source: "../../../../../NexusLib/script/examples/schema/mustache/DatabaseImport.import.mustache";
+    Source: "../../../../../script/examples/schema/mustache/DatabaseImport.import.mustache";
     OutputExtension: ".sql";
   }
 
   SourceTemplate TabData {
     Types: [tsv, tab];
     Compiler: TabDelimited;
-    Source: "../../../../../NexusLib/script/examples/schema/mustache/DatabaseImport.import.mustache";
+    Source: "../../../../../script/examples/schema/mustache/DatabaseImport.import.mustache";
     OutputExtension: ".sql";
   }
 }

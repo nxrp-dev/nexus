@@ -21,8 +21,8 @@
       <Unit9><Filename Value="src\protocol\obNexusScriptLSSymbols.pas"/></Unit9>
       <Unit10><Filename Value="src\protocol\obNexusScriptLSCompletion.pas"/></Unit10>
       <Unit11><Filename Value="src\protocol\obNexusScriptLSNavigation.pas"/></Unit11>
-      <Unit12><Filename Value="..\core\obNexusScriptSourceProvider.pas"/></Unit12>
-      <Unit13><Filename Value="..\core\obNexusScriptAnalysis.pas"/></Unit13>
+      <Unit12><Filename Value="..\..\..\NexusLib\packages\nxscript\src\obNexusScriptSourceProvider.pas"/></Unit12>
+      <Unit13><Filename Value="..\..\..\NexusLib\packages\nxscript\src\obNexusScriptAnalysis.pas"/></Unit13>
       <Unit14><Filename Value="src\protocol\obNexusScriptLSSemanticObjects.pas"/></Unit14>
       <Unit15><Filename Value="src\protocol\obNexusScriptLSSemanticRequests.pas"/></Unit15>
       <Unit16><Filename Value="src\protocol\obNexusScriptLSReferences.pas"/></Unit16>
@@ -34,7 +34,7 @@
     <Target><Filename Value="..\..\..\output\NexusScriptLS\$(TargetCPU)-$(TargetOS)\NexusScriptLS"/></Target>
     <Parsing><SyntaxOptions><SyntaxMode Value="ObjFPC"/></SyntaxOptions></Parsing>
     <SearchPaths>
-      <OtherUnitFiles Value="src\model;src\protocol;..\core;..\..\..\NexusLib\lsp\src;..\..\..\NexusLib\lsp\src\protocol;..\..\..\NexusLib\core\src;..\..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
+      <OtherUnitFiles Value="src\model;src\protocol;..\..\..\NexusLib\packages\nxscript\src;..\..\..\NexusLib\packages\lsp\src;..\..\..\NexusLib\packages\lsp\src\protocol;..\..\..\NexusLib\packages\foundation\json\src;..\..\..\NexusLib\packages\network\json-rpc\src;..\..\..\NexusLib\core\src;..\..\..\NexusLib\packages\network\external\synapse;$(LazarusDir)\components\lazutils"/>
       <UnitOutputDirectory Value="..\..\..\output\NexusScriptLS\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
   </CompilerOptions>

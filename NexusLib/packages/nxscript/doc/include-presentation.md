@@ -96,7 +96,7 @@ dialect or introduce a discovery registry.
 ## Verification
 
 ```powershell
-lazbuild -B NexusTools\Script\tests\NexusScriptTests.lpi
+lazbuild -B NexusLib\packages\nxscript\test\NexusScriptTests.lpi
 & .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
 ```
 

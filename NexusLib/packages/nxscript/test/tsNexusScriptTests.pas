@@ -625,38 +625,38 @@ end;
 
 function FixturePath(const ARelativePath: string): string;
 begin
-  Result := ExpandFileName('..\..\..\NexusTools\Script\parity\fixtures\' +
+  Result := ExpandFileName('..\..\..\..\NexusLib\packages\nxscript\test\fixtures\' +
     ARelativePath);
   if not FileExists(Result) then
-    Result := ExpandFileName('NexusTools\Script\parity\fixtures\' +
+    Result := ExpandFileName('NexusLib\packages\nxscript\test\fixtures\' +
       ARelativePath);
 end;
 
 function ValidatorFixturePath(const AFileName: string): string;
 begin
-  Result := ExpandFileName('..\..\..\NexusTools\Script\tests\fixtures\validation\' +
+  Result := ExpandFileName('..\..\..\..\NexusLib\packages\nxscript\test\fixtures\validation\' +
     AFileName);
   if not FileExists(Result) then
-    Result := ExpandFileName('NexusTools\Script\tests\fixtures\validation\' +
+    Result := ExpandFileName('NexusLib\packages\nxscript\test\fixtures\validation\' +
       AFileName);
 end;
 
 function DialectFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\dialect\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\dialect\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\dialect\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\dialect\' + AFileName);
 end;
 
 function TargetFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\targets\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\targets\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\targets\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\targets\' + AFileName);
 end;
 
 procedure TestTargetPropagation(AContext: TNXTestContext);
@@ -775,70 +775,76 @@ end;
 function IncludeFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\include\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\include\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\include\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\include\' + AFileName);
 end;
 
 function ModuleFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\modules\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\modules\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\modules\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\modules\' + AFileName);
 end;
 
 function DiscoveryFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\discover\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\discover\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\discover\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\discover\' + AFileName);
 end;
 
 function CLIFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\cli\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\cli\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\cli\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\cli\' + AFileName);
 end;
 
 function JSONFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\json\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\json\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\json\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\json\' + AFileName);
 end;
 
 function ManifestFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\manifest\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\manifest\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\manifest\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\manifest\' + AFileName);
 end;
 
 function ExternalDataFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName(
-    '..\..\..\NexusTools\Script\tests\fixtures\external-data\' + AFileName);
+    '..\..\..\..\NexusLib\packages\nxscript\test\fixtures\external-data\' + AFileName);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusTools\Script\tests\fixtures\external-data\' + AFileName);
+      'NexusLib\packages\nxscript\test\fixtures\external-data\' + AFileName);
 end;
 
 function SchemaGenerationPath(const ARelativePath: string): string;
 begin
+  Result := ExpandFileName(ExtractFileDir(ParamStr(0)) +
+    '\..\..\..\..\NexusLib\script\examples\schema\' + ARelativePath);
+  if not FileExists(Result) then
   Result := ExpandFileName(
-    '..\..\..\NexusLib\script\examples\schema\' + ARelativePath);
+    '..\..\..\..\NexusLib\script\examples\schema\' + ARelativePath);
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      'script\examples\schema\' + ARelativePath);
   if not FileExists(Result) then
     Result := ExpandFileName(
       'NexusLib\script\examples\schema\' + ARelativePath);
@@ -2209,7 +2215,7 @@ begin
     'Successful dialect validation should allow artifact generation.');
 
   lActual := ExecuteCLI(['/input=' +
-    FixturePath('nexusscript\inForceMain.Schema.nxscript'), '/validate']);
+    FixturePath('fixtures\nexusscript\inForceMain.Schema.nxscript'), '/validate']);
   AContext.AssertTrue(Pos('"inForce"', lActual) > 0,
     'Successful compilation should validate a document without a dialect.');
 
@@ -3050,9 +3056,9 @@ var
 begin
   lSession := TNexusScriptCompilationSession.Create;
   try
-    lFixture := ExpandFileName('..\..\..\NexusTools\Script\tests\fixtures\modules\entry.nxscript');
+    lFixture := ExpandFileName('..\..\..\..\NexusLib\packages\nxscript\test\fixtures\modules\entry.nxscript');
     if not FileExists(lFixture) then
-      lFixture := ExpandFileName('NexusTools\Script\tests\fixtures\modules\entry.nxscript');
+      lFixture := ExpandFileName('NexusLib\packages\nxscript\test\fixtures\modules\entry.nxscript');
     AContext.AssertTrue(lSession.CompileFile(lFixture),
       'Module script should compile: ' + lSession.LastError);
     if lSession.EntryCompiler = nil then
@@ -3215,9 +3221,9 @@ begin
 
   lSession := TNexusScriptCompilationSession.Create;
   try
-    lFixture := ExpandFileName('..\..\..\NexusTools\Script\tests\fixtures\modules\cycle-a.nxscript');
+    lFixture := ExpandFileName('..\..\..\..\NexusLib\packages\nxscript\test\fixtures\modules\cycle-a.nxscript');
     if not FileExists(lFixture) then
-      lFixture := ExpandFileName('NexusTools\Script\tests\fixtures\modules\cycle-a.nxscript');
+      lFixture := ExpandFileName('NexusLib\packages\nxscript\test\fixtures\modules\cycle-a.nxscript');
     AContext.AssertTrue(not lSession.CompileFile(lFixture),
       'Module dependency cycle should fail.');
     AContext.AssertTrue(Pos('cycle', LowerCase(lSession.LastError)) > 0,

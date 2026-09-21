@@ -10,18 +10,18 @@
     </General>
     <Units Count="13">
       <Unit0><Filename Value="cli\NexusScript.lpr"/><IsPartOfProject Value="True"/></Unit0>
-      <Unit1><Filename Value="core\tpNexusScript.pas"/></Unit1>
-      <Unit2><Filename Value="core\obNexusScriptModel.pas"/></Unit2>
-      <Unit3><Filename Value="core\obNexusScriptCompiler.pas"/></Unit3>
-      <Unit4><Filename Value="core\obNexusScriptSession.pas"/></Unit4>
+      <Unit1><Filename Value="..\..\NexusLib\packages\nxscript\src\tpNexusScript.pas"/></Unit1>
+      <Unit2><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptModel.pas"/></Unit2>
+      <Unit3><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptCompiler.pas"/></Unit3>
+      <Unit4><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptSession.pas"/></Unit4>
       <Unit5><Filename Value="cli\obNexusScriptCommand.pas"/></Unit5>
-      <Unit6><Filename Value="artifact\obNexusScriptJSON.pas"/></Unit6>
-      <Unit7><Filename Value="core\obNexusScriptValidator.pas"/></Unit7>
-      <Unit8><Filename Value="artifact\obNexusScriptExternalSource.pas"/></Unit8>
-      <Unit9><Filename Value="artifact\obNexusScriptArtifactModel.pas"/></Unit9>
-      <Unit10><Filename Value="artifact\obNexusScriptArtifactContext.pas"/></Unit10>
-      <Unit11><Filename Value="artifact\obNexusScriptManifest.pas"/></Unit11>
-      <Unit12><Filename Value="core\obNexusScriptLanguageDefinition.pas"/></Unit12>
+      <Unit6><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptJSON.pas"/></Unit6>
+      <Unit7><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptValidator.pas"/></Unit7>
+      <Unit8><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptExternalSource.pas"/></Unit8>
+      <Unit9><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptArtifactModel.pas"/></Unit9>
+      <Unit10><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptArtifactContext.pas"/></Unit10>
+      <Unit11><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptManifest.pas"/></Unit11>
+      <Unit12><Filename Value="..\..\NexusLib\packages\nxscript\src\obNexusScriptLanguageDefinition.pas"/></Unit12>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -30,7 +30,7 @@
     <Target><Filename Value="..\..\output\NexusScript\$(TargetCPU)-$(TargetOS)\NexusScript"/></Target>
     <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
     <SearchPaths>
-      <OtherUnitFiles Value="core;artifact;cli;..\..\NexusLib\core\src;..\..\lib\dmustache"/>
+      <OtherUnitFiles Value="..\..\NexusLib\packages\nxscript\src;cli;..\..\NexusLib\packages\foundation\json\src;..\..\NexusLib\packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\lib\dmustache"/>
       <UnitOutputDirectory Value="..\..\output\NexusScript\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
   </CompilerOptions>

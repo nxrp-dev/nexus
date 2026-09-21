@@ -30,7 +30,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src\model;..\src\protocol;..\..\core;..\..\..\..\NexusLib\lsp\src;..\..\..\..\NexusLib\lsp\src\protocol;..\..\..\..\NexusLib\core\src;..\..\..\Test\src;..\..\..\..\lib\synapse;$(LazarusDir)\components\lazutils"/>
+      <OtherUnitFiles Value=".;..\src\model;..\src\protocol;..\..\..\..\NexusLib\packages\nxscript\src;..\..\..\..\NexusLib\packages\lsp\src;..\..\..\..\NexusLib\packages\lsp\src\protocol;..\..\..\..\NexusLib\packages\network\json\src;..\..\..\..\NexusLib\packages\network\json-rpc\src;..\..\..\..\NexusLib\core\src;..\..\..\..\NexusLib\packages\nxtest\src;..\..\..\..\NexusLib\packages\network\external\synapse;$(LazarusDir)\components\lazutils" />
       <UnitOutputDirectory Value="..\..\..\..\output\NexusScriptLS\tests\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

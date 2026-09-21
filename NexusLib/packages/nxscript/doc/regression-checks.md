@@ -7,7 +7,7 @@ they do not replace reviewing an intentional contract change.
 From the repository root:
 
 ```powershell
-lazbuild -B NexusTools\Script\tests\NexusScriptTests.lpi
+lazbuild -B NexusLib\packages\nxscript\test\NexusScriptTests.lpi
 & .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
 lazbuild -B NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe

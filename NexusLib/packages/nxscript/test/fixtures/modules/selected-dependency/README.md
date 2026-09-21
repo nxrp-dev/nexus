@@ -58,14 +58,14 @@ again so it is independent of the compiler's import inputs.
 From the repository root:
 
 ```powershell
-lazbuild NexusTools/Script/tests/NexusScriptTests.lpi
+lazbuild NexusLib/packages/nxscript/test/NexusScriptTests.lpi
 & ./output/NexusScript/console-tests/x86_64-win64/NexusScriptTests.exe
 ```
 
 The minimal input can also be compiled independently with the existing CLI:
 
 ```powershell
-& ./output/NexusScript/x86_64-win64/NexusScript.exe /input=NexusTools\Script\tests\fixtures\modules\selected-dependency\selected.nxscript
+& ./output/NexusScript/x86_64-win64/NexusScript.exe /input=NexusLib\packages\nxscript\test\fixtures\modules\selected-dependency\selected.nxscript
 ```
 
 ## Traced cause

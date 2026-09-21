@@ -4,11 +4,12 @@ NexusScript compiles source documents and serializes their completed domain
 model as generic JSON. A Mustache template may transform that same JSON into
 the final artifact.
 
-The subsystem is physically divided by ownership: `core/` contains the
-language model, compiler, dependency session, normalization, and validation;
-`artifact/` contains JSON, external-data, and manifest production; `cli/`
-contains command-line process behavior; and `ls/` contains the dedicated
-NexusScriptLS process shell. Core does not depend on any front end.
+The reusable NexusScript mechanism lives in `NexusLib/packages/nxscript`.
+That package contains the language model, compiler, dependency session,
+normalization, validation, JSON/artifact support, external-data handling, and
+manifest processing. This product family retains `cli/` for command-line
+process behavior and `ls/` for the dedicated NexusScriptLS process shell. The
+package does not depend on either front end.
 
 ```text
 NexusScript /input=Customer.Schema.nxscript
