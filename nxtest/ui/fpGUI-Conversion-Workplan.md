@@ -1,14 +1,14 @@
-# fpGUI Conversion Workplan for NexusTools/Test
+# fpGUI Conversion Workplan for nxtest/ui
 
 ## Scope
 
-This plan describes how to convert the legacy NexusUI-based test UI in `NexusTools/Test/NexusTestUI` away from the existing `obNX*` and `tpNX*` control layer and onto a `fpGUI` form/control model while preserving the test engine and JSON-RPC test client contract.
+This plan describes how to convert the legacy NexusUI-based test UI in `nxtest/ui` away from the existing `obNX*` and `tpNX*` control layer and onto a `fpGUI` form/control model while preserving the test engine and JSON-RPC test client contract.
 
 ## Repository Evidence
 
 The current UI file is:
 
-- `NexusTools/Test/NexusTestUI/uiNXTestMain.pas`
+- `nxtest/ui/src/uiNXTestMain.pas`
 
 That file currently depends on the NexusUI object model:
 
@@ -25,7 +25,7 @@ That file currently depends on the NexusUI object model:
 - `tpNXPlatform`
 - `tpNXWindow`
 
-The test model and client glue in `NexusTools/Test/src` should remain as the backend contract. The goal is to replace only the display shell, not the system-under-test command plumbing.
+The test model and client glue in `NexusLib/packages/nxtest/src` should remain as the backend contract. The goal is to replace only the display shell, not the system-under-test command plumbing.
 
 ## Goal State
 
@@ -119,7 +119,7 @@ After the UI shell is ported:
 
 The conversion is complete when:
 
-- the `NexusTools/Test/NexusTestUI` project no longer imports the NexusUI units,
+- the `nxtest/ui` project no longer imports the NexusUI units,
 - the UI can build with fpGUI,
 - the existing module command contract remains unchanged,
 - the test tree, browse path, details pane, and run controls continue to operate through the same backend client abstraction.
