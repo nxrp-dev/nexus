@@ -1,4 +1,4 @@
-# Nexus Installer Instructions
+# Nexus Setup Instructions
 
 This folder owns Nexus installer source and installer staging support.
 

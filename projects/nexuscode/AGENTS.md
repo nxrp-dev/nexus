@@ -62,7 +62,7 @@ This file defines how Codex should work in this repository.
 
 ## Tooling Note
 
-- The project folder is `NexusTools/NexusCode` inside the Nexus repository.
+- The project folder is `projects/nexuscode` inside the Nexus repository.
 
 ## Analysis Scope
 

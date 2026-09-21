@@ -6,7 +6,7 @@ REM This script does not stop running language-server processes. If nexusls.exe
 REM is locked, close/reload VS Code and run this again.
 
 for %%I in ("%~dp0..") do set "NexusRoot=%%~fI"
-set "ExtensionRoot=%NexusRoot%\NexusTools\NexusCode"
+set "ExtensionRoot=%NexusRoot%\projects\nexuscode"
 set "TargetTriple=x86_64-win64"
 
 set "SourceDir=%NexusRoot%\output\NexusLS\%TargetTriple%"

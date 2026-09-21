@@ -4,7 +4,7 @@ setlocal
 REM Build Nexus Pascal and ensure the local VS Code extension junction points here.
 
 for %%I in ("%~dp0..") do set "NexusRoot=%%~fI"
-set "RepoRoot=%NexusRoot%\NexusTools\NexusCode"
+set "RepoRoot=%NexusRoot%\projects\nexuscode"
 set "ExtensionDir=%USERPROFILE%\.vscode\extensions"
 set "TargetTriple=x86_64-win64"
 
