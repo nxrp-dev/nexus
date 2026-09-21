@@ -6,12 +6,12 @@ StageNexusWin64 Group {
   }
 
   BuildLanguageServer LazBuild {
-    Project: "../../../NexusTools/LS/nexusls.lpi"
+    Project: "../../../projects/ls/pascal/nexusls.lpi"
     Quiet: true
   }
 
   BuildNexusScriptLanguageServer LazBuild {
-    Project: "../../../NexusTools/Script/ls/NexusScriptLS.lpi"
+    Project: "../../../projects/ls/nxscript/NexusScriptLS.lpi"
     Quiet: true
   }
 

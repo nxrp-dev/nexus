@@ -13,8 +13,8 @@ set "SourceDir=%NexusRoot%\output\NexusLS\%TargetTriple%"
 set "ScriptSourceDir=%NexusRoot%\output\NexusScriptLS\%TargetTriple%"
 set "TargetDir=%ExtensionRoot%\bin\%TargetTriple%"
 
-if not exist "%NexusRoot%\NexusTools\LS\nexusls.lpi" (
-    echo ERROR: NexusLS project not found at "%NexusRoot%\NexusTools\LS\nexusls.lpi".
+if not exist "%NexusRoot%\projects\ls\pascal\nexusls.lpi" (
+    echo ERROR: NexusLS project not found at "%NexusRoot%\projects\ls\pascal\nexusls.lpi".
     goto DoneFail
 )
 
@@ -27,10 +27,10 @@ if errorlevel 1 (
 echo Building NexusLS...
 pushd "%NexusRoot%"
 if errorlevel 1 goto DoneFail
-lazbuild NexusTools\LS\nexusls.lpi
+lazbuild projects\ls\pascal\nexusls.lpi
 if errorlevel 1 goto Fail
 echo Building NexusScriptLS...
-lazbuild NexusTools\Script\ls\NexusScriptLS.lpi
+lazbuild projects\ls\nxscript\NexusScriptLS.lpi
 if errorlevel 1 goto Fail
 popd
 

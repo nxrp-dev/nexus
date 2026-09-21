@@ -6,12 +6,12 @@ BuildNexusPascalVSIX Group {
   }
 
   BuildLanguageServer LazBuild {
-    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/LS/nexusls.lpi"
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/ls/pascal/nexusls.lpi"
     Quiet: true
   }
 
   BuildNexusScriptLanguageServer LazBuild {
-    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/NexusTools/Script/ls/NexusScriptLS.lpi"
+    Project: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/ls/nxscript/NexusScriptLS.lpi"
     Quiet: true
   }
 
