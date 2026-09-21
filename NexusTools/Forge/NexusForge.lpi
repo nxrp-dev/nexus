@@ -9,7 +9,7 @@
     <Version Value="11"/>
     <Target><Filename Value="../../output/NexusForge/$(TargetCPU)-$(TargetOS)/nxforge"/></Target>
     <SearchPaths>
-      <OtherUnitFiles Value="src;../Script/core;../Script/artifact;../../NexusLib/core/src;../../lib/dmustache"/>
+      <OtherUnitFiles Value="src;../../NexusLib/packages/nxscript/src;../../NexusLib/packages/foundation/serialization/src;../../NexusLib/packages/foundation/serialization/json/src;../../NexusLib/packages/network/json-rpc/src;../../NexusLib/core/src;../../lib/dmustache"/>
       <UnitOutputDirectory Value="../../output/NexusForge/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Other><CustomOptions Value="-gl"/></Other>

@@ -33,7 +33,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;..\Script\core;..\..\NexusLib\core\src;..\..\NexusLib\net\src\xmpp;..\..\lib\synapse"/>
+      <OtherUnitFiles Value="src;src\protocol;..\..\NexusLib\packages\nxscript\src;..\..\NexusLib\packages\foundation\json\src;..\..\NexusLib\packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\NexusLib\packages\network\xmpp\src;..\..\NexusLib\packages\network\external\synapse"/>
       <UnitOutputDirectory Value="..\..\output\NexusBotHost\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

@@ -56,7 +56,7 @@ The Nexus documentation site is built with Material for MkDocs.
 
 NexusUI has a more specific attribution file for its early scaffold, SDL dependencies, Pascal UI influences, and AI-assisted development notes:
 
-- `NexusLib/ui/docs/ATTRIBUTION.md`
+- `NexusLib/packages/gui/doc/ATTRIBUTION.md`
 
 ## AI-Assisted Development
 

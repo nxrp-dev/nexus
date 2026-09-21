@@ -100,10 +100,10 @@ Primary files for native-build failures are:
 - `NexusTools/BotHost/src/obNXBotHostRuntime.pas`
 - `NexusTools/BotHost/src/obNXCodexAppServer.pas`
 - `NexusTools/BotHost/src/obNXOpenAIProvider.pas`
-- `NexusLib/net/src/xmpp/obNXXMPPOpenSSL.pas`
-- `NexusLib/net/src/xmpp/obNXXMPPTransport.pas`
-- `lib/synapse/ssl_openssl3.pas`
-- `lib/synapse/ssl_openssl3_lib.pas`
+- `NexusLib/packages/network/xmpp/src/obNXXMPPOpenSSL.pas`
+- `NexusLib/packages/network/xmpp/src/obNXXMPPTransport.pas`
+- `NexusLib/packages/network/external/synapse/ssl_openssl3.pas`
+- `NexusLib/packages/network/external/synapse/ssl_openssl3_lib.pas`
 
 Open only the files implicated by an actual failure.
 
@@ -114,7 +114,7 @@ Commit `be25612` implements the agreed final direction:
 - delete `obNXXMPPICU.pas`, `obNXXMPPPRECIS.pas`,
   `tpNXXMPPPRECISTableData.inc`, and
   `scripts/Generate-NXXMPPPRECISTables.ps1`;
-- add `NexusLib/net/src/xmpp/utNXXMPPASCII.pas`;
+- add `NexusLib/packages/network/xmpp/src/utNXXMPPASCII.pas`;
 - make JID, resource, username, and password preparation explicitly ASCII-only;
 - preserve UTF-8 stanza and message content;
 - remove ICU/PRECIS references from tests and documentation.
@@ -168,9 +168,9 @@ export its absolute path as `NEXUS_BOTHOST_FAKE_APP_SERVER`, and run the
 `NexusBotHost` suite. Locate generated binaries from the build output rather
 than assuming Windows filenames or directories.
 
-Then compile and run `NexusLib/net/tests/NexusNetXMPPTests.lpr` with native
+Then compile and run `NexusLib/packages/network/xmpp/test/NexusNetXMPPTests.lpr` with native
 Linux unit/output paths equivalent to the documented Win64 command in
-`NexusLib/net/tests/NexusNetXMPPTests.md`.
+`NexusLib/packages/network/xmpp/test/NexusNetXMPPTests.md`.
 
 ## Runtime Inputs
 

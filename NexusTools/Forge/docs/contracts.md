@@ -197,7 +197,7 @@ lazbuild NexusTools\Forge\NexusForge.lpi
 lazbuild NexusTools\CSV\NexusCSV.lpi
 lazbuild NexusTools\Forge\tests\NexusForgeTests.lpi
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
-lazbuild NexusTools\Script\tests\NexusScriptTests.lpi
+lazbuild NexusLib\packages\nxscript\test\NexusScriptTests.lpi
 & .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
 lazbuild NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe

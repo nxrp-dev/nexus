@@ -10,7 +10,7 @@
     <Version Value="11"/>
     <Target><Filename Value="../../../output/NexusBindingTests/$(TargetCPU)-$(TargetOS)/NexusBindingTests"/></Target>
     <SearchPaths>
-      <OtherUnitFiles Value=".;../src;../../../NexusTools/Test/src"/>
+      <OtherUnitFiles Value=".;../src;../../../NexusLib/packages/nxtest/src"/>
       <UnitOutputDirectory Value="../../../output/NexusBindingTests/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Other><CustomOptions Value="-gh -gl -Cr -Co -Sa"/></Other>

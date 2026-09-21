@@ -5,13 +5,13 @@ This page describes the current dependency shape visible in the repository. It i
 ## Internal dependency direction
 
 - `NexusLib` is the common base layer.
-- `NexusLib/lsp` depends on `NexusLib/core` and does not depend on either language server.
-- `NexusTools/LS` depends on `NexusLib/core` and `NexusLib/lsp` for shared JSON-RPC/LSP mechanics.
-- `NexusTools/Script/ls` depends on `NexusTools/Script/core`, `NexusLib/core`, and `NexusLib/lsp`; it does not depend on the Pascal server, the NexusScript CLI, or artifact producers.
-- `NexusTools/Script/artifact` and `NexusTools/Script/cli` depend on the NexusScript core. The core does not depend back on its consumers.
-- `NexusTools/Test` depends on `NexusLib`.
-- `NexusTools/LS/NexusLSTestModule` depends on both `NexusTools/LS` source and `NexusTools/Test` source.
-- `NexusTools/Test/NexusTestUI` depends on NexusTest, `NexusLib/core`, and `NexusLib/ui`.
+- `NexusLib/packages/lsp` depends on `NexusLib/core` and does not depend on either language server.
+- `NexusTools/LS` depends on `NexusLib/core` and `NexusLib/packages/lsp` for shared JSON-RPC/LSP mechanics.
+- `NexusTools/Script/ls` depends on `NexusLib/packages/nxscript`, `NexusLib/core`, and `NexusLib/packages/lsp`; it does not depend on the Pascal server, the NexusScript CLI, or artifact producers.
+- `NexusTools/Script/cli` depends on the reusable `NexusLib/packages/nxscript` package. The package does not depend back on its consumers.
+- `NexusLib/packages/nxtest` is the reusable NexusTest framework package.
+- `NexusTools/LS/NexusLSTestModule` depends on both `NexusTools/LS` source and `NexusLib/packages/nxtest` source.
+- `nxtest/host` depends on `NexusLib/packages/nxtest` and `NexusLib/core`; `nxtest/ui` additionally depends on `NexusLib/packages/gui`.
 
 The preferred direction is from tools toward shared foundations, not from shared foundations back into tools.
 
@@ -21,9 +21,9 @@ The preferred direction is from tools toward shared foundations, not from shared
 
 `NexusTools/LS` uses Free Pascal and Lazarus CodeTools/LazUtils units for Pascal parsing, navigation, completion, syntax checks, and source buffers. Symbol indexing currently has an SQLite-backed cache through FPC database units such as `SQLDB` and `SQLite3Conn`.
 
-`NexusLib/lsp` uses `lib/synapse` for its shared TCP/IP transport. Both language-server executables select shared stdio or TCP/IP transports and inject their own application model into the shared host.
+`NexusLib/packages/lsp` uses `NexusLib/packages/network/external/synapse` for its shared TCP/IP transport. Both language-server executables select shared stdio or TCP/IP transports and inject their own application model into the shared host.
 
-`NexusLib/net/src/xmpp` uses bundled Synapse for TCP, DNS SRV, and the OpenSSL 3 TLS wrapper. OpenSSL 3 supplies SHA-256, HMAC, PBKDF2, secure random bytes, TLS, and certificate verification; it is not vendored by NexusXMPP. XMPP JID parts and authentication credentials deliberately accept ASCII only. UTF-8 stanza and message content remain transparent and do not require ICU, PRECIS, IDNA, or generated Unicode tables.
+`NexusLib/packages/network/xmpp` uses bundled Synapse for TCP, DNS SRV, and the OpenSSL 3 TLS wrapper. OpenSSL 3 supplies SHA-256, HMAC, PBKDF2, secure random bytes, TLS, and certificate verification; it is not vendored by NexusXMPP. XMPP JID parts and authentication credentials deliberately accept ASCII only. UTF-8 stanza and message content remain transparent and do not require ICU, PRECIS, IDNA, or generated Unicode tables.
 
 The NexusXMPP Phase 2 modules depend inward on the shared stanza, DOM,
 connection-command, lifecycle, request-manager, and configuration owners. The
@@ -32,9 +32,9 @@ Carbons, MAM, receipts/chat state, ping, and discovery/capability logic remain
 separate protocol owners; none depends on NexusUI, a Nexus tool, persistence, or
 application/AI policy.
 
-`NexusTools/Test` uses Free Pascal runtime support, `DynLibs` for loading test modules from a host, and `NexusLib` for JSON-RPC command processing. The sample Linux/macOS-ish build script compiles the sample test module and host with `NexusTools/Test/src` and `../../NexusLib/core/src`.
+`NexusLib/packages/nxtest` uses Free Pascal runtime support and `NexusLib/core` for JSON-RPC command processing. The test-family build script compiles the sample module, host, and UI from their respective `test/` roots.
 
-`NexusTestUI` uses `NexusLib/ui` plus SDL-related unit paths from the common tree. It is a client UI for test exploration, not the core NexusTest contract.
+`NexusTestUI` uses `NexusLib/packages/gui` plus the package's fpGUI external tree. It is a client UI for test exploration, not the core NexusTest contract.
 
 ## Build outputs
 

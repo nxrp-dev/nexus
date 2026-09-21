@@ -2,54 +2,45 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
+    <PathDelim Value="\"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
       <MainUnit Value="0"/>
-      <Title Value="NexusBuild"/>
+      <Title Value="NexusUITestModule"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
     <BuildModes Count="1">
       <Item1 Name="Default" Default="True"/>
     </BuildModes>
-    <PublishOptions>
-      <Version Value="2"/>
-    </PublishOptions>
-    <RunParams>
-      <FormatVersion Value="2"/>
-    </RunParams>
-    <Units Count="5">
+    <Units Count="4">
       <Unit0>
-        <Filename Value="nexusbuild.lpr"/>
+        <Filename Value="NexusUITestModule.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
       <Unit1>
-        <Filename Value="src/obNXBuildCommands.pas"/>
+        <Filename Value="tsNXPersistTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit1>
       <Unit2>
-        <Filename Value="src/obNXBuildProjectLoader.pas"/>
+        <Filename Value="tsNXUIAllTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="src/obNXBuildPlanner.pas"/>
+        <Filename Value="..\..\..\..\NexusLib\packages\nxtest\src\obNXTestRPCRequests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
-      <Unit4>
-        <Filename Value="src/obNXBuildExecutor.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\nexusbuild"/>
+      <Filename Value="..\..\..\..\output\NexusUITestModule\$(TargetCPU)-$(TargetOS)\NexusUITestModule"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;..\..\NexusLib\packages\foundation\json\src;..\..\NexusLib\packages\network\json-rpc\src;..\..\NexusLib\core\src;$(LazarusDir)\components\lazutils"/>
-      <UnitOutputDirectory Value="..\..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\units"/>
+      <OtherUnitFiles Value=".;..\src;..\..\..\core\src;..\..\..\..\NexusLib\packages\nxtest\src"/>
+      <UnitOutputDirectory Value="..\..\..\..\output\NexusUITestModule\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
@@ -58,10 +49,21 @@
     </Parsing>
     <Linking>
       <Options>
-        <Win32>
-          <GraphicApplication Value="False"/>
-        </Win32>
+        <ExecutableType Value="Library"/>
       </Options>
     </Linking>
   </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
 </CONFIG>
