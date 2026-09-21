@@ -1,7 +1,7 @@
 # PasBuild translation example
 
 This is the counterpart of lib/pasbuild/project.xml used in the
-[executed gap review](../../../../../NexusTools/Forge/docs/pasbuild-comparison.md).
+[executed gap review](../../../../../projects/forge/docs/pasbuild-comparison.md).
 
 Run scripts/Compare-ForgePasBuild.ps1 from the repository root to stage independent
 source copies and run both tools. It copies these Forge definitions into the

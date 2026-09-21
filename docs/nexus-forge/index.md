@@ -25,7 +25,7 @@ All maintained scripts and templates are in `NexusLib/script/`:
 From the repository root:
 
 ```powershell
-lazbuild NexusTools\Forge\NexusForge.lpi
+lazbuild projects\forge\NexusForge.lpi
 lazbuild NexusTools\CSV\NexusCSV.lpi
 $env:PATH = (Resolve-Path output\NexusCSV\x86_64-win64).Path + ';' + $env:PATH
 & .\output\NexusForge\x86_64-win64\nxforge.exe `

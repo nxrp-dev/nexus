@@ -21,7 +21,7 @@ StageNexusWin64 Group {
   }
 
   BuildNexusForge LazBuild {
-    Project: "../../../NexusTools/Forge/NexusForge.lpi"
+    Project: "../../../projects/forge/NexusForge.lpi"
     Quiet: true
   }
 

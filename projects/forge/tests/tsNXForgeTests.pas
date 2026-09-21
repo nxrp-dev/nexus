@@ -19,9 +19,38 @@ begin
   Result := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../');
 end;
 
+procedure DeleteDirRecursive(const APath: string);
+var
+  lInfo: TSearchRec;
+  lFull: string;
+begin
+  if not DirectoryExists(APath) then Exit;
+  if FindFirst(APath + '*', faAnyFile, lInfo) = 0 then
+  begin
+    try
+      repeat
+        if (lInfo.Name = '.') or (lInfo.Name = '..') then Continue;
+        lFull := APath + lInfo.Name;
+        if (lInfo.Attr and faDirectory) <> 0 then
+          DeleteDirRecursive(lFull + PathDelim)
+        else
+        begin
+          FileSetAttr(lFull, faArchive);
+          DeleteFile(lFull);
+        end;
+      until FindNext(lInfo) <> 0;
+    finally
+      FindClose(lInfo);
+    end;
+  end;
+  RemoveDir(APath);
+end;
+
 function TestDir(const AName: string): string;
 begin
   Result := Root + 'output/ForgeVerification/' + AName + '/';
+  // Discard any prior run's fixture so stale ownership/state never leaks between runs.
+  DeleteDirRecursive(Result);
   ForceDirectories(Result);
 end;
 
@@ -71,7 +100,7 @@ begin
   lLanguage := TNexusScriptLanguageDefinition.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(Root +
-      'NexusTools/Forge/tests/fixtures/composition.nxscript'), lSession.LastError);
+      'projects/forge/tests/fixtures/composition.nxscript'), lSession.LastError);
     AContext.AssertTrue(lLanguage.Normalize(
       lSession.EntryCompiler.CompiledDocument.DialectDocument), 'Normalize included rules');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('FPC') <> nil, 'FPC rule present');
@@ -357,7 +386,7 @@ begin
   lEmitter := TNexusScriptJSONEmitter.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(Root +
-      'NexusTools/Forge/tests/fixtures/composition.nxscript'), lSession.LastError);
+      'projects/forge/tests/fixtures/composition.nxscript'), lSession.LastError);
     lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
     lBefore := lEmitter.JSON;
     lJSON := GetJSON(lEmitter.RenderDefinition(

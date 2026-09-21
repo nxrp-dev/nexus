@@ -9,7 +9,7 @@ FPC and Git use the native command path; Render writes a generated artifact.
 From the repository root, with working `fpc` and `git` executables on PATH:
 
 ```powershell
-lazbuild NexusTools\Forge\NexusForge.lpi
+lazbuild projects\forge\NexusForge.lpi
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
   /input=NexusLib\script\examples\forge\Build.nxscript
 ```
@@ -193,13 +193,13 @@ Completed output remains available. Success returns exit status 0; failure 1.
 ## Verification
 
 ```powershell
-lazbuild NexusTools\Forge\NexusForge.lpi
+lazbuild projects\forge\NexusForge.lpi
 lazbuild NexusTools\CSV\NexusCSV.lpi
-lazbuild NexusTools\Forge\tests\NexusForgeTests.lpi
+lazbuild projects\forge\tests\NexusForgeTests.lpi
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
 lazbuild NexusLib\packages\nxscript\test\NexusScriptTests.lpi
 & .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
-lazbuild NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
+lazbuild projects\ls\nxscript\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
 

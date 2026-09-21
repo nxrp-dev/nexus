@@ -124,7 +124,7 @@ begin
         AContext.AssertEquals(0, lStatus, 'Generated DDL applies: ' + lOutput);
         if lIndex = 0 then
         begin
-          lSQL := ReadText(lRoot + 'NexusTools/BotHost/tests/fixtures/database/assertions.sql');
+          lSQL := ReadText(lRoot + 'projects/bothost/tests/fixtures/database/assertions.sql');
           lStatus := RunSQL(lDirectory, 'assertions', lConnect + lSQL, lOutput);
           AContext.AssertEquals(0, lStatus, 'Database and permission assertions: ' + lOutput);
           AContext.AssertTrue(Pos('DATABASE_ASSERTIONS_PASSED', lOutput) > 0, 'Assertions reached completion');

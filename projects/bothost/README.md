@@ -144,9 +144,9 @@ disconnect XMPP, or disturb other room memberships.
 From the repository root:
 
 ```powershell
-lazbuild -B NexusTools\BotHost\NexusBotHost.lpi
-lazbuild -B NexusTools\BotHost\tests\NexusBotHostTestModule.lpi
-fpc -B -MObjFPC -Sh -FUoutput\NexusBotHostTests\fake-units -FEoutput\NexusBotHostTests\bin NexusTools\BotHost\tests\FakeCodexAppServer.lpr
+lazbuild -B projects\bothost\NexusBotHost.lpi
+lazbuild -B projects\bothost\tests\NexusBotHostTestModule.lpi
+fpc -B -MObjFPC -Sh -FUoutput\NexusBotHostTests\fake-units -FEoutput\NexusBotHostTests\bin projects\bothost\tests\FakeCodexAppServer.lpr
 $env:NEXUS_BOTHOST_FAKE_APP_SERVER = (Resolve-Path output\NexusBotHostTests\bin\FakeCodexAppServer.exe)
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost
 output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost.OpenAI
@@ -253,7 +253,7 @@ server's `CAFile`.
 The binding was verified against `codex-cli 0.153.0`. Verify upgrades:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File NexusTools\BotHost\scripts\Test-CodexAppServerSchema.ps1 -CodexExecutable <path-to-codex.exe>
+powershell -NoProfile -ExecutionPolicy Bypass -File projects\bothost\scripts\Test-CodexAppServerSchema.ps1 -CodexExecutable <path-to-codex.exe>
 ```
 
 The expected stable-v2 schema fingerprint and methods are recorded in

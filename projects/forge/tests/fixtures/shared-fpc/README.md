@@ -26,7 +26,7 @@ suffix and output folder in this small example are deliberately Windows-specific
 From the repository root, using the built Forge executable:
 
 ```powershell
-& .\output\NexusForge\x86_64-win64\nxforge.exe /input=NexusTools/Forge/tests/fixtures/shared-fpc/Tiny.ForgePackage.nxscript /package=Tiny
+& .\output\NexusForge\x86_64-win64\nxforge.exe /input=projects/forge/tests/fixtures/shared-fpc/Tiny.ForgePackage.nxscript /package=Tiny
 & .\output\ForgeSharedFPC\tiny.exe
 ```
 

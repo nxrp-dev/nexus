@@ -1278,7 +1278,7 @@ begin
     lBinding.Resource := 'Unregistered';
     lBinding.XMPPJID := 'unregistered@nexus.local';
     lConfig.Bindings.Add(lBinding);
-    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+    lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
       PathDelim + 'catalog' + PathDelim +
       'BotsUnregistered.Bot.nxscript');
     AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
@@ -1347,7 +1347,7 @@ begin
     AContext.AssertTrue(Pos('OperationTimeoutMS', lConfig.JSON) = 0,
       'Controller configuration must not emit the removed deadline setting.');
 
-    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+    lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
       PathDelim + 'catalog' + PathDelim +
       'BotsWorkspaces.Bot.nxscript');
     AContext.AssertTrue(lCatalog.Load(lFileName, lConfig),
@@ -1405,7 +1405,7 @@ begin
     lBinding.RuntimeDirectory := 'runtime';
     lBinding.XMPPJID := 'broken@nexus.local';
     lConfig.Bindings.Add(lBinding);
-    lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+    lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
       PathDelim + 'catalog' + PathDelim + 'BotsInvalid.Bot.nxscript');
     AContext.AssertFalse(lCatalog.Load(lFileName, lConfig),
       'A catalog with one invalid definition must fail as a whole.');
@@ -1480,7 +1480,7 @@ begin
         lDiagnostic) > 0),
         'Static deployment diagnostics should identify malformed values.');
 
-      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
         PathDelim + 'catalog' + PathDelim +
         'BotsUnsupportedProvider.Bot.nxscript');
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
@@ -1489,7 +1489,7 @@ begin
         and (Pos('UnsupportedProvider', lFreshCatalog.Diagnostics.Text) > 0),
         'Unsupported provider diagnostics should come from the dialect.');
 
-      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
         PathDelim + 'catalog' + PathDelim +
         'BotsDuplicate.Bot.nxscript');
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
@@ -1497,7 +1497,7 @@ begin
       AContext.AssertTrue(lFreshCatalog.Diagnostics.Text <> '',
         'Duplicate bot names should retain a useful compiler diagnostic.');
 
-      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
         PathDelim + 'catalog' + PathDelim +
         'BotsMissingDialect.Bot.nxscript');
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
@@ -1506,7 +1506,7 @@ begin
         lFreshCatalog.Diagnostics.Text) > 0,
         'A missing dialect should produce the catalog diagnostic.');
 
-      lFileName := ExpandFileName('NexusTools' + PathDelim + 'BotHost' +
+      lFileName := ExpandFileName('projects' + PathDelim + 'bothost' +
         PathDelim + 'catalog' + PathDelim + 'Missing.Bot.nxscript');
       AContext.AssertFalse(lFreshCatalog.Load(lFileName, lFreshConfig),
         'NexusScript compilation failure must fail catalog loading.');
