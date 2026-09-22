@@ -26,7 +26,7 @@ StageNexusWin64 Group {
   }
 
   BuildNexusCSV LazBuild {
-    Project: "../../../NexusTools/CSV/NexusCSV.lpi"
+    Project: "../../../projects/csv/NexusCSV.lpi"
     Quiet: true
   }
 

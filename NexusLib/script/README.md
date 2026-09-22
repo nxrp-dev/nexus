@@ -26,4 +26,4 @@ by NexusScript; new CSV work uses the ordinary Forge CSV compiler operation.
 
 For current generation entry points, see
 [BotHost database](bothost/database/README.md) and
-[NexusCSV](../../NexusTools/CSV/README.md).
+[NexusCSV](../../projects/csv/README.md).

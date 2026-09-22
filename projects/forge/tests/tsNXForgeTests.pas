@@ -569,7 +569,7 @@ begin
   lDirectory := TestDir('csv source & output');
   ForceDirectories(lDirectory + 'artifacts');
   lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/x86_64-win64/nxcsv.exe'), '\', '/', [rfReplaceAll]);
-  AContext.AssertTrue(FileExists(lTool), 'Build NexusTools/CSV/NexusCSV.lpi first');
+  AContext.AssertTrue(FileExists(lTool), 'Build projects/csv/NexusCSV.lpi first');
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/SQL.mustache';
   Save(lDirectory + 'source.csv', 'ID,NAME,NOTE' + LineEnding +
     '1,O''Brien,"comma, and ""quote"""' + LineEnding + '2,,' + LineEnding);

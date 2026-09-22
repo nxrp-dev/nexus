@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../devzing/Metaphor/StarExplorer"
+		}
+	],
+	"settings": {
+		"nexusPascal.activeProject": "NexusLS/nexusls.lpi"
+	}
+}

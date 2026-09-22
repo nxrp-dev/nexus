@@ -5,7 +5,7 @@ artifact. Forge invokes it through the same native-command path as FPC. Neither
 Forge nor the NexusScript compiler parses CSV or understands SQL output.
 
 ```powershell
-lazbuild NexusTools\CSV\NexusCSV.lpi
+lazbuild projects\csv\NexusCSV.lpi
 & .\output\NexusCSV\x86_64-win64\nxcsv.exe `
   /input=NexusLib/script/data/lookup/STATE.csv `
   /template=NexusLib/script/tools/CSV/SQL.mustache `

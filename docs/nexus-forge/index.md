@@ -26,7 +26,7 @@ From the repository root:
 
 ```powershell
 lazbuild projects\forge\NexusForge.lpi
-lazbuild NexusTools\CSV\NexusCSV.lpi
+lazbuild projects\csv\NexusCSV.lpi
 $env:PATH = (Resolve-Path output\NexusCSV\x86_64-win64).Path + ';' + $env:PATH
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
   /input=NexusLib/script/examples/csv/Lookup.ForgePackage.nxscript /package=LookupSQL

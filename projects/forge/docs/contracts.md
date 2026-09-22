@@ -147,7 +147,7 @@ CSV is an ordinary native operation. Import
 SourceTemplate, and Output. Its Template builds the command; SourceTemplate is
 passed to nxcsv for artifact rendering. Optional Compiler, Name, and Delimiter
 values remain explicit tool arguments. Forge contains no CSV loader or SQL logic.
-See [NexusCSV](../../CSV/README.md) for the tool contract and tests.
+See [NexusCSV](../../csv/README.md) for the tool contract and tests.
 
 ## Render artifacts
 
