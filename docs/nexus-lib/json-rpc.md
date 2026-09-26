@@ -6,7 +6,7 @@ The current system is used by NexusLS for Language Server Protocol messages and 
 
 ## Core Object Model
 
-The generic JSON support lives in `NexusLib/packages/foundation/serialization/json/src/obNXJSONValues.pas`. JSON-RPC support lives in `NexusLib/packages/network/json-rpc/src/obNXJSONRPCMessages.pas` and `obNXJSONRPCObjects.pas`, building on the generic JSON layer.
+The generic JSON support lives in `packages/foundation/serialization/json/src/obNXJSONValues.pas`. JSON-RPC support lives in `packages/network/json-rpc/src/obNXJSONRPCMessages.pas` and `obNXJSONRPCObjects.pas`, building on the generic JSON layer.
 
 The base message lineage is:
 

@@ -13,17 +13,17 @@ NexusLib is the shared Pascal support layer used by other Nexus modules. It is i
 
 ## NexusXMPP
 
-The deterministic Win64 test entry point is `NexusLib/packages/network/xmpp/test/NexusNetXMPPTests.lpr`. Build it with:
+The deterministic Win64 test entry point is `packages/network/xmpp/test/NexusNetXMPPTests.lpr`. Build it with:
 
 ```powershell
-fpc -B -FuNexusLib\packages\network\xmpp\src -FuNexusLib\packages\network\external\synapse -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\fcl-xml -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\hash -FUoutput\NexusNetXMPPTests\units -FEoutput\NexusNetXMPPTests\bin NexusLib\packages\network\xmpp\test\NexusNetXMPPTests.lpr
+fpc -B -Fupackages\network\xmpp\src -Fupackages\network\external\synapse -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\fcl-xml -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\hash -FUoutput\NexusNetXMPPTests\units -FEoutput\NexusNetXMPPTests\bin packages\network\xmpp\test\NexusNetXMPPTests.lpr
 ```
 
-The explicit live-test client is `NexusLib/packages/network/xmpp/examples/NexusXMPPConsole.lpr`. It reads its JID, password, CA bundle, and optional endpoint override only from `NEXUS_XMPP_*` environment variables. Applications receive replayable transmitted stanzas that become uncertain after rejected resumption through `OnUnrecoverableStanzas`; NexusXMPP does not resend them automatically. Live server interoperability is not part of the deterministic test claim.
+The explicit live-test client is `packages/network/xmpp/examples/NexusXMPPConsole.lpr`. It reads its JID, password, CA bundle, and optional endpoint override only from `NEXUS_XMPP_*` environment variables. Applications receive replayable transmitted stanzas that become uncertain after rejected resumption through `OnUnrecoverableStanzas`; NexusXMPP does not resend them automatically. Live server interoperability is not part of the deterministic test claim.
 
 The retained deterministic and Openfire 5.1.2 live verification record is
-`NexusLib/packages/network/xmpp/test/NexusNetXMPPTests.md`. The live test entry point is
-`NexusLib/packages/network/xmpp/test/NexusNetXMPPLiveTest.lpr`; it reads credentials and endpoint
+`packages/network/xmpp/test/NexusNetXMPPTests.md`. The live test entry point is
+`packages/network/xmpp/test/NexusNetXMPPLiveTest.lpr`; it reads credentials and endpoint
 configuration from `NEXUS_XMPP_*` environment variables.
 
 Phase 2 messaging keeps ordinary stanza IDs, sender origin IDs, issuer-scoped

@@ -1,5 +1,5 @@
-[submodule "NexusLib/packages/network/external/synapse"]
-	path = NexusLib/packages/network/external/synapse
+[submodule "packages/network/external/synapse"]
+	path = packages/network/external/synapse
 	url = https://github.com/geby/synapse
 	branch = master
 [submodule "lib/dmustache"]
@@ -10,7 +10,7 @@
 	path = lib/pasbuild
 	url = https://github.com/graemeg/PasBuild.git
 	branch = master
-[submodule "NexusLib/packages/gui/external/fpgui"]
-	path = NexusLib/packages/gui/external/fpgui
+[submodule "packages/gui/external/fpgui"]
+	path = packages/gui/external/fpgui
 	url = https://github.com/graemeg/fpgui.git
 	branch = develop

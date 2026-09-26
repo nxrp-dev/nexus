@@ -7,7 +7,7 @@ Nexus uses top-level module folders for ownership and shorter lower-case slugs f
 - `NexusLib`: shared Pascal support library families, including `core`, `packages/lsp`, `ui`, and `net`.
 - `NexusTools/LS`: Pascal language server.
 - `NexusTools/Script`: NexusScript core, artifact producers, CLI, and dedicated language server.
-- `NexusLib/packages/nxtest`: reusable NexusTest framework and module protocol.
+- `packages/nxtest`: reusable NexusTest framework and module protocol.
 - `nxtest/host`: NexusTest command-line host and sample module.
 - `nxtest/ui`: NexusTest GUI runner.
 - `NexusForge`: schema tooling.
@@ -38,6 +38,6 @@ Each top-level module or library family owns its own source, examples, tests, an
 
 `NexusLib` should avoid depending on higher-level modules. A dependency from `NexusLib` into `NexusTools/LS`, `test`, `NexusTools/Forge`, or top-level example folders would make the shared layer harder to reuse.
 
-Standard LSP values and language-neutral process mechanics belong to `NexusLib/packages/lsp`. Concrete requests, documents, lifecycle state, analysis, and language-specific protocol extensions belong to the server that implements them. NexusScript language semantics belong to `NexusLib/packages/nxscript`, not in the shared LSP library.
+Standard LSP values and language-neutral process mechanics belong to `packages/lsp`. Concrete requests, documents, lifecycle state, analysis, and language-specific protocol extensions belong to the server that implements them. NexusScript language semantics belong to `packages/nxscript`, not in the shared LSP library.
 
 Documentation should not invent maturity. If a module is early, experimental, or a current direction, describe it that way.

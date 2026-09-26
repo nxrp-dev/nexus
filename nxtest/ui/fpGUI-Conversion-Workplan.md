@@ -25,7 +25,7 @@ That file currently depends on the NexusUI object model:
 - `tpNXPlatform`
 - `tpNXWindow`
 
-The test model and client glue in `NexusLib/packages/nxtest/src` should remain as the backend contract. The goal is to replace only the display shell, not the system-under-test command plumbing.
+The test model and client glue in `packages/nxtest/src` should remain as the backend contract. The goal is to replace only the display shell, not the system-under-test command plumbing.
 
 ## Goal State
 

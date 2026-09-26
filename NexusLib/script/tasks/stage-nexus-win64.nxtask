@@ -32,7 +32,7 @@ StageNexusWin64 Group {
 
   BuildNexusTestHost Fpc {
     Source: "../../../nxtest/host/src/nxtest_host.lpr"
-    SearchPath: "../../../NexusLib/packages/nxtest/src"
+    SearchPath: "../../../packages/nxtest/src"
     UnitOutputDirectory: "../../../output/NexusTestHost/units"
     OutputDirectory: "../../../output/NexusTestHost"
     OutputName: "nxtest_host"
@@ -90,8 +90,8 @@ StageNexusWin64 Group {
   }
 
   InstallNexusTestSDK CopyFile {
-    Source: "../../../NexusLib/packages/nxtest/src"
-    Destination: "../../../dist/nexus-win64/sdk/NexusLib/packages/nxtest/src"
+    Source: "../../../packages/nxtest/src"
+    Destination: "../../../dist/nexus-win64/sdk/packages/nxtest/src"
     Recursive: true
     Overwrite: true
     CleanDestination: true
@@ -99,7 +99,7 @@ StageNexusWin64 Group {
   }
 
   InstallSynapseSDK CopyFile {
-    Source: "../../../NexusLib/packages/network/external/synapse"
+    Source: "../../../packages/network/external/synapse"
     Destination: "../../../dist/nexus-win64/sdk/thirdparty/synapse"
     Recursive: true
     Overwrite: true
