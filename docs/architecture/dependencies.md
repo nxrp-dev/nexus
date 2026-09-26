@@ -7,8 +7,8 @@ This page describes the current dependency shape visible in the repository. It i
 - `NexusLib` is the common base layer.
 - `packages/lsp` depends on `NexusLib/core` and does not depend on either language server.
 - `NexusTools/LS` depends on `NexusLib/core` and `packages/lsp` for shared JSON-RPC/LSP mechanics.
-- `NexusTools/Script/ls` depends on `packages/nxscript`, `NexusLib/core`, and `packages/lsp`; it does not depend on the Pascal server, the NexusScript CLI, or artifact producers.
-- `NexusTools/Script/cli` depends on the reusable `packages/nxscript` package. The package does not depend back on its consumers.
+- `projects/ls/nxscript` depends on `packages/nxscript`, `NexusLib/core`, and `packages/lsp`; it does not depend on the Pascal server, the NexusScript CLI, or artifact producers.
+- `projects/nxscript/cli` depends on the reusable `packages/nxscript` package. The package does not depend back on its consumers.
 - `packages/nxtest` is the reusable NexusTest framework package.
 - `NexusTools/LS/NexusLSTestModule` depends on both `NexusTools/LS` source and `packages/nxtest` source.
 - `nxtest/host` depends on `packages/nxtest` and `NexusLib/core`; `nxtest/ui` additionally depends on `packages/gui`.

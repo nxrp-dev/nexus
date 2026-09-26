@@ -55,9 +55,14 @@ begin
 end;
 
 function Dialect(const AName: string): string;
+var
+  lDialectPath: string;
 begin
-  Result := 'dialect ' + NXString(Root + 'NexusLib/script/dialects/' +
-    AName + '/' + AName + '.Language.nxscript') + '; ';
+  if AName = 'Schema' then
+    lDialectPath := Root + 'projects/schema/language/Schema.Language.nxscript'
+  else
+    lDialectPath := Root + 'projects/forge/language/Forge.nxscript';
+  Result := 'dialect ' + NXString(lDialectPath) + '; ';
 end;
 
 function Contract: string;
@@ -291,7 +296,7 @@ begin
     'Outputs: [Output Executable TargetCPU[x64] { Path: "bin/x64/hello & package.exe"; }, ' +
     'Output Executable TargetCPU[x86] { Path: "bin/x86/hello & package.exe"; }]; ' +
     'PackageOutput CompilerPath { Requirement: Tools; Output: Executable; } ' +
-    'FPC Compile { Template: ' + NXString(Root + 'NexusLib/script/examples/forge/FPC.mustache') + '; Compiler: @App.CompilerPath; Source: ["hello & package.lpr", "units/*.pas"]; EntryPoint: "hello & package.lpr"; UnitOutput: "bin/x64"; Output: "bin/x64/hello & package.exe"; } }');
+    'FPC Compile { Template: ' + NXString(Root + 'projects/forge/examples/FPC.mustache') + '; Compiler: @App.CompilerPath; Source: ["hello & package.lpr", "units/*.pas"]; EntryPoint: "hello & package.lpr"; UnitOutput: "bin/x64"; Output: "bin/x64/hello & package.exe"; } }');
   Save(lDirectory + 'hello & package.lpr', 'program Hello; uses ExampleUnit; begin WriteLn(MessageText); end.');
   ForceDirectories(lDirectory + 'units');
   Save(lDirectory + 'units/ExampleUnit.pas', 'unit ExampleUnit; interface const MessageText = ''package-ok''; implementation end.');

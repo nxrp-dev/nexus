@@ -838,16 +838,16 @@ end;
 function SchemaGenerationPath(const ARelativePath: string): string;
 begin
   Result := ExpandFileName(ExtractFileDir(ParamStr(0)) +
-    '\..\..\..\..\NexusLib\script\examples\schema\' + ARelativePath);
+    '\..\..\..\..\projects\schema\examples\' + ARelativePath);
   if not FileExists(Result) then
   Result := ExpandFileName(
-    '..\..\..\..\NexusLib\script\examples\schema\' + ARelativePath);
+      '..\..\..\projects\schema\examples\' + ARelativePath);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'script\examples\schema\' + ARelativePath);
+      'projects\schema\examples\' + ARelativePath);
   if not FileExists(Result) then
     Result := ExpandFileName(
-      'NexusLib\script\examples\schema\' + ARelativePath);
+      'projects\schema\examples\' + ARelativePath);
 end;
 
 function NewOutputDirectory(const APrefix: string): string;
@@ -885,9 +885,9 @@ end;
 
 function SharedDialectRoot: string;
 begin
-  Result := ExpandFileName('..\..\..\NexusLib\script\dialects');
+  Result := ExpandFileName('..\..\..\projects\nxscript\language');
   if not DirectoryExists(Result) then
-    Result := ExpandFileName('NexusLib\script\dialects');
+    Result := ExpandFileName('projects\nxscript\language');
 end;
 
 function SharedDialectPath(const ARelativePath: string): string;
@@ -1419,7 +1419,7 @@ begin
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lSession.CompileFile(
-      SharedDialectPath('Language\Language.nxscript')),
+      SharedDialectPath('Language.nxscript')),
       'Language definition should compile: ' + lSession.LastError);
     AContext.AssertTrue(lLanguageDefinition.Normalize(
       lSession.EntryCompiler.CompiledDocument),
@@ -1464,8 +1464,8 @@ begin
     AContext.AssertTrue(lLanguageDocument <> nil,
       'Schema should retain its compiled Language dialect.');
     AContext.AssertTrue(SameFileName(lLanguageDocument.SourceName,
-      SharedDialectPath('Language\Language.nxscript')),
-      'A missing local dialect should resolve from the shared dialect root.');
+      SharedDialectPath('Language.nxscript')),
+      'A missing local dialect should resolve from the NexusScript language root.');
     AContext.AssertTrue(lValidator.Validate(lSchemaDocument,
       lLanguageDocument),
       'Schema language should satisfy the Language contract: ' +
@@ -1482,10 +1482,10 @@ end;
 procedure TestSharedDialectCatalog(AContext: TNXTestContext);
 const
   cDialectPaths: array[0..3] of string = (
-    'Bot\Bot.Language.nxscript',
+    '..\..\bothost\language\Bot.Language.nxscript',
     'NexusManifest\NexusManifest.Language.nxscript',
-    'Schema\Schema.Language.nxscript',
-    'WorkspaceIndex\WorkspaceIndex.Language.nxscript');
+    '..\..\schema\language\Schema.Language.nxscript',
+    '..\..\..\tools\workspace-index\language\WorkspaceIndex.Language.nxscript');
 var
   lDocument: TNexusScriptCompiledDocument;
   lIndex: Integer;
@@ -1687,7 +1687,7 @@ begin
   lValidator := TNexusScriptValidator.Create;
   try
     AContext.AssertTrue(lMetaSession.CompileFile(
-      SharedDialectPath('Language\Language.nxscript')),
+      SharedDialectPath('Language.nxscript')),
       'Foundational Language definition should compile: ' +
       lMetaSession.LastError);
 

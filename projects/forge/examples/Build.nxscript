@@ -1,0 +1,12 @@
+dialect "../language/Forge.nxscript";
+module "Shared.nxscript";
+
+FPC CompileHello (CompileFPC) {
+    Source: ["hello world & test.lpr"];
+    EntryPoint: "hello world & test.lpr";
+    Output: "hello world & test.exe";
+    Defines: [FORGE_EXAMPLE];
+}
+Git InspectRepository (GitStatus) {
+    Repository: ".";
+}

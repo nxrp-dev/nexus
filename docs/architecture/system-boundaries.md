@@ -6,9 +6,9 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 - `NexusLib` contains shared Pascal support code used by other Nexus modules. It owns core helpers plus library families such as `core`, `packages/lsp`, `ui`, and `net`. `packages/lsp` owns only standard LSP values and language-neutral transport, dispatch, outbound-request, and server-host mechanics.
 - `NexusTools/LS` contains the Pascal language server. It owns Pascal documents, CodeTools integration, custom project/toolchain/refactoring protocol values, concrete requests, diagnostics, navigation, completion, symbols, and Pascal language-server test coverage.
-- `NexusTools/Script` owns the NexusScript language core, artifact production, CLI, and the separate `NexusScriptLS` process. Its language server currently owns only lifecycle and full-text open-document state; editor intelligence is not implemented in this restructuring pass.
+- `projects/nxscript` owns the NexusScript language core, artifact production, CLI, and the separate `NexusScriptLS` process. Its language server currently owns only lifecycle and full-text open-document state; editor intelligence is not implemented in this restructuring pass.
 - `packages/nxtest` contains the reusable NexusTest framework and module contract. `nxtest/host` owns the command-line host and sample module, while `nxtest/ui` owns the GUI runner.
-- `NexusTools/Forge` coordinates packages, native tool execution, and generic artifact rendering. `projects/csv` owns the standalone delimited-data compiler. Maintained scripts and templates live under `NexusLib/script`.
+- `projects/forge` coordinates packages, native tool execution, and generic artifact rendering. `projects/csv` owns the standalone delimited-data compiler. Product-owned dialects, scripts, examples, and templates live with their projects; repository task definitions live under `tools/task/tasks`.
 - `docs` contains the MkDocs documentation site.
 
 ## Integration boundaries

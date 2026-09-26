@@ -7,8 +7,8 @@ Forge nor the NexusScript compiler parses CSV or understands SQL output.
 ```powershell
 lazbuild projects\csv\NexusCSV.lpi
 & .\output\NexusCSV\x86_64-win64\nxcsv.exe `
-  /input=NexusLib/script/data/lookup/STATE.csv `
-  /template=NexusLib/script/tools/CSV/SQL.mustache `
+  /input=projects/csv/examples/data/lookup/STATE.csv `
+  /template=projects/csv/templates/SQL.mustache `
   /output=output/state.sql /name=STATE_TBL
 ```
 
@@ -37,14 +37,14 @@ SQL string literal, including surrounding quotes and doubled apostrophes.
 `O'Brien` becomes `'O''Brien'`; an empty value becomes `''`, never NULL. Use this
 helper only where a SQL string value is intended. It does not quote identifiers.
 
-All maintained definitions and templates are in `NexusLib/script/tools/CSV/`.
-`CSV.nxscript` supplies the partial CompileCSV configuration. Its Forge `Template`
-constructs the command; `SourceTemplate` is the artifact template supplied to nxcsv.
+`config/CSV.nxscript` supplies the partial CompileCSV configuration. The Forge
+`Template` constructs the command; `templates/SQL.mustache` is the artifact
+template supplied to nxcsv.
 Source, SourceTemplate, and Output are native tool arguments relative to the package
 working directory. Compiler defaults to `nxcsv` on PATH and can be supplied explicitly
 or through a package output, as with FPC.
 
-The ready-to-run package is `NexusLib/script/examples/csv/Lookup.ForgePackage.nxscript`.
+The ready-to-run package is `projects/csv/examples/Lookup.ForgePackage.nxscript`.
 Put the built executable directory on PATH and request package LookupSQL. It creates
 `generated/state.sql` and reuses it while present.
 
@@ -64,7 +64,8 @@ NexusScript's existing external-data tests; both consumers use
 - Installer tasks materialized successfully with Forge and nxcsv build/install steps.
   Full installer staging and packaging were not run.
 
-NexusSchema source/project/tests are retired. Maintained scripts and templates are
-under the common library; test-only/invalid fixtures remain with their suites.
+NexusSchema source/project/tests are retired. CSV configuration, templates,
+examples, and lookup inputs are owned by this project; test-only/invalid fixtures
+remain with their suites.
 The existing NexusScript external-source manifest adapter uses the same delimited
 reader; it is not a second implementation of CSV parsing.

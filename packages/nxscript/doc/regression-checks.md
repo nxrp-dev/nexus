@@ -9,7 +9,7 @@ From the repository root:
 ```powershell
 lazbuild -B packages\nxscript\test\NexusScriptTests.lpi
 & .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
-lazbuild -B NexusTools\Script\ls\tests\NexusScriptLSTests.lpi
+lazbuild -B projects\ls\nxscript\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
 

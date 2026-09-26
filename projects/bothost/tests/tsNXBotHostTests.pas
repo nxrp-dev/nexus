@@ -50,10 +50,10 @@ uses
 function SharedDialectRoot: string;
 begin
   Result := ExpandFileName('..' + PathDelim + '..' + PathDelim + '..' +
-    PathDelim + 'NexusLib' + PathDelim + 'script' + PathDelim + 'dialects');
+    PathDelim + 'projects' + PathDelim + 'bothost' + PathDelim + 'language');
   if not DirectoryExists(Result) then
-    Result := ExpandFileName('NexusLib' + PathDelim + 'script' + PathDelim +
-      'dialects');
+    Result := ExpandFileName('projects' + PathDelim + 'bothost' + PathDelim +
+      'language');
 end;
 
 function RunTestGit(const AArguments: array of string): string;
@@ -117,8 +117,8 @@ begin
   AFileName := IncludeTrailingPathDelimiter(ARoot) + 'Bots.nxscript';
   lText := TStringList.Create;
   try
-    lText.LoadFromFile(ExpandFileName('NexusLib' + PathDelim + 'script' +
-      PathDelim + 'bothost' + PathDelim + 'Bots.nxscript'));
+    lText.LoadFromFile(ExpandFileName('projects' + PathDelim + 'bothost' +
+      PathDelim + 'examples' + PathDelim + 'Bots.nxscript'));
     lLocation := StringReplace(IncludeTrailingPathDelimiter(ARoot) +
       'workspace', '\', '/', [rfReplaceAll]);
     lText.Text := StringReplace(lText.Text,
@@ -2107,7 +2107,7 @@ begin
 
   lCatalogText := TStringList.Create;
   try
-    lCatalogText.Add('dialect "Bot/Bot.Language.nxscript";');
+    lCatalogText.Add('dialect "Bot.Language.nxscript";');
     lCatalogText.Add('BotCatalog NexusBots {');
     lCatalogText.Add('  Workspaces: [');
     lCatalogText.Add('  Workspace Nexus {');

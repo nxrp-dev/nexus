@@ -81,7 +81,7 @@ var
   lSuffix: string;
 begin
   lRoot := IncludeTrailingPathDelimiter(GetCurrentDir);
-  AContext.AssertTrue(FileExists(lRoot + 'NexusLib/script/bothost/database/BotHost.Schema.nxscript'),
+  AContext.AssertTrue(FileExists(lRoot + 'projects/bothost/schema/BotHost.Schema.nxscript'),
     'Run this suite from the repository root');
   CreateGUID(lID);
   lDirectory := lRoot + 'output/BotHostDatabaseVerification/' + GUIDToString(lID) + '/';
@@ -99,15 +99,15 @@ begin
       lPackage := lDirectory + 'Build.nxscript';
       lDDL := lDirectory + 'generated/schema' + IntToStr(lIndex) + '.sql';
       SaveText(lDirectory + 'Environment.nxscript',
-        'module Firebird "' + lRoot + 'NexusLib/script/bothost/database/Environments.nxscript"; ' +
+        'module Firebird "' + lRoot + 'projects/bothost/config/Environments.nxscript"; ' +
         'Environment Selected (Firebird) { MODULE_ID_POSTFIX: "' +
         lSuffix + '"; }');
       SaveText(lPackage, 'dialect "' + lRoot +
-        'NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript"; ' +
+        'projects/forge/language/Forge.nxscript"; ' +
         'module Selected "Environment.nxscript"; Package Verify { ' +
         'Targets: [Dimension TargetDB { Required: True; Allowed: [Firebird]; }]; ' +
         'Outputs: [Output SQL { Path: "generated/schema' + IntToStr(lIndex) + '.sql"; }]; ' +
-        'Render Generate { Source: "' + lRoot + 'NexusLib/script/bothost/database/BotHost.Schema.nxscript"; ' +
+        'Render Generate { Source: "' + lRoot + 'projects/bothost/schema/BotHost.Schema.nxscript"; ' +
         'Output: @Verify.Outputs.SQL.Path; Environment: @Selected; Template: @Selected.Template; } }');
       AContext.AssertTrue(lPackages.Execute(lPackage, 'Verify', lTargets), lPackages.Diagnostic);
       AContext.AssertFalse(lPackages.PackageResult.Reused, 'Absent artifact builds');

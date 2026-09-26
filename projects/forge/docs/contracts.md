@@ -11,7 +11,7 @@ From the repository root, with working `fpc` and `git` executables on PATH:
 ```powershell
 lazbuild projects\forge\NexusForge.lpi
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=NexusLib\script\examples\forge\Build.nxscript
+  /input=projects\forge\examples\Build.nxscript
 ```
 
 The example compiles `hello world & test.lpr` and runs local `git status --short`.
@@ -32,7 +32,8 @@ environment repair, or activation logic.
 
 ## Language pieces
 
-`NexusForge.Language.nxscript` includes `pieces/*.ForgeDef.nxscript`. Core, FPC,
+`projects/forge/language/Forge.nxscript` includes
+`projects/forge/language/definitions/*.ForgeDef.nxscript`. Core, FPC,
 Git, CSV, Render, Package, and Environment definitions form one effective Forge language
 through the included-definition view. The master does not name individual tools.
 `ForgeDef` is a convention selected by this include pattern, not a filename rule.
@@ -143,7 +144,7 @@ are verified; shell expansion and compound commands are not implicit.
 ## CSV compilation
 
 CSV is an ordinary native operation. Import
-`NexusLib/script/tools/CSV/CSV.nxscript`, compose CompileCSV, and provide Source,
+`projects/csv/config/CSV.nxscript`, compose CompileCSV, and provide Source,
 SourceTemplate, and Output. Its Template builds the command; SourceTemplate is
 passed to nxcsv for artifact rendering. Optional Compiler, Name, and Delimiter
 values remain explicit tool arguments. Forge contains no CSV loader or SQL logic.
@@ -173,7 +174,7 @@ Write failure stops subsequent operations. An invocation records SourcePath,
 OutputPath, Started, and Completed; it does not fabricate a process exit status.
 Native and Render operations can occur in the same ordered list.
 
-See [the BotHost database example](../../../NexusLib/script/bothost/database/README.md) for a complete
+See [the BotHost database example](../../../projects/bothost/doc/database-generation.md) for a complete
 package and target-selected Environment. It renders Firebird SQL with no database
 semantics in Forge and no separate NexusScript executable.
 

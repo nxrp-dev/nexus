@@ -1,0 +1,13 @@
+dialect "../forge/language/Forge.nxscript";
+module "config/Environments.nxscript";
+
+Package BotHostDatabase {
+    Targets: [Dimension TargetDB { Required: True; Allowed: [Firebird]; }];
+    Outputs: [Output SchemaSQL { Path: "generated/Firebird/BotHost.create.sql"; }];
+    Render Generate {
+        Source: "schema/BotHost.Schema.nxscript";
+        Output: @BotHostDatabase.Outputs.SchemaSQL.Path;
+        Environment: @Firebird;
+        Template: @Firebird.Template;
+    }
+}

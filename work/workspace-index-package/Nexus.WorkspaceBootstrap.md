@@ -24,7 +24,7 @@ tests. Prefer `rg --files` for file discovery and `rg` for text search.
 ## Reading the Workspace Index
 
 `Nexus.WorkspaceIndex.nxscript` is validated by
-`NexusLib/script/dialects/WorkspaceIndex/WorkspaceIndex.Language.nxscript`.
+`tools/workspace-index/language/WorkspaceIndex.Language.nxscript`.
 
 - A `Workspace` is a repository or separately meaningful working tree.
 - A `Folder` describes a directory.

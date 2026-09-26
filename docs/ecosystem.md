@@ -8,7 +8,7 @@ Nexus is organized as a family of related Pascal projects.
 - `NexusForge`: schema model and generation tooling.
 - `packages/lsp`: standard LSP values and language-neutral server process infrastructure.
 - `NexusTools/LS`: Pascal language-server executable, requests, documents, and services.
-- `NexusTools/Script`: NexusScript core, artifact and CLI tooling, plus the dedicated NexusScriptLS lifecycle/document shell.
+- `projects/nxscript`: NexusScript core, artifact and CLI tooling, plus the dedicated NexusScriptLS lifecycle/document shell.
 - `NexusTools`: framework-related tools, including NexusBuild, NexusTask, NexusTest, and NexusLS.
 - `NexusLib`: shared JSON, JSON-RPC/LSP, persistence, command-line, and support code.
 - `scripts`: repository automation used by builds, archives, notifications, and development workflow.

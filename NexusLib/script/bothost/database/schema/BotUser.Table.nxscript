@@ -1,9 +1,0 @@
-dialect "../../../dialects/Schema/Schema.Language.nxscript";
-
-Table BotUser {
-    TableName: BOT_USER;
-    Fields: [
-        Field BARE_JID { Type: "varchar(255)"; },
-        Field ENABLED { Type: "smallint"; }
-    ];
-}

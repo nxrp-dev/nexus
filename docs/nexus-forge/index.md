@@ -15,12 +15,13 @@ operation like FPC. Its SourceTemplate controls the generated artifact. SQL stri
 quoting is explicitly requested by that template; neither Forge nor the CSV reader
 infers database behavior.
 
-All maintained scripts and templates are in `NexusLib/script/`:
+Maintained inputs live with their owners:
 
-- `bothost/database/BotHost.ForgePackage.nxscript`: Firebird schema generation.
-- `examples/csv/Lookup.ForgePackage.nxscript`: CSV lookup data to SQL.
-- `examples/forge/hello.ForgePackage.nxscript`: native Pascal build.
-- `tasks/`: build/deployment task scripts retained during Forge consolidation.
+- `projects/forge/language/` and `projects/forge/examples/`: Forge definitions and build examples.
+- `projects/bothost/`: BotHost schema package, configuration, tables, and Firebird template.
+- `projects/csv/`: CSV compiler configuration, templates, lookup inputs, and package example.
+- `projects/schema/`: Schema dialect and retained Schema examples.
+- `tools/task/tasks/`: repository build/deployment tasks, pending their eventual Forge replacement.
 
 From the repository root:
 
@@ -29,9 +30,9 @@ lazbuild projects\forge\NexusForge.lpi
 lazbuild projects\csv\NexusCSV.lpi
 $env:PATH = (Resolve-Path output\NexusCSV\x86_64-win64).Path + ';' + $env:PATH
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=NexusLib/script/examples/csv/Lookup.ForgePackage.nxscript /package=LookupSQL
+  /input=projects/csv/examples/Lookup.ForgePackage.nxscript /package=LookupSQL
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=NexusLib/script/bothost/database/BotHost.ForgePackage.nxscript `
+  /input=projects/bothost/BotHost.ForgePackage.nxscript `
   /package=BotHostDatabase /targets=TargetDB:Firebird
 ```
 

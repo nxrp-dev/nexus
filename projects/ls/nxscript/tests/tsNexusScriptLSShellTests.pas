@@ -702,7 +702,7 @@ end;
 procedure TestDialectModelAndCompletion(AContext: TNXTestContext);
 const
   cURI = 'file:///C:/work/language-subject.nxscript';
-  cText = 'dialect "Language/Language.nxscript";' + LineEnding +
+  cText = 'dialect "Language.nxscript";' + LineEnding +
     'Language Subject { }';
 var
   lJSON: TJSONData;
@@ -713,7 +713,7 @@ begin
   TNexusScriptLSModel.SetCurrent(lModel);
   lJSON := nil;
   try
-    lModel.DialectRoot := ExpandFileName('NexusLib\script\dialects');
+    lModel.DialectRoot := ExpandFileName('projects\nxscript\language');
     lModel.OpenDocument(cURI, 'nexusscript', 1, cText);
     AContext.AssertTrue(lModel.FindAnalysis(cURI).Succeeded,
       'The LS should resolve dialects from its configured catalog root.');

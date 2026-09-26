@@ -67,9 +67,14 @@ begin
 end;
 
 function Dialect(const AName: string): string;
+var
+  lDialectPath: string;
 begin
-  Result := 'dialect "' + StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'NexusLib/script/dialects/' + AName + '/' + AName + '.Language.nxscript"; ';
+  if AName = 'Schema' then
+    lDialectPath := Root + 'projects/schema/language/Schema.Language.nxscript'
+  else
+    lDialectPath := Root + 'projects/forge/language/Forge.nxscript';
+  Result := 'dialect "' + StringReplace(lDialectPath, '\', '/', [rfReplaceAll]) + '"; ';
 end;
 
 function ChildCommand(const AMode: string): string;
@@ -265,7 +270,7 @@ begin
   lDirectory := TestDir('native tools & paths');
   Save(lDirectory + 'hello world & test.lpr', 'program Hello; begin WriteLn(''forge-ok''); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/examples/forge/Shared.nxscript"; ' +
+    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/forge/examples/Shared.nxscript"; ' +
     'FPC Compile (CompileFPC) { Source: ["hello world & test.lpr"]; EntryPoint: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
     'Git Inspect (GitStatus) { Repository: "."; }');
   lInvocation := TNXForgeInvocation.Create;
@@ -570,12 +575,12 @@ begin
   ForceDirectories(lDirectory + 'artifacts');
   lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/x86_64-win64/nxcsv.exe'), '\', '/', [rfReplaceAll]);
   AContext.AssertTrue(FileExists(lTool), 'Build projects/csv/NexusCSV.lpi first');
-  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/SQL.mustache';
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/csv/templates/SQL.mustache';
   Save(lDirectory + 'source.csv', 'ID,NAME,NOTE' + LineEnding +
     '1,O''Brien,"comma, and ""quote"""' + LineEnding + '2,,' + LineEnding);
   Save(lDirectory + 'native.mustache', ChildCommand('ok'));
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/CSV.nxscript"; ' +
+    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/csv/config/CSV.nxscript"; ' +
     'CSV Generate (CompileCSV) { Compiler: "' + lTool + '"; Source: "source.csv"; ' +
     'SourceTemplate: "' + lTemplate + '"; Output: "artifacts/seed.sql"; Name: DEMO; } ' +
     'Git Next { Template: "native.mustache"; Repository: repo; }');
@@ -601,7 +606,7 @@ begin
     Save(lDirectory + 'source.csv', 'ID' + #9 + 'NAME' + LineEnding + '1' + #9 + 'O''Brien' + LineEnding);
     Save(lDirectory + 'plain.mustache', '{{#DataSource.Records}}{{#.}}[{{{.}}}]{{/.}}{{/DataSource.Records}}');
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-      'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'NexusLib/script/tools/CSV/CSV.nxscript"; ' +
+      'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/csv/config/CSV.nxscript"; ' +
       'CSV Plain (CompileCSV) { Compiler: "' + lTool + '"; Source: "source.csv"; ' +
       'Delimiter: tab; SourceTemplate: "plain.mustache"; Output: "artifacts/plain.txt"; }');
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);

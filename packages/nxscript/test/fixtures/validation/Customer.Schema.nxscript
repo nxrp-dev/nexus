@@ -1,4 +1,4 @@
-dialect "Schema/Schema.Language.nxscript";
+dialect "../../../../../projects/schema/language/Schema.Language.nxscript";
 
 Table Customer {
     TableName: CUSTOMER;

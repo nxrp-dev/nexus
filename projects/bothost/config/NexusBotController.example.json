@@ -56,9 +56,9 @@
       }
     ]
   },
-  "CatalogFile": "../../../NexusLib/script/bothost/Bots.nxscript",
+  "CatalogFile": "../examples/Bots.nxscript",
   "ControllerFullJID": "test1@nexus.local/NexusBotHost",
-  "DialectRoot": "../../../NexusLib/script/dialects",
+  "DialectRoot": "../language",
   "OperationCapacity": 32,
   "Operators": "operator@nexus.local\r\n",
   "Readers": ""

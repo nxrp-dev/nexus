@@ -1,4 +1,4 @@
-dialect "../../../../NexusLib/script/dialects/NexusForge/NexusForge.Language.nxscript";
+dialect "../../../../projects/forge/language/Forge.nxscript";
 
 FPC CompileExample {
     Template: "../../examples/FPC.mustache";

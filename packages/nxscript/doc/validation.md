@@ -46,7 +46,7 @@ beginning `NSV1` describe an invalid language definition. Codes beginning
 `NSV2` or `NSV3` describe an invalid subject.
 
 The foundational definition is
-`../../../NexusLib/script/dialects/Language/Language.nxscript`. It has no
+`../../../projects/nxscript/language/Language.nxscript`. It has no
 `dialect`, is compiled normally, normalized by the public model's concrete
 language vocabulary,
 and then validated against its own normalized rules. No parser mode or second
@@ -69,9 +69,9 @@ Language.nxscript
 `Language.nxscript` is foundational and therefore has no self-dialect.
 
 The production manifest language definition is shared at
-`../../../NexusLib/script/dialects/NexusManifest/NexusManifest.Language.nxscript`.
+`../../../projects/nxscript/language/NexusManifest/NexusManifest.Language.nxscript`.
 The production schema language definition is shared at
-`../../../NexusLib/script/dialects/Schema/Schema.Language.nxscript`.
+`../../../projects/schema/language/Schema.Language.nxscript`.
 
 Documents associate their semantic document type explicitly with `dialect`.
 The Validator API does not infer, locate, or enforce language-definition

@@ -10,7 +10,7 @@ From the repository root:
 
 ```powershell
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=NexusLib\script\examples\forge\hello.ForgePackage.nxscript `
+  /input=projects\forge\examples\hello.ForgePackage.nxscript `
   /package=Hello `
   /targets=TargetCPU:x64,TargetOS:Windows
 ```
@@ -116,8 +116,8 @@ FPC Compile (CompileFPC) {
 Here App is the containing package. The same resolved filename drives artifact
 presence checks and compiler output. These are ordinary NexusScript values and
 references; Forge has no hard-coded executable suffix or operating-system table.
-See the [PasBuild shared configuration](../../../NexusLib/script/examples/forge/pasbuild-comparison/Shared.nxscript)
-and [package](../../../NexusLib/script/examples/forge/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
+See the [PasBuild shared configuration](../../../projects/forge/examples/pasbuild-comparison/Shared.nxscript)
+and [package](../../../projects/forge/examples/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
 for a complete example with target-selected directories and compiler settings.
 
 ## Dependency outputs
@@ -193,5 +193,5 @@ are included. Standalone Forge operation execution remains available.
 
 A package may use Render to compile/validate a source document and write a declared
 artifact through its Template. See the [Render contract](contracts.md#render-artifacts)
-and [BotHost schema package](../../../NexusLib/script/bothost/database/README.md). Artifact presence
+and [BotHost schema package](../../../projects/bothost/doc/database-generation.md). Artifact presence
 remains the readiness test; no hashing or database connection is implied.

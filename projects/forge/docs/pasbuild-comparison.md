@@ -15,8 +15,8 @@ Selected [PasBuild's own project.xml](../../../lib/pasbuild/project.xml), versio
 1.10.0-SNAPSHOT. Unlike its single-file sample, it declares filtered resources,
 two compiler profiles, tests, and an additional source-archive directory.
 
-- [Corresponding Forge package](../../../NexusLib/script/examples/forge/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
-- [Shared environments and operation configurations](../../../NexusLib/script/examples/forge/pasbuild-comparison/Shared.nxscript)
+- [Corresponding Forge package](../../../projects/forge/examples/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
+- [Shared environments and operation configurations](../../../projects/forge/examples/pasbuild-comparison/Shared.nxscript)
 - [Repeatable comparison script](../../../scripts/Compare-ForgePasBuild.ps1)
 - [Recorded results](../../../output/ForgePasBuildComparison/20260915-095939/results.json)
 - [Test failure comparison](../../../output/ForgePasBuildComparison/20260915-095939/test-comparison.json)
@@ -93,7 +93,7 @@ changed-source reuse observation is historical.
 - [Resource substitution](../../../lib/pasbuild/src/main/pascal/PasBuild.Command.ProcessResources.pas): project variables and build date/time variables.
 - [Test lifecycle](../../../lib/pasbuild/src/main/pascal/PasBuild.Command.Test.pas): compile prerequisite, separate test units, framework options, output-directory execution.
 - [Binary packaging](../../../lib/pasbuild/src/main/pascal/PasBuild.Command.Package.pas) and [source packaging](../../../lib/pasbuild/src/main/pascal/PasBuild.Command.SourcePackage.pas): goal prerequisites, names, archive contents.
-- [Forge FPC contract](../../../NexusLib/script/dialects/NexusForge/pieces/FPC.ForgeDef.nxscript) and [package contract](../../../NexusLib/script/dialects/NexusForge/pieces/Package.ForgeDef.nxscript): currently accepted properties.
+- [Forge FPC contract](../../../projects/forge/language/definitions/FPC.ForgeDef.nxscript) and [package contract](../../../projects/forge/language/definitions/Package.ForgeDef.nxscript): currently accepted properties.
 
 ## Scope and next decisions
 

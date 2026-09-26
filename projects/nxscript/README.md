@@ -1,0 +1,325 @@
+# NexusScript
+
+NexusScript compiles source documents and serializes their completed domain
+model as generic JSON. A Mustache template may transform that same JSON into
+the final artifact.
+
+The reusable NexusScript mechanism lives in `packages/nxscript`.
+That package contains the language model, compiler, dependency session,
+normalization, validation, JSON/artifact support, external-data handling, and
+manifest processing. This project owns `cli/` for command-line process
+behavior; the separate NexusScript language-server project is under
+`projects/ls/nxscript/`. The package does not depend on either front end.
+
+```text
+NexusScript /input=Customer.Schema.nxscript
+NexusScript /input=Customer.Schema.nxscript /output=Customer.json
+NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache
+NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache /output=Customer.sql
+NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=projects/nxscript/language
+```
+
+## Options
+
+- `/input=<file>` is the NexusScript source document for raw JSON and
+  single-template modes. It is not used in manifest mode.
+- `/output=<file>` writes the artifact to a file. Without it, the artifact is
+  written to stdout.
+- `/template=<file>` renders the generated JSON through a Mustache template.
+- `/manifest=<file>` compiles and validates a NexusScript `NexusManifest`,
+  compiles its direct `Model` sources, renders each direct `Template` against
+  their combined JSON, and renders declared external data through matching
+  `SourceTemplate` rules.
+- `/validate` applies each input model's declared `dialect` before producing
+  output. Successful compilation is sufficient when a model has no dialect.
+- `/dialect-root=<directory>` provides the shared dialect catalog used when a
+  relative `dialect` does not exist beside its declaring document. Local
+  dialects take precedence.
+- `/help` displays generated command-line help.
+
+Without `/template` or `/manifest`, JSON is the final artifact. With
+`/template`, the same JSON is generated internally and passed to Mustache.
+
+`/manifest` is mutually exclusive with `/input` and `/template`. Manifest mode
+requires `/output`, which is the base directory for the templates' relative
+output paths. A manifest requires at least one direct `Model` and at least one
+`Template` or `SourceTemplate`. Each entry's `Source` and each ordinary
+template's `Output` are read from
+compiled `EffectiveText`, so ordinary NexusScript references and text
+composition apply; those values are not interpreted as Mustache. Sources are
+relative to the manifest document.
+
+Every model compiles independently with its own NexusScript module, include,
+dialect, and reference context. The manifest does not create namespaces,
+aliases, wrappers, merges, or precedence. Artifact documents from every model
+contribute to one global JSON object, and root names must be unique across that
+complete context. The same canonical artifact source reached through multiple
+models contributes once; declaring the same model source directly more than
+once is a manifest error.
+
+All models compile and the combined JSON is serialized once before the first
+template is rendered. Templates render in compiled child order and all receive
+that exact JSON string. Processing stops on the first template failure without
+rolling back files written by earlier templates.
+
+```nexusscript
+dialect "NexusManifest/NexusManifest.Language.nxscript";
+
+NexusManifest FirebirdBuild {
+    Model Domain { Source: "models/Domain.nxscript"; }
+    Model Constants { Source: "constants/Firebird.Constants.nxscript"; }
+    Template Schema {
+        Source: "mustache/DatabaseSchema.mustache";
+        Output: "DatabaseSchema.sql";
+    }
+    SourceTemplate CommaData {
+        Types: [csv, jcsv];
+        Compiler: CommaDelimited;
+        Source: "mustache/DataImport.mustache";
+        OutputDirectory: "preload";
+        OutputExtension: ".sql";
+    }
+}
+```
+
+## External tabular data
+
+A NexusScript document declares its own external tabular dependencies in the
+header, before definitions:
+
+```nexusscript
+data STATE "data/state.csv";
+data COUNTY "data/county.tsv";
+
+Schema Domain {}
+```
+
+The declared path is relative to the declaring document. Data declarations are
+not definitions, references, modules, includes, or generic JSON roots. They are
+collected separately across the entry document, includes, and imported modules;
+dialect documents do not contribute data dependencies.
+
+`SourceTemplate` maps normalized source types to one built-in compiler and one
+Mustache template. `CommaDelimited` supports `csv` and `jcsv`;
+`TabDelimited` supports `tsv` and `tab`. Every declared source must match one
+rule. The template runs once per source, and its output filename is the source
+basename with `OutputExtension` beneath the optional `OutputDirectory`.
+Mappings, source files, templates, safe output paths, and output collisions are
+checked before source-driven files are written.
+
+Each source template receives only its completed tabular context:
+
+```json
+{
+  "DataSource": {
+    "_nx": {
+      "Kind": "DataSource",
+      "Name": "STATE",
+      "Type": "csv",
+      "Source": "data/state.csv"
+    },
+    "Fields": ["STATE_ID", "DESCRIPTION"],
+    "Records": [
+      ["CA", "California"],
+      ["OR", "Oregon"]
+    ]
+  }
+}
+```
+
+`Fields` and each positional record retain source order. The source compiler
+rejects empty files, blank or duplicate headers, malformed quoted fields, and
+rows whose value count differs from the header count. The external context is
+not merged with the ordinary combined model context.
+
+Diagnostics are written to stderr so redirected stdout contains only the
+artifact. Filename components such as `.Schema` are decorative and have no
+execution meaning.
+
+## Definition Targets
+
+A definition header may contain named Target clauses after its optional
+composition selectors and before its body:
+
+```nexusscript
+Build Release (CommonBuild) Target[Development, QA] Platform[Windows] {
+}
+```
+
+Target-kind names and values are case-sensitive and use the ordinary
+NexusScript word and quoted-string rules. Each kind may occur only once on a
+definition, and its nonempty value list contains alternatives. The former
+anonymous form `[Development]` is not supported.
+
+`TNexusScriptCompiler` and `TNexusScriptCompilationSession` accept a
+`TNexusScriptTargetSelection` containing at most one selected value per named
+kind. Both own a copy of the supplied selection. Parameterless construction is
+untargeted and retains every definition. Selected kinds filter independently
+before composition and effective-value resolution. A definition without a
+clause for a selected kind remains unrestricted by that kind; clauses for kinds
+that were not selected are ignored. Values within one clause use OR semantics,
+and every selected kind declared by the definition must match.
+
+The complete selection applies recursively to roots, children, inline
+definitions, dialects, modules, includes, and discovered documents. The parsed
+source model remains complete; filtering affects only the compiled model.
+References and composition selectors naming excluded definitions fail through
+their normal unresolved-target diagnostics.
+
+Targets do not participate in definition identity. Same-identity targeted
+source alternatives may coexist, but ordinary duplicate-definition validation
+runs after filtering. Untargeted or partially targeted compilation therefore
+fails when it retains multiple definitions with the same scoped identity.
+
+Targets belong to the declaration on which they appear. Composition does not
+copy or merge a contributor's Targets. Retained children, structural
+references, imports, and projections preserve the Targets of the definitions
+they represent.
+
+Definitions expose retained clauses in source order as typed `_nx.Targets`
+entries containing `Name` and `Values`. Definitions without Targets omit that
+member. A domain property named `Targets` remains an ordinary, separate
+property:
+
+```json
+"Targets": [
+  { "Name": "Target", "Values": ["Development", "QA"] },
+  { "Name": "Platform", "Values": ["Windows"] }
+]
+```
+
+## JSON model
+
+The JSON root is an object. Each compiled root definition is a member keyed by
+its completed definition name. Inside a definition, properties and direct child
+definitions are members keyed by their domain names. There is no fixed wrapper,
+kind grouping, pluralization, or Schema-specific conversion.
+
+Every definition also has reserved `_nx` metadata containing its NexusScript
+kind, identity, and source range. Domain members remain separate, so an
+ordinary `Name` property does not conflict with the definition name.
+
+```nexusscript
+Catalog Product {
+    Name: Nexus;
+    Fields: [
+        Field ID { Type: UUID; },
+        Field Created { Type: Timestamp; }
+    ];
+}
+```
+
+The range values in this example are illustrative.
+
+```json
+{
+  "Product": {
+    "_nx": {
+      "Kind": "Catalog",
+      "Name": "Product",
+      "IsReference": false,
+      "SourceRange": {
+        "SourceName": "Catalog.nxscript",
+        "StartPosition": { "Offset": 0, "Line": 1, "Column": 1 },
+        "EndPosition": { "Offset": 153, "Line": 7, "Column": 2 }
+      }
+    },
+    "Name": "Nexus",
+    "Fields": [
+      {
+        "_nx": {
+          "Kind": "Field",
+          "Name": "ID",
+          "IsReference": false,
+          "SourceRange": {
+            "SourceName": "Catalog.nxscript",
+            "StartPosition": { "Offset": 53, "Line": 4, "Column": 9 },
+            "EndPosition": { "Offset": 77, "Line": 4, "Column": 33 }
+          }
+        },
+        "Type": "UUID"
+      },
+      {
+        "_nx": {
+          "Kind": "Field",
+          "Name": "Created",
+          "IsReference": false,
+          "SourceRange": {
+            "SourceName": "Catalog.nxscript",
+            "StartPosition": { "Offset": 88, "Line": 5, "Column": 9 },
+            "EndPosition": { "Offset": 129, "Line": 5, "Column": 50 }
+          }
+        },
+        "Type": "Timestamp"
+      }
+    ]
+  }
+}
+```
+
+A Mustache template consumes the domain shape directly:
+
+```mustache
+{{#Product}}
+product {{Name}}
+{{#Fields}}{{#_nx}}{{Name}}{{/_nx}}: {{Type}}
+{{/Fields}}
+{{/Product}}
+```
+
+All scalar values are JSON strings. Arrays preserve compiled order. Structural
+values are definition objects. An unnamed scalar array entry remains a string;
+a named scalar or named nested-array entry is represented as an object with
+`_nx.Name` and a `Value` member. A definition that declares a property or child
+named `_nx` is rejected during emission.
+
+`_nx.SourceRange` belongs to definition objects, including nested, inline,
+composed, and structurally referenced definitions. It contains the compiled
+definition's existing `SourceName`, `StartPosition`, and `EndPosition` without
+normalization. File compilation records an expanded physical filename;
+`CompileText` preserves the source identity supplied by its caller. The `_nx`
+objects used only to name scalar or nested-array entries do not contain a
+`SourceRange`.
+
+The top-level document metadata contains `_nx.CompiledAt`, an ISO 8601 UTC
+timestamp such as `2026-09-15T12:34:56.789Z`. It records the start of document
+compilation once, including both internal compilation passes. Repeated emission
+of that compiled document retains the same value. An aggregate uses its first
+(entry) document's timestamp; included documents do not replace it. This value
+is available to Mustache as `{{_nx.CompiledAt}}` and is not copied into nested
+definition metadata. Separate compilations may produce different timestamps.
+
+An entry document may declare `module Path;` to make every root in another
+document addressable under its declared name, or `module Root Path;` to import
+only the named root. A module never renames a root and does not add the imported
+document to the artifact set.
+
+An entry document may declare `include Path;` dependencies. Included documents
+are compiled separately, contribute to the same artifact in deterministic
+entry-first order, and do not introduce reference namespaces. Use `module`
+when definitions must be addressable from another document. A `dialect Path;`
+association remains separate and does not contribute artifact content unless
+that document is also included. Root names must be unique across the complete
+artifact document set.
+
+Either dependency declaration may discover its targets by folder and filename
+mask:
+
+```nexusscript
+include discover "." "*.PasBuild.nxscript";
+include discover recursive "." "*.PasBuild.nxscript";
+
+module discover "." "*.Language.nxscript";
+module discover recursive "." "*.Language.nxscript";
+```
+
+The folder is relative to the document containing the declaration. Discovery
+selects matching documents and excludes the declaring document itself. Without
+`recursive`, only the named folder is searched; with it, matching documents in
+subfolders are selected as well. An empty selection is a no-op.
+
+Each discovered include behaves as though it had been named by a separate
+`include Path;` declaration. Each discovered module contributes all of its
+roots as though it had been named by a separate `module Path;` declaration.
+There is no standalone `discover` declaration and no discovered selected-root
+module form.

@@ -3,7 +3,7 @@
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $sourceRoot = Join-Path $repoRoot 'lib/pasbuild'
-$exampleRoot = Join-Path $repoRoot 'NexusLib/script/examples/forge/pasbuild-comparison'
+$exampleRoot = Join-Path $repoRoot 'projects/forge/examples/pasbuild-comparison'
 $runRoot = Join-Path $repoRoot ('output/ForgePasBuildComparison/' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 if (Test-Path -LiteralPath $runRoot) { throw 'Comparison directory already exists' }
 New-Item -ItemType Directory -Path $runRoot | Out-Null
@@ -63,7 +63,7 @@ Get-ChildItem -LiteralPath $exampleRoot -File | ForEach-Object {
     if ($_.Extension -eq '.nxscript') {
         # Staged packages retain access to the single shared dialect library.
         $stagedPath = Join-Path $forgeRoot $_.Name
-        $dialectRoot = (Join-Path $repoRoot 'NexusLib/script/dialects/').Replace('\', '/')
+        $dialectRoot = (Join-Path $repoRoot 'projects/forge/language/').Replace('\', '/')
         $text = [IO.File]::ReadAllText($stagedPath).Replace('../../../dialects/', $dialectRoot)
         [IO.File]::WriteAllText($stagedPath, $text)
     }

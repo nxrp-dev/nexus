@@ -1,0 +1,4 @@
+dialect "../language/Forge.nxscript";
+
+FPC CompileFPC { Template: "FPC.mustache"; UnitOutput: "."; }
+Git GitStatus { Template: "Git.mustache"; }
