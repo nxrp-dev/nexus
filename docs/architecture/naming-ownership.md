@@ -8,8 +8,8 @@ Nexus uses top-level module folders for ownership and shorter lower-case slugs f
 - `NexusTools/LS`: Pascal language server.
 - `projects/nxscript`: NexusScript core, artifact producers, CLI, and dedicated language server.
 - `packages/nxtest`: reusable NexusTest framework and module protocol.
-- `nxtest/host`: NexusTest command-line host and sample module.
-- `nxtest/ui`: NexusTest GUI runner.
+- `projects/nxtest/host`: NexusTest command-line host and sample module.
+- `projects/nxtest/ui`: NexusTest GUI runner.
 - `NexusForge`: schema tooling.
 
 Documentation slugs should stay readable and stable:

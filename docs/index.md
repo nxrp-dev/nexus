@@ -6,7 +6,7 @@ Nexus is a Pascal project family focused on practical tools and frameworks:
 - `NexusForge` for schema-driven generation.
 - `NexusTools/LS` for Pascal language-server behavior.
 - `projects/nxscript` for the NexusScript language, artifact/CLI tooling, and its dedicated language-server shell.
-- `packages/nxtest` for the reusable test framework, with `nxtest/host` and `nxtest/ui` for host and GUI test running.
+- `packages/nxtest` for the reusable test framework, with `projects/nxtest/host` and `projects/nxtest/ui` for host and GUI test running.
 - `NexusLib` for shared runtime code, including language-neutral LSP infrastructure.
 
 The projects are developed together, but each keeps a clear ownership boundary. Documentation should follow those boundaries instead of mixing runtime, tooling, test, and schema concepts into one pile.

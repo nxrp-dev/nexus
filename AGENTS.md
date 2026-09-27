@@ -9,13 +9,13 @@ These rules apply to the whole repository.
 
 ## Local Notifications
 
-- When a task completes or user input is needed, run `scripts\Notify-Codex.ps1` with a spoken sentence.
+- When a task completes or user input is needed, run `repo-automation\Notify-Codex.ps1` with a spoken sentence.
 
 ## Scripts
 
-- You may execute scripts from the /scripts folder.
+- You may execute scripts from the /repo-automation folder.
 - When asked for a fresh archive use the ps script New-NexusSourceArchive.ps1.
-- For native NexusFPC bootstrap validation, use `scripts\Invoke-NexusFPCBootstrap.ps1` instead of assembling commands ad hoc. Add `-RegenerateMakefiles` after changing build definitions or removing targets; `-CheckOnly` performs read-only preflight checks.
+- For native NexusFPC bootstrap validation, use `repo-automation\Invoke-NexusFPCBootstrap.ps1` instead of assembling commands ad hoc. Add `-RegenerateMakefiles` after changing build definitions or removing targets; `-CheckOnly` performs read-only preflight checks.
 
 ## Scope
 

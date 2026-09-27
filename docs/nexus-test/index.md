@@ -88,6 +88,6 @@ It is especially useful for tooling-heavy Pascal code such as language servers, 
 ## Where To Look Next
 
 - `packages/nxtest/src` contains the framework, registry, runner, result store, command processor, and module client.
-- `nxtest/host` contains the sample module and command-line host.
-- `nxtest/ui` contains the GUI runner.
+- `projects/nxtest/host` contains the sample module and command-line host.
+- `projects/nxtest/ui` contains the GUI runner.
 - `NexusTools/LS/NexusLSTestModule` shows NexusTest being used for real NexusLS coverage.

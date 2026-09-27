@@ -21,7 +21,7 @@ BuildNexusPascalVSIX Group {
   }
 
   BuildNexusTestHost Fpc {
-    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/nxtest/host/src/nxtest_host.lpr"
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/nxtest/host/src/nxtest_host.lpr"
     SearchPath: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/packages/nxtest/src"
     UnitOutputDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost/units"
     OutputDirectory: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/output/NexusTestHost"

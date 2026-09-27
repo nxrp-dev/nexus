@@ -17,7 +17,7 @@ two compiler profiles, tests, and an additional source-archive directory.
 
 - [Corresponding Forge package](../../../projects/forge/examples/pasbuild-comparison/PasBuild.ForgePackage.nxscript)
 - [Shared environments and operation configurations](../../../projects/forge/examples/pasbuild-comparison/Shared.nxscript)
-- [Repeatable comparison script](../../../scripts/Compare-ForgePasBuild.ps1)
+- [Repeatable comparison script](../../../repo-automation/Compare-ForgePasBuild.ps1)
 - [Recorded results](../../../output/ForgePasBuildComparison/20260915-095939/results.json)
 - [Test failure comparison](../../../output/ForgePasBuildComparison/20260915-095939/test-comparison.json)
 - [Clean resource generation and reuse verification](../../../output/ForgeResources/20260915-152714/results.json)
@@ -25,7 +25,7 @@ two compiler profiles, tests, and an additional source-archive directory.
 Run from the repository root:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts\Compare-ForgePasBuild.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File repo-automation\Compare-ForgePasBuild.ps1
 ```
 
 The script creates a new dated directory under output/ForgePasBuildComparison.

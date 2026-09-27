@@ -348,7 +348,7 @@ If several independently meaningful executable roles form one coherent
 product family, they may be grouped beneath that family. `projects/ls/`
 is the canonical example: Pascal LS and NexusScript LS are distinct
 concrete implementations, while `ls/` expresses their shared product
-family. `projects/test/` follows the same rule for the Host and UI test
+family. `projects/nxtest/` follows the same rule for the Host and UI test
 applications.
 
 A project is **not** classified as a tool merely because it builds an
@@ -1147,7 +1147,7 @@ existing bucket.
 
 The following earlier rules are specifically superseded or clarified here:
 
-- Concrete Nexus products and product families are classified under `projects/`; earlier root-level examples such as `forge/`, `ls/`, `nexuscode/`, `bothost/`, and `test/` are superseded by `projects/forge/`, `projects/ls/`, `projects/nexuscode/`, `projects/bothost/`, and `projects/test/`. `tools/` is reserved for development/maintenance utilities rather than serving as a catch-all for executables.
+- Concrete Nexus products and product families are classified under `projects/`; earlier root-level examples such as `forge/`, `ls/`, `nexuscode/`, `bothost/`, and `test/` are superseded by `projects/forge/`, `projects/ls/`, `projects/nexuscode/`, `projects/bothost/`, and `projects/nxtest/`. `tools/` is reserved for development/maintenance utilities rather than serving as a catch-all for executables.
 - Category-first layouts such as `network/src/xmpp/`, `network/test/...xmpp...`, and `network/examples/xmpp/` are not the preferred model when XMPP is an independently meaningful ownership scope. The recursive form is `network/xmpp/src/`, `network/xmpp/test/`, `network/xmpp/examples/`, `network/xmpp/doc/`, and so on.
 - Runtime payloads are not package-global by default. They belong to the narrowest component that requires them, allowing deployment to follow component selection.
 - Directly adopted upstream/FPC packages do not retain arbitrary upstream packaging merely because of origin. Once materialized under `packages/`, they are normalized to the Nexus structural grammar.

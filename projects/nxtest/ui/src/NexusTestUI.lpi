@@ -43,12 +43,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\NexusTestUI"/>
+      <Filename Value="..\..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\NexusTestUI"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib;..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib\gdi;..\..\..\packages\gui\external\fpgui\framework\src\main\resources"/>
-      <OtherUnitFiles Value="..;..\src;..\..\..\packages\foundation\json\src;..\..\..\packages\network\json-rpc\src;..\..\..\NexusLib\core\src;..\..\..\packages\nxtest\src;..\..\..\packages\gui\src;..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib;..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib\render\software;..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib\gdi;..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\gui;..\..\..\packages\gui\external\fpgui\framework\src\main\resources"/>
-      <UnitOutputDirectory Value="..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\units"/>
+      <IncludeFiles Value="$(ProjOutDir);..\..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib;..\..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib\gdi;..\..\..\..\packages\gui\external\fpgui\framework\src\main\resources"/>
+      <OtherUnitFiles Value="..;..\src;..\..\..\..\packages\foundation\json\src;..\..\..\..\packages\network\json-rpc\src;..\..\..\..\NexusLib\core\src;..\..\..\..\packages\nxtest\src;..\..\..\..\packages\gui\src;..\..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib;..\..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib\render\software;..\..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\corelib\gdi;..\..\..\..\packages\gui\external\fpgui\framework\src\main\pascal\gui;..\..\..\..\packages\gui\external\fpgui\framework\src\main\resources"/>
+      <UnitOutputDirectory Value="..\..\..\..\output\NexusTestUI\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>
       <Debugging>

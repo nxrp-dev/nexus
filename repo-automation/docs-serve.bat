@@ -8,7 +8,7 @@ cd /d "%~dp0.."
 
 if not exist "mkdocs.yml" (
     echo ERROR: mkdocs.yml not found.
-    echo Run this script from inside the repo scripts/tools folder, or fix the cd path.
+    echo Run this script from inside the repo-automation folder, or fix the cd path.
     exit /b 1
 )
 

@@ -11,7 +11,7 @@ This page describes the current dependency shape visible in the repository. It i
 - `projects/nxscript/cli` depends on the reusable `packages/nxscript` package. The package does not depend back on its consumers.
 - `packages/nxtest` is the reusable NexusTest framework package.
 - `NexusTools/LS/NexusLSTestModule` depends on both `NexusTools/LS` source and `packages/nxtest` source.
-- `nxtest/host` depends on `packages/nxtest` and `NexusLib/core`; `nxtest/ui` additionally depends on `packages/gui`.
+- `projects/nxtest/host` depends on `packages/nxtest` and `NexusLib/core`; `projects/nxtest/ui` additionally depends on `packages/gui`.
 
 The preferred direction is from tools toward shared foundations, not from shared foundations back into tools.
 

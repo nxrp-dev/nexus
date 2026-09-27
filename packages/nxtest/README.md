@@ -14,8 +14,8 @@ It includes:
 - reusable module/result-store layer
 - reusable module/result-store layer
 
-The command-line host and sample module live under `nxnxtest/host`. The fpGUI
-runner lives under `nxnxtest/ui`.
+The command-line host and sample module live under `projects/nxtest/host`. The fpGUI
+runner lives under `projects/nxtest/ui`.
 
 ## Exported module contract
 
@@ -69,11 +69,11 @@ sample modules consume this package through `packages/nxtest/src`.
 The aggregate test-family build is:
 
 ```sh
-./nxnxtest/build_linux.sh
+./projects/nxtest/build_linux.sh
 ```
 
-See `nxnxtest/host/README.md` for host and sample-module commands. See
-`nxnxtest/ui/README.md` for the fpGUI runner.
+See `projects/nxtest/host/README.md` for host and sample-module commands. See
+`projects/nxtest/ui/README.md` for the fpGUI runner.
 
 ## Current design rule
 

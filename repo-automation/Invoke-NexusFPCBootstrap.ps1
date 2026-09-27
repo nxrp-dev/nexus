@@ -9,7 +9,7 @@ refreshed from the current source tree before bootstrapping.
 RTL generation includes Makefile.rtl; Makefile.pkg generation uses -s.
 Existing target scopes are retained, excluding targets removed from the generator.
 .EXAMPLE
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts\Invoke-NexusFPCBootstrap.ps1 -RegenerateMakefiles
+powershell -NoProfile -ExecutionPolicy Bypass -File repo-automation\Invoke-NexusFPCBootstrap.ps1 -RegenerateMakefiles
 #>
 [CmdletBinding()]
 param(

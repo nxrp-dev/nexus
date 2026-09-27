@@ -137,7 +137,7 @@ After completing an approved architecture implementation pass, Codex creates a f
 Use:
 
 ```text
-scripts\New-NexusSourceArchive.ps1
+repo-automation\New-NexusSourceArchive.ps1
 ```
 
 Archives are checkpoints around meaningful architecture milestones. They are not a substitute for compile/test verification, and they do not authorize new work.

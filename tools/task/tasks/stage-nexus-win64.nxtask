@@ -31,7 +31,7 @@ StageNexusWin64 Group {
   }
 
   BuildNexusTestHost Fpc {
-    Source: "../../../nxtest/host/src/nxtest_host.lpr"
+    Source: "../../../projects/nxtest/host/src/nxtest_host.lpr"
     SearchPath: "../../../packages/nxtest/src"
     UnitOutputDirectory: "../../../output/NexusTestHost/units"
     OutputDirectory: "../../../output/NexusTestHost"
