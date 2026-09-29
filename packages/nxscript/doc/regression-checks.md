@@ -26,6 +26,11 @@ added by this change.
 | --- | --- |
 | `IncludeFileEquivalence` | The same nine-table system in one file or included files has equivalent JSON, validation, and generated output. Only source provenance is removed from the JSON comparison, and the test separately requires the original provenance to differ. |
 | `CompleteSQLContract` | Complete generated SQL is compared with a handwritten fixture, including columns, order, an index, and a foreign-key target. Only platform line endings are normalized. |
+| `SQLiteEmitterWorkspaceProjection` | The SQLite emitter uses `Nexus`, `Packages`, `NexusScript`, and `NexusLib` definition names plus the `Notes` property name as tables. Definition kinds do not become table names. Generated IDs and actual owner-table relationships preserve structure, while scalar array rows retain value and order. |
+| `EmitterFactory` | The registered `json` and `sqlite` names create their corresponding concrete classes through the typed NexusScript emitter factory. |
+| `SQLiteEmitterCommandFormat` | `/format=sqlite` resolves through the registered emitter factory and writes a readable SQLite database through the normal command path. |
+| `SQLiteEmitterDefinitionArrayNames` | Two definition-valued properties containing the same `Field` kind produce distinct `PrimaryFields` and `AuditFields` tables under the named `Customer` root. Rows retain owner, ordinal, name, and scalar properties; neither `Catalog` nor `Field` becomes a table. |
+| `SQLiteEmitterDialectlessSchemaExample` | The dialectless Storm/inForce example derives tables from completed observed structure. Named roots and definitions produce `Storm`, `inForce`, `CoreTypes`, and `StormTypes`; properties produce `Tables` and `Fields`; kind-named `Schema`, `Type`, `Table`, and `Field` tables remain absent. Nested fields reference their actual `Tables` owner. |
 | `TargetedIncludeCollections` | Selected definitions and selected language fragments agree, excluded kinds/rules stay absent, and a shared dependency reached through module plus diamond includes contributes once. |
 | `IncludeModuleCollections` | A module-only base is not generated independently. Including it exposes it once; a derived field override does not change the base or a reference to the original. Root-name conflicts are also checked with different casing. |
 | `StructuralReferenceAliasJSON` | A property referencing another structural-reference property presents the original definition. This is isolated from includes so a failure cannot hide the include assertions. |
@@ -39,6 +44,11 @@ small fixture's intended schema, not captured from generated output. No test or
 helper rewrites it. Changes to the language contract require reviewing the
 expected-output diff explicitly, rather than accepting whatever the compiler
 currently emits.
+
+To retain the database produced by `SQLiteEmitterWorkspaceProjection` for
+inspection, set `NEXUS_SQLITE_REVIEW_DATABASE` to its destination path before
+running the suite. Without this variable, the test removes its temporary
+database as usual.
 
 The existing individual feature tests continue to cover composition, arrays,
 references, targets, discovery, diagnostics, metadata, manifests, and external

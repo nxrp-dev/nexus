@@ -55,7 +55,7 @@ persistence, and patch execution are outside this pass.
 ## Native verification
 
 ```powershell
-lazbuild projects\bothost\tests\NexusBotHostTestModule.lpi
+lazbuild projects\bothost\test\NexusBotHostTestModule.lpi
 $env:NEXUS_FIREBIRD_ISQL = 'C:\Program Files\Firebird\Firebird_5_0\isql.exe'
 & .\output\NexusTestHost\nxtest_host.exe `
   .\output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll `
@@ -73,9 +73,9 @@ The test exercises both standard and overridden key suffixes, package output
 preparation and presence reuse, five tables, generated keys, invalid primary/foreign
 keys, status text including an apostrophe, missing/either/both grants, disabled
 users/bots, wrong host/bot, unknown user, duplicate grants, and revocation.
-`projects/bothost/tests/fixtures/database/assertions.sql` contains the SQL checks. Its view and
+`projects/bothost/test/fixtures/database/assertions.sql` contains the SQL checks. Its view and
 exception are test-only and are never emitted into the package artifact.
 
 Verified 2026-09-15 with installed Firebird 5: registered test passed; both disposable
 databases were dropped. Generic Forge and compiler regression results are recorded
-in `projects/forge/docs/contracts.md`.
+in `projects/forge/doc/contracts.md`.

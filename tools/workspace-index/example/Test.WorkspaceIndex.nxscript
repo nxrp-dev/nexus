@@ -1,0 +1,29 @@
+dialect "WorkspaceIndex.Language.nxscript";
+
+Workspace Nexus {
+    Description: "Nexus source tree";
+    Repository: "https://github.com/nxrp-dev/nexus";
+    Branch: "main";
+    Notes: [
+        "Primary development workspace",
+        "Windows-focused toolchain"
+    ];
+
+    Folder Packages {
+        Path: "packages";
+        Description: "Reusable Nexus packages";
+
+        File NexusScript {
+            Path: "packages/nxscript";
+            Description: "NexusScript compiler and artifact system";
+            Notes: [
+                "Contains the JSON and SQLite emitters"
+            ];
+        }
+
+        File NexusLib {
+            Path: "packages/nexuslib";
+            Description: "Shared Nexus runtime library";
+        }
+    }
+}

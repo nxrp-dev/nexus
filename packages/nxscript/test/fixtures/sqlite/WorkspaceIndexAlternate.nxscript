@@ -1,0 +1,20 @@
+dialect "WorkspaceIndex.Language.nxscript";
+
+Workspace Alternative {
+    Description: "Alternate containment sample";
+
+    Folder Outer {
+        Path: "outer";
+        Description: "Outer folder";
+
+        Folder Inner {
+            Path: "outer/inner";
+            Description: "Nested folder";
+        }
+    }
+
+    File RootFile {
+        Path: "root-file";
+        Description: "File directly in the workspace";
+    }
+}

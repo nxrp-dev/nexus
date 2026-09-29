@@ -1,0 +1,47 @@
+dialect "../../../../../projects/nxscript/language/Language.nxscript";
+
+Language NamedArrays {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Catalog {
+            Root: True;
+            UnknownProperties: Reject;
+            Properties: [
+                Property PrimaryFields {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Names: Required;
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [Field];
+                            Mixed: False;
+                        }
+                    }
+                },
+                Property AuditFields {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Names: Required;
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [Field];
+                            Mixed: False;
+                        }
+                    }
+                }
+            ];
+        },
+        Definition Field {
+            Parents: [Catalog];
+            UnknownProperties: Reject;
+            Properties: [
+                Property Type {
+                    Required: True;
+                    Value Value { Scalar: Text; }
+                }
+            ];
+        }
+    ];
+}

@@ -14,6 +14,7 @@ behavior; the separate NexusScript language-server project is under
 ```text
 NexusScript /input=Customer.Schema.nxscript
 NexusScript /input=Customer.Schema.nxscript /output=Customer.json
+NexusScript /input=Customer.Schema.nxscript /format=sqlite /output=Customer.sqlite
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache /output=Customer.sql
 NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=projects/nxscript/language
@@ -25,6 +26,8 @@ NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialec
   single-template modes. It is not used in manifest mode.
 - `/output=<file>` writes the artifact to a file. Without it, the artifact is
   written to stdout.
+- `/format=<name>` selects a registered artifact emitter. Built-in values are
+  `json` (the default) and `sqlite`.
 - `/template=<file>` renders the generated JSON through a Mustache template.
 - `/manifest=<file>` compiles and validates a NexusScript `NexusManifest`,
   compiles its direct `Model` sources, renders each direct `Template` against
@@ -37,8 +40,10 @@ NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialec
   dialects take precedence.
 - `/help` displays generated command-line help.
 
-Without `/template` or `/manifest`, JSON is the final artifact. With
-`/template`, the same JSON is generated internally and passed to Mustache.
+Without `/template` or `/manifest`, the selected registered emitter produces
+the final artifact. SQLite output requires `/output`. With `/template`, JSON is
+generated internally and passed to Mustache. `/format` is not used in manifest
+mode, and template rendering requires the `json` format.
 
 `/manifest` is mutually exclusive with `/input` and `/template`. Manifest mode
 requires `/output`, which is the base directory for the templates' relative

@@ -4,12 +4,12 @@ This archive contains source for the bridge and sample; it does not contain a pr
 
 ## Units
 
-- `../lua/src/Lua51.pas` — minimal Lua 5.1 C ABI declarations used by the bridge.
+- `../lua/src/bindings/Lua51.pas` — minimal Lua 5.1 C ABI declarations used by the bridge.
 - `../lua/src/Lua.Plugin.pas` — generic RTTI-backed `TLuaPlugin` object bridge.
 - `src/Solar2D.Corona.pas` — Solar2D `CoronaLibrary` / `CoronaLua` C API declarations used by the Solar2D layer.
 - `src/Solar2D.Plugin.pas` — `TSolarPlugin`, Solar2D library creation, and event integration.
 
-The final link must resolve both the Lua 5.1 symbols used by `Lua51.pas` and the Solar2D Native symbols used by `Solar2D.Corona.pas`.
+The final link must resolve both the Lua 5.1 symbols used by `Lua51.pas` and the Solar2D Native symbols used by `Solar2D.Corona.pas`. The separate `Lua55.pas` binding does not change the Lua 5.1 ABI required by Solar2D.
 
 Solar2D's current native headers define `CoronaLibraryNew()` in `CoronaLibrary.h` and the event/ref helpers in `CoronaLua.h`. The engine repository currently carries the Lua 5.1 ABI.
 

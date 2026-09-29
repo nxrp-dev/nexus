@@ -234,8 +234,10 @@ semantics, transitive artifact participation, canonical deduplication, and the
 specified artifact ordering. Preserve the decorative filename convention as
 non-semantic.
 
-Add `include "inForceMain.Schema.nxscript";` to the Storm parity fixture while
-retaining its `module "inForceMain.Schema.nxscript";` declaration. The two declarations intentionally
+The maintained Storm parity model at
+`projects/schema/examples/models/StormSpecific.Schema.nxscript` declares both
+`module "inForceMain.Schema.nxscript";` and
+`include "inForceMain.Schema.nxscript";`. The two declarations intentionally
 express separate relationships.
 
 ## Implementation Stages

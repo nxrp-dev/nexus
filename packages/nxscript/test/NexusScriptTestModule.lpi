@@ -4,7 +4,7 @@
     <Version Value="12"/>
     <PathDelim Value="\"/>
     <General><MainUnit Value="0"/><Title Value="NexusScriptTestModule"/><UseAppBundle Value="False"/></General>
-    <Units Count="14">
+    <Units Count="17">
       <Unit0><Filename Value="NexusScriptTestModule.lpr"/><IsPartOfProject Value="True"/></Unit0>
       <Unit1><Filename Value="..\src\tpNexusScript.pas"/></Unit1>
       <Unit2><Filename Value="..\src\obNexusScriptModel.pas"/></Unit2>
@@ -19,13 +19,16 @@
       <Unit11><Filename Value="..\src\obNexusScriptArtifactContext.pas"/></Unit11>
       <Unit12><Filename Value="..\src\obNexusScriptManifest.pas"/></Unit12>
       <Unit13><Filename Value="..\src\obNexusScriptLanguageDefinition.pas"/></Unit13>
+      <Unit14><Filename Value="..\src\obNexusScriptEmitter.pas"/></Unit14>
+      <Unit15><Filename Value="..\src\obNexusScriptEmitterFactory.pas"/></Unit15>
+      <Unit16><Filename Value="..\src\obNexusScriptSQLite.pas"/></Unit16>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/><PathDelim Value="\"/>
     <Target><Filename Value="..\..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\NexusScriptTestModule"/></Target>
     <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
-    <SearchPaths><OtherUnitFiles Value=".;..\src;..\..\..\..\projects\nxscript\cli;..\..\..\..\packages\nxtest\src;..\..\..\..\packages\foundation\json\src;..\..\..\..\packages\network\json-rpc\src;..\..\..\..\NexusLib\core\src;..\..\..\..\lib\dmustache"/><UnitOutputDirectory Value="..\..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\units"/></SearchPaths>
+    <SearchPaths><OtherUnitFiles Value=".;..\src;..\..\..\..\projects\nxscript\cli;..\..\..\..\packages\nxtest\src;..\..\..\..\packages\foundation\db\sqlite\src\bindings;..\..\..\..\packages\foundation\json\src;..\..\..\..\packages\network\json-rpc\src;..\..\..\..\NexusLib\core\src;..\..\..\..\lib\dmustache"/><UnitOutputDirectory Value="..\..\..\..\output\NexusScript\tests\$(TargetCPU)-$(TargetOS)\units"/></SearchPaths>
     <Linking><Options><ExecutableType Value="Library"/></Options></Linking>
   </CompilerOptions>
 </CONFIG>

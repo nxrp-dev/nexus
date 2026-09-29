@@ -1,0 +1,10 @@
+dialect "NamedArrays.Language.nxscript";
+
+Catalog Customer {
+    PrimaryFields: [
+        Field ID { Type: "INTEGER"; }
+    ];
+    AuditFields: [
+        Field CreatedAt { Type: "TIMESTAMP"; }
+    ];
+}

@@ -29,7 +29,7 @@
   - `NexusTools/Script/src/obNexusScriptSession.pas`;
   - `NexusTools/Script/src/obNexusScriptJSON.pas`;
   - `NexusTools/Script/tests/tsNexusScriptTests.pas`;
-  - `NexusTools/Script/parity/schema-generation/`.
+  - `projects/schema/examples/`.
 - Historical planning input:
   - `work/plans/nexusscript-template-manifest-rendering.md` defines the
     currently implemented template-only batching contract. This plan replaces
@@ -323,9 +323,9 @@ domain model. It joins them only through the manifest.
 
 ### Add
 
-- `NexusTools/Script/parity/schema-generation/constants/Firebird.Constants.nxscript`
+- `projects/schema/examples/constants/Firebird.Constants.nxscript`
   - working output-policy model containing the four extracted settings.
-- `NexusTools/Script/parity/schema-generation/manifests/`
+- `projects/schema/examples/manifests/`
   - self-contained working manifests for the inForce and Storm Firebird
     generation contexts, limited to templates whose required domain context is
     currently represented.
@@ -351,13 +351,13 @@ domain model. It joins them only through the manifest.
 - `NexusTools/Script/README.md`
   - document self-contained manifest mode, model independence, constants
     context, validation behavior, and CLI compatibility rules.
-- `NexusTools/Script/parity/schema-generation/README.md`
+- `projects/schema/examples/README.md`
   - document the new `constants/` and `manifests/` ownership.
-- `NexusTools/Script/parity/schema-generation/models/inForceMain.Schema.nxscript`
+- `projects/schema/examples/models/inForceMain.Schema.nxscript`
   - remove the four output-policy `Setting` children from the working copy
     only.
 - working Mustache copies under
-  `NexusTools/Script/parity/schema-generation/mustache/`
+  `projects/schema/examples/mustache/`
   - replace historical constant lookups with the explicit `Firebird` constants
     namespace where those constants are consumed.
 
@@ -586,7 +586,7 @@ scripts\New-NexusSourceArchive.ps1
 
 Verify representative entries with normalized ZIP separators, including:
 
-- `NexusTools/Script/parity/schema-generation/constants/Firebird.Constants.nxscript`;
+- `projects/schema/examples/constants/Firebird.Constants.nxscript`;
 - the self-contained manifests;
 - the updated working Mustache files and domain model;
 - `NexusManifest.Language.nxscript`;

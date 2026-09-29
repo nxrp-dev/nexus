@@ -353,12 +353,12 @@ source-driven output set and collisions with known ordinary-template outputs.
     render each isolated context, and write each derived output.
 - `NexusTools/Script/tests/tsNexusScriptTests.pas`
   - add the focused coverage below.
-- `NexusTools/Script/parity/schema-generation/models/*.nxscript`
+- `projects/schema/examples/models/*.nxscript`
   - replace temporary ordinary `Data` definitions with explicit declarations
     when corresponding repository-local data files are available.
-- `NexusTools/Script/parity/schema-generation/manifests/*.nxscript`
+- `projects/schema/examples/manifests/*.nxscript`
   - replace the fixed ordinary `DatabaseImport` entry with source-driven rules.
-- `NexusTools/Script/parity/schema-generation/mustache/DatabaseImport.import.mustache`
+- `projects/schema/examples/mustache/DatabaseImport.import.mustache`
   - consume only the provisional external-source context.
 - `NexusTools/Script/README.md` and parity documentation
   - document declarations, propagation, dispatch, output derivation, context,

@@ -13,7 +13,7 @@ These rules apply to `projects/nxscript`.
 - After compiler, validation, inclusion, or presentation changes, build and run
   the complete `packages/nxscript/test/NexusScriptTests.lpi` console suite.
 - After shared compiler/model/session/validation changes or language-server
-  changes, also build and run `projects/ls/nxscript/tests/NexusScriptLSTests.lpi`.
+  changes, also build and run `projects/ls/nxscript/test/NexusScriptLSTests.lpi`.
 - Run both suites for changes whose effect on editor analysis is uncertain.
 - Test success requires zero failures, errors, or unexpected skips. Report the
   actual totals and any unrun required checks.

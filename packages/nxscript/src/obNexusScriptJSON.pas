@@ -11,12 +11,13 @@ uses
   tpNexusScript,
   obNexusScriptModel,
   obNexusScriptDefinitionView,
-  obNexusScriptArtifactModel;
+  obNexusScriptArtifactModel,
+  obNexusScriptEmitter;
 
 type
   ENexusScriptJSON = class(Exception);
 
-  TNexusScriptJSONEmitter = class
+  TNexusScriptJSONEmitter = class(TNexusScriptEmitter)
   private
     FRoot: TJSONObject;
     FMetadata: TJSONObject;
@@ -37,9 +38,12 @@ type
     function NamedValueJSON(const AName: string;
       AValue: TJSONData): TJSONObject;
   public
-    constructor Create;
+    constructor Create; override;
     destructor Destroy; override;
-    procedure AddDocument(ADocument: TNexusScriptCompiledDocument);
+    class function GetFactoryName: string; override;
+    procedure AddDocument(
+      ADocument: TNexusScriptCompiledDocument); override;
+    procedure WriteArtifact(AStream: TStream); overload; override;
     function RenderDefinition(ADefinition: TNexusScriptCompiledDefinition;
       ADocument: TNexusScriptCompiledDocument): string;
     function JSON: string;
@@ -47,7 +51,23 @@ type
 
 implementation
 
-uses DateUtils;
+uses
+  DateUtils,
+  obNXClassFactory;
+
+procedure WriteText(AStream: TStream; const AValue: string);
+var
+  lBytes: RawByteString;
+begin
+  lBytes := UTF8Encode(AValue);
+  if Length(lBytes) > 0 then
+    AStream.WriteBuffer(Pointer(lBytes)^, Length(lBytes));
+end;
+
+class function TNexusScriptJSONEmitter.GetFactoryName: string;
+begin
+  Result := 'json';
+end;
 
 function TNexusScriptJSONEmitter.RenderDefinition(
   ADefinition: TNexusScriptCompiledDefinition;
@@ -316,5 +336,15 @@ function TNexusScriptJSONEmitter.JSON: string;
 begin
   Result := FRoot.FormatJSON;
 end;
+
+procedure TNexusScriptJSONEmitter.WriteArtifact(AStream: TStream);
+begin
+  if AStream = nil then
+    raise ENexusScriptJSON.Create('JSON output stream is required.');
+  WriteText(AStream, JSON);
+end;
+
+initialization
+  TNXClassFactory.RegisterClass(TNexusScriptJSONEmitter);
 
 end.

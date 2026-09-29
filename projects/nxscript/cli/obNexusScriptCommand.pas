@@ -24,6 +24,8 @@ uses
   obNexusScriptValidator,
   obNexusScriptArtifactModel,
   obNexusScriptArtifactContext,
+  obNexusScriptEmitter,
+  obNexusScriptEmitterFactory,
   obNexusScriptJSON,
   obNexusScriptManifest,
   obMustacheRenderer;
@@ -125,6 +127,9 @@ begin
   TNXCommandLine.RegisterFlag('output', False, True, '',
     'Output artifact file',
     'Write the artifact to this file. When omitted, write to stdout.');
+  TNXCommandLine.RegisterFlag('format', False, True, 'json',
+    'Output artifact format',
+    'Create the artifact with the registered emitter named by this value.');
   TNXCommandLine.RegisterFlag('template', False, True, '',
     'Mustache template file',
     'Render the generated JSON through this Mustache template.');
@@ -146,9 +151,10 @@ var
   lTemplateFile: string;
   lManifestFile: string;
   lDialectRoot: string;
+  lFormat: string;
   lSession: TNexusScriptCompilationSession;
   lArtifactContext: TNexusScriptArtifactContext;
-  lJSONEmitter: TNexusScriptJSONEmitter;
+  lEmitter: TNexusScriptEmitter;
   lArtifactDocument: TNexusScriptArtifactDocument;
   lArtifact: string;
 begin
@@ -157,6 +163,7 @@ begin
   lTemplateFile := TNXCommandLine.GetValueDefault('template', '');
   lManifestFile := TNXCommandLine.GetValueDefault('manifest', '');
   lDialectRoot := TNXCommandLine.GetValueDefault('dialect-root', '');
+  lFormat := LowerCase(TNXCommandLine.GetValueDefault('format', 'json'));
   if (lTemplateFile <> '') and (lManifestFile <> '') then
     raise ENexusScriptCommand.Create(
       'Command line flags "template" and "manifest" are mutually exclusive.');
@@ -166,6 +173,12 @@ begin
   if (lManifestFile <> '') and (lInputFile <> '') then
     raise ENexusScriptCommand.Create(
       'Command line flags "input" and "manifest" are mutually exclusive.');
+  if (lManifestFile <> '') and TNXCommandLine.Supplied('format') then
+    raise ENexusScriptCommand.Create(
+      'Command line flags "format" and "manifest" are mutually exclusive.');
+  if (lTemplateFile <> '') and (lFormat <> 'json') then
+    raise ENexusScriptCommand.Create(
+      'Template rendering requires the json emitter.');
   if (lManifestFile = '') and (lInputFile = '') then
     raise ENexusScriptCommand.Create(
       'NexusScript input is required outside manifest mode.');
@@ -178,30 +191,35 @@ begin
       TNXCommandLine.Supplied('validate'));
     Exit;
   end;
-  lSession := TNexusScriptCompilationSession.Create;
-  lSession.DialectRoot := lDialectRoot;
+  lEmitter := TNexusScriptEmitterFactory.CreateEmitter(lFormat);
+  lSession := nil;
   lArtifactContext := nil;
   try
+    lSession := TNexusScriptCompilationSession.Create;
+    lSession.DialectRoot := lDialectRoot;
     if not lSession.CompileFile(lInputFile) then
       raise ENexusScriptCommand.Create(lSession.LastError);
     if TNXCommandLine.Supplied('validate') then
       ValidateDocument(lSession.EntryCompiler.CompiledDocument);
-    lJSONEmitter := TNexusScriptJSONEmitter.Create;
-    try
-      lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
-      lArtifactContext.Build;
-      for lArtifactDocument in lArtifactContext.ArtifactDocuments do
-        lJSONEmitter.AddDocument(lArtifactDocument.CompiledDocument);
-      lArtifact := lJSONEmitter.JSON;
-    finally
-      lJSONEmitter.Free;
-    end;
+    lArtifactContext := TNexusScriptArtifactContext.Create(lSession);
+    lArtifactContext.Build;
+    for lArtifactDocument in lArtifactContext.ArtifactDocuments do
+      lEmitter.AddDocument(lArtifactDocument.CompiledDocument);
     if lTemplateFile <> '' then
+    begin
+      lArtifact := TNexusScriptJSONEmitter(lEmitter).JSON;
       lArtifact := RenderTemplate(lArtifact, lTemplateFile);
-    WriteOutput(lOutputFile, lArtifact, AStdOut);
+      WriteOutput(lOutputFile, lArtifact, AStdOut);
+    end
+    else
+      if lOutputFile <> '' then
+        lEmitter.WriteArtifact(lOutputFile)
+      else
+        lEmitter.WriteArtifact(AStdOut);
   finally
     lArtifactContext.Free;
     lSession.Free;
+    lEmitter.Free;
   end;
 end;
 

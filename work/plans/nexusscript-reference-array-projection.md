@@ -63,9 +63,10 @@ The controlling rule is:
 - Inline definition entries use the dedicated `nsvDefinition` value kind.
 - Named scalar items and scalar property references retain scalar effective
   values; references resolving to definitions own structural materializations.
-- The schema parity fixtures now contain all fields as inline definitions in
-  ordered `Fields` arrays: 493 in `inForceMain.Schema.nxscript` and 22 in
-  `StormSpecific.Schema.nxscript`.
+- The maintained schema parity models now contain all fields as inline
+  definitions in ordered `Fields` arrays: 493 in
+  `projects/schema/examples/models/inForceMain.Schema.nxscript` and 22 in
+  `projects/schema/examples/models/StormSpecific.Schema.nxscript`.
 - Both full parity cases currently stop at `NXS5004` through
   `@inForce.PERSON`. The compiler reaches a recursive table relationship while
   deep-materializing the table's non-scalar `Fields` array.

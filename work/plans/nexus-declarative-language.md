@@ -62,7 +62,10 @@ The controlling safety rule is:
   - `obMustacheRenderer.pas` renders generated outputs;
   - `obDataSourceProcessors.pas` handles delimited data sources.
 - The command-line entry point in `NexusTools/Schema/src/NexusSchema.lpr` currently constructs the legacy parser, transforms metadata, writes JSON, and renders templates. This is the eventual cutover seam, not a construction-stage edit target.
-- Existing repository inputs `NexusTools/Schema/StormSpecific.nxs`, `NexusTools/Schema/inForceMain.nxs`, and test fixtures use the historical syntax and must be migrated for an end-to-end cutover.
+- The historical repository inputs `NexusTools/Schema/StormSpecific.nxs` and
+  `NexusTools/Schema/inForceMain.nxs` used the legacy syntax. Their maintained
+  NexusScript models are now under `projects/schema/examples/models/`; the old
+  `.nxs` paths describe migration history, not current test fixture locations.
 - The existing `NexusSchemaTestModule` provides the correct focused verification project but currently has only tokenizer, parser, JSON-root, and Firebird-render smoke coverage.
 - The worktree contains unrelated modified and untracked files outside this plan. They must be preserved and excluded from Nexus declarative-language commits.
 
@@ -148,7 +151,9 @@ Expected implementation areas include:
 - source-position, diagnostic, token, syntax, value, definition, reference, module, and compiled-document types owned by NexusScript;
 - generic lexer/token stream, parser, scope/symbol construction, composition resolver, value/reference resolver, and module compilation session;
 - temporary schema consumer and parity harness isolated from the NexusScript generic compiler/runtime;
-- new-language parity fixtures corresponding to `StormSpecific.nxs`, `inForceMain.nxs`, and focused test inputs, stored outside the production NexusSchema fixture paths during construction;
+- parity coverage through the maintained
+  `projects/schema/examples/models/StormSpecific.Schema.nxscript` and
+  `inForceMain.Schema.nxscript` models, plus focused package test inputs;
 - parity comparison of metadata JSON and representative rendered outputs;
 - final NexusSchema integration only after the parity gate passes;
 - production fixture migration, obsolete front-end removal, and affected documentation only during the approved cutover stages.

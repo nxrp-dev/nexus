@@ -13,6 +13,7 @@ implementation
 
 uses
   Classes,
+  ctypes,
   SysUtils,
   DateUtils,
   fpjson,
@@ -26,11 +27,15 @@ uses
   obNexusScriptSession,
   obNexusScriptArtifactModel,
   obNexusScriptArtifactContext,
+  obNexusScriptEmitter,
+  obNexusScriptEmitterFactory,
   obNexusScriptJSON,
+  obNexusScriptSQLite,
   obNexusScriptExternalSource,
   obNexusScriptCommand,
   obNexusScriptLanguageDefinition,
-  obNexusScriptValidator;
+  obNexusScriptValidator,
+  SQLite3Dyn;
 
 procedure TestStructureAndValues(AContext: TNXTestContext);
 var
@@ -623,15 +628,6 @@ begin
   end;
 end;
 
-function FixturePath(const ARelativePath: string): string;
-begin
-  Result := ExpandFileName('..\..\..\..\packages\nxscript\test\fixtures\' +
-    ARelativePath);
-  if not FileExists(Result) then
-    Result := ExpandFileName('packages\nxscript\test\fixtures\' +
-      ARelativePath);
-end;
-
 function ValidatorFixturePath(const AFileName: string): string;
 begin
   Result := ExpandFileName('..\..\..\..\packages\nxscript\test\fixtures\validation\' +
@@ -842,9 +838,6 @@ begin
   if not FileExists(Result) then
   Result := ExpandFileName(
       '..\..\..\projects\schema\examples\' + ARelativePath);
-  if not FileExists(Result) then
-    Result := ExpandFileName(
-      'projects\schema\examples\' + ARelativePath);
   if not FileExists(Result) then
     Result := ExpandFileName(
       'projects\schema\examples\' + ARelativePath);
@@ -1744,6 +1737,8 @@ begin
       'Generated help should include input.');
     AContext.AssertTrue(Pos('/template', TNXCommandLine.HelpText) > 0,
       'Generated help should include template.');
+    AContext.AssertTrue(Pos('/format', TNXCommandLine.HelpText) > 0,
+      'Generated help should include the registered emitter format.');
     AContext.AssertTrue(Pos('/manifest', TNXCommandLine.HelpText) > 0,
       'Generated help should include manifest.');
     AContext.AssertTrue(Pos('/dialect-root', TNXCommandLine.HelpText) > 0,
@@ -1786,13 +1781,16 @@ begin
     except
       on E: Exception do lError := E.Message;
     end;
-    AContext.AssertTrue(Pos('format', LowerCase(lError)) > 0,
-      'Removed mode options should remain unknown.');
+    AContext.AssertEquals('', lError,
+      'The registered JSON emitter format should be accepted.');
   finally
     TNXCommandLine.ClearRegisteredFlags;
   end;
   AContext.AssertTrue(Pos('input', LowerCase(CLIError([]))) > 0,
     'Execution without input or manifest should fail clearly.');
+  AContext.AssertTrue(Pos('not registered', LowerCase(CLIError([
+    '/input=unused.nxscript', '/format=missing']))) > 0,
+    'An unregistered emitter format should fail through the class factory.');
 end;
 
 procedure TestNexusManifestLanguage(AContext: TNXTestContext);
@@ -2215,9 +2213,9 @@ begin
     'Successful dialect validation should allow artifact generation.');
 
   lActual := ExecuteCLI(['/input=' +
-    FixturePath('fixtures\nexusscript\inForceMain.Schema.nxscript'), '/validate']);
-  AContext.AssertTrue(Pos('"inForce"', lActual) > 0,
-    'Successful compilation should validate a document without a dialect.');
+    ValidatorFixturePath('Dialectless.Schema.nxscript'), '/validate']);
+  AContext.AssertTrue(Pos('"Dialectless"', lActual) > 0,
+    'The validate option should preserve output for documents without a dialect.');
 
   lError := CLIError(['/input=' +
     CLIFixturePath('InvalidValidation.Schema.nxscript'), '/validate']);
@@ -4289,6 +4287,558 @@ begin
     'Complete handwritten SQL contract: columns, ordering, index, and reference target.');
 end;
 
+function SQLiteScalarInteger(ADatabase: Psqlite3;
+  const ASQL: string): Int64;
+var
+  lStatement: Psqlite3_stmt;
+  lSQL: UTF8String;
+  lCode: cint;
+begin
+  lStatement := nil;
+  lSQL := UTF8String(ASQL);
+  lCode := sqlite3_prepare_v2(ADatabase, PAnsiChar(lSQL), -1,
+    @lStatement, nil);
+  if lCode <> SQLITE_OK then
+    raise Exception.Create(UTF8Decode(StrPas(sqlite3_errmsg(ADatabase))));
+  try
+    lCode := sqlite3_step(lStatement);
+    if lCode <> SQLITE_ROW then
+      raise Exception.Create(UTF8Decode(StrPas(sqlite3_errmsg(ADatabase))));
+    Result := sqlite3_column_int64(lStatement, 0);
+  finally
+    sqlite3_finalize(lStatement);
+  end;
+end;
+
+function WorkspaceIndexExamplePath: string;
+begin
+  Result := ExpandFileName(
+    'tools\workspace-index\example\Test.WorkspaceIndex.nxscript');
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      '..\..\..\..\tools\workspace-index\example\Test.WorkspaceIndex.nxscript');
+end;
+
+function WorkspaceIndexAlternatePath: string;
+begin
+  Result := ExpandFileName(
+    'packages\nxscript\test\fixtures\sqlite\WorkspaceIndexAlternate.nxscript');
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      '..\..\..\..\packages\nxscript\test\fixtures\sqlite\WorkspaceIndexAlternate.nxscript');
+end;
+
+function SchemaDialectFixturePath: string;
+begin
+  Result := ExpandFileName(
+    'packages\nxscript\test\fixtures\sqlite\SchemaDialect.nxscript');
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      '..\..\..\..\packages\nxscript\test\fixtures\sqlite\SchemaDialect.nxscript');
+end;
+
+function NamedArraysFixturePath: string;
+begin
+  Result := ExpandFileName(
+    'packages\nxscript\test\fixtures\sqlite\NamedArrays.nxscript');
+  if not FileExists(Result) then
+    Result := ExpandFileName(
+      '..\..\..\..\packages\nxscript\test\fixtures\sqlite\NamedArrays.nxscript');
+end;
+
+procedure TestEmitterFactory(AContext: TNXTestContext);
+var
+  lEmitter: TNexusScriptEmitter;
+begin
+  lEmitter := TNexusScriptEmitterFactory.CreateEmitter('json');
+  try
+    AContext.AssertTrue(lEmitter is TNexusScriptJSONEmitter,
+      'The json registration should create the JSON emitter type.');
+  finally
+    lEmitter.Free;
+  end;
+
+  lEmitter := TNexusScriptEmitterFactory.CreateEmitter('sqlite');
+  try
+    AContext.AssertTrue(lEmitter is TNexusScriptSQLiteEmitter,
+      'The sqlite registration should create the SQLite emitter type.');
+  finally
+    lEmitter.Free;
+  end;
+end;
+
+procedure TestSQLiteEmitterCommandFormat(AContext: TNXTestContext);
+var
+  lDatabase: Psqlite3;
+  lDatabaseFile, lSQLiteLibrary: string;
+  lDatabaseName: UTF8String;
+  lCode: cint;
+begin
+  lDatabase := nil;
+  {$IFDEF MSWINDOWS}
+  lSQLiteLibrary := ExpandFileName(
+    'packages\foundation\db\sqlite\runtime\win64\sqlite3.dll');
+  {$ELSE}
+  lSQLiteLibrary := '';
+  {$ENDIF}
+  lDatabaseFile := ExpandFileName(
+    'output\NexusScript\SQLiteCommandFormat.sqlite');
+  DeleteFile(lDatabaseFile);
+  if not LoadSQLite3(lSQLiteLibrary) then
+    raise Exception.Create(SQLite3LoadError);
+  try
+    AContext.AssertEquals('', ExecuteCLI([
+      '/input=' + CLIFixturePath('Valid.Artifact.nxscript'),
+      '/format=sqlite', '/output=' + lDatabaseFile]),
+      'SQLite command output should not write to stdout.');
+    lDatabaseName := UTF8String(lDatabaseFile);
+    lCode := sqlite3_open_v2(PAnsiChar(lDatabaseName), @lDatabase,
+      SQLITE_OPEN_READWRITE, nil);
+    AContext.AssertEquals(SQLITE_OK, lCode,
+      'The registered sqlite format should create a readable database.');
+    if lCode <> SQLITE_OK then Exit;
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM "Example"')),
+      'The command-selected SQLite emitter should write model rows.');
+  finally
+    if lDatabase <> nil then
+      sqlite3_close(lDatabase);
+    UnloadSQLite3;
+    DeleteFile(lDatabaseFile);
+  end;
+end;
+
+procedure TestSQLiteEmitterWorkspaceProjection(AContext: TNXTestContext);
+var
+  lSession, lAlternateSession: TNexusScriptCompilationSession;
+  lCompiledDocument: TNexusScriptCompiledDocument;
+  lJSONEmitter: TNexusScriptJSONEmitter;
+  lEmitter, lAlternateEmitter: TNexusScriptSQLiteEmitter;
+  lDatabase, lAlternateDatabase: Psqlite3;
+  lDatabaseFile, lAlternateDatabaseFile, lSQLiteLibrary: string;
+  lDatabaseName, lAlternateDatabaseName: UTF8String;
+  lJSONData: TJSONData;
+  lKeepDatabase: Boolean;
+  lCode: cint;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lAlternateSession := TNexusScriptCompilationSession.Create;
+  lJSONEmitter := TNexusScriptJSONEmitter.Create;
+  lEmitter := nil;
+  lAlternateEmitter := nil;
+  lDatabase := nil;
+  lAlternateDatabase := nil;
+  lJSONData := nil;
+  lDatabaseFile := GetEnvironmentVariable('NEXUS_SQLITE_REVIEW_DATABASE');
+  lKeepDatabase := lDatabaseFile <> '';
+  if lKeepDatabase then
+  begin
+    lDatabaseFile := ExpandFileName(lDatabaseFile);
+    if FileExists(lDatabaseFile) then
+      DeleteFile(lDatabaseFile);
+  end
+  else
+    lDatabaseFile := GetTempFileName(GetTempDir, 'nxs');
+  lAlternateDatabaseFile := lDatabaseFile + '.alternate';
+  if FileExists(lAlternateDatabaseFile) then
+    DeleteFile(lAlternateDatabaseFile);
+  {$IFDEF MSWINDOWS}
+  lSQLiteLibrary := ExpandFileName(
+    'packages\foundation\db\sqlite\runtime\win64\sqlite3.dll');
+  {$ELSE}
+  lSQLiteLibrary := '';
+  {$ENDIF}
+  try
+    lSession.DialectRoot := ExpandFileName(
+      'tools\workspace-index\language');
+    AContext.AssertTrue(lSession.CompileFile(WorkspaceIndexExamplePath),
+      'WorkspaceIndex sample should compile with its dialect: ' +
+      lSession.LastError);
+    lCompiledDocument := lSession.EntryCompiler.CompiledDocument;
+    lJSONEmitter.AddDocument(lCompiledDocument);
+    lJSONData := GetJSON(lJSONEmitter.JSON);
+    lEmitter := TNexusScriptSQLiteEmitter.Create(lSQLiteLibrary);
+    lEmitter.AddDocument(lCompiledDocument);
+    lEmitter.WriteDatabase(lDatabaseFile);
+
+    lAlternateSession.DialectRoot := ExpandFileName(
+      'tools\workspace-index\language');
+    AContext.AssertTrue(
+      lAlternateSession.CompileFile(WorkspaceIndexAlternatePath),
+      'Alternate valid containment combinations should compile: ' +
+      lAlternateSession.LastError);
+    lAlternateEmitter := TNexusScriptSQLiteEmitter.Create(lSQLiteLibrary);
+    lAlternateEmitter.AddDocument(
+      lAlternateSession.EntryCompiler.CompiledDocument);
+    lAlternateEmitter.WriteDatabase(lAlternateDatabaseFile);
+
+    if not LoadSQLite3(lSQLiteLibrary) then
+      raise Exception.Create(SQLite3LoadError);
+    try
+      lDatabaseName := UTF8String(lDatabaseFile);
+      lCode := sqlite3_open_v2(PAnsiChar(lDatabaseName), @lDatabase,
+        SQLITE_OPEN_READWRITE, nil);
+      AContext.AssertEquals(SQLITE_OK, lCode,
+        'SQLite emitter should create a readable database.');
+      if lCode <> SQLITE_OK then Exit;
+      AContext.AssertEquals(5, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Nexus'', ''Packages'', ''NexusScript'', ' +
+        '''NexusLib'', ''Notes'')')),
+        'Definition and property names should become relational tables.');
+      AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Workspace'', ''Folder'', ''File'')')),
+        'Definition kinds should not become table names.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_table_info(''Nexus'') ' +
+        'WHERE name = ''nx_id'' AND type = ''INTEGER'' AND pk = 1')),
+        'Every definition table should have an emitter-owned integer primary key.');
+      AContext.AssertEquals(5, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_table_info(''Nexus'') ' +
+        'WHERE name IN (''nx_id'', ''Name'', ''Description'', ''Repository'', ''Branch'')')),
+        'Workspace columns should be derived from its dialect property rules.');
+      AContext.AssertEquals(5, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_table_info(''Packages'') ' +
+        'WHERE name IN (''nx_id'', ''nx_nexus_id'', ''Name'', ''Path'', ' +
+        '''Description'')')),
+        'Named child columns should come from its dialect property rules and owner.');
+      AContext.AssertEquals(5, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_table_info(''NexusScript'') ' +
+        'WHERE name IN (''nx_id'', ''nx_packages_id'', ''Name'', ''Path'', ''Description'')')),
+        'Named File columns should come from its dialect property rules and owner.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name = ''Notes''')),
+        'The scalar Notes array should project into its own relation table.');
+      AContext.AssertEquals(7, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_table_info(''Notes'') ' +
+        'WHERE name IN (''nx_id'', ''nx_nexus_id'', ''nx_packages_id'', ' +
+        '''nx_nexusscript_id'', ''nx_nexuslib_id'', ''nx_ordinal'', ' +
+        '''nx_value'')')),
+        'Notes should have generated owner and order fields.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Nexus" WHERE "Name" = ''Nexus'' ' +
+        'AND "Description" = ' + QuotedStr(lJSONData.FindPath(
+          'Nexus.Description').AsString) + ' AND "Repository" = ' +
+        QuotedStr(lJSONData.FindPath('Nexus.Repository').AsString) +
+        ' AND "Branch" = ' +
+        QuotedStr(lJSONData.FindPath('Nexus.Branch').AsString))),
+        'Workspace identity and scalar properties should match the JSON artifact.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Packages" WHERE "Name" = ''Packages'' ' +
+        'AND "Path" = ' + QuotedStr(lJSONData.FindPath(
+          'Nexus.Packages.Path').AsString) + ' AND "Description" = ' +
+        QuotedStr(lJSONData.FindPath('Nexus.Packages.Description').AsString))),
+        'Folder identity and scalar properties should match the JSON artifact.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "NexusScript" WHERE "Name" = ''NexusScript'' ' +
+        'AND "Path" = ' + QuotedStr(lJSONData.FindPath(
+          'Nexus.Packages.NexusScript.Path').AsString) +
+        ' AND "Description" = ' + QuotedStr(lJSONData.FindPath(
+          'Nexus.Packages.NexusScript.Description').AsString))),
+        'File identity and scalar properties should match the JSON artifact.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "NexusLib" WHERE "Name" = ''NexusLib'' ' +
+        'AND "Path" = ''packages/nexuslib''')),
+        'The NexusLib definition should use its own named table.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Packages" f ' +
+        'JOIN "Nexus" w ON f."nx_nexus_id" = w."nx_id" ' +
+        'WHERE f."Name" = ''Packages'' AND w."Name" = ''Nexus''')),
+        'Folder ownership should link Packages to the Nexus workspace row.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "NexusScript" f ' +
+        'JOIN "Packages" p ON f."nx_packages_id" = p."nx_id" ' +
+        'WHERE p."Name" = ''Packages'' AND f."Name" = ''NexusScript''')),
+        'NexusScript ownership should link to the Packages row.');
+      AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Notes"')),
+        'Each scalar Notes item should become a separate relation row.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Notes" n JOIN "Nexus" w ' +
+        'ON n."nx_nexus_id" = w."nx_id" ' +
+        'WHERE w."Name" = ''Nexus'' AND n."nx_ordinal" = 0 ' +
+        'AND n."nx_value" = ''Primary development workspace''')),
+        'Workspace Notes values should retain order and ownership.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Notes" n JOIN "NexusScript" f ' +
+        'ON n."nx_nexusscript_id" = f."nx_id" ' +
+        'WHERE f."Name" = ''NexusScript'' AND n."nx_ordinal" = 0 ' +
+        'AND n."nx_value" = ''Contains the JSON and SQLite emitters''')),
+        'File Notes values should retain order and ownership.');
+
+      lAlternateDatabaseName := UTF8String(lAlternateDatabaseFile);
+      lCode := sqlite3_open_v2(PAnsiChar(lAlternateDatabaseName),
+        @lAlternateDatabase, SQLITE_OPEN_READWRITE, nil);
+      AContext.AssertEquals(SQLITE_OK, lCode,
+        'Alternate containment output should also be readable.');
+      if lCode = SQLITE_OK then
+      begin
+        AContext.AssertEquals(1, Integer(SQLiteScalarInteger(
+          lAlternateDatabase,
+          'SELECT COUNT(*) FROM "Inner" child ' +
+          'JOIN "Outer" parent ON child."nx_outer_id" = parent."nx_id" ' +
+          'WHERE child."Name" = ''Inner'' AND parent."Name" = ''Outer''')),
+          'Alternate nested Folder ownership should be retained.');
+        AContext.AssertEquals(1, Integer(SQLiteScalarInteger(
+          lAlternateDatabase,
+          'SELECT COUNT(*) FROM "RootFile" f ' +
+          'JOIN "Alternative" w ON f."nx_alternative_id" = w."nx_id" ' +
+          'WHERE f."Name" = ''RootFile'' AND w."Name" = ''Alternative''')),
+          'Alternate direct Workspace-to-File ownership should be retained.');
+      end;
+    finally
+      if lDatabase <> nil then
+        sqlite3_close(lDatabase);
+      if lAlternateDatabase <> nil then
+        sqlite3_close(lAlternateDatabase);
+      UnloadSQLite3;
+    end;
+  finally
+    lEmitter.Free;
+    lAlternateEmitter.Free;
+    lJSONData.Free;
+    lJSONEmitter.Free;
+    lSession.Free;
+    lAlternateSession.Free;
+    if not lKeepDatabase then
+      DeleteFile(lDatabaseFile);
+    DeleteFile(lAlternateDatabaseFile);
+  end;
+end;
+
+procedure TestSQLiteEmitterSchemaDialect(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptSQLiteEmitter;
+  lDatabase: Psqlite3;
+  lDatabaseFile, lSQLiteLibrary: string;
+  lDatabaseName: UTF8String;
+  lCode: cint;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lEmitter := nil;
+  lDatabase := nil;
+  {$IFDEF MSWINDOWS}
+  lSQLiteLibrary := ExpandFileName(
+    'packages\foundation\db\sqlite\runtime\win64\sqlite3.dll');
+  {$ELSE}
+  lSQLiteLibrary := '';
+  {$ENDIF}
+  lDatabaseFile := ExpandFileName(
+    'output\NexusScript\SchemaDialectReview.sqlite');
+  try
+    lSession.DialectRoot := ExpandFileName('projects\schema\language');
+    AContext.AssertTrue(lSession.CompileFile(SchemaDialectFixturePath),
+      'The small Schema dialect document should compile: ' + lSession.LastError);
+
+    lEmitter := TNexusScriptSQLiteEmitter.Create(lSQLiteLibrary);
+    lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+    lEmitter.WriteDatabase(lDatabaseFile);
+
+    if not LoadSQLite3(lSQLiteLibrary) then
+      raise Exception.Create(SQLite3LoadError);
+    try
+      lDatabaseName := UTF8String(lDatabaseFile);
+      lCode := sqlite3_open_v2(PAnsiChar(lDatabaseName), @lDatabase,
+        SQLITE_OPEN_READWRITE, nil);
+      AContext.AssertEquals(SQLITE_OK, lCode,
+        'The Schema dialect output should be a readable SQLite database.');
+      if lCode <> SQLITE_OK then Exit;
+
+      AContext.AssertEquals(2, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Customer'', ''Fields'')')),
+        'The root name and Fields member relation should become table names.');
+      AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Table'', ''Field'')')),
+        'Definition kinds should not become table names.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name = ''Customer'' AND instr(sql, ''"Customer"'') > 0')),
+        'The named root table should be emitted as a quoted identifier.');
+      AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_table_info(''Customer'') ' +
+        'WHERE name = ''Fields''')),
+        'The Fields definition array should be represented by Field rows, not a Table column.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Customer" WHERE "Name" = ''Customer'' ' +
+        'AND "TableName" = ''Customer''')),
+        'The Table row should retain Customer as its definition name and property.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Fields" WHERE "Name" = ''ID'' ' +
+        'AND "Type" = ''INTEGER'' AND "nx_ordinal" = 0')),
+        'The ID Field row should retain its declared type and position.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Fields" WHERE "Name" = ''Name'' ' +
+        'AND "Type" = ''TEXT'' AND "nx_ordinal" = 1')),
+        'The Name Field row should retain its declared type and position.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM pragma_foreign_key_list(''Fields'') ' +
+        'WHERE "table" = ''Customer'' AND "from" = ''nx_customer_id'' ' +
+        'AND "to" = ''nx_id''')),
+        'Field ownership should reference the named Customer table.');
+      AContext.AssertEquals(2, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Fields" f JOIN "Customer" t ' +
+        'ON f."nx_customer_id" = t."nx_id" WHERE t."Name" = ''Customer''')),
+        'Both Field rows should link to the Customer Table row.');
+    finally
+      if lDatabase <> nil then
+        sqlite3_close(lDatabase);
+      UnloadSQLite3;
+    end;
+  finally
+    lEmitter.Free;
+    lSession.Free;
+  end;
+end;
+
+procedure TestSQLiteEmitterDefinitionArrayNames(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptSQLiteEmitter;
+  lDatabase: Psqlite3;
+  lDatabaseFile, lSQLiteLibrary: string;
+  lDatabaseName: UTF8String;
+  lCode: cint;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lEmitter := nil;
+  lDatabase := nil;
+  lDatabaseFile := GetTempFileName(GetTempDir, 'nxa');
+  {$IFDEF MSWINDOWS}
+  lSQLiteLibrary := ExpandFileName(
+    'packages\foundation\db\sqlite\runtime\win64\sqlite3.dll');
+  {$ELSE}
+  lSQLiteLibrary := '';
+  {$ENDIF}
+  try
+    lSession.DialectRoot := ExpandFileName(
+      'packages\nxscript\test\fixtures\sqlite');
+    AContext.AssertTrue(lSession.CompileFile(NamedArraysFixturePath),
+      'The named definition-array fixture should compile: ' +
+      lSession.LastError);
+    lEmitter := TNexusScriptSQLiteEmitter.Create(lSQLiteLibrary);
+    lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+    lEmitter.WriteDatabase(lDatabaseFile);
+
+    if not LoadSQLite3(lSQLiteLibrary) then
+      raise Exception.Create(SQLite3LoadError);
+    try
+      lDatabaseName := UTF8String(lDatabaseFile);
+      lCode := sqlite3_open_v2(PAnsiChar(lDatabaseName), @lDatabase,
+        SQLITE_OPEN_READWRITE, nil);
+      AContext.AssertEquals(SQLITE_OK, lCode,
+        'The named definition-array output should be readable.');
+      if lCode <> SQLITE_OK then Exit;
+      AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Customer'', ''PrimaryFields'', ''AuditFields'')')),
+        'Each definition-valued property should retain its own table name.');
+      AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Catalog'', ''Field'')')),
+        'Root and entry kinds should not become table names.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "PrimaryFields" f JOIN "Customer" c ' +
+        'ON f."nx_customer_id" = c."nx_id" ' +
+        'WHERE c."Name" = ''Customer'' AND f."Name" = ''ID'' ' +
+        'AND f."Type" = ''INTEGER'' AND f."nx_ordinal" = 0')),
+        'PrimaryFields should retain its own row and ownership.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "AuditFields" f JOIN "Customer" c ' +
+        'ON f."nx_customer_id" = c."nx_id" ' +
+        'WHERE c."Name" = ''Customer'' AND f."Name" = ''CreatedAt'' ' +
+        'AND f."Type" = ''TIMESTAMP'' AND f."nx_ordinal" = 0')),
+        'AuditFields should retain its own row and ownership.');
+    finally
+      if lDatabase <> nil then
+        sqlite3_close(lDatabase);
+      UnloadSQLite3;
+    end;
+  finally
+    lEmitter.Free;
+    lSession.Free;
+    DeleteFile(lDatabaseFile);
+  end;
+end;
+
+procedure TestSQLiteEmitterDialectlessSchemaExample(
+  AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptSQLiteEmitter;
+  lDatabase: Psqlite3;
+  lDatabaseFile, lSQLiteLibrary: string;
+  lDatabaseName: UTF8String;
+  lCode: cint;
+begin
+  lSession := TNexusScriptCompilationSession.Create;
+  lEmitter := nil;
+  lDatabase := nil;
+  {$IFDEF MSWINDOWS}
+  lSQLiteLibrary := ExpandFileName(
+    'packages\foundation\db\sqlite\runtime\win64\sqlite3.dll');
+  {$ELSE}
+  lSQLiteLibrary := '';
+  {$ENDIF}
+  lDatabaseFile := ExpandFileName(
+    'output\NexusScript\StormSchemaReview.sqlite');
+  try
+    AContext.AssertTrue(lSession.CompileFile(SchemaGenerationPath(
+      'models\StormSpecific.Schema.nxscript')),
+      'The dialectless Storm Schema example should compile: ' +
+      lSession.LastError);
+    AContext.AssertTrue(
+      lSession.EntryCompiler.CompiledDocument.DialectDocument = nil,
+      'The Storm Schema example should exercise dialectless discovery.');
+    lEmitter := TNexusScriptSQLiteEmitter.Create(lSQLiteLibrary);
+    lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+    lEmitter.WriteDatabase(lDatabaseFile);
+
+    if not LoadSQLite3(lSQLiteLibrary) then
+      raise Exception.Create(SQLite3LoadError);
+    try
+      lDatabaseName := UTF8String(lDatabaseFile);
+      lCode := sqlite3_open_v2(PAnsiChar(lDatabaseName), @lDatabase,
+        SQLITE_OPEN_READWRITE, nil);
+      AContext.AssertEquals(SQLITE_OK, lCode,
+        'The dialectless Storm SQLite output should be readable.');
+      if lCode <> SQLITE_OK then Exit;
+      AContext.AssertEquals(6, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''inForce'', ''Storm'', ''CoreTypes'', ' +
+        '''StormTypes'', ''Tables'', ''Fields'')')),
+        'Observed definition and property names should become tables.');
+      AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM sqlite_master WHERE type = ''table'' ' +
+        'AND name IN (''Schema'', ''Type'', ''Table'', ''Field'')')),
+        'Observed definition kinds should not become tables.');
+      AContext.AssertTrue(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Tables"') > 100,
+        'The combined inForce and Storm Tables array should be populated.');
+      AContext.AssertTrue(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Fields"') > 100,
+        'The observed Fields arrays should be populated.');
+      AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+        'SELECT COUNT(*) FROM "Fields" f JOIN "Tables" t ' +
+        'ON f."nx_tables_id" = t."nx_id" ' +
+        'WHERE t."Name" = ''STORAGE_UNIT'' ' +
+        'AND f."Name" = ''MOVE_IN_DATE''')),
+        'Nested Fields ownership should reference the actual Tables table.');
+    finally
+      if lDatabase <> nil then
+        sqlite3_close(lDatabase);
+      UnloadSQLite3;
+    end;
+  finally
+    lEmitter.Free;
+    lSession.Free;
+  end;
+end;
+
 procedure TestTargetedIncludeCollections(AContext: TNXTestContext);
 var
   lSelection: TNexusScriptTargetSelection;
@@ -4583,6 +5133,17 @@ begin
   lSuite.AddTest('IncludedLanguageRules', @TestIncludedLanguageRules);
   lSuite.AddTest('IncludeFileEquivalence', @TestIncludeFileEquivalence);
   lSuite.AddTest('CompleteSQLContract', @TestCompleteSQLContract);
+  lSuite.AddTest('EmitterFactory', @TestEmitterFactory);
+  lSuite.AddTest('SQLiteEmitterCommandFormat',
+    @TestSQLiteEmitterCommandFormat);
+  lSuite.AddTest('SQLiteEmitterWorkspaceProjection',
+    @TestSQLiteEmitterWorkspaceProjection);
+  lSuite.AddTest('SQLiteEmitterSchemaDialect',
+    @TestSQLiteEmitterSchemaDialect);
+  lSuite.AddTest('SQLiteEmitterDefinitionArrayNames',
+    @TestSQLiteEmitterDefinitionArrayNames);
+  lSuite.AddTest('SQLiteEmitterDialectlessSchemaExample',
+    @TestSQLiteEmitterDialectlessSchemaExample);
   lSuite.AddTest('TargetedIncludeCollections', @TestTargetedIncludeCollections);
   lSuite.AddTest('EmitterFailureAndLifetime', @TestEmitterFailureAndLifetime);
   lSuite.AddTest('StructuralReferenceAliasJSON', @TestStructuralReferenceAliasJSON);
