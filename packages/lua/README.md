@@ -4,7 +4,9 @@ This package contains the generic Lua integration shared by Nexus packages.
 
 ## Source
 
-- `src/bindings/Lua51.pas` provides the legacy Lua 5.1 C ABI used by Solar2D.
+- `src/bindings/Lua51.pas` provides the public Lua 5.1 core, auxiliary,
+  debug, and standard-library C APIs, including Pascal equivalents of the
+  header macros. Solar2D uses this binding.
 - `src/bindings/Lua55.pas` provides Lua 5.5.1 C API declarations and macro equivalents.
 - `src/Lua.Plugin.pas` provides the RTTI-backed `TLuaPlugin` bridge for the Lua 5.1 host ABI.
 
@@ -12,6 +14,12 @@ This package contains the generic Lua integration shared by Nexus packages.
 `lua_Number`, pointer-sized `lua_KContext`). It declares imports by C symbol
 name; consumers must link against a matching Lua 5.5 library. This package does
 not bundle a Lua runtime. Upstream 5.5.1 headers are retained under `reference/`.
+
+`Lua51` follows the default Lua 5.1 number and integer configuration. Its
+`luaL_Buffer` layout uses the target C runtime's default `BUFSIZ`; a Lua build
+with a customized `luaconf.h` must use matching Pascal declarations. Because
+Pascal identifiers are case-insensitive, the C status constant `LUA_YIELD` is
+exposed as `LUA_STATUS_YIELD` alongside the `lua_yield` function.
 
 Solar2D-specific integration lives in the dependent
 `packages/solar2d` package.

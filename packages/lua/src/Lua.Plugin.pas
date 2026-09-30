@@ -268,10 +268,16 @@ var
 begin
   EnsureMetatable(L);
   Slot := PLuaObjectSlot(lua_newuserdata(L, SizeOf(TLuaObjectSlot)));
-  Slot^.Instance := Self;
+  Slot^.Instance := nil;
   luaL_getmetatable(L, CObjectMetatable);
   lua_setmetatable(L, -2);
-  LuaObjectPushed(L, -1);
+  Slot^.Instance := Self;
+  try
+    LuaObjectPushed(L, -1);
+  except
+    Slot^.Instance := nil;
+    raise;
+  end;
 end;
 
 class function TLuaPlugin.CheckObject(L: Plua_State; AIndex: Integer): TLuaPlugin;
