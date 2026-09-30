@@ -1,4 +1,4 @@
-dialect "../../nxscript/language/Language.nxscript";
+dialect "../../../packages/nxscript/language/Language.nxscript";
 include "definitions/*.ForgeDef.nxscript";
 
 Language NexusForge {

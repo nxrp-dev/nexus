@@ -1,4 +1,4 @@
-dialect "../../../../../projects/nxscript/language/Language.nxscript";
+dialect "../../../language/Language.nxscript";
 
 Language NamedArrays {
     UnknownDefinitions: Reject;

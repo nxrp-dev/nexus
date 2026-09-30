@@ -5,826 +5,639 @@ unit obNXSkin;
 interface
 
 uses
-  Classes,
-  SysUtils,
-  fpjsonrtti,
-  obNXCanvas,
-  obNXSkinManifest,
-  obNXPersist,
-  tpNXPlatform,
+  Types,
+  fpg_base,
+  fpg_main,
+  obNexusScriptModel,
   tpNXSkin;
 
 type
-  TNXSkin = class;
-  TNXSkinMaterial = class;
-  TNXSkinWidget = class;
-  TNXSkinWidgetState = class;
-  TNXSkinAppearance = class;
-
-  TNXSkinMaterialKind = (
-    smkImage,
-    smkFont,
-    smkBinary
-  );
-
-  TNXSkinRect = class(TNXPersistObject)
+  TNXSkin = class(TfpgStyle)
   private
-    FH: Integer;
-    FW: Integer;
-    FX: Integer;
-    FY: Integer;
-  published
-    property X: Integer read FX write FX;
-    property Y: Integer read FY write FY;
-    property W: Integer read FW write FW;
-    property H: Integer read FH write FH;
-  end;
-
-  TNXSkinInsets = class(TNXPersistObject)
-  private
-    FBottom: Integer;
-    FLeft: Integer;
-    FRight: Integer;
-    FTop: Integer;
-  published
-    property Left: Integer read FLeft write FLeft;
-    property Top: Integer read FTop write FTop;
-    property Right: Integer read FRight write FRight;
-    property Bottom: Integer read FBottom write FBottom;
-  end;
-
-  TNXSkinColor = class(TNXPersistObject)
-  private
-    FAlpha: Integer;
-    FBlue: Integer;
-    FGreen: Integer;
-    FRed: Integer;
-  public
-    constructor Create; override;
-  published
-    property Red: Integer read FRed write FRed;
-    property Green: Integer read FGreen write FGreen;
-    property Blue: Integer read FBlue write FBlue;
-    property Alpha: Integer read FAlpha write FAlpha;
-  end;
-
-  TNXSkinMaterialList = class(TNXPersistList)
-  private
-    function GetMaterial(AIndex: Integer): TNXSkinMaterial;
+    FColors: TNXSkinColors;
+    procedure ApplyNamedColors;
+    function GetColor(ARole: TNXSkinColorRole): TfpgColor;
+    class function TryParseColor(const AText: string;
+      out AColor: TfpgColor): Boolean; static;
   public
     constructor Create; override;
 
-    function AddMaterial: TNXSkinMaterial;
-    function FindByName(const AName: string): TNXSkinMaterial;
+    class function TryReadColors(ADocument: TNexusScriptCompiledDocument;
+      out AColors: TNXSkinColors; out AError: string): Boolean; static;
+    function LoadCompiledDocument(ADocument: TNexusScriptCompiledDocument;
+      out AError: string): Boolean;
 
-    property Materials[AIndex: Integer]: TNXSkinMaterial read GetMaterial;
-      default;
-  end;
+    procedure DrawControlFrame(ACanvas: TfpgCanvas; x, y, w, h: TfpgCoord);
+      override; overload;
+    procedure DrawBevel(ACanvas: TfpgCanvas; x, y, w, h: TfpgCoord;
+      ARaised: Boolean = True); override;
+    procedure DrawDirectionArrow(ACanvas: TfpgCanvas; x, y, w, h: TfpgCoord;
+      ADirection: TArrowDirection); override;
+    procedure DrawString(ACanvas: TfpgCanvas; x, y: TfpgCoord;
+      AText: string; AEnabled: Boolean = True); override;
+    procedure DrawFocusRect(ACanvas: TfpgCanvas; ARect: TfpgRect); override;
+    procedure DrawButtonFace(ACanvas: TfpgCanvas; x, y, w, h: TfpgCoord;
+      AFlags: TfpgButtonFlags); override;
+    function GetButtonBorders: TRect; override;
+    function GetButtonShift: TPoint; override;
+    function HasButtonHoverEffect: Boolean; override;
+    procedure DrawMenuBar(ACanvas: TfpgCanvas; ARect: TfpgRect;
+      ABackgroundColor: TfpgColor); override;
+    procedure DrawMenuRow(ACanvas: TfpgCanvas; ARect: TfpgRect;
+      AFlags: TfpgMenuItemFlags); override;
+    procedure DrawMenuItemSeparator(ACanvas: TfpgCanvas;
+      ARect: TfpgRect); override;
+    procedure DrawProgressBar(ACanvas: TfpgCanvas;
+      AParams: TfpgStyleDrawProgressBar); override;
+    function GetCheckBoxSize: Integer; override;
+    procedure DrawCheckBox(ACanvas: TfpgCanvas; ARect: TfpgRect;
+      AFlags: TfpgCheckBoxFlags); override;
+    function GetRadioButtonSize: Integer; override;
+    procedure DrawRadioButton(ACanvas: TfpgCanvas; ARect: TfpgRect;
+      AFlags: TfpgCheckBoxFlags); override;
+    procedure DrawPageControlBody(ACanvas: TfpgCanvas;
+      ARect: TfpgRect); override;
+    procedure DrawPageControlTab(ACanvas: TfpgCanvas;
+      AParams: TfpgStyleDrawTab); override;
 
-  TNXSkinAppearanceList = class(TNXPersistList)
-  private
-    function GetAppearance(AIndex: Integer): TNXSkinAppearance;
-  public
-    constructor Create; override;
-
-    function AddAppearance(AClass: TNXPersistClass): TNXSkinAppearance;
-
-    property Appearances[AIndex: Integer]: TNXSkinAppearance
-      read GetAppearance; default;
-  end;
-
-  TNXSkinWidgetStateList = class(TNXPersistList)
-  private
-    function GetState(AIndex: Integer): TNXSkinWidgetState;
-  public
-    constructor Create; override;
-
-    function AddState: TNXSkinWidgetState;
-    function FindByState(AState: TNXSkinState): TNXSkinWidgetState;
-
-    property States[AIndex: Integer]: TNXSkinWidgetState read GetState;
-      default;
-  end;
-
-  TNXSkinWidgetList = class(TNXPersistList)
-  private
-    function GetWidget(AIndex: Integer): TNXSkinWidget;
-  public
-    constructor Create; override;
-
-    function AddWidget: TNXSkinWidget;
-    function FindBySkinClass(const ASkinClass: string): TNXSkinWidget;
-
-    property Widgets[AIndex: Integer]: TNXSkinWidget read GetWidget; default;
-  end;
-
-  TNXSkinMaterial = class(TNXPersistObject)
-  private
-    FFileName: string;
-    FImage: TNXImageHandle;
-    FKind: TNXSkinMaterialKind;
-  public
-    procedure ClearRuntimeResource(ACanvas: TNXCanvas); virtual;
-    procedure LoadRuntimeResource(const ASkinFileName: string;
-      ACanvas: TNXCanvas); virtual;
-
-    property Image: TNXImageHandle read FImage;
-  published
-    property FileName: string read FFileName write FFileName;
-    property Kind: TNXSkinMaterialKind read FKind write FKind;
-  end;
-
-  TNXSkinAppearance = class(TNXPersistObject)
-  end;
-
-  TNXSkinColorAppearance = class(TNXSkinAppearance)
-  private
-    FBorderColor: TNXSkinColor;
-    FBorderWidth: Integer;
-    FFillColor: TNXSkinColor;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-  published
-    property FillColor: TNXSkinColor read FFillColor;
-    property BorderColor: TNXSkinColor read FBorderColor;
-    property BorderWidth: Integer read FBorderWidth write FBorderWidth;
-  end;
-
-  TNXSkinImageAppearance = class(TNXSkinAppearance)
-  private
-    FMaterial: string;
-    FSourceRect: TNXSkinRect;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-  published
-    property Material: string read FMaterial write FMaterial;
-    property SourceRect: TNXSkinRect read FSourceRect;
-  end;
-
-  TNXSkinNineSliceAppearance = class(TNXSkinImageAppearance)
-  private
-    FBorder: TNXSkinInsets;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-  published
-    property Border: TNXSkinInsets read FBorder;
-  end;
-
-  TNXSkinTextAppearance = class(TNXSkinAppearance)
-  private
-    FColor: TNXSkinColor;
-    FFont: string;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-  published
-    property Font: string read FFont write FFont;
-    property Color: TNXSkinColor read FColor;
-  end;
-
-  TNXSkinCompositeAppearance = class(TNXSkinAppearance)
-  private
-    FAppearances: TNXSkinAppearanceList;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-  published
-    property Appearances: TNXSkinAppearanceList read FAppearances;
-  end;
-
-  TNXSkinWidgetState = class(TNXPersistObject)
-  private
-    FAppearance: TNXSkinAppearance;
-    FPart: string;
-    FState: TNXSkinState;
-    procedure SetAppearance(AValue: TNXSkinAppearance);
-  public
-    destructor Destroy; override;
-  published
-    property Part: string read FPart write FPart;
-    property State: TNXSkinState read FState write FState;
-    property Appearance: TNXSkinAppearance read FAppearance write SetAppearance;
-  end;
-
-  TNXSkinWidget = class(TNXPersistObject)
-  private
-    FSkinClass: string;
-    FStates: TNXSkinWidgetStateList;
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-
-    function FindState(AState: TNXSkinState): TNXSkinWidgetState;
-  published
-    property SkinClass: string read FSkinClass write FSkinClass;
-    property States: TNXSkinWidgetStateList read FStates;
-  end;
-
-  TNXSkin = class(TNXPersistObject)
-  private
-    FActiveColor: TNXColor;
-    FBackColor: TNXColor;
-    FBorderColor: TNXColor;
-    FForeColor: TNXColor;
-    FFormBackColor: TNXColor;
-    FFullTransColor: TNXColor;
-    FMaterials: TNXSkinMaterialList;
-    FSelectedColor: TNXColor;
-    FSkinFileName: string;
-    FTextBackColor: TNXColor;
-    FTitleBarBackColor: TNXColor;
-    FUnselectedTitleBarBackColor: TNXColor;
-    FCanvas: TNXCanvas;
-    FVersion: Integer;
-    FWidgets: TNXSkinWidgetList;
-    function AppearanceToNineSlice(AAppearance: TNXSkinAppearance;
-      out ASlice: TNXNineSlice): Boolean;
-    procedure LoadFromLegacyManifestFile(const AFileName: string;
-      ACanvas: TNXCanvas);
-    procedure LoadFromSkinFile(const AFileName: string; ACanvas: TNXCanvas);
-    procedure BindRuntimeResources(const ASkinFileName: string;
-      ACanvas: TNXCanvas);
-  public
-    constructor Create; override;
-    destructor Destroy; override;
-
-    procedure Clear; virtual;
-    function FindMaterial(const AName: string): TNXSkinMaterial;
-    function FindWidget(const ASkinClass: string): TNXSkinWidget;
-    function FindAppearance(const ASkinClass, APart: string;
-      AState: TNXSkinState): TNXSkinAppearance;
-    function GetNineSlice(const ASkinClass, APart: string;
-      AState: TNXSkinState; out ASlice: TNXNineSlice): Boolean;
-    procedure LoadNamedSkin(const ASkinName: string; ACanvas: TNXCanvas);
-
-    property ActiveColor: TNXColor read FActiveColor write FActiveColor;
-    property BackColor: TNXColor read FBackColor write FBackColor;
-    property BorderColor: TNXColor read FBorderColor write FBorderColor;
-    property ForeColor: TNXColor read FForeColor write FForeColor;
-    property FormBackColor: TNXColor read FFormBackColor write FFormBackColor;
-    property FullTransColor: TNXColor read FFullTransColor write FFullTransColor;
-    property SelectedColor: TNXColor read FSelectedColor write FSelectedColor;
-    property TextBackColor: TNXColor read FTextBackColor write FTextBackColor;
-    property TitleBarBackColor: TNXColor read FTitleBarBackColor write FTitleBarBackColor;
-    property UnselectedTitleBarBackColor: TNXColor read FUnselectedTitleBarBackColor
-      write FUnselectedTitleBarBackColor;
-  published
-    property Version: Integer read FVersion write FVersion;
-    property Materials: TNXSkinMaterialList read FMaterials;
-    property Widgets: TNXSkinWidgetList read FWidgets;
+    property Colors[ARole: TNXSkinColorRole]: TfpgColor read GetColor;
   end;
 
 implementation
 
-const
-  cSkinManifestFileName = 'skin.json';
-  cSkinsFolderName = 'skins';
-
-{ TNXSkinColor }
-
-constructor TNXSkinColor.Create;
-begin
-  inherited Create;
-  FAlpha := 255;
-end;
-
-{ TNXSkinMaterialList }
-
-constructor TNXSkinMaterialList.Create;
-begin
-  inherited Create;
-  ItemClass := TNXSkinMaterial;
-end;
-
-function TNXSkinMaterialList.AddMaterial: TNXSkinMaterial;
-begin
-  Result := TNXSkinMaterial(New);
-end;
-
-function TNXSkinMaterialList.FindByName(
-  const AName: string): TNXSkinMaterial;
-var
-  lIndex: Integer;
-begin
-  Result := nil;
-
-  for lIndex := 0 to Count - 1 do
-    if SameText(Materials[lIndex].Name, AName) then
-      Exit(Materials[lIndex]);
-end;
-
-function TNXSkinMaterialList.GetMaterial(AIndex: Integer): TNXSkinMaterial;
-begin
-  Result := TNXSkinMaterial(Items[AIndex]);
-end;
-
-{ TNXSkinAppearanceList }
-
-constructor TNXSkinAppearanceList.Create;
-begin
-  inherited Create;
-  ItemClass := TNXSkinAppearance;
-end;
-
-function TNXSkinAppearanceList.AddAppearance(
-  AClass: TNXPersistClass): TNXSkinAppearance;
-begin
-  Result := TNXSkinAppearance(AClass.Create);
-  Add(Result);
-end;
-
-function TNXSkinAppearanceList.GetAppearance(
-  AIndex: Integer): TNXSkinAppearance;
-begin
-  Result := TNXSkinAppearance(Items[AIndex]);
-end;
-
-{ TNXSkinWidgetStateList }
-
-constructor TNXSkinWidgetStateList.Create;
-begin
-  inherited Create;
-  ItemClass := TNXSkinWidgetState;
-end;
-
-function TNXSkinWidgetStateList.AddState: TNXSkinWidgetState;
-begin
-  Result := TNXSkinWidgetState(New);
-end;
-
-function TNXSkinWidgetStateList.FindByState(
-  AState: TNXSkinState): TNXSkinWidgetState;
-var
-  lIndex: Integer;
-begin
-  Result := nil;
-
-  for lIndex := 0 to Count - 1 do
-    if States[lIndex].State = AState then
-      Exit(States[lIndex]);
-end;
-
-function TNXSkinWidgetStateList.GetState(
-  AIndex: Integer): TNXSkinWidgetState;
-begin
-  Result := TNXSkinWidgetState(Items[AIndex]);
-end;
-
-{ TNXSkinWidgetList }
-
-constructor TNXSkinWidgetList.Create;
-begin
-  inherited Create;
-  ItemClass := TNXSkinWidget;
-end;
-
-function TNXSkinWidgetList.AddWidget: TNXSkinWidget;
-begin
-  Result := TNXSkinWidget(New);
-end;
-
-function TNXSkinWidgetList.FindBySkinClass(
-  const ASkinClass: string): TNXSkinWidget;
-var
-  lIndex: Integer;
-begin
-  Result := nil;
-
-  for lIndex := 0 to Count - 1 do
-    if SameText(Widgets[lIndex].SkinClass, ASkinClass) then
-      Exit(Widgets[lIndex]);
-end;
-
-function TNXSkinWidgetList.GetWidget(AIndex: Integer): TNXSkinWidget;
-begin
-  Result := TNXSkinWidget(Items[AIndex]);
-end;
-
-{ TNXSkinMaterial }
-
-procedure TNXSkinMaterial.ClearRuntimeResource(ACanvas: TNXCanvas);
-begin
-  if Assigned(ACanvas) and Assigned(FImage) then
-    ACanvas.DestroyImage(FImage);
-
-  FImage := nil;
-end;
-
-procedure TNXSkinMaterial.LoadRuntimeResource(const ASkinFileName: string;
-  ACanvas: TNXCanvas);
-var
-  lFileName: string;
-begin
-  ClearRuntimeResource(ACanvas);
-
-  if (Kind <> smkImage) or (not Assigned(ACanvas)) or (FileName = '') then
-    Exit;
-
-  if ExtractFileDrive(FileName) <> '' then
-    lFileName := FileName
-  else
-    lFileName := IncludeTrailingPathDelimiter(ExtractFilePath(ASkinFileName)) +
-      FileName;
-
-  FImage := ACanvas.LoadImage(lFileName);
-end;
-
-{ TNXSkinColorAppearance }
-
-constructor TNXSkinColorAppearance.Create;
-begin
-  inherited Create;
-  StoreReadOnlyProperties := True;
-  FFillColor := TNXSkinColor.Create;
-  FBorderColor := TNXSkinColor.Create;
-end;
-
-destructor TNXSkinColorAppearance.Destroy;
-begin
-  FreeAndNil(FBorderColor);
-  FreeAndNil(FFillColor);
-  inherited Destroy;
-end;
-
-{ TNXSkinImageAppearance }
-
-constructor TNXSkinImageAppearance.Create;
-begin
-  inherited Create;
-  StoreReadOnlyProperties := True;
-  FSourceRect := TNXSkinRect.Create;
-end;
-
-destructor TNXSkinImageAppearance.Destroy;
-begin
-  FreeAndNil(FSourceRect);
-  inherited Destroy;
-end;
-
-{ TNXSkinNineSliceAppearance }
-
-constructor TNXSkinNineSliceAppearance.Create;
-begin
-  inherited Create;
-  StoreReadOnlyProperties := True;
-  FBorder := TNXSkinInsets.Create;
-end;
-
-destructor TNXSkinNineSliceAppearance.Destroy;
-begin
-  FreeAndNil(FBorder);
-  inherited Destroy;
-end;
-
-{ TNXSkinTextAppearance }
-
-constructor TNXSkinTextAppearance.Create;
-begin
-  inherited Create;
-  StoreReadOnlyProperties := True;
-  FColor := TNXSkinColor.Create;
-end;
-
-destructor TNXSkinTextAppearance.Destroy;
-begin
-  FreeAndNil(FColor);
-  inherited Destroy;
-end;
-
-{ TNXSkinCompositeAppearance }
-
-constructor TNXSkinCompositeAppearance.Create;
-begin
-  inherited Create;
-  StoreReadOnlyProperties := True;
-  FAppearances := TNXSkinAppearanceList.Create;
-end;
-
-destructor TNXSkinCompositeAppearance.Destroy;
-begin
-  FreeAndNil(FAppearances);
-  inherited Destroy;
-end;
-
-{ TNXSkinWidgetState }
-
-destructor TNXSkinWidgetState.Destroy;
-begin
-  FreeAndNil(FAppearance);
-  inherited Destroy;
-end;
-
-procedure TNXSkinWidgetState.SetAppearance(AValue: TNXSkinAppearance);
-begin
-  if FAppearance = AValue then
-    Exit;
-
-  FreeAndNil(FAppearance);
-  FAppearance := AValue;
-end;
-
-{ TNXSkinWidget }
-
-constructor TNXSkinWidget.Create;
-begin
-  inherited Create;
-  StoreReadOnlyProperties := True;
-  FStates := TNXSkinWidgetStateList.Create;
-end;
-
-destructor TNXSkinWidget.Destroy;
-begin
-  FreeAndNil(FStates);
-  inherited Destroy;
-end;
-
-function TNXSkinWidget.FindState(AState: TNXSkinState): TNXSkinWidgetState;
-begin
-  Result := States.FindByState(AState);
-end;
-
-{ TNXSkin }
-
-function TNXSkin.AppearanceToNineSlice(AAppearance: TNXSkinAppearance;
-  out ASlice: TNXNineSlice): Boolean;
-var
-  lAppearance: TNXSkinNineSliceAppearance;
-  lMaterial: TNXSkinMaterial;
-begin
-  ASlice.Image := nil;
-  ASlice.SourceRect := MakeNXRect(0, 0, 0, 0);
-  ASlice.Left := 0;
-  ASlice.Top := 0;
-  ASlice.Right := 0;
-  ASlice.Bottom := 0;
-
-  Result := AAppearance is TNXSkinNineSliceAppearance;
-  if not Result then
-    Exit;
-
-  lAppearance := TNXSkinNineSliceAppearance(AAppearance);
-  lMaterial := FindMaterial(lAppearance.Material);
-  if (not Assigned(lMaterial)) or (lMaterial.Image = nil) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  ASlice.Image := lMaterial.Image;
-  ASlice.SourceRect := MakeNXRect(lAppearance.SourceRect.X,
-    lAppearance.SourceRect.Y, lAppearance.SourceRect.W,
-    lAppearance.SourceRect.H);
-  ASlice.Left := lAppearance.Border.Left;
-  ASlice.Top := lAppearance.Border.Top;
-  ASlice.Right := lAppearance.Border.Right;
-  ASlice.Bottom := lAppearance.Border.Bottom;
-end;
-
-procedure TNXSkin.BindRuntimeResources(const ASkinFileName: string;
-  ACanvas: TNXCanvas);
-var
-  lIndex: Integer;
-begin
-  FCanvas := ACanvas;
-  FSkinFileName := ASkinFileName;
-
-  for lIndex := 0 to Materials.Count - 1 do
-    Materials[lIndex].LoadRuntimeResource(ASkinFileName, ACanvas);
-end;
-
-procedure TNXSkin.Clear;
-var
-  lIndex: Integer;
-begin
-  for lIndex := 0 to Materials.Count - 1 do
-    Materials[lIndex].ClearRuntimeResource(FCanvas);
-
-  Widgets.Clear;
-  Materials.Clear;
-  FSkinFileName := '';
-  FCanvas := nil;
-end;
+uses
+  SysUtils,
+  fpg_stylemanager,
+  fpg_tab;
 
 constructor TNXSkin.Create;
 begin
   inherited Create;
-  StoreReadOnlyProperties := True;
-  FBackColor := MakeNXColor(48, 48, 48, 255);
-  FTextBackColor := MakeNXColor(24, 24, 24, 255);
-  FForeColor := MakeNXColor(190, 190, 190, 255);
-  FBorderColor := MakeNXColor(64, 64, 64, 255);
-  FFormBackColor := MakeNXColor(32, 32, 32, 255);
-  FTitleBarBackColor := MakeNXColor(24, 24, 64, 255);
-  FUnselectedTitleBarBackColor := MakeNXColor(24, 24, 24, 255);
-  FSelectedColor := MakeNXColor(24, 24, 64, 255);
-  FActiveColor := MakeNXColor(24, 24, 64, 255);
-  FFullTransColor := MakeNXColor(0, 0, 0, 0);
-  FVersion := 1;
-  FMaterials := TNXSkinMaterialList.Create;
-  FWidgets := TNXSkinWidgetList.Create;
+  FColors := cNXSkinDefaultColors;
+  ApplyNamedColors;
 end;
 
-destructor TNXSkin.Destroy;
+procedure TNXSkin.ApplyNamedColors;
 begin
-  Clear;
-  FreeAndNil(FWidgets);
-  FreeAndNil(FMaterials);
-  inherited Destroy;
+  fpgSetNamedColor(clWindowBackground, FColors[scrWindowBackground]);
+  fpgSetNamedColor(clBoxColor, FColors[scrInputBackground]);
+  fpgSetNamedColor(clShadow1, FColors[scrDarkShadow]);
+  fpgSetNamedColor(clShadow2, FColors[scrWidgetFrame]);
+  fpgSetNamedColor(clHilite1, FColors[scrWidgetFrame]);
+  fpgSetNamedColor(clHilite2, FColors[scrWidgetFrame]);
+  fpgSetNamedColor(clText1, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clText2, FColors[scrSelection]);
+  fpgSetNamedColor(clText4, FColors[scrDisabledText]);
+  fpgSetNamedColor(clSelection, FColors[scrSelection]);
+  fpgSetNamedColor(clSelectionText, FColors[scrSelectionText]);
+  fpgSetNamedColor(clInactiveSel, FColors[scrWidgetFrame]);
+  fpgSetNamedColor(clInactiveSelText, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clScrollBar, FColors[scrScrollBar]);
+  fpgSetNamedColor(clButtonFace, FColors[scrWindowBackground]);
+  fpgSetNamedColor(clListBox, FColors[scrInputBackground]);
+  fpgSetNamedColor(clGridLines, FColors[scrGridLines]);
+  fpgSetNamedColor(clGridHeader, FColors[scrWindowBackground]);
+  fpgSetNamedColor(clWidgetFrame, FColors[scrWidgetFrame]);
+  fpgSetNamedColor(clInactiveWgFrame, FColors[scrDarkShadow]);
+  fpgSetNamedColor(clMenuText, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clMenuDisabled, FColors[scrDisabledText]);
+  fpgSetNamedColor(clHintWindow, FColors[scrInputBackground]);
+  fpgSetNamedColor(clGridSelection, FColors[scrSelection]);
+  fpgSetNamedColor(clGridSelectionText, FColors[scrSelectionText]);
+  fpgSetNamedColor(clGridInactiveSel, FColors[scrWidgetFrame]);
+  fpgSetNamedColor(clGridInactiveSelText, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clSplitterGrabBar, FColors[scrFocus]);
 end;
 
-function TNXSkin.FindAppearance(const ASkinClass, APart: string;
-  AState: TNXSkinState): TNXSkinAppearance;
+function TNXSkin.GetColor(ARole: TNXSkinColorRole): TfpgColor;
+begin
+  Result := FColors[ARole];
+end;
+
+class function TNXSkin.TryParseColor(const AText: string;
+  out AColor: TfpgColor): Boolean;
 var
-  lIndex: Integer;
-  lState: TNXSkinWidgetState;
-  lWidget: TNXSkinWidget;
+  lValue: QWord;
 begin
-  Result := nil;
-  lWidget := FindWidget(ASkinClass);
-  if not Assigned(lWidget) then
-    Exit;
+  AColor := 0;
+  Result := (Length(AText) = 9) and (AText[1] = '#') and
+    TryStrToQWord('$' + Copy(AText, 2, 8), lValue) and
+    (lValue <= High(LongWord));
+  if Result then
+    AColor := TfpgColor(LongWord(lValue));
+end;
 
-  for lIndex := 0 to lWidget.States.Count - 1 do
+class function TNXSkin.TryReadColors(
+  ADocument: TNexusScriptCompiledDocument; out AColors: TNXSkinColors;
+  out AError: string): Boolean;
+var
+  lColor: TfpgColor;
+  lDefinition: TNexusScriptCompiledDefinition;
+  lProperty: TNexusScriptCompiledProperty;
+  lRole: TNXSkinColorRole;
+  lVersion: Integer;
+begin
+  AColors := cNXSkinDefaultColors;
+  AError := '';
+  Result := False;
+
+  if not Assigned(ADocument) then
   begin
-    lState := lWidget.States[lIndex];
-    if (lState.State = AState) and SameText(lState.Part, APart) then
-      Exit(lState.Appearance);
-  end;
-
-  if AState <> ssNormal then
-    Result := FindAppearance(ASkinClass, APart, ssNormal);
-end;
-
-function TNXSkin.FindMaterial(const AName: string): TNXSkinMaterial;
-begin
-  Result := Materials.FindByName(AName);
-end;
-
-function TNXSkin.FindWidget(const ASkinClass: string): TNXSkinWidget;
-begin
-  Result := Widgets.FindBySkinClass(ASkinClass);
-end;
-
-function TNXSkin.GetNineSlice(const ASkinClass, APart: string;
-  AState: TNXSkinState; out ASlice: TNXNineSlice): Boolean;
-begin
-  Result := AppearanceToNineSlice(FindAppearance(ASkinClass, APart, AState),
-    ASlice);
-end;
-
-procedure TNXSkin.LoadFromLegacyManifestFile(const AFileName: string;
-  ACanvas: TNXCanvas);
-var
-  lDeStreamer: TJSONDeStreamer;
-  lFile: TStringList;
-  lImageDef: TNXSkinImageDef;
-  lImageIndex: Integer;
-  lManifest: TNXSkinManifest;
-  lMaterial: TNXSkinMaterial;
-  lSliceDef: TNXSkinSliceDef;
-  lSliceIndex: Integer;
-  lState: TNXSkinWidgetState;
-  lWidget: TNXSkinWidget;
-begin
-  lManifest := TNXSkinManifest.Create;
-  try
-    lFile := TStringList.Create;
-    try
-      lFile.LoadFromFile(AFileName);
-      lDeStreamer := TJSONDeStreamer.Create(nil);
-      try
-        lDeStreamer.Options := lDeStreamer.Options + [jdoCaseInsensitive];
-        lDeStreamer.JSONToObject(Trim(lFile.Text), lManifest);
-      finally
-        lDeStreamer.Free;
-      end;
-    finally
-      lFile.Free;
-    end;
-
-    if lManifest.Version <> 1 then
-      raise Exception.Create('Unsupported skin version: ' +
-        IntToStr(lManifest.Version));
-
-    Clear;
-    Version := lManifest.Version;
-
-    for lImageIndex := 0 to lManifest.Images.Count - 1 do
-    begin
-      lImageDef := TNXSkinImageDef(lManifest.Images.Items[lImageIndex]);
-      if lImageDef.ID = '' then
-        raise Exception.Create('Skin image is missing an ID');
-      if Assigned(FindMaterial(lImageDef.ID)) then
-        raise Exception.Create('Duplicate skin image ID: ' + lImageDef.ID);
-
-      lMaterial := Materials.AddMaterial;
-      lMaterial.Name := lImageDef.ID;
-      lMaterial.Kind := smkImage;
-      lMaterial.FileName := lImageDef.FileName;
-    end;
-
-    for lSliceIndex := 0 to lManifest.Slices.Count - 1 do
-    begin
-      lSliceDef := TNXSkinSliceDef(lManifest.Slices.Items[lSliceIndex]);
-      if not Assigned(FindMaterial(lSliceDef.Image)) then
-        raise Exception.Create('Skin slice references unknown image: ' +
-          lSliceDef.Image);
-
-      lWidget := FindWidget(lSliceDef.SkinClass);
-      if not Assigned(lWidget) then
-      begin
-        lWidget := Widgets.AddWidget;
-        lWidget.SkinClass := lSliceDef.SkinClass;
-      end;
-
-      lState := lWidget.States.AddState;
-      lState.Part := lSliceDef.Part;
-      lState.State := lSliceDef.State;
-      lState.Appearance := TNXSkinNineSliceAppearance.Create;
-      with TNXSkinNineSliceAppearance(lState.Appearance) do
-      begin
-        Material := lSliceDef.Image;
-        SourceRect.X := lSliceDef.SourceRect.X;
-        SourceRect.Y := lSliceDef.SourceRect.Y;
-        SourceRect.W := lSliceDef.SourceRect.W;
-        SourceRect.H := lSliceDef.SourceRect.H;
-        Border.Left := lSliceDef.Border.Left;
-        Border.Top := lSliceDef.Border.Top;
-        Border.Right := lSliceDef.Border.Right;
-        Border.Bottom := lSliceDef.Border.Bottom;
-      end;
-    end;
-
-    BindRuntimeResources(AFileName, ACanvas);
-  finally
-    lManifest.Free;
-  end;
-end;
-
-procedure TNXSkin.LoadFromSkinFile(const AFileName: string; ACanvas: TNXCanvas);
-var
-  lFile: TStringList;
-  lFileText: string;
-begin
-  if ACanvas = nil then
-    raise Exception.Create('Cannot load skin without a canvas');
-
-  lFile := TStringList.Create;
-  try
-    lFile.LoadFromFile(AFileName);
-    lFileText := Trim(lFile.Text);
-  finally
-    lFile.Free;
-  end;
-
-  if (Pos('"Materials"', lFileText) = 0) and
-    (Pos('"materials"', lFileText) = 0) then
-  begin
-    LoadFromLegacyManifestFile(AFileName, ACanvas);
+    AError := 'A compiled skin document is required.';
     Exit;
   end;
 
-  Clear;
-  JSON := lFileText;
-  BindRuntimeResources(AFileName, ACanvas);
+  if ADocument.Definitions.Count <> 1 then
+  begin
+    AError := 'A skin document must contain exactly one root definition.';
+    Exit;
+  end;
+
+  lDefinition := ADocument.Definitions[0];
+  if not SameText(lDefinition.Kind, 'Skin') then
+  begin
+    AError := 'The root definition must be a Skin.';
+    Exit;
+  end;
+
+  lProperty := lDefinition.FindProperty('Version');
+  if (not Assigned(lProperty)) or
+    (not lProperty.Value.HasEffectiveText) or
+    (not TryStrToInt(lProperty.Value.EffectiveText, lVersion)) then
+  begin
+    AError := 'Skin Version must be an integer.';
+    Exit;
+  end;
+  if lVersion <> 1 then
+  begin
+    AError := 'Unsupported skin version: ' + IntToStr(lVersion) + '.';
+    Exit;
+  end;
+
+  for lRole := Low(TNXSkinColorRole) to High(TNXSkinColorRole) do
+  begin
+    lProperty := lDefinition.FindProperty(cNXSkinColorNames[lRole]);
+    if (not Assigned(lProperty)) or not lProperty.Value.HasEffectiveText then
+    begin
+      AError := 'Skin color ' + cNXSkinColorNames[lRole] +
+        ' is required.';
+      Exit;
+    end;
+    if not TryParseColor(lProperty.Value.EffectiveText, lColor) then
+    begin
+      AError := 'Skin color ' + cNXSkinColorNames[lRole] +
+        ' must use #AARRGGBB.';
+      Exit;
+    end;
+    AColors[lRole] := lColor;
+  end;
+
+  Result := True;
 end;
 
-procedure TNXSkin.LoadNamedSkin(const ASkinName: string; ACanvas: TNXCanvas);
+function TNXSkin.LoadCompiledDocument(
+  ADocument: TNexusScriptCompiledDocument; out AError: string): Boolean;
 var
-  lSkinFolder: string;
-  lSkinsFolder: string;
+  lColors: TNXSkinColors;
 begin
-  if Trim(ASkinName) = '' then
-    raise Exception.Create('Skin name cannot be empty');
+  Result := TryReadColors(ADocument, lColors, AError);
+  if not Result then
+    Exit;
+  FColors := lColors;
+  ApplyNamedColors;
+end;
 
-  lSkinsFolder := IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) +
-    cSkinsFolderName;
-  lSkinFolder := IncludeTrailingPathDelimiter(lSkinsFolder) + ASkinName;
-  Name := ASkinName;
-  LoadFromSkinFile(IncludeTrailingPathDelimiter(lSkinFolder) +
-    cSkinManifestFileName, ACanvas);
+procedure TNXSkin.DrawControlFrame(ACanvas: TfpgCanvas;
+  x, y, w, h: TfpgCoord);
+var
+  lRect: TfpgRect;
+begin
+  lRect.SetRect(x, y, w, h);
+  ACanvas.SetColor(FColors[scrWidgetFrame]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawRectangle(lRect);
+end;
+
+procedure TNXSkin.DrawBevel(ACanvas: TfpgCanvas; x, y, w, h: TfpgCoord;
+  ARaised: Boolean);
+var
+  lRect: TfpgRect;
+begin
+  lRect.SetRect(x, y, w, h);
+  ACanvas.SetLineStyle(1, lsSolid);
+  if ARaised then
+    ACanvas.GradientFill(lRect, FColors[scrButtonTop],
+      FColors[scrButtonBottom], gdVertical)
+  else
+    ACanvas.GradientFill(lRect, FColors[scrButtonPressedTop],
+      FColors[scrButtonPressedBottom], gdVertical);
+  ACanvas.SetColor(FColors[scrButtonBorder]);
+  ACanvas.DrawRectangle(lRect);
+end;
+
+procedure TNXSkin.DrawDirectionArrow(ACanvas: TfpgCanvas;
+  x, y, w, h: TfpgCoord; ADirection: TArrowDirection);
+begin
+  ACanvas.SetColor(clText1);
+  inherited DrawDirectionArrow(ACanvas, x + 1, y, w, h, ADirection);
+end;
+
+procedure TNXSkin.DrawString(ACanvas: TfpgCanvas; x, y: TfpgCoord;
+  AText: string; AEnabled: Boolean);
+begin
+  if AText = '' then
+    Exit;
+  if not AEnabled then
+    ACanvas.SetTextColor(clText4)
+  else if fpgIsNamedColor(ACanvas.TextColor) then
+    ACanvas.SetTextColor(clText1);
+  ACanvas.DrawString(x, y, AText);
+end;
+
+procedure TNXSkin.DrawFocusRect(ACanvas: TfpgCanvas; ARect: TfpgRect);
+begin
+  ACanvas.SetColor(FColors[scrFocus]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawRectangle(ARect);
+end;
+
+procedure TNXSkin.DrawButtonFace(ACanvas: TfpgCanvas;
+  x, y, w, h: TfpgCoord; AFlags: TfpgButtonFlags);
+var
+  lRect: TfpgRect;
+begin
+  ACanvas.SetLineStyle(1, lsSolid);
+  lRect.SetRect(x + 1, y + 1, w - 2, h - 2);
+
+  if btfIsPressed in AFlags then
+    ACanvas.GradientFill(lRect, FColors[scrButtonPressedTop],
+      FColors[scrButtonPressedBottom], gdVertical)
+  else if btfHover in AFlags then
+    ACanvas.GradientFill(lRect, FColors[scrButtonHoverTop],
+      FColors[scrButtonHoverBottom], gdVertical)
+  else if btfFlat in AFlags then
+  begin
+    ACanvas.SetColor(clWindowBackground);
+    ACanvas.FillRectangle(lRect);
+  end
+  else
+    ACanvas.GradientFill(lRect, FColors[scrButtonTop],
+      FColors[scrButtonBottom], gdVertical);
+
+  if not (btfFlat in AFlags) and not (btfIsPressed in AFlags) then
+  begin
+    ACanvas.SetColor(FColors[scrButtonHighlight]);
+    ACanvas.DrawLine(x + 2, y + 1, x + w - 2, y + 1);
+  end;
+
+  if not (btfFlat in AFlags) then
+  begin
+    ACanvas.SetColor(FColors[scrButtonBorder]);
+    ACanvas.DrawRectangle(x, y, w, h);
+  end;
+
+  if (btfIsDefault in AFlags) and not (btfIsPressed in AFlags) then
+  begin
+    ACanvas.SetColor(FColors[scrFocus]);
+    ACanvas.DrawRectangle(x, y, w, h);
+  end;
+
+  if (btfHasFocus in AFlags) and not (btfIsPressed in AFlags) then
+  begin
+    ACanvas.SetColor(FColors[scrFocus]);
+    ACanvas.DrawRectangle(x + 1, y + 1, w - 2, h - 2);
+  end;
+end;
+
+function TNXSkin.GetButtonBorders: TRect;
+begin
+  Result := Rect(2, 2, 2, 2);
+end;
+
+function TNXSkin.GetButtonShift: TPoint;
+begin
+  Result := Point(0, 0);
+end;
+
+function TNXSkin.HasButtonHoverEffect: Boolean;
+begin
+  Result := True;
+end;
+
+procedure TNXSkin.DrawMenuBar(ACanvas: TfpgCanvas; ARect: TfpgRect;
+  ABackgroundColor: TfpgColor);
+begin
+  ACanvas.Clear(clWindowBackground);
+  ACanvas.SetColor(FColors[scrWidgetFrame]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawLine(ARect.Left, ARect.Bottom, ARect.Right + 1, ARect.Bottom);
+end;
+
+procedure TNXSkin.DrawMenuRow(ACanvas: TfpgCanvas; ARect: TfpgRect;
+  AFlags: TfpgMenuItemFlags);
+begin
+  inherited DrawMenuRow(ACanvas, ARect, AFlags);
+  if (mifSelected in AFlags) and not (mifSeparator in AFlags) then
+  begin
+    ACanvas.SetColor(FColors[scrSelection]);
+    ACanvas.FillRectangle(ARect);
+  end;
+end;
+
+procedure TNXSkin.DrawMenuItemSeparator(ACanvas: TfpgCanvas;
+  ARect: TfpgRect);
+begin
+  ACanvas.SetColor(FColors[scrMenuSeparator]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawLine(ARect.Left + 1, ARect.Top + 2, ARect.Right,
+    ARect.Top + 2);
+end;
+
+procedure TNXSkin.DrawProgressBar(ACanvas: TfpgCanvas;
+  AParams: TfpgStyleDrawProgressBar);
+var
+  lDiff: Integer;
+  lFill: TfpgRect;
+  lPercent: Integer;
+  lPosition: Integer;
+  lRect: TfpgRect;
+  lText: string;
+  lX: TfpgCoord;
+  lY: TfpgCoord;
+begin
+  lRect := AParams.Rect;
+  lDiff := AParams.Max - AParams.Min;
+  lPosition := AParams.Position - AParams.Min;
+  lPercent := Round((100 / lDiff) * lPosition);
+  lPosition := Round(lPercent * (lRect.Width - 2) / 100);
+
+  ACanvas.SetColor(FColors[scrProgressTrack]);
+  ACanvas.FillRectangle(lRect);
+  ACanvas.SetColor(FColors[scrWidgetFrame]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawRectangle(lRect);
+
+  if AParams.Position > AParams.Min then
+  begin
+    lFill.SetRect(lRect.Left + 1, lRect.Top + 1, lPosition,
+      lRect.Height - 2);
+    ACanvas.GradientFill(lFill, FColors[scrProgressTop],
+      FColors[scrProgressBottom], gdVertical);
+    ACanvas.SetColor(FColors[scrProgressHighlight]);
+    ACanvas.DrawLine(lFill.Left, lFill.Top, lFill.Right, lFill.Top);
+    ACanvas.SetColor(FColors[scrProgressBorder]);
+    ACanvas.DrawRectangle(lFill);
+  end;
+
+  if AParams.ShowCaption then
+  begin
+    lText := IntToStr(lPercent) + '%';
+    lX := lRect.Left + (lRect.Width -
+      AParams.Font.GetTextWidth(lText)) div 2;
+    lY := lRect.Top + (lRect.Height - AParams.Font.GetHeight) div 2;
+    ACanvas.SetFont(AParams.Font);
+    ACanvas.SetTextColor(AParams.TextColor);
+    ACanvas.DrawString(lX, lY, lText);
+  end;
+end;
+
+function TNXSkin.GetCheckBoxSize: Integer;
+begin
+  Result := 20;
+end;
+
+procedure TNXSkin.DrawCheckBox(ACanvas: TfpgCanvas; ARect: TfpgRect;
+  AFlags: TfpgCheckBoxFlags);
+var
+  lX1: TfpgCoord;
+  lX2: TfpgCoord;
+  lX3: TfpgCoord;
+  lY1: TfpgCoord;
+  lY2: TfpgCoord;
+  lY3: TfpgCoord;
+begin
+  ACanvas.SetLineStyle(1, lsSolid);
+  if cbfPressed in AFlags then
+    ACanvas.SetColor(FColors[scrCheckPressed])
+  else
+    ACanvas.SetColor(FColors[scrCheckBackground]);
+  ACanvas.FillRectangle(ARect);
+
+  if cbfHasFocus in AFlags then
+    ACanvas.SetColor(FColors[scrFocus])
+  else
+    ACanvas.SetColor(FColors[scrCheckBorder]);
+  ACanvas.DrawRectangle(ARect);
+
+  if cbfChecked in AFlags then
+  begin
+    if (cbfEnabled in AFlags) and not (cbfReadOnly in AFlags) then
+      ACanvas.SetColor(FColors[scrFocus])
+    else
+      ACanvas.SetColor(FColors[scrDisabledText]);
+    ACanvas.SetLineStyle(3, lsSolid);
+    lX1 := ARect.Left + Round(ARect.Width * 0.22);
+    lY1 := ARect.Top + Round(ARect.Height * 0.50);
+    lX2 := ARect.Left + Round(ARect.Width * 0.42);
+    lY2 := ARect.Top + Round(ARect.Height * 0.75);
+    lX3 := ARect.Left + Round(ARect.Width * 0.70);
+    lY3 := ARect.Top + Round(ARect.Height * 0.20);
+    ACanvas.DrawLine(lX1, lY1, lX2, lY2);
+    ACanvas.DrawLine(lX2, lY2, lX3, lY3);
+    ACanvas.SetLineStyle(1, lsSolid);
+  end;
+end;
+
+function TNXSkin.GetRadioButtonSize: Integer;
+begin
+  Result := 14;
+end;
+
+procedure TNXSkin.DrawRadioButton(ACanvas: TfpgCanvas; ARect: TfpgRect;
+  AFlags: TfpgCheckBoxFlags);
+var
+  lCenterX: Integer;
+  lCenterY: Integer;
+  lRadius: Integer;
+begin
+  lCenterX := ARect.Left + (ARect.Width div 2);
+  lCenterY := ARect.Top + (ARect.Height div 2);
+  lRadius := (ARect.Width div 2) - 1;
+
+  if cbfPressed in AFlags then
+    ACanvas.SetColor(FColors[scrCheckPressed])
+  else
+    ACanvas.SetColor(FColors[scrCheckBackground]);
+  ACanvas.FillArc(lCenterX - lRadius, lCenterY - lRadius,
+    lRadius * 2, lRadius * 2, 0, 360);
+
+  if cbfHasFocus in AFlags then
+    ACanvas.SetColor(FColors[scrFocus])
+  else
+    ACanvas.SetColor(FColors[scrCheckBorder]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawArc(lCenterX - lRadius, lCenterY - lRadius,
+    lRadius * 2, lRadius * 2, 0, 360);
+
+  if cbfChecked in AFlags then
+  begin
+    if (cbfEnabled in AFlags) and not (cbfReadOnly in AFlags) then
+      ACanvas.SetColor(FColors[scrFocus])
+    else
+      ACanvas.SetColor(FColors[scrDisabledText]);
+    ACanvas.FillArc(lCenterX - 3, lCenterY - 3, 6, 6, 0, 360);
+  end;
+end;
+
+procedure TNXSkin.DrawPageControlBody(ACanvas: TfpgCanvas;
+  ARect: TfpgRect);
+begin
+  ACanvas.SetColor(clWindowBackground);
+  ACanvas.FillRectangle(ARect);
+  ACanvas.SetColor(FColors[scrTabBorder]);
+  ACanvas.SetLineStyle(1, lsSolid);
+  ACanvas.DrawRectangle(ARect);
+  ACanvas.SetColor(FColors[scrScrollBar]);
+  ACanvas.DrawLine(ARect.Left, ARect.Bottom, ARect.Right + 1, ARect.Bottom);
+end;
+
+procedure TNXSkin.DrawPageControlTab(ACanvas: TfpgCanvas;
+  AParams: TfpgStyleDrawTab);
+var
+  lActiveColor: TfpgColor;
+  lRect: TfpgRect;
+begin
+  lRect := AParams.TabRect;
+  ACanvas.SetLineStyle(1, lsSolid);
+
+  if TfpgTabSheet(AParams.TabSheet).PageControl.ActiveTabColor = clDefault then
+    lActiveColor := TfpgTabSheet(AParams.TabSheet).TabColor
+  else
+    lActiveColor := TfpgTabSheet(AParams.TabSheet).PageControl.ActiveTabColor;
+
+  case AParams.TabPosition of
+    tpTop:
+      if AParams.IsSelected then
+      begin
+        ACanvas.SetColor(lActiveColor);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top + 1,
+          lRect.Width - 2, lRect.Height - 1);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left, lRect.Bottom - 1,
+          lRect.Left, lRect.Top + 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Top,
+          lRect.Right - 1, lRect.Top);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top + 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+      end
+      else
+      begin
+        ACanvas.SetColor(FColors[scrInactiveTab]);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top + 1,
+          lRect.Width - 2, lRect.Height - 2);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left, lRect.Bottom - 1,
+          lRect.Left, lRect.Top + 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Top,
+          lRect.Right - 1, lRect.Top);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top + 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left, lRect.Bottom - 1,
+          lRect.Right, lRect.Bottom - 1);
+      end;
+    tpBottom:
+      if AParams.IsSelected then
+      begin
+        ACanvas.SetColor(lActiveColor);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top,
+          lRect.Width - 2, lRect.Height - 1);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left, lRect.Top,
+          lRect.Left, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Bottom - 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top,
+          lRect.Right - 1, lRect.Bottom - 1);
+      end
+      else
+      begin
+        ACanvas.SetColor(FColors[scrInactiveTab]);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top + 1,
+          lRect.Width - 2, lRect.Height - 2);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left, lRect.Top,
+          lRect.Left, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Bottom - 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left, lRect.Top, lRect.Right, lRect.Top);
+      end;
+    tpLeft:
+      if AParams.IsSelected then
+      begin
+        lRect.Width := lRect.Width - 1;
+        lRect.Height := lRect.Height + 2;
+        ACanvas.SetColor(lActiveColor);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top + 1,
+          lRect.Width - 1, lRect.Height - 2);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left, lRect.Bottom - 1,
+          lRect.Left, lRect.Top + 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Top,
+          lRect.Right - 1, lRect.Top);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Bottom - 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+      end
+      else
+      begin
+        ACanvas.SetColor(FColors[scrInactiveTab]);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top + 1,
+          lRect.Width - 2, lRect.Height - 2);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left, lRect.Bottom - 1,
+          lRect.Left, lRect.Top + 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Top,
+          lRect.Right - 1, lRect.Top);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Bottom - 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top + 1,
+          lRect.Right - 1, lRect.Bottom);
+      end;
+    tpRight:
+      if AParams.IsSelected then
+      begin
+        lRect.Height := lRect.Height + 2;
+        ACanvas.SetColor(lActiveColor);
+        ACanvas.FillRectangle(lRect.Left, lRect.Top + 1,
+          lRect.Width - 1, lRect.Height - 2);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Top,
+          lRect.Right - 1, lRect.Top);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top + 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Bottom - 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+      end
+      else
+      begin
+        ACanvas.SetColor(FColors[scrInactiveTab]);
+        ACanvas.FillRectangle(lRect.Left + 1, lRect.Top + 1,
+          lRect.Width - 2, lRect.Height - 2);
+        ACanvas.SetColor(FColors[scrTabBorder]);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Top,
+          lRect.Right - 1, lRect.Top);
+        ACanvas.DrawLine(lRect.Right - 1, lRect.Top + 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left + 1, lRect.Bottom - 1,
+          lRect.Right - 1, lRect.Bottom - 1);
+        ACanvas.DrawLine(lRect.Left, lRect.Top,
+          lRect.Left, lRect.Bottom);
+      end;
+  end;
 end;
 
 initialization
-  TNXPersistObject.RegisterPersistClass(TNXSkin);
-  TNXPersistObject.RegisterPersistClass(TNXSkinRect);
-  TNXPersistObject.RegisterPersistClass(TNXSkinInsets);
-  TNXPersistObject.RegisterPersistClass(TNXSkinColor);
-  TNXPersistObject.RegisterPersistClass(TNXSkinMaterial);
-  TNXPersistObject.RegisterPersistClass(TNXSkinMaterialList);
-  TNXPersistObject.RegisterPersistClass(TNXSkinAppearance);
-  TNXPersistObject.RegisterPersistClass(TNXSkinAppearanceList);
-  TNXPersistObject.RegisterPersistClass(TNXSkinColorAppearance);
-  TNXPersistObject.RegisterPersistClass(TNXSkinImageAppearance);
-  TNXPersistObject.RegisterPersistClass(TNXSkinNineSliceAppearance);
-  TNXPersistObject.RegisterPersistClass(TNXSkinTextAppearance);
-  TNXPersistObject.RegisterPersistClass(TNXSkinCompositeAppearance);
-  TNXPersistObject.RegisterPersistClass(TNXSkinWidgetState);
-  TNXPersistObject.RegisterPersistClass(TNXSkinWidgetStateList);
-  TNXPersistObject.RegisterPersistClass(TNXSkinWidget);
-  TNXPersistObject.RegisterPersistClass(TNXSkinWidgetList);
+  fpgStyleManager.RegisterClass('Nexus', TNXSkin);
 
 end.

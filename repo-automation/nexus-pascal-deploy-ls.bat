@@ -64,7 +64,7 @@ if errorlevel 1 (
 )
 
 if not exist "%ExtensionRoot%\dialects" mkdir "%ExtensionRoot%\dialects"
-xcopy /E /I /Y "%NexusRoot%\projects\nxscript\language\*" "%ExtensionRoot%\dialects\" >nul
+xcopy /E /I /Y "%NexusRoot%\packages\nxscript\language\*" "%ExtensionRoot%\dialects\" >nul
 if errorlevel 1 (
     echo ERROR: Could not deploy the NexusScript dialect catalog.
     goto DoneFail

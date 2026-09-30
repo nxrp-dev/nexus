@@ -12,11 +12,13 @@ procedure RegisterNXUITests(ARegistry: TNXTestRegistry);
 implementation
 
 uses
-  tsNXPersistTests;
+  tsNXPersistTests,
+  tsNXSkinTests;
 
 procedure RegisterNXUITests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXPersistTests(ARegistry);
+  RegisterNXSkinTests(ARegistry);
 end;
 
 end.

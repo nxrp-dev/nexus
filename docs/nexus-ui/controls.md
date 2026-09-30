@@ -30,55 +30,36 @@ attached to a parent, and rendered/input-routed through the Nexus control tree.
 
 - `TNXButton` is a clickable command control. It uses skin state for normal,
   hot, focused, and pressed rendering when skin data is available.
-- `TNXGlyphButton` extends button behavior with image/glyph rendering.
 - `TNXLabel` displays static text.
 - `TNXEditBox` provides single-line text input with focus, caret, selection,
   placeholder, and text input handling.
-- `TNXCheckBox` provides a boolean option control.
-- `TNXRadioButton` extends check box behavior for mutually exclusive sibling
-  choices.
-- `TNXImage` displays loaded images/textures inside the control tree.
 - `TNXProgressBar` displays a value within a min/max range.
-- `TNXTrackBar` provides a draggable value control.
 
 ## Text and Editing Controls
 
 - `TNXMemo` is the practical multiline text editor. It supports scrolling,
   caret behavior, selection, text input, and placeholder behavior.
-- `TNXDateEdit` and `TNXTimeEdit` are edit-derived date and time entry controls.
 - `TNXCodeEdit` is not present as a current control. Treat it as a future
   design decision, not as a small widget addition.
 
 ## Lists, Trees, Grids, and Structured Data
 
 - `TNXListBox` displays selectable rows.
-- `TNXTreeList` displays hierarchical expandable data.
 - `TNXTreeView` displays tree nodes with columns/cells.
 - `TNXGrid` displays row/column data.
-- `TNXPropertyEditor` displays editable property/value rows.
-- `TNXTreeMap` displays hierarchical weighted data as nested rectangles.
 - `TNXStarMap` is a visual map control.
 
 ## Containers and Layout Controls
 
 - `TNXPanel` is a general-purpose container and background surface.
 - `TNXGroupBox` is a captioned grouping container with a content panel.
-- `TNXSplitter` resizes aligned sibling regions.
-- `TNXSplitPanel` owns two panes and an internal splitter.
-- `TNXTabControl` owns tab pages, a tab strip, and a page host.
-- `TNXCommandOverlay` positions controls along command overlay edges.
 
 ## Menus and Command Surfaces
 
-- `TNXMainMenu` displays top-level application menus.
-- `TNXPopupMenu` displays dropdown and context menu items.
-- `TNXComboBox` combines a selection surface with popup/dropdown behavior.
-- `TNXToolbar` provides a command strip with buttons and separators.
 - `TNXStatusBar` displays status text and panels.
 
 ## Dialogs and Pickers
 
-- `TNXMessageDialog` is a modal popup-backed message/action dialog.
 - `TNXFileDialog` and `TNXColorPicker` are not present as current controls.
   They need design decisions before implementation, especially around native
   dialog wrappers versus Nexus-rendered dialogs.

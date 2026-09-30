@@ -41,7 +41,7 @@ BuildNexusPascalVSIX Group {
   }
 
   InstallNexusScriptDialectBundle CopyFile {
-    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/nxscript/language"
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/packages/nxscript/language"
     Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/nexuscode/dialects"
     Recursive: true
     Overwrite: true
@@ -49,8 +49,8 @@ BuildNexusPascalVSIX Group {
   }
 
   InstallNexusScriptDialectSDK CopyFile {
-    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/nxscript/language"
-    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/nexuscode/sdk/nexus/projects/nxscript/language"
+    Source: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/packages/nxscript/language"
+    Destination: "C:/Users/kcollins/AppData/Local/Temp/NexusTask/nexus-ls-build/nexus/projects/nexuscode/sdk/nexus/packages/nxscript/language"
     Recursive: true
     Overwrite: true
     CleanDestination: true

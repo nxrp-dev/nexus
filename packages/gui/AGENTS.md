@@ -5,13 +5,11 @@ These rules apply to `packages/gui`.
 ## Standards
 
 - For Object Pascal / Free Pascal code, follow `../../../.ai/standards/pascal.md`.
-- Treat this folder as the NexusUI source library: retained controls, rendering, input routing, windows, popups, and skins.
+- Treat this folder as the Nexus fpGUI integration package: controls and skins built on fpGUI.
 
 ## Architecture
 
-- `TNXApplication` owns application/runtime lifecycle.
-- Windows are first-class UI surfaces managed by the application/window manager.
-- Controls are renderable and/or interactable UI objects.
-- Container controls such as panels and group boxes are still controls.
-- Parent relationships should use the CORBA-style `INXControlParent` interface and must not imply reference-counted ownership.
-- SDL2 is an implementation detail where practical; keep backend details behind framework objects without inventing broad abstractions before they are needed.
+- `obNXControls` provides the small Nexus-named fpGUI control wrappers.
+- `obNXTreeView` and `obNXStarMap` are fpGUI widgets.
+- `TNXSkin` descends from the fpGUI style and owns its color palette.
+- Use fpGUI ownership, rendering, input, and window lifecycle directly.

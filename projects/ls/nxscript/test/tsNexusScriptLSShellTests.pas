@@ -713,7 +713,7 @@ begin
   TNexusScriptLSModel.SetCurrent(lModel);
   lJSON := nil;
   try
-    lModel.DialectRoot := ExpandFileName('projects\nxscript\language');
+    lModel.DialectRoot := ExpandFileName('packages\nxscript\language');
     lModel.OpenDocument(cURI, 'nexusscript', 1, cText);
     AContext.AssertTrue(lModel.FindAnalysis(cURI).Succeeded,
       'The LS should resolve dialects from its configured catalog root.');

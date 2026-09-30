@@ -1,4 +1,4 @@
-dialect "../../../projects/nxscript/language/Language.nxscript";
+dialect "../../../packages/nxscript/language/Language.nxscript";
 
 Language WorkspaceIndex {
     UnknownDefinitions: Reject;

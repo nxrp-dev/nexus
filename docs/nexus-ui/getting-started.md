@@ -38,8 +38,8 @@ end.
 ```
 
 Use the control units you actually instantiate. The demo imports units such as
-`obNXPanel`, `obNXTabControl`, `obNXGrid`, `obNXTreeView`, `obNXToolbar`, and
-`obNXStatusBar` because it builds a broad sample surface.
+`obNXPanel`, `obNXGrid`, `obNXTreeView`, and `obNXStatusBar` because it builds a
+broad sample surface.
 
 ## Build and Run
 

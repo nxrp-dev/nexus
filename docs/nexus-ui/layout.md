@@ -16,7 +16,7 @@ Aligned children are laid out by the parent. Top, bottom, left, and right
 children reserve space in that order, and `caClient` children fill the remaining
 client area. Hidden aligned children are skipped.
 
-Use alignment for panels, menus, toolbars, status bars, tab controls, and other
+Use alignment for panels, status bars, and other
 surfaces that should resize with their parent:
 
 ```pascal
@@ -52,13 +52,6 @@ lButton.Anchors := [ancRight, ancBottom];
 Container controls call `LayoutChildren` when alignment-related state changes.
 Controls can respond to size changes through `DoResize`.
 
-## Split Layout
-
-`TNXSplitter` resizes an aligned sibling region. `TNXSplitPanel` provides a
-self-contained two-pane layout with `PaneA`, `PaneB`, and an internal splitter.
-Use `TNXSplitPanel` when the two-pane relationship is intrinsic to the surface;
-use `TNXSplitter` when resizing existing aligned siblings.
-
 ## Focus and Tab Traversal
 
 Nexus UI does not use numeric `TabOrder`. Tab traversal is structural. A window
@@ -76,5 +69,5 @@ A control participates in focus when it is visible, enabled, and
 
 Controls can capture the mouse during drag operations. While capture is active,
 mouse motion and mouse up events route to the captured control even when the
-pointer moves outside its bounds. This behavior is used by splitters, text
-selection, sliders/track bars, and similar interactions.
+pointer moves outside its bounds. This behavior is used by text selection and
+similar interactions.

@@ -17,7 +17,7 @@ NexusScript /input=Customer.Schema.nxscript /output=Customer.json
 NexusScript /input=Customer.Schema.nxscript /format=sqlite /output=Customer.sqlite
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache /output=Customer.sql
-NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=projects/nxscript/language
+NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=packages/nxscript/language
 ```
 
 ## Options

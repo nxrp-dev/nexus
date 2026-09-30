@@ -52,7 +52,7 @@ export class NexusScriptLanguageClientService implements ErrorHandler, vscode.Di
             return;
         }
         const installedDialectRoot = path.resolve(path.dirname(executable),
-            '..', 'sdk', 'nexus', 'projects', 'nxscript', 'language');
+            '..', 'sdk', 'nexus', 'packages', 'nxscript', 'language');
         const bundledDialectRoot = this.extensionPaths.getFilePath('dialects');
         const dialectRoot = fs.existsSync(installedDialectRoot)
             ? installedDialectRoot

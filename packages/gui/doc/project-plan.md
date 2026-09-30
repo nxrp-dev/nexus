@@ -41,37 +41,22 @@ Build a small, cross-platform, retained-mode Pascal UI framework over SDL2, with
 - `TNXButton` - complete
 - `TNXLabel` - complete
 - `TNXEditBox` - complete
-- `TNXCheckBox` - complete
 - `TNXListBox` - complete
 - `TNXScrollBar` - complete
 - `TNXPanel` - complete
-- `TNXImage` - complete
-- `TNXTreeMap` - complete
-- `TNXComboBox` - complete
-- `TNXTreeList` - complete
 - `TNXProgressBar` - complete
 - `TNXMemo`
 
 ### Needed
 
-- `TNXRadioButton`
 - `TNXGroupBox`
-- `TNXTabControl`
 - `TNXPageControl`
-- `TNXMainMenu`
-- `TNXPopupMenu`
-- `TNXToolBar`
 - `TNXStatusBar`
-- `TNXSplitter`
-- `TNXTrackBar`
 - `TNXSpinEdit`
 - `TNXGrid`
 - `TNXPropertyGrid`
-- `TNXDateEdit`
-- `TNXTimeEdit`
 - `TNXColorPicker`
 - `TNXFileDialog`
-- `TNXMessageDialog`
 - `TNXCodeEdit` - based on SynEdit
 ## Data-Aware Layer
 

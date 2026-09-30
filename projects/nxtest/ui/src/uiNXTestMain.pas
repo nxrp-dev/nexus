@@ -16,6 +16,7 @@ uses
   fpg_main,
   fpg_stylemanager,
   obNXControls,
+  obNXSkin,
   obNXTreeView,
   obNXTestModuleClient,
   obNXTestRPCValues,
@@ -816,7 +817,7 @@ var
   lMainForm: TNXTestMainForm;
 begin
   fpgApplication.Initialize;
-  fpgStyleManager.SetStyle('Plastic Dark');
+  fpgStyleManager.SetStyle('Nexus');
   fpgStyle := fpgStyleManager.Style;
   fpgApplication.AppTitle := 'NexusTest';
   lMainForm := TNXTestMainForm.Create(nil);

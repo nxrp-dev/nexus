@@ -66,19 +66,21 @@ if exist "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" (
     echo WARNING: NexusBuild executable was not found. Build NexusTools\Build\nexusbuild.lpi before using Nexus project tasks.
 )
 
-if exist "%ExtensionLink%\package.json" (
-    echo Local extension link already present:
-    echo   %ExtensionLink%
-) else (
-    if exist "%ExtensionLink%" (
-        echo ERROR: "%ExtensionLink%" exists but does not look like Nexus Pascal.
+if exist "%ExtensionLink%" (
+    fsutil reparsepoint query "%ExtensionLink%" >nul 2>nul
+    if errorlevel 1 (
+        echo ERROR: "%ExtensionLink%" exists and is not a junction.
         goto Fail
     )
 
-    echo Creating local extension junction...
-    mklink /J "%ExtensionLink%" "%RepoRoot%"
+    echo Replacing local extension junction...
+    rmdir "%ExtensionLink%"
     if errorlevel 1 goto Fail
 )
+
+echo Creating local extension junction...
+mklink /J "%ExtensionLink%" "%RepoRoot%"
+if errorlevel 1 goto Fail
 
 echo.
 echo Nexus Pascal built and locally deployed.

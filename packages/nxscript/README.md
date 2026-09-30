@@ -10,8 +10,9 @@ This package contains the reusable NexusScript mechanism:
 
 The command-line frontend remains under `projects/nxscript/cli`. The
 NexusScript language-server adapter remains under `projects/ls/nxscript`.
-Dialect definitions live with their owners: NexusScript and NexusManifest under
-`projects/nxscript/language`, Forge under `projects/forge/language`, Bot under
+Dialect definitions live with their owners. The foundational NexusScript
+language and NexusManifest are under `packages/nxscript/language`; Forge is
+under `projects/forge/language`, Bot under
 `projects/bothost/language`, Schema under `projects/schema/language`, and
 WorkspaceIndex under `tools/workspace-index/language`.
 

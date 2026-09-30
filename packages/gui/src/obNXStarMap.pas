@@ -8,8 +8,9 @@ uses
   Classes,
   Math,
   SysUtils,
-  tpNXPlatform,
-  obNXControl;
+  fpg_base,
+  fpg_main,
+  fpg_widget;
 
 type
   TNXStarMapSystem = record
@@ -17,7 +18,7 @@ type
     Name: string;
     X: Double;
     Y: Double;
-    Color: TNXColor;
+    Color: TfpgColor;
     Radius: Integer;
     Visible: Boolean;
     Enabled: Boolean;
@@ -44,7 +45,7 @@ type
     X: Double;
     Y: Double;
     Radius: Double;
-    Color: TNXColor;
+    Color: TfpgColor;
     Style: TNXStarMapRingStyle;
     Visible: Boolean;
   end;
@@ -66,7 +67,7 @@ type
     AMapY: Double
   ) of object;
 
-  TNXStarMap = class(TNXControl)
+  TNXStarMap = class(TfpgWidget)
   private
     FAutoFitMargin: Integer;
     FHoverSystemIndex: Integer;
@@ -86,8 +87,10 @@ type
 
     procedure SetAutoFitMargin(AValue: Integer);
     procedure SetHoverSystemIndex(AValue: Integer);
+    procedure SetMinimumHitRadius(AValue: Integer);
     procedure SetRings(const AValue: TNXStarMapRingArray);
     procedure SetSelectedSystemID(AValue: Integer);
+    procedure SetShowLabels(AValue: Boolean);
     procedure SetSystems(const AValue: TNXStarMapSystemArray);
     procedure SetViewCenterX(AValue: Double);
     procedure SetViewCenterY(AValue: Double);
@@ -99,28 +102,35 @@ type
     function GetRingCount: Integer;
     function GetSystem(AIndex: Integer): TNXStarMapSystem;
     function GetRing(AIndex: Integer): TNXStarMapRing;
+    function GetMapRect: TfpgRect;
 
     function ResolveRingCenter(const ARing: TNXStarMapRing; out AX, AY: Double): Boolean;
     function SystemAt(const AX, AY: Integer): Integer;
     function SystemHitRadius(const ASystem: TNXStarMapSystem): Integer;
 
     procedure DrawRangeRing(const ARing: TNXStarMapRing);
-    procedure DrawSolidRing(AX, AY, ARadius: Integer; const AColor: TNXColor);
-    procedure DrawDashedRing(AX, AY, ARadius: Integer; const AColor: TNXColor);
-    procedure DrawDottedRing(AX, AY, ARadius: Integer; const AColor: TNXColor);
+    procedure DrawSolidRing(AX, AY, ARadius: Integer;
+      const AColor: TfpgColor);
+    procedure DrawDashedRing(AX, AY, ARadius: Integer;
+      const AColor: TfpgColor);
+    procedure DrawDottedRing(AX, AY, ARadius: Integer;
+      const AColor: TfpgColor);
     procedure DrawSystem(const ASystem: TNXStarMapSystem; AIndex: Integer);
     procedure NotifySystemHover;
     procedure NotifySystemSelected;
 
   protected
-    procedure RenderClient; override;
-    procedure DoMouseClick(X, Y: Integer; Button: TNXMouseButton); override;
-    procedure DoMouseExit; override;
-    procedure DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons); override;
-    procedure DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer); override;
+    procedure HandleLMouseUp(AX, AY: Integer;
+      AShiftState: TShiftState); override;
+    procedure HandleMouseExit; override;
+    procedure HandleMouseMove(AX, AY: Integer; AButtonState: Word;
+      AShiftState: TShiftState); override;
+    procedure HandleMouseScroll(AX, AY: Integer;
+      AShiftState: TShiftState; ADelta: SmallInt); override;
+    procedure HandlePaint; override;
 
   public
-    constructor Create(const AParent: INXControlParent); overload; override;
+    constructor Create(AOwner: TComponent); override;
 
     function AddRing(const ARing: TNXStarMapRing): Integer;
     function AddSystem(const ASystem: TNXStarMapSystem): Integer;
@@ -141,7 +151,8 @@ type
 
     property AutoFitMargin: Integer read FAutoFitMargin write SetAutoFitMargin;
     property HoverSystemIndex: Integer read FHoverSystemIndex;
-    property MinimumHitRadius: Integer read FMinimumHitRadius write FMinimumHitRadius;
+    property MinimumHitRadius: Integer read FMinimumHitRadius
+      write SetMinimumHitRadius;
     property OnEmptyClick: TNXStarMapMapClickEvent read FOnEmptyClick write FOnEmptyClick;
     property OnSystemClick: TNXStarMapSystemEvent read FOnSystemClick write FOnSystemClick;
     property OnSystemHover: TNXStarMapSystemEvent read FOnSystemHover write FOnSystemHover;
@@ -150,7 +161,7 @@ type
     property Rings: TNXStarMapRingArray read FRings write SetRings;
     property SelectedSystemID: Integer read FSelectedSystemID write SetSelectedSystemID;
     property SelectedSystemIndex: Integer read GetSelectedSystemIndex;
-    property ShowLabels: Boolean read FShowLabels write FShowLabels;
+    property ShowLabels: Boolean read FShowLabels write SetShowLabels;
     property SystemCount: Integer read GetSystemCount;
     property Systems: TNXStarMapSystemArray read FSystems write SetSystems;
     property ViewCenterX: Double read FViewCenterX write SetViewCenterX;
@@ -160,13 +171,13 @@ type
   end;
 
 function MakeNXStarMapSystem(ASystemID: Integer; const AName: string;
-  AX, AY: Double; const AColor: TNXColor; ARadius: Integer): TNXStarMapSystem;
+  AX, AY: Double; const AColor: TfpgColor; ARadius: Integer): TNXStarMapSystem;
 function MakeNXStarMapPointRing(ARingID: Integer; AX, AY, ARadius: Double;
-  const AColor: TNXColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
+  const AColor: TfpgColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
 function MakeNXStarMapSystemRing(ARingID, ASystemID: Integer; ARadius: Double;
-  const AColor: TNXColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
+  const AColor: TfpgColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
 function MakeNXStarMapSelectedRing(ARingID: Integer; ARadius: Double;
-  const AColor: TNXColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
+  const AColor: TfpgColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
 
 implementation
 
@@ -177,13 +188,14 @@ const
   cMinimumZoom = 0.01;
   cMaximumZoom = 1000.0;
   cDefaultAutoFitMargin = 16;
+  cFrameWidth = 2;
   cWheelZoomFactor = 1.15;
 
-  cHoverRingColor: TNXColor = (r: 255; g: 255; b: 255; a: 255);
-  cSelectedRingColor: TNXColor = (r: 255; g: 220; b: 64; a: 255);
+  cHoverRingColor = TfpgColor($FFFFFFFF);
+  cSelectedRingColor = TfpgColor($FFFFDC40);
 
 function MakeNXStarMapSystem(ASystemID: Integer; const AName: string;
-  AX, AY: Double; const AColor: TNXColor; ARadius: Integer): TNXStarMapSystem;
+  AX, AY: Double; const AColor: TfpgColor; ARadius: Integer): TNXStarMapSystem;
 begin
   Result.ID := ASystemID;
   Result.Name := AName;
@@ -196,7 +208,7 @@ begin
 end;
 
 function MakeNXStarMapPointRing(ARingID: Integer; AX, AY, ARadius: Double;
-  const AColor: TNXColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
+  const AColor: TfpgColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
 begin
   Result.ID := ARingID;
   Result.CenterKind := smrcMapPoint;
@@ -210,7 +222,7 @@ begin
 end;
 
 function MakeNXStarMapSystemRing(ARingID, ASystemID: Integer; ARadius: Double;
-  const AColor: TNXColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
+  const AColor: TfpgColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
 begin
   Result.ID := ARingID;
   Result.CenterKind := smrcSystemID;
@@ -224,7 +236,7 @@ begin
 end;
 
 function MakeNXStarMapSelectedRing(ARingID: Integer; ARadius: Double;
-  const AColor: TNXColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
+  const AColor: TfpgColor; AStyle: TNXStarMapRingStyle): TNXStarMapRing;
 begin
   Result.ID := ARingID;
   Result.CenterKind := smrcSelectedSystem;
@@ -237,9 +249,9 @@ begin
   Result.Visible := True;
 end;
 
-constructor TNXStarMap.Create(const AParent: INXControlParent);
+constructor TNXStarMap.Create(AOwner: TComponent);
 begin
-  inherited Create(AParent);
+  inherited Create(AOwner);
   FAutoFitMargin := cDefaultAutoFitMargin;
   FHoverSystemIndex := -1;
   FMinimumHitRadius := cDefaultHitRadius;
@@ -249,7 +261,9 @@ begin
   FViewCenterY := 0;
   FYPositiveUp := False;
   FZoom := cDefaultZoom;
-  BorderStyle := BS_Single;
+  BackgroundColor := clWindowBackground;
+  Width := 400;
+  Height := 300;
 end;
 
 procedure TNXStarMap.SetAutoFitMargin(AValue: Integer);
@@ -264,11 +278,18 @@ begin
 
   FHoverSystemIndex := AValue;
   NotifySystemHover;
+  Invalidate;
+end;
+
+procedure TNXStarMap.SetMinimumHitRadius(AValue: Integer);
+begin
+  FMinimumHitRadius := Max(0, AValue);
 end;
 
 procedure TNXStarMap.SetRings(const AValue: TNXStarMapRingArray);
 begin
   FRings := Copy(AValue, 0, Length(AValue));
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetSelectedSystemID(AValue: Integer);
@@ -278,6 +299,16 @@ begin
 
   FSelectedSystemID := AValue;
   NotifySystemSelected;
+  Invalidate;
+end;
+
+procedure TNXStarMap.SetShowLabels(AValue: Boolean);
+begin
+  if FShowLabels = AValue then
+    Exit;
+
+  FShowLabels := AValue;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetSystems(const AValue: TNXStarMapSystemArray);
@@ -287,26 +318,31 @@ begin
     FSelectedSystemID := cInvalidSystemID;
   if (FHoverSystemIndex < 0) or (FHoverSystemIndex > High(FSystems)) then
     FHoverSystemIndex := -1;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetViewCenterX(AValue: Double);
 begin
   FViewCenterX := AValue;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetViewCenterY(AValue: Double);
 begin
   FViewCenterY := AValue;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetYPositiveUp(AValue: Boolean);
 begin
   FYPositiveUp := AValue;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetZoom(AValue: Double);
 begin
   FZoom := EnsureRange(AValue, cMinimumZoom, cMaximumZoom);
+  Invalidate;
 end;
 
 function TNXStarMap.GetSelectedSystemIndex: Integer;
@@ -338,6 +374,13 @@ begin
     raise ERangeError.Create('Star map ring index out of range');
 
   Result := FRings[AIndex];
+end;
+
+function TNXStarMap.GetMapRect: TfpgRect;
+begin
+  Result.SetRect(cFrameWidth, cFrameWidth,
+    Max(0, ActualWidth - (cFrameWidth * 2)),
+    Max(0, ActualHeight - (cFrameWidth * 2)));
 end;
 
 function TNXStarMap.ResolveRingCenter(const ARing: TNXStarMapRing; out AX,
@@ -445,13 +488,15 @@ begin
 end;
 
 procedure TNXStarMap.DrawSolidRing(AX, AY, ARadius: Integer;
-  const AColor: TNXColor);
+  const AColor: TfpgColor);
 begin
-  Canvas.DrawCircle(AbsLeft + AX, AbsTop + AY, ARadius, AColor);
+  Canvas.SetColor(AColor);
+  Canvas.DrawArc(AX - ARadius, AY - ARadius, ARadius * 2,
+    ARadius * 2, 0, 360);
 end;
 
 procedure TNXStarMap.DrawDashedRing(AX, AY, ARadius: Integer;
-  const AColor: TNXColor);
+  const AColor: TfpgColor);
 var
   lAngle: Double;
   lEndAngle: Double;
@@ -463,6 +508,7 @@ var
   lY1: Integer;
 begin
   lSegmentCount := Max(12, Round(ARadius / 3));
+  Canvas.SetColor(AColor);
 
   for lSegment := 0 to lSegmentCount - 1 do
   begin
@@ -471,16 +517,16 @@ begin
 
     lAngle := (2 * Pi * lSegment) / lSegmentCount;
     lEndAngle := (2 * Pi * (lSegment + 1)) / lSegmentCount;
-    lX0 := AbsLeft + AX + Round(Cos(lAngle) * ARadius);
-    lY0 := AbsTop + AY + Round(Sin(lAngle) * ARadius);
-    lX1 := AbsLeft + AX + Round(Cos(lEndAngle) * ARadius);
-    lY1 := AbsTop + AY + Round(Sin(lEndAngle) * ARadius);
-    Canvas.DrawLine(lX0, lY0, lX1, lY1, AColor);
+    lX0 := AX + Round(Cos(lAngle) * ARadius);
+    lY0 := AY + Round(Sin(lAngle) * ARadius);
+    lX1 := AX + Round(Cos(lEndAngle) * ARadius);
+    lY1 := AY + Round(Sin(lEndAngle) * ARadius);
+    Canvas.DrawLine(lX0, lY0, lX1, lY1);
   end;
 end;
 
 procedure TNXStarMap.DrawDottedRing(AX, AY, ARadius: Integer;
-  const AColor: TNXColor);
+  const AColor: TfpgColor);
 var
   lAngle: Double;
   lDot: Integer;
@@ -489,13 +535,14 @@ var
   lY: Integer;
 begin
   lDotCount := Max(12, Round(ARadius / 2));
+  Canvas.SetColor(AColor);
 
   for lDot := 0 to lDotCount - 1 do
   begin
     lAngle := (2 * Pi * lDot) / lDotCount;
-    lX := AbsLeft + AX + Round(Cos(lAngle) * ARadius);
-    lY := AbsTop + AY + Round(Sin(lAngle) * ARadius);
-    Canvas.FillCircle(lX, lY, 1, AColor);
+    lX := AX + Round(Cos(lAngle) * ARadius);
+    lY := AY + Round(Sin(lAngle) * ARadius);
+    Canvas.FillArc(lX - 1, lY - 1, 3, 3, 0, 360);
   end;
 end;
 
@@ -512,19 +559,23 @@ begin
   lScreenY := MapToClientY(ASystem.Y);
   lRadius := Max(1, ASystem.Radius);
 
-  Canvas.FillCircle(AbsLeft + lScreenX, AbsTop + lScreenY, lRadius, ASystem.Color);
+  Canvas.SetColor(ASystem.Color);
+  Canvas.FillArc(lScreenX - lRadius, lScreenY - lRadius, lRadius * 2,
+    lRadius * 2, 0, 360);
 
   if ASystem.ID = FSelectedSystemID then
-    Canvas.DrawCircle(AbsLeft + lScreenX, AbsTop + lScreenY, lRadius + 4,
-      cSelectedRingColor);
+    DrawSolidRing(lScreenX, lScreenY, lRadius + 4, cSelectedRingColor);
 
   if AIndex = FHoverSystemIndex then
-    Canvas.DrawCircle(AbsLeft + lScreenX, AbsTop + lScreenY, lRadius + 2,
-      cHoverRingColor);
+    DrawSolidRing(lScreenX, lScreenY, lRadius + 2, cHoverRingColor);
 
   if FShowLabels and (ASystem.Name <> '') then
-    Canvas.DrawText(ASystem.Name, AbsLeft + lScreenX + lRadius + 4,
-      AbsTop + lScreenY - (FontHeight div 2), ForeColor, Font);
+  begin
+    Canvas.SetFont(Font);
+    Canvas.SetTextColor(TextColor);
+    Canvas.DrawString(lScreenX + lRadius + 4,
+      lScreenY - (Font.GetHeight div 2), ASystem.Name);
+  end;
 end;
 
 procedure TNXStarMap.NotifySystemHover;
@@ -550,31 +601,36 @@ begin
       FSystems[lSystemIndex]);
 end;
 
-procedure TNXStarMap.RenderClient;
+procedure TNXStarMap.HandlePaint;
 var
   lIndex: Integer;
+  lMapRect: TfpgRect;
 begin
-  inherited RenderClient;
+  inherited HandlePaint;
+
+  lMapRect := GetMapRect;
+  Canvas.SetClipRect(lMapRect);
 
   for lIndex := 0 to High(FRings) do
     DrawRangeRing(FRings[lIndex]);
 
   for lIndex := 0 to High(FSystems) do
     DrawSystem(FSystems[lIndex], lIndex);
+
+  Canvas.ClearClipRect;
+  fpgStyle.DrawControlFrame(Canvas, 0, 0, ActualWidth, ActualHeight);
 end;
 
-procedure TNXStarMap.DoMouseClick(X, Y: Integer; Button: TNXMouseButton);
+procedure TNXStarMap.HandleLMouseUp(AX, AY: Integer;
+  AShiftState: TShiftState);
 var
   lMapX: Double;
   lMapY: Double;
   lSystemIndex: Integer;
 begin
-  inherited DoMouseClick(X, Y, Button);
+  inherited HandleLMouseUp(AX, AY, AShiftState);
 
-  if Button <> mbLeft then
-    Exit;
-
-  lSystemIndex := SystemAt(X, Y);
+  lSystemIndex := SystemAt(AX, AY);
   if lSystemIndex >= 0 then
   begin
     SelectedSystemID := FSystems[lSystemIndex].ID;
@@ -584,32 +640,34 @@ begin
     Exit;
   end;
 
-  lMapX := ClientToMapX(X);
-  lMapY := ClientToMapY(Y);
+  lMapX := ClientToMapX(AX);
+  lMapY := ClientToMapY(AY);
   if Assigned(FOnEmptyClick) then
     FOnEmptyClick(Self, cInvalidSystemID, -1, lMapX, lMapY);
 end;
 
-procedure TNXStarMap.DoMouseExit;
+procedure TNXStarMap.HandleMouseExit;
 begin
-  inherited DoMouseExit;
+  inherited HandleMouseExit;
   SetHoverSystemIndex(-1);
 end;
 
-procedure TNXStarMap.DoMouseMotion(X, Y: Integer; ButtonState: TNXMouseButtons);
+procedure TNXStarMap.HandleMouseMove(AX, AY: Integer; AButtonState: Word;
+  AShiftState: TShiftState);
 begin
-  inherited DoMouseMotion(X, Y, ButtonState);
-  SetHoverSystemIndex(SystemAt(X, Y));
+  inherited HandleMouseMove(AX, AY, AButtonState, AShiftState);
+  SetHoverSystemIndex(SystemAt(AX, AY));
 end;
 
-procedure TNXStarMap.DoMouseWheel(X, Y, ADeltaX, ADeltaY: Integer);
+procedure TNXStarMap.HandleMouseScroll(AX, AY: Integer;
+  AShiftState: TShiftState; ADelta: SmallInt);
 begin
-  inherited DoMouseWheel(X, Y, ADeltaX, ADeltaY);
+  inherited HandleMouseScroll(AX, AY, AShiftState, ADelta);
 
-  if ADeltaY > 0 then
-    ZoomAtClientPoint(X, Y, cWheelZoomFactor)
-  else if ADeltaY < 0 then
-    ZoomAtClientPoint(X, Y, 1 / cWheelZoomFactor);
+  if ADelta > 0 then
+    ZoomAtClientPoint(AX, AY, cWheelZoomFactor)
+  else if ADelta < 0 then
+    ZoomAtClientPoint(AX, AY, 1 / cWheelZoomFactor);
 end;
 
 function TNXStarMap.AddRing(const ARing: TNXStarMapRing): Integer;
@@ -617,6 +675,7 @@ begin
   Result := Length(FRings);
   SetLength(FRings, Result + 1);
   FRings[Result] := ARing;
+  Invalidate;
 end;
 
 function TNXStarMap.AddSystem(const ASystem: TNXStarMapSystem): Integer;
@@ -624,18 +683,25 @@ begin
   Result := Length(FSystems);
   SetLength(FSystems, Result + 1);
   FSystems[Result] := ASystem;
+  Invalidate;
 end;
 
 function TNXStarMap.ClientToMapX(AX: Integer): Double;
+var
+  lClientRect: TfpgRect;
 begin
-  Result := FViewCenterX + ((AX - ClientRect.x - (ClientRect.w / 2)) / FZoom);
+  lClientRect := GetMapRect;
+  Result := FViewCenterX +
+    ((AX - lClientRect.Left - (lClientRect.Width / 2)) / FZoom);
 end;
 
 function TNXStarMap.ClientToMapY(AY: Integer): Double;
 var
+  lClientRect: TfpgRect;
   lDelta: Double;
 begin
-  lDelta := (AY - ClientRect.y - (ClientRect.h / 2)) / FZoom;
+  lClientRect := GetMapRect;
+  lDelta := (AY - lClientRect.Top - (lClientRect.Height / 2)) / FZoom;
   if FYPositiveUp then
     Result := FViewCenterY - lDelta
   else
@@ -657,19 +723,26 @@ begin
 end;
 
 function TNXStarMap.MapToClientX(AX: Double): Integer;
+var
+  lClientRect: TfpgRect;
 begin
-  Result := ClientRect.x + Round((ClientRect.w / 2) + ((AX - FViewCenterX) * FZoom));
+  lClientRect := GetMapRect;
+  Result := lClientRect.Left + Round((lClientRect.Width / 2) +
+    ((AX - FViewCenterX) * FZoom));
 end;
 
 function TNXStarMap.MapToClientY(AY: Double): Integer;
 var
+  lClientRect: TfpgRect;
   lDelta: Double;
 begin
+  lClientRect := GetMapRect;
   lDelta := AY - FViewCenterY;
   if FYPositiveUp then
     lDelta := -lDelta;
 
-  Result := ClientRect.y + Round((ClientRect.h / 2) + (lDelta * FZoom));
+  Result := lClientRect.Top +
+    Round((lClientRect.Height / 2) + (lDelta * FZoom));
 end;
 
 procedure TNXStarMap.AutoFit;
@@ -685,6 +758,7 @@ var
   lRangeY: Double;
   lZoomX: Double;
   lZoomY: Double;
+  lClientRect: TfpgRect;
 begin
   if Length(FSystems) = 0 then
     Exit;
@@ -705,8 +779,11 @@ begin
   FViewCenterX := (lMinX + lMaxX) / 2;
   FViewCenterY := (lMinY + lMaxY) / 2;
 
-  lAvailableWidth := Max(1, ClientRect.w - (FAutoFitMargin * 2));
-  lAvailableHeight := Max(1, ClientRect.h - (FAutoFitMargin * 2));
+  lClientRect := GetMapRect;
+  lAvailableWidth := Max(1,
+    lClientRect.Width - (FAutoFitMargin * 2));
+  lAvailableHeight := Max(1,
+    lClientRect.Height - (FAutoFitMargin * 2));
   lRangeX := Max(1.0, lMaxX - lMinX);
   lRangeY := Max(1.0, lMaxY - lMinY);
   lZoomX := lAvailableWidth / lRangeX;
@@ -718,6 +795,7 @@ procedure TNXStarMap.CenterOn(AX, AY: Double);
 begin
   FViewCenterX := AX;
   FViewCenterY := AY;
+  Invalidate;
 end;
 
 procedure TNXStarMap.CenterOnSystemID(ASystemID: Integer);
@@ -734,6 +812,7 @@ end;
 procedure TNXStarMap.ClearRings;
 begin
   SetLength(FRings, 0);
+  Invalidate;
 end;
 
 procedure TNXStarMap.ClearSystems;
@@ -741,6 +820,7 @@ begin
   SetLength(FSystems, 0);
   FHoverSystemIndex := -1;
   FSelectedSystemID := cInvalidSystemID;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetRing(AIndex: Integer; const ARing: TNXStarMapRing);
@@ -749,6 +829,7 @@ begin
     raise ERangeError.Create('Star map ring index out of range');
 
   FRings[AIndex] := ARing;
+  Invalidate;
 end;
 
 procedure TNXStarMap.SetSystem(AIndex: Integer; const ASystem: TNXStarMapSystem);
@@ -757,6 +838,7 @@ begin
     raise ERangeError.Create('Star system index out of range');
 
   FSystems[AIndex] := ASystem;
+  Invalidate;
 end;
 
 procedure TNXStarMap.ZoomAtClientPoint(AX, AY: Integer; AFactor: Double);

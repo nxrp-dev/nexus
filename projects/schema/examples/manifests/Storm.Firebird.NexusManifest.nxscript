@@ -1,4 +1,4 @@
-dialect "../../../nxscript/language/NexusManifest/NexusManifest.Language.nxscript";
+dialect "../../../../packages/nxscript/language/NexusManifest/NexusManifest.Language.nxscript";
 
 NexusManifest StormFirebird {
   Model Domain {
