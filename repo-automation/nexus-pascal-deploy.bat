@@ -1,3 +1,14 @@
+@REM Copyright (c) 2026 Kevin Collins.
+@REM
+@REM This Source Code Form is subject to the terms of the Mozilla Public
+@REM License, v. 2.0. If a copy of the MPL was not distributed with this
+@REM file, You can obtain one at https://mozilla.org/MPL/2.0/.
+@REM
+@REM This Source Code Form is "Incompatible With Secondary Licenses",
+@REM as defined by the Mozilla Public License, v. 2.0.
+@REM
+@REM SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
 @echo off
 setlocal
 

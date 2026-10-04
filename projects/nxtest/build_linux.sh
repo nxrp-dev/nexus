@@ -1,4 +1,15 @@
 #!/usr/bin/env bash
+# Copyright (c) 2026 Kevin Collins.
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# This Source Code Form is "Incompatible With Secondary Licenses",
+# as defined by the Mozilla Public License, v. 2.0.
+#
+# SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
 set -e
 cd "$(dirname "$0")"
 fpc -MObjFPC -Scgi -Fu../../packages/nxtest/src -Fu../../packages/foundation/serialization/src -Fu../../packages/foundation/serialization/json/src -Fu../../packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/test/sample/nxtest_sampletests.lpr
