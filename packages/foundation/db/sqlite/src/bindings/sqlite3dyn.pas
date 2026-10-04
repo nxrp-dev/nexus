@@ -1604,6 +1604,8 @@ var
 
 function LoadSQLite3(const AFileName: string = ''): Boolean;
 procedure UnloadSQLite3;
+function AcquireSQLite3(const AFileName: string = ''): Boolean;
+procedure ReleaseSQLite3;
 function SQLite3IsLoaded: Boolean;
 function SQLite3LoadError: string;
 
@@ -1612,6 +1614,9 @@ implementation
 var
   gSQLite3Handle: TLibHandle = 0;
   gSQLite3LoadError: string = '';
+  gSQLite3FileName: string = '';
+  gSQLite3Users: Integer = 0;
+  gSQLite3Managed: Boolean = False;
 
 procedure ResetSQLite3Api;
 begin
@@ -1928,10 +1933,42 @@ end;
 
 procedure UnloadSQLite3;
 begin
+  if gSQLite3Users <> 0 then
+    raise Exception.Create('Cannot unload SQLite while connections are using it.');
   ResetSQLite3Api;
   if gSQLite3Handle <> 0 then
     UnloadLibrary(gSQLite3Handle);
   gSQLite3Handle := 0;
+  gSQLite3FileName := '';
+end;
+
+function AcquireSQLite3(const AFileName: string): Boolean;
+begin
+  if not SQLite3IsLoaded then
+  begin
+    if not LoadSQLite3(AFileName) then Exit(False);
+    gSQLite3Managed := True;
+  end
+  else if (AFileName <> '') and
+    not SameFileName(AFileName, gSQLite3FileName) then
+  begin
+    gSQLite3LoadError := 'A different SQLite library is already loaded.';
+    Exit(False);
+  end;
+  Inc(gSQLite3Users);
+  Result := True;
+end;
+
+procedure ReleaseSQLite3;
+begin
+  if gSQLite3Users = 0 then
+    raise Exception.Create('SQLite library lease is not active.');
+  Dec(gSQLite3Users);
+  if (gSQLite3Users = 0) and gSQLite3Managed then
+  begin
+    gSQLite3Managed := False;
+    UnloadSQLite3;
+  end;
 end;
 
 function SQLite3IsLoaded: Boolean;
@@ -1948,6 +1985,13 @@ function LoadSQLite3(const AFileName: string): Boolean;
 var
   lLibraryName: string;
 begin
+  if gSQLite3Users <> 0 then
+  begin
+    Result := (AFileName = '') or SameFileName(AFileName, gSQLite3FileName);
+    if not Result then
+      gSQLite3LoadError := 'Cannot replace SQLite while connections are using it.';
+    Exit;
+  end;
   UnloadSQLite3;
   gSQLite3LoadError := '';
   if AFileName <> '' then
@@ -1961,6 +2005,7 @@ begin
     Exit(False);
   end;
   Pointer(sqlite3_activate_cerod) := GetProcedureAddress(gSQLite3Handle, 'sqlite3_activate_cerod');
+  gSQLite3FileName := lLibraryName;
   Pointer(sqlite3_aggregate_context) := GetProcedureAddress(gSQLite3Handle, 'sqlite3_aggregate_context');
   Pointer(sqlite3_aggregate_count) := GetProcedureAddress(gSQLite3Handle, 'sqlite3_aggregate_count');
   Pointer(sqlite3_auto_extension) := GetProcedureAddress(gSQLite3Handle, 'sqlite3_auto_extension');
