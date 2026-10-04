@@ -6,7 +6,8 @@ program NXSQLiteTests;
 
 {$mode objfpc}{$H+}
 
-uses SysUtils, obNXTestRegistry, obNXTestSuite, obNXTestResult, tsNXSQLiteTests;
+uses SysUtils, obNXTestRegistry, obNXTestSuite, obNXTestResult, tsNXSQLiteTests,
+  tsNXSQLiteBindingTests;
 
 procedure Run;
 var
@@ -18,6 +19,7 @@ begin
   lPassed := 0;
   try
     RegisterNXSQLiteTests(lRegistry);
+    RegisterNXSQLiteBindingTests(lRegistry);
     for lSuite := 0 to lRegistry.SuiteCount - 1 do
       for lTest := 0 to lRegistry.Suites[lSuite].TestCount - 1 do
       begin

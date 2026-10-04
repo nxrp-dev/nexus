@@ -112,6 +112,41 @@ SQLite library leases prevent unloading or replacing the library while
 connections are open. Connections and datasets are synchronous and should be
 used on their owning thread.
 
+## Binding names
+
+`src/bindings/sqlite3dyn.pas` is maintained directly. Callback declarations are
+named for their documented operation: file close, sector size, locking,
+virtual-table lifecycle, memory allocation, SQL functions, and FTS5 operations
+each have their own types. Matching signatures do not establish a shared role.
+The common operations of the two page-cache interfaces and the FTS5 token
+callback still share declarations because their purposes match.
+
+All 116 hashed callback declarations were replaced with 163 declarations by
+purpose, including real definitions for SQLite's public callback typedefs.
+679 API parameter names were clarified, including byte counts, column and
+parameter indices, schema names, data ownership callbacks, and output pointers.
+The official SQLite exported names, constants, and record members remain the
+direct connection to the upstream reference header.
+
+`PPAnsiChar` now consistently means `char**`, and `PPPAnsiChar` means `char***`.
+The former duplicate pointer declaration and misleading fourth-level name were
+removed. Each affected API retains its original pointer depth.
+
+The checked-in `reference/sqlite3.h` supplies the naming evidence. Two arguments
+not explained there were confirmed against upstream sources: the shadow-table
+[name suffix](https://sqlite.org/vtab.html#the_xshadowname_method) and the
+shared-memory map [extend flag](https://github.com/sqlite/sqlite/blob/master/src/os.c).
+The deprecated memory-alarm interface retains anonymous arguments because the
+header explicitly declines to document their meaning. Automatic extension
+registration retains the signature intentionally erased by the C declaration;
+its actual entry-point arguments are documented in the reference header.
+
+The naming pass compared all 306 API signatures and all 196 fields of 23
+records against the original binding, resolving callback definitions and
+character-pointer depth. Calling conventions, variadic declarations, argument
+and result types, record field order, and packing are unchanged. The constants,
+exported variable declarations, loader, and implementation are unchanged.
+
 ## Verification
 
 The NexusTest suite lives in `test`:
@@ -125,9 +160,15 @@ Run from `packages/foundation/db`. Build output stays in ignored `sqlite/output`
 The Win64 tests use the packaged runtime in `runtime/win64`. The runner stops
 at the first failing test so its cause can be reviewed before changes.
 
-The final Win64 run with FPC 3.2.2 passed all 24 tests with range, overflow,
+The final Win64 run with FPC 3.2.2 passed all 28 tests with range, overflow,
 I/O and heap checks enabled, and zero unfreed memory blocks. Other platforms
 have not been run.
+
+`tsNXSQLiteBindingTests.pas` adds four NexusTest cases exercising SQLite's calls
+into result-row, scalar, aggregate, window, commit, rollback, update, progress,
+and FTS5 callbacks. It also verifies table-result pointer depth and function and
+auxiliary-data destruction. The new tests were corrected to use `sqlite3_exec`
+for result callbacks and one statement per connection `Execute` call.
 
 Corrections made during implementation and verification:
 
