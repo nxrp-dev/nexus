@@ -1,0 +1,1 @@
+{{#Executable}}"{{{Executable}}}"{{/Executable}}{{^Executable}}MSBuild{{/Executable}} "{{{EntryPoint}}}" "/p:Configuration={{{Configuration}}}" "/p:Platform={{{Platform}}}"{{#BuildTarget}} "/t:{{{BuildTarget}}}"{{/BuildTarget}}{{#Properties}} "/p:{{{.}}}"{{/Properties}}

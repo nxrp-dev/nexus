@@ -1,0 +1,19 @@
+Language ForgeNpm {
+    Definitions: [
+        Definition Npm {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Command { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Executable { Value Value { EffectiveCategories: [Text]; } },
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } },
+                Property Arguments {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                }
+            ];
+        }
+    ];
+}

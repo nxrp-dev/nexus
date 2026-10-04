@@ -1,0 +1,1 @@
+{{#Executable}}"{{{Executable}}}"{{/Executable}}{{^Executable}}powershell.exe{{/Executable}} -NoProfile -ExecutionPolicy Bypass -File "{{{EntryPoint}}}"{{#Arguments}} "{{{.}}}"{{/Arguments}}

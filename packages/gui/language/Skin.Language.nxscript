@@ -120,10 +120,6 @@ Language NexusSkin {
                     Required: True;
                     Value Value { Scalar: Text; }
                 },
-                Property CheckMark {
-                    Required: True;
-                    Value Value { Scalar: Text; }
-                },
                 Property CheckPressed {
                     Required: True;
                     Value Value { Scalar: Text; }

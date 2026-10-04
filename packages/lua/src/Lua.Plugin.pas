@@ -67,6 +67,11 @@ type
 
 implementation
 
+{$if not (defined(CPUX86_64) and defined(WIN64))}
+uses
+  ffi.manager;
+{$endif}
+
 type
   PLuaObjectSlot = ^TLuaObjectSlot;
   TLuaObjectSlot = record

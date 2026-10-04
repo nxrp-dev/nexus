@@ -2,7 +2,7 @@ Language ForgeFPC {
     Definitions: [
         Definition FPC {
             Root: True;
-            Parents: [Package];
+            Parents: [Package, Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

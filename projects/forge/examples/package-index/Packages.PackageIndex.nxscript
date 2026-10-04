@@ -1,0 +1,13 @@
+dialect "PackageIndex.Language.nxscript";
+
+// Place this file at the root of the Git repository it describes.
+// Package paths are relative to this file.
+PackageIndex ExamplePackages {
+    Packages: [
+        "core",
+        "widgets"
+    ];
+    Discovery: [
+        "https://example.invalid/sister-packages.git"
+    ];
+}

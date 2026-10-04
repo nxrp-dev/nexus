@@ -1,0 +1,10 @@
+Language ForgeGroup {
+    Definitions: [
+        Definition Group {
+            Root: True;
+            Parents: [Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Allow;
+        }
+    ];
+}

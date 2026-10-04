@@ -66,6 +66,19 @@ begin
   end;
 end;
 
+function LoadRaw(const AFile: string): string;
+var
+  lStream: TFileStream;
+begin
+  lStream := TFileStream.Create(AFile, fmOpenRead or fmShareDenyWrite);
+  try
+    SetLength(Result, lStream.Size);
+    if lStream.Size > 0 then lStream.ReadBuffer(Result[1], lStream.Size);
+  finally
+    lStream.Free;
+  end;
+end;
+
 function Dialect(const AName: string): string;
 var
   lDialectPath: string;
@@ -110,10 +123,227 @@ begin
       lSession.EntryCompiler.CompiledDocument.DialectDocument), 'Normalize included rules');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('FPC') <> nil, 'FPC rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('Git') <> nil, 'Git rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('MSBuild') <> nil, 'MSBuild rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('PowerShell') <> nil, 'PowerShell rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('LazBuild') <> nil, 'LazBuild rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('Npm') <> nil, 'Npm rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('InnoSetup') <> nil, 'InnoSetup rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('Group') <> nil, 'Group rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('Environment') <> nil, 'Environment rule present');
   finally
     lLanguage.Free;
     lSession.Free;
+  end;
+end;
+
+procedure TestGroups(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('groups');
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { WriteTextFile First { Path: "first.txt"; Text: "one"; } ' +
+      'Group Nested { CopyFile Second { Source: "first.txt"; Destination: "second.txt"; } ' +
+      'Group Deeper { DeletePath Third { Path: "first.txt"; } } } }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(3, lForge.Invocations.Count, 'Nested groups contain ordered tasks');
+    AContext.AssertEquals('one' + #10, LoadRaw(lDirectory + 'second.txt'),
+      'Nested task consumes prior output');
+    AContext.AssertFalse(FileExists(lDirectory + 'first.txt'), 'Later nested task runs');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { WriteTextFile Prepare { Path: "ready.txt"; Text: "ready"; } ' +
+      'Package Artifact { Outputs: [Output Result { Path: "ready.txt"; }]; } ' +
+      'CopyFile After { Source: "ready.txt"; Destination: "after.txt"; } }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(3, lForge.Invocations.Count, 'Package is one task inside Group');
+    AContext.AssertEquals('ready' + #10, LoadRaw(lDirectory + 'after.txt'),
+      'Task following Package executes');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'WriteTextFile Alone { Path: "single.txt"; Text: "single"; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(1, lForge.Invocations.Count, 'A singular root runs alone');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'WriteTextFile One { Path: "never.txt"; Text: "one"; } ' +
+      'WriteTextFile Two { Path: "never.txt"; Text: "two"; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Multiple executable roots require a Group');
+    AContext.AssertTrue(Pos('one executable root', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AContext.AssertEquals(0, lForge.Invocations.Count, 'Invalid roots prepare no tasks');
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'Invalid roots write nothing');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestPowerShellOperation(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate, lExpected: string;
+begin
+  lDirectory := TestDir('powershell');
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
+    'projects/forge/examples/PowerShell.mustache';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { PowerShell Dependencies { Template: "' + lTemplate + '"; ' +
+    'EntryPoint: "Build-X64Dependencies.ps1"; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, 'Both operations prepared');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' +
+      ExpandFileName(lDirectory + 'Build-X64Dependencies.ps1') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Dependency script renders with the absolute script path');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { PowerShell Dependencies { Template: "' + lTemplate + '"; ' +
+      'Executable: "C:/Tools/powershell.exe"; EntryPoint: "Build-X64Dependencies.ps1"; ' +
+      'Arguments: ["-CMakePath", "../tools/cmake.exe"]; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents the optional form from executing');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"C:/Tools/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "' +
+      ExpandFileName(lDirectory + 'Build-X64Dependencies.ps1') +
+      '" "-CMakePath" "../tools/cmake.exe"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Optional executable and arguments render in order');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestMSBuildOperation(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate, lExpected: string;
+begin
+  lDirectory := TestDir('msbuild');
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
+    'projects/forge/examples/MSBuild.mustache';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { MSBuild Simulator { Template: "' + lTemplate + '"; ' +
+    'EntryPoint: "Corona.Simulator.sln"; Configuration: Release; Platform: x64; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, 'Both operations prepared');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := 'MSBuild "' + ExpandFileName(lDirectory + 'Corona.Simulator.sln') +
+      '" "/p:Configuration=Release" "/p:Platform=x64"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Nexus2D Release x64 command renders with the absolute solution path');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { MSBuild Simulator { Template: "' + lTemplate + '"; ' +
+      'Executable: "C:/Tools/MSBuild.exe"; EntryPoint: "Corona.Simulator.sln"; ' +
+      'Configuration: Release; Platform: x64; BuildTarget: Build; ' +
+      'Properties: ["ForgeTest=value with spaces"]; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents the optional form from executing');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"C:/Tools/MSBuild.exe" "' +
+      ExpandFileName(lDirectory + 'Corona.Simulator.sln') +
+      '" "/p:Configuration=Release" "/p:Platform=x64" "/t:Build" ' +
+      '"/p:ForgeTest=value with spaces"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Optional executable, target, and properties render as MSBuild arguments');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'MSBuild Invalid { Template: "' + lTemplate + '"; ' +
+      'EntryPoint: "Corona.Simulator.sln"; Configuration: Release; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'MSBuild platform is required');
+    AContext.AssertTrue(Pos('Validation failed', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestToolOperations(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lExamples, lExpected: string;
+begin
+  lDirectory := TestDir('tool-operations');
+  lExamples := StringReplace(Root, '\', '/', [rfReplaceAll]) +
+    'projects/forge/examples/';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { LazBuild Compile { Template: "' + lExamples + 'LazBuild.mustache"; ' +
+    'EntryPoint: "project/app.lpi"; WorkingDirectory: "project"; ' +
+    'Executable: "C:/Tools/lazbuild.exe"; Quiet: True; BuildAll: True; ' +
+    'PrimaryConfigPath: "C:/Lazarus Config"; LazarusDirectory: "C:/Lazarus"; } ' +
+    'Npm Bundle { Template: "' + lExamples + 'Npm.mustache"; ' +
+    'Command: run; Arguments: [esbuild, "--watch=false"]; ' +
+    'WorkingDirectory: "extension"; } ' +
+    'InnoSetup Installer { Template: "' + lExamples + 'InnoSetup.mustache"; ' +
+    'EntryPoint: "setup/install.iss"; WorkingDirectory: "setup"; ' +
+    'Quiet: False; Defines: ["Version=1.0", "Root=C:/Build Output"]; ' +
+    'Arguments: ["/DExtra=one two"]; OutputDirectory: "out"; ' +
+    'OutputBaseFilename: "installer"; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents any tool launch');
+    AContext.AssertEquals(4, lForge.Invocations.Count, 'All tool operations prepared');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"C:/Tools/lazbuild.exe" "--pcp=C:/Lazarus Config" ' +
+      '"--lazarusdir=C:/Lazarus" --quiet --build-all "' +
+      ExpandFileName(lDirectory + 'project/app.lpi') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'LazBuild flags and absolute project path');
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'project'),
+      lForge.Invocations[0].WorkingDirectory, 'LazBuild operation directory');
+    AContext.AssertEquals('npm.cmd run "esbuild" "--watch=false"',
+      lForge.Invocations[1].Command, 'Npm script and arguments');
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'extension'),
+      lForge.Invocations[1].WorkingDirectory, 'Npm operation directory');
+    lExpected := 'ISCC.exe "/DExtra=one two" "/DVersion=1.0" ' +
+      '"/DRoot=C:/Build Output" "/Oout" "/Finstaller" "' +
+      ExpandFileName(lDirectory + 'setup/install.iss') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[2].Command,
+      'InnoSetup switches and absolute script path');
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'setup'),
+      lForge.Invocations[2].WorkingDirectory, 'InnoSetup operation directory');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { LazBuild Minimal { Template: "' + lExamples + 'LazBuild.mustache"; ' +
+      'EntryPoint: "project/app.lpi"; Quiet: False; BuildAll: False; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents the minimal form from running');
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertEquals('lazbuild "' +
+      ExpandFileName(lDirectory + 'project/app.lpi') + '"',
+      lForge.Invocations[0].Command,
+      'False Quiet and BuildAll values do not emit switches');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'LazBuild Invalid { Template: "' + lExamples + 'LazBuild.mustache"; ' +
+      'EntryPoint: "project/app.lpi"; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Quiet must be specified for LazBuild');
+    AContext.AssertTrue(Pos('Validation failed', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
   end;
 end;
 
@@ -173,9 +403,9 @@ begin
   Save(lDirectory + 'library/tests.mustache', ChildCommand('ok') + ' tests');
   Fixture(lDirectory, 'module "library/Shared.nxscript"; module Defaults "library/nested/Presets.nxscript"; ' +
     'Environment Local { Template: "must-not-run.mustache"; } ' +
-    'FPC Build (Defaults) { Source: ["app.pas"]; EntryPoint: "app.pas"; Output: "app" + @Platform.ExecutableSuffix; } ' +
+    'Group BuildAll { FPC Build (Defaults) { Source: ["app.pas"]; EntryPoint: "app.pas"; Output: "app" + @Platform.ExecutableSuffix; } ' +
     'FPC Check (Tests) { Source: ["tests.pas"]; EntryPoint: "tests.pas"; Output: "tests.exe"; } ' +
-    'FPC Override (Defaults) { Template: "command.mustache"; Source: ["other.pas"]; EntryPoint: "other.pas"; Output: "other.exe"; }',
+    'FPC Override (Defaults) { Template: "command.mustache"; Source: ["other.pas"]; EntryPoint: "other.pas"; Output: "other.exe"; } }',
     ChildCommand('ok') + ' override');
   lTargets := TNexusScriptTargetSelection.Create;
   lTargets.Add('TargetOS', 'Windows');
@@ -209,7 +439,7 @@ begin
     'FPC Defaults HostOS[Win32] { Template: "command.mustache"; Source: [source]; EntryPoint: source; Output: output; Defines: [ONE, TWO]; } ' +
     'FPC Defaults HostOS[Linux] { Template: "absent.mustache"; }');
   Fixture(lDirectory, 'module "Base.nxscript"; ' +
-    'FPC Zulu (Defaults) {} FPC Hidden HostOS[Linux] {} FPC Alpha (Defaults) { Output: other; }',
+    'Group Build { FPC Zulu (Defaults) {} FPC Hidden HostOS[Linux] {} FPC Alpha (Defaults) { Output: other; } }',
     ChildCommand('ok') + ' {{{_nx.Name}}} {{{EntryPoint}}} {{{Output}}}{{#Defines}} {{{.}}}{{/Defines}}');
   lTargets := TNexusScriptTargetSelection.Create;
   lTargets.Add('HostOS', 'Win32');
@@ -236,13 +466,13 @@ begin
   lDirectory := TestDir('failure');
   lForge := TNXForge.Create;
   try
-    Fixture(lDirectory, 'Git First { Template: "command.mustache"; Repository: dot; } ' +
-      'Git Later { Template: "absent.mustache"; Repository: dot; }', ChildCommand('ok'));
+    Fixture(lDirectory, 'Group Build { Git First { Template: "command.mustache"; Repository: dot; } ' +
+      'Git Later { Template: "absent.mustache"; Repository: dot; } }', ChildCommand('ok'));
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing later template fails preflight');
     AContext.AssertTrue(Pos('Later', lForge.Diagnostic) > 0, lForge.Diagnostic);
     AssertNoLaunch(AContext, lForge);
-    Fixture(lDirectory, 'Git First { Template: "command.mustache"; Repository: dot; } ' +
-      'Git Later { Template: "command.mustache"; Repository: dot; }', ChildCommand('fail'));
+    Fixture(lDirectory, 'Group Build { Git First { Template: "command.mustache"; Repository: dot; } ' +
+      'Git Later { Template: "command.mustache"; Repository: dot; } }', ChildCommand('fail'));
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Nonzero child stops execution');
     AContext.AssertEquals(7, lForge.Invocations[0].ExitStatus, 'Actual child exit');
     AContext.AssertFalse(lForge.Invocations[1].Started, 'Later operation not launched');
@@ -271,8 +501,8 @@ begin
   Save(lDirectory + 'hello world & test.lpr', 'program Hello; begin WriteLn(''forge-ok''); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/forge/examples/Shared.nxscript"; ' +
-    'FPC Compile (CompileFPC) { Source: ["hello world & test.lpr"]; EntryPoint: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
-    'Git Inspect (GitStatus) { Repository: "."; }');
+    'Group Build { FPC Compile (CompileFPC) { Source: ["hello world & test.lpr"]; EntryPoint: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
+    'Git Inspect (GitStatus) { Repository: "."; } }');
   lInvocation := TNXForgeInvocation.Create;
   lForge := TNXForge.Create;
   try
@@ -485,33 +715,150 @@ begin
         Save(lDirectory + lBadSource, Dialect('Schema') + cBadSources[lIndex]);
       end;
       Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-        'Render First { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "never.txt"; } ' +
+        'Group Build { Render First { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "never.txt"; } ' +
         'Git Next { Template: "native.mustache"; Repository: repo; } ' +
-        'Render Bad { Source: "' + lBadSource + '"; Template: "artifact.mustache"; Output: "bad.txt"; }');
+        'Render Bad { Source: "' + lBadSource + '"; Template: "artifact.mustache"; Output: "bad.txt"; } }');
       AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Bad render fails preflight');
       AssertNoLaunch(AContext, lForge);
       AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'Preflight writes nothing');
     end;
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-      'Render Bad { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "missing/out.txt"; } ' +
-      'Git Next { Template: "native.mustache"; Repository: repo; }');
+      'Group Build { Render Bad { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "missing/out.txt"; } ' +
+      'Git Next { Template: "native.mustache"; Repository: repo; } }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Write failure stops execution');
     AContext.AssertTrue(lForge.Invocations[0].Started, 'Write attempted');
     AContext.AssertFalse(lForge.Invocations[1].Started, 'Later native command was not launched');
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-      'Git First { Template: "native.mustache"; Repository: repo; } ' +
-      'Render Bad { Source: "model.nxscript"; Template: "missing.mustache"; Output: "bad.txt"; }');
+      'Group Build { Git First { Template: "native.mustache"; Repository: repo; } ' +
+      'Render Bad { Source: "model.nxscript"; Template: "missing.mustache"; Output: "bad.txt"; } }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing artifact template fails');
     AssertNoLaunch(AContext, lForge);
     Save(lDirectory + 'artifact.mustache', '');
     Save(lDirectory + 'native.mustache', ChildCommand('ok'));
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-      'Render Empty { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "empty.txt"; } ' +
-      'Git Next { Template: "native.mustache"; Repository: repo; }');
+      'Group Build { Render Empty { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "empty.txt"; } ' +
+      'Git Next { Template: "native.mustache"; Repository: repo; } }');
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
     AContext.AssertTrue(FileExists(lDirectory + 'empty.txt'), 'An empty artifact is still a file');
     AContext.AssertEquals('', lForge.Invocations[0].ArtifactText, 'Empty content is preserved');
     AContext.AssertTrue(lForge.Invocations[1].Exited, 'Mixed list executes the native command');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestFileOperations(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('file-operations');
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { WriteTextFile Generate { Path: "source.txt"; Text: "first"; } ' +
+      'CopyFile Copy { Source: "source.txt"; Destination: "copy.txt"; } ' +
+      'Archive Zip { Operation: Zip; Source: "copy.txt"; Destination: "bundle.zip"; } ' +
+      'DeletePath Remove { Path: "source.txt"; } ' +
+      'Archive Unzip { Operation: Unzip; Source: "bundle.zip"; Destination: "extracted"; } }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertFalse(FileExists(lDirectory + 'source.txt'), 'DeletePath removed the file');
+    AContext.AssertEquals('first' + #10,
+      LoadRaw(lDirectory + 'extracted/copy.txt'),
+      'Write, copy, ZIP and unzip preserve content');
+    AContext.AssertEquals(5, lForge.Invocations.Count, 'All file operations prepared');
+    AContext.AssertTrue(lForge.Invocations[4].Completed, 'Unzip completed without a process');
+    AContext.AssertFalse(lForge.Invocations[4].Exited, 'Native operation has no process exit');
+
+    ForceDirectories(lDirectory + 'tree/sub');
+    ForceDirectories(lDirectory + 'destination');
+    Save(lDirectory + 'tree/keep.txt', 'keep');
+    Save(lDirectory + 'tree/skip.txt', 'skip');
+    Save(lDirectory + 'tree/sub/nested.txt', 'nested');
+    Save(lDirectory + 'destination/stale.txt', 'stale');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { CopyFile Tree { Source: "tree"; Destination: "destination"; Recursive: True; ' +
+      'CleanDestination: True; ExcludeNames: "skip.txt"; } ' +
+      'Archive ZipTree { Operation: Zip; Source: "tree"; Destination: "tree.zip"; ' +
+      'ExcludeNames: "skip.txt"; } ' +
+      'Archive ExtractTree { Operation: Unzip; Source: "tree.zip"; ' +
+      'Destination: "tree-extracted"; } }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertFalse(FileExists(lDirectory + 'destination/stale.txt'),
+      'CleanDestination removed old content');
+    AContext.AssertFalse(FileExists(lDirectory + 'destination/skip.txt'),
+      'CopyFile excluded a matching basename');
+    AContext.AssertEquals('keep', LoadRaw(lDirectory + 'destination/keep.txt'),
+      'Recursive copy kept the top-level file');
+    AContext.AssertEquals('nested', LoadRaw(lDirectory + 'destination/sub/nested.txt'),
+      'Recursive copy kept the nested file');
+    AContext.AssertFalse(FileExists(lDirectory + 'tree-extracted/skip.txt'),
+      'Archive excluded a matching basename');
+    AContext.AssertEquals('nested',
+      LoadRaw(lDirectory + 'tree-extracted/sub/nested.txt'),
+      'Directory archive preserved nested content');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'DeletePath Nested { Path: "destination/*.txt"; Recursive: True; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertFalse(FileExists(lDirectory + 'destination/keep.txt'),
+      'Wildcard DeletePath removed a top-level matching file');
+    AContext.AssertFalse(FileExists(lDirectory + 'destination/sub/nested.txt'),
+      'Recursive mask deleted nested matching file');
+    AContext.AssertTrue(DirectoryExists(lDirectory + 'destination/sub'),
+      'Wildcard DeletePath retains directories');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'DeletePath Tree { Path: "destination"; Recursive: True; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertFalse(DirectoryExists(lDirectory + 'destination'),
+      'Recursive DeletePath removed the directory');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestFileOperationFailures(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('file-operation-failures');
+  Save(lDirectory + 'source.txt', 'source');
+  Save(lDirectory + 'destination.txt', 'destination');
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { WriteTextFile First { Path: "never.txt"; Text: "never"; } ' +
+      'DeletePath Invalid { Path: "missing.txt"; Recursive: "not boolean"; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Invalid boolean fails validation');
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'Preflight writes nothing');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { WriteTextFile First { Path: "never.txt"; Text: "never"; } ' +
+      'Archive Invalid { Operation: Tar; Source: "source.txt"; ' +
+      'Destination: "never.zip"; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Invalid archive operation fails preparation');
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'),
+      'Invalid archive operation leaves earlier output absent');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { CopyFile Existing { Source: "source.txt"; Destination: "destination.txt"; } ' +
+      'WriteTextFile Later { Path: "never.txt"; Text: "never"; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Existing destination fails without Overwrite');
+    AContext.AssertTrue(lForge.Invocations[0].Started, 'Copy was attempted');
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Failure stops later operation');
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'Later operation did not run');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'DeletePath Missing { Path: "missing.txt"; MissingOk: False; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'MissingOk False reports a missing path');
   finally
     lForge.Free;
   end;
@@ -526,8 +873,8 @@ begin
   lCommand := ChildCommand('ok');
   Save(lDirectory + 'stamp.mustache', lCommand + ' {{_nx.CompiledAt}}');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-    'Git First { Template: "stamp.mustache"; Repository: repo; } ' +
-    'Git Second { Template: "stamp.mustache"; Repository: repo; }');
+    'Group Build { Git First { Template: "stamp.mustache"; Repository: repo; } ' +
+    'Git Second { Template: "stamp.mustache"; Repository: repo; } }');
   lForge := TNXForge.Create;
   try
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
@@ -581,9 +928,9 @@ begin
   Save(lDirectory + 'native.mustache', ChildCommand('ok'));
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/csv/config/CSV.nxscript"; ' +
-    'CSV Generate (CompileCSV) { Compiler: "' + lTool + '"; Source: "source.csv"; ' +
+    'Group Build { CSV Generate (CompileCSV) { Compiler: "' + lTool + '"; Source: "source.csv"; ' +
     'SourceTemplate: "' + lTemplate + '"; Output: "artifacts/seed.sql"; Name: DEMO; } ' +
-    'Git Next { Template: "native.mustache"; Repository: repo; }');
+    'Git Next { Template: "native.mustache"; Repository: repo; } }');
   lForge := TNXForge.Create;
   lText := TStringList.Create;
   try
@@ -623,11 +970,17 @@ var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NexusForge');
+  lSuite.AddTest('Groups', @TestGroups);
   lSuite.AddTest('CommandLinePathValues', @TestCommandLinePathValues);
   lSuite.AddTest('CSVTool', @TestCSVTool);
   lSuite.AddTest('Render', @TestRender);
   lSuite.AddTest('RenderFailures', @TestRenderFailures);
+  lSuite.AddTest('FileOperations', @TestFileOperations);
+  lSuite.AddTest('FileOperationFailures', @TestFileOperationFailures);
   lSuite.AddTest('LanguagePieces', @TestLanguagePieces);
+  lSuite.AddTest('MSBuildOperation', @TestMSBuildOperation);
+  lSuite.AddTest('PowerShellOperation', @TestPowerShellOperation);
+  lSuite.AddTest('ToolOperations', @TestToolOperations);
   lSuite.AddTest('Validation', @TestValidation);
   lSuite.AddTest('TemplateComposition', @TestTemplateComposition);
   lSuite.AddTest('TargetsOrderAndRendering', @TestTargetsOrderAndRendering);

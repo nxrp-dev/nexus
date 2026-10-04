@@ -1,0 +1,25 @@
+Language ForgeInnoSetup {
+    Definitions: [
+        Definition InnoSetup {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property EntryPoint { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Executable { Value Value { EffectiveCategories: [Text]; } },
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } },
+                Property Quiet { Required: True; Value Value { Scalar: Boolean; } },
+                Property OutputDirectory { Value Value { EffectiveCategories: [Text]; } },
+                Property OutputBaseFilename { Value Value { EffectiveCategories: [Text]; } },
+                Property Defines {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property Arguments {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                }
+            ];
+        }
+    ];
+}

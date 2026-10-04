@@ -2,6 +2,7 @@ Language ForgePackages {
     Definitions: [
         Definition Package {
             Root: True;
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Allow;
             Properties: [

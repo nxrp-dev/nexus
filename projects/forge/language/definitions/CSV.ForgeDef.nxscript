@@ -2,7 +2,7 @@ Language ForgeCSV {
     Definitions: [
         Definition CSV {
             Root: True;
-            Parents: [Package];
+            Parents: [Package, Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

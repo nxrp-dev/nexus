@@ -8,22 +8,42 @@ uses
   Types,
   fpg_base,
   fpg_main,
+  obNXRender,
+  obNXSkinPalette,
   obNexusScriptModel,
   tpNXSkin;
 
 type
   TNXSkin = class(TfpgStyle)
   private
-    FColors: TNXSkinColors;
-    procedure ApplyNamedColors;
-    function GetColor(ARole: TNXSkinColorRole): TfpgColor;
+    FColors: TNXSkinPalette;
+    FRenderRegistry: TNXRenderRegistry;
+    procedure InitializeAppearance;
+    class procedure SetColorBinding(APalette: TNXSkinPalette;
+      const ABinding: TNXSkinColorBinding; AColor: TfpgColor); static;
+    class procedure SetFillBinding(APalette: TNXSkinPalette;
+      const ABinding: TNXSkinFillBinding; AStart, AStop: TfpgColor); static;
+    class procedure CopyBevelFills(APalette: TNXSkinPalette); static;
+    procedure DrawFill(ACanvas: TfpgCanvas; ARect: TfpgRect;
+      const AFill: TNXSkinFill);
     class function TryParseColor(const AText: string;
       out AColor: TfpgColor): Boolean; static;
+    class function TryReadColor(ADefinition: TNexusScriptCompiledDefinition;
+      const AName: string; out AColor: TfpgColor; out AError: string): Boolean; static;
   public
     constructor Create; override;
+    destructor Destroy; override;
+    // Publish this palette to fpGUI's application-wide named colors.
+    procedure ApplyNamedColors;
+    procedure RegisterRenderer(const AName: string; ARenderer: TNXRenderer);
+    function Subscribe(const AName: string;
+      AState: TNexusControlState): TNXRenderSubscription;
+    procedure ClearRenderers;
+    property RenderRegistry: TNXRenderRegistry read FRenderRegistry;
 
-    class function TryReadColors(ADocument: TNexusScriptCompiledDocument;
-      out AColors: TNXSkinColors; out AError: string): Boolean; static;
+    // On success the caller owns APalette; on failure it is nil.
+    class function TryReadPalette(ADocument: TNexusScriptCompiledDocument;
+      out APalette: TNXSkinPalette; out AError: string): Boolean; static;
     function LoadCompiledDocument(ADocument: TNexusScriptCompiledDocument;
       out AError: string): Boolean;
 
@@ -60,7 +80,7 @@ type
     procedure DrawPageControlTab(ACanvas: TfpgCanvas;
       AParams: TfpgStyleDrawTab); override;
 
-    property Colors[ARole: TNXSkinColorRole]: TfpgColor read GetColor;
+    property Colors: TNXSkinPalette read FColors;
   end;
 
 implementation
@@ -68,50 +88,164 @@ implementation
 uses
   SysUtils,
   fpg_stylemanager,
+  tpNXRender,
   fpg_tab;
 
 constructor TNXSkin.Create;
 begin
   inherited Create;
-  FColors := cNXSkinDefaultColors;
+  FRenderRegistry := TNXRenderRegistry.Create;
+  FColors := TNXSkinPalette.Create;
+  InitializeAppearance;
   ApplyNamedColors;
 end;
 
-procedure TNXSkin.ApplyNamedColors;
+destructor TNXSkin.Destroy;
 begin
+  FRenderRegistry.Free;
+  FColors.Free;
+  inherited Destroy;
+end;
+
+procedure TNXSkin.RegisterRenderer(const AName: string; ARenderer: TNXRenderer);
+begin
+  FRenderRegistry.RegisterRenderer(AName, ARenderer);
+end;
+
+function TNXSkin.Subscribe(const AName: string;
+  AState: TNexusControlState): TNXRenderSubscription;
+begin
+  Result := FRenderRegistry.Subscribe(AName, AState);
+end;
+
+procedure TNXSkin.ClearRenderers;
+begin
+  if FRenderRegistry <> nil then
+    FRenderRegistry.Clear;
+end;
+
+class procedure TNXSkin.SetColorBinding(APalette: TNXSkinPalette;
+  const ABinding: TNXSkinColorBinding; AColor: TfpgColor);
+var
+  lRender: TNXSkinRenderValues;
+  lState: TNXRenderState;
+begin
+  if ABinding.RenderName = '' then
+  begin
+    APalette.Defaults.SetColor(ABinding.Intent, AColor);
+    Exit;
+  end;
+  lRender := APalette.FindRender(ABinding.RenderName);
+  if lRender = nil then
+    lRender := APalette.AddRender(ABinding.RenderName);
+  if ABinding.States = [] then
+    lRender.Values.SetColor(ABinding.Intent, AColor)
+  else
+    for lState in ABinding.States do
+      lRender.States[lState].SetColor(ABinding.Intent, AColor);
+end;
+
+class procedure TNXSkin.SetFillBinding(APalette: TNXSkinPalette;
+  const ABinding: TNXSkinFillBinding; AStart, AStop: TfpgColor);
+var
+  lFill: TNXSkinFill;
+  lRender: TNXSkinRenderValues;
+  lState: TNXRenderState;
+begin
+  lFill := Default(TNXSkinFill);
+  lFill.Kind := sfGradient;
+  lFill.Color := AStart;
+  lFill.StopColor := AStop;
+  lFill.Direction := gdVertical;
+  lRender := APalette.FindRender(ABinding.RenderName);
+  if lRender = nil then
+    lRender := APalette.AddRender(ABinding.RenderName);
+  if ABinding.States = [] then
+    lRender.Values.SetFill(siHighlight, lFill)
+  else
+    for lState in ABinding.States do
+      lRender.States[lState].SetFill(siHighlight, lFill);
+end;
+
+class procedure TNXSkin.CopyBevelFills(APalette: TNXSkinPalette);
+var
+  lBevel: TNXSkinRenderValues;
+begin
+  lBevel := APalette.FindRender(cNXBevelRender);
+  if lBevel = nil then
+    lBevel := APalette.AddRender(cNXBevelRender);
+  lBevel.Values.SetFill(siHighlight,
+    APalette.Resolve(cNXButtonRender, siHighlight).Fill);
+  lBevel.Values.SetFill(siShadow,
+    APalette.Resolve(cNXButtonRender, siHighlight, [nrsPressed]).Fill);
+end;
+
+procedure TNXSkin.DrawFill(ACanvas: TfpgCanvas; ARect: TfpgRect;
+  const AFill: TNXSkinFill);
+begin
+  case AFill.Kind of
+    sfSolid:
+      begin
+        ACanvas.SetColor(AFill.Color);
+        ACanvas.FillRectangle(ARect);
+      end;
+    sfGradient:
+      ACanvas.GradientFill(ARect, AFill.Color, AFill.StopColor,
+        AFill.Direction);
+  end;
+end;
+
+procedure TNXSkin.InitializeAppearance;
+var
+  lBinding: TNXSkinColorBinding;
+  lFillBinding: TNXSkinFillBinding;
+begin
+  for lBinding in cNXSkinColorBindings do
+    SetColorBinding(FColors, lBinding, lBinding.DefaultColor);
+  for lFillBinding in cNXSkinFillBindings do
+    SetFillBinding(FColors, lFillBinding, lFillBinding.DefaultStart,
+      lFillBinding.DefaultStop);
+  CopyBevelFills(FColors);
+  // WidgetFrame remains a flat painter role until those painters are migrated.
+  FColors.Defaults.SetColor(siHighlight, FColors[scrWidgetFrame]);
+end;
+
+procedure TNXSkin.ApplyNamedColors;
+var
+  lText, lDisabledText, lSelectedText, lShadow: TfpgColor;
+begin
+  lText := FColors.Resolve('', siText).Color;
+  lDisabledText := FColors.Resolve(cNXTextRender, siText, [nrsDisabled]).Color;
+  lSelectedText := FColors.Resolve(cNXTextRender, siText, [nrsSelected]).Color;
+  lShadow := FColors.Resolve('', siShadow).Color;
   fpgSetNamedColor(clWindowBackground, FColors[scrWindowBackground]);
   fpgSetNamedColor(clBoxColor, FColors[scrInputBackground]);
-  fpgSetNamedColor(clShadow1, FColors[scrDarkShadow]);
+  fpgSetNamedColor(clShadow1, lShadow);
   fpgSetNamedColor(clShadow2, FColors[scrWidgetFrame]);
-  fpgSetNamedColor(clHilite1, FColors[scrWidgetFrame]);
-  fpgSetNamedColor(clHilite2, FColors[scrWidgetFrame]);
-  fpgSetNamedColor(clText1, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clHilite1, FColors.Resolve('', siHighlight).Color);
+  fpgSetNamedColor(clHilite2, FColors.Resolve('', siHighlight).Color);
+  fpgSetNamedColor(clText1, lText);
   fpgSetNamedColor(clText2, FColors[scrSelection]);
-  fpgSetNamedColor(clText4, FColors[scrDisabledText]);
+  fpgSetNamedColor(clText4, lDisabledText);
   fpgSetNamedColor(clSelection, FColors[scrSelection]);
-  fpgSetNamedColor(clSelectionText, FColors[scrSelectionText]);
+  fpgSetNamedColor(clSelectionText, lSelectedText);
   fpgSetNamedColor(clInactiveSel, FColors[scrWidgetFrame]);
-  fpgSetNamedColor(clInactiveSelText, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clInactiveSelText, lText);
   fpgSetNamedColor(clScrollBar, FColors[scrScrollBar]);
   fpgSetNamedColor(clButtonFace, FColors[scrWindowBackground]);
   fpgSetNamedColor(clListBox, FColors[scrInputBackground]);
   fpgSetNamedColor(clGridLines, FColors[scrGridLines]);
   fpgSetNamedColor(clGridHeader, FColors[scrWindowBackground]);
   fpgSetNamedColor(clWidgetFrame, FColors[scrWidgetFrame]);
-  fpgSetNamedColor(clInactiveWgFrame, FColors[scrDarkShadow]);
-  fpgSetNamedColor(clMenuText, FColors[scrPrimaryText]);
-  fpgSetNamedColor(clMenuDisabled, FColors[scrDisabledText]);
+  fpgSetNamedColor(clInactiveWgFrame, lShadow);
+  fpgSetNamedColor(clMenuText, lText);
+  fpgSetNamedColor(clMenuDisabled, lDisabledText);
   fpgSetNamedColor(clHintWindow, FColors[scrInputBackground]);
   fpgSetNamedColor(clGridSelection, FColors[scrSelection]);
-  fpgSetNamedColor(clGridSelectionText, FColors[scrSelectionText]);
+  fpgSetNamedColor(clGridSelectionText, lSelectedText);
   fpgSetNamedColor(clGridInactiveSel, FColors[scrWidgetFrame]);
-  fpgSetNamedColor(clGridInactiveSelText, FColors[scrPrimaryText]);
+  fpgSetNamedColor(clGridInactiveSelText, lText);
   fpgSetNamedColor(clSplitterGrabBar, FColors[scrFocus]);
-end;
-
-function TNXSkin.GetColor(ARole: TNXSkinColorRole): TfpgColor;
-begin
-  Result := FColors[ARole];
 end;
 
 class function TNXSkin.TryParseColor(const AText: string;
@@ -127,17 +261,36 @@ begin
     AColor := TfpgColor(LongWord(lValue));
 end;
 
-class function TNXSkin.TryReadColors(
-  ADocument: TNexusScriptCompiledDocument; out AColors: TNXSkinColors;
+class function TNXSkin.TryReadColor(ADefinition: TNexusScriptCompiledDefinition;
+  const AName: string; out AColor: TfpgColor; out AError: string): Boolean;
+var
+  lProperty: TNexusScriptCompiledProperty;
+begin
+  Result := False;
+  lProperty := ADefinition.FindProperty(AName);
+  if (lProperty = nil) or not lProperty.Value.HasEffectiveText then
+    AError := 'Skin color ' + AName + ' is required.'
+  else if not TryParseColor(lProperty.Value.EffectiveText, AColor) then
+    AError := 'Skin color ' + AName + ' must use #AARRGGBB.'
+  else
+    Result := True;
+end;
+
+class function TNXSkin.TryReadPalette(
+  ADocument: TNexusScriptCompiledDocument; out APalette: TNXSkinPalette;
   out AError: string): Boolean;
 var
   lColor: TfpgColor;
+  lStart, lStop: TfpgColor;
   lDefinition: TNexusScriptCompiledDefinition;
   lProperty: TNexusScriptCompiledProperty;
   lRole: TNXSkinColorRole;
   lVersion: Integer;
+  lPalette: TNXSkinPalette;
+  lBinding: TNXSkinColorBinding;
+  lFillBinding: TNXSkinFillBinding;
 begin
-  AColors := cNXSkinDefaultColors;
+  APalette := nil;
   AError := '';
   Result := False;
 
@@ -174,37 +327,72 @@ begin
     Exit;
   end;
 
-  for lRole := Low(TNXSkinColorRole) to High(TNXSkinColorRole) do
-  begin
-    lProperty := lDefinition.FindProperty(cNXSkinColorNames[lRole]);
-    if (not Assigned(lProperty)) or not lProperty.Value.HasEffectiveText then
+  lPalette := TNXSkinPalette.Create;
+  try
+    for lRole := Low(TNXSkinColorRole) to High(TNXSkinColorRole) do
     begin
-      AError := 'Skin color ' + cNXSkinColorNames[lRole] +
-        ' is required.';
-      Exit;
+      if not TryReadColor(lDefinition, cNXSkinColorNames[lRole], lColor, AError) then
+        Exit;
+      lPalette[lRole] := lColor;
     end;
-    if not TryParseColor(lProperty.Value.EffectiveText, lColor) then
+    for lBinding in cNXSkinColorBindings do
     begin
-      AError := 'Skin color ' + cNXSkinColorNames[lRole] +
-        ' must use #AARRGGBB.';
-      Exit;
+      if not TryReadColor(lDefinition, lBinding.ScriptName, lColor, AError) then
+        Exit;
+      SetColorBinding(lPalette, lBinding, lColor);
     end;
-    AColors[lRole] := lColor;
+    for lFillBinding in cNXSkinFillBindings do
+    begin
+      if not TryReadColor(lDefinition, lFillBinding.StartName, lStart,
+        AError) then
+        Exit;
+      if not TryReadColor(lDefinition, lFillBinding.StopName, lStop,
+        AError) then
+        Exit;
+      SetFillBinding(lPalette, lFillBinding, lStart, lStop);
+    end;
+    CopyBevelFills(lPalette);
+    lPalette.Defaults.SetColor(siHighlight, lPalette[scrWidgetFrame]);
+    APalette := lPalette;
+    lPalette := nil;
+    Result := True;
+  finally
+    lPalette.Free;
   end;
-
-  Result := True;
 end;
 
 function TNXSkin.LoadCompiledDocument(
   ADocument: TNexusScriptCompiledDocument; out AError: string): Boolean;
 var
-  lColors: TNXSkinColors;
+  lPalette: TNXSkinPalette;
+  lRole: TNXSkinColorRole;
+  lBinding: TNXSkinColorBinding;
+  lFillBinding: TNXSkinFillBinding;
+  lFill: TNXSkinFill;
 begin
-  Result := TryReadColors(ADocument, lColors, AError);
+  Result := TryReadPalette(ADocument, lPalette, AError);
   if not Result then
     Exit;
-  FColors := lColors;
-  ApplyNamedColors;
+  try
+    for lRole := Low(TNXSkinColorRole) to High(TNXSkinColorRole) do
+      FColors[lRole] := lPalette[lRole];
+    // Import the flat colors and vertical gradient pairs. Keep palette/render
+    // identity, fonts and unrelated state overrides intact.
+    for lBinding in cNXSkinColorBindings do
+      SetColorBinding(FColors, lBinding,
+        lPalette.Resolve(lBinding.RenderName, lBinding.Intent, lBinding.States).Color);
+    for lFillBinding in cNXSkinFillBindings do
+    begin
+      lFill := lPalette.Resolve(lFillBinding.RenderName, siHighlight,
+        lFillBinding.States).Fill;
+      SetFillBinding(FColors, lFillBinding, lFill.Color, lFill.StopColor);
+    end;
+    CopyBevelFills(FColors);
+    FColors.Defaults.SetColor(siHighlight, lPalette.Resolve('', siHighlight).Color);
+    ApplyNamedColors;
+  finally
+    lPalette.Free;
+  end;
 end;
 
 procedure TNXSkin.DrawControlFrame(ACanvas: TfpgCanvas;
@@ -226,11 +414,11 @@ begin
   lRect.SetRect(x, y, w, h);
   ACanvas.SetLineStyle(1, lsSolid);
   if ARaised then
-    ACanvas.GradientFill(lRect, FColors[scrButtonTop],
-      FColors[scrButtonBottom], gdVertical)
+    DrawFill(ACanvas, lRect,
+      FColors.Resolve(cNXBevelRender, siHighlight).Fill)
   else
-    ACanvas.GradientFill(lRect, FColors[scrButtonPressedTop],
-      FColors[scrButtonPressedBottom], gdVertical);
+    DrawFill(ACanvas, lRect,
+      FColors.Resolve(cNXBevelRender, siShadow).Fill);
   ACanvas.SetColor(FColors[scrButtonBorder]);
   ACanvas.DrawRectangle(lRect);
 end;
@@ -265,28 +453,34 @@ procedure TNXSkin.DrawButtonFace(ACanvas: TfpgCanvas;
   x, y, w, h: TfpgCoord; AFlags: TfpgButtonFlags);
 var
   lRect: TfpgRect;
+  lStates: TNXRenderStates;
+  lAppearance: TNXSkinAppearance;
 begin
+  lStates := [];
+  if btfDisabled in AFlags then
+    Include(lStates, nrsDisabled);
+  if btfIsPressed in AFlags then
+    Include(lStates, nrsPressed);
+  if btfHover in AFlags then
+    Include(lStates, nrsHovered);
+  if btfHasFocus in AFlags then
+    Include(lStates, nrsFocused);
+  lAppearance := FColors.Resolve(cNXButtonRender, siHighlight, lStates);
   ACanvas.SetLineStyle(1, lsSolid);
   lRect.SetRect(x + 1, y + 1, w - 2, h - 2);
 
-  if btfIsPressed in AFlags then
-    ACanvas.GradientFill(lRect, FColors[scrButtonPressedTop],
-      FColors[scrButtonPressedBottom], gdVertical)
-  else if btfHover in AFlags then
-    ACanvas.GradientFill(lRect, FColors[scrButtonHoverTop],
-      FColors[scrButtonHoverBottom], gdVertical)
-  else if btfFlat in AFlags then
+  if (btfFlat in AFlags) and not (btfIsPressed in AFlags) and
+    not (btfHover in AFlags) then
   begin
     ACanvas.SetColor(clWindowBackground);
     ACanvas.FillRectangle(lRect);
   end
   else
-    ACanvas.GradientFill(lRect, FColors[scrButtonTop],
-      FColors[scrButtonBottom], gdVertical);
+    DrawFill(ACanvas, lRect, lAppearance.Fill);
 
   if not (btfFlat in AFlags) and not (btfIsPressed in AFlags) then
   begin
-    ACanvas.SetColor(FColors[scrButtonHighlight]);
+    ACanvas.SetColor(lAppearance.Color);
     ACanvas.DrawLine(x + 2, y + 1, x + w - 2, y + 1);
   end;
 
@@ -364,6 +558,7 @@ var
   lText: string;
   lX: TfpgCoord;
   lY: TfpgCoord;
+  lAppearance: TNXSkinAppearance;
 begin
   lRect := AParams.Rect;
   lDiff := AParams.Max - AParams.Min;
@@ -379,11 +574,12 @@ begin
 
   if AParams.Position > AParams.Min then
   begin
+    lAppearance := FColors.Resolve(cNXProgressRender, siHighlight);
     lFill.SetRect(lRect.Left + 1, lRect.Top + 1, lPosition,
       lRect.Height - 2);
-    ACanvas.GradientFill(lFill, FColors[scrProgressTop],
-      FColors[scrProgressBottom], gdVertical);
-    ACanvas.SetColor(FColors[scrProgressHighlight]);
+    DrawFill(ACanvas, lFill, lAppearance.Fill);
+    // fpGUI's progress draw parameters do not include Enabled.
+    ACanvas.SetColor(lAppearance.Color);
     ACanvas.DrawLine(lFill.Left, lFill.Top, lFill.Right, lFill.Top);
     ACanvas.SetColor(FColors[scrProgressBorder]);
     ACanvas.DrawRectangle(lFill);
@@ -434,7 +630,8 @@ begin
     if (cbfEnabled in AFlags) and not (cbfReadOnly in AFlags) then
       ACanvas.SetColor(FColors[scrFocus])
     else
-      ACanvas.SetColor(FColors[scrDisabledText]);
+      // Read-only marks deliberately share the disabled text appearance.
+      ACanvas.SetColor(FColors.Resolve(cNXTextRender, siText, [nrsDisabled]).Color);
     ACanvas.SetLineStyle(3, lsSolid);
     lX1 := ARect.Left + Round(ARect.Width * 0.22);
     lY1 := ARect.Top + Round(ARect.Height * 0.50);
@@ -484,7 +681,8 @@ begin
     if (cbfEnabled in AFlags) and not (cbfReadOnly in AFlags) then
       ACanvas.SetColor(FColors[scrFocus])
     else
-      ACanvas.SetColor(FColors[scrDisabledText]);
+      // Read-only marks deliberately share the disabled text appearance.
+      ACanvas.SetColor(FColors.Resolve(cNXTextRender, siText, [nrsDisabled]).Color);
     ACanvas.FillArc(lCenterX - 3, lCenterY - 3, 6, 6, 0, 360);
   end;
 end;

@@ -29,7 +29,6 @@ Skin NexusDark {
     ProgressTrack: "#FF3E4349";
     CheckBackground: "#FF232629";
     CheckBorder: "#FF5E6164";
-    CheckMark: "#FFEFF0F1";
     CheckPressed: "#FF2A3035";
     InactiveTab: "#FF272B30";
     TabBorder: "#FF54575B";

@@ -15,6 +15,12 @@ type
     FSourcePath: string;
     FOutputPath: string;
     FArtifactText: string;
+    FArchiveOperation: string;
+    FExcludeNames: string;
+    FOverwrite: Boolean;
+    FRecursive: Boolean;
+    FCleanDestination: Boolean;
+    FMissingOk: Boolean;
     FCommand: string;
     FWorkingDirectory: string;
     FStdOut: string;
@@ -32,6 +38,12 @@ type
     property SourcePath: string read FSourcePath write FSourcePath;
     property OutputPath: string read FOutputPath write FOutputPath;
     property ArtifactText: string read FArtifactText write FArtifactText;
+    property ArchiveOperation: string read FArchiveOperation write FArchiveOperation;
+    property ExcludeNames: string read FExcludeNames write FExcludeNames;
+    property Overwrite: Boolean read FOverwrite write FOverwrite;
+    property Recursive: Boolean read FRecursive write FRecursive;
+    property CleanDestination: Boolean read FCleanDestination write FCleanDestination;
+    property MissingOk: Boolean read FMissingOk write FMissingOk;
     property Command: string read FCommand write FCommand;
     property WorkingDirectory: string read FWorkingDirectory write FWorkingDirectory;
     property StdOut: string read FStdOut write FStdOut;
@@ -47,7 +59,7 @@ implementation
 
 function TNXForgeInvocation.Succeeded: Boolean;
 begin
-  if FKind = fokRender then Result := FCompleted and (FDiagnostic = '')
+  if FKind <> fokCommand then Result := FCompleted and (FDiagnostic = '')
   else Result := FExited and (FExitStatus = 0) and (FDiagnostic = '');
 end;
 

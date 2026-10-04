@@ -1,8 +1,9 @@
 # NexusForge execution contracts
 
-`nxforge` compiles and validates a Forge document, renders each concrete
-operation's `Template` with Mustache, and executes operations sequentially.
-FPC and Git use the native command path; Render writes a generated artifact.
+`nxforge` compiles and validates a Forge document and executes its single task
+root. A `Group` runs its child tasks in declaration order and may contain other
+Groups. Command tasks render a Mustache `Template` and launch a tool. Render
+and filesystem tasks execute within Forge.
 
 ## CLI
 
@@ -34,8 +35,10 @@ environment repair, or activation logic.
 
 `projects/forge/language/Forge.nxscript` includes
 `projects/forge/language/definitions/*.ForgeDef.nxscript`. Core, FPC,
-Git, CSV, Render, Package, and Environment definitions form one effective Forge language
-through the included-definition view. The master does not name individual tools.
+Git, MSBuild, PowerShell, LazBuild, Npm, InnoSetup, CSV, Render,
+FileOperations, Package, Group, and Environment definitions form one
+effective Forge language through the included-definition view. The master does
+not name individual tools.
 `ForgeDef` is a convention selected by this include pattern, not a filename rule.
 The document declaration identifies its dialect.
 
@@ -55,15 +58,17 @@ A consumer imports it and uses normal composition and references:
 
 ```nexusscript
 module "Shared.nxscript";
-FPC Compile (CompileApplication) {
-    Source: ["app.lpr"];
-    EntryPoint: "app.lpr";
-    Output: "app" + @Platform.ExecutableSuffix;
-}
-FPC Test (CompileTests) {
-    Source: ["tests.lpr"];
-    EntryPoint: "tests.lpr";
-    Output: "tests" + @Platform.ExecutableSuffix;
+Group Build {
+    FPC Compile (CompileApplication) {
+        Source: ["app.lpr"];
+        EntryPoint: "app.lpr";
+        Output: "app" + @Platform.ExecutableSuffix;
+    }
+    FPC Test (CompileTests) {
+        Source: ["tests.lpr"];
+        EntryPoint: "tests.lpr";
+        Output: "tests" + @Platform.ExecutableSuffix;
+    }
 }
 ```
 
@@ -78,9 +83,11 @@ names, suffixes, and target values carry no built-in platform meaning. Environme
 roots are never scheduled as commands, even if a property is named Template.
 
 There is no separate process catalog or matching by operation kind. Two FPC
-operations can inherit different templates. All selected operations are rendered
-before any child in that operation list starts. Declaration order is preserved,
-including included roots; module-only roots are not scheduled.
+tasks can inherit different templates. All tasks in a Group are prepared before
+the first starts, including tasks within nested Groups. Declaration order is
+preserved; module-only roots are not scheduled. A document run without
+`/package` requires one executable root: a singular task or a Group. A file
+containing multiple Package definitions instead uses `/package` to select one.
 
 ## Source selections and entry points
 
@@ -141,6 +148,45 @@ construction. Raw interpolation avoids HTML escaping. The executor uses FPC's
 `TProcess.CommandLine` parsing and adds no shell. Spaces and `&` in quoted paths
 are verified; shell expansion and compound commands are not implicit.
 
+## MSBuild compilation
+
+MSBuild is an ordinary native operation. Its required `Template`, `EntryPoint`,
+`Configuration`, and `Platform` render a solution or project build. `EntryPoint`
+resolves from the declaring document to an absolute path. `Executable` defaults to `MSBuild` in
+the example template. Optional `BuildTarget` and text-array `Properties` render
+as `/t:` and `/p:` arguments. The template lives at
+`projects/forge/examples/MSBuild.mustache`. For Nexus2D, the operation values
+are `platform/windows/Corona.Simulator.sln`, `Release`, and `x64` when declared
+from the Nexus2D root. Dependency preparation and output staging are separate
+work; this operation alone is not a complete simulator build recipe.
+
+PowerShell is also a native operation. Its required `EntryPoint` names a script
+file and is resolved to an absolute path. The example template invokes
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File`; optional `Executable`
+and text-array `Arguments` supply an alternate host or script arguments.
+`Nexus2D.Win64.Forge.nxscript` in the sibling Nexus2D checkout uses it to
+prepare x64 dependencies before its MSBuild operation. That script names the
+currently installed tools and assumes the sibling `nexus` and `tools` folders.
+It does not isolate Nexus2D's shared Win32/x64 `Bin/Corona` output directory.
+
+LazBuild, Npm, and InnoSetup are command operations with ForgeDef contracts and
+Mustache examples in `projects/forge/examples/`. `LazBuild.EntryPoint` names the
+project file; `Npm.Command` is a command such as `ci`, `install`, or `run`, with
+additional tokens in `Arguments`; `InnoSetup.EntryPoint` names the `.iss` file.
+InnoSetup `Defines` and `Arguments` are text arrays, not semicolon-separated
+strings. LazBuild and InnoSetup require an explicit `Quiet` Boolean, so there
+is no hidden default when moving a Task recipe to Forge. Their optional
+`Executable` values override the example templates' `lazbuild`, `npm.cmd`, and
+`ISCC.exe` defaults. Set `Executable` for another host or install location.
+
+Each of these operations may specify `WorkingDirectory`, resolved from the
+Forge document directory (the package root for package operations). When
+omitted, the usual Forge operation directory applies. In particular, a
+LazBuild recipe that needs the project directory as its process directory
+must state it. Boolean options validated by the Forge dialect are converted
+to JSON booleans in the command-render context, so Mustache sections distinguish
+`False` from `True` without changing the NexusScript JSON emitter.
+
 ## CSV compilation
 
 CSV is an ordinary native operation. Import
@@ -177,6 +223,32 @@ Native and Render operations can occur in the same ordered list.
 See [the BotHost database example](../../../projects/bothost/doc/database-generation.md) for a complete
 package and target-selected Environment. It renders Firebird SQL with no database
 semantics in Forge and no separate NexusScript executable.
+
+## Filesystem operations
+
+`WriteTextFile`, `CopyFile`, `DeletePath`, and `Archive` execute in Forge without
+Mustache or an external shell. Relative paths resolve from the operation working
+directory. They use the same prepare-before-execute ordering and stop-on-failure
+behavior as Render; later operations may consume files created by earlier ones.
+
+`WriteTextFile` requires `Path` and `Text`. It creates parent directories and
+writes text with LF line endings, matching Task's text-file action.
+
+`CopyFile` requires `Source` and `Destination`. `Overwrite`, `Recursive`, and
+`CleanDestination` default to false. A directory source requires `Recursive`;
+`CleanDestination` removes an existing destination directory before copying.
+`ExcludeNames` is an optional semicolon-separated, case-insensitive list of
+exact file or directory names skipped during recursive copying.
+
+`DeletePath` requires `Path`. `Recursive` defaults to false and `MissingOk`
+defaults to true. A wildcard in the final path component matches files, not
+directories; `Recursive` also searches subdirectories. A literal directory
+requires `Recursive` unless empty.
+
+`Archive` requires `Operation` (`Zip` or `Unzip`), `Source`, and `Destination`.
+`Overwrite` defaults to false and `Recursive` defaults to true. Zip accepts a
+file or directory source and uses the same `ExcludeNames` convention as CopyFile.
+Unzip refuses entries outside its destination directory.
 
 ## Execution and failure
 

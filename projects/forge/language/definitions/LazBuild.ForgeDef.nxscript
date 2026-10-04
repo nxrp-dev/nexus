@@ -1,0 +1,20 @@
+Language ForgeLazBuild {
+    Definitions: [
+        Definition LazBuild {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property EntryPoint { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Executable { Value Value { EffectiveCategories: [Text]; } },
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } },
+                Property Quiet { Required: True; Value Value { Scalar: Boolean; } },
+                Property BuildAll { Value Value { Scalar: Boolean; } },
+                Property PrimaryConfigPath { Value Value { EffectiveCategories: [Text]; } },
+                Property LazarusDirectory { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}

@@ -1,0 +1,40 @@
+dialect "../../../packages/nxscript/language/Language.nxscript";
+
+// Packages contains package-directory paths relative to the index file.
+// Discovery contains Git repositories this index offers for further discovery.
+Language NexusPackageIndex {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition PackageIndex {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Packages {
+                    Required: True;
+                    Value Value {
+                        SourceForms: [Array];
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Minimum: 1;
+                            Names: Forbidden;
+                            EntrySourceForms: [Text];
+                            EntryEffectiveCategories: [Text];
+                        }
+                    }
+                },
+                Property Discovery {
+                    Value Value {
+                        SourceForms: [Array];
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Names: Forbidden;
+                            EntrySourceForms: [Text];
+                            EntryEffectiveCategories: [Text];
+                        }
+                    }
+                }
+            ];
+        }
+    ];
+}

@@ -7,15 +7,29 @@ uses Classes, SysUtils, obNXCommandLine, obNexusScriptModel,
 
 procedure PrintInvocation(AInvocation: TNXForgeInvocation);
 begin
-  WriteLn(AInvocation.OperationName, ' [', AInvocation.TemplatePath, ']');
+  if AInvocation.TemplatePath <> '' then
+    WriteLn(AInvocation.OperationName, ' [', AInvocation.TemplatePath, ']')
+  else WriteLn(AInvocation.OperationName);
   WriteLn('cwd: ', AInvocation.WorkingDirectory);
-  if AInvocation.Kind = fokRender then
+  if AInvocation.Kind = fokCommand then
+    WriteLn('command: ', AInvocation.Command)
+  else
   begin
-    WriteLn('source: ', AInvocation.SourcePath);
-    WriteLn('output: ', AInvocation.OutputPath);
-    if AInvocation.Completed then WriteLn('written') else WriteLn('not written');
-  end
-  else WriteLn('command: ', AInvocation.Command);
+    if AInvocation.Kind = fokDeletePath then
+      WriteLn('path: ', AInvocation.SourcePath)
+    else if AInvocation.SourcePath <> '' then
+      WriteLn('source: ', AInvocation.SourcePath);
+    if AInvocation.OutputPath <> '' then
+      WriteLn('output: ', AInvocation.OutputPath);
+    if AInvocation.Kind = fokArchive then
+      WriteLn('archive: ', AInvocation.ArchiveOperation);
+    if AInvocation.Kind = fokRender then
+    begin
+      if AInvocation.Completed then WriteLn('written') else WriteLn('not written');
+    end
+    else if AInvocation.Completed then WriteLn('completed')
+    else WriteLn('not completed');
+  end;
   if AInvocation.Started then WriteLn('started') else WriteLn('not started');
   Write(AInvocation.StdOut);
   Write(StdErr, AInvocation.StdErr);

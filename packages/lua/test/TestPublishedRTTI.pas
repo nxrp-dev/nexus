@@ -6,23 +6,34 @@ uses
   Classes,
   SysUtils,
   TypInfo,
-  Rtti;
+  Rtti
+{$if not (defined(CPUX86_64) and defined(WIN64)) or defined(NX_TEST_FFI_MANAGER)}
+  , ffi.manager
+{$endif};
 
 type
   TAddLink = function(A, B: Integer): Integer of object;
+  TMultiplyLink = function(A, B: Double): Double of object;
+  TEchoLink = function(const AValue: AnsiString): AnsiString of object;
 
   TProbe = class(TPersistent)
   private
     FAdd: TAddLink;
+    FMultiply: TMultiplyLink;
+    FEcho: TEchoLink;
     FName: string;
     FOnChanged: TNotifyEvent;
     function LinkAdd(A, B: Integer): Integer;
+    function LinkMultiply(A, B: Double): Double;
+    function LinkEcho(const AValue: AnsiString): AnsiString;
     procedure DoOnChanged(ASender: TObject);
   public
     constructor Create;
     function Hidden(AValue: Integer): Integer;
   published
     property Add: TAddLink read FAdd;
+    property Multiply: TMultiplyLink read FMultiply;
+    property Echo: TEchoLink read FEcho;
     property Name: string read FName write FName;
     property OnChanged: TNotifyEvent read FOnChanged write FOnChanged;
   end;
@@ -31,6 +42,8 @@ constructor TProbe.Create;
 begin
   inherited Create;
   FAdd := @LinkAdd;
+  FMultiply := @LinkMultiply;
+  FEcho := @LinkEcho;
 end;
 
 function TProbe.Hidden(AValue: Integer): Integer;
@@ -41,6 +54,16 @@ end;
 function TProbe.LinkAdd(A, B: Integer): Integer;
 begin
   Result := A + B;
+end;
+
+function TProbe.LinkMultiply(A, B: Double): Double;
+begin
+  Result := A * B;
+end;
+
+function TProbe.LinkEcho(const AValue: AnsiString): AnsiString;
+begin
+  Result := AValue;
 end;
 
 procedure TProbe.DoOnChanged(ASender: TObject);
@@ -83,6 +106,30 @@ begin
     Value := MethodType.Invoke(Callable, Args);
     if Value.AsOrdinal <> 42 then
       raise Exception.Create('RTTI method-property invoke failed');
+
+    Prop := RttiType.GetProperty('Multiply');
+    if Prop = nil then
+      raise Exception.Create('Published Multiply link property RTTI missing');
+    MethodType := TRttiMethodType(Prop.PropertyType);
+    BoundMethod := GetMethodProp(Obj, PPropInfo(Prop.Handle));
+    TValue.Make(@BoundMethod, MethodType.Handle, Callable);
+    Args[0] := TValue.specialize From<Double>(2.5);
+    Args[1] := TValue.specialize From<Double>(4.0);
+    Value := MethodType.Invoke(Callable, Args);
+    if Abs(Value.AsExtended - 10.0) > 0.00001 then
+      raise Exception.Create('RTTI floating-point link invoke failed');
+
+    Prop := RttiType.GetProperty('Echo');
+    if Prop = nil then
+      raise Exception.Create('Published Echo link property RTTI missing');
+    MethodType := TRttiMethodType(Prop.PropertyType);
+    BoundMethod := GetMethodProp(Obj, PPropInfo(Prop.Handle));
+    TValue.Make(@BoundMethod, MethodType.Handle, Callable);
+    SetLength(Args, 1);
+    Args[0] := TValue.specialize From<AnsiString>('Nexus');
+    Value := MethodType.Invoke(Callable, Args);
+    if Value.AsAnsiString <> 'Nexus' then
+      raise Exception.Create('RTTI managed-string link invoke failed');
 
     Prop := RttiType.GetProperty('Name');
     if Prop = nil then

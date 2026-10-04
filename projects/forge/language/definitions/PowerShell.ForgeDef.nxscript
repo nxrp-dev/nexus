@@ -1,0 +1,18 @@
+Language ForgePowerShell {
+    Definitions: [
+        Definition PowerShell {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Executable { Value Value { EffectiveCategories: [Text]; } },
+                Property EntryPoint { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Arguments {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                }
+            ];
+        }
+    ];
+}

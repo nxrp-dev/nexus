@@ -27,7 +27,11 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot '.ai'); ArchivePath = '.ai' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'docs'); ArchivePath = 'docs' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },
-  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'scripts'); ArchivePath = 'scripts' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'packages'); ArchivePath = 'packages' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'projects'); ArchivePath = 'projects' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'repo-automation'); ArchivePath = 'repo-automation' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'site'); ArchivePath = 'site' },
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'tools'); ArchivePath = 'tools' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'lib\pasbuild'); ArchivePath = 'lib\pasbuild' }
 )
 
@@ -43,6 +47,7 @@ $SourceExtensions = @(
   '.csv',
   '.css',
   '.crt',
+  '.def',
   '.ext',
   '.gif',
   '.inc',
@@ -54,6 +59,7 @@ $SourceExtensions = @(
   '.lfm',
   '.lpi',
   '.lpr',
+  '.lua',
   '.md',
   '.mustache',
   '.nxtask',

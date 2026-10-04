@@ -11,3 +11,15 @@ Git InspectRepository {
     Template: "../../examples/Git.mustache";
     Repository: ".";
 }
+
+MSBuild BuildSimulator {
+    Template: "../../examples/MSBuild.mustache";
+    EntryPoint: "Corona.Simulator.sln";
+    Configuration: Release;
+    Platform: x64;
+}
+
+PowerShell BuildDependencies {
+    Template: "../../examples/PowerShell.mustache";
+    EntryPoint: "Build-X64Dependencies.ps1";
+}

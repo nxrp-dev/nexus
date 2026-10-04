@@ -1,0 +1,5 @@
+dialect "../../../projects/forge/language/Forge.nxscript";
+
+Package Serialization {
+    Outputs: [Output Source { Path: "src"; Directory: True; }];
+}

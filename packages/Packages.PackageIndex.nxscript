@@ -1,0 +1,22 @@
+dialect "PackageIndex.Language.nxscript";
+
+PackageIndex NexusPackages {
+    Packages: [
+        "foundation",
+        "foundation/db/sqlite",
+        "foundation/serialization",
+        "foundation/serialization/delimited-text",
+        "foundation/serialization/json",
+        "gui",
+        "lsp",
+        "lua",
+        "network",
+        "network/json-rpc",
+        "network/torrent",
+        "network/xmpp",
+        "nxscript",
+        "nxtest",
+        "solar2d"
+    ];
+    Discovery: [];
+}

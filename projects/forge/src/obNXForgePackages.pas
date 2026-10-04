@@ -89,6 +89,23 @@ begin
     raise ENXForge.Create(ADefinition.Name + ': ' + AName + ' must be an array');
 end;
 
+procedure SelectPackage(ADefinition: TNexusScriptCompiledDefinition;
+  const APackageName: string; var ASelected: TNexusScriptCompiledDefinition);
+var
+  lChild: TNexusScriptCompiledDefinition;
+begin
+  if SameText(ADefinition.Kind, 'Group') then
+  begin
+    for lChild in ADefinition.Children do
+      SelectPackage(lChild, APackageName, ASelected);
+    Exit;
+  end;
+  if not SameText(ADefinition.Kind, 'Package') or
+    ((APackageName <> '') and not SameText(ADefinition.Name, APackageName)) then Exit;
+  if ASelected <> nil then raise ENXForge.Create('Select a package by name');
+  ASelected := ADefinition;
+end;
+
 function BooleanProperty(ADefinition: TNexusScriptCompiledDefinition;
   const AName: string): Boolean;
 begin
@@ -209,12 +226,7 @@ begin
   try
     lView.AddDocument(FSession.EntryCompiler.CompiledDocument);
     for lDefinition in lView.Roots do
-      if SameText(lDefinition.Kind, 'Package') and
-        ((APackageName = '') or SameText(lDefinition.Name, APackageName)) then
-      begin
-        if FDefinition <> nil then raise ENXForge.Create('Select a package by name');
-        FDefinition := lDefinition;
-      end;
+      SelectPackage(lDefinition, APackageName, FDefinition);
     if FDefinition = nil then raise ENXForge.Create('Package not found: ' + APackageName);
     FRoot := ExtractFileDir(FDefinition.SourceRange.SourceName);
     CheckTargets;
@@ -287,12 +299,15 @@ begin
       begin
         lText.Add('');
         lText.Add('Operation: ' + lInvocation.OperationName);
-        lText.Add('Template: ' + lInvocation.TemplatePath);
+        if lInvocation.TemplatePath <> '' then
+          lText.Add('Template: ' + lInvocation.TemplatePath);
         lText.Add('Working directory: ' + lInvocation.WorkingDirectory);
-        if lInvocation.Kind = fokRender then
+        if lInvocation.Kind <> fokCommand then
         begin
-          lText.Add('Source: ' + lInvocation.SourcePath);
-          lText.Add('Output: ' + lInvocation.OutputPath);
+          if lInvocation.SourcePath <> '' then
+            lText.Add('Source: ' + lInvocation.SourcePath);
+          if lInvocation.OutputPath <> '' then
+            lText.Add('Output: ' + lInvocation.OutputPath);
         end
         else lText.Add('Command: ' + lInvocation.Command);
         lText.Add('Started: ' + BoolToStr(lInvocation.Started, True));

@@ -10,6 +10,12 @@ This package contains the generic Lua integration shared by Nexus packages.
 - `src/bindings/Lua55.pas` provides Lua 5.5.1 C API declarations and macro equivalents.
 - `src/Lua.Plugin.pas` provides the RTTI-backed `TLuaPlugin` bridge for the Lua 5.1 host ABI.
 
+Published method-property links use RTTI `Invoke`. On targets other than
+x86-64 Windows, `Lua.Plugin` imports NexusFPC's `ffi.manager`; the final plugin
+must link a native libffi library built for that target. The matching libffi
+headers and Pascal binding must pass the ABI probe in NexusFPC's
+`packages/libffi/tests`. Ordinary Lua C callbacks do not use libffi.
+
 `Lua55` mirrors the default Lua 5.5.1 ABI (64-bit `lua_Integer`, double
 `lua_Number`, pointer-sized `lua_KContext`). It declares imports by C symbol
 name; consumers must link against a matching Lua 5.5 library. This package does

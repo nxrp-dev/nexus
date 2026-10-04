@@ -1,0 +1,53 @@
+Language ForgeFileOperations {
+    Definitions: [
+        Definition WriteTextFile {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Path { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Text { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
+        Definition CopyFile {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Destination { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Overwrite { Value Value { Scalar: Boolean; } },
+                Property Recursive { Value Value { Scalar: Boolean; } },
+                Property CleanDestination { Value Value { Scalar: Boolean; } },
+                Property ExcludeNames { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
+        Definition DeletePath {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Path { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Recursive { Value Value { Scalar: Boolean; } },
+                Property MissingOk { Value Value { Scalar: Boolean; } }
+            ];
+        },
+        Definition Archive {
+            Root: True;
+            Parents: [Package, Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Operation { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Destination { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Overwrite { Value Value { Scalar: Boolean; } },
+                Property Recursive { Value Value { Scalar: Boolean; } },
+                Property ExcludeNames { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}
