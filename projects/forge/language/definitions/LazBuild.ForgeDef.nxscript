@@ -13,7 +13,7 @@ Language ForgeLazBuild {
     Definitions: [
         Definition LazBuild {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

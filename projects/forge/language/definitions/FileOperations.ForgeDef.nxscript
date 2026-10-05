@@ -13,7 +13,7 @@ Language ForgeFileOperations {
     Definitions: [
         Definition WriteTextFile {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -23,7 +23,7 @@ Language ForgeFileOperations {
         },
         Definition CopyFile {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -37,7 +37,7 @@ Language ForgeFileOperations {
         },
         Definition DeletePath {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -48,7 +48,7 @@ Language ForgeFileOperations {
         },
         Definition Archive {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

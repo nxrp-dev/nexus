@@ -16,7 +16,7 @@ program NexusForge;
 {$mode delphi}{$H+}
 
 uses Classes, SysUtils, obNXCommandLine, obNexusScriptModel,
-  obNXForge, obNXForgeInvocation, obNXForgePackages, tpNXForge;
+  obNXForge, obNXForgeInvocation, tpNXForge;
 
 procedure PrintInvocation(AInvocation: TNXForgeInvocation);
 begin
@@ -49,36 +49,6 @@ begin
   if AInvocation.Exited then WriteLn('exit: ', AInvocation.ExitStatus);
 end;
 
-procedure RunPackage(ATargets: TNexusScriptTargetSelection);
-var
-  lPackages: TNXForgePackages;
-  lRequest: TNXPackageRequest;
-  lInvocation: TNXForgeInvocation;
-  lOutput: TNXPackageOutput;
-begin
-  if TNXCommandLine.Supplied('working-directory') then
-    raise ENXForge.Create('Package operations use their defining directory');
-  lPackages := TNXForgePackages.Create;
-  try
-    if not lPackages.Execute(TNXCommandLine.GetValueDefault('input', ''),
-      TNXCommandLine.GetValueDefault('package', ''),
-      ATargets) then ExitCode := 1;
-    for lRequest in lPackages.CompletionOrder do
-    begin
-      WriteLn('package: ', lRequest.Description, ' root: ', lRequest.Root);
-      if lRequest.Reused then WriteLn('reused')
-      else if lRequest.Ready then WriteLn('built') else WriteLn('not ready');
-      if FileExists(lRequest.LogPath) then WriteLn('log: ', lRequest.LogPath);
-      if lRequest.Runner <> nil then
-        for lInvocation in lRequest.Runner.Invocations do PrintInvocation(lInvocation);
-      for lOutput in lRequest.Outputs do WriteLn(lOutput.Name, ': ', lOutput.Path);
-    end;
-    if lPackages.Diagnostic <> '' then WriteLn(StdErr, lPackages.Diagnostic);
-  finally
-    lPackages.Free;
-  end;
-end;
-
 procedure Run;
 var
   lTargets: TNexusScriptTargetSelection;
@@ -89,7 +59,6 @@ var
   lInvocation: TNXForgeInvocation;
 begin
   TNXCommandLine.RegisterFlag('input', True, True, '', 'Forge document');
-  TNXCommandLine.RegisterFlag('package', False, True, '', 'Package definition to obtain');
   TNXCommandLine.RegisterFlag('targets', False, True, '', 'Comma-separated Name:Value selections');
   TNXCommandLine.RegisterFlag('working-directory', False, True, '', 'Relative to the Forge document');
   TNXCommandLine.AllowUnknownFlags := False;
@@ -107,11 +76,6 @@ begin
       if (lColon <= 1) or (lColon = Length(lPart)) then
         raise ENXForge.Create('Target selections require Name:Value');
       lTargets.Add(Copy(lPart, 1, lColon - 1), Copy(lPart, lColon + 1, MaxInt));
-    end;
-    if TNXCommandLine.Supplied('package') then
-    begin
-      RunPackage(lTargets);
-      Exit;
     end;
     lForge := TNXForge.Create(lTargets);
     try

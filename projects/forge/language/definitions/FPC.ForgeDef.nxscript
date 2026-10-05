@@ -13,15 +13,15 @@ Language ForgeFPC {
     Definitions: [
         Definition FPC {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
                 Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property Compiler {
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 },
                 Property Source {
@@ -31,8 +31,8 @@ Language ForgeFPC {
                 Property EntryPoint {
                     Required: True;
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 },
                 Property Output {

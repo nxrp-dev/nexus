@@ -17,8 +17,7 @@ lazbuild projects\forge\NexusForge.lpi
 
 The example compiles `hello world & test.lpr` and runs local `git status --short`.
 Required: `/input=...`. Optional: `/targets=Name:Value,OtherName:OtherValue` and
-`/working-directory=...`. Package requests additionally use `/package=...`; see
-[package contracts](packages.md). There is no `/manifest` argument.
+`/working-directory=...`. There is no `/package` or `/manifest` argument.
 
 Flags use the existing Nexus command-line parser; quote the entire argument when
 its value contains spaces. Targets are explicit; Forge does not infer host or
@@ -36,7 +35,7 @@ environment repair, or activation logic.
 `projects/forge/language/Forge.nxscript` includes
 `projects/forge/language/definitions/*.ForgeDef.nxscript`. Core, FPC,
 Git, MSBuild, PowerShell, LazBuild, Npm, InnoSetup, CSV, Render,
-FileOperations, Package, Group, and Environment definitions form one
+FileOperations, Group, and Environment definitions form one
 effective Forge language through the included-definition view. The master does
 not name individual tools.
 `ForgeDef` is a convention selected by this include pattern, not a filename rule.
@@ -85,9 +84,8 @@ roots are never scheduled as commands, even if a property is named Template.
 There is no separate process catalog or matching by operation kind. Two FPC
 tasks can inherit different templates. All tasks in a Group are prepared before
 the first starts, including tasks within nested Groups. Declaration order is
-preserved; module-only roots are not scheduled. A document run without
-`/package` requires one executable root: a singular task or a Group. A file
-containing multiple Package definitions instead uses `/package` to select one.
+preserved; module-only roots are not scheduled. A runnable document requires
+one executable root: a singular task or a Group.
 
 ## Source selections and entry points
 
@@ -96,8 +94,8 @@ FPC `Source` is a nonempty list of explicit files or filename masks, for example
 single input passed to FPC. Partial composed configurations can contribute Source
 entries without an EntryPoint; a concrete FPC operation requires both.
 
-Forge expands command-operation Source arrays relative to the declaring package
-root (or the declaring operation file outside a package). `src/*.pas` selects
+Forge expands command-operation Source arrays relative to the declaring operation
+file. `src/*.pas` selects
 that directory only; `src/**/*.pas` explicitly includes subdirectories. There is
 no extension inference. Missing directories or selections matching no files fail
 preparation before commands launch. Entries retain selection order, matches are
@@ -113,8 +111,7 @@ FPC searches these directories for dependencies and decides whether compiled uni
 are usable. The selected files establish search directories, not a restriction on
 which other dependencies FPC may load from those directories. Forge does not hash
 sources, generate bootstrap programs, or compile every selected unit independently.
-An operation with EntryPoint causes its package to execute on each new request;
-within a request graph, an already obtained variant is still shared.
+Each explicit FPC task invokes the compiler; FPC decides whether units need rebuilding.
 
 ## Template paths and rendering
 
@@ -124,20 +121,17 @@ Inherited values retain that origin; scalar aliases/references are followed to
 the supplying value. A locally overridden Template uses its own source origin.
 For a constructed string, the expression's source file supplies the origin.
 Moving a configuration into a module does not make its template path relative to
-the importing package.
+the importing task.
 
 The template receives the operation's completed properties and `_nx` metadata
 directly, without an operation-name wrapper. Arrays, inherited values, references,
-and projection limits retain normal NexusScript JSON semantics. Package rendering
-supplies resolved dependency output paths. It assigns no special semantics to
-operation properties named Output and injects no directory properties. FPC
-configurations explicitly supply UnitOutput when their template needs -FU.
+and projection limits retain normal NexusScript JSON semantics. FPC tasks use
+their own Template, Output, and UnitOutput properties.
 
 `{{_nx.CompiledAt}}` exposes the entry document's compilation timestamp in
 ISO 8601 UTC form, including milliseconds and a trailing `Z`. Operations from
-the same compiled package share that timestamp. A Render operation's artifact
-template receives the compiled source document's timestamp instead. This
-metadata does not participate in package artifact-presence or reuse checks.
+the same compiled document share that timestamp. A Render operation's artifact
+template receives the compiled source document's timestamp instead.
 
 ```mustache
 fpc "{{{EntryPoint}}}" "-o{{{Output}}}"{{#Defines}} -d{{{.}}}{{/Defines}}{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}
@@ -180,7 +174,7 @@ is no hidden default when moving a Task recipe to Forge. Their optional
 `ISCC.exe` defaults. Set `Executable` for another host or install location.
 
 Each of these operations may specify `WorkingDirectory`, resolved from the
-Forge document directory (the package root for package operations). When
+Forge document directory. When
 omitted, the usual Forge operation directory applies. In particular, a
 LazBuild recipe that needs the project directory as its process directory
 must state it. Boolean options validated by the Forge dialect are converted
@@ -209,8 +203,8 @@ it does not import external seed-data rows.
 
 Relative Source and Template retain the origin of the supplying value, including
 module references and composition. Output resolves from the operation working
-directory (the package root for package operations). Package coordination prepares
-declared artifact parents. Standalone Render does not invent output directories.
+directory. Standalone Render does not invent output directories; callers create
+them when needed.
 This Output meaning belongs to Render, not to arbitrary operation properties.
 
 All operations prepare before any executes. Source compilation/validation or
@@ -220,8 +214,8 @@ Write failure stops subsequent operations. An invocation records SourcePath,
 OutputPath, Started, and Completed; it does not fabricate a process exit status.
 Native and Render operations can occur in the same ordered list.
 
-See [the BotHost database example](../../../projects/bothost/doc/database-generation.md) for a complete
-package and target-selected Environment. It renders Firebird SQL with no database
+See [the BotHost database example](../../../projects/bothost/doc/database-generation.md) for a
+target-selected Environment. It renders Firebird SQL with no database
 semantics in Forge and no separate NexusScript executable.
 
 ## Filesystem operations
@@ -267,8 +261,8 @@ Completed output remains available. Success returns exit status 0; failure 1.
 
 ```powershell
 lazbuild projects\forge\NexusForge.lpi
-lazbuild NexusTools\CSV\NexusCSV.lpi
-lazbuild projects\forge\tests\NexusForgeTests.lpi
+lazbuild projects\csv\NexusCSV.lpi
+lazbuild projects\forge\test\NexusForgeTests.lpi
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
 lazbuild packages\nxscript\test\NexusScriptTests.lpi
 & .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
@@ -276,25 +270,7 @@ lazbuild projects\ls\nxscript\tests\NexusScriptLSTests.lpi
 & .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
 
-Source/EntryPoint verification: 30 Forge tests and 61 NexusScript compiler tests
-passed with zero failures/errors/skips and zero heap leaks. The shared FCL example
-also builds and runs. Language-server code and the shared compiler are unchanged;
-the earlier 12-test language-server result is not a new run for this correction.
-Tests use the real compiler, validator, renderer, and process paths. Coverage
-includes partial bases, required concrete properties, target selection, two FPC
-configurations with different templates, nested inheritance, referenced template
-paths, local overrides, module/data roots excluded from execution, preflight
-failures, independent output streams, working directories, and runner reuse.
-Package tests cover artifact presence, dependencies with their own targets,
-artifact directory preparation, source-selection composition and expansion,
-unchanged-unit reuse and changed-unit rebuilding, explicit FPC unit placement, intermediate outputs
-outside final artifact directories, and environment-derived artifact filenames.
-
-Native tests compile and run Pascal source and execute Git against a local
-repository. The PasBuild comparison builds default/debug/release through the
-shared configurations; its application/test templates remain project-specific.
-The selective-import dependency fix preserves private external bindings while
-retaining internal composition rebinding; the compiler regressions cover ownership
-after producer destruction and same-name consumer capture. Compiler bootstrap and cross-compilation
-remain separate work. Linux suffix selection is tested; Linux native execution
-has not been established by these Windows runs.
+The Forge tests compile and execute real Pascal source and exercise NexusScript
+validation, target selection, Group ordering, built-in file tasks,
+and command failure reporting. Compiler bootstrap
+and cross-compilation are separate work.

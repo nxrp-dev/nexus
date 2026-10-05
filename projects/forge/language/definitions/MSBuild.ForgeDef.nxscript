@@ -13,7 +13,7 @@ Language ForgeMSBuild {
     Definitions: [
         Definition MSBuild {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -22,8 +22,8 @@ Language ForgeMSBuild {
                 Property EntryPoint {
                     Required: True;
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 },
                 Property Configuration { Required: True; Value Value { EffectiveCategories: [Text]; } },

@@ -17,23 +17,7 @@ program NexusForgeTests;
 
 uses
   Classes, SysUtils, obNXTestRegistry, obNXTestSuite, obNXTestResult,
-  tsNXForgeTests, tsNXForgePackageTests;
-
-procedure ChildFile(const AMode: string);
-var
-  lText: TStringList;
-begin
-  lText := TStringList.Create;
-  try
-    if (AMode = 'create') or (AMode = 'partial') then lText.Text := 'package-data'
-    else lText.LoadFromFile(ParamStr(3));
-    if (AMode = 'create') or (AMode = 'partial') then lText.SaveToFile(ParamStr(3))
-    else lText.SaveToFile('done.txt');
-    if AMode = 'partial' then ExitCode := 7;
-  finally
-    lText.Free;
-  end;
-end;
+  tsNXForgeTests;
 
 procedure Run;
 var
@@ -46,7 +30,6 @@ begin
   lFailed := 0;
   try
     RegisterForgeTests(lRegistry);
-    RegisterForgePackageTests(lRegistry);
     for lSuite := 0 to lRegistry.SuiteCount - 1 do
       for lTest := 0 to lRegistry.Suites[lSuite].TestCount - 1 do
       begin
@@ -76,8 +59,6 @@ begin
       Write(StringOfChar('O', 1048576));
       Write(StdErr, StringOfChar('E', 1048576));
     end
-    else if (ParamStr(2) = 'create') or (ParamStr(2) = 'consume') or
-      (ParamStr(2) = 'partial') then ChildFile(ParamStr(2))
     else if ParamStr(2) = 'cwd' then WriteLn(GetCurrentDir)
     else if ParamStr(2) = 'fail' then
     begin

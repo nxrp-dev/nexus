@@ -13,7 +13,7 @@ parser, transformation classes, and old `.nxs` inputs are no longer required.
 These existing manifest examples remain available while Forge consolidation
 continues. For standalone CSV compilation with explicit SQL escaping, use
 `projects/csv/config/CSV.nxscript` and `SQL.mustache`; the ordinary Forge
-package example is `projects/csv/examples/Lookup.ForgePackage.nxscript` and its
+task example is `projects/csv/examples/Lookup.Forge.nxscript` and its
 output template is `projects/csv/templates/SQL.mustache`.
 
 ## Current template adaptation

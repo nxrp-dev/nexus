@@ -13,28 +13,28 @@ Language ForgeCSV {
     Definitions: [
         Definition CSV {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
                 Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property Source { Required: True;
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 },
                 Property SourceTemplate { Required: True;
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 },
                 Property Output { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property Compiler {
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 },
                 Property Name { Value Value { EffectiveCategories: [Text]; } },

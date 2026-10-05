@@ -21,7 +21,7 @@ procedure RegisterNXBotDatabaseTests(ARegistry: TNXTestRegistry);
 
 implementation
 uses Classes, SysUtils, Process, obNXTestSuite, obNXTestContext,
-  obNXForgePackages, obNexusScriptModel;
+  obNXForge, obNexusScriptModel;
 
 procedure SaveText(const APath, AText: string);
 var
@@ -88,7 +88,7 @@ procedure TestFirebirdDatabase(AContext: TNXTestContext);
 var
   lRoot, lDirectory, lDatabase, lPackage, lDDL, lOutput, lConnect, lSQL: string;
   lID: TGUID;
-  lPackages: TNXForgePackages;
+  lForge: TNXForge;
   lTargets: TNexusScriptTargetSelection;
   lIndex, lStatus: Integer;
   lSuffix: string;
@@ -103,7 +103,7 @@ begin
   lConnect := 'CONNECT ' + SQLString(lDatabase) + ' USER ''SYSDBA'';' + LineEnding;
   lTargets := TNexusScriptTargetSelection.Create;
   lTargets.Add('TargetDB', 'Firebird');
-  lPackages := TNXForgePackages.Create;
+  lForge := TNXForge.Create(lTargets);
   try
     // Both configurations use the real schema/template and ordinary composition.
     for lIndex := 0 to 1 do
@@ -111,22 +111,20 @@ begin
       if lIndex = 0 then lSuffix := '_ID' else lSuffix := '_KEY';
       lPackage := lDirectory + 'Build.nxscript';
       lDDL := lDirectory + 'generated/schema' + IntToStr(lIndex) + '.sql';
+      ForceDirectories(lDirectory + 'generated');
       SaveText(lDirectory + 'Environment.nxscript',
         'module Firebird "' + lRoot + 'projects/bothost/config/Environments.nxscript"; ' +
         'Environment Selected (Firebird) { MODULE_ID_POSTFIX: "' +
         lSuffix + '"; }');
       SaveText(lPackage, 'dialect "' + lRoot +
         'projects/forge/language/Forge.nxscript"; ' +
-        'module Selected "Environment.nxscript"; Package Verify { ' +
-        'Targets: [Dimension TargetDB { Required: True; Allowed: [Firebird]; }]; ' +
-        'Outputs: [Output SQL { Path: "generated/schema' + IntToStr(lIndex) + '.sql"; }]; ' +
+        'module Selected "Environment.nxscript"; ' +
         'Render Generate { Source: "' + lRoot + 'projects/bothost/schema/BotHost.Schema.nxscript"; ' +
-        'Output: @Verify.Outputs.SQL.Path; Environment: @Selected; Template: @Selected.Template; } }');
-      AContext.AssertTrue(lPackages.Execute(lPackage, 'Verify', lTargets), lPackages.Diagnostic);
-      AContext.AssertFalse(lPackages.PackageResult.Reused, 'Absent artifact builds');
-      AContext.AssertTrue(FileExists(lDDL), 'Package creates output parent and SQL');
-      AContext.AssertTrue(lPackages.Execute(lPackage, 'Verify', lTargets), lPackages.Diagnostic);
-      AContext.AssertTrue(lPackages.PackageResult.Reused, 'Present artifact reuses');
+        'Output: "generated/schema' + IntToStr(lIndex) + '.sql"; ' +
+        'Environment: @Selected; Template: @Selected.Template; }');
+      AContext.AssertTrue(lForge.Execute(lPackage), lForge.Diagnostic);
+      AContext.AssertTrue(FileExists(lDDL), 'Render creates SQL');
+      AContext.AssertTrue(lForge.Execute(lPackage), lForge.Diagnostic);
       lSQL := ReadText(lDDL);
       AContext.AssertTrue(Pos('REFERENCES OWNED_BOT_TBL' + LineEnding + '    (OWNED_BOT' + lSuffix + ')', lSQL) > 0,
         'References use physical TableName and the selected key convention');
@@ -161,9 +159,11 @@ begin
     FreeAndNil(lTargets);
     lTargets := TNexusScriptTargetSelection.Create;
     lTargets.Add('TargetDB', 'Unsupported');
-    AContext.AssertFalse(lPackages.Execute(lPackage, 'Verify', lTargets), 'Unsupported target rejected');
+    lForge.Free;
+    lForge := TNXForge.Create(lTargets);
+    AContext.AssertFalse(lForge.Execute(lPackage), 'Unsupported target rejected');
   finally
-    lPackages.Free;
+    lForge.Free;
     lTargets.Free;
   end;
 end;

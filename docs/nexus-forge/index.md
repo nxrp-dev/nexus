@@ -1,9 +1,9 @@
 # NexusForge
 
-Forge is the front end for declarative builds and artifact generation. A package
-declares its outputs and operations; present outputs satisfy the package, while
-missing outputs cause its operations to run. There is no timestamp/hash freshness
-tracking in this first pass.
+Forge is the front end for declarative builds and artifact generation. A Forge
+document contains one runnable task or a Group of tasks. Package and Project
+entities are developed separately in NexusPackageManager; Forge currently has
+no package- or project-specific execution behavior.
 
 Schema generation uses the shared Schema dialect and a Firebird Environment that
 supplies its template and key conventions. Forge's Render operation compiles and
@@ -18,8 +18,8 @@ infers database behavior.
 Maintained inputs live with their owners:
 
 - `projects/forge/language/` and `projects/forge/examples/`: Forge definitions and build examples.
-- `projects/bothost/`: BotHost schema package, configuration, tables, and Firebird template.
-- `projects/csv/`: CSV compiler configuration, templates, lookup inputs, and package example.
+- `projects/bothost/`: BotHost schema task, configuration, tables, and Firebird template.
+- `projects/csv/`: CSV compiler configuration, templates, lookup inputs, and task example.
 - `projects/schema/`: Schema dialect and retained Schema examples.
 - `tools/task/tasks/`: repository build/deployment tasks, pending their eventual Forge replacement.
 
@@ -30,10 +30,9 @@ lazbuild projects\forge\NexusForge.lpi
 lazbuild projects\csv\NexusCSV.lpi
 $env:PATH = (Resolve-Path output\NexusCSV\x86_64-win64).Path + ';' + $env:PATH
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=projects/csv/examples/Lookup.ForgePackage.nxscript /package=LookupSQL
+  /input=projects/csv/examples/Lookup.Forge.nxscript
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=projects/bothost/BotHost.ForgePackage.nxscript `
-  /package=BotHostDatabase /targets=TargetDB:Firebird
+  /input=projects/bothost/BotHost.Forge.nxscript /targets=TargetDB:Firebird
 ```
 
 These commands generate files; they do not connect to a database. The BotHost

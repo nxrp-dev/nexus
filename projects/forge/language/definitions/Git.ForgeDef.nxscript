@@ -13,7 +13,7 @@ Language ForgeGit {
     Definitions: [
         Definition Git {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -21,8 +21,8 @@ Language ForgeGit {
                 Property Repository {
                     Required: True;
                     Value Value {
-                        EffectiveCategories: [Text, Definition];
-                        Reference Reference { Targets: [Property, Definition]; DefinitionKinds: [PackageOutput]; }
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
                     }
                 }
             ];

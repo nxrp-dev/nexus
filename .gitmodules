@@ -6,10 +6,6 @@
 	path = lib/dmustache
 	url = https://github.com/nxrp-dev/dmustache.git
 	branch = master
-[submodule "lib/pasbuild"]
-	path = lib/pasbuild
-	url = https://github.com/graemeg/PasBuild.git
-	branch = master
 [submodule "packages/gui/external/fpgui"]
 	path = packages/gui/external/fpgui
 	url = https://github.com/graemeg/fpgui.git

@@ -142,10 +142,40 @@ begin
     AContext.AssertTrue(lLanguage.FindDefinitionRule('Npm') <> nil, 'Npm rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('InnoSetup') <> nil, 'InnoSetup rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('Group') <> nil, 'Group rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('NexusPackage') = nil,
+      'Package entities are not Forge tasks');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('Package') = nil,
+      'Package entities are not Forge tasks');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('PackageIndex') = nil,
+      'PackageIndex entities are not Forge tasks');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('Project') = nil,
+      'Project entities are not Forge tasks');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('NexusProject') = nil,
+      'NexusProject is not a Forge task');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('PackageOutput') = nil,
+      'PackageOutput is not a Forge value');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('Environment') <> nil, 'Environment rule present');
   finally
     lLanguage.Free;
     lSession.Free;
+  end;
+end;
+
+procedure TestRejectEntityDocument(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+begin
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(Root +
+      'projects/PackageManager/examples/Package.nxscript'),
+      'Package entity is not a Forge task');
+    AContext.AssertTrue(Pos('NexusForge dialect', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AContext.AssertEquals(0, lForge.Invocations.Count,
+      'No operation is prepared from an entity document');
+  finally
+    lForge.Free;
   end;
 end;
 
@@ -169,12 +199,11 @@ begin
 
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'Group Build { WriteTextFile Prepare { Path: "ready.txt"; Text: "ready"; } ' +
-      'Package Artifact { Outputs: [Output Result { Path: "ready.txt"; }]; } ' +
       'CopyFile After { Source: "ready.txt"; Destination: "after.txt"; } }');
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
-    AContext.AssertEquals(3, lForge.Invocations.Count, 'Package is one task inside Group');
+    AContext.AssertEquals(2, lForge.Invocations.Count, 'Group contains explicit tasks');
     AContext.AssertEquals('ready' + #10, LoadRaw(lDirectory + 'after.txt'),
-      'Task following Package executes');
+      'Task following preparation executes');
 
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'WriteTextFile Alone { Path: "single.txt"; Text: "single"; }');
@@ -991,6 +1020,7 @@ begin
   lSuite.AddTest('FileOperations', @TestFileOperations);
   lSuite.AddTest('FileOperationFailures', @TestFileOperationFailures);
   lSuite.AddTest('LanguagePieces', @TestLanguagePieces);
+  lSuite.AddTest('RejectEntityDocument', @TestRejectEntityDocument);
   lSuite.AddTest('MSBuildOperation', @TestMSBuildOperation);
   lSuite.AddTest('PowerShellOperation', @TestPowerShellOperation);
   lSuite.AddTest('ToolOperations', @TestToolOperations);

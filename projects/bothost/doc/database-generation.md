@@ -5,18 +5,16 @@ Run from the repository root:
 ```powershell
 lazbuild projects\forge\NexusForge.lpi
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=projects\bothost\BotHost.ForgePackage.nxscript `
-  /package=BotHostDatabase /targets=TargetDB:Firebird
+  /input=projects\bothost\BotHost.Forge.nxscript /targets=TargetDB:Firebird
 ```
 
-The package creates `generated/Firebird/BotHost.create.sql`. It reuses that file
-while present; delete that generated SQL file to request rebuilding after edits.
+The Render task creates `generated/Firebird/BotHost.create.sql` on each run.
 Generation runs inside Forge, using the shared NexusScript compiler, validator,
 JSON emitter, and Mustache. It does not launch NexusScript.exe or connect to a DB.
 
 ## Files and conventions
 
-- `projects/bothost/BotHost.ForgePackage.nxscript`: package, supported target, artifact, Render operation.
+- `projects/bothost/BotHost.Forge.nxscript`: Render task and output path.
 - `projects/bothost/schema/BotHost.Schema.nxscript`: Schema dialect declaration and `*.Table.nxscript` include.
 - `projects/bothost/schema/`: five tables; modules retain reference dependencies without adding extra tables.
 - `projects/bothost/config/Environments.nxscript`: Firebird target and naming/type/generation constants.
@@ -31,7 +29,7 @@ values. Physical SQL names derive consistently from TableName, not definition na
 The template supplies trigger-based generation; it introduces no compiler defaults.
 The older Schema example constants remain at
 `projects/schema/examples/constants/Firebird.Constants.nxscript`;
-this package uses its own Environment, not that legacy configuration.
+this task uses its own Environment, not that legacy configuration.
 
 ## Stored data and scope
 
@@ -69,12 +67,12 @@ DDL, and drops those databases. Scripts/logs remain there for inspection. It doe
 not alter Firebird configuration, services, credentials, or existing databases.
 On this machine Firebird's OS access requires running outside the execution sandbox.
 
-The test exercises both standard and overridden key suffixes, package output
-preparation and presence reuse, five tables, generated keys, invalid primary/foreign
+The test exercises both standard and overridden key suffixes, generated SQL,
+five tables, generated keys, invalid primary/foreign
 keys, status text including an apostrophe, missing/either/both grants, disabled
 users/bots, wrong host/bot, unknown user, duplicate grants, and revocation.
 `projects/bothost/test/fixtures/database/assertions.sql` contains the SQL checks. Its view and
-exception are test-only and are never emitted into the package artifact.
+exception are test-only and are never emitted into the generated artifact.
 
 Verified 2026-09-15 with installed Firebird 5: registered test passed; both disposable
 databases were dropped. Generic Forge and compiler regression results are recorded

@@ -55,7 +55,7 @@ implementation
 uses SynMustache, obNexusScriptJSON, obNexusScriptValidator,
   obNexusScriptDefinitionView, obNexusScriptArtifactModel,
   obNexusScriptLanguageDefinition, tpNexusScript,
-  fpjson, jsonparser, tpNXForge, obNXForgeSources, obNXForgePackages,
+  fpjson, jsonparser, tpNXForge, obNXForgeSources,
   utNXForgeFileOperations;
 
 function ReadForgeText(const AFileName: string): string;
@@ -288,13 +288,6 @@ begin
       lInvocation.OperationName := lOperation.Name;
       lInvocation.WorkingDirectory := AWorkingDirectory;
       try
-        if SameText(lOperation.Kind, 'Package') then
-        begin
-          lInvocation.Kind := fokPackage;
-          lInvocation.SourcePath := lOperation.SourceRange.SourceName;
-          lInvocation.WorkingDirectory := ExtractFileDir(lInvocation.SourcePath);
-          Continue;
-        end;
         if not IsForgeFileOperation(lOperation.Kind) then
           lInvocation.TemplatePath := OperationFilePath(lOperation, 'Template');
         if AContexts <> nil then lJSON := AContexts[lIndex]
@@ -364,6 +357,9 @@ begin
   try
     try
       CompileForgeDocument(FOperations, AInput);
+      if FOperations.EntryCompiler.CompiledDocument.DialectDocument.
+        FindDefinition('NexusForge') = nil then
+        raise ENXForge.Create('Forge input must declare the NexusForge dialect');
       lView.AddDocument(FOperations.EntryCompiler.CompiledDocument);
       lDirectory := ExtractFilePath(ExpandFileName(AInput));
       if AWorkingDirectory <> '' then
@@ -393,7 +389,6 @@ function TNXForge.ExecuteDefinitions(AOperations: TNexusScriptCompiledDefinition
   ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings): Boolean;
 var
   lInvocation: TNXForgeInvocation;
-  lPackages: TNXForgePackages;
 begin
   Result := False;
   FDiagnostic := '';
@@ -402,20 +397,7 @@ begin
     Prepare(AOperations, ADocument, AWorkingDirectory, AContexts);
     for lInvocation in FInvocations do
     begin
-      if lInvocation.Kind = fokPackage then
-      begin
-        lInvocation.Started := True;
-        lPackages := TNXForgePackages.Create;
-        try
-          lInvocation.Completed := lPackages.Execute(lInvocation.SourcePath,
-            lInvocation.OperationName, FTargets);
-          if not lInvocation.Completed then
-            lInvocation.Diagnostic := lPackages.Diagnostic;
-        finally
-          lPackages.Free;
-        end;
-      end
-      else if lInvocation.Kind = fokRender then WriteForgeArtifact(lInvocation)
+      if lInvocation.Kind = fokRender then WriteForgeArtifact(lInvocation)
       else if lInvocation.Kind <> fokCommand then
         ExecuteForgeFileOperation(lInvocation)
       else ExecuteForgeProcess(lInvocation);

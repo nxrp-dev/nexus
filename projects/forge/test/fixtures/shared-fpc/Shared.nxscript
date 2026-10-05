@@ -11,10 +11,10 @@
 
 module "Installation.nxscript";
 
-// A reusable environment. Applications do not repeat the library layout.
+// Shared FPC configuration; Tiny supplies its own entry point and output.
 FPC StandardFPC {
+    Template: "../../../../../projects/forge/examples/FPC.mustache";
     Compiler: @Installation.Compiler;
-    Template: "FPC.mustache";
     UnitPaths: [
         @Installation.Units + "/rtl",
         @Installation.Units + "/rtl-objpas"

@@ -40,13 +40,12 @@ helper only where a SQL string value is intended. It does not quote identifiers.
 `config/CSV.nxscript` supplies the partial CompileCSV configuration. The Forge
 `Template` constructs the command; `templates/SQL.mustache` is the artifact
 template supplied to nxcsv.
-Source, SourceTemplate, and Output are native tool arguments relative to the package
-working directory. Compiler defaults to `nxcsv` on PATH and can be supplied explicitly
-or through a package output, as with FPC.
+Source, SourceTemplate, and Output are native tool arguments relative to the task
+working directory. Compiler defaults to `nxcsv` on PATH and can be supplied explicitly.
 
-The ready-to-run package is `projects/csv/examples/Lookup.ForgePackage.nxscript`.
-Put the built executable directory on PATH and request package LookupSQL. It creates
-`generated/state.sql` and reuses it while present.
+The ready-to-run CSV task is `projects/csv/examples/Lookup.Forge.nxscript`.
+Put the built executable directory on PATH and run that Forge document. It writes
+`generated/state.sql` on each run.
 
 CSV process and SQL/plain-text tests are registered in the existing Forge suite.
 Build NexusCSV before running that suite. Shared reader regressions also run in

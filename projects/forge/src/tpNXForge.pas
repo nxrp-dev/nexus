@@ -18,7 +18,7 @@ unit tpNXForge;
 interface
 
 type
-  TNXForgeOperationKind = (fokCommand, fokPackage, fokRender, fokWriteTextFile,
+  TNXForgeOperationKind = (fokCommand, fokRender, fokWriteTextFile,
     fokCopyFile, fokDeletePath, fokArchive);
 
 implementation

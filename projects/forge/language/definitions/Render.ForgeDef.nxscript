@@ -13,7 +13,7 @@ Language ForgeRender {
     Definitions: [
         Definition Render {
             Root: True;
-            Parents: [Package, Group];
+            Parents: [Group];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

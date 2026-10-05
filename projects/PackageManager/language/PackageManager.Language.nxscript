@@ -1,0 +1,43 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../../../packages/nxscript/language/Language.nxscript";
+
+// Provisional rules for inspecting the three entities, not their final schemas.
+Language NexusPackageManager {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Package {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Id { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Requires {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition PackageIndex {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+        },
+        Definition Project {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+        }
+    ];
+}

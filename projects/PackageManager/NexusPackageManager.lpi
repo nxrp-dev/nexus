@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="10"/>
+    <PathDelim Value="\"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="NexusPackageManager"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+    </General>
+    <Units Count="3">
+      <Unit0>
+        <Filename Value="NexusPackageManager.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="src/uiNXPackageManagerMain.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="src/obNXPackageManagerStructure.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit2>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="../../output/NexusPackageManager/$(TargetCPU)-$(TargetOS)/NexusPackageManager"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir);../../packages/gui/external/fpgui/framework/src/main/pascal/corelib;../../packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi;../../packages/gui/external/fpgui/framework/src/main/resources"/>
+      <OtherUnitFiles Value="src;../../packages/nxscript/src;../../packages/gui/src;../../packages/gui/src/vtv;../../packages/gui/external/fpgui/framework/src/main/pascal/corelib;../../packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software;../../packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi;../../packages/gui/external/fpgui/framework/src/main/pascal/gui;../../packages/gui/external/fpgui/framework/src/main/resources"/>
+      <UnitOutputDirectory Value="../../output/NexusPackageManager/$(TargetCPU)-$(TargetOS)/units"/>
+    </SearchPaths>
+    <Other>
+      <CustomOptions Value="-dGDI -WG -Xe"/>
+    </Other>
+  </CompilerOptions>
+</CONFIG>

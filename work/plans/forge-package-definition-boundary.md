@@ -1,6 +1,6 @@
 # Work Plan: Separate Package Definitions from Forge Execution
 
-Status: proposed; implementation requires owner approval.
+Status: superseded by nexus-package-manager.md on 2026-10-05; do not implement this plan.
 
 ## Inputs
 

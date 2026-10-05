@@ -42,8 +42,7 @@ $DefaultSourceRoots = @(
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'projects'); ArchivePath = 'projects' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'repo-automation'); ArchivePath = 'repo-automation' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'site'); ArchivePath = 'site' },
-  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'tools'); ArchivePath = 'tools' },
-  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'lib\pasbuild'); ArchivePath = 'lib\pasbuild' }
+  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'tools'); ArchivePath = 'tools' }
 )
 
 $DefaultSourceFiles = @(
@@ -96,8 +95,7 @@ $SourceFileNames = @(
   '.gitignore',
   '.vscodeignore',
   'AGENTS.md',
-  'LICENSE',
-  'pasbuild-hello'
+  'LICENSE'
 )
 
 $ExcludedFileExtensions = @(
