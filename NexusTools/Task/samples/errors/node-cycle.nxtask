@@ -1,9 +1,0 @@
-Root Group {
-  A Group {
-    <Root.B>
-  }
-
-  B Group {
-    <Root.A>
-  }
-}

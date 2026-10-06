@@ -10,14 +10,12 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../language/PackageManager.Language.nxscript";
-module NexusPackages "PackageIndex.nxscript";
 
-Package Example {
-    Id: "NXRP.NexusScript";
-    Version: "1.0";
-    Author: "Kevin Collins";
-    Description: "Illustrative NexusScript package descriptor.";
-    License: "MPL-2.0-no-copyleft-exception";
-    // SQLite is an illustrative external requirement, not actual package inventory.
-    Requires: [@NexusPackages.NexusLib, @NexusPackages.SQLite];
+// Illustrative nexus-packages-ext catalog, not an inventory of that repository.
+// Sharing a host does not automatically establish reciprocal trust.
+PackageIndex Example {
+    LocalPackage SQLite {
+        Id: "SQLite.SQLite";
+        Descriptor: "ExternalPackage.nxscript";
+    }
 }

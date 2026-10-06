@@ -6,7 +6,7 @@ Current major areas:
 
 - `packages/gui`: TNX-facing Pascal GUI framework source, tests, docs, resources, and bin over external fpGUI.
 - `NexusForge`: schema and generation tooling.
-- `NexusTools`: framework-related tools, including NexusBuild, NexusTask, NexusTest, and NexusLS.
+- `NexusTools`: framework-related tools, including NexusBuild, NexusTest, and NexusLS.
 - `NexusLib`: shared runtime/library code used by the other Nexus projects.
 
 The documentation site is built with Material for MkDocs. Start with `docs/index.md` or run MkDocs from the repository root.

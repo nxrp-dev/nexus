@@ -24,10 +24,15 @@ interface
 
 uses
   Classes, SysUtils, Math, fpg_base, fpg_main, fpg_widget, fpg_scrollbar,
-  fpg_edit, tpVTV, obVTVColumns, obVTVOptions;
+  fpg_edit, fpg_combobox, tpVTV, obVTVColumns, obVTVOptions;
 
 type
   TfpgVirtualStringTree = class;
+
+  TVTChoiceEditor = class(TfpgComboBox)
+  public
+    property OnKeyPress;
+  end;
 
   TVTInitNodeEvent = procedure(ASender: TfpgVirtualStringTree;
     AParentNode, ANode: PVirtualNode; var AStates: TVirtualNodeInitStates) of object;
@@ -74,6 +79,9 @@ type
     FResizeColumn, FHeaderPressedColumn: Integer;
     FResizeStartX, FResizeStartWidth: Integer;
     FEditor: TfpgEdit;
+    FChoiceEditor: TVTChoiceEditor;
+    FEditingChoice: Boolean;
+    FNodeGeneration: QWord;
     FEditNode: PVirtualNode;
     FEditColumn: TColumnIndex;
     FEndingEdit: Boolean;
@@ -125,6 +133,14 @@ type
     function OwnsNode(ANode: PVirtualNode): Boolean;
     procedure RequireNode(ANode: PVirtualNode);
   protected
+    function CanEditCell(ANode: PVirtualNode; AColumn: TColumnIndex): Boolean; virtual;
+    function GetEditText(ANode: PVirtualNode; AColumn: TColumnIndex): string; virtual;
+    procedure GetEditChoices(ANode: PVirtualNode; AColumn: TColumnIndex;
+      AChoices: TStrings); virtual;
+    function CommitEditText(ANode: PVirtualNode; AColumn: TColumnIndex;
+      const AText: string): Boolean; virtual;
+    function GetPendingEditText: string;
+    procedure SetPendingEditText(const AText: string);
     function MakeNewNode: PVirtualNode;
     procedure InitNode(ANode: PVirtualNode);
     procedure InitChildren(ANode: PVirtualNode);
@@ -227,7 +243,7 @@ type
     function ScrollIntoView(ANode: PVirtualNode): Boolean;
     procedure InvalidateNode(ANode: PVirtualNode);
     function EditNode(ANode: PVirtualNode; AColumn: TColumnIndex): Boolean;
-    procedure EndEditNode;
+    function EndEditNode: Boolean;
     procedure CancelEditNode;
     property RootNode: PVirtualNode read FRoot;
     property RootNodeCount: Cardinal read GetRootNodeCount write SetRootNodeCount;
@@ -513,6 +529,7 @@ procedure TfpgVirtualStringTree.FreeNode(ANode: PVirtualNode);
 var
   lChild, lNext: PVirtualNode;
 begin
+  Inc(FNodeGeneration);
   Include(ANode^.States, vsDeleting);
   lChild := ANode^.FirstChild;
   while Assigned(lChild) do
@@ -1111,7 +1128,8 @@ begin
   if not Assigned(FOnNewText) then
     raise EInvalidOperation.Create('OnNewText is required to update virtual text.');
   FOnNewText(Self, ANode, AColumn, AValue);
-  InvalidateNode(ANode);
+  { A virtual-text callback may replace the model, including this node. }
+  Invalidate;
 end;
 
 procedure TfpgVirtualStringTree.SetFocusedNode(AValue: PVirtualNode);
@@ -2100,7 +2118,7 @@ var
 begin
   inherited HandleLMouseDown(AX, AY, AShiftState);
   if not Enabled then Exit;
-  EndEditNode;
+  if not EndEditNode then Exit;
   SetFocus;
   GetHitTestInfoAt(AX, AY, lHit);
   if hiOnHeader in lHit.HitPositions then
@@ -2201,6 +2219,7 @@ procedure TfpgVirtualStringTree.HandleMouseScroll(AX, AY: Integer;
 begin
   inherited HandleMouseScroll(AX, AY, AShiftState, ADelta);
   FVerticalScrollBar.Position := FScrollY + ADelta * FDefaultNodeHeight * 3;
+  VerticalScroll(FVerticalScrollBar, FVerticalScrollBar.Position);
 end;
 
 procedure TfpgVirtualStringTree.HandleMouseHorizScroll(AX, AY: Integer;
@@ -2208,6 +2227,7 @@ procedure TfpgVirtualStringTree.HandleMouseHorizScroll(AX, AY: Integer;
 begin
   inherited HandleMouseHorizScroll(AX, AY, AShiftState, ADelta);
   FHorizontalScrollBar.Position := FScrollX + ADelta * FIndent * 3;
+  HorizontalScroll(FHorizontalScrollBar, FHorizontalScrollBar.Position);
 end;
 
 procedure TfpgVirtualStringTree.HandleKeyPress(var AKeyCode: Word;
@@ -2321,17 +2341,58 @@ begin
   Invalidate;
 end;
 
+function TfpgVirtualStringTree.CanEditCell(ANode: PVirtualNode;
+  AColumn: TColumnIndex): Boolean;
+begin
+  Result := Assigned(FOnNewText);
+end;
+
+function TfpgVirtualStringTree.GetEditText(ANode: PVirtualNode;
+  AColumn: TColumnIndex): string;
+begin
+  Result := GetText(ANode, AColumn);
+end;
+
+procedure TfpgVirtualStringTree.GetEditChoices(ANode: PVirtualNode;
+  AColumn: TColumnIndex; AChoices: TStrings);
+begin
+  AChoices.Clear;
+end;
+
+function TfpgVirtualStringTree.CommitEditText(ANode: PVirtualNode;
+  AColumn: TColumnIndex; const AText: string): Boolean;
+begin
+  SetText(ANode, AColumn, AText);
+  Result := True;
+end;
+
+function TfpgVirtualStringTree.GetPendingEditText: string;
+begin
+  if FEditingChoice then Result := FChoiceEditor.Text else Result := FEditor.Text;
+end;
+
+procedure TfpgVirtualStringTree.SetPendingEditText(const AText: string);
+begin
+  if FEditingChoice then FChoiceEditor.Text := AText else FEditor.Text := AText;
+end;
+
 function TfpgVirtualStringTree.EditNode(ANode: PVirtualNode;
   AColumn: TColumnIndex): Boolean;
 var
   lRect, lClippedRect: TfpgRect;
+  lChoices: TStringList;
+  lWidget: TfpgWidget;
+  lGeneration: QWord;
 begin
   Result := False;
+  lGeneration := FNodeGeneration;
+  if not EndEditNode or (lGeneration <> FNodeGeneration) then Exit;
+  if ANode <> nil then RequireNode(ANode);
   if (ANode = nil) or not Enabled or (vsDisabled in ANode^.States) or
     not (toEditable in FOptions.MiscOptions) or (toReadOnly in FOptions.MiscOptions) or
-    not Assigned(FOnNewText) or (AColumn < 0) or
+    (AColumn < 0) or
     (AColumn >= FHeader.Columns.Count) or not FHeader.Columns[AColumn].Editable then Exit;
-  EndEditNode;
+  if not CanEditCell(ANode, AColumn) then Exit;
   ScrollIntoView(ANode);
   lRect := GetDisplayRect(ANode, AColumn);
   if (lRect.Height = 0) or not FHeader.Columns[AColumn].Visible then Exit;
@@ -2348,51 +2409,87 @@ begin
   if not lRect.IntersectRect(lClippedRect, FViewport) then Exit;
   lRect := lClippedRect;
   if (lRect.Width <= 0) or (lRect.Height <= 0) then Exit;
-  if FEditor = nil then
-  begin
-    FEditor := TfpgEdit.Create(Self);
-    FEditor.AutoSize := False;
-    FEditor.OnKeyPress := @EditorKeyPress;
-    FEditor.OnExit := @EditorExit;
+  lChoices := TStringList.Create;
+  try
+    GetEditChoices(ANode, AColumn, lChoices);
+    FEditingChoice := lChoices.Count > 0;
+    if FEditingChoice then
+    begin
+      if FChoiceEditor = nil then
+      begin
+        FChoiceEditor := TVTChoiceEditor.Create(Self);
+        FChoiceEditor.AutoSize := False;
+        FChoiceEditor.OnKeyPress := @EditorKeyPress;
+        FChoiceEditor.OnExit := @EditorExit;
+      end;
+      FChoiceEditor.FontDesc := FontDesc;
+      FChoiceEditor.Items.Assign(lChoices);
+      lWidget := FChoiceEditor;
+    end
+    else
+    begin
+      if FEditor = nil then
+      begin
+        FEditor := TfpgEdit.Create(Self);
+        FEditor.AutoSize := False;
+        FEditor.OnKeyPress := @EditorKeyPress;
+        FEditor.OnExit := @EditorExit;
+      end;
+      FEditor.FontDesc := FontDesc;
+      lWidget := FEditor;
+    end;
+  finally
+    lChoices.Free;
   end;
-  FEditor.FontDesc := FontDesc;
-  FEditor.Left := lRect.Left;
-  FEditor.Top := lRect.Top;
-  FEditor.Width := lRect.Width;
-  FEditor.Height := lRect.Height;
-  FEditor.Text := GetText(ANode, AColumn);
+  lWidget.Left := lRect.Left;
+  lWidget.Top := lRect.Top;
+  lWidget.Width := lRect.Width;
+  lWidget.Height := lRect.Height;
+  SetPendingEditText(GetEditText(ANode, AColumn));
   FEditNode := ANode;
   FEditColumn := AColumn;
-  FEditor.Visible := True;
-  FEditor.BringToFront;
-  FEditor.SetFocus;
+  lWidget.Visible := True;
+  lWidget.BringToFront;
+  lWidget.SetFocus;
   Result := True;
 end;
 
-procedure TfpgVirtualStringTree.EndEditNode;
+function TfpgVirtualStringTree.EndEditNode: Boolean;
 var
   lNode: PVirtualNode;
   lColumn: Integer;
   lText: string;
 begin
+  Result := True;
   if (FEditNode = nil) or FEndingEdit then Exit;
   lNode := FEditNode;
   lColumn := FEditColumn;
-  lText := FEditor.Text;
-  CancelEditNode;
-  SetText(lNode, lColumn, lText);
+  lText := GetPendingEditText;
+  FEndingEdit := True;
+  try
+    Result := CommitEditText(lNode, lColumn, lText);
+  finally
+    FEndingEdit := False;
+  end;
+  if Result then CancelEditNode;
 end;
 
 procedure TfpgVirtualStringTree.CancelEditNode;
+var
+  lWasEnding: Boolean;
 begin
   if FEditNode = nil then Exit;
   FEditNode := nil;
+  lWasEnding := FEndingEdit;
   FEndingEdit := True;
   try
-    FEditor.Visible := False;
+    if FEditingChoice then FChoiceEditor.Visible := False else FEditor.Visible := False;
+    { A hidden cell editor must not remain the tree's focus owner. }
+    if ((FEditor <> nil) and (ActiveWidget = FEditor)) or
+      ((FChoiceEditor <> nil) and (ActiveWidget = FChoiceEditor)) then ActiveWidget := nil;
     if not FDestroying then SetFocus;
   finally
-    FEndingEdit := False;
+    FEndingEdit := lWasEnding;
   end;
 end;
 
@@ -2415,6 +2512,13 @@ end;
 
 procedure TfpgVirtualStringTree.EditorExit(ASender: TObject);
 begin
+  { Switching editor kinds causes the previous widget to lose focus. That
+    notification does not belong to the newly opened cell. }
+  if FEditingChoice then
+  begin
+    if ASender <> FChoiceEditor then Exit;
+  end
+  else if ASender <> FEditor then Exit;
   EndEditNode;
 end;
 

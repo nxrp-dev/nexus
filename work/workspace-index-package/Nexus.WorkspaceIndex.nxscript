@@ -334,26 +334,6 @@ Workspace Nexus [Pascal, Toolchain] {
             }
         }
 
-        Folder Task [Automation] {
-            Path: "Task";
-            Description: "NexusTask automation/orchestration engine with targets, actions, validation, resolver, CLI, tests, and build/package scripts.";
-
-            File Executor {
-                Path: "src/obNXTaskExecutor.pas";
-                Description: "Executes NexusTask actions/targets.";
-            }
-
-            File Resolver {
-                Path: "src/obNXTaskResolver.pas";
-                Description: "Resolves task structure and target relationships.";
-            }
-
-            Folder Scripts {
-                Path: "scripts";
-                Description: "Current Nexus build/staging/installer automation scripts expressed as NexusTask files.";
-            }
-        }
-
         Folder Test [Testing] {
             Path: "Test";
             Description: "Nexus test framework, module protocol, registry, runner, result model/store, command processing, and optional NexusUI test UI.";

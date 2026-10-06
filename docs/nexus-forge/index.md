@@ -21,7 +21,6 @@ Maintained inputs live with their owners:
 - `projects/bothost/`: BotHost schema task, configuration, tables, and Firebird template.
 - `projects/csv/`: CSV compiler configuration, templates, lookup inputs, and task example.
 - `projects/schema/`: Schema dialect and retained Schema examples.
-- `tools/task/tasks/`: repository build/deployment tasks, pending their eventual Forge replacement.
 
 From the repository root:
 

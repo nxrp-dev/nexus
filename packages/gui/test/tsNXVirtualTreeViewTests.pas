@@ -94,6 +94,7 @@ type
     procedure MouseUp(AX, AY: Integer);
     procedure MouseMove(AX, AY: Integer; AButtons: Word);
     procedure Scroll(ADelta: SmallInt);
+    procedure HorizScroll(ADelta: SmallInt);
     procedure Key(AKey: Word; AShift: TShiftState = []);
     property Memory: TMemoryBufferManager read FMemory;
   end;
@@ -281,6 +282,11 @@ end;
 procedure TTestTree.Scroll(ADelta: SmallInt);
 begin
   HandleMouseScroll(0, 0, [], ADelta);
+end;
+
+procedure TTestTree.HorizScroll(ADelta: SmallInt);
+begin
+  HandleMouseHorizScroll(0, 0, [], ADelta);
 end;
 
 procedure TTestTree.Key(AKey: Word; AShift: TShiftState);
@@ -707,6 +713,92 @@ begin
   end;
 end;
 
+procedure TestVerticalWheelScrolling(AContext: TNXTestContext);
+var
+  lTree: TTestTree;
+  lFirst: PVirtualNode;
+  lOriginalRect, lMovedRect: TfpgRect;
+  lStep, lEndScroll: Integer;
+begin
+  lTree := CreatePaintTree;
+  try
+    lTree.RootNodeCount := 100;
+    lTree.Paint;
+    lFirst := lTree.GetFirst;
+    lOriginalRect := lTree.GetDisplayRect(lFirst, 0);
+    lStep := lTree.DefaultNodeHeight * 3;
+    lTree.Scroll(1);
+    AContext.AssertEquals(lStep, lTree.ScrollY, 'Wheel must update the content offset.');
+    lMovedRect := lTree.GetDisplayRect(lFirst, 0);
+    AContext.AssertEquals(lOriginalRect.Top - lStep, lMovedRect.Top);
+    AContext.AssertEquals(3, lTree.GetNodeAt(lOriginalRect.Left + 40,
+      lOriginalRect.Top + 2)^.Index, 'Hit testing must follow the scrolled rows.');
+    lTree.Paint;
+    lTree.Scroll(1);
+    AContext.AssertEquals(lStep * 2, lTree.ScrollY);
+    lTree.Scroll(-1);
+    AContext.AssertEquals(lStep, lTree.ScrollY);
+    lTree.Scroll(32767);
+    lEndScroll := lTree.ScrollY;
+    AContext.AssertTrue(lEndScroll > lStep * 2);
+    lTree.Scroll(1);
+    AContext.AssertEquals(lEndScroll, lTree.ScrollY, 'Scrolling must clamp at the end.');
+    lTree.Scroll(-32767);
+    AContext.AssertEquals(0, lTree.ScrollY);
+    lTree.Scroll(-1);
+    AContext.AssertEquals(0, lTree.ScrollY, 'Scrolling must clamp at the beginning.');
+    AContext.AssertTrue(lTree.Memory.GuardsIntact);
+  finally
+    lTree.Free;
+  end;
+end;
+
+procedure TestHorizontalWheelScrolling(AContext: TNXTestContext);
+var
+  lTree: TTestTree;
+  lFirst: PVirtualNode;
+  lOriginalRect, lMovedRect: TfpgRect;
+  lHit: THitInfo;
+  lStep, lEndScroll: Integer;
+begin
+  lTree := CreatePaintTree;
+  try
+    lTree.Header.Columns[0].Width := 90;
+    lTree.Header.Columns.Add.Width := 500;
+    lTree.RootNodeCount := 100;
+    lTree.Paint;
+    lFirst := lTree.GetFirst;
+    lOriginalRect := lTree.GetDisplayRect(lFirst, 1);
+    lStep := lTree.Indent * 3;
+    lTree.GetHitTestInfoAt(lOriginalRect.Left - 2, 10, lHit);
+    AContext.AssertEquals(0, lHit.HitColumn);
+    lTree.HorizScroll(1);
+    AContext.AssertEquals(lStep, lTree.ScrollX, 'Wheel must update the content offset.');
+    lMovedRect := lTree.GetDisplayRect(lFirst, 1);
+    AContext.AssertEquals(lOriginalRect.Left - lStep, lMovedRect.Left);
+    lTree.GetHitTestInfoAt(lOriginalRect.Left - 2, 10, lHit);
+    AContext.AssertEquals(1, lHit.HitColumn, 'Header hit testing must follow the scrolled columns.');
+    lTree.Paint;
+    lTree.HorizScroll(1);
+    AContext.AssertEquals(lStep * 2, lTree.ScrollX);
+    lTree.HorizScroll(-1);
+    AContext.AssertEquals(lStep, lTree.ScrollX);
+    lTree.HorizScroll(32767);
+    lEndScroll := lTree.ScrollX;
+    AContext.AssertTrue(lEndScroll > lStep * 2);
+    lTree.HorizScroll(1);
+    AContext.AssertEquals(lEndScroll, lTree.ScrollX, 'Scrolling must clamp at the end.');
+    lTree.HorizScroll(-32767);
+    AContext.AssertEquals(0, lTree.ScrollX);
+    lTree.HorizScroll(-1);
+    AContext.AssertEquals(0, lTree.ScrollX, 'Scrolling must clamp at the beginning.');
+    AContext.AssertEquals(0, lTree.ScrollY, 'Horizontal scrolling must not move rows vertically.');
+    AContext.AssertTrue(lTree.Memory.GuardsIntact);
+  finally
+    lTree.Free;
+  end;
+end;
+
 procedure TestInputSelectionAndKeyboard(AContext: TNXTestContext);
 var
   lTree: TTestTree;
@@ -802,6 +894,8 @@ begin
   lSuite.AddTest('ForeignNodeRejected', @TestForeignNodeRejected);
   lSuite.AddTest('VirtualViewportAndCache', @TestVirtualViewportAndCache);
   lSuite.AddTest('CellAndHeaderClipping', @TestCellAndHeaderClipping);
+  lSuite.AddTest('VerticalWheelScrolling', @TestVerticalWheelScrolling);
+  lSuite.AddTest('HorizontalWheelScrolling', @TestHorizontalWheelScrolling);
   lSuite.AddTest('InputSelectionAndKeyboard', @TestInputSelectionAndKeyboard);
   lSuite.AddTest('HeaderResize', @TestHeaderResize);
   lSuite.AddTest('FontAndEditing', @TestFontAndEditing);

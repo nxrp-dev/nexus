@@ -23,25 +23,25 @@ implementation
 
 uses
   Classes, SysUtils, fpg_base, fpg_form, fpg_main, fpg_dialogs,
-  obNXControls, obNXPackageManagerStructure, obNXPackageManagerDocument;
+  obNXControls, obNXScriptEditor, obNXPackageManagerDocument;
 
 type
   TNXPackageManagerMainForm = class(TNXForm)
   private
-    FDocument: TNXPackageManagerDocument;
+    FValidation: TNXPackageManagerDocument;
     FDiagnostics: TNXMemo;
-    FEditor: TNXMemo;
-    FLoading: Boolean;
+    FEditor: TNXScriptEditor;
     FPathLabel: TNXLabel;
-    FStructure: TNXPackageManagerStructure;
+    FSource: TNXMemo;
   protected
     procedure HandleClose; override;
     function ConfirmDiscard: Boolean;
-    procedure EditorChanged(Sender: TObject);
-    procedure OpenClicked(Sender: TObject);
-    procedure ReloadClicked(Sender: TObject);
-    procedure SaveClicked(Sender: TObject);
-    procedure ValidateClicked(Sender: TObject);
+    procedure EditorChanged(ASender: TObject);
+    procedure EditRejected(ASender: TObject);
+    procedure OpenClicked(ASender: TObject);
+    procedure ReloadClicked(ASender: TObject);
+    procedure SaveClicked(ASender: TObject);
+    procedure ValidateClicked(ASender: TObject);
     procedure RefreshDisplay;
     procedure ShowError(const AMessage: string);
   public
@@ -54,12 +54,17 @@ type
 constructor TNXPackageManagerMainForm.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
-  FDocument := TNXPackageManagerDocument.Create;
+  FValidation := TNXPackageManagerDocument.Create;
 end;
 
 destructor TNXPackageManagerMainForm.Destroy;
 begin
-  FDocument.Free;
+  if FEditor <> nil then
+  begin
+    FEditor.OnDocumentChanged := nil;
+    FEditor.OnEditRejected := nil;
+  end;
+  FValidation.Free;
   inherited Destroy;
 end;
 
@@ -74,7 +79,7 @@ begin
   WindowPosition := wpScreenCenter;
   Width := 1200;
   Height := 760;
-  MinWidth := 760;
+  MinWidth := 1000;
   MinHeight := 480;
 
   lBar := TNXPanel.Create(Self);
@@ -130,20 +135,29 @@ begin
 
   lPanel := TNXPanel.Create(Self);
   lPanel.Align := alLeft;
-  lPanel.Width := 560;
-  FEditor := TNXMemo.Create(lPanel);
+  lPanel.Width := 760;
+  FEditor := TNXScriptEditor.Create(lPanel);
   FEditor.Align := alClient;
-  FEditor.OnChange := @EditorChanged;
+  FEditor.FontDesc := 'Arial-11';
+  FEditor.DefaultNodeHeight := 28;
+  FEditor.Header.Height := 32;
+  FEditor.Header.Columns[0].Width := 220;
+  FEditor.Header.Columns[1].Width := 380;
+  FEditor.Header.Columns[2].Width := 120;
+  FEditor.OnDocumentChanged := @EditorChanged;
+  FEditor.OnEditRejected := @EditRejected;
 
-  FStructure := TNXPackageManagerStructure.Create(Self);
-  FStructure.Align := alClient;
-  FStructure.Header.Columns[0].Width := 520;
+  FSource := TNXMemo.Create(Self);
+  FSource.Align := alClient;
+  FSource.ReadOnly := True;
+  FSource.FontDesc := 'Courier New-10';
   RefreshDisplay;
 end;
 
 function TNXPackageManagerMainForm.ConfirmDiscard: Boolean;
 begin
-  Result := not FDocument.Dirty or
+  if not FEditor.EndEditNode then Exit(False);
+  Result := not FEditor.Document.Dirty or
     (TfpgMessageDialog.Question('Unsaved changes',
       'Discard the unsaved source changes?') = mbYes);
 end;
@@ -158,31 +172,28 @@ begin
   TfpgMessageDialog.Critical('NexusPackageManager', AMessage);
 end;
 
-procedure TNXPackageManagerMainForm.EditorChanged(Sender: TObject);
+procedure TNXPackageManagerMainForm.EditorChanged(ASender: TObject);
 begin
-  if FLoading then Exit;
-  FDocument.SourceText := FEditor.Text;
+  FValidation.LoadSource(FEditor.Document.SourceName, FEditor.Document.SourceText);
+  FValidation.Validate;
   RefreshDisplay;
+end;
+
+procedure TNXPackageManagerMainForm.EditRejected(ASender: TObject);
+begin
+  FDiagnostics.Text := FEditor.Document.Diagnostics.Text;
 end;
 
 procedure TNXPackageManagerMainForm.OpenFile(const AFileName: string);
 begin
   try
-    FDocument.Load(AFileName);
-    FLoading := True;
-    try
-      FEditor.Text := FDocument.SourceText;
-    finally
-      FLoading := False;
-    end;
-    FDocument.Validate;
-    RefreshDisplay;
+    FEditor.LoadFile(AFileName);
   except
     on E: Exception do ShowError(E.Message);
   end;
 end;
 
-procedure TNXPackageManagerMainForm.OpenClicked(Sender: TObject);
+procedure TNXPackageManagerMainForm.OpenClicked(ASender: TObject);
 var
   lDialog: TNXFileDialog;
 begin
@@ -190,8 +201,8 @@ begin
   lDialog := TNXFileDialog.Create(Self);
   try
     lDialog.Filter := 'NexusScript|*.nxscript|All files|*.*';
-    if FDocument.FileName <> '' then
-      lDialog.InitialDir := ExtractFileDir(FDocument.FileName);
+    if FEditor.Document.SourceName <> '' then
+      lDialog.InitialDir := ExtractFileDir(FEditor.Document.SourceName);
     if lDialog.RunOpenFile then
       OpenFile(lDialog.FileName);
   finally
@@ -199,27 +210,30 @@ begin
   end;
 end;
 
-procedure TNXPackageManagerMainForm.ReloadClicked(Sender: TObject);
+procedure TNXPackageManagerMainForm.ReloadClicked(ASender: TObject);
 begin
-  if (FDocument.FileName <> '') and ConfirmDiscard then
-    OpenFile(FDocument.FileName);
+  if (FEditor.Document.SourceName <> '') and ConfirmDiscard then
+    OpenFile(FEditor.Document.SourceName);
 end;
 
-procedure TNXPackageManagerMainForm.SaveClicked(Sender: TObject);
+procedure TNXPackageManagerMainForm.SaveClicked(ASender: TObject);
 begin
+  if not FEditor.EndEditNode then Exit;
   try
-    FDocument.Save;
+    FEditor.Document.Save;
     RefreshDisplay;
   except
     on E: Exception do ShowError(E.Message);
   end;
 end;
 
-procedure TNXPackageManagerMainForm.ValidateClicked(Sender: TObject);
+procedure TNXPackageManagerMainForm.ValidateClicked(ASender: TObject);
 begin
+  if not FEditor.EndEditNode then Exit;
   try
-    FDocument.Validate;
-    RefreshDisplay;
+    if FEditor.Document.SourceName = '' then
+      raise Exception.Create('No document is open');
+    EditorChanged(Self);
   except
     on E: Exception do ShowError(E.Message);
   end;
@@ -230,15 +244,15 @@ var
   lTitle: string;
 begin
   lTitle := 'NexusPackageManager';
-  if FDocument.FileName <> '' then
+  if FEditor.Document.SourceName <> '' then
   begin
-    lTitle := lTitle + ' - ' + ExtractFileName(FDocument.FileName);
-    if FDocument.Dirty then lTitle := lTitle + ' *';
+    lTitle := lTitle + ' - ' + ExtractFileName(FEditor.Document.SourceName);
+    if FEditor.Document.Dirty then lTitle := lTitle + ' *';
   end;
   WindowTitle := lTitle;
-  FPathLabel.Text := FDocument.EntityType + '  ' + FDocument.FileName;
-  FDiagnostics.Text := FDocument.Diagnostics.Text;
-  FStructure.LoadDocument(FDocument.CompiledDocument);
+  FPathLabel.Text := FValidation.EntityType + '  ' + FEditor.Document.SourceName;
+  FDiagnostics.Text := FValidation.Diagnostics.Text;
+  FSource.Text := FEditor.Document.SourceText;
 end;
 
 procedure RunNexusPackageManager;

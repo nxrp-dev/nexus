@@ -46,7 +46,8 @@ expanded. `BeginUpdate` / `EndUpdate` coalesce layout and change notification.
   owner-drawn cells.
 - Mouse and keyboard selection, multi-selection, range selection, incremental
   search, native scrolling, checkbox/radio states, and optional tristate tracking.
-- Inline fpGUI text editing through `OnNewText`.
+- Inline fpGUI text editing through `OnNewText`, with protected hooks for
+  per-cell edit permission, initial text, finite choices, and commit validation.
 - fpGUI fonts, named colors, checkbox/radio drawing, and focus drawing. This
   uses the active fpGUI style, including TNXSkin, but adds no Lua render handler.
 
@@ -54,6 +55,15 @@ This is not complete upstream API parity. Drag/drop, structured clipboard data,
 streaming, printing, accessibility, fixed/reordered columns, animated expansion,
 and multiline cell layout have not been ported. Unsupported options are not
 offered as inert compatibility switches.
+
+`EndEditNode` returns `False` when a descendant rejects a commit and leaves the
+editor open for correction. `CancelEditNode` discards the pending value.
+Choice and text editors share the native lifecycle; focus-exit notifications
+from an inactive editor cannot commit a newly opened cell. Commit callbacks may
+rebuild the tree, so callers must reacquire node pointers after accepted edits.
+
+`../obNXScriptEditor.pas` uses these hooks for dialect-driven structural editing;
+see `../../examples/nxscript-editor/README.md` for its interface and boundaries.
 
 ## Verification
 
@@ -64,7 +74,9 @@ initialization and viewport painting with 100,000 roots.
 
 The runner calls `fpgApplication.Initialize` once before executing tests;
 fpGUI's `IsInitialized` flag describes backend readiness, not toolkit setup.
-The checked Win64 run passes all 17 tests with no heap leaks.
+The checked Win64 run passes all 19 tests with no heap leaks. Wheel-scrolling
+checks cover both axes, repeated/reverse scrolling, range clamping, content
+coordinates, and row/header hit testing.
 
 For an interactive TNXSkin demonstration, build and run
 `../../examples/virtual-treeview/NexusVirtualTreeViewDemo.lpi`. It provides

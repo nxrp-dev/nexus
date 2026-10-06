@@ -11,4 +11,23 @@
 
 dialect "../language/PackageManager.Language.nxscript";
 
-PackageIndex Example {}
+// Illustrative nexus-packages universe, not a verified inventory or source address.
+PackageIndex NexusPackages {
+    TrustedRepository ExternalPackages {
+        Source: "<canonical source-control address of nexus-packages-ext>";
+    }
+    LocalPackage NexusScript {
+        Id: "NXRP.NexusScript";
+        Descriptor: "Package.nxscript";
+        Version: "1.0";
+        Description: "Illustrative NexusScript package descriptor.";
+    }
+    LocalPackage NexusLib {
+        Id: "NXRP.NexusLib";
+        Descriptor: "unavailable/NexusLib/Package.nxscript";
+    }
+    ExternalPackage SQLite {
+        Id: "SQLite.SQLite";
+        Repository: @NexusPackages.ExternalPackages;
+    }
+}

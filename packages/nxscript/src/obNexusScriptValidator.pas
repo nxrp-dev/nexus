@@ -425,6 +425,8 @@ begin
       if (lArray <> nil) and (lArray.Kind = nsvArray) then
         for lItem in lArray.Items do
         begin
+          { A reference projects a target; it does not declare a child here. }
+          if lItem.Kind = nsvReference then Continue;
           lChild := StructuralDefinition(lItem);
           if (lChild <> nil) and (lContained.IndexOf(lChild) < 0) then
             lContained.Add(lChild);

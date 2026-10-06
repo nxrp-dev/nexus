@@ -72,7 +72,6 @@ $SourceExtensions = @(
   '.lua',
   '.md',
   '.mustache',
-  '.nxtask',
   '.nxscript',
   '.nxs',
   '.pas',

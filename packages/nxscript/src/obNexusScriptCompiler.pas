@@ -336,6 +336,7 @@ var
   lText: string;
   lEntry: TNexusScriptSourceValue;
   lEntryName: string;
+  lEntryNameRange: TNexusScriptRange;
   lResultRange: TNexusScriptRange;
 
   function StartsInlineDefinition: Boolean;
@@ -421,10 +422,12 @@ begin
       (Current.Kind <> nstEndOfFile) do
     begin
       lEntryName := '';
+      lEntryNameRange := Default(TNexusScriptRange);
       if (Current.Kind = nstWord) and (FIndex + 1 < FTokens.Count) and
         (FTokens[FIndex + 1].Kind = nstColon) then
       begin
         lEntryName := Current.Text;
+        lEntryNameRange := Current.SourceRange;
         Inc(FIndex, 2);
       end;
       if StartsInlineDefinition then
@@ -436,6 +439,7 @@ begin
       else
         lEntry := ParseValue([nstComma, nstRightBracket]);
       lEntry.EntryName := lEntryName;
+      lEntry.EntryNameRange := lEntryNameRange;
       Result.Items.Add(lEntry);
       if not Match(nstComma) then
       begin

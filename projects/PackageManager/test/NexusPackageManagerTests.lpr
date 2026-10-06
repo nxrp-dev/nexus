@@ -16,7 +16,8 @@ program NexusPackageManagerTests;
 {$mode objfpc}{$H+}
 
 uses
-  fpg_main, obNXTestRegistry, obNXTestSuite, obNXTestResult, tsNXPackageManagerTests;
+  fpg_main, obNXTestRegistry, obNXTestSuite, obNXTestResult,
+  tsNXPackageManagerTests, tsNXPackageModelTests;
 
 var
   lRegistry: TNXTestRegistry;
@@ -29,6 +30,8 @@ begin
   lFailed := 0;
   try
     RegisterPackageManagerTests(lRegistry);
+    RegisterPackageModelTests(lRegistry);
+    WriteLn('Paused: earlier PackageModel.Dependencies fixture (owner-requested; not executed).');
     for lSuite := 0 to lRegistry.SuiteCount - 1 do
       for lTest := 0 to lRegistry.Suites[lSuite].TestCount - 1 do
       begin

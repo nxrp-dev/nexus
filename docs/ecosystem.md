@@ -9,7 +9,7 @@ Nexus is organized as a family of related Pascal projects.
 - `packages/lsp`: standard LSP values and language-neutral server process infrastructure.
 - `NexusTools/LS`: Pascal language-server executable, requests, documents, and services.
 - `projects/nxscript`: NexusScript core, artifact and CLI tooling, plus the dedicated NexusScriptLS lifecycle/document shell.
-- `NexusTools`: framework-related tools, including NexusBuild, NexusTask, NexusTest, and NexusLS.
+- `NexusTools`: framework-related tools, including NexusBuild, NexusTest, and NexusLS.
 - `NexusLib`: shared JSON, JSON-RPC/LSP, persistence, command-line, and support code.
 - `scripts`: repository automation used by builds, archives, notifications, and development workflow.
 - `codec`: legacy or supporting code; document it only where it is intentionally part of the current architecture.

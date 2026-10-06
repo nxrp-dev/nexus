@@ -114,6 +114,7 @@ type
     FItems: TNexusScriptSourceValueList;
     FSourceRange: TNexusScriptRange;
     FEntryName: string;
+    FEntryNameRange: TNexusScriptRange;
     FInlineDefinition: TNexusScriptSourceDefinition;
     FReferenceRanges: TNexusScriptRangeList;
   public
@@ -126,6 +127,7 @@ type
     property Items: TNexusScriptSourceValueList read FItems;
     property SourceRange: TNexusScriptRange read FSourceRange write FSourceRange;
     property EntryName: string read FEntryName write FEntryName;
+    property EntryNameRange: TNexusScriptRange read FEntryNameRange write FEntryNameRange;
     property InlineDefinition: TNexusScriptSourceDefinition
       read FInlineDefinition write FInlineDefinition;
     property ReferenceRanges: TNexusScriptRangeList read FReferenceRanges;

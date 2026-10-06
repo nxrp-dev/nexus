@@ -10,14 +10,11 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../language/PackageManager.Language.nxscript";
-module NexusPackages "PackageIndex.nxscript";
 
+// Illustrative external package, not a description of an actual packaged release.
 Package Example {
-    Id: "NXRP.NexusScript";
-    Version: "1.0";
-    Author: "Kevin Collins";
-    Description: "Illustrative NexusScript package descriptor.";
-    License: "MPL-2.0-no-copyleft-exception";
-    // SQLite is an illustrative external requirement, not actual package inventory.
-    Requires: [@NexusPackages.NexusLib, @NexusPackages.SQLite];
+    Id: "SQLite.SQLite";
+    Author: "External author (illustrative)";
+    Description: "Hosted in nexus-packages-ext without changing its identity.";
+    License: "External license (illustrative)";
 }
