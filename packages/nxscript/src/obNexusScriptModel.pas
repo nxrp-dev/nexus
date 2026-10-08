@@ -303,6 +303,8 @@ type
       const ASourceRange: TNexusScriptRange);
     destructor Destroy; override;
     function FindNamedItem(const AName: string): TNexusScriptCompiledValue;
+    function SemanticValue: TNexusScriptCompiledValue;
+    function DefinitionValue: TNexusScriptCompiledDefinition;
     property ImportBinding: TNexusScriptCompiledValue read FImportBinding write FImportBinding;
     property Kind: TNexusScriptValueKind read FKind write FKind;
     property SourceText: string read FSourceText write FSourceText;
@@ -740,6 +742,29 @@ begin
   for lItem in FItems do
     if SameText(lItem.EffectiveName, AName) then
       Exit(lItem);
+end;
+
+function TNexusScriptCompiledValue.SemanticValue: TNexusScriptCompiledValue;
+begin
+  Result := Self;
+  while True do
+    if (Result.Kind = nsvReference) and (Result.ResolvedValue <> nil) then
+      Result := Result.ResolvedValue
+    else if (Result.Kind = nsvReference) and (Result.ResolvedProperty <> nil) then
+      Result := Result.ResolvedProperty.Value
+    else if Result.EffectiveValue <> nil then
+      Result := Result.EffectiveValue
+    else
+      Exit;
+end;
+
+function TNexusScriptCompiledValue.DefinitionValue: TNexusScriptCompiledDefinition;
+var
+  lValue: TNexusScriptCompiledValue;
+begin
+  lValue := SemanticValue;
+  Result := lValue.StructuralDefinition;
+  if Result = nil then Result := lValue.ResolvedDefinition;
 end;
 
 constructor TNexusScriptCompiledProperty.Create(const AName: string;

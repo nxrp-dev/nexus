@@ -5,10 +5,10 @@ The NexusTest UI is the fpGUI presentation application for the reusable NexusTes
 It consumes:
 
 - `packages/nxtest/src`
-- `packages/gui/src`
-- `packages/gui/external/fpgui`
-- `packages/foundation/serialization/src`
-- `packages/foundation/serialization/json/src`
+- `packages2/nexus-packages/gui/src`
+- `packages2/nexus-packages/gui/external/fpgui`
+- `packages2/nexus-packages/serialization/src`
+- `packages2/nexus-packages/serialization/json/src`
 - `packages/network/json-rpc/src`
 - `NexusLib/core/src`
 

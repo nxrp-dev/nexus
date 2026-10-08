@@ -1205,104 +1205,9 @@ begin
       ADetachSource));
 end;
 
-function IsScalarProjectionValue(AValue: TNexusScriptCompiledValue): Boolean;
-var
-  lItem: TNexusScriptCompiledValue;
-  lContributor: TNexusScriptCompiledValue;
-begin
-  if AValue.Kind = nsvArray then
-  begin
-    if AValue.ArrayPreparationState <> nsapsPrepared then
-      for lContributor in AValue.CompositionContributors do
-        if not IsScalarProjectionValue(lContributor) then
-          Exit(False);
-    for lItem in AValue.Items do
-      if not IsScalarProjectionValue(lItem) then
-        Exit(False);
-    Exit(True);
-  end;
-  Result := (AValue.Kind <> nsvDefinition) and
-    (AValue.StructuralDefinition = nil) and
-    (AValue.ResolvedDefinition = nil);
-end;
-
-function CloneReferenceProjection(ASource: TNexusScriptCompiledDefinition;
-  AParent: TNexusScriptCompiledDefinition;
-  const AName: string): TNexusScriptCompiledDefinition; forward;
-
-function CloneProjectionValue(AValue: TNexusScriptCompiledValue;
-  AParent: TNexusScriptCompiledDefinition): TNexusScriptCompiledValue;
-var
-  lItem: TNexusScriptCompiledValue;
-  lContributor: TNexusScriptCompiledValue;
-begin
-  Result := TNexusScriptCompiledValue.Create(AValue.Kind, AValue.SourceRange);
-  Result.SourceText := AValue.SourceText;
-  Result.ImportBinding := AValue.ImportBinding;
-  Result.ReferenceRanges.AddRange(AValue.ReferenceRanges);
-  Result.EntryName := AValue.EntryName;
-  Result.EffectiveName := AValue.EffectiveName;
-  Result.OriginalDefinitionName := AValue.OriginalDefinitionName;
-  Result.InlineSourceDefinition := AValue.InlineSourceDefinition;
-  Result.EffectiveText := AValue.EffectiveText;
-  Result.HasEffectiveText := AValue.HasEffectiveText;
-  Result.ResolvedDefinition := AValue.ResolvedDefinition;
-  Result.ResolvedProperty := AValue.ResolvedProperty;
-  Result.ResolvedValue := AValue.ResolvedValue;
-  if AValue.EvaluationState = nsvesCompleted then
-    Result.EvaluationState := nsvesCompleted
-  else if AValue.EvaluationState = nsvesFailed then
-    Result.EvaluationState := nsvesFailed;
-  if AValue.ArrayPreparationState = nsapsPrepared then
-    Result.ArrayPreparationState := nsapsPrepared
-  else if AValue.ArrayPreparationState = nsapsFailed then
-    Result.ArrayPreparationState := nsapsFailed;
-  if AValue.EffectiveValue <> nil then
-    Result.EffectiveValue := CloneValue(AValue.EffectiveValue);
-  if AValue.StructuralDefinition <> nil then
-    Result.StructuralDefinition := CloneReferenceProjection(
-      AValue.StructuralDefinition, AParent,
-      AValue.StructuralDefinition.Name);
-  for lItem in AValue.Items do
-    Result.Items.Add(CloneProjectionValue(lItem, AParent));
-  for lContributor in AValue.CompositionContributors do
-    Result.CompositionContributors.Add(CloneValue(lContributor));
-end;
-
-function CloneReferenceProjection(ASource: TNexusScriptCompiledDefinition;
-  AParent: TNexusScriptCompiledDefinition;
-  const AName: string): TNexusScriptCompiledDefinition;
-var
-  lProperty: TNexusScriptCompiledProperty;
-  lChild: TNexusScriptCompiledDefinition;
-begin
-  Result := TNexusScriptCompiledDefinition.Create(ASource.Kind, AName,
-    ASource.SourceRange);
-  Result.ImportedRoot := ASource.ImportedRoot;
-  Result.Parent := AParent;
-  Result.SourceDefinition := ASource.SourceDefinition;
-  Result.Composed := ASource.Composed;
-  Result.Targets.Assign(ASource.Targets);
-  for lProperty in ASource.Properties do
-  begin
-    if lProperty.Resolving then
-      Continue;
-    if (lProperty.Value.Kind = nsvArray) and
-      not IsScalarProjectionValue(lProperty.Value) then
-      Continue;
-    Result.Properties.Add(TNexusScriptCompiledProperty.Create(lProperty.Name,
-      CloneProjectionValue(lProperty.Value, Result), lProperty.SourceRange));
-    CopyContributorRanges(lProperty,
-      Result.Properties[Result.Properties.Count - 1]);
-  end;
-  for lChild in ASource.Children do
-    Result.Children.Add(CloneReferenceProjection(lChild, Result, lChild.Name));
-end;
-
 procedure TNexusScriptCompiler.CompileSource;
 var
   lSourceDefinition: TNexusScriptSourceDefinition;
-  lMaterializingDefinitions: TList<TNexusScriptCompiledDefinition>;
 
   function EvaluateProperty(AScope: TNexusScriptCompiledDefinition;
     AProperty: TNexusScriptCompiledProperty): Boolean; forward;
@@ -1329,9 +1234,9 @@ var
     lProperty := AScope.FindProperty(AName);
     if lProperty <> nil then
     begin
-      if lProperty.Value.StructuralDefinition = nil then
+      if lProperty.Value.DefinitionValue = nil then
         EvaluateProperty(AScope, lProperty);
-      Result := lProperty.Value.StructuralDefinition;
+      Result := lProperty.Value.DefinitionValue;
     end;
   end;
 
@@ -1347,9 +1252,9 @@ var
     lProperty := AScope.FindProperty(AName);
     if lProperty <> nil then
     begin
-      if lProperty.Value.StructuralDefinition = nil then
+      if lProperty.Value.DefinitionValue = nil then
         EvaluateProperty(AScope, lProperty);
-      Result := lProperty.Value.StructuralDefinition;
+      Result := lProperty.Value.DefinitionValue;
     end;
   end;
 
@@ -1683,9 +1588,9 @@ var
               ADirectValue := lArrayItem;
               Exit(True);
             end;
-            if lArrayItem.StructuralDefinition = nil then
+            if lArrayItem.DefinitionValue = nil then
               Exit;
-            Exit(ResolveDown(lArrayItem.StructuralDefinition, AIndex + 2));
+            Exit(ResolveDown(lArrayItem.DefinitionValue, AIndex + 2));
           end;
         end;
         if not EvaluateProperty(ACurrentScope, lMemberProperty) then
@@ -1694,13 +1599,8 @@ var
           APropertyOwner := ACurrentScope;
           Exit(True);
         end;
-        if lMemberProperty.Value.StructuralDefinition <> nil then
-          Exit(ResolveDown(lMemberProperty.Value.StructuralDefinition,
-            AIndex + 1));
-        if (lMemberProperty.Value.EffectiveValue <> nil) and
-          (lMemberProperty.Value.EffectiveValue.StructuralDefinition <> nil) then
-          Exit(ResolveDown(
-            lMemberProperty.Value.EffectiveValue.StructuralDefinition,
+        if lMemberProperty.Value.DefinitionValue <> nil then
+          Exit(ResolveDown(lMemberProperty.Value.DefinitionValue,
             AIndex + 1));
         Exit;
       end;
@@ -2006,54 +1906,6 @@ var
     end;
   end;
 
-  function PrepareReferenceProjection(
-    ADefinition: TNexusScriptCompiledDefinition): Boolean;
-  var
-    lProperty: TNexusScriptCompiledProperty;
-    lChild: TNexusScriptCompiledDefinition;
-  begin
-    Result := False;
-    for lProperty in ADefinition.Properties do
-    begin
-      if lProperty.Resolving then
-      begin
-        if (lProperty.Value.Kind = nsvArray) and
-          not IsScalarProjectionValue(lProperty.Value) then
-          Continue;
-        Exit;
-      end;
-      if lProperty.Value.EvaluationState <> nsvesCompleted then
-        if not EvaluateProperty(ADefinition, lProperty) then
-          Exit;
-      if (lProperty.Value.Kind = nsvArray) and
-        not IsScalarProjectionValue(lProperty.Value) then
-        Continue;
-      if (lProperty.Value.Kind = nsvReference) and
-        (lProperty.Value.ResolvedDefinition <> nil) and
-        (lProperty.Value.StructuralDefinition = nil) then
-        Exit;
-      if (lProperty.Value.StructuralDefinition <> nil) and
-        not PrepareReferenceProjection(
-          lProperty.Value.StructuralDefinition) then
-        Exit;
-    end;
-    for lChild in ADefinition.Children do
-      if not PrepareReferenceProjection(lChild) then
-        Exit;
-    Result := True;
-  end;
-
-  function DefinitionIsBinding(
-    ADefinition: TNexusScriptCompiledDefinition): Boolean;
-  var
-    lProperty: TNexusScriptCompiledProperty;
-  begin
-    Result := False;
-    for lProperty in ADefinition.Properties do
-      if lProperty.Resolving then
-        Exit(True);
-  end;
-
   function EvaluateValue(AScope: TNexusScriptCompiledDefinition;
     AValue: TNexusScriptCompiledValue;
     const AReceiverName: string): Boolean;
@@ -2128,14 +1980,11 @@ var
           AValue.ResolvedValue := lDirectValue;
           if lDirectValue <> nil then
           begin
-            if (lDirectValue.EvaluationState = nsvesResolving) and
-              (lDirectValue.Kind = nsvDefinition) and
+            if (lDirectValue.Kind = nsvDefinition) and
               (lDirectValue.StructuralDefinition <> nil) then
             begin
               AValue.ResolvedDefinition :=
                 lDirectValue.StructuralDefinition;
-              AValue.StructuralDefinition := CloneReferenceProjection(
-                lDirectValue.StructuralDefinition, AScope, AReceiverName);
               AValue.OriginalDefinitionName :=
                 lDirectValue.OriginalDefinitionName;
               AValue.EffectiveName := AReceiverName;
@@ -2149,8 +1998,7 @@ var
               Exit;
             AValue.EffectiveText := lDirectValue.EffectiveText;
             AValue.HasEffectiveText := lDirectValue.HasEffectiveText;
-            AValue.ResolvedProperty := lDirectValue.ResolvedProperty;
-            AValue.ResolvedDefinition := lDirectValue.ResolvedDefinition;
+            AValue.ResolvedDefinition := lDirectValue.DefinitionValue;
             AValue.EffectiveValue.Free;
             AValue.EffectiveValue := nil;
             if lDirectValue.EffectiveValue <> nil then
@@ -2158,18 +2006,25 @@ var
                 lDirectValue.EffectiveValue)
             else if lDirectValue.Kind = nsvArray then
               AValue.EffectiveValue := CloneValue(lDirectValue);
-            if lDirectValue.StructuralDefinition <> nil then
+            if lDirectValue.DefinitionValue <> nil then
             begin
-              AValue.StructuralDefinition := CloneReferenceProjection(
-                lDirectValue.StructuralDefinition, AScope, AReceiverName);
               AValue.OriginalDefinitionName :=
                 lDirectValue.OriginalDefinitionName;
             end;
+            AValue.EffectiveName := AReceiverName;
             Result := True;
             Exit;
           end;
           if lProperty <> nil then
           begin
+            if (lProperty.Value.Kind = nsvDefinition) and
+              (lProperty.Value.StructuralDefinition <> nil) then
+            begin
+              AValue.ResolvedDefinition := lProperty.Value.StructuralDefinition;
+              AValue.OriginalDefinitionName := lProperty.Value.OriginalDefinitionName;
+              AValue.EffectiveName := AReceiverName;
+              Exit(True);
+            end;
             if not EvaluateProperty(lPropertyOwner, lProperty) then
               Exit;
             AValue.EffectiveText := lProperty.Value.EffectiveText;
@@ -2181,59 +2036,21 @@ var
                 lProperty.Value.EffectiveValue)
             else if lProperty.Value.Kind = nsvArray then
               AValue.EffectiveValue := CloneValue(lProperty.Value);
-            if lProperty.Value.StructuralDefinition <> nil then
+            if lProperty.Value.DefinitionValue <> nil then
             begin
-              AValue.StructuralDefinition := CloneReferenceProjection(
-                lProperty.Value.StructuralDefinition, AScope, AReceiverName);
-              AValue.ResolvedDefinition := lProperty.Value.ResolvedDefinition;
+              AValue.ResolvedDefinition := lProperty.Value.DefinitionValue;
               AValue.OriginalDefinitionName :=
                 lProperty.Value.OriginalDefinitionName;
-              AValue.EffectiveName := AReceiverName;
             end;
+            AValue.EffectiveName := AReceiverName;
             Result := True;
           end;
           if lDefinition <> nil then
           begin
-            if AValue.StructuralDefinition <> nil then
-            begin
-              Result := True;
-              Exit;
-            end;
-            if (lMaterializingDefinitions.IndexOf(lDefinition) >= 0) or
-              DefinitionIsBinding(lDefinition) then
-            begin
-              if PrepareReferenceProjection(lDefinition) then
-              begin
-                lEffectiveName := AReceiverName;
-                if lEffectiveName = '' then
-                  lEffectiveName := lDefinition.Name;
-                AValue.StructuralDefinition := CloneReferenceProjection(
-                  lDefinition, AScope, lEffectiveName);
-                AValue.EffectiveName := lEffectiveName;
-                AValue.OriginalDefinitionName := lDefinition.Name;
-                Result := True;
-              end
-              else
-                AddError('NXS5004', 'Structural reference cycle at @' +
-                  AValue.SourceText, AValue.SourceRange);
-              Exit;
-            end;
-            lMaterializingDefinitions.Add(lDefinition);
-            try
-              if not BindDefinition(lDefinition) then
-                Exit;
-              lEffectiveName := AReceiverName;
-              if lEffectiveName = '' then
-                lEffectiveName := lDefinition.Name;
-              AValue.StructuralDefinition := CloneReferenceProjection(
-                lDefinition, AScope, lEffectiveName);
-              AValue.EffectiveName := lEffectiveName;
-              AValue.OriginalDefinitionName := lDefinition.Name;
-              Result := True;
-            finally
-              lMaterializingDefinitions.Delete(
-                lMaterializingDefinitions.Count - 1);
-            end;
+            AValue.EffectiveName := AReceiverName;
+            if AValue.EffectiveName = '' then AValue.EffectiveName := lDefinition.Name;
+            AValue.OriginalDefinitionName := lDefinition.Name;
+            Result := True;
           end;
         end;
       nsvTextComposition:
@@ -2307,8 +2124,6 @@ var
       MarkComposed(lChild);
   end;
 begin
-  lMaterializingDefinitions := TList<TNexusScriptCompiledDefinition>.Create;
-  try
   for lImportedDefinition in FImportedDefinitions do
   begin
     if FCompiledDocument.FindDefinition(lImportedDefinition.Name) <> nil then
@@ -2347,11 +2162,7 @@ begin
   for lCompiledDefinition in FCompiledDocument.Definitions do
     Compose(lCompiledDefinition);
   for lCompiledDefinition in FCompiledDocument.Definitions do
-    if not lCompiledDefinition.ImportedRoot then
-      BindDefinition(lCompiledDefinition);
-  finally
-    lMaterializingDefinitions.Free;
-  end;
+    BindDefinition(lCompiledDefinition);
 end;
 
 procedure TNexusScriptCompiler.ClearImports;

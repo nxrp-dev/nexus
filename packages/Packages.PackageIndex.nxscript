@@ -18,7 +18,6 @@ PackageIndex NexusPackages {
         "foundation/serialization",
         "foundation/serialization/delimited-text",
         "foundation/serialization/json",
-        "gui",
         "lsp",
         "lua",
         "network",

@@ -1,0 +1,59 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../../language/Setup.Language.nxscript";
+
+Product Nexus {
+    Id: "NexusRP.Nexus";
+    Name: "Nexus";
+    Version: "2026.10";
+    Publisher: "Kevin Collins";
+    Description: "Native Setup graph fixture; not a distribution manifest.";
+
+    Location Application { Kind: ApplicationRoot; }
+    Location Documentation { Kind: Derived; Base: @Nexus.Application; Path: "doc"; }
+    Location Menu { Kind: ApplicationsMenu; }
+
+    Feature Runtime {
+        Required: True;
+        File Readme { Source: "../../../../README.md"; Location: @Nexus.Application; Path: "README.md"; }
+        Shortcut LaunchReadme { Name: "Nexus"; Location: @Nexus.Menu; Target: @Nexus.Application; Path: "README.md"; }
+        Shortcut Documentation { Name: "Documentation"; Location: @Nexus.Menu; Target: @Nexus.Documentation; Path: "index.html"; }
+    }
+    Feature Language {
+        Default: True;
+        Requires: [@Nexus.Runtime, @Nexus.Editor];
+        Directory Definitions { Source: "../../../../packages/nxscript/language"; Location: @Nexus.Application; Path: "language"; }
+    }
+    Feature Editor {
+        Requires: [@Nexus.Language, @Nexus.NexusPascal];
+    }
+    Feature Compilers {
+        ChildMode: Exclusive;
+        Feature Stable {}
+        Feature Development {}
+    }
+    Feature Optional {
+        File Example { Source: "not-selected.txt"; Location: @Nexus.Application; Path: "optional.txt"; }
+    }
+    Dependency VSCode {
+        Ownership: Shared;
+        Web Download { Source: "https://code.visualstudio.com/"; }
+        Exe Install {}
+    }
+    Dependency NexusPascal {
+        Ownership: Owned;
+        Requires: [@Nexus.VSCode];
+        Payload Package { Source: "NexusPascal.vsix"; }
+        VSIX Install {}
+    }
+}
+

@@ -48,7 +48,8 @@ uses
   obNexusScriptCommand,
   obNexusScriptLanguageDefinition,
   obNexusScriptValidator,
-  SQLite3Dyn;
+  SQLite3Dyn,
+  tsNexusScriptLiveTests;
 
 procedure TestStructureAndValues(AContext: TNXTestContext);
 var
@@ -157,9 +158,9 @@ begin
       lRelease.FindChild('MailSettings').Targets[0].Values[0],
       'A composed child clone should retain its own local Targets.');
     AContext.AssertEquals('NestedTarget', lRoot.FindProperty('Alias').Value.
-      StructuralDefinition.Targets[0].Values[0],
+      DefinitionValue.Targets[0].Values[0],
       'Structural references should preserve represented-definition Targets.');
-    lInline := lRoot.FindProperty('Items').Value.Items[0].StructuralDefinition;
+    lInline := lRoot.FindProperty('Items').Value.Items[0].DefinitionValue;
     AContext.AssertEquals('InlineTarget', lInline.Targets[0].Values[0],
       'Targeted inline definitions should be recognized and preserved.');
 
@@ -325,7 +326,7 @@ begin
         lRoot.FindProperty('Items').Value.Items.Count,
         'A nonmatching inline definition should be removed from its array.');
       AContext.AssertEquals('DevInline', lRoot.FindProperty('Items').Value.
-        Items[1].StructuralDefinition.Name,
+        Items[1].DefinitionValue.Name,
         'The retained inline array entries should not contain placeholders.');
       AContext.AssertEquals('Dev', lCompiler.CompiledDocument.FindDefinition(
         'DevOnly').Targets[0].Values[0],
@@ -2344,7 +2345,7 @@ begin
     lCatalogDefinition := lCompiler.CompiledDocument.FindDefinition('Catalog');
     lChildDefinition := lCatalogDefinition.FindChild('Child');
     lInlineDefinition := lCatalogDefinition.FindProperty('Values').Value.
-      Items[3].StructuralDefinition;
+      Items[3].DefinitionValue;
     lEmitter.AddDocument(lCompiler.CompiledDocument);
 
     AContext.AssertTrue(lOtherCompiler.CompileText('other.nxscript',
@@ -3352,15 +3353,14 @@ begin
       'Imported child definitions should detach producer source objects.');
     lReference := lCompiler.CompiledDocument.FindDefinition('Library').
       FindChild('Child').FindProperty('PeerReference').Value;
-    AContext.AssertTrue((lReference.ResolvedDefinition = nil) and
-      (lReference.ResolvedProperty = nil) and
-      (lReference.ResolvedValue = nil),
-      'Imported values should not retain producer resolution objects.');
+    AContext.AssertTrue(lReference.ResolvedDefinition =
+      lCompiler.CompiledDocument.FindDefinition('Library').FindChild('Child').FindChild('Peer'),
+      'Imported references should bind to the receiving graph, not producer objects.');
     lReference := lCompiler.CompiledDocument.FindDefinition('Library').
       FindChild('Child').FindProperty('Embedded').Value.Items[0];
     AContext.AssertTrue(lReference.InlineSourceDefinition = nil,
       'Imported values should not retain producer inline source objects.');
-    AContext.AssertTrue(lReference.StructuralDefinition.SourceDefinition = nil,
+    AContext.AssertTrue(lReference.DefinitionValue.SourceDefinition = nil,
       'Imported inline definitions should detach producer source objects.');
     lResult := lCompiler.CompiledDocument.FindDefinition('Local');
     lChild := lResult.FindChild('Child');
@@ -3375,7 +3375,7 @@ begin
     AContext.AssertTrue(lReference.ResolvedDefinition =
       lChild.FindChild('Peer'),
       'A transferred reference should resolve into the receiving graph.');
-    AContext.AssertEquals('library', lReference.StructuralDefinition.
+    AContext.AssertEquals('library', lReference.DefinitionValue.
       FindProperty('Value').Value.EffectiveText,
       'A transferred reference projection should use the cloned member.');
 
@@ -3426,23 +3426,25 @@ begin
     lAlias := lRoot.FindProperty('Alias').Value;
     AContext.AssertTrue(lAlias.ResolvedDefinition = lRoot.FindChild('Base'),
       'Structural value should retain target provenance.');
-    AContext.AssertTrue(lAlias.StructuralDefinition <> nil,
-      'Definition reference should materialize an owned structure.');
-    AContext.AssertEquals('Alias', lAlias.StructuralDefinition.Name,
-      'Materialized structure should use the receiving property name.');
-    AContext.AssertEquals('Thing', lAlias.StructuralDefinition.Kind,
+    AContext.AssertTrue(lAlias.DefinitionValue = lRoot.FindChild('Base'),
+      'Definition reference should expose its actual target without copying.');
+    AContext.AssertTrue(lAlias.StructuralDefinition = nil,
+      'Reference values must not own projections of their targets.');
+    AContext.AssertEquals('Alias', lAlias.EffectiveName,
+      'The reference occurrence retains the receiving property name.');
+    AContext.AssertEquals('Thing', lAlias.DefinitionValue.Kind,
       'Materialized structure should preserve target kind.');
     AContext.AssertEquals('nested',
       lRoot.FindProperty('NestedValue').Value.EffectiveText,
       'Qualified lookup should traverse a materialized structure.');
     AContext.AssertEquals('composed',
-      lRoot.FindProperty('Composed').Value.StructuralDefinition.
+      lRoot.FindProperty('Composed').Value.DefinitionValue.
         FindProperty('Added').Value.EffectiveText,
       'Materialization should use the effective composed target.');
-    AContext.AssertTrue(not lCompiler.CompileText('structural-cycle.nxscript',
+    AContext.AssertTrue(lCompiler.CompileText('structural-cycle.nxscript',
       'Thing Root { Thing A { Other: @Root.B; } ' +
       'Thing B { Other: @Root.A; } Value: @Root.A; }'),
-      'Recursive structural references should fail safely.');
+      'Mutually referencing concrete definitions should compile.');
     lHasStructuralCycle := False;
     lHasUnresolvedReference := False;
     for lDiagnostic in lCompiler.Diagnostics do
@@ -3452,8 +3454,8 @@ begin
       lHasUnresolvedReference := lHasUnresolvedReference or
         SameText(lDiagnostic.Code, 'NXS5001');
     end;
-    AContext.AssertTrue(lHasStructuralCycle,
-      'Recursive structural references should report NXS5004.');
+    AContext.AssertTrue(not lHasStructuralCycle,
+      'Object back-links must not report NXS5004.');
     AContext.AssertTrue(not lHasUnresolvedReference,
       'Structural cycles should not be misreported as unresolved references.');
   finally
@@ -3480,7 +3482,7 @@ begin
       'Mixed array entries should compile.');
     lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
     lItems := lRoot.FindProperty('Items').Value;
-    AContext.AssertTrue(lItems.StructuralDefinition = nil,
+    AContext.AssertTrue(lItems.DefinitionValue = nil,
       'Array value must not expose a synthetic wrapper definition.');
     AContext.AssertEquals(5, lItems.Items.Count,
       'Array order and entry count should be retained.');
@@ -3498,7 +3500,7 @@ begin
       lItems.Items[3].OriginalDefinitionName,
       'Inline definition should retain declared identity provenance.');
     AContext.AssertEquals('Node',
-      lItems.Items[3].StructuralDefinition.Kind,
+      lItems.Items[3].DefinitionValue.Kind,
       'Inline definition should retain its kind.');
     AContext.AssertEquals('Target', lItems.Items[4].EffectiveName,
       'Referenced definition should default to target declared name.');
@@ -3524,8 +3526,8 @@ begin
     AContext.AssertTrue(lItems.Items[3].EvaluationState = nsvesCompleted,
       'Named inline item should remain completed after repeated references.');
     AContext.AssertEquals('InlineTarget',
-      lRoot.FindProperty('InlineTarget').Value.StructuralDefinition.Name,
-      'Named inline reference should materialize under the receiving name.');
+      lRoot.FindProperty('InlineTarget').Value.EffectiveName,
+      'Named inline reference should retain its receiving name.');
     AContext.AssertTrue(not lCompiler.CompileText('array-duplicate.nxscript',
       'Thing Root { Values: [Same: one, Same: two]; }'),
       'Duplicate effective array names should fail.');
@@ -3555,14 +3557,14 @@ begin
       'An entry should resolve an earlier entry through its explicit array path.');
     lDemo := lCompiler.CompiledDocument.FindDefinition('Demo');
     lTables := lDemo.FindProperty('Tables').Value;
-    lAddress := lTables.Items[1].StructuralDefinition;
+    lAddress := lTables.Items[1].DefinitionValue;
     lTarget := lAddress.FindProperty('Target').Value;
     AContext.AssertTrue(lTarget.ResolvedValue = lTables.Items[0],
       'Qualified lookup should retain the exact effective array entry.');
     AContext.AssertEquals('PERSON', lTarget.OriginalDefinitionName,
       'Qualified lookup should retain referenced entry identity.');
-    AContext.AssertEquals('Target', lTarget.StructuralDefinition.Name,
-      'Structural projection should retain the receiving property name.');
+    AContext.AssertEquals('Target', lTarget.EffectiveName,
+      'The reference occurrence should retain the receiving property name.');
     AContext.AssertEquals('person',
       lAddress.FindProperty('TargetCode').Value.EffectiveText,
       'Qualified lookup should continue downward through the selected entry.');
@@ -3573,7 +3575,7 @@ begin
       'A structural array entry should support a recursive structural reference.');
     lDemo := lCompiler.CompiledDocument.FindDefinition('Root');
     lTables := lDemo.FindProperty('Items').Value;
-    lTarget := lTables.Items[0].StructuralDefinition.FindProperty('Link').Value;
+    lTarget := lTables.Items[0].DefinitionValue.FindProperty('Link').Value;
     AContext.AssertTrue(lTarget.ResolvedDefinition <> nil,
       'A recursive structural reference should retain target provenance.');
     AContext.AssertEquals('A', lTarget.OriginalDefinitionName,
@@ -3586,7 +3588,7 @@ begin
       'A structural array entry should apply its composition selectors.');
     lDemo := lCompiler.CompiledDocument.FindDefinition('Root');
     lTables := lDemo.FindProperty('Items').Value;
-    AContext.AssertEquals(2, lTables.Items[0].StructuralDefinition.
+    AContext.AssertEquals(2, lTables.Items[0].DefinitionValue.
       FindProperty('Values').Value.Items.Count,
       'Inline structural composition should retain base and local array values.');
 
@@ -3598,8 +3600,8 @@ begin
       'A referenced structural entry should evaluate in its array owner scope.');
     lDemo := lCompiler.CompiledDocument.FindDefinition('Root');
     lTables := lDemo.FindProperty('Items').Value;
-    lTarget := lTables.Items[0].StructuralDefinition.FindProperty('Target').Value;
-    AContext.AssertEquals('composed', lTarget.StructuralDefinition.
+    lTarget := lTables.Items[0].DefinitionValue.FindProperty('Target').Value;
+    AContext.AssertEquals('composed', lTarget.DefinitionValue.
       FindProperty('Code').Value.EffectiveText,
       'A later structural target should retain owner-scoped composition.');
 
@@ -3610,7 +3612,7 @@ begin
       'Named array lookup should not depend on entry source order.');
     lDemo := lCompiler.CompiledDocument.FindDefinition('Demo');
     lTables := lDemo.FindProperty('Tables').Value;
-    lAddress := lTables.Items[0].StructuralDefinition;
+    lAddress := lTables.Items[0].DefinitionValue;
     AContext.AssertTrue(lAddress.FindProperty('Target').Value.ResolvedValue =
       lTables.Items[1],
       'Forward lookup should retain the exact effective array entry.');
@@ -3628,112 +3630,104 @@ end;
 procedure TestReferenceArrayProjection(AContext: TNXTestContext);
 var
   lCompiler: TNexusScriptCompiler;
-  lRoot: TNexusScriptCompiledDefinition;
-  lTarget: TNexusScriptCompiledDefinition;
-  lProjection: TNexusScriptCompiledDefinition;
-  lScalars: TNexusScriptCompiledValue;
-  lHasStructuralCycle: Boolean;
-  lDiagnostic: TNexusScriptDiagnostic;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lRoot, lProjection, lChild: TJSONObject;
+  lDefinition: TNexusScriptCompiledDefinition;
+  lRejected: Boolean;
 begin
   lCompiler := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
   try
     AContext.AssertTrue(lCompiler.CompileText('projection.nxscript',
-      'Thing Root { ' +
-      'Thing Other { Value: other; } ' +
+      'Thing Root { Thing Other { Value: other; } ' +
       'Thing Target { Value: target; ' +
       'Scalars: [first, Label: second, @Root.Other.Value]; ' +
       'NestedScalars: [[one, two], Named: [three]]; ' +
-      'InlineItems: [Node Inline {}]; ' +
-      'ReferenceItems: [@Root.Other]; ' +
+      'InlineItems: [Node Inline {}]; ReferenceItems: [@Root.Other]; ' +
       'MixedItems: [plain, Node Mixed {}]; ' +
       'NestedStructural: [[plain], [Node Nested {}]]; ' +
       'Thing Child { Keep: yes; Drop: [Node Omitted {}]; } } ' +
       'Thing Self { Value: self; Links: [@Root.Self]; } ' +
-      'Thing Left { Links: [@Root.Right]; } ' +
-      'Thing Right { Links: [@Root.Left]; } ' +
+      'Thing Left { Links: [@Root.Right]; } Thing Right { Links: [@Root.Left]; } ' +
       'Thing StructuralBase { Items: [X: Node Old {}]; } ' +
       'Thing ScalarDerived (StructuralBase) { Items: [X: scalar]; } ' +
       'Thing ScalarBase { Items: [X: scalar]; } ' +
       'Thing StructuralDerived (ScalarBase) { Items: [X: Node New {}]; } ' +
       'Projected: @Root.Target; SelfProjected: @Root.Self; ' +
-      'MutualProjected: @Root.Left; ' +
-      'ScalarProjection: @Root.ScalarDerived; ' +
+      'MutualProjected: @Root.Left; ScalarProjection: @Root.ScalarDerived; ' +
       'StructuralProjection: @Root.StructuralDerived; }'),
-      'Reference projections should cut cycles through structural arrays.');
-    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
-    lTarget := lRoot.FindChild('Target');
-    lProjection := lRoot.FindProperty('Projected').Value.StructuralDefinition;
-    AContext.AssertEquals('Projected', lProjection.Name,
-      'Projection should retain the receiving member name.');
-    AContext.AssertTrue(lProjection.Parent = lRoot,
-      'Projection should be owned by its receiving scope.');
-    AContext.AssertTrue(lRoot.FindProperty('Projected').Value.ResolvedDefinition =
-      lTarget, 'Projection should retain complete target provenance.');
-    lScalars := lProjection.FindProperty('Scalars').Value;
-    AContext.AssertEquals(3, lScalars.Items.Count,
-      'Scalar array order and count should be copied.');
-    AContext.AssertEquals('Label', lScalars.Items[1].EffectiveName,
-      'Named scalar array entries should retain effective names.');
-    AContext.AssertEquals('other', lScalars.Items[2].EffectiveText,
-      'Scalar property references should retain their effective value.');
-    AContext.AssertTrue(lScalars.Items[2].ResolvedProperty <> nil,
-      'Scalar property references should retain provenance.');
-    AContext.AssertTrue(lProjection.FindProperty('NestedScalars') <> nil,
-      'Recursively scalar nested arrays should be copied.');
-    AContext.AssertTrue(lProjection.FindProperty('InlineItems') = nil,
-      'Inline-definition arrays should be omitted entirely.');
-    AContext.AssertTrue(lProjection.FindProperty('ReferenceItems') = nil,
-      'Definition-reference arrays should be omitted entirely.');
-    AContext.AssertTrue(lProjection.FindProperty('MixedItems') = nil,
-      'Mixed arrays should be omitted entirely.');
-    AContext.AssertTrue(lProjection.FindProperty('NestedStructural') = nil,
-      'Nested arrays with a structural leaf should be omitted entirely.');
-    AContext.AssertTrue(lProjection.FindChild('Child').FindProperty('Drop') = nil,
-      'Array omission should recurse through projected child definitions.');
-    AContext.AssertTrue(lProjection.FindChild('Child').FindProperty('Keep') <> nil,
-      'Ordinary child structure should remain in the projection.');
-    AContext.AssertTrue(lTarget.FindProperty('InlineItems') <> nil,
-      'The complete target should retain arrays omitted from its projection.');
-    AContext.AssertTrue(lRoot.FindChild('Self').FindProperty('Links') <> nil,
-      'A complete self-referencing target should retain its structural array.');
-    AContext.AssertTrue(lRoot.FindProperty('SelfProjected').Value.
-      StructuralDefinition.FindProperty('Links') = nil,
-      'A self-cycle through a structural array should be cut by projection.');
-    AContext.AssertTrue(lRoot.FindProperty('MutualProjected').Value.
-      StructuralDefinition.FindProperty('Links') = nil,
-      'A mutual cycle through structural arrays should be cut by projection.');
-    AContext.AssertTrue(lRoot.FindProperty('ScalarProjection').Value.
-      StructuralDefinition.FindProperty('Items') <> nil,
-      'A final scalar override should make the effective array projectable.');
-    AContext.AssertEquals('scalar', lRoot.FindProperty('ScalarProjection').
-      Value.StructuralDefinition.FindProperty('Items').Value.Items[0].
-      EffectiveText,
-      'Projection classification should use the winning scalar entry.');
-    AContext.AssertTrue(lRoot.FindProperty('StructuralProjection').Value.
-      StructuralDefinition.FindProperty('Items') = nil,
-      'A final structural override should make the effective array omitted.');
-
-    AContext.AssertTrue(not lCompiler.CompileText('direct-cycle.nxscript',
-      'Thing Root { Thing Direct { Next: @Root.Direct; } ' +
-      'Value: @Root.Direct; }'),
-      'A direct structural reference cycle should remain invalid.');
-    lHasStructuralCycle := False;
-    for lDiagnostic in lCompiler.Diagnostics do
-      lHasStructuralCycle := lHasStructuralCycle or
-        SameText(lDiagnostic.Code, 'NXS5004');
-    AContext.AssertTrue(lHasStructuralCycle,
-      'A remaining direct structural cycle should report NXS5004.');
-    AContext.AssertTrue(not lCompiler.CompileText('array-caller-cycle.nxscript',
+      'Complete cyclic reference graphs should compile independently of output.');
+    lDefinition := lCompiler.CompiledDocument.FindDefinition('Root');
+    AContext.AssertTrue(lDefinition.FindProperty('Projected').Value.DefinitionValue =
+      lDefinition.FindChild('Target'), 'The semantic target remains the actual definition.');
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lData := GetJSON(lEmitter.JSON);
+    try
+      lRoot := RequireJSONObject(RequireJSONMember(
+        RequireJSONObject(lData, 'artifact'), 'Root'), 'root');
+      lProjection := RequireJSONObject(RequireJSONMember(lRoot, 'Projected'), 'projection');
+      AContext.AssertEquals('Projected', lProjection.GetPath('_nx.Name').AsString,
+        'JSON retains the receiving member name.');
+      AContext.AssertEquals(3, lProjection.Arrays['Scalars'].Count,
+        'Scalar array order and count are projected.');
+      AContext.AssertEquals('Label', lProjection.Arrays['Scalars'].Items[1].
+        GetPath('_nx.Name').AsString, 'Named scalar entries retain their labels.');
+      AContext.AssertEquals('other', lProjection.Arrays['Scalars'].Items[2].AsString,
+        'Scalar references retain their effective value.');
+      AContext.AssertTrue(lProjection.Find('NestedScalars') <> nil,
+        'Recursively scalar arrays remain in the projection.');
+      AContext.AssertTrue(lProjection.Find('InlineItems') = nil,
+        'Inline-definition arrays are omitted only from JSON reference projections.');
+      AContext.AssertTrue(lProjection.Find('ReferenceItems') = nil,
+        'Definition-reference arrays are omitted.');
+      AContext.AssertTrue(lProjection.Find('MixedItems') = nil, 'Mixed arrays are omitted.');
+      AContext.AssertTrue(lProjection.Find('NestedStructural') = nil,
+        'Nested structural arrays are omitted.');
+      lChild := RequireJSONObject(RequireJSONMember(lProjection, 'Child'), 'child');
+      AContext.AssertTrue(lChild.Find('Drop') = nil, 'Omission recurses through children.');
+      AContext.AssertTrue(lChild.Find('Keep') <> nil, 'Ordinary children are retained.');
+      AContext.AssertTrue(lRoot.Objects['SelfProjected'].Find('Links') = nil,
+        'The self-cycle through an array has a bounded JSON projection.');
+      AContext.AssertTrue(lRoot.Objects['MutualProjected'].Find('Links') = nil,
+        'Mutual reference arrays have bounded JSON projections.');
+      AContext.AssertEquals('scalar', lRoot.GetPath(
+        'ScalarProjection.Items[0].Value').AsString,
+        'Projection classification observes the winning scalar override.');
+      AContext.AssertTrue(lRoot.Objects['StructuralProjection'].Find('Items') = nil,
+        'A structural winning override remains omitted.');
+    finally
+      lData.Free;
+    end;
+    AContext.AssertTrue(lDefinition.FindChild('Target').FindProperty('InlineItems') <> nil,
+      'JSON emission does not remove arrays from the semantic graph.');
+    AContext.AssertTrue(lDefinition.FindProperty('SelfProjected').Value.
+      DefinitionValue.FindProperty('Links') <> nil, 'Live/SQLite retain the original cyclic array.');
+    FreeAndNil(lEmitter);
+    lEmitter := TNexusScriptJSONEmitter.Create;
+    AContext.AssertTrue(lCompiler.CompileText('direct-cycle.nxscript',
+      'Thing Root { Thing Direct { Next: @Root.Direct; } Value: @Root.Direct; }'),
+      'Direct object cycles are valid source.');
+    lRejected := False;
+    try
+      lEmitter.AddDocument(lCompiler.CompiledDocument);
+    except
+      on E: ENexusScriptJSON do lRejected := Pos('Recursive JSON', E.Message) > 0;
+    end;
+    AContext.AssertTrue(lRejected, 'Only JSON rejects direct recursive expansion.');
+    AContext.AssertTrue(lCompiler.CompileText('array-caller-cycle.nxscript',
       'Thing Root { Thing Direct { Next: @Root.Direct; } ' +
       'Items: [Node Item { Bad: @Root.Direct; }]; }'),
-      'An array caller must not hide a direct target cycle.');
-    lHasStructuralCycle := False;
-    for lDiagnostic in lCompiler.Diagnostics do
-      lHasStructuralCycle := lHasStructuralCycle or
-        SameText(lDiagnostic.Code, 'NXS5004');
-    AContext.AssertTrue(lHasStructuralCycle,
-      'A direct target cycle reached from an array should report NXS5004.');
+      'A direct back-link reached from an array remains valid source.');
+    lRejected := False;
+    try
+      lEmitter.AddDocument(lCompiler.CompiledDocument);
+    except
+      on E: ENexusScriptJSON do lRejected := Pos('Recursive JSON', E.Message) > 0;
+    end;
+    AContext.AssertTrue(lRejected, 'JSON diagnoses a direct cycle reached through an array.');
   finally
+    lEmitter.Free;
     lCompiler.Free;
   end;
 end;
@@ -3771,12 +3765,12 @@ begin
       'Explicit entry names should be retained.');
     AContext.AssertEquals('Inline', lResult.Items[2].EffectiveName,
       'Implicit inline-definition names should be retained.');
-    AContext.AssertTrue(lResult.Items[2].StructuralDefinition <> nil,
+    AContext.AssertTrue(lResult.Items[2].DefinitionValue <> nil,
       'Inline definitions should remain complete in array results.');
     AContext.AssertTrue(lResult.Items[3].ResolvedDefinition =
       lRoot.FindChild('Target'),
       'Definition-reference entries should retain target provenance.');
-    AContext.AssertTrue(lResult.Items[3].StructuralDefinition <> nil,
+    AContext.AssertTrue(lResult.Items[3].DefinitionValue <> nil,
       'Definition-reference entries should retain projected structures.');
     AContext.AssertTrue(lResult.Items[4].Kind = nsvArray,
       'Nested arrays should be cloned completely.');
@@ -3910,15 +3904,15 @@ begin
       'The effective array should contain only final winning entries.');
     AContext.AssertEquals('A', lItems.Items[0].EffectiveName,
       'The local structural winner should retain the inherited position.');
-    AContext.AssertEquals('local', lItems.Items[0].StructuralDefinition.
+    AContext.AssertEquals('local', lItems.Items[0].DefinitionValue.
       FindProperty('Code').Value.EffectiveText,
       'The local structural entry should replace inherited contributors.');
     lReference := lItems.Items[1];
     AContext.AssertTrue(lReference.ResolvedValue = lItems.Items[0],
       'A contributor reference should resolve to the effective winning entry.');
-    AContext.AssertEquals('B', lReference.StructuralDefinition.Name,
-      'The effective structural projection should retain its receiving entry name.');
-    AContext.AssertEquals('local', lReference.StructuralDefinition.
+    AContext.AssertEquals('B', lReference.EffectiveName,
+      'The reference occurrence should retain its receiving entry name.');
+    AContext.AssertEquals('local', lReference.DefinitionValue.
       FindProperty('Code').Value.EffectiveText,
       'The contributor projection should materialize the effective winner.');
     AContext.AssertEquals('local', lItems.Items[2].EffectiveText,
@@ -3942,7 +3936,7 @@ begin
     lItems := lRoot.FindChild('Derived').FindProperty('Items').Value;
     AContext.AssertTrue(lItems.Items[1].ResolvedValue = lItems.Items[0],
       'An imported contributor reference should rebind to the local winner.');
-    AContext.AssertEquals('local', lItems.Items[1].StructuralDefinition.
+    AContext.AssertEquals('local', lItems.Items[1].DefinitionValue.
       FindProperty('Code').Value.EffectiveText,
       'An imported contributor projection should materialize the local winner.');
 
@@ -3958,7 +3952,7 @@ begin
     lItems := lRoot.FindChild('Derived').FindProperty('Items').Value;
     AContext.AssertTrue(lItems.Items[1].ResolvedValue = lItems.Items[0],
       'A whole-array contributor reference should rebind to the final winner.');
-    AContext.AssertEquals('local', lItems.Items[1].StructuralDefinition.
+    AContext.AssertEquals('local', lItems.Items[1].DefinitionValue.
       FindProperty('Code').Value.EffectiveText,
       'A whole-array contributor projection should materialize the final winner.');
   finally
@@ -4423,6 +4417,277 @@ begin
       sqlite3_close(lDatabase);
     UnloadSQLite3;
     DeleteFile(lDatabaseFile);
+  end;
+end;
+
+procedure TestSQLiteReferenceCycles(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lEmitter: TNexusScriptSQLiteEmitter;
+  lStream: TMemoryStream;
+  lDatabase: Psqlite3;
+  lFileName, lStreamFile, lLibrary: string;
+  lNativeName: UTF8String;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lEmitter := nil;
+  lStream := TMemoryStream.Create;
+  lDatabase := nil;
+  lFileName := GetTempFileName(GetTempDir, 'nxc');
+  lStreamFile := GetTempFileName(GetTempDir, 'nxs');
+  {$IFDEF MSWINDOWS}
+  lLibrary := ExpandFileName('packages/foundation/db/sqlite/runtime/win64/sqlite3.dll');
+  {$ELSE}
+  lLibrary := '';
+  {$ENDIF}
+  try
+    if not LoadSQLite3(lLibrary) then raise Exception.Create(SQLite3LoadError);
+    AContext.AssertTrue(lCompiler.CompileText('sqlite-reference-cycles.nxscript',
+      'Thing Root { Thing A { Value: one; Other: @Root.B; Self: @Root.A; } ' +
+      'Thing B { Value: two; Other: @Root.A; } Alias: @Root.A; }'),
+      'Concrete self/mutual references must not fail before SQLite emission.');
+    lEmitter := TNexusScriptSQLiteEmitter.Create(lLibrary);
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lEmitter.WriteDatabase(lFileName);
+    lNativeName := UTF8String(lFileName);
+    AContext.AssertEquals(SQLITE_OK, sqlite3_open(PAnsiChar(lNativeName), @lDatabase),
+      'The original relational artifact opens.');
+    AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM sqlite_master WHERE type=''table'' AND name NOT LIKE ''sqlite_%''')),
+      'Only the three authored definition tables are emitted.');
+    AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM sqlite_master WHERE type=''table'' AND name IN (''Root'',''A'',''B'')')),
+      'Table names remain the authored definition names.');
+    AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM pragma_table_info(''Root'')')),
+      'The root retains identity/name and saves its Alias reference.');
+    AContext.AssertEquals(6, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM pragma_table_info(''A'')')),
+      'The child retains its scalar/owner columns and saves both references.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM A JOIN Root ON A.nx_root_id=Root.nx_id ' +
+      'WHERE A.Name=''A'' AND A.Value=''one'' AND Root.Name=''Root''')),
+      'The authored scalar and existing owner foreign key are preserved.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM B WHERE Name=''B'' AND Value=''two''')),
+      'The second authored row is preserved.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM Root r JOIN A a ON r.Alias_id=a.nx_id ' +
+      'JOIN B b ON a.Other_id=b.nx_id ' +
+      'WHERE a.Self_id=a.nx_id AND b.Other_id=a.nx_id')),
+      'Self, mutual and alias links point to the existing authored rows.');
+    AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM pragma_foreign_key_check')),
+      'Existing owner foreign keys remain valid.');
+    sqlite3_close(lDatabase);
+    lDatabase := nil;
+    lEmitter.WriteArtifact(lStream);
+    lStream.SaveToFile(lStreamFile);
+    lNativeName := UTF8String(lStreamFile);
+    AContext.AssertEquals(SQLITE_OK, sqlite3_open(PAnsiChar(lNativeName), @lDatabase),
+      'The stream artifact opens.');
+    AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM sqlite_master WHERE type=''table'' AND name NOT LIKE ''sqlite_%''')),
+      'Stream output has the same authored relational schema, with no extra representation.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM A a JOIN B b ON a.Other_id=b.nx_id ' +
+      'WHERE a.Self_id=a.nx_id AND b.Other_id=a.nx_id')),
+      'Stream output retains the same self/mutual references.');
+  finally
+    if lDatabase <> nil then sqlite3_close(lDatabase);
+    lStream.Free;
+    lEmitter.Free;
+    lCompiler.Free;
+    UnloadSQLite3;
+    DeleteFile(lFileName);
+    DeleteFile(lStreamFile);
+  end;
+end;
+
+function SQLiteReferenceFixturePath(const AName: string): string;
+begin
+  Result := ExpandFileName('packages/nxscript/test/fixtures/sqlite/' + AName);
+  if not FileExists(Result) then
+    Result := ExpandFileName('../../../../packages/nxscript/test/fixtures/sqlite/' + AName);
+end;
+
+procedure TestSQLiteReferenceFields(AContext: TNXTestContext);
+var
+  lSession: TNexusScriptCompilationSession;
+  lValidator: TNexusScriptValidator;
+  lEmitter: TNexusScriptSQLiteEmitter;
+  lStream: TMemoryStream;
+  lDatabase: Psqlite3;
+  lFileName, lStreamFile, lLibrary, lFixture, lReferenceColumn: string;
+  lNativeName, lSQL: UTF8String;
+  lIndex: Integer;
+
+  procedure CheckRows;
+  begin
+    AContext.AssertEquals(3, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM sqlite_master WHERE type=''table'' AND name NOT LIKE ''sqlite_%''')),
+      'References add columns to Example/Tables/Fields, not extra tables.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM Fields f JOIN Tables t ON f.' + lReferenceColumn +
+      '=t.nx_id WHERE f.Name=''updated_by'' AND t.Name=''User'' ' +
+      'AND f.nx_tables_id=t.nx_id')),
+      'updated_by points back to its existing User table row.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM Fields f JOIN Tables t ON f.Reference_id=t.nx_id ' +
+      'WHERE f.Name=''reviewed_by'' AND f.Alias_id=t.nx_id AND t.Name=''User''')),
+      'A reference alias shares the original target row.');
+    AContext.AssertEquals(2, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM Fields WHERE Name IN (''User_ID'',''reviewed_by'') ' +
+      'AND Type=''INTEGER''')),
+      'Existing literal Type values remain text in Type.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM Fields WHERE Name=''literal_number'' AND Type=''2''')),
+      'A numeric-looking literal remains a literal, not a row reference.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM pragma_table_info(''Fields'') WHERE name=' +
+      QuotedStr(lReferenceColumn) + ' AND type=''INTEGER''')),
+      'The reference column stores an integer row ID.');
+    AContext.AssertEquals(1, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM pragma_foreign_key_list(''Fields'') ' +
+      'WHERE "from"=' + QuotedStr(lReferenceColumn) +
+      ' AND "table"=''Tables'' AND "to"=''nx_id''')),
+      'The reference has a real FK to the existing Tables primary key.');
+    AContext.AssertEquals(0, Integer(SQLiteScalarInteger(lDatabase,
+      'SELECT COUNT(*) FROM pragma_foreign_key_check')),
+      'All stored owner and authored-reference links are valid.');
+  end;
+begin
+  {$IFDEF MSWINDOWS}
+  lLibrary := ExpandFileName('packages/foundation/db/sqlite/runtime/win64/sqlite3.dll');
+  {$ELSE}
+  lLibrary := '';
+  {$ENDIF}
+  for lIndex := 0 to 1 do
+  begin
+    lSession := TNexusScriptCompilationSession.Create;
+    lValidator := TNexusScriptValidator.Create;
+    lEmitter := nil;
+    lStream := TMemoryStream.Create;
+    lDatabase := nil;
+    lFileName := GetTempFileName(GetTempDir, 'nxf');
+    lStreamFile := GetTempFileName(GetTempDir, 'nxr');
+    try
+      if not LoadSQLite3(lLibrary) then raise Exception.Create(SQLite3LoadError);
+      if lIndex = 0 then
+      begin
+        lFixture := 'ReferenceFields.nxscript';
+        lReferenceColumn := 'Type_id';
+      end
+      else
+      begin
+        lFixture := 'ReferenceFieldsWithDialect.nxscript';
+        lReferenceColumn := 'Reference_id';
+      end;
+      AContext.AssertTrue(lSession.CompileFile(SQLiteReferenceFixturePath(lFixture)),
+        'The self-FK schema compiles: ' + lSession.LastError);
+      if lIndex = 1 then
+        AContext.AssertTrue(lValidator.Validate(lSession.EntryCompiler.CompiledDocument,
+          lSession.EntryCompiler.CompiledDocument.DialectDocument),
+          'The dialect-backed reference fixture validates.');
+      lEmitter := TNexusScriptSQLiteEmitter.Create(lLibrary);
+      lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
+      lEmitter.WriteDatabase(lFileName);
+      lNativeName := UTF8String(lFileName);
+      AContext.AssertEquals(SQLITE_OK, sqlite3_open(PAnsiChar(lNativeName), @lDatabase),
+        'The self-FK file output opens.');
+      CheckRows;
+      AContext.AssertEquals(SQLITE_OK, sqlite3_exec(lDatabase,
+        'PRAGMA foreign_keys=ON', nil, nil, nil), 'Enable FK enforcement.');
+      lSQL := UTF8String('UPDATE Fields SET ' + lReferenceColumn +
+        '=999999 WHERE Name=''updated_by''');
+      AContext.AssertEquals(SQLITE_CONSTRAINT, sqlite3_exec(lDatabase,
+        PAnsiChar(lSQL), nil, nil, nil), 'An invalid referenced row is rejected.');
+      CheckRows;
+      sqlite3_close(lDatabase);
+      lDatabase := nil;
+      lEmitter.WriteArtifact(lStream);
+      lStream.SaveToFile(lStreamFile);
+      lNativeName := UTF8String(lStreamFile);
+      AContext.AssertEquals(SQLITE_OK, sqlite3_open(PAnsiChar(lNativeName), @lDatabase),
+        'The self-FK stream output opens.');
+      CheckRows;
+    finally
+      if lDatabase <> nil then sqlite3_close(lDatabase);
+      lStream.Free;
+      lEmitter.Free;
+      lValidator.Free;
+      lSession.Free;
+      UnloadSQLite3;
+      DeleteFile(lFileName);
+      DeleteFile(lStreamFile);
+    end;
+  end;
+end;
+
+procedure TestSQLiteReferenceFailures(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lSession: TNexusScriptCompilationSession;
+  lEmitter: TNexusScriptSQLiteEmitter;
+  lStream: TMemoryStream;
+  lLibrary, lExpected: string;
+  lIndex: Integer;
+  lRejected: Boolean;
+begin
+  {$IFDEF MSWINDOWS}
+  lLibrary := ExpandFileName('packages/foundation/db/sqlite/runtime/win64/sqlite3.dll');
+  {$ELSE}
+  lLibrary := '';
+  {$ENDIF}
+  for lIndex := 0 to 2 do
+  begin
+    lCompiler := TNexusScriptCompiler.Create;
+    lSession := TNexusScriptCompilationSession.Create;
+    lEmitter := TNexusScriptSQLiteEmitter.Create(lLibrary);
+    lStream := TMemoryStream.Create;
+    try
+      case lIndex of
+        0:
+          begin
+            AContext.AssertTrue(lCompiler.CompileText('reference-column-collision.nxscript',
+              'Thing Root { Thing User {} Link: @Root.User; Link_id: literal; }'),
+              'The column-collision source compiles.');
+            lExpected := 'duplicate column name';
+          end;
+        1:
+          begin
+            AContext.AssertTrue(lCompiler.CompileText('reference-table-conflict.nxscript',
+              'Thing Root { Thing A {} Thing B {} Rows: [' +
+              'Row One { Link: @Root.A; }, Row Two { Link: @Root.B; }]; }'),
+              'Different target tables are valid source references.');
+            lExpected := 'targets both';
+          end;
+        2:
+          begin
+            AContext.AssertTrue(lSession.CompileFile(
+              SQLiteReferenceFixturePath('ReferenceOnlyImport.nxscript')),
+              'The private module reference compiles: ' + lSession.LastError);
+            lExpected := 'outside the SQLite artifact';
+          end;
+      end;
+      if lIndex = 2 then lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument)
+      else lEmitter.AddDocument(lCompiler.CompiledDocument);
+      lRejected := False;
+      try
+        lEmitter.WriteArtifact(lStream);
+      except
+        on E: ENexusScriptSQLite do lRejected := Pos(lExpected, E.Message) > 0;
+      end;
+      AContext.AssertTrue(lRejected,
+        'Unsupported reference storage must report the problem, not discard the link.');
+      AContext.AssertEquals(0, Integer(lStream.Size),
+        'A failed reference projection must not write an incomplete artifact.');
+    finally
+      lStream.Free;
+      lEmitter.Free;
+      lSession.Free;
+      lCompiler.Free;
+    end;
   end;
 end;
 
@@ -4971,12 +5236,12 @@ begin
       'Chain: @Alias; Original: @Root.Base; Alias: @Original; }'),
       'A reference to a structural reference compiles.');
     lDefinition := lCompiler.CompiledDocument.FindDefinition('Root');
-    AContext.AssertTrue(lDefinition.FindProperty('Alias').Value.StructuralDefinition <>
-      lDefinition.FindProperty('Original').Value.StructuralDefinition,
-      'The alias owns a separate projection.');
-    AContext.AssertTrue(lDefinition.FindProperty('Chain').Value.StructuralDefinition <>
-      lDefinition.FindProperty('Alias').Value.StructuralDefinition,
-      'Each hop owns its projection.');
+    AContext.AssertTrue(lDefinition.FindProperty('Alias').Value.DefinitionValue =
+      lDefinition.FindProperty('Original').Value.DefinitionValue,
+      'The alias points to the same definition.');
+    AContext.AssertTrue(lDefinition.FindProperty('Chain').Value.DefinitionValue =
+      lDefinition.FindProperty('Alias').Value.DefinitionValue,
+      'Each alias hop preserves the target identity.');
     lEmitter.AddDocument(lCompiler.CompiledDocument);
     lData := GetJSON(lEmitter.JSON);
     try
@@ -5008,6 +5273,36 @@ begin
       lHasCycle := lHasCycle or (lDiagnostic.Code = 'NXS5002');
     AContext.AssertTrue(lHasCycle, 'The failure identifies a value dependency cycle.');
   finally
+    lEmitter.Free;
+    lCompiler.Free;
+  end;
+end;
+
+procedure TestInlineReferenceMetadata(AContext: TNXTestContext);
+var
+  lCompiler: TNexusScriptCompiler;
+  lEmitter: TNexusScriptJSONEmitter;
+  lData: TJSONData;
+  lRoot: TNexusScriptCompiledDefinition;
+begin
+  lCompiler := TNexusScriptCompiler.Create;
+  lEmitter := TNexusScriptJSONEmitter.Create;
+  lData := nil;
+  try
+    AContext.AssertTrue(lCompiler.CompileText('inline-reference.nxscript',
+      'Thing Root { Items: [Local: Node Declared { Value: original; }]; ' +
+      'Alias: @Root.Items.Local; Chain: @Alias; }'), 'Named inline entry aliases compile.');
+    lRoot := lCompiler.CompiledDocument.FindDefinition('Root');
+    AContext.AssertEquals('Declared', lRoot.FindProperty('Chain').Value.OriginalDefinitionName,
+      'Alias provenance retains the declared inline name, not its receiving property name.');
+    lEmitter.AddDocument(lCompiler.CompiledDocument);
+    lData := GetJSON(lEmitter.JSON);
+    AContext.AssertEquals('Chain', lData.FindPath('Root.Chain._nx.Name').AsString,
+      'The receiving projection name remains distinct from the original declaration.');
+    AContext.AssertEquals('Declared', lData.FindPath('Root.Chain._nx.Reference.Name').AsString,
+      'JSON reference attribution remains the original declared identity.');
+  finally
+    lData.Free;
     lEmitter.Free;
     lCompiler.Free;
   end;
@@ -5154,6 +5449,9 @@ begin
   lSuite.AddTest('EmitterFactory', @TestEmitterFactory);
   lSuite.AddTest('SQLiteEmitterCommandFormat',
     @TestSQLiteEmitterCommandFormat);
+  lSuite.AddTest('SQLiteReferenceCycles', @TestSQLiteReferenceCycles);
+  lSuite.AddTest('SQLiteReferenceFields', @TestSQLiteReferenceFields);
+  lSuite.AddTest('SQLiteReferenceFailures', @TestSQLiteReferenceFailures);
   lSuite.AddTest('SQLiteEmitterWorkspaceProjection',
     @TestSQLiteEmitterWorkspaceProjection);
   lSuite.AddTest('SQLiteEmitterSchemaDialect',
@@ -5165,6 +5463,8 @@ begin
   lSuite.AddTest('TargetedIncludeCollections', @TestTargetedIncludeCollections);
   lSuite.AddTest('EmitterFailureAndLifetime', @TestEmitterFailureAndLifetime);
   lSuite.AddTest('StructuralReferenceAliasJSON', @TestStructuralReferenceAliasJSON);
+  lSuite.AddTest('InlineReferenceMetadata', @TestInlineReferenceMetadata);
+  RegisterNexusScriptLiveTests(ARegistry);
 end;
 
 end.

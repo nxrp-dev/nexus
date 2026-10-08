@@ -172,9 +172,7 @@ end;
 function TNexusScriptCompiledValueArtifactHelper.GetArtifactValue:
   TNexusScriptCompiledValue;
 begin
-  Result := Self;
-  while Result.EffectiveValue <> nil do
-    Result := Result.EffectiveValue;
+  Result := SemanticValue;
 end;
 
 function TNexusScriptCompiledValueArtifactHelper.GetArtifactKind:
@@ -183,7 +181,7 @@ var
   lValue: TNexusScriptCompiledValue;
 begin
   lValue := GetArtifactValue;
-  if lValue.StructuralDefinition <> nil then
+  if lValue.DefinitionValue <> nil then
     Result := nsavDefinition
   else if lValue.Kind = nsvArray then
     Result := nsavArray

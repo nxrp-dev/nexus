@@ -44,7 +44,7 @@ There is no automatic classification or exclusion of templates.
 
 ## Reference projection boundary
 
-A reference to a definition exposes a bounded projection of that definition.
+In JSON output, a reference to a definition exposes a bounded projection.
 Scalar properties, recursively scalar arrays, and ordinary child definitions
 are retained. Arrays containing definitions or definition references are omitted
 entirely, including mixed arrays and nested arrays with a structural leaf.
@@ -52,8 +52,10 @@ The same projection rule applies recursively to child definitions.
 
 This deliberately prevents expansion through structural arrays from following
 self-references or mutually referring definitions indefinitely. The original
-definition remains complete. Access deeper details through an explicit path to
-that original, rather than expecting its reference projection to contain them.
+semantic definition remains complete. Compilation, Live, and SQLite retain
+the actual reference target and its full arrays; no projection is stored in
+the compiled graph. JSON consumers can use an explicit path to the original
+when they need a value omitted from its bounded projection.
 
 For example, given a module providing `Table Base` with
 `Fields: [Field ID { Type: Integer; }];`:
@@ -66,10 +68,14 @@ Table Concrete (Base) {
 }
 ```
 
-`Original` retains the identity of `Base` but omits `Fields`.
+In JSON, `Original` identifies `Base` but omits `Fields`.
 `OriginalIDType` is `Integer`, while Concrete's own ID type is `UUID`.
-Inclusion does not change this reference rule. Aliases preserve the same bounded
+Inclusion does not change this JSON rule. Aliases preserve the same bounded
 projection; they do not expand it into a complete copy of the original.
+Direct self/mutual object references are valid source. If JSON would expand
+them recursively, emission reports a recursive-projection error. Independent
+references to one target are not cycles. Scalar/value dependency cycles remain
+compiler errors; source-loading and composition cycle rules are unchanged.
 
 ## Included language rules
 

@@ -1,0 +1,166 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../../../packages/nxscript/language/Language.nxscript";
+
+// Declarative installation intent. No embedded script or condition language.
+Language NexusSetup {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Product {
+            Root: True;
+            
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Id { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Name { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Version { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Publisher { Value Value { EffectiveCategories: [Text]; } },
+                Property Copyright { Value Value { EffectiveCategories: [Text]; } },
+                Property Icon { Value Value { EffectiveCategories: [Text]; } },
+                Property Image { Value Value { EffectiveCategories: [Text]; } },
+                Property License { Value Value { EffectiveCategories: [Text]; } },
+                Property Description { Value Value { EffectiveCategories: [Text]; } },
+                Property Website { Value Value { EffectiveCategories: [Text]; } },
+                Property Support { Value Value { EffectiveCategories: [Text]; } },
+                Property Updates { Value Value { EffectiveCategories: [Text]; } },
+                Property ChildMode { Value Value { Scalar: Text; AllowedValues: [Independent, Exclusive]; } }
+            ];
+            Children: [Child Features { Kinds: [Feature]; }, Child Locations { Kinds: [Location]; }, Child Dependencies { Kinds: [Dependency]; }];
+        },
+        Definition Feature {
+            Root: False;
+            Parents: [Product, Feature];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { EffectiveCategories: [Text]; } },
+                Property Required { Value Value { Scalar: Boolean; } },
+                Property Default { Value Value { Scalar: Boolean; } },
+                Property ChildMode { Value Value { Scalar: Text; AllowedValues: [Independent, Exclusive]; } },
+                Property Requires { Value Value { EffectiveCategories: [Array]; Array Array { Names: Optional; EntrySourceForms: [Reference]; EntryEffectiveCategories: [Definition]; DefinitionKinds: [Feature, Dependency]; } } }
+            ];
+            Children: [Child Features { Kinds: [Feature]; }, Child Files { Kinds: [File, Directory]; }, Child Shortcuts { Kinds: [Shortcut]; }];
+        },
+        Definition Location {
+            Root: False;
+            Parents: [Product];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Kind { Required: True; Value Value { Scalar: Text; AllowedValues: [ApplicationRoot, Derived, MachinePrograms, UserPrograms, UserHome, UserData, UserLocalData, CommonData, Desktop, ApplicationsMenu, Documents, Downloads, Temp, System, Fonts]; } },
+                Property Base { Value Value { SourceForms: [Reference]; EffectiveCategories: [Definition]; Reference Reference { Targets: [Definition]; DefinitionKinds: [Location]; } } },
+                Property Path { Value Value { EffectiveCategories: [Text]; } }
+            ];
+            
+        },
+        Definition File {
+            Root: False;
+            Parents: [Feature];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Location { Required: True; Value Value { SourceForms: [Reference]; EffectiveCategories: [Definition]; Reference Reference { Targets: [Definition]; DefinitionKinds: [Location]; } } },
+                Property Path { Value Value { EffectiveCategories: [Text]; } },
+                Property PreserveExisting { Value Value { Scalar: Boolean; } },
+                Property KeepOnUninstall { Value Value { Scalar: Boolean; } },
+                Property IgnoreVersion { Value Value { Scalar: Boolean; } }
+            ];
+            
+        },
+        Definition Directory {
+            Root: False;
+            Parents: [Feature];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Location { Required: True; Value Value { SourceForms: [Reference]; EffectiveCategories: [Definition]; Reference Reference { Targets: [Definition]; DefinitionKinds: [Location]; } } },
+                Property Path { Value Value { EffectiveCategories: [Text]; } },
+                Property PreserveExisting { Value Value { Scalar: Boolean; } },
+                Property KeepOnUninstall { Value Value { Scalar: Boolean; } },
+                Property IgnoreVersion { Value Value { Scalar: Boolean; } }
+            ];
+            
+        },
+        Definition Shortcut {
+            Root: False;
+            Parents: [Feature];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Location { Required: True; Value Value { SourceForms: [Reference]; EffectiveCategories: [Definition]; Reference Reference { Targets: [Definition]; DefinitionKinds: [Location]; } } },
+                Property Target { Required: True; Value Value { SourceForms: [Reference]; EffectiveCategories: [Definition]; Reference Reference { Targets: [Definition]; DefinitionKinds: [Location]; } } },
+                Property Path { Value Value { EffectiveCategories: [Text]; } }
+            ];
+            
+        },
+        Definition Dependency {
+            Root: False;
+            Parents: [Product];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Ownership { Required: True; Value Value { Scalar: Text; AllowedValues: [Owned, Shared]; } },
+                Property Requires { Value Value { EffectiveCategories: [Array]; Array Array { Names: Optional; EntrySourceForms: [Reference]; EntryEffectiveCategories: [Definition]; DefinitionKinds: [Dependency]; } } }
+            ];
+            Children: [Child Acquisition { Kinds: [Payload, Web]; Maximum: 1; }, Child Installer { Kinds: [Exe, MSI, VSIX]; Maximum: 1; }];
+        },
+        Definition Payload {
+            Root: False;
+            Parents: [Dependency];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+            
+        },
+        Definition Web {
+            Root: False;
+            Parents: [Dependency];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+            
+        },
+        Definition Exe {
+            Root: False;
+            Parents: [Dependency];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            
+            
+        },
+        Definition MSI {
+            Root: False;
+            Parents: [Dependency];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            
+            
+        },
+        Definition VSIX {
+            Root: False;
+            Parents: [Dependency];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            
+            
+        }
+    ];
+}
+

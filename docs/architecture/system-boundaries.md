@@ -19,7 +19,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 `NexusTest` is a test execution boundary. Test modules expose a small C-style ABI and exchange UTF-8 JSON-RPC text. Pascal objects, Pascal strings, records, exceptions, and caller-owned allocations do not cross that module boundary.
 
-`packages/gui` is a UI runtime library. It owns UI source, tests, docs, resources, and bin output conventions, while its Nexus-facing TNX layer uses the external fpGUI implementation. It does not own language-server or test-framework semantics. `NexusTestUI` can use it as a client interface, but that does not move NexusTest ownership into the GUI package.
+`packages2/nexus-packages/gui` is a UI runtime library. It owns UI source, tests, docs, resources, and bin output conventions, while its Nexus-facing TNX layer uses the external fpGUI implementation. It does not own language-server or test-framework semantics. `NexusTestUI` can use it as a client interface, but that does not move NexusTest ownership into the GUI package.
 
 `NexusForge` coordinates execution; operation-specific command and artifact templates supply tool and target behavior. It delegates CSV compilation to nxcsv and contains no SQL or CSV parsing logic.
 

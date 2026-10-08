@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General><MainUnit Value="0"/><Title Value="NexusSetupUITests"/><UseAppBundle Value="False"/></General>
+    <Units Count="1"><Unit0><Filename Value="NexusSetupUITests.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target><Filename Value="../../../output/NexusSetupUITests/$(TargetCPU)-$(TargetOS)/NexusSetupUITests"/></Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir);../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/resources"/>
+      <OtherUnitFiles Value=".;../src;../../../packages/nxscript/src;../../../packages2/nexus-packages/serialization/src;../../../packages2/nexus-packages/serialization/json/src;../../../packages2/nexus-packages/db/sqlite/src/bindings;../../../NexusLib/core/src;../../../lib/dmustache;../../../packages/nxtest/src;../../../packages2/nexus-packages/gui/src;../../../packages2/nexus-packages/gui/src/vtv;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/gui;../../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/resources"/>
+      <UnitOutputDirectory Value="../../../output/NexusSetupUITests/$(TargetCPU)-$(TargetOS)/units"/>
+    </SearchPaths>
+    <Other><CustomOptions Value="-dGDI -gh -gl -Xe"/></Other>
+  </CompilerOptions>
+</CONFIG>

@@ -5,7 +5,7 @@ This package contains the reusable NexusScript mechanism:
 - source ranges, values, definitions, modules, and semantic model;
 - compiler, import, source-provider, and compilation-session logic;
 - analysis, language definitions, normalization, and validation;
-- artifact model, JSON serialization, and SQLite relational projection;
+- artifact model, bounded JSON, SQLite relational projection, and native Live snapshots;
 - external tabular-source handling and manifest processing.
 
 The command-line frontend remains under `projects/nxscript/cli`. The
@@ -27,6 +27,14 @@ built-in registered names are `json` and `sqlite`. `WriteArtifact(TStream)` is
 the common output contract. The filename overload creates a `TFileStream` and
 delegates to that stream operation.
 
+Live is an in-memory result, not a stream artifact or a CLI output format.
+`TNexusScriptLiveEmitter.Emit` returns a caller-owned snapshot with semantic
+objects and real links. See [Live ownership and navigation](doc/live-emitter.md).
+Concrete object-reference cycles compile normally. Scalar aliases with no
+terminating value still fail compilation. JSON rejects recursive expansion at
+emission; Live retains real object links. SQLite keeps its authored relational
+projection rather than serializing compiler nodes.
+
 ## SQLite emitter
 
 `TNexusScriptSQLiteEmitter` projects the consumer-visible artifact into
@@ -43,8 +51,22 @@ columns, required scalar values, and empty-array shapes. Without a dialect, the
 emitter discovers nullable columns and relationships from all completed values
 in the consumer-visible artifact. Empty dialectless arrays contribute no table
 because they expose no entry shape. User properties are never replaced by
-emitter-generated identity names. Arbitrary reference relationships are not
-yet represented.
+emitter-generated identity names.
+
+Definition-valued reference properties are saved in `<PropertyName>_id` integer
+columns with foreign keys to the existing target table's `nx_id`. Scalar values
+keep their original text columns: `Type: "INTEGER"` is saved in `Type`, while
+`Type: @...Tables.User` is saved in `Type_id`. Aliases share the target row;
+self/mutual references do not duplicate definitions or introduce extra tables.
+Reference constraints are deferred until transaction commit so forward and
+circular links do not depend on row insertion order.
+
+A referenced row must belong to the output. An imported definition can link to
+its included authored row, but a module-only target is not added implicitly.
+Each reference column has one target table. Missing/ambiguous target rows,
+conflicting target tables, and generated-column name collisions fail emission
+rather than silently losing the link. Reference-valued array entries are not
+covered by this property-reference projection.
 
 Add the compiled document with `AddDocument`, then call `WriteDatabase` with
 the destination filename. The SQLite runtime must be available to the process;

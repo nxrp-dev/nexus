@@ -716,9 +716,7 @@ end;
 function StructuralDefinition(AValue: TNexusScriptCompiledValue):
   TNexusScriptCompiledDefinition;
 begin
-  Result := AValue.StructuralDefinition;
-  if (Result = nil) and (AValue.EffectiveValue <> nil) then
-    Result := AValue.EffectiveValue.StructuralDefinition;
+  Result := AValue.DefinitionValue;
 end;
 
 function TNexusScriptLanguageDefinition.NormalizeArray(

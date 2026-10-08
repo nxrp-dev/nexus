@@ -20,6 +20,7 @@ interface
 uses
   Classes,
   SysUtils,
+  Generics.Collections,
   fpjson,
   tpNexusScript,
   obNexusScriptModel,
@@ -37,13 +38,16 @@ type
     FRootNames: TStringList;
     FCollectedNames: TStringList;
     FCollections: TJSONObject;
+    FProjectedDefinitions: TList<TNexusScriptCompiledDefinition>;
+    function IsScalarProjection(AValue: TNexusScriptCompiledValue): Boolean;
     function DefinitionMetadata(
       ADefinition: TNexusScriptCompiledDefinition;
       AReferenceValue: TNexusScriptCompiledValue):
       TNexusScriptArtifactMetadata;
     function DefinitionJSON(
       ADefinition: TNexusScriptCompiledDefinition;
-      AReferenceValue: TNexusScriptCompiledValue = nil): TJSONObject;
+      AReferenceValue: TNexusScriptCompiledValue = nil;
+      AProjection: Boolean = False): TJSONObject;
     function ValueJSON(AValue: TNexusScriptCompiledValue;
       AArrayItem: Boolean): TJSONData;
     function ArrayJSON(AValue: TNexusScriptCompiledValue): TJSONArray;
@@ -129,6 +133,7 @@ begin
       ADefinition.SourceRange.EndPosition.Column;
     if lIsReference then
     begin
+      Result.Name.Value := AReferenceValue.EffectiveName;
       if AReferenceValue.OriginalDefinitionName = '' then
         raise ENexusScriptJSON.CreateFmt(
           'Structural reference %s has no resolved target name.',
@@ -161,10 +166,12 @@ begin
   FRoot.Add('_nx', FMetadata);
   FCollections := TJSONObject.Create;
   FMetadata.Add('Collections', FCollections);
+  FProjectedDefinitions := TList<TNexusScriptCompiledDefinition>.Create;
 end;
 
 destructor TNexusScriptJSONEmitter.Destroy;
 begin
+  FProjectedDefinitions.Free;
   FCollectedNames.Free;
   FRootNames.Free;
   FRoot.Free;
@@ -231,7 +238,7 @@ begin
     nsavArray:
       Result := ArrayJSON(lValue);
     nsavDefinition:
-      Result := DefinitionJSON(lValue.StructuralDefinition, AValue);
+      Result := DefinitionJSON(lValue.DefinitionValue, AValue);
   else
     if AArrayItem then
       raise ENexusScriptJSON.Create(
@@ -242,33 +249,67 @@ begin
   end;
 end;
 
+function TNexusScriptJSONEmitter.IsScalarProjection(
+  AValue: TNexusScriptCompiledValue): Boolean;
+var
+  lValue, lItem: TNexusScriptCompiledValue;
+begin
+  lValue := AValue.SemanticValue;
+  if lValue.DefinitionValue <> nil then Exit(False);
+  if lValue.Kind = nsvArray then
+    for lItem in lValue.Items do
+      if not IsScalarProjection(lItem) then Exit(False);
+  Result := True;
+end;
+
 function TNexusScriptJSONEmitter.DefinitionJSON(
   ADefinition: TNexusScriptCompiledDefinition;
-  AReferenceValue: TNexusScriptCompiledValue): TJSONObject;
+  AReferenceValue: TNexusScriptCompiledValue;
+  AProjection: Boolean): TJSONObject;
 var
   lMetaData: TNexusScriptArtifactMetadata;
   lProperty: TNexusScriptCompiledProperty;
   lChild: TNexusScriptCompiledDefinition;
+  lProjection: Boolean;
 begin
-  if (ADefinition.FindProperty('_nx') <> nil) or
-    (ADefinition.FindChild('_nx') <> nil) then
-    raise ENexusScriptJSON.CreateFmt(
-      'Definition %s uses reserved member _nx.', [ADefinition.Name]);
-
-  Result := TJSONObject.Create;
-  lMetaData := nil;
+  lProjection := AProjection or ((AReferenceValue <> nil) and
+    (AReferenceValue.Kind = nsvReference));
+  if lProjection then
+  begin
+    if FProjectedDefinitions.IndexOf(ADefinition) >= 0 then
+      raise ENexusScriptJSON.CreateFmt(
+        'Recursive JSON reference projection at %s (%s:%d).',
+        [ADefinition.Name, ADefinition.SourceRange.SourceName,
+         ADefinition.SourceRange.StartPosition.Line]);
+    FProjectedDefinitions.Add(ADefinition);
+  end;
   try
-    lMetaData := DefinitionMetadata(ADefinition, AReferenceValue);
-    Result.Add('_nx', lMetaData.ToJSONData);
-    FreeAndNil(lMetaData);
-    for lProperty in ADefinition.Properties do
-      Result.Add(lProperty.Name, ValueJSON(lProperty.Value, False));
-    for lChild in ADefinition.Children do
-      Result.Add(lChild.Name, DefinitionJSON(lChild));
-  except
-    lMetaData.Free;
-    Result.Free;
-    raise;
+    if (ADefinition.FindProperty('_nx') <> nil) or
+      (ADefinition.FindChild('_nx') <> nil) then
+      raise ENexusScriptJSON.CreateFmt(
+        'Definition %s uses reserved member _nx.', [ADefinition.Name]);
+    Result := TJSONObject.Create;
+    lMetaData := nil;
+    try
+      lMetaData := DefinitionMetadata(ADefinition, AReferenceValue);
+      Result.Add('_nx', lMetaData.ToJSONData);
+      FreeAndNil(lMetaData);
+      for lProperty in ADefinition.Properties do
+      begin
+        if lProjection and (lProperty.Value.SemanticValue.Kind = nsvArray) and
+          not IsScalarProjection(lProperty.Value) then Continue;
+        Result.Add(lProperty.Name, ValueJSON(lProperty.Value, False));
+      end;
+      for lChild in ADefinition.Children do
+        Result.Add(lChild.Name, DefinitionJSON(lChild, nil, lProjection));
+    except
+      lMetaData.Free;
+      Result.Free;
+      raise;
+    end;
+  finally
+    if lProjection then
+      FProjectedDefinitions.Delete(FProjectedDefinitions.Count - 1);
   end;
 end;
 

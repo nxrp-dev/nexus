@@ -42,6 +42,9 @@ type
       TNexusScriptCompiledValue;
     function DefinitionID(
       ADefinition: TNexusScriptCompiledDefinition): Integer;
+    function ReferenceTarget(AValue: TNexusScriptCompiledValue):
+      TNexusScriptCompiledDefinition;
+    function ReferenceTable(const ATableName, APropertyName: string): string;
     function IsScalarArrayRule(APropertyRule: TNSPropertyRule): Boolean;
     function IsDefinitionArrayRule(APropertyRule: TNSPropertyRule): Boolean;
     function IsScalarArrayProperty(
@@ -109,8 +112,72 @@ begin
   Result := FView.Definitions.IndexOf(ADefinition) + 1;
   if Result <= 0 then
     raise ENexusScriptSQLite.CreateFmt(
-      'Parent definition %s is not part of the consumer artifact.',
+      'Definition %s is not part of the consumer artifact.',
       [ADefinition.Name]);
+end;
+
+function TNexusScriptSQLiteEmitter.ReferenceTarget(
+  AValue: TNexusScriptCompiledValue): TNexusScriptCompiledDefinition;
+var
+  lTarget, lCandidate: TNexusScriptCompiledDefinition;
+begin
+  Result := nil;
+  if (AValue = nil) or (AValue.Kind <> nsvReference) then Exit;
+  lTarget := AValue.DefinitionValue;
+  if lTarget = nil then Exit;
+  if FView.Definitions.IndexOf(lTarget) >= 0 then Exit(lTarget);
+
+  { Imported copies refer to the same authored definition as an included row. }
+  for lCandidate in FView.Definitions do
+    if (lTarget.SourceRange.SourceName <> '') and
+      (lCandidate.SourceRange.SourceName = lTarget.SourceRange.SourceName) and
+      (lCandidate.SourceRange.StartPosition.Offset =
+        lTarget.SourceRange.StartPosition.Offset) and
+      (lCandidate.SourceRange.EndPosition.Offset =
+        lTarget.SourceRange.EndPosition.Offset) and
+      SameText(lCandidate.Kind, lTarget.Kind) and
+      SameText(lCandidate.Name, lTarget.Name) then
+    begin
+      if Result <> nil then
+        raise ENexusScriptSQLite.CreateFmt(
+          'Reference @%s has more than one matching authored row.',
+          [AValue.SourceText]);
+      Result := lCandidate;
+    end;
+  if Result = nil then
+    raise ENexusScriptSQLite.CreateFmt(
+      'Reference @%s targets definition %s outside the SQLite artifact.',
+      [AValue.SourceText, lTarget.Name]);
+end;
+
+function TNexusScriptSQLiteEmitter.ReferenceTable(
+  const ATableName, APropertyName: string): string;
+var
+  lDefinition, lTarget: TNexusScriptCompiledDefinition;
+  lProperty: TNexusScriptCompiledProperty;
+  lStorageTable, lOwnerTable, lTargetTable: string;
+  lOrdinal: Integer;
+begin
+  Result := '';
+  for lDefinition in FView.Definitions do
+  begin
+    lProperty := lDefinition.FindProperty(APropertyName);
+    if lProperty = nil then Continue;
+    if not FindDefinitionStorage(lDefinition, lStorageTable, lOwnerTable,
+      lOrdinal) or not SameText(lStorageTable, ATableName) then Continue;
+    lTarget := ReferenceTarget(lProperty.Value);
+    if lTarget = nil then Continue;
+    if not FindDefinitionStorage(lTarget, lTargetTable, lOwnerTable,
+      lOrdinal) then
+      raise ENexusScriptSQLite.CreateFmt(
+        'Cannot determine SQLite table for reference @%s.',
+        [lProperty.Value.SourceText]);
+    if (Result <> '') and not SameText(Result, lTargetTable) then
+      raise ENexusScriptSQLite.CreateFmt(
+        'Reference property %s.%s targets both %s and %s tables.',
+        [ATableName, APropertyName, Result, lTargetTable]);
+    Result := lTargetTable;
+  end;
 end;
 
 function TNexusScriptSQLiteEmitter.IsScalarArrayRule(
@@ -336,7 +403,7 @@ var
   lProperty: TNexusScriptCompiledProperty;
   lValue: TNexusScriptCompiledValue;
   lArrayRule: TNSArrayRule;
-  lOwnerTables, lKinds, lColumns: TStringList;
+  lOwnerTables, lKinds, lColumns, lReferences: TStringList;
   lStorageTable, lOwnerTable, lColumnName: string;
   lDefinitionIndex, lPropertyIndex, lKindIndex, lOrdinal: Integer;
   lHasOrdinal: Boolean;
@@ -350,10 +417,12 @@ begin
   lOwnerTables := TStringList.Create;
   lKinds := TStringList.Create;
   lColumns := TStringList.Create;
+  lReferences := TStringList.Create;
   try
     lOwnerTables.CaseSensitive := False;
     lKinds.CaseSensitive := False;
     lColumns.CaseSensitive := False;
+    lReferences.CaseSensitive := False;
     lHasOrdinal := False;
     for lDefinition in FView.Definitions do
     begin
@@ -363,6 +432,9 @@ begin
       AddName(lOwnerTables, lOwnerTable);
       AddName(lKinds, lDefinition.Kind);
       lHasOrdinal := lHasOrdinal or (lOrdinal >= 0);
+      for lProperty in lDefinition.Properties do
+        if ReferenceTarget(lProperty.Value) <> nil then
+          AddName(lReferences, lProperty.Name);
       if not FHasDialect then
         for lProperty in lDefinition.Properties do
         begin
@@ -447,8 +519,17 @@ begin
         end;
       end;
     end;
+    for lPropertyIndex := 0 to lReferences.Count - 1 do
+    begin
+      lColumnName := lReferences[lPropertyIndex] + '_id';
+      Result := Result + ', ' + QuoteIdentifier(lColumnName) +
+        ' INTEGER REFERENCES ' + QuoteIdentifier(ReferenceTable(
+          ATableName, lReferences[lPropertyIndex])) +
+        ' (' + QuoteIdentifier('nx_id') + ') DEFERRABLE INITIALLY DEFERRED';
+    end;
     Result := Result + ');';
   finally
+    lReferences.Free;
     lColumns.Free;
     lKinds.Free;
     lOwnerTables.Free;
@@ -576,7 +657,7 @@ end;
 
 procedure TNexusScriptSQLiteEmitter.InsertDefinitions(ADatabase: Psqlite3);
 var
-  lDefinition: TNexusScriptCompiledDefinition;
+  lDefinition, lTarget: TNexusScriptCompiledDefinition;
   lDefinitionRule: TNSDefinitionRule;
   lPropertyRule: TNSPropertyRule;
   lProperty: TNexusScriptCompiledProperty;
@@ -647,6 +728,14 @@ begin
         lColumns := lColumns + ', ' + QuoteIdentifier(lProperty.Name);
         lValues := lValues + ', ' + SQLText(lValue.EffectiveText);
       end;
+
+    for lProperty in lDefinition.Properties do
+    begin
+      lTarget := ReferenceTarget(lProperty.Value);
+      if lTarget = nil then Continue;
+      lColumns := lColumns + ', ' + QuoteIdentifier(lProperty.Name + '_id');
+      lValues := lValues + ', ' + IntToStr(DefinitionID(lTarget));
+    end;
 
     lSQL := 'INSERT INTO ' + QuoteIdentifier(lTableName) + ' (' +
       lColumns + ') VALUES (' + lValues + ');';
