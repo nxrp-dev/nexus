@@ -8,3 +8,4 @@ dist/
 *.ppu
 *.zip
 lib/
+/packages2
