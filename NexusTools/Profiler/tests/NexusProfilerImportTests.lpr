@@ -18,8 +18,8 @@ program NexusProfilerImportTests;
 uses
   Classes,
   SysUtils,
-  SQLDB,
-  SQLite3Conn,
+  obNXSQLiteConnection,
+  obNXSQLiteDataSet,
   tpNXProfileFormat,
   obNXProfileReader,
   obNXProfileImporter;
@@ -280,15 +280,14 @@ begin
   end;
 end;
 
-function Scalar(AConnection: TSQLite3Connection;
-  ATransaction: TSQLTransaction; const ASQL: string): Int64;
+function Scalar(AConnection: TNXSQLiteConnection;
+  const ASQL: string): Int64;
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
-  lQuery := TSQLQuery.Create(nil);
+  lQuery := TNXSQLiteDataSet.Create(nil);
   try
-    lQuery.DataBase := AConnection;
-    lQuery.Transaction := ATransaction;
+    lQuery.Connection := AConnection;
     lQuery.SQL.Text := ASQL;
     lQuery.Open;
     Result := lQuery.Fields[0].AsLargeInt;
@@ -299,21 +298,16 @@ end;
 
 function DatabaseScalar(const AFileName, ASQL: string): Int64;
 var
-  lConnection: TSQLite3Connection;
-  lTransaction: TSQLTransaction;
+  lConnection: TNXSQLiteConnection;
 begin
-  lConnection := TSQLite3Connection.Create(nil);
-  lTransaction := TSQLTransaction.Create(nil);
+  lConnection := TNXSQLiteConnection.Create(nil);
   try
     lConnection.DatabaseName := AFileName;
-    lConnection.Transaction := lTransaction;
-    lTransaction.DataBase := lConnection;
     lConnection.Open;
-    lTransaction.StartTransaction;
-    Result := Scalar(lConnection, lTransaction, ASQL);
-    lTransaction.Commit;
+    lConnection.StartTransaction;
+    Result := Scalar(lConnection, ASQL);
+    lConnection.Commit;
   finally
-    lTransaction.Free;
     lConnection.Free;
   end;
 end;
@@ -336,89 +330,79 @@ end;
 
 procedure VerifyDatabase(const AFileName: string);
 var
-  lConnection: TSQLite3Connection;
-  lTransaction: TSQLTransaction;
+  lConnection: TNXSQLiteConnection;
 begin
-  lConnection := TSQLite3Connection.Create(nil);
-  lTransaction := TSQLTransaction.Create(nil);
+  lConnection := TNXSQLiteConnection.Create(nil);
   try
     lConnection.DatabaseName := AFileName;
-    lConnection.Transaction := lTransaction;
-    lTransaction.DataBase := lConnection;
     lConnection.Open;
-    lTransaction.StartTransaction;
-    Check(Scalar(lConnection, lTransaction,
+    lConnection.StartTransaction;
+    Check(Scalar(lConnection,
       'select count(*) from nxp_call') = 3, 'completed call count is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select count(*) from nxp_import_issue') = 0, 'unexpected import issue');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select inclusive_ticks from nxp_procedure_total where source_procedure_id = 1') = 100,
       'Main inclusive time is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select self_ticks from nxp_procedure_total where source_procedure_id = 1') = 40,
       'Main self time is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select inclusive_ticks from nxp_procedure_total where source_procedure_id = 2') = 40,
       'Hot inclusive time is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select unwind_returns from nxp_procedure_total where source_procedure_id = 3') = 1,
       'unwind count is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select count(*) from nxp_call_edge') = 2, 'call edge count is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select count(*) from v_nxp_hotspots') = 3, 'hotspot view is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select complete from nxp_trace') = 1, 'trace should be complete');
-    lTransaction.Commit;
+    lConnection.Commit;
   finally
-    lTransaction.Free;
     lConnection.Free;
   end;
 end;
 
 procedure VerifyResumedDatabase(const AFileName: string);
 var
-  lConnection: TSQLite3Connection;
-  lTransaction: TSQLTransaction;
+  lConnection: TNXSQLiteConnection;
 begin
-  lConnection := TSQLite3Connection.Create(nil);
-  lTransaction := TSQLTransaction.Create(nil);
+  lConnection := TNXSQLiteConnection.Create(nil);
   try
     lConnection.DatabaseName := AFileName;
-    lConnection.Transaction := lTransaction;
-    lTransaction.DataBase := lConnection;
     lConnection.Open;
-    lTransaction.StartTransaction;
-    Check(Scalar(lConnection, lTransaction,
+    lConnection.StartTransaction;
+    Check(Scalar(lConnection,
       'select count(*) from nxp_run') = 1, 'resume created another run');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select count(*) from nxp_trace') = 1, 'resume created another trace');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select count(*) from nxp_call') = 3, 'resume duplicated or lost calls');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select calls from nxp_procedure_total where source_procedure_id = 2') = 2,
       'checkpointed procedure totals were not merged');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select inclusive_ticks from nxp_procedure_total where source_procedure_id = 2') = 30,
       'checkpointed procedure duration is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select self_ticks from nxp_procedure_total where source_procedure_id = 1') = 70,
       'restored parent child time is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select calls from nxp_call_edge where caller_procedure_id = 1 and ' +
       'callee_procedure_id = 2') = 2, 'checkpointed call edge was not merged');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select processed_events from nxp_import_checkpoint') = 3,
       'checkpoint call count is wrong');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select finished from nxp_import_checkpoint') = 1,
       'final checkpoint is not marked finished');
-    Check(Scalar(lConnection, lTransaction,
+    Check(Scalar(lConnection,
       'select count(*) from nxp_import_issue') = 0,
       'resume produced an import issue');
-    lTransaction.Commit;
+    lConnection.Commit;
   finally
-    lTransaction.Free;
     lConnection.Free;
   end;
 end;

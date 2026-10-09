@@ -21,21 +21,26 @@ uses
   Classes,
   SysUtils,
   DB,
-  SQLDB,
-  SQLite3Conn,
+  SQLite3Dyn,
+  obNXSQLiteConnection,
+  obNXSQLiteDataSet,
   tpNXProfileFormat;
 
 type
   TNXProfileDatabase = class
   private
-    FConnection: TSQLite3Connection;
-    FTransaction: TSQLTransaction;
+    FConnection: TNXSQLiteConnection;
     FCommitted: Boolean;
-    FInsertModule: TSQLQuery;
-    FUnloadModule: TSQLQuery;
-    FInsertProcedure: TSQLQuery;
-    FInsertThread: TSQLQuery;
-    FInsertCall: TSQLQuery;
+    FInsertModule: Psqlite3_stmt;
+    FInsertModuleParams: TParams;
+    FUnloadModule: Psqlite3_stmt;
+    FUnloadModuleParams: TParams;
+    FInsertProcedure: Psqlite3_stmt;
+    FInsertProcedureParams: TParams;
+    FInsertThread: Psqlite3_stmt;
+    FInsertThreadParams: TParams;
+    FInsertCall: Psqlite3_stmt;
+    FInsertCallParams: TParams;
     FCallTraceIdParam: TParam;
     FCallThreadIdParam: TParam;
     FCallSequenceParam: TParam;
@@ -45,12 +50,18 @@ type
     FCallCallerIdParam: TParam;
     FCallInclusiveTicksParam: TParam;
     FCallSelfTicksParam: TParam;
-    FInsertGap: TSQLQuery;
-    FInsertIssue: TSQLQuery;
-    FInsertProcedureTotal: TSQLQuery;
-    FInsertCallEdge: TSQLQuery;
+    FInsertGap: Psqlite3_stmt;
+    FInsertGapParams: TParams;
+    FInsertIssue: Psqlite3_stmt;
+    FInsertIssueParams: TParams;
+    FInsertProcedureTotal: Psqlite3_stmt;
+    FInsertProcedureTotalParams: TParams;
+    FInsertCallEdge: Psqlite3_stmt;
+    FInsertCallEdgeParams: TParams;
     procedure ExecuteSQL(const ASQL: string);
-    function NewStatement(const ASQL: string): TSQLQuery;
+    function NewStatement(const ASQL: string): TNXSQLiteDataSet;
+    function PrepareStatement(out AParams: TParams; const ASQL: string): Psqlite3_stmt;
+    procedure ExecuteStatement(AStatement: Psqlite3_stmt; AParams: TParams);
     function LastInsertId: Int64;
     procedure CreateSchema;
     procedure CreateIndexesAndViews;
@@ -109,56 +120,53 @@ begin
   if (lDirectory <> '') and (not DirectoryExists(lDirectory)) then
     ForceDirectories(lDirectory);
 
-  FConnection := TSQLite3Connection.Create(nil);
-  FTransaction := TSQLTransaction.Create(nil);
+  FConnection := TNXSQLiteConnection.Create(nil);
   FConnection.DatabaseName := AFileName;
-  FConnection.Transaction := FTransaction;
-  FTransaction.DataBase := FConnection;
   FConnection.Open;
-  FTransaction.StartTransaction;
   ExecuteSQL('pragma foreign_keys = on');
+  FConnection.StartTransaction;
   CreateSchema;
 
-  FInsertModule := NewStatement(
+  FInsertModule := PrepareStatement(FInsertModuleParams,
     'insert into nxp_module(trace_id, source_module_id, flags, build_id_hex, ' +
     'load_address_hex, load_timestamp, image_path) values(:trace_id, ' +
     ':module_id, :flags, :build_id, :load_address, :timestamp, :image_path)');
-  FUnloadModule := NewStatement(
+  FUnloadModule := PrepareStatement(FUnloadModuleParams,
     'update nxp_module set unload_flags = :flags, unload_timestamp = :timestamp ' +
     'where trace_id = :trace_id and source_module_id = :module_id');
-  FInsertProcedure := NewStatement(
+  FInsertProcedure := PrepareStatement(FInsertProcedureParams,
     'insert into nxp_procedure(trace_id, source_procedure_id, ' +
     'source_module_id, flags, stable_id_hex, code_start_hex, code_end_hex, ' +
     'source_line, source_column, name, unit_name, source_file) values(' +
     ':trace_id, :procedure_id, :module_id, :flags, :stable_id, :code_start, ' +
     ':code_end, :source_line, :source_column, :name, :unit_name, :source_file)');
-  FInsertThread := NewStatement(
+  FInsertThread := PrepareStatement(FInsertThreadParams,
     'insert into nxp_thread(trace_id, source_thread_id, flags, start_timestamp, ' +
     'name) values(:trace_id, :thread_id, :flags, :timestamp, :name)');
-  FInsertCall := NewStatement(
+  FInsertCall := PrepareStatement(FInsertCallParams,
     'insert into nxp_call(trace_id, source_thread_id, block_sequence, ' +
     'call_index, flags, source_procedure_id, caller_procedure_id, ' +
     'inclusive_ticks, self_ticks) values(:trace_id, :thread_id, :sequence, ' +
     ':call_index, :flags, :procedure_id, :caller_id, :inclusive_ticks, ' +
     ':self_ticks)');
-  FCallTraceIdParam := FInsertCall.ParamByName('trace_id');
-  FCallThreadIdParam := FInsertCall.ParamByName('thread_id');
-  FCallSequenceParam := FInsertCall.ParamByName('sequence');
-  FCallIndexParam := FInsertCall.ParamByName('call_index');
-  FCallFlagsParam := FInsertCall.ParamByName('flags');
-  FCallProcedureIdParam := FInsertCall.ParamByName('procedure_id');
-  FCallCallerIdParam := FInsertCall.ParamByName('caller_id');
-  FCallInclusiveTicksParam := FInsertCall.ParamByName('inclusive_ticks');
-  FCallSelfTicksParam := FInsertCall.ParamByName('self_ticks');
-  FInsertGap := NewStatement(
+  FCallTraceIdParam := FInsertCallParams.ParamByName('trace_id');
+  FCallThreadIdParam := FInsertCallParams.ParamByName('thread_id');
+  FCallSequenceParam := FInsertCallParams.ParamByName('sequence');
+  FCallIndexParam := FInsertCallParams.ParamByName('call_index');
+  FCallFlagsParam := FInsertCallParams.ParamByName('flags');
+  FCallProcedureIdParam := FInsertCallParams.ParamByName('procedure_id');
+  FCallCallerIdParam := FInsertCallParams.ParamByName('caller_id');
+  FCallInclusiveTicksParam := FInsertCallParams.ParamByName('inclusive_ticks');
+  FCallSelfTicksParam := FInsertCallParams.ParamByName('self_ticks');
+  FInsertGap := PrepareStatement(FInsertGapParams,
     'insert into nxp_trace_gap(trace_id, source_thread_id, flags, sequence, ' +
     'lost_event_count, timestamp) values(:trace_id, :thread_id, :flags, ' +
     ':sequence, :lost_count, :timestamp)');
-  FInsertIssue := NewStatement(
+  FInsertIssue := PrepareStatement(FInsertIssueParams,
     'insert into nxp_import_issue(trace_id, source_thread_id, sequence, ' +
     'event_index, issue_kind, details) values(:trace_id, :thread_id, ' +
     ':sequence, :event_index, :kind, :details)');
-  FInsertProcedureTotal := NewStatement(
+  FInsertProcedureTotal := PrepareStatement(FInsertProcedureTotalParams,
     'insert into nxp_procedure_total(trace_id, source_procedure_id, calls, ' +
     'normal_returns, unwind_returns, inclusive_ticks, self_ticks, min_ticks, ' +
     'max_ticks) values(:trace_id, :procedure_id, :calls, :normal_returns, ' +
@@ -171,7 +179,7 @@ begin
     'self_ticks = self_ticks + excluded.self_ticks, ' +
     'min_ticks = min(min_ticks, excluded.min_ticks), ' +
     'max_ticks = max(max_ticks, excluded.max_ticks)');
-  FInsertCallEdge := NewStatement(
+  FInsertCallEdge := PrepareStatement(FInsertCallEdgeParams,
     'insert into nxp_call_edge(trace_id, caller_procedure_id, ' +
     'callee_procedure_id, calls, inclusive_ticks) values(:trace_id, ' +
     ':caller_id, :callee_id, :calls, :inclusive_ticks) ' +
@@ -182,50 +190,64 @@ end;
 
 destructor TNXProfileDatabase.Destroy;
 begin
-  FInsertCallEdge.Free;
-  FInsertProcedureTotal.Free;
-  FInsertIssue.Free;
-  FInsertGap.Free;
-  FInsertCall.Free;
-  FInsertThread.Free;
-  FInsertProcedure.Free;
-  FUnloadModule.Free;
-  FInsertModule.Free;
-  if (FTransaction <> nil) and FTransaction.Active and (not FCommitted) then
-    FTransaction.Rollback;
-  FTransaction.Free;
+  if FInsertCallEdge <> nil then sqlite3_finalize(FInsertCallEdge);
+  FInsertCallEdgeParams.Free;
+  if FInsertProcedureTotal <> nil then sqlite3_finalize(FInsertProcedureTotal);
+  FInsertProcedureTotalParams.Free;
+  if FInsertIssue <> nil then sqlite3_finalize(FInsertIssue);
+  FInsertIssueParams.Free;
+  if FInsertGap <> nil then sqlite3_finalize(FInsertGap);
+  FInsertGapParams.Free;
+  if FInsertCall <> nil then sqlite3_finalize(FInsertCall);
+  FInsertCallParams.Free;
+  if FInsertThread <> nil then sqlite3_finalize(FInsertThread);
+  FInsertThreadParams.Free;
+  if FInsertProcedure <> nil then sqlite3_finalize(FInsertProcedure);
+  FInsertProcedureParams.Free;
+  if FUnloadModule <> nil then sqlite3_finalize(FUnloadModule);
+  FUnloadModuleParams.Free;
+  if FInsertModule <> nil then sqlite3_finalize(FInsertModule);
+  FInsertModuleParams.Free;
+  if (FConnection <> nil) and FConnection.InTransaction and (not FCommitted) then
+    FConnection.Rollback;
   FConnection.Free;
   inherited Destroy;
 end;
 
 procedure TNXProfileDatabase.ExecuteSQL(const ASQL: string);
 begin
-  FConnection.ExecuteDirect(ASQL);
+  FConnection.Execute(ASQL);
 end;
 
-function TNXProfileDatabase.NewStatement(const ASQL: string): TSQLQuery;
+function TNXProfileDatabase.NewStatement(const ASQL: string): TNXSQLiteDataSet;
 begin
-  Result := TSQLQuery.Create(nil);
-  Result.DataBase := FConnection;
-  Result.Transaction := FTransaction;
+  Result := TNXSQLiteDataSet.Create(nil);
+  Result.Connection := FConnection;
   Result.SQL.Text := ASQL;
-  Result.Prepare;
+end;
+
+function TNXProfileDatabase.PrepareStatement(out AParams: TParams;
+  const ASQL: string): Psqlite3_stmt;
+begin
+  AParams := TParams.Create(nil);
+  AParams.ParseSQL(ASQL, True);
+  Result := FConnection.Prepare(ASQL);
+end;
+
+procedure TNXProfileDatabase.ExecuteStatement(AStatement: Psqlite3_stmt;
+  AParams: TParams);
+begin
+  try
+    FConnection.BindParams(AStatement, AParams);
+    FConnection.CheckResult(sqlite3_step(AStatement), 'execute profiler statement');
+  finally
+    sqlite3_reset(AStatement);
+  end;
 end;
 
 function TNXProfileDatabase.LastInsertId: Int64;
-var
-  lQuery: TSQLQuery;
 begin
-  lQuery := TSQLQuery.Create(nil);
-  try
-    lQuery.DataBase := FConnection;
-    lQuery.Transaction := FTransaction;
-    lQuery.SQL.Text := 'select last_insert_rowid() as id';
-    lQuery.Open;
-    Result := lQuery.FieldByName('id').AsLargeInt;
-  finally
-    lQuery.Free;
-  end;
+  Result := sqlite3_last_insert_rowid(FConnection.Handle);
 end;
 
 class function TNXProfileDatabase.HexQWord(AValue: QWord): string;
@@ -357,7 +379,7 @@ begin
 end;
 function TNXProfileDatabase.FindOrAddRun(const AName: string): Int64;
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
   lQuery := NewStatement(
     'select id from nxp_run where name = :name order by id limit 1');
@@ -389,7 +411,7 @@ function TNXProfileDatabase.FindTrace(ARunId: Int64;
   AAbiVersion: Word; out ATraceId: Int64;
   out AComplete: Boolean): Boolean;
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
   ATraceId := 0;
   AComplete := False;
@@ -425,7 +447,7 @@ function TNXProfileDatabase.AddTrace(ARunId: Int64;
   AClockFrequency, AStartTimestamp: QWord; AFormatVersion,
   AAbiVersion: Word): Int64;
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
   lQuery := NewStatement(
     'insert into nxp_trace(run_id, file_name, process_id, session_id_hex, ' +
@@ -451,53 +473,53 @@ end;
 procedure TNXProfileDatabase.AddModule(ATraceId: Int64;
   const AInfo: TNXProfileModuleInfo);
 begin
-  FInsertModule.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertModule.ParamByName('module_id').AsLargeInt := AInfo.ModuleId;
-  FInsertModule.ParamByName('flags').AsLargeInt := AInfo.Flags;
-  FInsertModule.ParamByName('build_id').AsString := HexQWord(AInfo.BuildId);
-  FInsertModule.ParamByName('load_address').AsString := HexQWord(AInfo.LoadAddress);
-  FInsertModule.ParamByName('timestamp').AsLargeInt := Int64(AInfo.Timestamp);
-  FInsertModule.ParamByName('image_path').AsString := AInfo.ImagePath;
-  FInsertModule.ExecSQL;
+  FInsertModuleParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertModuleParams.ParamByName('module_id').AsLargeInt := AInfo.ModuleId;
+  FInsertModuleParams.ParamByName('flags').AsLargeInt := AInfo.Flags;
+  FInsertModuleParams.ParamByName('build_id').AsString := HexQWord(AInfo.BuildId);
+  FInsertModuleParams.ParamByName('load_address').AsString := HexQWord(AInfo.LoadAddress);
+  FInsertModuleParams.ParamByName('timestamp').AsLargeInt := Int64(AInfo.Timestamp);
+  FInsertModuleParams.ParamByName('image_path').AsString := AInfo.ImagePath;
+  ExecuteStatement(FInsertModule, FInsertModuleParams);
 end;
 
 procedure TNXProfileDatabase.UnloadModule(ATraceId: Int64;
   AModuleId, AFlags: DWord; ATimestamp: QWord);
 begin
-  FUnloadModule.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FUnloadModule.ParamByName('module_id').AsLargeInt := AModuleId;
-  FUnloadModule.ParamByName('flags').AsLargeInt := AFlags;
-  FUnloadModule.ParamByName('timestamp').AsLargeInt := Int64(ATimestamp);
-  FUnloadModule.ExecSQL;
+  FUnloadModuleParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FUnloadModuleParams.ParamByName('module_id').AsLargeInt := AModuleId;
+  FUnloadModuleParams.ParamByName('flags').AsLargeInt := AFlags;
+  FUnloadModuleParams.ParamByName('timestamp').AsLargeInt := Int64(ATimestamp);
+  ExecuteStatement(FUnloadModule, FUnloadModuleParams);
 end;
 
 procedure TNXProfileDatabase.AddProcedure(ATraceId: Int64;
   const AInfo: TNXProfileProcedureInfo);
 begin
-  FInsertProcedure.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertProcedure.ParamByName('procedure_id').AsLargeInt := AInfo.ProcedureId;
-  FInsertProcedure.ParamByName('module_id').AsLargeInt := AInfo.ModuleId;
-  FInsertProcedure.ParamByName('flags').AsLargeInt := AInfo.Flags;
-  FInsertProcedure.ParamByName('stable_id').AsString := HexQWord(AInfo.StableId);
-  FInsertProcedure.ParamByName('code_start').AsString := HexQWord(AInfo.CodeStart);
-  FInsertProcedure.ParamByName('code_end').AsString := HexQWord(AInfo.CodeEnd);
-  FInsertProcedure.ParamByName('source_line').AsLargeInt := AInfo.SourceLine;
-  FInsertProcedure.ParamByName('source_column').AsLargeInt := AInfo.SourceColumn;
-  FInsertProcedure.ParamByName('name').AsString := AInfo.Name;
-  FInsertProcedure.ParamByName('unit_name').AsString := AInfo.UnitName;
-  FInsertProcedure.ParamByName('source_file').AsString := AInfo.SourceFile;
-  FInsertProcedure.ExecSQL;
+  FInsertProcedureParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertProcedureParams.ParamByName('procedure_id').AsLargeInt := AInfo.ProcedureId;
+  FInsertProcedureParams.ParamByName('module_id').AsLargeInt := AInfo.ModuleId;
+  FInsertProcedureParams.ParamByName('flags').AsLargeInt := AInfo.Flags;
+  FInsertProcedureParams.ParamByName('stable_id').AsString := HexQWord(AInfo.StableId);
+  FInsertProcedureParams.ParamByName('code_start').AsString := HexQWord(AInfo.CodeStart);
+  FInsertProcedureParams.ParamByName('code_end').AsString := HexQWord(AInfo.CodeEnd);
+  FInsertProcedureParams.ParamByName('source_line').AsLargeInt := AInfo.SourceLine;
+  FInsertProcedureParams.ParamByName('source_column').AsLargeInt := AInfo.SourceColumn;
+  FInsertProcedureParams.ParamByName('name').AsString := AInfo.Name;
+  FInsertProcedureParams.ParamByName('unit_name').AsString := AInfo.UnitName;
+  FInsertProcedureParams.ParamByName('source_file').AsString := AInfo.SourceFile;
+  ExecuteStatement(FInsertProcedure, FInsertProcedureParams);
 end;
 
 procedure TNXProfileDatabase.AddThread(ATraceId: Int64;
   const AInfo: TNXProfileThreadInfo);
 begin
-  FInsertThread.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertThread.ParamByName('thread_id').AsLargeInt := AInfo.ThreadId;
-  FInsertThread.ParamByName('flags').AsLargeInt := AInfo.Flags;
-  FInsertThread.ParamByName('timestamp').AsLargeInt := Int64(AInfo.Timestamp);
-  FInsertThread.ParamByName('name').AsString := AInfo.Name;
-  FInsertThread.ExecSQL;
+  FInsertThreadParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertThreadParams.ParamByName('thread_id').AsLargeInt := AInfo.ThreadId;
+  FInsertThreadParams.ParamByName('flags').AsLargeInt := AInfo.Flags;
+  FInsertThreadParams.ParamByName('timestamp').AsLargeInt := Int64(AInfo.Timestamp);
+  FInsertThreadParams.ParamByName('name').AsString := AInfo.Name;
+  ExecuteStatement(FInsertThread, FInsertThreadParams);
 end;
 
 procedure TNXProfileDatabase.AddCall(ATraceId: Int64;
@@ -513,60 +535,60 @@ begin
   FCallCallerIdParam.AsLargeInt := ACall.CallerProcedureId;
   FCallInclusiveTicksParam.AsLargeInt := Int64(ACall.InclusiveTicks);
   FCallSelfTicksParam.AsLargeInt := Int64(ACall.SelfTicks);
-  FInsertCall.ExecSQL;
+  ExecuteStatement(FInsertCall, FInsertCallParams);
 end;
 
 procedure TNXProfileDatabase.AddGap(ATraceId: Int64;
   AThreadId, AFlags: DWord; ASequence, ALostEventCount,
   ATimestamp: QWord);
 begin
-  FInsertGap.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertGap.ParamByName('thread_id').AsLargeInt := AThreadId;
-  FInsertGap.ParamByName('flags').AsLargeInt := AFlags;
-  FInsertGap.ParamByName('sequence').AsLargeInt := Int64(ASequence);
-  FInsertGap.ParamByName('lost_count').AsLargeInt := Int64(ALostEventCount);
-  FInsertGap.ParamByName('timestamp').AsLargeInt := Int64(ATimestamp);
-  FInsertGap.ExecSQL;
+  FInsertGapParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertGapParams.ParamByName('thread_id').AsLargeInt := AThreadId;
+  FInsertGapParams.ParamByName('flags').AsLargeInt := AFlags;
+  FInsertGapParams.ParamByName('sequence').AsLargeInt := Int64(ASequence);
+  FInsertGapParams.ParamByName('lost_count').AsLargeInt := Int64(ALostEventCount);
+  FInsertGapParams.ParamByName('timestamp').AsLargeInt := Int64(ATimestamp);
+  ExecuteStatement(FInsertGap, FInsertGapParams);
 end;
 
 procedure TNXProfileDatabase.AddIssue(ATraceId: Int64;
   AThreadId: DWord; ASequence: QWord; AEventIndex: Int64;
   const AKind, ADetails: string);
 begin
-  FInsertIssue.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertIssue.ParamByName('thread_id').AsLargeInt := AThreadId;
-  FInsertIssue.ParamByName('sequence').AsLargeInt := Int64(ASequence);
-  FInsertIssue.ParamByName('event_index').AsLargeInt := AEventIndex;
-  FInsertIssue.ParamByName('kind').AsString := AKind;
-  FInsertIssue.ParamByName('details').AsString := ADetails;
-  FInsertIssue.ExecSQL;
+  FInsertIssueParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertIssueParams.ParamByName('thread_id').AsLargeInt := AThreadId;
+  FInsertIssueParams.ParamByName('sequence').AsLargeInt := Int64(ASequence);
+  FInsertIssueParams.ParamByName('event_index').AsLargeInt := AEventIndex;
+  FInsertIssueParams.ParamByName('kind').AsString := AKind;
+  FInsertIssueParams.ParamByName('details').AsString := ADetails;
+  ExecuteStatement(FInsertIssue, FInsertIssueParams);
 end;
 
 procedure TNXProfileDatabase.AddProcedureTotal(ATraceId: Int64;
   AProcedureId: DWord; ACalls, ANormalReturns, AUnwindReturns,
   AInclusiveTicks, ASelfTicks, AMinTicks, AMaxTicks: QWord);
 begin
-  FInsertProcedureTotal.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertProcedureTotal.ParamByName('procedure_id').AsLargeInt := AProcedureId;
-  FInsertProcedureTotal.ParamByName('calls').AsLargeInt := Int64(ACalls);
-  FInsertProcedureTotal.ParamByName('normal_returns').AsLargeInt := Int64(ANormalReturns);
-  FInsertProcedureTotal.ParamByName('unwind_returns').AsLargeInt := Int64(AUnwindReturns);
-  FInsertProcedureTotal.ParamByName('inclusive_ticks').AsLargeInt := Int64(AInclusiveTicks);
-  FInsertProcedureTotal.ParamByName('self_ticks').AsLargeInt := Int64(ASelfTicks);
-  FInsertProcedureTotal.ParamByName('min_ticks').AsLargeInt := Int64(AMinTicks);
-  FInsertProcedureTotal.ParamByName('max_ticks').AsLargeInt := Int64(AMaxTicks);
-  FInsertProcedureTotal.ExecSQL;
+  FInsertProcedureTotalParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertProcedureTotalParams.ParamByName('procedure_id').AsLargeInt := AProcedureId;
+  FInsertProcedureTotalParams.ParamByName('calls').AsLargeInt := Int64(ACalls);
+  FInsertProcedureTotalParams.ParamByName('normal_returns').AsLargeInt := Int64(ANormalReturns);
+  FInsertProcedureTotalParams.ParamByName('unwind_returns').AsLargeInt := Int64(AUnwindReturns);
+  FInsertProcedureTotalParams.ParamByName('inclusive_ticks').AsLargeInt := Int64(AInclusiveTicks);
+  FInsertProcedureTotalParams.ParamByName('self_ticks').AsLargeInt := Int64(ASelfTicks);
+  FInsertProcedureTotalParams.ParamByName('min_ticks').AsLargeInt := Int64(AMinTicks);
+  FInsertProcedureTotalParams.ParamByName('max_ticks').AsLargeInt := Int64(AMaxTicks);
+  ExecuteStatement(FInsertProcedureTotal, FInsertProcedureTotalParams);
 end;
 
 procedure TNXProfileDatabase.AddCallEdge(ATraceId: Int64;
   ACallerId, ACalleeId: DWord; ACalls, AInclusiveTicks: QWord);
 begin
-  FInsertCallEdge.ParamByName('trace_id').AsLargeInt := ATraceId;
-  FInsertCallEdge.ParamByName('caller_id').AsLargeInt := ACallerId;
-  FInsertCallEdge.ParamByName('callee_id').AsLargeInt := ACalleeId;
-  FInsertCallEdge.ParamByName('calls').AsLargeInt := Int64(ACalls);
-  FInsertCallEdge.ParamByName('inclusive_ticks').AsLargeInt := Int64(AInclusiveTicks);
-  FInsertCallEdge.ExecSQL;
+  FInsertCallEdgeParams.ParamByName('trace_id').AsLargeInt := ATraceId;
+  FInsertCallEdgeParams.ParamByName('caller_id').AsLargeInt := ACallerId;
+  FInsertCallEdgeParams.ParamByName('callee_id').AsLargeInt := ACalleeId;
+  FInsertCallEdgeParams.ParamByName('calls').AsLargeInt := Int64(ACalls);
+  FInsertCallEdgeParams.ParamByName('inclusive_ticks').AsLargeInt := Int64(AInclusiveTicks);
+  ExecuteStatement(FInsertCallEdge, FInsertCallEdgeParams);
 end;
 
 function TNXProfileDatabase.LoadCheckpoint(ATraceId: Int64;
@@ -574,7 +596,7 @@ function TNXProfileDatabase.LoadCheckpoint(ATraceId: Int64;
   AObservedLostEvents: QWord; out AThreadState: TBytes;
   out AFinished: Boolean): Boolean;
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
   lStream: TMemoryStream;
 begin
   ASourceOffset := 0;
@@ -616,7 +638,7 @@ procedure TNXProfileDatabase.SaveCheckpoint(ATraceId,
   AObservedLostEvents: QWord; const AThreadState: TBytes;
   AFinished: Boolean);
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
   lQuery := NewStatement(
     'insert into nxp_import_checkpoint(trace_id, source_offset, ' +
@@ -649,7 +671,7 @@ procedure TNXProfileDatabase.FinishTrace(ATraceId: Int64;
   AComplete, ATruncated: Boolean; AEndTimestamp,
   ATotalLostEventCount: QWord);
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
   lQuery := NewStatement(
     'update nxp_trace set complete = :complete, truncated_tail = :truncated, ' +
@@ -669,14 +691,14 @@ end;
 procedure TNXProfileDatabase.Commit;
 begin
   CreateIndexesAndViews;
-  FTransaction.Commit;
+  FConnection.Commit;
   FCommitted := True;
 end;
 
 procedure TNXProfileDatabase.CommitCheckpoint;
 begin
-  FTransaction.Commit;
-  FTransaction.StartTransaction;
+  FConnection.Commit;
+  FConnection.StartTransaction;
 end;
 
 end.

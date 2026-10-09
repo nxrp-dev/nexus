@@ -3,8 +3,10 @@
 `NexusProfilerImport` imports NexusFPC `.nxp` traces into SQLite for direct
 analysis with SQLite tools.
 
-The executable uses the same `sqlite3.dll` runtime as NexusLS. Place it beside
-the executable or make it discoverable through `PATH`.
+The executable uses Nexus SQLite and requires SQLite 3.53.4 or newer. Use
+`packages/nexus-packages/db/sqlite/runtime/win64/sqlite3.dll`, placing it beside
+the executable or making it discoverable through `PATH`. Replace older copies
+beside the executable, which take precedence over `PATH`.
 
 ```text
 NexusProfilerImport import <database.sqlite> <trace-or-directory> [-run <name>]
