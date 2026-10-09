@@ -18,6 +18,7 @@ clean/all bootstrap flow. Use -RegenerateMakefiles after changing build definiti
 or pruning targets so FPC's generated package/utility registration and Makefiles are
 refreshed from the current source tree before bootstrapping.
 RTL generation includes Makefile.rtl; Makefile.pkg generation uses -s.
+A successful bootstrap also requires the Win64/LLD PE and runtime contract suite.
 Existing target scopes are retained, excluding targets removed from the generator.
 .EXAMPLE
 powershell -NoProfile -ExecutionPolicy Bypass -File repo-automation\Invoke-NexusFPCBootstrap.ps1 -RegenerateMakefiles
@@ -43,7 +44,9 @@ $bootstrapUnits = Join-Path $BootstrapBin '..\..\units\x86_64-win64'
 foreach ($path in @($compiler, $make, $data2inc, $bootstrapUnits,
     "$SourceRoot\Makefile.fpc", "$SourceRoot\compiler\pp.pas",
     "$SourceRoot\rtl\inc\Makefile.rtl", "$SourceRoot\packages\fpmake.pp",
-    "$SourceRoot\utils\fpmake.pp")) {
+    "$SourceRoot\utils\fpmake.pp",
+    "$SourceRoot\tests\win64-contracts\Run-NXWin64Contracts.ps1",
+    "$SourceRoot\tests\win64-contracts\Test-NXContractImage.ps1")) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required bootstrap input missing: $path" }
 }
 if ((& $compiler -iV) -ne '3.2.2' -or $LASTEXITCODE -ne 0) {
@@ -56,6 +59,10 @@ $makeVersion = & $make --version
 if ($LASTEXITCODE -ne 0 -or ($makeVersion -join "`n") -notmatch '^GNU Make') {
     throw "Not GNU make: $make"
 }
+foreach ($tool in @('clang.exe', 'lld-link.exe', 'llvm-dlltool.exe', 'llvm-rc.exe', 'llvm-readobj.exe')) {
+    $null = Get-Command $tool -ErrorAction Stop
+}
+$validationHost = (Get-Command powershell.exe -ErrorAction Stop).Source
 Write-Host "Source: $SourceRoot"
 Write-Host "Bootstrap: $compiler"
 Write-Host "Make: $make"
@@ -237,9 +244,13 @@ try {
         throw 'Bootstrap log contains a fatal build error. Inspect bootstrap.log.'
     }
     Invoke-BootstrapStep 'compiler-version' $SourceRoot "$SourceRoot\compiler\ppcx64.exe" @('-iV')
+    Invoke-BootstrapStep 'win64-contracts' $SourceRoot $validationHost @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File',
+        "$SourceRoot\tests\win64-contracts\Run-NXWin64Contracts.ps1",
+        '-SourceRoot', $SourceRoot, '-OutputRoot', "$runRoot\win64-contracts")
     $warnings = @([IO.File]::ReadLines("$runRoot\bootstrap.log") | Where-Object { $_ -match '(?i)warning:' })
     $warnings | Set-Content -LiteralPath "$runRoot\warnings.txt" -Encoding UTF8
-    Write-Host "Bootstrap passed. Compiler and build stamps were refreshed. Warning lines: $($warnings.Count)."
+    Write-Host "Bootstrap passed. Compiler/build stamps refreshed; Win64/LLD contracts passed. Warning lines: $($warnings.Count)."
     Write-Host "Logs: $runRoot"
 } finally {
     $env:PATH = $oldPath

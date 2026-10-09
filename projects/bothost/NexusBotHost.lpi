@@ -33,7 +33,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;src\protocol;..\..\packages\nexus-packages\nxscript\src;..\..\packages\nexus-packages\serialization\json\src;..\..\packages\nexus-packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\packages\nexus-packages\network\xmpp\src;..\..\packages\nexus-packages\network\external\synapse;..\..\packages\nexus-packages\serialization\src;..\..\packages\nexus-packages\db\sqlite\src\bindings;..\..\lib\dmustache"/>
+      <OtherUnitFiles Value="src;src\protocol;..\..\packages\nexus-packages\nxscript\src;..\..\packages\nexus-packages\serialization\json\src;..\..\packages\nexus-packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\packages\nexus-packages\network\xmpp\src;..\..\packages\nexus-packages\network\external\synapse;..\..\packages\nexus-packages\serialization\src;..\..\packages\nexus-packages\db\sqlite\src\bindings;..\..\packages\nexus-packages-ext\mustache\external\dmustache"/>
       <UnitOutputDirectory Value="..\..\output\NexusBotHost\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

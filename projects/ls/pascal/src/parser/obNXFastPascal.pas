@@ -17,7 +17,7 @@ unit obNXFastPascal;
 interface
 
 uses
-  SysUtils, Classes, obNXFastParse, obNXMeasuredStructure, tpNXPasTokens;
+  SysUtils, Classes, obNXFastParse, tpNXPasTokens;
 
 type
   TNXPasRoutineDirectiveKind = (
@@ -97,8 +97,6 @@ type
       out AIndex: Integer): Boolean; static; inline;
     class function TryKindOf(const AText: string;
       out AKind: TNXPasKeywordKind): Boolean; static; inline;
-    class function GetMetrics: TNXFastStringSetMetrics; static;
-    class function MetricsAsJSON: string; static;
   end;
 
   TNXPascalRoutineDirectiveSet = class sealed
@@ -112,8 +110,6 @@ type
     class function Contains(const AText: string): Boolean; static; inline;
     class function TryKindOf(const AText: string;
       out AKind: TNXPasRoutineDirectiveKind): Boolean; static; inline;
-    class function GetMetrics: TNXFastStringSetMetrics; static;
-    class function MetricsAsJSON: string; static;
   end;
 
   TNXPascalDeclarationTailKeywordSet = class sealed
@@ -127,8 +123,6 @@ type
     class function Contains(const AText: string): Boolean; static; inline;
     class function TryKindOf(const AText: string;
       out AKind: TNXPasDeclarationTailKind): Boolean; static; inline;
-    class function GetMetrics: TNXFastStringSetMetrics; static;
-    class function MetricsAsJSON: string; static;
   end;
 
   TNXPascalPropertySpecifierSet = class sealed
@@ -142,8 +136,6 @@ type
     class function Contains(const AText: string): Boolean; static; inline;
     class function TryKindOf(const AText: string;
       out AKind: TNXPasPropertySpecifierKind): Boolean; static; inline;
-    class function GetMetrics: TNXFastStringSetMetrics; static;
-    class function MetricsAsJSON: string; static;
   end;
 
   TNXPascalParameterModifierSet = class sealed
@@ -157,8 +149,6 @@ type
     class function Contains(const AText: string): Boolean; static; inline;
     class function TryKindOf(const AText: string;
       out AKind: TNXPasParameterModifierKind): Boolean; static; inline;
-    class function GetMetrics: TNXFastStringSetMetrics; static;
-    class function MetricsAsJSON: string; static;
   end;
 
 const
@@ -234,16 +224,6 @@ begin
     AKind := pkwNone;
 end;
 
-class function TNXPascalKeywordSet.GetMetrics: TNXFastStringSetMetrics;
-begin
-  Result := FKeywordSet.Metrics;
-end;
-
-class function TNXPascalKeywordSet.MetricsAsJSON: string;
-begin
-  Result := NXMetricsToJSON(FKeywordSet.Metrics);
-end;
-
 class constructor TNXPascalRoutineDirectiveSet.Create;
 begin
   FDirectiveSet := TNXFastStringSet.Create(cPascalRoutineDirectives);
@@ -268,17 +248,6 @@ begin
   Result := FDirectiveSet.TryIndexOf(LowerCase(AText), lIndex);
   if Result then
     AKind := TNXPasRoutineDirectiveKind(lIndex);
-end;
-
-class function TNXPascalRoutineDirectiveSet.GetMetrics:
-  TNXFastStringSetMetrics;
-begin
-  Result := FDirectiveSet.Metrics;
-end;
-
-class function TNXPascalRoutineDirectiveSet.MetricsAsJSON: string;
-begin
-  Result := NXMetricsToJSON(FDirectiveSet.Metrics);
 end;
 
 class constructor TNXPascalDeclarationTailKeywordSet.Create;
@@ -307,17 +276,6 @@ begin
     AKind := TNXPasDeclarationTailKind(lIndex);
 end;
 
-class function TNXPascalDeclarationTailKeywordSet.GetMetrics:
-  TNXFastStringSetMetrics;
-begin
-  Result := FKeywordSet.Metrics;
-end;
-
-class function TNXPascalDeclarationTailKeywordSet.MetricsAsJSON: string;
-begin
-  Result := NXMetricsToJSON(FKeywordSet.Metrics);
-end;
-
 class constructor TNXPascalPropertySpecifierSet.Create;
 begin
   FSpecifierSet := TNXFastStringSet.Create(cPascalPropertySpecifiers);
@@ -344,17 +302,6 @@ begin
     AKind := TNXPasPropertySpecifierKind(lIndex);
 end;
 
-class function TNXPascalPropertySpecifierSet.GetMetrics:
-  TNXFastStringSetMetrics;
-begin
-  Result := FSpecifierSet.Metrics;
-end;
-
-class function TNXPascalPropertySpecifierSet.MetricsAsJSON: string;
-begin
-  Result := NXMetricsToJSON(FSpecifierSet.Metrics);
-end;
-
 class constructor TNXPascalParameterModifierSet.Create;
 begin
   FModifierSet := TNXFastStringSet.Create(cPascalParameterModifiers);
@@ -379,17 +326,6 @@ begin
   Result := FModifierSet.TryIndexOf(LowerCase(AText), lIndex);
   if Result then
     AKind := TNXPasParameterModifierKind(lIndex);
-end;
-
-class function TNXPascalParameterModifierSet.GetMetrics:
-  TNXFastStringSetMetrics;
-begin
-  Result := FModifierSet.Metrics;
-end;
-
-class function TNXPascalParameterModifierSet.MetricsAsJSON: string;
-begin
-  Result := NXMetricsToJSON(FModifierSet.Metrics);
 end;
 
 end.

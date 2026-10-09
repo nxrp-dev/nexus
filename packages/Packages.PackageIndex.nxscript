@@ -42,6 +42,11 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/lua/Package.nxscript";
         Description: "Lua API bindings and the generic Pascal RTTI plugin bridge.";
     }
+    LocalPackage Mustache {
+        Id: "NXRP.Mustache";
+        Descriptor: "nexus-packages-ext/mustache/Package.nxscript";
+        Description: "Mustache template parsing and rendering (DMustache).";
+    }
     LocalPackage JSONRPC {
         Id: "NXRP.Network.JSONRPC";
         Descriptor: "nexus-packages/network/json-rpc/Package.nxscript";
@@ -70,7 +75,7 @@ PackageIndex NexusPackages {
     LocalPackage Serialization {
         Id: "NXRP.Serialization";
         Descriptor: "nexus-packages/serialization/Package.nxscript";
-        Description: "Object persistence and measured static string lookup support.";
+        Description: "Object persistence and static string lookup support.";
     }
     LocalPackage JSON {
         Id: "NXRP.Serialization.JSON";

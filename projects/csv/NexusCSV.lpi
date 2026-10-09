@@ -9,7 +9,7 @@
     <Version Value="11"/>
     <Target><Filename Value="../../output/NexusCSV/$(TargetCPU)-$(TargetOS)/nxcsv"/></Target>
     <SearchPaths>
-      <OtherUnitFiles Value="src;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/serialization/delimited-text/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/network/json-rpc/src;../../NexusLib/core/src;../../lib/dmustache"/>
+      <OtherUnitFiles Value="src;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/serialization/delimited-text/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/network/json-rpc/src;../../NexusLib/core/src;../../packages/nexus-packages-ext/mustache/external/dmustache"/>
       <UnitOutputDirectory Value="../../output/NexusCSV/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Other><CustomOptions Value="-gl"/></Other>

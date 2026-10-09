@@ -9,7 +9,7 @@
     <Version Value="11"/>
     <Target><Filename Value="../../output/NexusSetupBuilder/$(TargetCPU)-$(TargetOS)/NexusSetupBuilder"/></Target>
     <SearchPaths>
-      <OtherUnitFiles Value="src;../../packages/nexus-packages/nxscript/src;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/db/sqlite/src/bindings;../../NexusLib/core/src;../../lib/dmustache"/>
+      <OtherUnitFiles Value="src;../../packages/nexus-packages/nxscript/src;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/db/sqlite/src/bindings;../../NexusLib/core/src;../../packages/nexus-packages-ext/mustache/external/dmustache"/>
       <UnitOutputDirectory Value="../../output/NexusSetupBuilder/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Other><CustomOptions Value="-gl -Cr -Co -Ci"/></Other>

@@ -7,14 +7,19 @@ recursing through directories or following repository links.
 
 [nexus-packages/Packages.PackageIndex.nxscript](nexus-packages/Packages.PackageIndex.nxscript)
 is the publishable catalog for the independent `nexus-packages` repository.
-It describes the same 13 packages, with locations relative to that repository.
+Its local descriptor locations are relative to that repository; external
+requirements identify a package in a trusted sister repository.
 Each package has its own `Package.nxscript` beside its source folder.
+
+[nexus-packages-ext/Packages.PackageIndex.nxscript](nexus-packages-ext/Packages.PackageIndex.nxscript)
+is the publishable catalog for third-party packages. It currently describes
+Mustache, with its upstream fork under `mustache/external/dmustache`.
 
 The local index names both `nexus-packages` and `nexus-packages-ext` as trusted
 repositories. The owned repository's catalog names the external repository as
 a sister repository. These declarations do not fetch, traverse, or resolve
-anything. No external package inventory has been invented: there is no external
-repository checkout in this pool yet.
+anything. The local inventory lists Mustache's descriptor directly rather than
+requiring traversal of the external repository's catalog.
 
 ## Draft conventions
 
@@ -50,7 +55,7 @@ Package Solar2D {
 ## Known incomplete information
 
 Some real prerequisites have no independent package descriptor in this catalog:
-NexusLib core, DMustache, Synapse, the compiler's platform-specific FFI support,
+NexusLib core, Synapse, the compiler's platform-specific FFI support,
 and external runtime/host libraries. The affected descriptors identify those
 prerequisites in comments. Their absence from `Requires` does not mean those
 packages are self-contained. This draft does not invent identities or

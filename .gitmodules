@@ -1,4 +1,0 @@
-[submodule "lib/dmustache"]
-	path = lib/dmustache
-	url = https://github.com/nxrp-dev/dmustache.git
-	branch = master
