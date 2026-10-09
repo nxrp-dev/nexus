@@ -132,7 +132,7 @@ rm fpmake_proc.inc fpmake_add.inc ; /bin/ls -1 */fpmake.pp| while read file; do 
 }
 
 function Get-GeneratedTargets([string]$Path) {
-    $line = [IO.File]::ReadLines($Path) | Where-Object { $_ -like 'MAKEFILETARGETS=*' } | Select-Object -First 1
+    $line = [IO.File]::ReadAllLines($Path) | Where-Object { $_ -like 'MAKEFILETARGETS=*' } | Select-Object -First 1
     if (-not $line) { throw "Missing MAKEFILETARGETS: $Path" }
     return ($line.Substring('MAKEFILETARGETS='.Length) -split ' ' | Where-Object { $_ })
 }
