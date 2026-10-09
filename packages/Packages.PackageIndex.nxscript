@@ -52,6 +52,16 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/lua/Package.nxscript";
         Description: "Lua API bindings and the generic Pascal RTTI plugin bridge.";
     }
+    LocalPackage Abbrevia {
+        Id: "NXRP.Compression.Abbrevia";
+        Descriptor: "nexus-packages-ext/compression/abbrevia/Package.nxscript";
+        Description: "Archive and compression runtime units (Abbrevia).";
+    }
+    LocalPackage PasZLib {
+        Id: "NXRP.Compression.PasZLib";
+        Descriptor: "nexus-packages-ext/compression/paszlib/Package.nxscript";
+        Description: "Pascal DEFLATE, zlib, GZIP and ZIP runtime units.";
+    }
     LocalPackage Mustache {
         Id: "NXRP.Mustache";
         Descriptor: "nexus-packages-ext/mustache/Package.nxscript";

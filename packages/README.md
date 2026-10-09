@@ -16,8 +16,8 @@ definition owns the package's intrinsic metadata and requirements. Projects are
 outside this package dialect.
 
 [nexus-packages-ext/Packages.RepositoryIndex.nxscript](nexus-packages-ext/Packages.RepositoryIndex.nxscript)
-is the RepositoryIndex published by our third-party package repository. It currently describes
-Mustache, with its upstream fork under `mustache/external/dmustache`.
+is the RepositoryIndex published by our third-party package repository. It describes Mustache and the compression packages Abbrevia and PasZLib.
+Third-party source lives under each package's `external` folder.
 
 The local index names both `nexus-packages` and `nexus-packages-ext` as trusted
 repositories. The owned repository's catalog names the external repository as
