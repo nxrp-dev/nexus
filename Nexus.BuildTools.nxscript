@@ -1,0 +1,30 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "projects/forge/language/Forge.nxscript";
+
+// Shared settings imported by the root build. This module runs no tasks.
+Environment BuildTools {
+    NXBuildTemplate: "projects/forge/examples/NXBuild.mustache";
+    BootstrapNXBuild: "output/nxbuild/x86_64-win64/nxbuild.exe";
+    NXBuild: "output/nxbuild-next/x86_64-win64/nxbuild.exe";
+    ClangTemplate: "projects/forge/examples/Clang.mustache";
+    LLVMArTemplate: "projects/forge/examples/LLVMAr.mustache";
+    Clang: "C:/Program Files/LLVM/bin/clang.exe";
+    ClangCXX: "C:/Program Files/LLVM/bin/clang++.exe";
+    LLVMAr: "C:/Program Files/LLVM/bin/llvm-ar.exe";
+    LLVMIncludes: [
+        "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+        "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+        "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+        "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+    ];
+}

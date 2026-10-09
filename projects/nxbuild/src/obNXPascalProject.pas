@@ -124,6 +124,7 @@ begin
   FTargetPlatform := TNXPascalTargetPlatform.Create;
   FToolchain := TNXPascalToolchain.Create;
   FFPCBuildOptions := TNXFPCBuildOptions.Create;
+  FFPCBuildOptions.Syntax.COperators := fssEnabled;
   FVariables := TStringList.Create;
   FVariables.NameValueSeparator := '=';
   FVariables.CaseSensitive := False;

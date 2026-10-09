@@ -1,0 +1,50 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../nxbuild/language/nxbuild.Language.nxscript";
+
+Project NexusBotHost {
+    BuildTool: FPC;
+    ProjectKind: Program;
+    BuildFile: "NexusBotHost.lpr";
+    OutputRoot: "../../output/NexusBotHost/x86_64-win64";
+
+    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
+    Toolchain NexusFPC {
+        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+    }
+    FPCBuildOptions Compiler {
+        OutputFile: "$(OutputRoot)/NexusBotHost.exe";
+        Config Options { DisableDefaultConfigFiles: True; }
+        Files Paths {
+            ExecutableOutputPath: "$(OutputRoot)";
+            UnitOutputPath: "../../output/NexusBotHost/x86_64-win64/units";
+            IncludePaths: ["../../output/NexusBotHost/x86_64-win64/units"];
+            UnitPaths: [
+                "src",
+                "src/protocol",
+                "../../packages/nexus-packages/nxscript/src",
+                "../../packages/nexus-packages/serialization/json/src",
+                "../../packages/nexus-packages/network/json-rpc/src",
+                "../../packages/nexus-packages/core/src",
+                "../../packages/nexus-packages/network/xmpp/src",
+                "../../packages/nexus-packages/network/external/synapse",
+                "../../packages/nexus-packages/network/openssl/src",
+                "../../packages/nexus-packages/network/openssl/synapse",
+                "../../packages/nexus-packages/serialization/src",
+                "../../packages/nexus-packages/db/sqlite/src/bindings",
+                "../../packages/nexus-packages-ext/mustache/external/dmustache",
+                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
+                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+            ];
+        }
+    }
+}

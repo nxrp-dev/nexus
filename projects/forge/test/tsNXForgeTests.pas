@@ -135,6 +135,9 @@ begin
     AContext.AssertTrue(lLanguage.Normalize(
       lSession.EntryCompiler.CompiledDocument.DialectDocument), 'Normalize included rules');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('FPC') <> nil, 'FPC rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('NXBuild') <> nil, 'NXBuild rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('Clang') <> nil, 'Clang rule present');
+    AContext.AssertTrue(lLanguage.FindDefinitionRule('LLVMAr') <> nil, 'LLVMAr rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('Git') <> nil, 'Git rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('MSBuild') <> nil, 'MSBuild rule present');
     AContext.AssertTrue(lLanguage.FindDefinitionRule('PowerShell') <> nil, 'PowerShell rule present');
@@ -311,6 +314,200 @@ begin
       'MSBuild platform is required');
     AContext.AssertTrue(Pos('Validation failed', lForge.Diagnostic) > 0,
       lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestNXBuildOperation(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate, lExpected: string;
+begin
+  lDirectory := TestDir('nxbuild');
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
+    'projects/forge/examples/NXBuild.mustache';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+    'EntryPoint: "project & source/app.nxproject"; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, 'Both operations prepared');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := 'nxbuild /action=build "/project=' +
+      ExpandFileName(lDirectory + 'project & source/app.nxproject') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'nxbuild receives the quoted absolute project path');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+      'Executable: "C:/Tools & builds/nxbuild.exe"; ' +
+      'EntryPoint: "project & source/app.nxproject"; WorkingDirectory: "project & source"; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents the explicit form from executing');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"C:/Tools & builds/nxbuild.exe" /action=build "/project=' +
+      ExpandFileName(lDirectory + 'project & source/app.nxproject') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Explicit nxbuild executable is quoted separately');
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'project & source'),
+      lForge.Invocations[0].WorkingDirectory, 'NXBuild operation directory');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+      'Executable: "tools & builds/nxbuild.exe"; ' +
+      'EntryPoint: "app.nxproject"; WorkingDirectory: "project & source"; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Preflight prevents relative executable launch');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"' + ExpandFileName(lDirectory + 'tools & builds/nxbuild.exe') +
+      '" /action=build "/project=' + ExpandFileName(lDirectory + 'app.nxproject') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Relative executable uses its source document, not the child working directory');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+      'Executable: "nxbuild.exe"; EntryPoint: "app.nxproject"; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Preflight prevents PATH executable launch');
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"nxbuild.exe" /action=build "/project=' +
+      ExpandFileName(lDirectory + 'app.nxproject') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Bare executable name remains available for PATH lookup');
+
+    ForceDirectories(lDirectory + 'library');
+    Save(lDirectory + 'library/Shared.nxscript',
+      'NXBuild Defaults { Template: "' + lTemplate + '"; Executable: "bin/nxbuild.exe"; }');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'module "library/Shared.nxscript"; Group Build { NXBuild Compile (Defaults) { ' +
+      'EntryPoint: "app.nxproject"; WorkingDirectory: "project & source"; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Preflight prevents composed executable launch');
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"' + ExpandFileName(lDirectory + 'library/bin/nxbuild.exe') +
+      '" /action=build "/project=' + ExpandFileName(lDirectory + 'app.nxproject') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Inherited executable retains the supplying module directory');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'NXBuild Invalid { Template: "' + lTemplate + '"; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'NXBuild project entry point is required');
+    AContext.AssertTrue(Pos('Validation failed', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestClangOperation(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate, lExpected: string;
+begin
+  lDirectory := TestDir('clang');
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
+    'projects/forge/examples/Clang.mustache';
+  Save(lDirectory + 'input & one.c', 'int sample(void) { return 7; }');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { Clang Compile { Template: "' + lTemplate + '"; ' +
+    'Source: ["input & one.c"]; Output: "object file.obj"; CompileOnly: True; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    lExpected := 'clang -c "' + ExpandFileName(lDirectory + 'input & one.c') +
+      '" -o "object file.obj"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'C source paths expand and retain native quoting');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { Clang Link { Template: "' + lTemplate + '"; ' +
+      'Executable: "C:/Tools/LLVM/bin/clang++.exe"; ' +
+      'Source: ["input & one.c"]; Output: "program.exe"; CompileOnly: False; ' +
+      'Target: "x86_64-pc-windows-msvc"; Standard: "c++17"; ' +
+      'IncludePaths: ["include folder"]; Defines: ["TEXT=a & b"]; ' +
+      'Arguments: ["-fuse-ld=lld", "native library.lib"]; WorkingDirectory: "work"; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    lExpected := '"C:/Tools/LLVM/bin/clang++.exe" "--target=x86_64-pc-windows-msvc" ' +
+      '"-std=c++17" "-Iinclude folder" "-DTEXT=a & b" "' +
+      ExpandFileName(lDirectory + 'input & one.c') +
+      '" -o "program.exe" "-fuse-ld=lld" "native library.lib"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'False omits -c; explicit C++ driver and linker inputs retain their arguments');
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'work'),
+      lForge.Invocations[0].WorkingDirectory, 'Explicit tool working directory');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Clang Invalid { Template: "' + lTemplate + '"; Source: ["input & one.c"]; ' +
+      'Output: "object.obj"; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'CompileOnly must be explicit');
+    AContext.AssertTrue(Pos('Validation failed', lForge.Diagnostic) > 0, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestLLVMArOperation(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate: string;
+begin
+  lDirectory := TestDir('llvm-ar');
+  lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
+    'projects/forge/examples/LLVMAr.mustache';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { LLVMAr Library { Template: "' + lTemplate + '"; ' +
+    'Operation: "rcs"; Output: "library file.lib"; Objects: ["first.obj", "second file.obj"]; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertEquals('llvm-ar "rcs" "library file.lib" "first.obj" "second file.obj"',
+      lForge.Invocations[0].Command, 'Explicit object inputs do not require prior artifacts');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Build { LLVMAr Library { Template: "' + lTemplate + '"; ' +
+      'Executable: "C:/Tools/LLVM/bin/llvm-ar.exe"; Operation: "rcs"; ' +
+      'Output: "library.lib"; Objects: ["object.obj"]; Arguments: ["--format=coff"]; } ' +
+      'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Missing later template prevents execution');
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertEquals('"C:/Tools/LLVM/bin/llvm-ar.exe" "--format=coff" ' +
+      '"rcs" "library.lib" "object.obj"', lForge.Invocations[0].Command,
+      'Explicit archiver and native options render unchanged');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'LLVMAr Invalid { Template: "' + lTemplate + '"; Operation: "rcs"; ' +
+      'Output: "library.lib"; Objects: []; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'An archive build requires object inputs');
+    AContext.AssertTrue(Pos('Validation failed', lForge.Diagnostic) > 0, lForge.Diagnostic);
     AssertNoLaunch(AContext, lForge);
   finally
     lForge.Free;
@@ -1022,6 +1219,9 @@ begin
   lSuite.AddTest('LanguagePieces', @TestLanguagePieces);
   lSuite.AddTest('RejectEntityDocument', @TestRejectEntityDocument);
   lSuite.AddTest('MSBuildOperation', @TestMSBuildOperation);
+  lSuite.AddTest('NXBuildOperation', @TestNXBuildOperation);
+  lSuite.AddTest('ClangOperation', @TestClangOperation);
+  lSuite.AddTest('LLVMArOperation', @TestLLVMArOperation);
   lSuite.AddTest('PowerShellOperation', @TestPowerShellOperation);
   lSuite.AddTest('ToolOperations', @TestToolOperations);
   lSuite.AddTest('Validation', @TestValidation);

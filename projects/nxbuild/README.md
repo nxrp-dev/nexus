@@ -44,6 +44,18 @@ Enums use their Pascal names without the three-letter prefix: `FPC`,
 on. Booleans and integers are validated as such. Unknown fields, unknown
 sections and invalid enum choices are rejected before planning.
 
+C-style operators are enabled by default for FPC builds (`-Sc`), even when
+the `Syntax` section is omitted. To disable them explicitly:
+
+```nexusscript
+FPCBuildOptions Compiler {
+    Syntax Options { COperators: Disabled; }
+}
+```
+
+`Enabled` emits `-Sc`; `Disabled` emits `-Sc-`. An explicit `Unset` emits
+neither switch and leaves the choice to the compiler configuration.
+
 Normal NexusScript scalar references and expressions are compiled by the
 common compiler. Native Live values are copied directly into the typed project;
 there is no intermediate JSON artifact or retained compiler ownership.

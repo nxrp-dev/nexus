@@ -1,0 +1,1 @@
+{{#Executable}}"{{{Executable}}}"{{/Executable}}{{^Executable}}clang{{/Executable}}{{#CompileOnly}} -c{{/CompileOnly}}{{#Target}} "--target={{{Target}}}"{{/Target}}{{#Standard}} "-std={{{Standard}}}"{{/Standard}}{{#IncludePaths}} "-I{{{.}}}"{{/IncludePaths}}{{#Defines}} "-D{{{.}}}"{{/Defines}}{{#Source}} "{{{.}}}"{{/Source}} -o "{{{Output}}}"{{#Arguments}} "{{{.}}}"{{/Arguments}}

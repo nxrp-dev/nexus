@@ -1,0 +1,163 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/Forge.nxscript";
+
+// The repository's output directory must exist. No upstream files are replaced.
+// SDK/CRT paths are explicit: no Visual Studio shell initialization is required.
+Group AbbreviaLLVM {
+    Clang BlockSort {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/blocksort.c"];
+        Output: "output/AbbreviaLLVM-blocksort.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    Clang BzLib {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/bzlib.c"];
+        Output: "output/AbbreviaLLVM-bzlib.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    Clang Compress {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/compress.c"];
+        Output: "output/AbbreviaLLVM-compress.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    Clang CrcTable {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/crctable.c"];
+        Output: "output/AbbreviaLLVM-crctable.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    Clang Decompress {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/decompress.c"];
+        Output: "output/AbbreviaLLVM-decompress.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    Clang Huffman {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/huffman.c"];
+        Output: "output/AbbreviaLLVM-huffman.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    Clang RandTable {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../../../packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/randtable.c"];
+        Output: "output/AbbreviaLLVM-randtable.obj";
+        CompileOnly: True; Target: "x86_64-pc-windows-msvc"; Standard: "c11";
+        IncludePaths: [
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+        Arguments: ["-O2", "-fno-stack-protector"];
+    }
+    LLVMAr Bzip2Library {
+        Template: "LLVMAr.mustache";
+        Executable: "C:/Program Files/LLVM/bin/llvm-ar.exe";
+        WorkingDirectory: "../../..";
+        Operation: "rcs"; Arguments: ["--format=coff"];
+        Output: "output/AbbreviaLLVM-bzip2.lib";
+        Objects: [
+            "output/AbbreviaLLVM-blocksort.obj", "output/AbbreviaLLVM-bzlib.obj",
+            "output/AbbreviaLLVM-compress.obj", "output/AbbreviaLLVM-crctable.obj",
+            "output/AbbreviaLLVM-decompress.obj", "output/AbbreviaLLVM-huffman.obj",
+            "output/AbbreviaLLVM-randtable.obj"
+        ];
+    }
+    Clang RoundTrip {
+        Template: "Clang.mustache";
+        Executable: "C:/Program Files/LLVM/bin/clang++.exe";
+        WorkingDirectory: "../../..";
+        Source: ["../test/fixtures/llvm/AbbreviaRoundTrip.cpp"];
+        Output: "output/AbbreviaLLVM-roundtrip.exe";
+        CompileOnly: False; Target: "x86_64-pc-windows-msvc"; Standard: "c++17";
+        IncludePaths: [
+            "packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2",
+            "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
+            "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
+        ];
+        Arguments: [
+            "-O2", "-fuse-ld=lld", "output/AbbreviaLLVM-bzip2.lib",
+            "-Xlinker", "/libpath:C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/lib/x64",
+            "-Xlinker", "/libpath:C:/Program Files (x86)/Windows Kits/10/Lib/10.0.19041.0/ucrt/x64",
+            "-Xlinker", "/libpath:C:/Program Files (x86)/Windows Kits/10/Lib/10.0.19041.0/um/x64"
+        ];
+    }
+}

@@ -89,9 +89,41 @@ begin
       lProject.ProjectFileName);
     AContext.AssertEquals(ExpandFileName('output/nxbuildTests'), lProject.ProjectRoot);
     AContext.AssertEquals(Ord(pbtUnknown), Ord(lProject.BuildTool));
+    AContext.AssertEquals(Ord(fssEnabled),
+      Ord(lProject.FPCBuildOptions.Syntax.COperators));
   finally
     lProject.Free;
   end;
+end;
+
+procedure NXBuildCheckCOperators(AContext: TNXTestContext; const AValue: string;
+  AExpected: TNXFPCSwitchState);
+var
+  lProject: TNXPascalProject;
+  lArguments: TStringList;
+begin
+  lProject := NXBuildTestLoad('Project Demo { FPCBuildOptions Compiler {' +
+    ' Syntax Options { COperators: ' + AValue + '; } } }');
+  lArguments := TStringList.Create;
+  try
+    AContext.AssertEquals(Ord(AExpected),
+      Ord(lProject.FPCBuildOptions.Syntax.COperators));
+    lProject.FPCBuildOptions.AppendArguments(lArguments);
+    AContext.AssertEquals(Ord(AExpected = fssEnabled),
+      Ord(lArguments.IndexOf('-Sc') >= 0));
+    AContext.AssertEquals(Ord(AExpected = fssDisabled),
+      Ord(lArguments.IndexOf('-Sc-') >= 0));
+  finally
+    lArguments.Free;
+    lProject.Free;
+  end;
+end;
+
+procedure TestCOperators(AContext: TNXTestContext);
+begin
+  NXBuildCheckCOperators(AContext, 'Enabled', fssEnabled);
+  NXBuildCheckCOperators(AContext, 'Disabled', fssDisabled);
+  NXBuildCheckCOperators(AContext, 'Unset', fssUnset);
 end;
 
 procedure TestNativeValues(AContext: TNXTestContext);
@@ -167,6 +199,8 @@ begin
       AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples'),
         lPlan.WorkingDirectory);
       AContext.AssertTrue(lPlan.Arguments.IndexOf('-Mobjfpc') >= 0);
+      AContext.AssertTrue(lPlan.Arguments.IndexOf('-Sc') >= 0);
+      AContext.AssertFalse(lPlan.Arguments.IndexOf('-Sc-') >= 0);
       AContext.AssertTrue(lPlan.Arguments.IndexOf('-Cr') >= 0);
       AContext.AssertTrue(lPlan.Arguments.IndexOf('-gl') >= 0);
       AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples/Hello.lpr'),
@@ -326,6 +360,7 @@ var
 begin
   lSuite := ARegistry.AddSuite('NXBuild');
   lSuite.AddTest('Defaults', @TestDefaults);
+  lSuite.AddTest('COperators', @TestCOperators);
   lSuite.AddTest('NativeValues', @TestNativeValues);
   lSuite.AddTest('BooleanTrue', @TestBooleanTrue);
   lSuite.AddTest('FPCPlan', @TestFPCPlan);

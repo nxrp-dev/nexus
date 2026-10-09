@@ -1,0 +1,53 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../nxbuild/language/nxbuild.Language.nxscript";
+
+Project nxpackage {
+    BuildTool: FPC;
+    ProjectKind: Program;
+    BuildFile: "nxpackage.lpr";
+    OutputRoot: "../../output/nxpackage/x86_64-win64";
+
+    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
+    Toolchain NexusFPC {
+        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+    }
+    FPCBuildOptions Compiler {
+        OutputFile: "$(OutputRoot)/nxpackage.exe";
+        RawOptions: ["-dGDI", "-WG", "-Xe"];
+        Config Options { DisableDefaultConfigFiles: True; }
+        Files Paths {
+            ExecutableOutputPath: "$(OutputRoot)";
+            UnitOutputPath: "../../output/nxpackage/x86_64-win64/units";
+            IncludePaths: ["../../output/nxpackage/x86_64-win64/units", "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib", "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi", "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources"];
+            UnitPaths: [
+                "src",
+                "../../packages/nexus-packages/nxscript/src",
+                "../../packages/nexus-packages/serialization/src",
+                "../../packages/nexus-packages/serialization/json/src",
+                "../../packages/nexus-packages/db/sqlite/src/bindings",
+                "../../packages/nexus-packages/core/src",
+                "../../packages/nexus-packages-ext/mustache/external/dmustache",
+                "../../packages/nexus-packages-ext/regexpr/external/tregexpr/src",
+                "../../packages/nexus-packages/gui/src",
+                "../../packages/nexus-packages/gui/src/vtv",
+                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib",
+                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software",
+                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi",
+                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/gui",
+                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources",
+                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
+                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+            ];
+        }
+    }
+}

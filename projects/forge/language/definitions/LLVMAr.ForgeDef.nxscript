@@ -1,0 +1,35 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+Language ForgeLLVMAr {
+    Definitions: [
+        Definition LLVMAr {
+            Root: True;
+            Parents: [Group];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Executable { Value Value { EffectiveCategories: [Text]; } },
+                Property Operation { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Output { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Objects {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Array]; Array Array { Minimum: 1; EntryEffectiveCategories: [Text]; } }
+                },
+                Property Arguments {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}

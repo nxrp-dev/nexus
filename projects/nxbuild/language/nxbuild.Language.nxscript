@@ -426,6 +426,7 @@ Language nxbuild {
                 Property DelphiModeShortcut { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property TurboPascalModeShortcut { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property Assertions { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                // Defaults to Enabled in the native project model.
                 Property COperators { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property ErrorLimit { Value Value { Scalar: Integer; } },
                 Property HaltAfterWarnings { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },

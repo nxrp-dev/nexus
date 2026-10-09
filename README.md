@@ -12,3 +12,31 @@ Current major areas:
 - `packages/nexus-packages`: shared runtime packages, including core helpers and source-independent binding.
 
 The documentation site is built with Material for MkDocs. Start with `docs/index.md` or run MkDocs from the repository root.
+
+## Build
+
+`Nexus.Forge.nxscript` is the explicit native Win64 build list for this checkout.
+Its shared tool paths and SDK settings are in `Nexus.BuildTools.nxscript`.
+Run it from the repository root with the existing Forge executable:
+
+```powershell
+& .\output\NexusForge\x86_64-win64\nxforge.exe /input=Nexus.Forge.nxscript
+```
+
+The existing `output/nxbuild/x86_64-win64/nxbuild.exe` builds nxbuild into
+`output/nxbuild-next/x86_64-win64`. Subsequent tasks use that new builder.
+Forge builds into `output/NexusForge-next/x86_64-win64`, without replacing the
+running Forge executable. Promoting either replacement is a separate operation.
+
+The script builds applications, test executables/modules, samples, the LLVM
+bzip2/C++ check, and NexusCode's JavaScript bundle. It does not run the tests,
+launch applications, install dependencies, deploy extensions, or publish.
+Groups execute in declaration order and stop at the first failure.
+Small Forge/nxbuild compiler fixtures and the Lazarus-only example are not
+components in this build list.
+
+Prerequisites are the existing Forge/nxbuild runners, sibling NexusFPC checkout
+with built RTL/FCL units, package checkouts, LLVM, the Windows SDK/CRT paths
+listed in the script, and Node/npm with NexusCode's dependencies already
+installed. The bzip2 build proves the LLVM operation; it does not replace all
+of Abbrevia's native libraries or its Pascal bindings' existing object inputs.

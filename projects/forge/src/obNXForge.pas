@@ -197,6 +197,20 @@ begin
   Result := ForgeRelativePath(ExtractFilePath(lValue.SourceRange.SourceName), lTemplate);
 end;
 
+procedure NormalizeCommandExecutable(AOperation: TNexusScriptCompiledDefinition;
+  AContext: TJSONObject);
+var
+  lValue: TJSONData;
+  lExecutable: string;
+begin
+  lValue := AContext.Find('Executable');
+  if lValue = nil then Exit;
+  lExecutable := lValue.AsString;
+  if (Pos('/', lExecutable) = 0) and (Pos('\', lExecutable) = 0) then Exit;
+  if (ExtractFileDrive(lExecutable) <> '') or IsPathDelimiter(lExecutable, 1) then Exit;
+  AContext.Strings['Executable'] := OperationFilePath(AOperation, 'Executable');
+end;
+
 procedure TNXForge.PrepareRender(AOperation: TNexusScriptCompiledDefinition;
   AInvocation: TNXForgeInvocation; const AContextJSON: string);
 var
@@ -304,6 +318,7 @@ begin
           lSources := TNXForgeSources.Create;
           try
              NormalizeCommandBooleans(lOperation, lContext, lLanguage);
+            NormalizeCommandExecutable(lOperation, lContext);
             lSources.Resolve(lContext, ExtractFileDir(lRoot.SourceRange.SourceName));
             if lContext.Find('EntryPoint') <> nil then
               lContext.Strings['EntryPoint'] := ForgeRelativePath(

@@ -1,0 +1,44 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../nxbuild/language/nxbuild.Language.nxscript";
+
+Project NexusForge {
+    BuildTool: FPC;
+    ProjectKind: Program;
+    BuildFile: "cli/NexusForge.lpr";
+    OutputRoot: "../../output/NexusForge-next/x86_64-win64";
+
+    Toolchain NexusFPC {
+        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+    }
+    FPCBuildOptions Compiler {
+        OutputFile: "$(OutputRoot)/nxforge.exe";
+        Config Options { DisableDefaultConfigFiles: True; }
+        Debug Symbols { LineInfo: Enabled; }
+        Files Paths {
+            ExecutableOutputPath: "$(OutputRoot)";
+            UnitOutputPath: "$(OutputRoot)/units";
+            UnitPaths: [
+                "src",
+                "../../packages/nexus-packages/nxscript/src",
+                "../../packages/nexus-packages/serialization/src",
+                "../../packages/nexus-packages/serialization/json/src",
+                "../../packages/nexus-packages/network/json-rpc/src",
+                "../../packages/nexus-packages/core/src",
+                "../../packages/nexus-packages-ext/mustache/external/dmustache",
+                "../../packages/nexus-packages/db/sqlite/src/bindings",
+                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
+                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+            ];
+        }
+    }
+}

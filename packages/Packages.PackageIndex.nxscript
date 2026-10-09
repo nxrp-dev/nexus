@@ -67,6 +67,11 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages-ext/mustache/Package.nxscript";
         Description: "Mustache template parsing and rendering (DMustache).";
     }
+    LocalPackage RegExpr {
+        Id: "NXRP.RegExpr";
+        Descriptor: "nexus-packages-ext/regexpr/Package.nxscript";
+        Description: "Pure Object Pascal regular expression engine (TRegExpr).";
+    }
     LocalPackage JSONRPC {
         Id: "NXRP.Network.JSONRPC";
         Descriptor: "nexus-packages/network/json-rpc/Package.nxscript";

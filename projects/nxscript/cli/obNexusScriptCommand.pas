@@ -41,7 +41,7 @@ uses
   obNexusScriptEmitterFactory,
   obNexusScriptJSON,
   obNexusScriptManifest,
-  obMustacheRenderer;
+  SynMustache;
 
 procedure WriteText(AStream: TStream; const AValue: string);
 var
@@ -90,21 +90,11 @@ end;
 
 function RenderTemplate(const AJSON, ATemplateFile: string): string;
 var
-  lJSONFile: string;
-  lOutputFile: string;
+  lTemplate: UTF8String;
 begin
-  if not FileExists(ATemplateFile) then
-    raise ENexusScriptCommand.CreateFmt('File not found: %s', [ATemplateFile]);
-  lJSONFile := GetTempFileName(GetTempDir, 'nsj');
-  lOutputFile := GetTempFileName(GetTempDir, 'nso');
-  try
-    WriteOutput(lJSONFile, AJSON, nil);
-    RenderMustacheFile(lJSONFile, ATemplateFile, lOutputFile);
-    Result := LoadTextFile(lOutputFile);
-  finally
-    DeleteFile(lOutputFile);
-    DeleteFile(lJSONFile);
-  end;
+  lTemplate := UTF8Encode(LoadTextFile(ATemplateFile));
+  Result := UTF8Decode(TSynMustache.Parse(lTemplate).
+    RenderJSON(UTF8Encode(AJSON)));
 end;
 
 procedure ValidateDocument(ADocument: TNexusScriptCompiledDocument);

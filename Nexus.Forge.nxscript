@@ -1,0 +1,441 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "projects/forge/language/Forge.nxscript";
+module "Nexus.BuildTools.nxscript";
+
+// Native Win64 build for this checkout. The compiler and package checkouts
+// must already be present; this is not a bootstrap, downloader, or installer.
+// Run the existing output/NexusForge runner, not the -next output being built.
+Group Nexus {
+    // The installed builder writes its replacement to -next. Later operations
+    // use that new builder. Forge also writes to -next, leaving this runner alone.
+    Group Bootstrap {
+        NXBuild NXBuild {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.BootstrapNXBuild;
+            EntryPoint: "projects/nxbuild/nxbuild.nxproject";
+        }
+
+        NXBuild NexusForge {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/forge/NexusForge.nxproject";
+        }
+    }
+
+    // This currently proves LLVM compilation of Abbrevia's bundled bzip2.
+    // It does not claim to prepare all of Abbrevia's native libraries or
+    // replace the prebuilt objects referenced by its Pascal units.
+    Group NativeLibraries {
+        Clang BlockSort {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/blocksort.c"];
+            Output: "output/AbbreviaLLVM-blocksort.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        Clang BzLib {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/bzlib.c"];
+            Output: "output/AbbreviaLLVM-bzlib.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        Clang Compress {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/compress.c"];
+            Output: "output/AbbreviaLLVM-compress.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        Clang CRCTable {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/crctable.c"];
+            Output: "output/AbbreviaLLVM-crctable.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        Clang Decompress {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/decompress.c"];
+            Output: "output/AbbreviaLLVM-decompress.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        Clang Huffman {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/huffman.c"];
+            Output: "output/AbbreviaLLVM-huffman.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        Clang RandTable {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.Clang;
+            Source: ["packages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2/randtable.c"];
+            Output: "output/AbbreviaLLVM-randtable.obj";
+            CompileOnly: True;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c11";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Defines: ["WIN32", "_FILE_OFFSET_BITS=64", "BZ_NO_STDIO"];
+            Arguments: ["-O2", "-fno-stack-protector"];
+        }
+
+        LLVMAr Bzip2Library {
+            Template: @BuildTools.LLVMArTemplate;
+            Executable: @BuildTools.LLVMAr;
+            Operation: "rcs";
+            Arguments: ["--format=coff"];
+            Output: "output/AbbreviaLLVM-bzip2.lib";
+            Objects: [
+                "output/AbbreviaLLVM-blocksort.obj",
+                "output/AbbreviaLLVM-bzlib.obj",
+                "output/AbbreviaLLVM-compress.obj",
+                "output/AbbreviaLLVM-crctable.obj",
+                "output/AbbreviaLLVM-decompress.obj",
+                "output/AbbreviaLLVM-huffman.obj",
+                "output/AbbreviaLLVM-randtable.obj"
+            ];
+        }
+
+        Clang Bzip2RoundTrip {
+            Template: @BuildTools.ClangTemplate;
+            Executable: @BuildTools.ClangCXX;
+            Source: ["projects/forge/test/fixtures/llvm/AbbreviaRoundTrip.cpp"];
+            Output: "output/AbbreviaLLVM-roundtrip.exe";
+            CompileOnly: False;
+            Target: "x86_64-pc-windows-msvc";
+            Standard: "c++17";
+            IncludePaths: @BuildTools.LLVMIncludes;
+            Arguments: [
+                "-O2", "-fuse-ld=lld",
+                "-Ipackages/nexus-packages-ext/compression/abbrevia/external/abbrevia/thirdparty/bzip2",
+                "output/AbbreviaLLVM-bzip2.lib",
+                "-Xlinker", "/libpath:C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/lib/x64",
+                "-Xlinker", "/libpath:C:/Program Files (x86)/Windows Kits/10/Lib/10.0.19041.0/ucrt/x64",
+                "-Xlinker", "/libpath:C:/Program Files (x86)/Windows Kits/10/Lib/10.0.19041.0/um/x64"
+            ];
+        }
+    }
+
+    Group Applications {
+        NXBuild NexusScript {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxscript/NexusScript.nxproject";
+        }
+
+        NXBuild NexusCSV {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/csv/NexusCSV.nxproject";
+        }
+
+        NXBuild NexusProfilerImport {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/profiler/NexusProfilerImport.nxproject";
+        }
+
+        NXBuild NexusScriptLS {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/ls/nxscript/NexusScriptLS.nxproject";
+        }
+
+        NXBuild NexusLS {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/ls/pascal/nexusls.nxproject";
+        }
+
+        NXBuild NexusBotHost {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/bothost/NexusBotHost.nxproject";
+        }
+
+        NXBuild NexusTestHost {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxtest/host/src/nxtest_host.nxproject";
+        }
+
+        NXBuild NexusTestUI {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxtest/ui/src/NexusTestUI.nxproject";
+        }
+
+        NXBuild NexusPackage {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxpackage/nxpackage.nxproject";
+        }
+
+        NXBuild NexusSetupBuilder {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/setup/NexusSetupBuilder.nxproject";
+        }
+
+        NXBuild NexusSetup {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/setup/NexusSetup.nxproject";
+        }
+    }
+
+    // Build only: live tests and GUI programs are not launched by this script.
+    Group Tests {
+        NXBuild NXBuildTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxbuild/test/nxbuildTests.nxproject";
+        }
+
+        NXBuild NexusForgeTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/forge/test/NexusForgeTests.nxproject";
+        }
+
+        NXBuild NexusScriptTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/nxscript/test/NexusScriptTests.nxproject";
+        }
+
+        NXBuild NexusScriptTestModule {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/nxscript/test/NexusScriptTestModule.nxproject";
+        }
+
+        NXBuild NexusScriptLSTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/ls/nxscript/test/NexusScriptLSTests.nxproject";
+        }
+
+        NXBuild NexusScriptLSTestModule {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/ls/nxscript/test/NexusScriptLSTestModule.nxproject";
+        }
+
+        NXBuild NexusLSTestModule {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/ls/pascal/NexusLSTestModule/NexusLSTestModule.nxproject";
+        }
+
+        NXBuild NexusLSPTestModule {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/lsp/test/NexusLSPTestModule.nxproject";
+        }
+
+        NXBuild NexusBindingTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/binding/tests/NexusBindingTests.nxproject";
+        }
+
+        NXBuild NXSQLiteTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/db/sqlite/test/NXSQLiteTests.nxproject";
+        }
+
+        NXBuild NexusVirtualTreeViewTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/gui/test/NexusVirtualTreeViewTests.nxproject";
+        }
+
+        NXBuild NexusScriptEditorTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/gui/test/NexusScriptEditorTests.nxproject";
+        }
+
+        NXBuild NexusUITestModule {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/gui/test/NexusUITestModule.nxproject";
+        }
+
+        NXBuild NXOpenSSLTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/openssl/test/NXOpenSSLTests.nxproject";
+        }
+
+        NXBuild NexusNetXMPPTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/xmpp/test/NexusNetXMPPTests.nxproject";
+        }
+
+        NXBuild NexusNetXMPPLiveTest {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/xmpp/test/NexusNetXMPPLiveTest.nxproject";
+        }
+
+        NXBuild NexusNetTorrentTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/torrent/test/NexusNetTorrentTests.nxproject";
+        }
+
+        NXBuild NexusProfilerImportTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/profiler/tests/NexusProfilerImportTests.nxproject";
+        }
+
+        NXBuild NexusPackageTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxpackage/test/nxpackageTests.nxproject";
+        }
+
+        NXBuild NexusSetupTests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/setup/test/NexusSetupTests.nxproject";
+        }
+
+        NXBuild NexusSetupUITests {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/setup/test/NexusSetupUITests.nxproject";
+        }
+
+        NXBuild NexusBotHostTestModule {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/bothost/test/NexusBotHostTestModule.nxproject";
+        }
+
+        NXBuild FakeCodexAppServer {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/bothost/test/FakeCodexAppServer.nxproject";
+        }
+
+        NXBuild TestPublishedRTTI {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/lua/test/TestPublishedRTTI.nxproject";
+        }
+    }
+
+    Group Samples {
+        NXBuild NexusVirtualTreeViewDemo {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/gui/examples/virtual-treeview/NexusVirtualTreeViewDemo.nxproject";
+        }
+
+        NXBuild NexusScriptEditorDemo {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/gui/examples/nxscript-editor/NexusScriptEditorDemo.nxproject";
+        }
+
+        NXBuild NexusXMPPConsole {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/xmpp/examples/NexusXMPPConsole.nxproject";
+        }
+
+        NXBuild OpenSSLTest1 {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/openssl/examples/test1.nxproject";
+        }
+
+        NXBuild OpenSSLKeyPair {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/network/openssl/examples/genkeypair.nxproject";
+        }
+
+        NXBuild Solar2DPluginSample {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "packages/nexus-packages/solar2d/sample/plugin_sample.nxproject";
+        }
+
+        NXBuild NexusTestSample {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/nxtest/host/test/sample/nxtest_sampletests.nxproject";
+        }
+
+        NXBuild NXFastParseBenchmark {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/ls/pascal/src/nx_fast_parse_benchmark/nxFastParseBenchmark.nxproject";
+        }
+    }
+
+    Group NexusCode {
+        Npm BuildExtension {
+            Template: "projects/forge/examples/Npm.mustache";
+            Command: "run";
+            Arguments: ["esbuild"];
+            WorkingDirectory: "projects/nexuscode";
+        }
+    }
+}
+
