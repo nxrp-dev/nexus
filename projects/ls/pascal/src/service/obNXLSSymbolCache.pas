@@ -19,7 +19,9 @@ interface
 
 uses
   Classes,
-  Contnrs;
+  Contnrs,
+  obNXSQLiteConnection,
+  obNXSQLiteDataSet;
 
 type
   TNXLSSymbolCacheSymbol = class
@@ -81,13 +83,13 @@ type
     FStoreFileName: string;
     FStoreAvailable: Boolean;
     function FindFileIndexByURI(const AURI: string): Integer;
-    function AddFileFromQuery(AQuery: TObject): TNXLSSymbolCacheFile;
-    procedure LoadSymbolsForFile(AConnection: TObject; ATransaction: TObject; AFileID: Int64;
+    function AddFileFromQuery(AQuery: TNXSQLiteDataSet): TNXLSSymbolCacheFile;
+    procedure LoadSymbolsForFile(AConnection: TNXSQLiteConnection; AFileID: Int64;
       AFile: TNXLSSymbolCacheFile);
-    procedure ExecuteSQL(AConnection: TObject; const ASQL: string);
-    procedure CreateSchema(AConnection: TObject);
-    procedure DeleteFileRows(AConnection: TObject; const AURI: string);
-    procedure InsertFileRows(AConnection: TObject; AFile: TNXLSSymbolCacheFile);
+    procedure ExecuteSQL(AConnection: TNXSQLiteConnection; const ASQL: string);
+    procedure CreateSchema(AConnection: TNXSQLiteConnection);
+    procedure DeleteFileRows(AConnection: TNXSQLiteConnection; const AURI: string);
+    procedure InsertFileRows(AConnection: TNXSQLiteConnection; AFile: TNXLSSymbolCacheFile);
   public
     constructor Create;
     destructor Destroy; override;
@@ -111,9 +113,7 @@ implementation
 
 uses
   SysUtils,
-  DB,
-  SQLDB,
-  SQLite3Conn;
+  DB;
 
 const
   cNXLSSymbolCacheVersion = 1;
@@ -172,12 +172,12 @@ begin
       Exit(lIdx);
 end;
 
-procedure TNXLSSymbolCache.ExecuteSQL(AConnection: TObject; const ASQL: string);
+procedure TNXLSSymbolCache.ExecuteSQL(AConnection: TNXSQLiteConnection; const ASQL: string);
 begin
-  TSQLite3Connection(AConnection).ExecuteDirect(ASQL);
+  AConnection.Execute(ASQL);
 end;
 
-procedure TNXLSSymbolCache.CreateSchema(AConnection: TObject);
+procedure TNXLSSymbolCache.CreateSchema(AConnection: TNXSQLiteConnection);
 begin
   ExecuteSQL(AConnection,
     'create table if not exists cache_meta (' +
@@ -220,11 +220,11 @@ begin
     NXLSSQLText('scanner_version') + ', ' + NXLSSQLText(IntToStr(FScannerVersion)) + ')');
 end;
 
-function TNXLSSymbolCache.AddFileFromQuery(AQuery: TObject): TNXLSSymbolCacheFile;
+function TNXLSSymbolCache.AddFileFromQuery(AQuery: TNXSQLiteDataSet): TNXLSSymbolCacheFile;
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
 begin
-  lQuery := TSQLQuery(AQuery);
+  lQuery := AQuery;
   Result := TNXLSSymbolCacheFile.Create;
   try
     Result.FileName := lQuery.FieldByName('file_name').AsString;
@@ -245,19 +245,18 @@ begin
   Result := TNXLSSymbolCacheFile(FFiles[FFiles.Count - 1]);
 end;
 
-procedure TNXLSSymbolCache.LoadSymbolsForFile(AConnection: TObject; ATransaction: TObject;
+procedure TNXLSSymbolCache.LoadSymbolsForFile(AConnection: TNXSQLiteConnection;
   AFileID: Int64; AFile: TNXLSSymbolCacheFile);
 var
-  lQuery: TSQLQuery;
+  lQuery: TNXSQLiteDataSet;
   lSymbol: TNXLSSymbolCacheSymbol;
 begin
   if AFile = nil then
     Exit;
 
-  lQuery := TSQLQuery.Create(nil);
+  lQuery := TNXSQLiteDataSet.Create(nil);
   try
-    lQuery.DataBase := TSQLite3Connection(AConnection);
-    lQuery.Transaction := TSQLTransaction(ATransaction);
+    lQuery.Connection := AConnection;
     lQuery.SQL.Text :=
       'select name, kind, range_start_line, range_start_character, ' +
       'range_end_line, range_end_character, selection_start_line, ' +
@@ -291,9 +290,8 @@ end;
 procedure TNXLSSymbolCache.Load(const AFileName: string);
 var
   lDir: string;
-  lConnection: TSQLite3Connection;
-  lTransaction: TSQLTransaction;
-  lQuery: TSQLQuery;
+  lConnection: TNXSQLiteConnection;
+  lQuery: TNXSQLiteDataSet;
   lFile: TNXLSSymbolCacheFile;
   lFileID: Int64;
 begin
@@ -306,22 +304,18 @@ begin
   if (lDir <> '') and (not DirectoryExists(lDir)) then
     ForceDirectories(lDir);
 
-  lConnection := TSQLite3Connection.Create(nil);
-  lTransaction := TSQLTransaction.Create(nil);
+  lConnection := TNXSQLiteConnection.Create(nil);
   try
     lConnection.DatabaseName := AFileName;
-    lConnection.Transaction := lTransaction;
-    lTransaction.DataBase := lConnection;
     lConnection.Open;
-    lTransaction.StartTransaction;
+    ExecuteSQL(lConnection, 'pragma foreign_keys = on');
+    lConnection.StartTransaction;
     try
-      ExecuteSQL(lConnection, 'pragma foreign_keys = on');
       CreateSchema(lConnection);
 
-      lQuery := TSQLQuery.Create(nil);
+      lQuery := TNXSQLiteDataSet.Create(nil);
       try
-        lQuery.DataBase := lConnection;
-        lQuery.Transaction := lTransaction;
+        lQuery.Connection := lConnection;
         lQuery.SQL.Text :=
           'select id, file_name, uri, file_stamp, file_size, scanner_version ' +
           'from cache_file where scanner_version = ' + IntToStr(FScannerVersion) +
@@ -332,31 +326,30 @@ begin
           lFileID := StrToInt64Def(lQuery.FieldByName('id').AsString, -1);
           lFile := AddFileFromQuery(lQuery);
           if lFile <> nil then
-            LoadSymbolsForFile(lConnection, lTransaction, lFileID, lFile);
+            LoadSymbolsForFile(lConnection, lFileID, lFile);
           lQuery.Next;
         end;
       finally
         lQuery.Free;
       end;
-      lTransaction.Commit;
+      lConnection.Commit;
       FDirty := False;
       FStoreAvailable := True;
     except
       on Exception do
       begin
-        if lTransaction.Active then
-          lTransaction.Rollback;
+        if lConnection.InTransaction then
+          lConnection.Rollback;
         FStoreAvailable := False;
         Clear;
       end;
     end;
   finally
-    lTransaction.Free;
     lConnection.Free;
   end;
 end;
 
-procedure TNXLSSymbolCache.DeleteFileRows(AConnection: TObject; const AURI: string);
+procedure TNXLSSymbolCache.DeleteFileRows(AConnection: TNXSQLiteConnection; const AURI: string);
 begin
   ExecuteSQL(AConnection,
     'delete from cache_symbol where file_id in ' +
@@ -365,7 +358,7 @@ begin
     'delete from cache_file where uri = ' + NXLSSQLText(AURI));
 end;
 
-procedure TNXLSSymbolCache.InsertFileRows(AConnection: TObject; AFile: TNXLSSymbolCacheFile);
+procedure TNXLSSymbolCache.InsertFileRows(AConnection: TNXSQLiteConnection; AFile: TNXLSSymbolCacheFile);
 var
   lFileID: Int64;
   lSymbol: TNXLSSymbolCacheSymbol;
@@ -382,10 +375,9 @@ begin
     IntToStr(AFile.FileSize) + ', ' +
     IntToStr(AFile.ScannerVersion) + ')');
   lFileID := -1;
-  with TSQLQuery.Create(nil) do
+  with TNXSQLiteDataSet.Create(nil) do
   try
-    DataBase := TSQLite3Connection(AConnection);
-    Transaction := TSQLite3Connection(AConnection).Transaction;
+    Connection := AConnection;
     SQL.Text := 'select last_insert_rowid() as id';
     Open;
     if not EOF then
@@ -424,8 +416,7 @@ end;
 procedure TNXLSSymbolCache.Save(const AFileName: string);
 var
   lDir: string;
-  lConnection: TSQLite3Connection;
-  lTransaction: TSQLTransaction;
+  lConnection: TNXSQLiteConnection;
   lIdx: Integer;
 begin
   if (AFileName = '') or (not FStoreAvailable) then
@@ -435,34 +426,30 @@ begin
   if (lDir <> '') and (not DirectoryExists(lDir)) then
     ForceDirectories(lDir);
 
-  lConnection := TSQLite3Connection.Create(nil);
-  lTransaction := TSQLTransaction.Create(nil);
+  lConnection := TNXSQLiteConnection.Create(nil);
   try
     lConnection.DatabaseName := AFileName;
-    lConnection.Transaction := lTransaction;
-    lTransaction.DataBase := lConnection;
     lConnection.Open;
-    lTransaction.StartTransaction;
+    ExecuteSQL(lConnection, 'pragma foreign_keys = on');
+    lConnection.StartTransaction;
     try
-      ExecuteSQL(lConnection, 'pragma foreign_keys = on');
       CreateSchema(lConnection);
       ExecuteSQL(lConnection, 'delete from cache_symbol');
       ExecuteSQL(lConnection, 'delete from cache_file');
       for lIdx := 0 to FFiles.Count - 1 do
         InsertFileRows(lConnection, TNXLSSymbolCacheFile(FFiles[lIdx]));
-      lTransaction.Commit;
+      lConnection.Commit;
       FDirty := False;
       FStoreAvailable := True;
     except
       on Exception do
       begin
-        if lTransaction.Active then
-          lTransaction.Rollback;
+        if lConnection.InTransaction then
+          lConnection.Rollback;
         FStoreAvailable := False;
       end;
     end;
   finally
-    lTransaction.Free;
     lConnection.Free;
   end;
 end;

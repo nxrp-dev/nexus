@@ -25,6 +25,9 @@ procedure RegisterNXLSWorkspaceSymbolTests(ARegistry: TNXTestRegistry);
 implementation
 
 uses
+  Classes,
+  SysUtils,
+  obNXLSSymbolCache,
   obNXJSONValues,
   obNXLSLSPModel,
   obNXLSProtocolBase,
@@ -345,11 +348,79 @@ begin
   end;
 end;
 
+procedure TestSymbolCacheSQLitePersistence(AContext: TNXTestContext);
+var
+  lID: TGUID;
+  lDirectory, lSourceFile, lDatabaseFile, lURI: string;
+  lSource: TStringList;
+  lCache, lLoaded: TNXLSSymbolCache;
+  lFile: TNXLSSymbolCacheFile;
+  lSymbol: TNXLSSymbolCacheSymbol;
+begin
+  CreateGUID(lID);
+  lDirectory := IncludeTrailingPathDelimiter(GetTempDir(False)) +
+    'nexusls-sqlite-' + GUIDToString(lID) + DirectorySeparator;
+  ForceDirectories(lDirectory);
+  lSourceFile := lDirectory + 'Quoted.pas';
+  lDatabaseFile := lDirectory + 'symbols.sqlite';
+  lURI := 'file:///' + StringReplace(lSourceFile, '\', '/', [rfReplaceAll]);
+  lSource := TStringList.Create;
+  lCache := TNXLSSymbolCache.Create;
+  lLoaded := TNXLSSymbolCache.Create;
+  try
+    lSource.Text := 'unit Quoted; interface implementation end.';
+    lSource.SaveToFile(lSourceFile);
+    lFile := lCache.ReplaceFile(lSourceFile, lURI);
+    lFile.FileSize := Int64(1) shl 40;
+    lSymbol := TNXLSSymbolCacheSymbol.Create;
+    lFile.Symbols.Add(lSymbol);
+    lSymbol.Name := 'O''Brien';
+    lSymbol.Kind := 12;
+    lSymbol.RangeStartLine := 7;
+    lSymbol.RangeEndLine := 9;
+    lSymbol.ContainerName := 'Quoted';
+    lCache.Save(lDatabaseFile);
+    AContext.AssertTrue(lCache.StoreAvailable, 'Saving the SQLite cache failed.');
+    AContext.AssertFalse(lCache.Dirty, 'Saving should clear the dirty flag.');
+
+    lLoaded.Load(lDatabaseFile);
+    AContext.AssertTrue(lLoaded.StoreAvailable, 'Loading the SQLite cache failed.');
+    lFile := lLoaded.FileByURI(lURI);
+    AContext.AssertTrue(lFile <> nil, 'The persisted file was not loaded.');
+    if lFile = nil then Exit;
+    AContext.AssertTrue(lFile.FileSize = Int64(1) shl 40,
+      'The persisted 64-bit file size changed.');
+    AContext.AssertTrue(lFile.Symbols.Count = 1, 'The persisted symbol was not loaded.');
+    if lFile.Symbols.Count <> 1 then Exit;
+    lSymbol := TNXLSSymbolCacheSymbol(lFile.Symbols[0]);
+    AContext.AssertTrue(lSymbol.Name = 'O''Brien', 'The quoted symbol name changed.');
+    AContext.AssertTrue(lSymbol.URI = lURI, 'The symbol URI changed.');
+    AContext.AssertTrue(lSymbol.RangeStartLine = 7, 'The symbol range changed.');
+    AContext.AssertTrue(lSymbol.RangeEndLine = 9, 'The symbol range changed.');
+    AContext.AssertTrue(lSymbol.ContainerName = 'Quoted', 'The symbol container changed.');
+
+    lLoaded.RemoveFile(lURI);
+    lLoaded.Save(lDatabaseFile);
+    AContext.AssertTrue(lLoaded.StoreAvailable, 'Saving the removed file failed.');
+    lCache.Load(lDatabaseFile);
+    AContext.AssertTrue(lCache.StoreAvailable, 'Reloading the cache failed.');
+    AContext.AssertTrue(lCache.FileByURI(lURI) = nil, 'The removed file was reloaded.');
+  finally
+    lLoaded.Free;
+    lCache.Free;
+    lSource.Free;
+    DeleteFile(lDatabaseFile);
+    DeleteFile(lSourceFile);
+    RemoveDir(lDirectory);
+  end;
+end;
+
 procedure RegisterNXLSWorkspaceSymbolTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NexusLS.WorkspaceSymbols');
+  lSuite.AddTest('SymbolCacheSQLitePersistence', @TestSymbolCacheSQLitePersistence);
   lSuite.AddTest('UseNexusPasIndex', @TestWorkspaceSymbolsUseNexusPasIndex);
   lSuite.AddTest('QueryFiltersByName', @TestWorkspaceSymbolQueryFiltersByName);
   lSuite.AddTest('EmptyQueryReturnsIndexedSymbols',
