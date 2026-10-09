@@ -46,7 +46,7 @@ uses
   obNXXMPPMessageFeatures,
   obNXXMPPMUC,
   obNXXMPPFileSharing,
-  obNXXMPPOpenSSL,
+  obNXOpenSSLCrypto,
   tpNXBotControl,
   tpNXBotFileTypes,
   tpNXBotHost,
@@ -960,7 +960,7 @@ begin
   lAttachment.Name := 'live.txt';
   lAttachment.MediaType := 'text/plain';
   lAttachment.Size := Length(lBody);
-  lExpectedHash := UTF8String(EncodeBase64(TNXXMPPOpenSSL.SHA256(lBody)));
+  lExpectedHash := UTF8String(EncodeBase64(TNXOpenSSLCrypto.SHA256(lBody)));
   lAttachment.HashSHA256 := lExpectedHash;
   lAttachment.Path := lPath;
   try

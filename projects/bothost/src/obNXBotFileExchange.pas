@@ -118,8 +118,8 @@ type
 implementation
 
 uses
-  blcksock, httpsend, ssl_openssl3, synacode, synaip, synautil,
-  obNXXMPPOpenSSL, utNXXMPPIDs;
+  blcksock, httpsend, obNXSynapseOpenSSL, synacode, synaip, synautil,
+  obNXOpenSSLCrypto, utNXXMPPIDs;
 
 type
   ENXBotFileLimit = class(Exception);
@@ -539,6 +539,8 @@ begin
       try
         lHTTP.Timeout := lTimeout;
         lHTTP.Sock.ConnectionTimeout := lTimeout;
+        TNXSynapseOpenSSL(lHTTP.Sock.SSL).ReceiveTimeout := lTimeout;
+        lHTTP.Sock.NonblockSendTimeout := lTimeout;
         lHTTP.Sock.SSL.VerifyCert := True;
         lHTTP.Sock.SSL.CertCAFile := ACAFile;
         lHTTP.UserAgent := 'NexusBotHost/1.0';
@@ -600,7 +602,7 @@ begin
           lRead := TFileStream.Create(ADestination,
             fmOpenRead or fmShareDenyWrite);
           try
-            lDigest := TNXXMPPOpenSSL.SHA256Stream(lRead);
+            lDigest := TNXOpenSSLCrypto.SHA256Stream(lRead);
           finally
             lRead.Free;
           end;
@@ -648,6 +650,8 @@ begin
   try
     lHTTP.Timeout := lTimeout;
     lHTTP.Sock.ConnectionTimeout := lTimeout;
+    TNXSynapseOpenSSL(lHTTP.Sock.SSL).ReceiveTimeout := lTimeout;
+    lHTTP.Sock.NonblockSendTimeout := lTimeout;
     lHTTP.Sock.SSL.VerifyCert := True;
     lHTTP.Sock.SSL.CertCAFile := ACAFile;
     lHTTP.Document.LoadFromFile(ASource);

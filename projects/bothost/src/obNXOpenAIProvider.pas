@@ -138,7 +138,7 @@ uses
   obNXBotWorkspace,
   Process,
   Pipes,
-  ssl_openssl3,
+  obNXSynapseOpenSSL,
   tpNXBotFileTypes;
 
 const
@@ -314,6 +314,8 @@ begin
       lTimeout := Integer(ATimeoutMS);
     lHTTP.Timeout := lTimeout;
     lHTTP.Sock.ConnectionTimeout := lTimeout;
+    TNXSynapseOpenSSL(lHTTP.Sock.SSL).ReceiveTimeout := lTimeout;
+    lHTTP.Sock.NonblockSendTimeout := lTimeout;
     lHTTP.Sock.SSL.VerifyCert := True;
     lHTTP.Sock.SSL.CertCAFile := string(ACAFile);
     lHTTP.UserAgent := 'NexusBotHost/1.0';
@@ -405,6 +407,8 @@ begin
     else lTimeout := ATimeoutMS;
     lHTTP.Timeout := lTimeout;
     lHTTP.Sock.ConnectionTimeout := lTimeout;
+    TNXSynapseOpenSSL(lHTTP.Sock.SSL).ReceiveTimeout := lTimeout;
+    lHTTP.Sock.NonblockSendTimeout := lTimeout;
     lHTTP.Sock.SSL.VerifyCert := True;
     lHTTP.Sock.SSL.CertCAFile := string(ACAFile);
     lHTTP.UserAgent := 'NexusBotHost/1.0';
@@ -450,6 +454,8 @@ begin
     else lTimeout := ATimeoutMS;
     lHTTP.Timeout := lTimeout;
     lHTTP.Sock.ConnectionTimeout := lTimeout;
+    TNXSynapseOpenSSL(lHTTP.Sock.SSL).ReceiveTimeout := lTimeout;
+    lHTTP.Sock.NonblockSendTimeout := lTimeout;
     lHTTP.Sock.SSL.VerifyCert := True;
     lHTTP.Sock.SSL.CertCAFile := string(ACAFile);
     lHTTP.Headers.Add('Authorization: Bearer ' + string(AAPIKey));

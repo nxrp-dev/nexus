@@ -25,7 +25,7 @@ procedure RegisterNXBotFileExchangeTests(ARegistry: TNXTestRegistry);
 implementation
 
 uses
-  Classes, Contnrs, SyncObjs, SysUtils, blcksock, ssl_openssl3, synsock,
+  Classes, Contnrs, SyncObjs, SysUtils, blcksock, obNXSynapseOpenSSL, synsock,
   obNXBotFileExchange, obNXBotHostConfig, obNXXMPPFileSharing,
   obNXTestContext, obNXTestSuite, tpNXBotFileTypes, tpNXBotHost,
   tpNXXMPPFileTypes;
@@ -1397,7 +1397,8 @@ var
   lError: UTF8String;
 begin
   lFixturePath := IncludeTrailingPathDelimiter(GetCurrentDir) +
-    'NexusLib' + DirectorySeparator + 'net' + DirectorySeparator + 'tests' +
+    'packages' + DirectorySeparator + 'nexus-packages' + DirectorySeparator +
+    'network' + DirectorySeparator + 'xmpp' + DirectorySeparator + 'test' +
     DirectorySeparator + 'fixtures' + DirectorySeparator + 'xmpp' +
     DirectorySeparator;
   lCAFile := lFixturePath + 'ca.crt';
