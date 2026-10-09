@@ -1,9 +1,9 @@
 # NexusForge
 
 Forge is the front end for declarative builds and artifact generation. A Forge
-document contains one runnable task or a Group of tasks. Package and Project
-entities are developed separately in NexusPackageManager; Forge currently has
-no package- or project-specific execution behavior.
+document contains one runnable task or a Group of tasks. Package entities and
+catalogs are developed separately in nxpackage. Projects are outside the package
+system; Forge currently has no package- or project-specific execution behavior.
 
 Schema generation uses the shared Schema dialect and a Firebird Environment that
 supplies its template and key conventions. Forge's Render operation compiles and

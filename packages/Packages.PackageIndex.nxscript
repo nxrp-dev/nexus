@@ -10,7 +10,7 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 // Resolve the existing entity dialect through the caller's dialect catalog.
-dialect "PackageManager.Language.nxscript";
+dialect "nxpackage.Language.nxscript";
 
 PackageIndex NexusPackages {
     // Discovery only: neither repository is traversed automatically.

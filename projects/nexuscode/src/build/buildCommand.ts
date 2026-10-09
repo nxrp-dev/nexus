@@ -11,7 +11,7 @@
   SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 */
 
-export type CompilerKind = 'fpc' | 'lazbuild' | 'nexusbuild';
+export type CompilerKind = 'fpc' | 'lazbuild' | 'nxbuild';
 
 export interface BuildCommand {
     executable: string;

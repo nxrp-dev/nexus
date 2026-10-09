@@ -26,7 +26,7 @@ export class NexusBuildCommandBuilder {
             executable: this.resolveExecutable(),
             args: ['/action=build', `/project=${taskDefinition.project}`],
             cwd,
-            compilerKind: 'nexusbuild',
+            compilerKind: 'nxbuild',
             env: createToolchainEnvironment(resolvePascalToolchain())
         };
     }
@@ -42,7 +42,7 @@ export class NexusBuildCommandBuilder {
         const targetOS = platform === 'win32'
             ? 'win64'
             : platform;
-        const executableName = platform === 'win32' ? 'nexusbuild.exe' : 'nexusbuild';
+        const executableName = platform === 'win32' ? 'nxbuild.exe' : 'nxbuild';
 
         return path.resolve(
             this.extensionPaths.getFilePath('bin'),

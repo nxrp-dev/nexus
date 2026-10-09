@@ -1,18 +1,22 @@
 # Package catalog drafts
 
 [Packages.PackageIndex.nxscript](Packages.PackageIndex.nxscript) is the explicit
-local inventory for this package pool. Its descriptor locations are relative to
-this folder. It lists packages directly; discovering them does not require
-recursing through directories or following repository links.
+machine-level inventory for this package pool. It records local descriptor
+locations and known repositories, and can advertise packages reachable through
+those repositories. Its descriptor locations are relative to this folder.
+It lists packages directly; discovering them does not require recursing through
+directories or following repository links.
 
-[nexus-packages/Packages.PackageIndex.nxscript](nexus-packages/Packages.PackageIndex.nxscript)
-is the publishable catalog for the independent `nexus-packages` repository.
+[nexus-packages/Packages.RepositoryIndex.nxscript](nexus-packages/Packages.RepositoryIndex.nxscript)
+is the RepositoryIndex published by the independent `nexus-packages` repository.
 Its local descriptor locations are relative to that repository; external
 requirements identify a package in a trusted sister repository.
-Each package has its own `Package.nxscript` beside its source folder.
+Each package has its own `Package.nxscript` beside its source folder; that
+definition owns the package's intrinsic metadata and requirements. Projects are
+outside this package dialect.
 
-[nexus-packages-ext/Packages.PackageIndex.nxscript](nexus-packages-ext/Packages.PackageIndex.nxscript)
-is the publishable catalog for third-party packages. It currently describes
+[nexus-packages-ext/Packages.RepositoryIndex.nxscript](nexus-packages-ext/Packages.RepositoryIndex.nxscript)
+is the RepositoryIndex published by our third-party package repository. It currently describes
 Mustache, with its upstream fork under `mustache/external/dmustache`.
 
 The local index names both `nexus-packages` and `nexus-packages-ext` as trusted
@@ -40,8 +44,8 @@ requiring traversal of the external repository's catalog.
 For example, the Solar2D integration descriptor is:
 
 ```nexusscript
-dialect "PackageManager.Language.nxscript";
-module NexusPackages "../Packages.PackageIndex.nxscript";
+dialect "nxpackage.Language.nxscript";
+module NexusPackages "../Packages.RepositoryIndex.nxscript";
 
 Package Solar2D {
     Id: "NXRP.Solar2D";
@@ -68,18 +72,18 @@ MPL-licensed. Other descriptors record the Nexus source license.
 
 ## Validation with the existing dialect
 
-The drafts name the current PackageManager entity dialect through a caller-owned
+The drafts name the current nxpackage entity dialect through a caller-owned
 dialect catalog. They contain no paths reaching from packages into projects.
 From the Nexus repository root, validate a descriptor with:
 
 ```powershell
 & .\output\NexusScript\x86_64-win64\NexusScript.exe `
     /input=packages/nexus-packages/solar2d/Package.nxscript `
-    /dialect-root=projects/PackageManager/language `
+    /dialect-root=projects/nxpackage/language `
     /validate
 ```
 
-The existing compiler supports this catalog setting. The PackageManager GUI
+The existing compiler supports this catalog setting. The nxpackage GUI
 currently does not configure a dialect root, so these catalog-relative dialect
 names are not yet resolved when opening the drafts there. No compiler, editor,
 dialect, or Forge implementation changes are included in this data-only draft.

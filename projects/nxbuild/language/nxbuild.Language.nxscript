@@ -1,0 +1,582 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../../../packages/nexus-packages/nxscript/language/Language.nxscript";
+
+// Build input only. This dialect does not define packages or Forge tasks.
+Language nxbuild {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Project {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property BuildFile { Value Value { Scalar: Text; } },
+                Property BuildTool { Value Value { Scalar: Text; AllowedValues: [Unknown, FPC, Lazarus]; } },
+                Property ProjectKind { Value Value { Scalar: Text; AllowedValues: [Unknown, Program, Library, Package, LazarusProject, PascalUnitSet]; } },
+                Property ProjectFileName { Value Value { Scalar: Text; } },
+                Property ProjectRoot { Value Value { Scalar: Text; } },
+                Property SourceRoot { Value Value { Scalar: Text; } },
+                Property OutputRoot { Value Value { Scalar: Text; } },
+                Property LazarusProjectFile { Value Value { Scalar: Text; } },
+                Property Variables {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+            Children: [
+                Child TargetPlatform { Kinds: [TargetPlatform]; Maximum: 1; },
+                Child Toolchain { Kinds: [Toolchain]; Maximum: 1; },
+                Child FPCBuildOptions { Kinds: [FPCBuildOptions]; Maximum: 1; }
+            ];
+        },
+        Definition TargetPlatform {
+            Root: False;
+            Parents: [Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property TargetOS { Value Value { Scalar: Text; } },
+                Property TargetCPU { Value Value { Scalar: Text; } },
+                Property WidgetSet { Value Value { Scalar: Text; } },
+                Property FPCMode { Value Value { Scalar: Text; } },
+                Property ConfigName { Value Value { Scalar: Text; } }
+            ];
+        },
+        Definition Toolchain {
+            Root: False;
+            Parents: [Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property CompilerPath { Value Value { Scalar: Text; } },
+                Property FPCSourceRoot { Value Value { Scalar: Text; } },
+                Property FPCUnitRoot { Value Value { Scalar: Text; } },
+                Property LazarusRoot { Value Value { Scalar: Text; } }
+            ];
+        },
+        Definition FPCBuildOptions {
+            Root: False;
+            Parents: [Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property CompilerPath { Value Value { Scalar: Text; } },
+                Property InputFile { Value Value { Scalar: Text; } },
+                Property OutputFile { Value Value { Scalar: Text; } },
+                Property BuildKind { Value Value { Scalar: Text; AllowedValues: [Unset, Program, Library, Unit, Package]; } },
+                Property RawOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+            Children: [
+                Child Config { Kinds: [Config]; Maximum: 1; },
+                Child Assembler { Kinds: [Assembler]; Maximum: 1; },
+                Child BuildControl { Kinds: [BuildControl]; Maximum: 1; },
+                Child Definitions { Kinds: [Definitions]; Maximum: 1; },
+                Child DefFile { Kinds: [DefFile]; Maximum: 1; },
+                Child CodeGeneration { Kinds: [CodeGeneration]; Maximum: 1; },
+                Child Files { Kinds: [Files]; Maximum: 1; },
+                Child Debug { Kinds: [Debug]; Maximum: 1; },
+                Child Information { Kinds: [Information]; Maximum: 1; },
+                Child Language { Kinds: [Language]; Maximum: 1; },
+                Child Optimization { Kinds: [Optimization]; Maximum: 1; },
+                Child Syntax { Kinds: [Syntax]; Maximum: 1; },
+                Child Target { Kinds: [Target]; Maximum: 1; },
+                Child Units { Kinds: [Units]; Maximum: 1; },
+                Child Verbosity { Kinds: [Verbosity]; Maximum: 1; },
+                Child Linking { Kinds: [Linking]; Maximum: 1; }
+            ];
+        },
+        Definition Config {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property DisableDefaultConfigFiles { Value Value { Scalar: Boolean; } },
+                Property OptionFiles {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition Assembler {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property PreserveAssemblerFile { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property GenerateBigObjCOFF { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ListSourceLines { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ListNodeInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ExternalAssemblerOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property UsePipes { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ListRegisterInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ListTempInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property OutputFormat { Value Value { Scalar: Text; } },
+                Property ReadingStyle { Value Value { Scalar: Text; } },
+                Property SkipRegisterAllocation { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition BuildControl {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property BuildAllModules { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property BrowserInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property BrowserLocalSymbols { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property WriteLogo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property GenerateProfileCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition Definitions {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property Defines {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property Undefines {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition DefFile {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property GenerateDefFile { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property Description { Value Value { Scalar: Text; } },
+                Property DllVersion { Value Value { Scalar: Text; } }
+            ];
+        },
+        Definition CodeGeneration {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property IEEEConstantChecks { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ABI { Value Value { Scalar: Text; } },
+                Property BigEndianCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property CallingConvention { Value Value { Scalar: Text; } },
+                Property DynamicLibrary { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property EmulatedFloatingPoint { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property FloatingPointExceptions { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property FPUInstructionSet { Value Value { Scalar: Text; } },
+                Property MinimumFloatConstantPrecision { Value Value { Scalar: Text; } },
+                Property PositionIndependentCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property MinimumHeapSize { Value Value { Scalar: Integer; } },
+                Property MaximumHeapSize { Value Value { Scalar: Integer; } },
+                Property IOChecking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property OmitLinkingStage { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property OverflowChecking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property PossibleOverflowChecking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property InstructionSet { Value Value { Scalar: Text; } },
+                Property PackingOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property RangeChecking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ObjectMethodCallValidityChecking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property StackCheckingSize { Value Value { Scalar: Integer; } },
+                Property StackChecking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TargetSpecificOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property SmartLinkedLibrary { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition Files {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property ExecutableSearchPath { Value Value { Scalar: Text; } },
+                Property PreloadUnits {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property InputCodePage { Value Value { Scalar: Text; } },
+                Property RCCompilerBinary { Value Value { Scalar: Text; } },
+                Property DisableInternalDirectoryCache { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property CompilerUtilitiesPath { Value Value { Scalar: Text; } },
+                Property ErrorOutputFile { Value Value { Scalar: Text; } },
+                Property FrameworkPaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property ExecutableOutputPath { Value Value { Scalar: Text; } },
+                Property IncludePaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property LibraryPaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property DynamicLinker { Value Value { Scalar: Text; } },
+                Property UnicodeConversionTable { Value Value { Scalar: Text; } },
+                Property UnicodeBinaryPath { Value Value { Scalar: Text; } },
+                Property DefaultUnitScopes {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property ObjectPaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property ErrorMessageFile { Value Value { Scalar: Text; } },
+                Property ResourceLinker { Value Value { Scalar: Text; } },
+                Property UnitPaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property UnitOutputPath { Value Value { Scalar: Text; } },
+                Property WholeProgramFeedbackOutput { Value Value { Scalar: Text; } },
+                Property WholeProgramFeedbackInput { Value Value { Scalar: Text; } }
+            ];
+        },
+        Definition Debug {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property GenerateDebugInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property PointerChecks { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property HeapTrace { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property LineInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property Format { Value Value { Scalar: Text; AllowedValues: [Unset, Default, Stabs, Dwarf2, Dwarf3, Dwarf4, CodeView]; } },
+                Property Options {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property PreserveStabsCase { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TrashLocalVariables { Value Value { Scalar: Integer; } },
+                Property Valgrind { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition Information {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property CompilerDate { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property CompilerOS { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property HostProcessor { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TargetOS { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TargetProcessor { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShortCompilerVersion { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property FullCompilerVersion { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedABITargets { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedCPUInstructionSets { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedFPUInstructionSets { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedInlineAssemblerModes { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedOptimizations { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property RecognizedFeatures { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedTargets { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedMicrocontrollerTypes { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SupportedWholeProgramOptimizations { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition Language {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property Mode { Value Value { Scalar: Text; AllowedValues: [Unset, FPC, ObjFPC, Delphi, TP, MacPas, ISO, ExtendedPascal, DelphiUnicode]; } },
+                Property EnabledModeSwitches {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property DisabledModeSwitches {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition Optimization {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property Level { Value Value { Scalar: Text; AllowedValues: [Unset, Disabled, Level1, Level2, Level3, Level4]; } },
+                Property OptimizeForSize { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TargetCPU { Value Value { Scalar: Text; } },
+                Property AlignmentOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property EnabledOptimizations {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property DisabledOptimizations {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property WholeProgramFeedbackOptimizations {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property WholeProgramUseOptimizations {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition Syntax {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property ObjFPCModeShortcut { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property DelphiModeShortcut { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TurboPascalModeShortcut { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property Assertions { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property COperators { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ErrorLimit { Value Value { Scalar: Integer; } },
+                Property HaltAfterWarnings { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property HaltAfterNotes { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property HaltAfterHints { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property Features {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property LabelAndGoto { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ReferenceCountedStrings { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property Inlining { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property WriteableTypedConstants { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property LoadFpcylixUnit { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property InterfaceStyle { Value Value { Scalar: Text; } },
+                Property Macros { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TransparentFileNames { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ConstructorDestructorNameRules { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property VectorProcessing { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property Exceptions { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property TypedAddressOperator { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition Target {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property OperatingSystem { Value Value { Scalar: Text; } },
+                Property ApplicationType { Value Value { Scalar: Text; AllowedValues: [Unset, Native, Console, Graphic]; } },
+                Property CreateBundle { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property RelocatableImage { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ImageBase { Value Value { Scalar: Text; } },
+                Property UseDefFileExports { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property UseExternalResources { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property UseInternalResources { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property UseImportSections { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property MinimumMacOSVersion { Value Value { Scalar: Text; } },
+                Property NoRelocationCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property MinimumIOSVersion { Value Value { Scalar: Text; } },
+                Property GenerateRelocationCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ExecutableStack { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property RawTargetOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition Units {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property DoNotCheckUnitNameMatchesFileName { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property GenerateReleaseUnitFiles { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property CompileSystemUnit { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        },
+        Definition Verbosity {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property ShowErrors { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowWarnings { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowNotes { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowHints { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowGeneralInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowLineNumbers { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowEverything { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property WriteFileNamesWithFullPath { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowNothingExceptErrors { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowUnitInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowTriedFiles { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowConditionals { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowDebugInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property RhideGCCCompatibilityMode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowTimeStamps { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowMessageNumbers { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ShowInvokedTools { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property WriteParseTreeLog { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property WriteFPCDebugFile { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property WriteOutputToStdErr { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SuppressedMessages {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
+        Definition Linking {
+            Root: False;
+            Parents: [FPCBuildOptions];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property DoNotCallAssemblerAndLinker { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property GenerateHostLinkScript { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property GenerateTargetLinkScript { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property LinkerOptions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property GenerateOldBinutilsLinkScript { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SharedDynamicLinking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property DoNotSearchDefaultLibraryPath { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property ExternalLinker { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SubstitutePThreadLibrary { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SeparateDebugInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property DynamicUnits { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property InternalLinker { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property LibrarySubstitutions {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property LibraryOrder {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property ExcludeDefaultLibraryOrder { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property LinkMap { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property MainRoutineName { Value Value { Scalar: Text; } },
+                Property NativeLinker { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property BinUtilsPrefix { Value Value { Scalar: Text; } },
+                Property RuntimeLinkPath { Value Value { Scalar: Text; } },
+                Property LinkerSearchRoot { Value Value { Scalar: Text; } },
+                Property StripSymbols { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property StaticLibraryLinking { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property StaticUnits { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property VirtualEntryCallTable { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property VLinkExternalLinker { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property SmartLinkedUnits { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
+            ];
+        }
+    ];
+}

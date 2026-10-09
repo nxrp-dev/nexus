@@ -32,9 +32,9 @@ Free Pascal builds use the configured Free Pascal install or compiler path.
 Nexus Pascal can derive a compiler path from a Free Pascal install directory and
 derive a source directory when the install layout supports it.
 
-## NexusBuild
+## nxbuild
 
-NexusBuild is the command-line build direction for Nexus project files. It is
+nxbuild is the command-line build direction for NexusScript project files. It is
 intended to understand a Nexus project and produce the correct work and command
 lines for tools such as `fpc` and `lazbuild`.
 

@@ -100,7 +100,8 @@
           "NexusScript"
         ],
         "extensions": [
-          ".nxscript"
+          ".nxscript",
+          ".nxp"
         ],
         "configuration": "./nexusscript-configuration.json"
       }

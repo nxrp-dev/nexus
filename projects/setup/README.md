@@ -2,7 +2,7 @@
 
 Setup consumes the common NexusScript compiler through a native Live snapshot.
 It owns its installation declarations and selection model, independently of
-Forge and PackageManager.
+Forge and nxpackage.
 
 Implemented:
 

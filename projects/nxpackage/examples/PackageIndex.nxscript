@@ -1,0 +1,33 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxpackage.Language.nxscript";
+
+// Illustrative machine catalog: locally available packages and known remote packages.
+PackageIndex NexusPackages {
+    TrustedRepository ExternalPackages {
+        Source: "<canonical source-control address of nexus-packages-ext>";
+    }
+    LocalPackage NexusScript {
+        Id: "NXRP.NexusScript";
+        Descriptor: "Package.nxscript";
+        Version: "1.0";
+        Description: "Illustrative NexusScript package descriptor.";
+    }
+    LocalPackage NexusLib {
+        Id: "NXRP.NexusLib";
+        Descriptor: "unavailable/NexusLib/Package.nxscript";
+    }
+    ExternalPackage SQLite {
+        Id: "SQLite.SQLite";
+        Repository: @NexusPackages.ExternalPackages;
+    }
+}

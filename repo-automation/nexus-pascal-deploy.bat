@@ -68,13 +68,13 @@ echo Building Nexus Pascal...
 call npm.cmd run esbuild
 if errorlevel 1 goto Fail
 
-if exist "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" (
+if exist "%NexusRoot%\output\nxbuild\%TargetTriple%\nxbuild.exe" (
     if not exist "%RepoRoot%\bin\%TargetTriple%" mkdir "%RepoRoot%\bin\%TargetTriple%"
-    echo Promoting NexusBuild executable...
-    copy /Y "%NexusRoot%\output\NexusBuild\%TargetTriple%\nexusbuild.exe" "%RepoRoot%\bin\%TargetTriple%\nexusbuild.exe" >nul
+    echo Promoting nxbuild executable...
+    copy /Y "%NexusRoot%\output\nxbuild\%TargetTriple%\nxbuild.exe" "%RepoRoot%\bin\%TargetTriple%\nxbuild.exe" >nul
     if errorlevel 1 goto Fail
 ) else (
-    echo WARNING: NexusBuild executable was not found. Build projects\build\nexusbuild.lpi before using Nexus project tasks.
+    echo WARNING: nxbuild executable was not found. Build projects\nxbuild\nxbuild.lpi before using Nexus project tasks.
 )
 
 if exist "%ExtensionLink%" (

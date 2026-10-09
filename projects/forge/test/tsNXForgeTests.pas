@@ -168,7 +168,7 @@ begin
   lForge := TNXForge.Create;
   try
     AContext.AssertFalse(lForge.Execute(Root +
-      'projects/PackageManager/examples/Package.nxscript'),
+      'projects/nxpackage/examples/Package.nxscript'),
       'Package entity is not a Forge task');
     AContext.AssertTrue(Pos('NexusForge dialect', lForge.Diagnostic) > 0,
       lForge.Diagnostic);

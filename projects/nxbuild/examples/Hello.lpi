@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General><MainUnit Value="0"/><Title Value="nxbuild example"/><UseAppBundle Value="False"/></General>
+    <Units Count="1"><Unit0><Filename Value="Hello.lpr"/><IsPartOfProject Value="True"/></Unit0></Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target><Filename Value="../../../output/nxbuild-lazarus-example/Hello"/></Target>
+    <SearchPaths><UnitOutputDirectory Value="../../../output/nxbuild-lazarus-example/units"/></SearchPaths>
+    <Linking><Options><Win32><GraphicApplication Value="False"/></Win32></Options></Linking>
+  </CompilerOptions>
+</CONFIG>

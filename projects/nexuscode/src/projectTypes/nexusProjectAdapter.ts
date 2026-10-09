@@ -20,10 +20,6 @@ import { NexusProjectModel, PascalBuildTarget, PascalProject } from '../model/pa
 import { NexusTaskProvider } from '../vscode/vscodeTaskProvider';
 import { PascalProjectAdapter, ProjectCollection } from './pascalProjectAdapter';
 
-interface NexusProjectDescriptor {
-    name?: string;
-}
-
 export class NexusProjectAdapter implements PascalProjectAdapter {
     public readonly kind = 'nexus' as const;
 
@@ -77,8 +73,9 @@ export class NexusProjectAdapter implements PascalProjectAdapter {
 
     private createProject(descriptorFile: string): NexusProjectModel {
         const projectRoot = this.getProjectRoot(descriptorFile);
-        const descriptor = this.readDescriptor(descriptorFile);
-        const label = descriptor.name?.trim() || path.basename(projectRoot);
+        const label = path.basename(descriptorFile) === 'project.nxp'
+            ? path.basename(projectRoot)
+            : path.basename(descriptorFile, path.extname(descriptorFile));
 
         return {
             id: descriptorFile,
@@ -104,16 +101,6 @@ export class NexusProjectAdapter implements PascalProjectAdapter {
         };
     }
 
-    private readDescriptor(descriptorFile: string): NexusProjectDescriptor {
-        try {
-            const content = fs.readFileSync(descriptorFile, 'utf8');
-            const parsed = JSON.parse(content);
-            return parsed && typeof parsed === 'object' ? parsed : {};
-        } catch {
-            return {};
-        }
-    }
-
     private getProjectRoot(descriptorFile: string): string {
         return path.dirname(descriptorFile);
     }
@@ -123,7 +110,7 @@ export class NexusProjectAdapter implements PascalProjectAdapter {
         this.walkDirectories(root, directory => {
             const baseName = path.basename(directory).toLowerCase();
             if (baseName === '.nexus') {
-                const descriptorFile = path.join(directory, 'project.json');
+                const descriptorFile = path.join(directory, 'project.nxp');
                 if (fs.existsSync(descriptorFile)) {
                     results.push(descriptorFile);
                 }

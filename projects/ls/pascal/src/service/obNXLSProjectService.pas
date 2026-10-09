@@ -35,7 +35,6 @@ type
 implementation
 
 uses
-  obNXFPCBuildOptions,
   obNXPascalProject,
   SysUtils;
 
@@ -183,7 +182,7 @@ begin
   lField.&type.Value := 'select';
   lField.value.Value := NXLSBuildToolName(ABuildTool);
   lField.required.Value := True;
-  lField.description.Value := 'Select the build tool NexusBuild will invoke.';
+  lField.description.Value := 'Select the build tool nxbuild will invoke.';
   NXLSAddFieldOption(lField, 'fpc', 'FPC');
   NXLSAddFieldOption(lField, 'lazarus', 'Lazarus');
   lField.Assigned := True;
@@ -252,61 +251,93 @@ begin
   lOutput.Assigned := True;
 end;
 
-function NXLSNexusProjectJSON(const AProjectName, ATargetDir: string;
-  ABuildTool: TNXPascalBuildTool): string;
-var
-  lProject: TNXPascalProject;
+function NXLSQuoteScriptText(const AText: string): string;
 begin
-  lProject := TNXPascalProject.Create;
-  try
-    lProject.Name := AProjectName;
-    lProject.BuildTool := ABuildTool;
-    lProject.ProjectRoot := ExpandFileName(ATargetDir);
-    lProject.ProjectFileName := NXLSProjectFileName(AProjectName, ATargetDir);
-    lProject.SourceRoot := 'src';
-    lProject.OutputRoot := 'output';
-    if ABuildTool = pbtLazarus then
-    begin
-      lProject.ProjectKind := ppkLazarusProject;
-      lProject.BuildFile := AProjectName + '.lpi';
-    end
-    else
-    begin
-      lProject.ProjectKind := ppkProgram;
-      lProject.BuildFile := '$(SourceRoot)' + DirectorySeparator +
-        AProjectName + '.lpr';
-    end;
-    lProject.TargetPlatform.FPCMode := 'objfpc';
-    lProject.FPCBuildOptions.InputFile := lProject.BuildFile;
-    lProject.FPCBuildOptions.Files.UnitPaths.Add('$(SourceRoot)');
-    lProject.FPCBuildOptions.Files.UnitOutputPath := '$(OutputRoot)' +
-      DirectorySeparator + 'units';
-    lProject.FPCBuildOptions.Files.ExecutableOutputPath := '$(OutputRoot)';
-    lProject.FPCBuildOptions.Language.Mode := flmObjFPC;
-    Result := lProject.JSON;
-  finally
-    lProject.Free;
-  end;
+  Result := StringReplace(AText, '^', '^^', [rfReplaceAll]);
+  Result := StringReplace(Result, '"', '^"', [rfReplaceAll]);
+  Result := StringReplace(Result, #10, '^n', [rfReplaceAll]);
+  Result := StringReplace(Result, #13, '^r', [rfReplaceAll]);
+  Result := StringReplace(Result, #9, '^t', [rfReplaceAll]);
+  Result := '"' + Result + '"';
 end;
 
-function NXLSLazarusProjectJSON(const AProjectName, ATargetDir,
-  ALPIFile: string): string;
+function NXLSProjectDialectFile: string;
 var
-  lProject: TNXPascalProject;
+  lDirectory, lParent, lCandidate: string;
 begin
-  lProject := TNXPascalProject.Create;
-  try
-    lProject.Name := AProjectName;
-    lProject.BuildTool := pbtLazarus;
-    lProject.BuildFile := ExpandFileName(ALPIFile);
-    lProject.ProjectRoot := ExpandFileName(ATargetDir);
-    lProject.ProjectFileName := NXLSProjectFileName(AProjectName, ATargetDir);
-    lProject.ProjectKind := ppkLazarusProject;
-    lProject.OutputRoot := 'output';
-    Result := lProject.JSON;
-  finally
-    lProject.Free;
-  end;
+  lDirectory := ExtractFileDir(ExpandFileName(ParamStr(0)));
+  repeat
+    lCandidate := IncludeTrailingPathDelimiter(lDirectory) + 'projects' +
+      DirectorySeparator + 'nxbuild' + DirectorySeparator + 'language' +
+      DirectorySeparator + 'nxbuild.Language.nxscript';
+    if FileExists(lCandidate) then
+      Exit(lCandidate);
+    lParent := ExtractFileDir(lDirectory);
+    if lParent = lDirectory then
+      Break;
+    lDirectory := lParent;
+  until lDirectory = '';
+  raise Exception.Create('nxbuild.Language.nxscript was not found under the Nexus installation.');
+end;
+
+function NXLSProjectScriptHeader(const AProjectName, ATargetDir: string;
+  ABuildTool: TNXPascalBuildTool): string;
+var
+  lRoot, lDialect, lKind: string;
+begin
+  lRoot := ExpandFileName(ATargetDir);
+  lDialect := ExtractRelativePath(IncludeTrailingPathDelimiter(lRoot),
+    NXLSProjectDialectFile);
+  if ABuildTool = pbtLazarus then
+    lKind := 'LazarusProject'
+  else
+    lKind := 'Program';
+  Result :=
+    'dialect ' + NXLSQuoteScriptText(lDialect) + ';' + LineEnding +
+    LineEnding +
+    'Project ' + NXLSQuoteScriptText(AProjectName) + ' {' + LineEnding +
+    '    BuildTool: ' + NXLSBuildToolLabel(ABuildTool) + ';' + LineEnding +
+    '    ProjectKind: ' + lKind + ';' + LineEnding +
+    '    ProjectRoot: ' + NXLSQuoteScriptText(lRoot) + ';' + LineEnding +
+    '    ProjectFileName: ' + NXLSQuoteScriptText(
+      NXLSProjectFileName(AProjectName, ATargetDir)) + ';' + LineEnding +
+    '    OutputRoot: "output";' + LineEnding;
+end;
+
+function NXLSNexusProjectScript(const AProjectName, ATargetDir: string;
+  ABuildTool: TNXPascalBuildTool): string;
+var
+  lBuildFile: string;
+begin
+  if ABuildTool = pbtLazarus then
+    lBuildFile := AProjectName + '.lpi'
+  else
+    lBuildFile := '$(SourceRoot)' + DirectorySeparator + AProjectName + '.lpr';
+  Result := NXLSProjectScriptHeader(AProjectName, ATargetDir, ABuildTool) +
+    '    BuildFile: ' + NXLSQuoteScriptText(lBuildFile) + ';' + LineEnding +
+    '    SourceRoot: "src";' + LineEnding +
+    LineEnding +
+    '    TargetPlatform Platform { FPCMode: "objfpc"; }' + LineEnding +
+    '    FPCBuildOptions Compiler {' + LineEnding +
+    '        InputFile: ' + NXLSQuoteScriptText(lBuildFile) + ';' + LineEnding +
+    '        Files Paths {' + LineEnding +
+    '            UnitPaths: ["$(SourceRoot)"];' + LineEnding +
+    '            UnitOutputPath: ' + NXLSQuoteScriptText('$(OutputRoot)' +
+      DirectorySeparator + 'units') + ';' + LineEnding +
+    '            ExecutableOutputPath: "$(OutputRoot)";' + LineEnding +
+    '        }' + LineEnding +
+    '        Language Pascal { Mode: ObjFPC; }' + LineEnding +
+    '    }' + LineEnding +
+    '}' + LineEnding;
+end;
+
+function NXLSLazarusProjectScript(const AProjectName, ATargetDir,
+  ALPIFile: string): string;
+begin
+  Result := NXLSProjectScriptHeader(AProjectName, ATargetDir, pbtLazarus) +
+    '    BuildFile: ' + NXLSQuoteScriptText(ExpandFileName(ALPIFile)) + ';' +
+      LineEnding +
+    '}' + LineEnding;
 end;
 
 function NXLSNexusProgramSource(const AProjectName: string): string;
@@ -552,10 +583,10 @@ begin
   lFile := TNXLSProjectFile(AResult.files.AddObject(TNXLSProjectFile));
   lFile.path.Value := lProjectFile;
   if lKind = 'lazarus' then
-    lFile.content.Value := NXLSLazarusProjectJSON(lProjectName, lTargetDir,
+    lFile.content.Value := NXLSLazarusProjectScript(lProjectName, lTargetDir,
       lLPIFile)
   else
-    lFile.content.Value := NXLSNexusProjectJSON(lProjectName, lTargetDir,
+    lFile.content.Value := NXLSNexusProjectScript(lProjectName, lTargetDir,
       lBuildTool);
   lFile.Assigned := True;
 

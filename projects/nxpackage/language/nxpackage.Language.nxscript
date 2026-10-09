@@ -1,0 +1,111 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../../../packages/nexus-packages/nxscript/language/Language.nxscript";
+
+// Entity declarations only. Discovery, resolution and execution are not performed.
+Language nxpackage {
+    UnknownDefinitions: Reject;
+    Definitions: [
+        Definition Package {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Id { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Version { Value Value { EffectiveCategories: [Text]; } },
+                Property Author { Value Value { EffectiveCategories: [Text]; } },
+                Property Description { Value Value { EffectiveCategories: [Text]; } },
+                Property License { Value Value { EffectiveCategories: [Text]; } },
+                Property Requires {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Names: Optional;
+                            EntrySourceForms: [Reference];
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [LocalPackage, ExternalPackage];
+                        }
+                    }
+                }
+            ];
+        },
+        Definition PackageIndex {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Children: [
+                Child Packages { Kinds: [LocalPackage, ExternalPackage]; },
+                Child Repositories { Kinds: [TrustedRepository]; }
+            ];
+        },
+        Definition RepositoryIndex {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Children: [
+                Child Packages { Kinds: [LocalPackage, ExternalPackage]; },
+                Child Repositories { Kinds: [TrustedRepository]; }
+            ];
+        },
+        Definition LocalPackage {
+            Root: False;
+            Parents: [PackageIndex, RepositoryIndex];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Id { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Descriptor { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Version { Value Value { EffectiveCategories: [Text]; } },
+                Property Description { Value Value { EffectiveCategories: [Text]; } }
+            ];
+            Children: [Child Hash { Kinds: [ContentHash]; Maximum: 1; }];
+        },
+        Definition TrustedRepository {
+            Root: False;
+            Parents: [PackageIndex, RepositoryIndex];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Source { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
+        Definition ExternalPackage {
+            Root: False;
+            Parents: [PackageIndex, RepositoryIndex];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Id { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Repository {
+                    Required: True;
+                    Value Value {
+                        SourceForms: [Reference];
+                        EffectiveCategories: [Definition];
+                        Reference Reference { Targets: [Definition]; DefinitionKinds: [TrustedRepository]; }
+                    }
+                },
+                Property Version { Value Value { EffectiveCategories: [Text]; } },
+                Property Description { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
+        Definition ContentHash {
+            Root: False;
+            Parents: [LocalPackage];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Algorithm { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Digest { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}

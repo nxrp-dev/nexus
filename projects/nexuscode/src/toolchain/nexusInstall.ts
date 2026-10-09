@@ -47,7 +47,7 @@ export function findInstalledNexus(): NexusInstall | undefined {
         binDirectory,
         nexusLSPath: path.join(binDirectory, 'nexusls.exe'),
         nexusScriptLSPath: path.join(binDirectory, 'nexusscriptls.exe'),
-        nexusBuildPath: path.join(binDirectory, 'nexusbuild.exe'),
+        nexusBuildPath: path.join(binDirectory, 'nxbuild.exe'),
         lazarusDirectory,
         lazbuildPath: path.join(lazarusDirectory, 'lazbuild.exe'),
         fpcDirectory,
