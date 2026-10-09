@@ -18,7 +18,7 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
-    <Units Count="5">
+    <Units Count="7">
       <Unit0>
         <Filename Value="nxbuild.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -39,6 +39,14 @@
         <Filename Value="src/obNXBuildExecutor.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit4>
+      <Unit5>
+        <Filename Value="src/obNXPascalProject.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="src/obNXFPCBuildOptions.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit6>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -48,7 +56,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;../../packages/nexus-packages/nxscript/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/network/json-rpc/src;../../NexusLib/core/src;$(LazarusDir)/components/lazutils;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/db/sqlite/src/bindings;../../packages/nexus-packages-ext/mustache/external/dmustache"/>
+      <OtherUnitFiles Value="src;../../packages/nexus-packages/nxscript/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/network/json-rpc/src;../../packages/nexus-packages/core/src;$(LazarusDir)/components/lazutils;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/db/sqlite/src/bindings;../../packages/nexus-packages-ext/mustache/external/dmustache"/>
       <UnitOutputDirectory Value="../../output/nxbuild/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Parsing>

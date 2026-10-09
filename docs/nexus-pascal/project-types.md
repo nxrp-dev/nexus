@@ -6,9 +6,9 @@ project model for Nexus workflows.
 
 ## Nexus Projects
 
-Nexus projects use `.nxp` files as their project description.
+Nexus projects use NexusScript `.nxproject` files as their project description.
 
-The `.nxp` file is intended to describe how a Nexus Pascal project should build,
+The `.nxproject` file is intended to describe how a Nexus Pascal project should build,
 run, and relate to supporting project files. Over time, this becomes the
 preferred project format for Nexus workflows.
 

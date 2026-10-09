@@ -4,12 +4,12 @@
 source owns navigation; the coordinator checks pending edits and synchronizes
 values through non-owning CORBA interfaces.
 
-The core lives in `NexusLib/binding`, independently of Nexus UI and fpGUI. It
+The core lives in `packages/nexus-packages/binding`, independently of Nexus UI and fpGUI. It
 supports one-way/two-way binding, source-first initialization, conversion,
 validation, pending input, and optional source edit sessions. Application code
 explicitly submits, commits, cancels, or retries navigation.
 
-See the [binding contracts](../../NexusLib/binding/docs/contracts.md) for the
+See the [binding contracts](../../packages/nexus-packages/binding/docs/contracts.md) for the
 connection API, source/target obligations, and lifetime rules. The console tests
 exercise the real coordinator with ordinary Pascal sources and targets,
 including a reusable current-record facade and an object-list source.

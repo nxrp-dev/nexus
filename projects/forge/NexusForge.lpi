@@ -9,7 +9,7 @@
     <Version Value="11"/>
     <Target><Filename Value="../../output/NexusForge/$(TargetCPU)-$(TargetOS)/nxforge"/></Target>
     <SearchPaths>
-      <OtherUnitFiles Value="src;../../packages/nexus-packages/nxscript/src;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/network/json-rpc/src;../../NexusLib/core/src;../../packages/nexus-packages-ext/mustache/external/dmustache;../../packages/nexus-packages/db/sqlite/src/bindings"/>
+      <OtherUnitFiles Value="src;../../packages/nexus-packages/nxscript/src;../../packages/nexus-packages/serialization/src;../../packages/nexus-packages/serialization/json/src;../../packages/nexus-packages/network/json-rpc/src;../../packages/nexus-packages/core/src;../../packages/nexus-packages-ext/mustache/external/dmustache;../../packages/nexus-packages/db/sqlite/src/bindings"/>
       <UnitOutputDirectory Value="../../output/NexusForge/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Other><CustomOptions Value="-gl"/></Other>

@@ -232,7 +232,7 @@ export class LazarusProjectAdapter implements PascalProjectAdapter {
     private hasAdjacentNexusProject(file: string): boolean {
         const directory = path.dirname(file);
         const baseName = path.basename(file, path.extname(file));
-        return fs.existsSync(path.join(directory, `${baseName}.nxp`));
+        return fs.existsSync(path.join(directory, `${baseName}.nxproject`));
     }
 
     private shouldSkipDirectory(name: string): boolean {

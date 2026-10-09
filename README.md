@@ -9,6 +9,6 @@ Current major areas:
 - `projects/nxbuild`: nxbuild, the NexusScript project builder.
 - `projects/profiler`: NexusProfilerImport, the NexusFPC profiling trace importer.
 - `NexusTools`: repository infrastructure and support tools.
-- `NexusLib`: shared runtime/library code used by the other Nexus projects.
+- `packages/nexus-packages`: shared runtime packages, including core helpers and source-independent binding.
 
 The documentation site is built with Material for MkDocs. Start with `docs/index.md` or run MkDocs from the repository root.

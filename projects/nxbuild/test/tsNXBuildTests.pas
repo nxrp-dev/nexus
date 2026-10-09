@@ -40,7 +40,7 @@ var
   lSource: TStringList;
   lLoader: TNXBuildProjectLoader;
 begin
-  lFileName := ExpandFileName('output/nxbuildTests/fixture.nxp');
+  lFileName := ExpandFileName('output/nxbuildTests/fixture.nxproject');
   ForceDirectories(ExtractFileDir(lFileName));
   lSource := TStringList.Create;
   lLoader := TNXBuildProjectLoader.Create;
@@ -85,7 +85,7 @@ begin
   lProject := NXBuildTestLoad('Project Demo {}');
   try
     AContext.AssertEquals('Demo', lProject.Name);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/fixture.nxp'),
+    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/fixture.nxproject'),
       lProject.ProjectFileName);
     AContext.AssertEquals(ExpandFileName('output/nxbuildTests'), lProject.ProjectRoot);
     AContext.AssertEquals(Ord(pbtUnknown), Ord(lProject.BuildTool));
@@ -162,7 +162,7 @@ begin
   lPlanner := TNXBuildPlanner.Create;
   try
     lPlan := lPlanner.CreatePlan(lLoader.LoadProject(
-      'projects/nxbuild/examples/Hello.nxp'));
+      'projects/nxbuild/examples/Hello.nxproject'));
     try
       AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples'),
         lPlan.WorkingDirectory);
@@ -255,7 +255,7 @@ var
   lProject: TNXPascalProject;
 begin
   lAnalysis := TNexusScriptAnalysis.Create(
-    ExpandFileName('projects/nxbuild/examples/Hello.nxp'), 1, nil);
+    ExpandFileName('projects/nxbuild/examples/Hello.nxproject'), 1, nil);
   lProject := TNXPascalProject.Create;
   try
     lAnalysis.Execute;

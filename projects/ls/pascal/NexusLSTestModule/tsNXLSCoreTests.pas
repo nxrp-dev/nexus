@@ -395,7 +395,7 @@ begin
       '    <General><Title Value="NexusLS"/></General>' + LineEnding +
       '  </ProjectOptions>' + LineEnding +
       '  <CompilerOptions>' + LineEnding +
-      '    <SearchPaths><OtherUnitFiles Value="src;src\protocol;..\NexusLib\core\src"/></SearchPaths>' + LineEnding +
+      '    <SearchPaths><OtherUnitFiles Value="src;src\protocol;..\packages\nexus-packages\core\src"/></SearchPaths>' + LineEnding +
       '  </CompilerOptions>' + LineEnding +
       '</CONFIG>';
     SaveToFile(lLPIFile);

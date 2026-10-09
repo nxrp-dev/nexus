@@ -36,7 +36,7 @@ Some services are still pragmatic and CodeTools-driven. Symbol indexing includes
 
 ## Boundaries
 
-NexusLS depends on `NexusLib/core` for JSON-RPC support and `NexusLib/lsp` for standard LSP values, transport, dispatch, outbound request matching, and the injected server host. Pascal requests, documents, analysis, services, and indexes remain inside `NexusTools/LS`. NexusLS does not host NexusScript or depend on `projects/nxscript`.
+NexusLS depends on `packages/nexus-packages/core` for JSON-RPC support and `NexusLib/lsp` for standard LSP values, transport, dispatch, outbound request matching, and the injected server host. Pascal requests, documents, analysis, services, and indexes remain inside `NexusTools/LS`. NexusLS does not host NexusScript or depend on `projects/nxscript`.
 
 NexusScript uses a separate `NexusScriptLS` executable under `projects/ls/nxscript`. The two servers share process infrastructure, not document or analysis code.
 

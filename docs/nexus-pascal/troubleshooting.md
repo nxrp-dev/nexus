@@ -44,7 +44,7 @@ Build task availability depends on project discovery and project kind.
 
 Check whether Nexus Pascal detected:
 
-- a `.nxp` project file
+- a `.nxproject` project file
 - a Lazarus `.lpi` project
 - a Free Pascal source/project context
 

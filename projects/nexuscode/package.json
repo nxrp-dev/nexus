@@ -101,7 +101,7 @@
         ],
         "extensions": [
           ".nxscript",
-          ".nxp"
+          ".nxproject"
         ],
         "configuration": "./nexusscript-configuration.json"
       }
@@ -394,7 +394,7 @@
         "properties": {
           "project": {
             "type": "string",
-            "description": "Nexus project file (.nxp)"
+            "description": "Nexus project file (.nxproject)"
           },
           "cwd": {
             "type": "string",

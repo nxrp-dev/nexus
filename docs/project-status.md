@@ -18,9 +18,9 @@ Active. The language server is replacing legacy Pascal language-server behavior 
 
 Active. The framework supports test suites/cases and a shared-library boundary used by test modules. NexusTestUI provides a visual runner.
 
-## NexusLib
+## Shared packages
 
-Active support module. Shared runtime code should be documented here when it is used across multiple Nexus projects.
+Shared runtime code lives under packages/nexus-packages. Core helpers and source-independent binding have their own package descriptors; the Pascal build model lives under projects/nxbuild/src.
 
 ## Documentation
 

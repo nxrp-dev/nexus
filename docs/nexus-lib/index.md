@@ -1,6 +1,6 @@
-# NexusLib
+# Nexus Shared Libraries
 
-NexusLib is the shared Pascal support layer used by other Nexus modules. It is intentionally smaller than the application modules and should stay focused on reusable infrastructure.
+Shared Pascal support lives in independently described packages under packages/nexus-packages. Core helpers live in core/src; source-independent binding lives in binding/src. The Pascal project and compiler-option models belong to projects/nxbuild/src.
 
 ## Current contents
 
@@ -49,16 +49,16 @@ durable stream-resumption state remain outside the verified boundary.
 
 ## References
 
-- [JSON-RPC Protocol Modeling](json-rpc.md) explains how to model a JSON-RPC protocol with the current NexusLib object model.
+- [JSON-RPC Protocol Modeling](json-rpc.md) explains how to model a JSON-RPC protocol with the shared typed object model.
 
 ## Used by
 
-`NexusLS` uses NexusLib for command-line parsing, class-factory dispatch, typed JSON DTOs, and JSON-RPC message handling.
+`NexusLS` uses the core, serialization/json, network/json-rpc, and lsp packages for command-line parsing, class-factory dispatch, typed JSON values, and JSON-RPC message handling.
 
-`NexusTest` uses NexusLib for its JSON-RPC command processor and typed request/result values.
+`NexusTest` uses the core, serialization/json, and network/json-rpc packages for its JSON-RPC command processor and typed request/result values.
 
 ## Current boundary
 
-NexusLib should not own editor behavior, test-running policy, UI behavior, schema generation, or tool-specific workflows. Those belong in their top-level modules.
+Shared foundation packages should not own editor behavior, test-running policy, UI behavior, schema generation, or tool-specific workflows. Those belong to the relevant GUI package or project.
 
-Shared code belongs here when it can be used without importing module-specific assumptions. If a helper only makes sense for one module, keep it with that module until reuse is real.
+Shared code belongs in a package when it can be used without importing project-specific assumptions. If a helper only makes sense for one project, keep it with that project.

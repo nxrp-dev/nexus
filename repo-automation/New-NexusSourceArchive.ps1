@@ -33,7 +33,6 @@ $OutputPath = Join-Path $OutputDirectory $ArchiveName
 $StagePath = Join-Path $env:TEMP ('nexus-source-chatgpt-{0}' -f ([guid]::NewGuid().ToString('N')))
 $ArchiveFileNamePattern = '^nexus-source-chatgpt-\d{8}-\d{6}\.zip$'
 $DefaultSourceRoots = @(
-  [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'NexusLib'); ArchivePath = 'NexusLib' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot '.ai'); ArchivePath = '.ai' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'docs'); ArchivePath = 'docs' },
   [pscustomobject]@{ SourcePath = (Join-Path $RepositoryRoot 'work'); ArchivePath = 'work' },

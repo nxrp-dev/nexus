@@ -4,7 +4,8 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 ## Current modules
 
-- `NexusLib` contains shared Pascal support code used by other Nexus modules. It owns core helpers plus library families such as `core`, `packages/nexus-packages/lsp`, `ui`, and `net`. `packages/nexus-packages/lsp` owns only standard LSP values and language-neutral transport, dispatch, outbound-request, and server-host mechanics.
+- `packages/nexus-packages` contains shared Pascal packages. Core helpers and source-independent binding have separate homes under `core` and `binding`. `packages/nexus-packages/lsp` owns only standard LSP values and language-neutral transport, dispatch, outbound-request, and server-host mechanics.
+- `projects/nxbuild` owns the Pascal project and compiler-option models alongside its build dialect, loader, planner, and executor.
 - `NexusTools/LS` contains the Pascal language server. It owns Pascal documents, CodeTools integration, custom project/toolchain/refactoring protocol values, concrete requests, diagnostics, navigation, completion, symbols, and Pascal language-server test coverage.
 - `projects/nxscript` owns the NexusScript language core, artifact production, CLI, and the separate `NexusScriptLS` process. Its language server currently owns only lifecycle and full-text open-document state; editor intelligence is not implemented in this restructuring pass.
 - `packages/nexus-packages/nxtest` contains the reusable NexusTest framework and module contract. `projects/nxtest/host` owns the command-line host and sample module, while `projects/nxtest/ui` owns the GUI runner.
@@ -13,7 +14,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 ## Integration boundaries
 
-`NexusLib` is the shared base layer. It should stay small and general enough to be reused by `NexusTools/LS`, `packages/nexus-packages/nxtest`, and other tools without absorbing their workflows.
+Shared packages should stay small and reusable without absorbing application workflows or depending on projects.
 
 `NexusTools/LS` and `NexusScriptLS` are independent tool processes. Each owns its request registration, application model, documents, and language behavior while consuming the same language-neutral `packages/nexus-packages/lsp` process infrastructure. Neither server depends on the other.
 
@@ -25,4 +26,4 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 ## Current direction
 
-The repository is moving toward a documented ecosystem where modules can cooperate without hiding ownership. Shared code belongs in `NexusLib` when it is genuinely reusable. Module-specific behavior should stay near the module that owns the behavior.
+The repository is moving toward a documented ecosystem where modules can cooperate without hiding ownership. Reusable code belongs in the appropriate package. Project-specific behavior should stay with its owner.

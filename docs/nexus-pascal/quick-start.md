@@ -11,7 +11,7 @@ For best results, open a folder that contains one or more of:
 
 - a Lazarus `.lpi` file
 - a Free Pascal program or package source tree
-- a Nexus `.nxp` project file
+- a Nexus `.nxproject` project file
 
 Nexus Pascal can discover project candidates recursively, which is useful when
 your VS Code workspace is larger than a single Lazarus project folder.

@@ -58,8 +58,11 @@ Package Solar2D {
 
 ## Known incomplete information
 
+Core and Binding are independently described packages. The Pascal project and
+compiler-option models are project-owned under projects/nxbuild/src.
+
 Some real prerequisites have no independent package descriptor in this catalog:
-NexusLib core, Synapse, the compiler's platform-specific FFI support,
+Synapse, the compiler's platform-specific FFI support,
 and external runtime/host libraries. The affected descriptors identify those
 prerequisites in comments. Their absence from `Requires` does not mean those
 packages are self-contained. This draft does not invent identities or

@@ -10,7 +10,7 @@ It consumes:
 - `packages/nexus-packages/serialization/src`
 - `packages/nexus-packages/serialization/json/src`
 - `packages/nexus-packages/network/json-rpc/src`
-- `NexusLib/core/src`
+- `packages/nexus-packages/core/src`
 
 ## Build
 

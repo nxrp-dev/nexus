@@ -59,7 +59,7 @@ end;
 function NXLSProjectFileName(const AProjectName, ATargetDir: string): string;
 begin
   Result := IncludeTrailingPathDelimiter(ExpandFileName(ATargetDir)) +
-    AProjectName + '.nxp';
+    AProjectName + '.nxproject';
 end;
 
 function NXLSProjectSourceDir(const ATargetDir: string): string;
@@ -194,7 +194,7 @@ begin
   if AFields = nil then
     Exit;
   NXLSAddField(AFields, 'projectName', 'Project Name', 'text', AProjectName,
-    True, 'Used for the .nxp file name in this first project-service pass.');
+    True, 'Used for the .nxproject file name in this first project-service pass.');
   NXLSAddBuildToolField(AFields, ABuildTool);
   NXLSAddField(AFields, 'targetDir', 'Destination Folder', 'folder',
     ATargetDir, True, '', 'Select Project Folder');
@@ -209,7 +209,7 @@ begin
   NXLSAddField(AFields, 'kind', 'Project Type', 'readonly', 'lazarus',
     True, 'Import an existing Lazarus project into a Nexus project file.');
   NXLSAddField(AFields, 'projectName', 'Project Name', 'text', AProjectName,
-    True, 'Used for the generated .nxp file name.');
+    True, 'Used for the generated .nxproject file name.');
   NXLSAddField(AFields, 'targetDir', 'Destination Folder', 'folder',
     ATargetDir, True, '', 'Select Project Folder');
   NXLSAddField(AFields, 'lpiFile', 'Lazarus Project File', 'file',
@@ -295,7 +295,7 @@ begin
   Result :=
     'dialect ' + NXLSQuoteScriptText(lDialect) + ';' + LineEnding +
     LineEnding +
-    'Project ' + NXLSQuoteScriptText(AProjectName) + ' {' + LineEnding +
+    'Project ' + AProjectName + ' {' + LineEnding +
     '    BuildTool: ' + NXLSBuildToolLabel(ABuildTool) + ';' + LineEnding +
     '    ProjectKind: ' + lKind + ';' + LineEnding +
     '    ProjectRoot: ' + NXLSQuoteScriptText(lRoot) + ';' + LineEnding +

@@ -73,7 +73,7 @@ export class NexusProjectAdapter implements PascalProjectAdapter {
 
     private createProject(descriptorFile: string): NexusProjectModel {
         const projectRoot = this.getProjectRoot(descriptorFile);
-        const label = path.basename(descriptorFile) === 'project.nxp'
+        const label = path.basename(descriptorFile) === 'project.nxproject'
             ? path.basename(projectRoot)
             : path.basename(descriptorFile, path.extname(descriptorFile));
 
@@ -110,7 +110,7 @@ export class NexusProjectAdapter implements PascalProjectAdapter {
         this.walkDirectories(root, directory => {
             const baseName = path.basename(directory).toLowerCase();
             if (baseName === '.nexus') {
-                const descriptorFile = path.join(directory, 'project.nxp');
+                const descriptorFile = path.join(directory, 'project.nxproject');
                 if (fs.existsSync(descriptorFile)) {
                     results.push(descriptorFile);
                 }
@@ -118,7 +118,7 @@ export class NexusProjectAdapter implements PascalProjectAdapter {
             }
 
             for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-                if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.nxp') {
+                if (entry.isFile() && path.extname(entry.name).toLowerCase() === '.nxproject') {
                     results.push(path.join(directory, entry.name));
                 }
             }

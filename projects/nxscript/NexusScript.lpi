@@ -33,7 +33,7 @@
     <Target><Filename Value="..\..\output\NexusScript\$(TargetCPU)-$(TargetOS)\NexusScript"/></Target>
     <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
     <SearchPaths>
-      <OtherUnitFiles Value="..\..\packages\nexus-packages\nxscript\src;cli;..\..\packages\nexus-packages\db\sqlite\src\bindings;..\..\packages\nexus-packages\serialization\json\src;..\..\packages\nexus-packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\packages\nexus-packages-ext\mustache\external\dmustache;..\..\packages\nexus-packages\serialization\src"/>
+      <OtherUnitFiles Value="..\..\packages\nexus-packages\nxscript\src;cli;..\..\packages\nexus-packages\db\sqlite\src\bindings;..\..\packages\nexus-packages\serialization\json\src;..\..\packages\nexus-packages\network\json-rpc\src;..\..\packages\nexus-packages\core\src;..\..\packages\nexus-packages-ext\mustache\external\dmustache;..\..\packages\nexus-packages\serialization\src"/>
       <UnitOutputDirectory Value="..\..\output\NexusScript\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
   </CompilerOptions>

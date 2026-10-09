@@ -19,7 +19,7 @@ This allows project creation to understand concepts such as:
 
 ## Nexus Projects
 
-Nexus project creation is expected to produce a `.nxp` project file and the
+Nexus project creation produces a NexusScript `.nxproject` description and the
 source files needed to begin work.
 
 For users, the goal is a guided experience:

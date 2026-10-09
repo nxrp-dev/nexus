@@ -12,7 +12,7 @@ Nexus is organized as a family of related Pascal projects.
 - `projects/nxbuild`: nxbuild, the NexusScript project builder.
 - `projects/profiler`: NexusProfilerImport, the NexusFPC profiling trace importer.
 - `NexusTools`: repository infrastructure and support tools.
-- `NexusLib`: shared JSON, JSON-RPC/LSP, persistence, command-line, and support code.
+- `packages/nexus-packages`: shared JSON, JSON-RPC/LSP, persistence, core helpers, and source-independent binding.
 - `scripts`: repository automation used by builds, archives, notifications, and development workflow.
 - `codec`: legacy or supporting code; document it only where it is intentionally part of the current architecture.
 

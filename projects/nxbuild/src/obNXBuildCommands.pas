@@ -45,8 +45,8 @@ end;
 
 class procedure TNXBuildCommands.RegisterCommandLineFlags;
 begin
-  TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript project file', 'Path to an nxbuild NexusScript project (.nxp).');
-  TNXCommandLine.RegisterFlag('action', False, True, '', 'Build action', 'Use /action=plan or /action=build with /project=project.nxp.');
+  TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript project file', 'Path to an nxbuild NexusScript project (.nxproject).');
+  TNXCommandLine.RegisterFlag('action', False, True, '', 'Build action', 'Use /action=plan or /action=build with /project=project.nxproject.');
 end;
 
 class procedure TNXBuildCommands.Execute;

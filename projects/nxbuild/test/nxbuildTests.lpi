@@ -9,7 +9,7 @@
     <Version Value="11"/>
     <Target><Filename Value="../../../output/nxbuildTests/$(TargetCPU)-$(TargetOS)/nxbuildTests"/></Target>
     <SearchPaths>
-      <OtherUnitFiles Value=".;../src;../../ls/pascal/src/service;../../ls/pascal/src/protocol;../../../packages/nexus-packages/nxscript/src;../../../packages/nexus-packages/nxtest/src;../../../packages/nexus-packages/serialization/src;../../../packages/nexus-packages/serialization/json/src;../../../packages/nexus-packages/network/json-rpc/src;../../../packages/nexus-packages/db/sqlite/src/bindings;../../../NexusLib/core/src;../../../packages/nexus-packages-ext/mustache/external/dmustache;$(LazarusDir)/components/lazutils"/>
+      <OtherUnitFiles Value=".;../src;../../ls/pascal/src/service;../../ls/pascal/src/protocol;../../../packages/nexus-packages/nxscript/src;../../../packages/nexus-packages/nxtest/src;../../../packages/nexus-packages/serialization/src;../../../packages/nexus-packages/serialization/json/src;../../../packages/nexus-packages/network/json-rpc/src;../../../packages/nexus-packages/db/sqlite/src/bindings;../../../packages/nexus-packages/core/src;../../../packages/nexus-packages-ext/mustache/external/dmustache;$(LazarusDir)/components/lazutils"/>
       <UnitOutputDirectory Value="../../../output/nxbuildTests/$(TargetCPU)-$(TargetOS)/units"/>
     </SearchPaths>
     <Other><CustomOptions Value="-gh -gl"/></Other>

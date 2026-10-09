@@ -4,24 +4,27 @@ nxbuild compiles a NexusScript project description into the existing typed
 Pascal project/build options, plans its compiler invocation, and optionally
 runs it. It does not use Forge or define packages.
 
+The native project model and FPC option sections live in this project's
+source folder: obNXPascalProject.pas and obNXFPCBuildOptions.pas.
+
 Build the executable with `lazbuild projects/nxbuild/nxbuild.lpi`. On Win64 it
 is written to `output/nxbuild/x86_64-win64/nxbuild.exe`.
 
 ```powershell
-output/nxbuild/x86_64-win64/nxbuild.exe /action=plan /project=projects/nxbuild/examples/Hello.nxp
-output/nxbuild/x86_64-win64/nxbuild.exe /action=build /project=projects/nxbuild/examples/Hello.nxp
+output/nxbuild/x86_64-win64/nxbuild.exe /action=plan /project=projects/nxbuild/examples/Hello.nxproject
+output/nxbuild/x86_64-win64/nxbuild.exe /action=build /project=projects/nxbuild/examples/Hello.nxproject
 ```
 
 ## Input
 
-A `.nxp` file now contains NexusScript, not JSON. Other filenames work when
+A `.nxproject` file now contains NexusScript, not JSON. Other filenames work when
 passed explicitly. Declare the project-owned dialect
 `language/nxbuild.Language.nxscript` and exactly one `Project` root.
-See `examples/Hello.nxp` and `examples/Lazarus.nxp`.
+See `examples/Hello.nxproject` and `examples/Lazarus.nxproject`.
 
-NexusCode discovers `.nxp` files (including `.nexus/project.nxp`) and sends
+NexusCode discovers `.nxproject` files (including `.nexus/project.nxproject`) and sends
 them to nxbuild without attempting to parse them as JSON. Its project list
-uses descriptor filenames for labels, or the folder for `project.nxp`.
+uses descriptor filenames for labels, or the folder for `project.nxproject`.
 
 The VS Code new-project and Lazarus-import commands generate the same
 NexusScript format. NexusLS locates the nxbuild dialect under its enclosing

@@ -20,4 +20,4 @@ Start with `NexusForge` if the task is about schema definitions, metadata, gener
 
 ## Work on Shared Runtime Code
 
-Start with `NexusLib` when the change belongs below the application/framework layer and is shared by several Nexus projects.
+Start with the appropriate package under `packages/nexus-packages` when the change belongs below the application/framework layer and is shared by several Nexus projects. General helpers live in `core`; source-independent value binding lives in `binding`.

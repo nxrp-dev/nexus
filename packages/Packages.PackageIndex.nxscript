@@ -22,6 +22,16 @@ PackageIndex NexusPackages {
     }
 
     // Explicit local inventory; Descriptor is relative to this index file.
+    LocalPackage Core {
+        Id: "NXRP.Core";
+        Descriptor: "nexus-packages/core/Package.nxscript";
+        Description: "Shared class registration and command-line parsing.";
+    }
+    LocalPackage Binding {
+        Id: "NXRP.Binding";
+        Descriptor: "nexus-packages/binding/Package.nxscript";
+        Description: "Source-independent value binding, navigation and edit coordination.";
+    }
     LocalPackage SQLite {
         Id: "NXRP.SQLite";
         Descriptor: "nexus-packages/db/sqlite/Package.nxscript";

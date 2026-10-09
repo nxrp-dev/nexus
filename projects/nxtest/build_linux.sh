@@ -12,8 +12,8 @@
 
 set -e
 cd "$(dirname "$0")"
-fpc -MObjFPC -Scgi -Fu../../packages/nexus-packages/nxtest/src -Fu../../packages/nexus-packages/serialization/src -Fu../../packages/nexus-packages/serialization/json/src -Fu../../packages/nexus-packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/test/sample/nxtest_sampletests.lpr
-fpc -MObjFPC -Scgi -Fu../../packages/nexus-packages/nxtest/src -Fu../../packages/nexus-packages/serialization/src -Fu../../packages/nexus-packages/serialization/json/src -Fu../../packages/nexus-packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/src/nxtest_host.lpr
+fpc -MObjFPC -Scgi -Fu../../packages/nexus-packages/nxtest/src -Fu../../packages/nexus-packages/serialization/src -Fu../../packages/nexus-packages/serialization/json/src -Fu../../packages/nexus-packages/network/json-rpc/src -Fu../../packages/nexus-packages/core/src ./host/test/sample/nxtest_sampletests.lpr
+fpc -MObjFPC -Scgi -Fu../../packages/nexus-packages/nxtest/src -Fu../../packages/nexus-packages/serialization/src -Fu../../packages/nexus-packages/serialization/json/src -Fu../../packages/nexus-packages/network/json-rpc/src -Fu../../packages/nexus-packages/core/src ./host/src/nxtest_host.lpr
 fpc -MObjFPC -Scgi -dX11 \
   -Fi../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib \
   -Fi../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11 \
@@ -22,7 +22,7 @@ fpc -MObjFPC -Scgi -dX11 \
   -Fu../../packages/nexus-packages/serialization/src \
   -Fu../../packages/nexus-packages/serialization/json/src \
   -Fu../../packages/nexus-packages/network/json-rpc/src \
-  -Fu../../NexusLib/core/src \
+  -Fu../../packages/nexus-packages/core/src \
   -Fu../../packages/nexus-packages/gui/src \
   -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib \
   -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software \

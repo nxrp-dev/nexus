@@ -44,7 +44,7 @@ nav:
       - Overview: nexus-ls/index.md
   - NexusTest:
       - Overview: nexus-test/index.md
-  - NexusLib:
+  - Shared Libraries:
       - Overview: nexus-lib/index.md
       - JSON-RPC Protocol Modeling: nexus-lib/json-rpc.md
   - Guides:

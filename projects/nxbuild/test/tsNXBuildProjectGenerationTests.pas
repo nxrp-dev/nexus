@@ -78,6 +78,8 @@ var
   lFile: TNXLSProjectFile;
 begin
   lFile := AResult.files[0] as TNXLSProjectFile;
+  if not SameText(ExtractFileExt(lFile.path.Value), '.nxproject') then
+    raise Exception.Create('The generator must emit a .nxproject descriptor.');
   lLoader := TNXBuildProjectLoader.Create;
   try
     Result := lLoader.LoadProject(lFile.path.Value);
