@@ -28,7 +28,7 @@
     <PathDelim Value="\"/>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="..\src"/>
+      <OtherUnitFiles Value="..\src;../../../packages/nexus-packages/db/sqlite/src;../../../packages/nexus-packages/db/sqlite/src/bindings"/>
       <UnitOutputDirectory Value="..\..\..\output\NexusProfilerImportTests\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

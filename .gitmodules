@@ -1,7 +1,3 @@
-[submodule "packages/network/external/synapse"]
-	path = packages/network/external/synapse
-	url = https://github.com/geby/synapse
-	branch = master
 [submodule "lib/dmustache"]
 	path = lib/dmustache
 	url = https://github.com/nxrp-dev/dmustache.git

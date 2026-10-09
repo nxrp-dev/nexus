@@ -10,21 +10,21 @@
     </General>
     <Units Count="16">
       <Unit0><Filename Value="cli\NexusScript.lpr"/><IsPartOfProject Value="True"/></Unit0>
-      <Unit1><Filename Value="..\..\packages\nxscript\src\tpNexusScript.pas"/></Unit1>
-      <Unit2><Filename Value="..\..\packages\nxscript\src\obNexusScriptModel.pas"/></Unit2>
-      <Unit3><Filename Value="..\..\packages\nxscript\src\obNexusScriptCompiler.pas"/></Unit3>
-      <Unit4><Filename Value="..\..\packages\nxscript\src\obNexusScriptSession.pas"/></Unit4>
+      <Unit1><Filename Value="..\..\packages\nexus-packages\nxscript\src\tpNexusScript.pas"/></Unit1>
+      <Unit2><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptModel.pas"/></Unit2>
+      <Unit3><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptCompiler.pas"/></Unit3>
+      <Unit4><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptSession.pas"/></Unit4>
       <Unit5><Filename Value="cli\obNexusScriptCommand.pas"/></Unit5>
-      <Unit6><Filename Value="..\..\packages\nxscript\src\obNexusScriptJSON.pas"/></Unit6>
-      <Unit7><Filename Value="..\..\packages\nxscript\src\obNexusScriptValidator.pas"/></Unit7>
-      <Unit8><Filename Value="..\..\packages\nxscript\src\obNexusScriptExternalSource.pas"/></Unit8>
-      <Unit9><Filename Value="..\..\packages\nxscript\src\obNexusScriptArtifactModel.pas"/></Unit9>
-      <Unit10><Filename Value="..\..\packages\nxscript\src\obNexusScriptArtifactContext.pas"/></Unit10>
-      <Unit11><Filename Value="..\..\packages\nxscript\src\obNexusScriptManifest.pas"/></Unit11>
-      <Unit12><Filename Value="..\..\packages\nxscript\src\obNexusScriptLanguageDefinition.pas"/></Unit12>
-      <Unit13><Filename Value="..\..\packages\nxscript\src\obNexusScriptEmitter.pas"/></Unit13>
-      <Unit14><Filename Value="..\..\packages\nxscript\src\obNexusScriptEmitterFactory.pas"/></Unit14>
-      <Unit15><Filename Value="..\..\packages\nxscript\src\obNexusScriptSQLite.pas"/></Unit15>
+      <Unit6><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptJSON.pas"/></Unit6>
+      <Unit7><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptValidator.pas"/></Unit7>
+      <Unit8><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptExternalSource.pas"/></Unit8>
+      <Unit9><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptArtifactModel.pas"/></Unit9>
+      <Unit10><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptArtifactContext.pas"/></Unit10>
+      <Unit11><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptManifest.pas"/></Unit11>
+      <Unit12><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptLanguageDefinition.pas"/></Unit12>
+      <Unit13><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptEmitter.pas"/></Unit13>
+      <Unit14><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptEmitterFactory.pas"/></Unit14>
+      <Unit15><Filename Value="..\..\packages\nexus-packages\nxscript\src\obNexusScriptSQLite.pas"/></Unit15>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -33,7 +33,7 @@
     <Target><Filename Value="..\..\output\NexusScript\$(TargetCPU)-$(TargetOS)\NexusScript"/></Target>
     <Parsing><SyntaxOptions><SyntaxMode Value="Delphi"/></SyntaxOptions></Parsing>
     <SearchPaths>
-      <OtherUnitFiles Value="..\..\packages\nxscript\src;cli;..\..\packages\foundation\db\sqlite\src\bindings;..\..\packages\foundation\json\src;..\..\packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\lib\dmustache"/>
+      <OtherUnitFiles Value="..\..\packages\nexus-packages\nxscript\src;cli;..\..\packages\nexus-packages\db\sqlite\src\bindings;..\..\packages\nexus-packages\serialization\json\src;..\..\packages\nexus-packages\network\json-rpc\src;..\..\NexusLib\core\src;..\..\lib\dmustache;..\..\packages\nexus-packages\serialization\src"/>
       <UnitOutputDirectory Value="..\..\output\NexusScript\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
   </CompilerOptions>

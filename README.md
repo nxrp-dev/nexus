@@ -4,7 +4,7 @@ Nexus is a Pascal-focused project family for building tools, applications, schem
 
 Current major areas:
 
-- `packages2/nexus-packages/gui`: TNX-facing Pascal GUI framework source, tests, docs, resources, and bin over external fpGUI.
+- `packages/nexus-packages/gui`: TNX-facing Pascal GUI framework source, tests, docs, resources, and bin over external fpGUI.
 - `NexusForge`: schema and generation tooling.
 - `NexusTools`: framework-related tools, including NexusBuild, NexusTest, and NexusLS.
 - `NexusLib`: shared runtime/library code used by the other Nexus projects.

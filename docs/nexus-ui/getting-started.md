@@ -47,7 +47,7 @@ The Lazarus project file for the demo is `C:\gitdev\nexus-lab\LifeStatNX\LifeSta
 Its unit search path includes:
 
 - `.`
-- `..\..\nexus\packages2\nexus-packages\gui\src`
+- `..\..\nexus\packages\nexus-packages\gui\src`
 - `..\..\common\sdl\units`
 - `..\..\common\sdl_ext`
 

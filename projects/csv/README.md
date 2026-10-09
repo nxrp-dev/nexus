@@ -50,8 +50,8 @@ Put the built executable directory on PATH and run that Forge document. It write
 CSV process and SQL/plain-text tests are registered in the existing Forge suite.
 Build NexusCSV before running that suite. Shared reader regressions also run in
 NexusScript's existing external-data tests; both consumers use
-`packages/foundation/serialization/delimited-text/src/utNXDelimitedText.pas`
-(the JSON implementation is under `packages/foundation/serialization/json/src`).
+`packages/nexus-packages/serialization/delimited-text/src/utNXDelimitedText.pas`
+(the JSON implementation is under `packages/nexus-packages/serialization/json/src`).
 
 ## Verified 2026-09-15
 

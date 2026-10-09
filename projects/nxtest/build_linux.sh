@@ -12,21 +12,21 @@
 
 set -e
 cd "$(dirname "$0")"
-fpc -MObjFPC -Scgi -Fu../../packages/nxtest/src -Fu../../packages2/nexus-packages/serialization/src -Fu../../packages2/nexus-packages/serialization/json/src -Fu../../packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/test/sample/nxtest_sampletests.lpr
-fpc -MObjFPC -Scgi -Fu../../packages/nxtest/src -Fu../../packages2/nexus-packages/serialization/src -Fu../../packages2/nexus-packages/serialization/json/src -Fu../../packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/src/nxtest_host.lpr
+fpc -MObjFPC -Scgi -Fu../../packages/nexus-packages/nxtest/src -Fu../../packages/nexus-packages/serialization/src -Fu../../packages/nexus-packages/serialization/json/src -Fu../../packages/nexus-packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/test/sample/nxtest_sampletests.lpr
+fpc -MObjFPC -Scgi -Fu../../packages/nexus-packages/nxtest/src -Fu../../packages/nexus-packages/serialization/src -Fu../../packages/nexus-packages/serialization/json/src -Fu../../packages/nexus-packages/network/json-rpc/src -Fu../../NexusLib/core/src ./host/src/nxtest_host.lpr
 fpc -MObjFPC -Scgi -dX11 \
-  -Fi../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib \
-  -Fi../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11 \
-  -Fi../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/resources \
-  -Fu../../packages/nxtest/src \
-  -Fu../../packages2/nexus-packages/serialization/src \
-  -Fu../../packages2/nexus-packages/serialization/json/src \
-  -Fu../../packages/network/json-rpc/src \
+  -Fi../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib \
+  -Fi../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11 \
+  -Fi../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources \
+  -Fu../../packages/nexus-packages/nxtest/src \
+  -Fu../../packages/nexus-packages/serialization/src \
+  -Fu../../packages/nexus-packages/serialization/json/src \
+  -Fu../../packages/nexus-packages/network/json-rpc/src \
   -Fu../../NexusLib/core/src \
-  -Fu../../packages2/nexus-packages/gui/src \
-  -Fu../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib \
-  -Fu../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software \
-  -Fu../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11 \
-  -Fu../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/pascal/gui \
-  -Fu../../packages2/nexus-packages/gui/external/fpgui/framework/src/main/resources \
+  -Fu../../packages/nexus-packages/gui/src \
+  -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib \
+  -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software \
+  -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11 \
+  -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/gui \
+  -Fu../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources \
   ./ui/src/NexusTestUI.lpr

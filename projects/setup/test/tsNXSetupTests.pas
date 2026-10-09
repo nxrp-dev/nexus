@@ -358,7 +358,7 @@ begin
   lContext := TNXSetupSourceContext.Create(nil, lTargets);
   lSession := nil;
   try
-    lEntry := ExpandFileName('packages/nxscript/test/fixtures/include-collections/targets/Entry.nxscript');
+    lEntry := ExpandFileName('packages/nexus-packages/nxscript/test/fixtures/include-collections/targets/Entry.nxscript');
     lSession := TNexusScriptCompilationSession.Create(lTargets, lContext);
     AContext.AssertTrue(lSession.CompileFile(lEntry), lSession.LastError);
     AContext.AssertTrue(lContext.Selections.Count > 0, 'Source context retains the compiler file selection.');

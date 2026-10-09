@@ -25,7 +25,7 @@ Workspace Nexus {
         Description: "Reusable Nexus packages";
 
         File NexusScript {
-            Path: "packages/nxscript";
+            Path: "packages/nexus-packages/nxscript";
             Description: "NexusScript compiler and artifact system";
             Notes: [
                 "Contains the JSON and SQLite emitters"

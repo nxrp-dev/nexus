@@ -37,7 +37,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\..\..\packages\nxscript\src;..\..\forge\src;..\..\..\lib\dmustache;..\..\..\packages\nxtest\src;..\..\..\packages\foundation\json\src;..\..\..\packages\network\json-rpc\src;..\..\..\NexusLib\core\src;..\..\..\packages\network\xmpp\src;..\..\..\packages\network\external\synapse"/>
+      <OtherUnitFiles Value=".;..\src;..\src\protocol;..\..\..\packages\nexus-packages\nxscript\src;..\..\forge\src;..\..\..\lib\dmustache;..\..\..\packages\nexus-packages\nxtest\src;..\..\..\packages\nexus-packages\serialization\json\src;..\..\..\packages\nexus-packages\network\json-rpc\src;..\..\..\NexusLib\core\src;..\..\..\packages\nexus-packages\network\xmpp\src;..\..\..\packages\nexus-packages\network\external\synapse;..\..\..\packages\nexus-packages\serialization\src;..\..\..\packages\nexus-packages\db\sqlite\src\bindings"/>
       <UnitOutputDirectory Value="..\..\..\output\NexusBotHostTestModule\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

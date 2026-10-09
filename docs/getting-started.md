@@ -12,7 +12,7 @@ Start with `NexusLS` for language-server behavior and `Nexus Pascal` documentati
 
 ## Work on Tests
 
-Start with `packages/nxtest` for the reusable test framework, `projects/nxtest/host` for the module host, or `projects/nxtest/ui` for the NexusTest UI.
+Start with `packages/nexus-packages/nxtest` for the reusable test framework, `projects/nxtest/host` for the module host, or `projects/nxtest/ui` for the NexusTest UI.
 
 ## Work on Schema Generation
 

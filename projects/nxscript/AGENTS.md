@@ -11,7 +11,7 @@ These rules apply to `projects/nxscript`.
 ## Required Regression Checks
 
 - After compiler, validation, inclusion, or presentation changes, build and run
-  the complete `packages/nxscript/test/NexusScriptTests.lpi` console suite.
+  the complete `packages/nexus-packages/nxscript/test/NexusScriptTests.lpi` console suite.
 - After shared compiler/model/session/validation changes or language-server
   changes, also build and run `projects/ls/nxscript/test/NexusScriptLSTests.lpi`.
 - Run both suites for changes whose effect on editor analysis is uncertain.
@@ -20,4 +20,4 @@ These rules apply to `projects/nxscript`.
 - Expected-output fixtures express intended behavior. Do not regenerate or
   weaken them merely to match changed implementation output. Explain any
   intentional contract change and review its expected-output diff.
-- See `packages/nxscript/doc/regression-checks.md` for commands and coverage.
+- See `packages/nexus-packages/nxscript/doc/regression-checks.md` for commands and coverage.

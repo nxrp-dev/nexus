@@ -162,7 +162,7 @@ begin
   lEntryName := Root + 'output/NexusPackageManagerTests/model/Package.nxscript';
   lIndexName := Root + 'output/NexusPackageManagerTests/model/Index.nxscript';
   lProvider := TRecordingPackageProvider.Create(lEntryName, DialectName,
-    Root + 'packages/nxscript/language/Language.nxscript');
+    Root + 'packages/nexus-packages/nxscript/language/Language.nxscript');
   lDocument := TNXPackageManagerDocument.Create(lProvider);
   try
     lProvider.SetModule(lIndexName, Source(AIndexBody));
@@ -470,7 +470,7 @@ begin
   lEntryName := Root + 'output/NexusPackageManagerTests/model/Offline.nxscript';
   lIndexName := Root + 'output/NexusPackageManagerTests/model/OfflineIndex.nxscript';
   lProvider := TRecordingPackageProvider.Create(lEntryName, DialectName,
-    Root + 'packages/nxscript/language/Language.nxscript');
+    Root + 'packages/nexus-packages/nxscript/language/Language.nxscript');
   lDocument := TNXPackageManagerDocument.Create(lProvider);
   try
     lIndexSource := Source('PackageIndex I { ' +

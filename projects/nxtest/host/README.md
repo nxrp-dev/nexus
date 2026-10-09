@@ -7,8 +7,8 @@ This product contains the command-line host and sample module used to exercise t
 From the repository root:
 
 ```text
-fpc -MObjFPC -Scgi -Fupackages/nxtest/src -Fupackages/foundation/serialization/src -Fupackages/foundation/serialization/json/src -Fupackages/network/json-rpc/src -FuNexusLib/core/src projects/nxtest/host/test/sample/nxtest_sampletests.lpr
-fpc -MObjFPC -Scgi -Fupackages/nxtest/src -Fupackages/foundation/serialization/src -Fupackages/foundation/serialization/json/src -Fupackages/network/json-rpc/src -FuNexusLib/core/src projects/nxtest/host/src/nxtest_host.lpr
+fpc -MObjFPC -Scgi -Fupackages/nexus-packages/nxtest/src -Fupackages/nexus-packages/serialization/src -Fupackages/nexus-packages/serialization/json/src -Fupackages/nexus-packages/network/json-rpc/src -FuNexusLib/core/src projects/nxtest/host/test/sample/nxtest_sampletests.lpr
+fpc -MObjFPC -Scgi -Fupackages/nexus-packages/nxtest/src -Fupackages/nexus-packages/serialization/src -Fupackages/nexus-packages/serialization/json/src -Fupackages/nexus-packages/network/json-rpc/src -FuNexusLib/core/src projects/nxtest/host/src/nxtest_host.lpr
 ```
 
 The host loads a test module dynamically and communicates through the exported `NXTest_*` C-style ABI.

@@ -48,7 +48,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value="src;..\..\packages\foundation\json\src;..\..\packages\network\json-rpc\src;..\..\NexusLib\core\src;$(LazarusDir)\components\lazutils"/>
+      <OtherUnitFiles Value="src;..\..\packages\nexus-packages\serialization\json\src;..\..\packages\nexus-packages\network\json-rpc\src;..\..\NexusLib\core\src;$(LazarusDir)\components\lazutils;..\..\packages\nexus-packages\serialization\src"/>
       <UnitOutputDirectory Value="..\..\output\NexusBuild\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Parsing>

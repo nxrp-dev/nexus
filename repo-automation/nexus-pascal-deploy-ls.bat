@@ -75,14 +75,14 @@ if errorlevel 1 (
 )
 
 if not exist "%ExtensionRoot%\dialects" mkdir "%ExtensionRoot%\dialects"
-xcopy /E /I /Y "%NexusRoot%\packages\nxscript\language\*" "%ExtensionRoot%\dialects\" >nul
+xcopy /E /I /Y "%NexusRoot%\packages\nexus-packages\nxscript\language\*" "%ExtensionRoot%\dialects\" >nul
 if errorlevel 1 (
     echo ERROR: Could not deploy the NexusScript dialect catalog.
     goto DoneFail
 )
 
-if exist "%SourceDir%\sqlite3.dll" (
-    copy /Y "%SourceDir%\sqlite3.dll" "%TargetDir%\sqlite3.dll" >nul
+if exist "%NexusRoot%\packages\nexus-packages\db\sqlite\runtime\win64\sqlite3.dll" (
+    copy /Y "%NexusRoot%\packages\nexus-packages\db\sqlite\runtime\win64\sqlite3.dll" "%TargetDir%\sqlite3.dll" >nul
     if errorlevel 1 goto DoneFail
 )
 

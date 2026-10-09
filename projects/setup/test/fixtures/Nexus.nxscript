@@ -31,7 +31,7 @@ Product Nexus {
     Feature Language {
         Default: True;
         Requires: [@Nexus.Runtime, @Nexus.Editor];
-        Directory Definitions { Source: "../../../../packages/nxscript/language"; Location: @Nexus.Application; Path: "language"; }
+        Directory Definitions { Source: "../../../../packages/nexus-packages/nxscript/language"; Location: @Nexus.Application; Path: "language"; }
     }
     Feature Editor {
         Requires: [@Nexus.Language, @Nexus.NexusPascal];

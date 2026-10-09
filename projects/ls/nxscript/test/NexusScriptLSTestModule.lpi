@@ -30,7 +30,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>
-      <OtherUnitFiles Value=".;..\src\model;..\src\protocol;..\..\..\..\packages\nxscript\src;..\..\..\..\packages\lsp\src;..\..\..\..\packages\lsp\src\protocol;..\..\..\..\packages\network\json\src;..\..\..\..\packages\network\json-rpc\src;..\..\..\..\NexusLib\core\src;..\..\..\..\packages\nxtest\src;..\..\..\..\packages\network\external\synapse;$(LazarusDir)\components\lazutils" />
+      <OtherUnitFiles Value=".;..\src\model;..\src\protocol;..\..\..\..\packages\nexus-packages\nxscript\src;..\..\..\..\packages\nexus-packages\lsp\src;..\..\..\..\packages\nexus-packages\lsp\src\protocol;..\..\..\..\packages\nexus-packages\serialization\json\src;..\..\..\..\packages\nexus-packages\network\json-rpc\src;..\..\..\..\NexusLib\core\src;..\..\..\..\packages\nexus-packages\nxtest\src;..\..\..\..\packages\nexus-packages\network\external\synapse;$(LazarusDir)\components\lazutils;..\..\..\..\packages\nexus-packages\serialization\src;..\..\..\..\packages\nexus-packages\db\sqlite\src\bindings;..\..\..\..\lib\dmustache" />
       <UnitOutputDirectory Value="..\..\..\..\output\NexusScriptLS\tests\$(TargetCPU)-$(TargetOS)\units"/>
     </SearchPaths>
     <Linking>

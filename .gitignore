@@ -8,4 +8,6 @@ dist/
 *.ppu
 *.zip
 lib/
-/packages2
+
+# Track files at the packages root; child directories are independent repositories.
+/packages/*/

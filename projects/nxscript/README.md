@@ -4,7 +4,7 @@ NexusScript compiles source documents and serializes their completed domain
 model as generic JSON. A Mustache template may transform that same JSON into
 the final artifact.
 
-The reusable NexusScript mechanism lives in `packages/nxscript`.
+The reusable NexusScript mechanism lives in `packages/nexus-packages/nxscript`.
 That package contains the language model, compiler, dependency session,
 normalization, validation, JSON/artifact support, external-data handling, and
 manifest processing. This project owns `cli/` for command-line process
@@ -17,7 +17,7 @@ NexusScript /input=Customer.Schema.nxscript /output=Customer.json
 NexusScript /input=Customer.Schema.nxscript /format=sqlite /output=Customer.sqlite
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache
 NexusScript /input=Customer.Schema.nxscript /template=Firebird.mustache /output=Customer.sql
-NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=packages/nxscript/language
+NexusScript /manifest=Generated.NexusManifest.nxscript /output=generated /dialect-root=packages/nexus-packages/nxscript/language
 ```
 
 ## Options
