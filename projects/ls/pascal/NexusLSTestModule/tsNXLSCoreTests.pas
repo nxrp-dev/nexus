@@ -563,6 +563,8 @@ end;
 procedure TestAndroidNDKFieldSuggestsDownloadURL(AContext: TNXTestContext);
 var
   lField: TNXLSProjectField;
+  lFound: Boolean;
+  lIndex: Integer;
   lMissingRoot: string;
   lParams: TNXLSToolchainConfigureParams;
   lResult: TNXLSToolchainPlanConfigureResult;
@@ -593,12 +595,19 @@ begin
     AContext.AssertTrue(lField.suggestions.Count > 0,
       'Missing Android NDK should provide a suggestion.');
 
-    lSuggestion := TNXLSProjectFieldSuggestion(lField.suggestions[0]);
-    AContext.AssertEquals('url', lSuggestion.kind.Value,
-      'Android NDK missing suggestion should be a URL suggestion.');
-    AContext.AssertEquals('https://developer.android.com/ndk/downloads',
-      lSuggestion.value.Value,
-      'Android NDK missing suggestion should point to the official downloads page.');
+    lFound := False;
+    for lIndex := 0 to lField.suggestions.Count - 1 do
+    begin
+      lSuggestion := TNXLSProjectFieldSuggestion(lField.suggestions[lIndex]);
+      if (lSuggestion.kind.Value = 'url') and
+        (lSuggestion.value.Value = 'https://developer.android.com/ndk/downloads') then
+      begin
+        lFound := True;
+        Break;
+      end;
+    end;
+    AContext.AssertTrue(lFound,
+      'Missing Android NDK should include the official download URL alongside any detected installations.');
   finally
     lResult.Free;
     lParams.Free;
