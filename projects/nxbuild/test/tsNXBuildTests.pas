@@ -133,11 +133,11 @@ begin
   lProject := NXBuildTestLoad(
     'Project Demo {' +
     ' Name: "Native Demo"; BuildTool: FPC; ProjectKind: Program;' +
-    ' SourceRoot: "src"; OutputRoot: "out"; Variables: ["Flavor=debug"];' +
+    ' SourceRoot: "src"; OutputRoot: "out";' +
     ' Toolchain Tools { CompilerPath: "my-fpc"; }' +
-    ' TargetPlatform Platform { TargetOS: "win64"; }' +
+    ' TargetPlatform Platform { TargetOS: "win64"; ConfigName: "debug"; }' +
     ' FPCBuildOptions Compiler {' +
-    '  CompilerPath: "ignored"; RawOptions: ["-d$(Flavor)"];' +
+    '  CompilerPath: "ignored"; RawOptions: ["-d" + @Demo.Platform.ConfigName];' +
     '  Config Options { DisableDefaultConfigFiles: False; }' +
     '  CodeGeneration Checks { RangeChecking: Enabled; MinimumHeapSize: 4096; }' +
     '  Files Paths { UnitPaths: [@Demo.SourceRoot, @Demo.OutputRoot]; }' +
@@ -164,8 +164,22 @@ begin
       lProject.FPCBuildOptions.Files.UnitPaths[0]);
     AContext.AssertEquals(lProject.ResolvePath('out'),
       lProject.FPCBuildOptions.Files.UnitPaths[1]);
-    AContext.AssertEquals('-d$(Flavor)', lProject.FPCBuildOptions.RawOptions[0]);
+    AContext.AssertEquals('-ddebug', lProject.FPCBuildOptions.RawOptions[0]);
     AContext.AssertEquals('--two', lProject.FPCBuildOptions.Linking.LinkerOptions[1]);
+  finally
+    lProject.Free;
+  end;
+end;
+
+procedure TestRelativeCompilerPath(AContext: TNXTestContext);
+var
+  lProject: TNXPascalProject;
+begin
+  lProject := NXBuildTestLoad('Project Demo {' +
+    ' Toolchain Tools { CompilerPath: "../../tools/my-fpc.exe"; } }');
+  try
+    AContext.AssertEquals(ExpandFileName('tools/my-fpc.exe'),
+      lProject.FPCBuildOptions.CompilerPath);
   finally
     lProject.Free;
   end;
@@ -350,8 +364,15 @@ end;
 
 procedure TestInvalidArray(AContext: TNXTestContext);
 begin
-  NXBuildTestReject(AContext, 'Project Demo { Variables: [["nested"]]; }');
-  NXBuildTestReject(AContext, 'Project Demo { Variables: ["named": "x=y"]; }');
+  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {' +
+    ' RawOptions: [["nested"]]; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {' +
+    ' RawOptions: ["named": "-dDebug"]; } }');
+end;
+
+procedure TestRemovedVariables(AContext: TNXTestContext);
+begin
+  NXBuildTestReject(AContext, 'Project Demo { Variables: ["Flavor=debug"]; }');
 end;
 
 procedure RegisterNXBuildTests(ARegistry: TNXTestRegistry);
@@ -362,6 +383,7 @@ begin
   lSuite.AddTest('Defaults', @TestDefaults);
   lSuite.AddTest('COperators', @TestCOperators);
   lSuite.AddTest('NativeValues', @TestNativeValues);
+  lSuite.AddTest('RelativeCompilerPath', @TestRelativeCompilerPath);
   lSuite.AddTest('BooleanTrue', @TestBooleanTrue);
   lSuite.AddTest('FPCPlan', @TestFPCPlan);
   lSuite.AddTest('LazarusPlan', @TestLazarusPlan);
@@ -375,6 +397,7 @@ begin
   lSuite.AddTest('InvalidEnum', @TestInvalidEnum);
   lSuite.AddTest('InvalidScalar', @TestInvalidScalar);
   lSuite.AddTest('InvalidArray', @TestInvalidArray);
+  lSuite.AddTest('RemovedVariables', @TestRemovedVariables);
 end;
 
 end.

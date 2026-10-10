@@ -19,8 +19,8 @@ Project Hello {
 
     FPCBuildOptions Compiler {
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
-            UnitOutputPath: "$(OutputRoot)/units";
+            ExecutableOutputPath: @Hello.OutputRoot;
+            UnitOutputPath: @Hello.OutputRoot + "/units";
         }
         Language Pascal { Mode: ObjFPC; }
         CodeGeneration Checks { RangeChecking: Enabled; }

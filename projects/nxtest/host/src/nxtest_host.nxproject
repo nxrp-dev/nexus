@@ -19,14 +19,14 @@ Project nxtest_host {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/nxtest_host.exe";
+        OutputFile: @nxtest_host.OutputRoot + "/nxtest_host.exe";
         RawOptions: ["-MObjFPC", "-Scgi"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @nxtest_host.OutputRoot;
             UnitOutputPath: "../../../../output/nxtest_host/x86_64-win64/units";
             UnitPaths: [
                 ".",

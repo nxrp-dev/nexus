@@ -97,6 +97,9 @@ begin
   lResult := NXBuildGenerateProject('NewFPC', 'fpc', 'fpc');
   try
     AContext.AssertEquals(2, lResult.files.Count);
+    AContext.AssertEquals(0,
+      Pos('$(', (lResult.files[0] as TNXLSProjectFile).content.Value),
+      'Generated NexusScript must use native references.');
     lProject := NXBuildLoadGenerated(lResult);
     try
       lRoot := NXBuildGeneratedFolder('fpc');

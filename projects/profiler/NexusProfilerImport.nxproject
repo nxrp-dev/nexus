@@ -19,14 +19,14 @@ Project NexusProfilerImport {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/NexusProfilerImport.exe";
+        OutputFile: @NexusProfilerImport.OutputRoot + "/NexusProfilerImport.exe";
         RawOptions: ["-Sh-"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @NexusProfilerImport.OutputRoot;
             UnitOutputPath: "../../output/NexusProfilerImport/x86_64-win64/units";
             IncludePaths: ["../../output/NexusProfilerImport/x86_64-win64/units"];
             UnitPaths: [

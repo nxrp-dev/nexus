@@ -18,15 +18,15 @@ Project NexusForge {
     OutputRoot: "../../output/NexusForge-next/x86_64-win64";
 
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/nxforge.exe";
+        OutputFile: @NexusForge.OutputRoot + "/nxforge.exe";
         Config Options { DisableDefaultConfigFiles: True; }
         Debug Symbols { LineInfo: Enabled; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
-            UnitOutputPath: "$(OutputRoot)/units";
+            ExecutableOutputPath: @NexusForge.OutputRoot;
+            UnitOutputPath: @NexusForge.OutputRoot + "/units";
             UnitPaths: [
                 "src",
                 "../../packages/nexus-packages/nxscript/src",

@@ -19,14 +19,14 @@ Project NexusScriptLSTestModule {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
         LazarusRoot: "C:/lazarus";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/NexusScriptLSTestModule.dll";
+        OutputFile: @NexusScriptLSTestModule.OutputRoot + "/NexusScriptLSTestModule.dll";
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @NexusScriptLSTestModule.OutputRoot;
             UnitOutputPath: "../../../../output/NexusScriptLS/tests/x86_64-win64/units";
             IncludePaths: ["../../../../output/NexusScriptLS/tests/x86_64-win64/units"];
             UnitPaths: [
@@ -41,7 +41,7 @@ Project NexusScriptLSTestModule {
                 "../../../../packages/nexus-packages/core/src",
                 "../../../../packages/nexus-packages/nxtest/src",
                 "../../../../packages/nexus-packages/network/external/synapse",
-                "$(LazarusRoot)/components/lazutils",
+                @NexusScriptLSTestModule.NexusFPC.LazarusRoot + "/components/lazutils",
                 "../../../../packages/nexus-packages/serialization/src",
                 "../../../../packages/nexus-packages/db/sqlite/src/bindings",
                 "../../../../packages/nexus-packages-ext/mustache/external/dmustache",

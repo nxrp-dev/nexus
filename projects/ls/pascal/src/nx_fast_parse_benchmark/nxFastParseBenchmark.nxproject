@@ -19,14 +19,14 @@ Project nxFastParseBenchmark {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/nxFastParseBenchmark.exe";
+        OutputFile: @nxFastParseBenchmark.OutputRoot + "/nxFastParseBenchmark.exe";
         RawOptions: ["-gw3"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @nxFastParseBenchmark.OutputRoot;
             UnitOutputPath: "../../../../../output/nxFastParseBenchmark/x86_64-win64/units";
             UnitPaths: [
                 "../../../../../../tools/nexus-fpc/rtl/units/x86_64-win64",

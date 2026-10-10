@@ -28,13 +28,7 @@ Language nxbuild {
                 Property ProjectRoot { Value Value { Scalar: Text; } },
                 Property SourceRoot { Value Value { Scalar: Text; } },
                 Property OutputRoot { Value Value { Scalar: Text; } },
-                Property LazarusProjectFile { Value Value { Scalar: Text; } },
-                Property Variables {
-                    Value Value {
-                        EffectiveCategories: [Array];
-                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
-                    }
-                }
+                Property LazarusProjectFile { Value Value { Scalar: Text; } }
             ];
             Children: [
                 Child TargetPlatform { Kinds: [TargetPlatform]; Maximum: 1; },

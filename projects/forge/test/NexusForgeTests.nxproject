@@ -18,15 +18,15 @@ Project NexusForgeTests {
     OutputRoot: "../../../output/NexusForgeTests/x86_64-win64";
 
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
         RawOptions: ["-gh"];
         Config Options { DisableDefaultConfigFiles: True; }
         Debug Symbols { LineInfo: Enabled; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
-            UnitOutputPath: "$(OutputRoot)/units";
+            ExecutableOutputPath: @NexusForgeTests.OutputRoot;
+            UnitOutputPath: @NexusForgeTests.OutputRoot + "/units";
             UnitPaths: [
                 ".",
                 "../src",

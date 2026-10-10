@@ -19,14 +19,14 @@ Project Tiny {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/Tiny.exe";
+        OutputFile: @Tiny.OutputRoot + "/Tiny.exe";
         RawOptions: ["-gl"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @Tiny.OutputRoot;
             UnitOutputPath: "../../../../../../output/Tiny/x86_64-win64/units";
             UnitPaths: [
                 ".",

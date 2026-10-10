@@ -15,6 +15,5 @@ Project LazarusHello {
     BuildTool: Lazarus;
     ProjectKind: LazarusProject;
     BuildFile: "Hello.lpi";
-    Toolchain Tools { LazarusRoot: "$(LazarusDir)"; }
-    Variables: ["LazarusDir=C:/lazarus"];
+    Toolchain Tools { LazarusRoot: "C:/lazarus"; }
 }

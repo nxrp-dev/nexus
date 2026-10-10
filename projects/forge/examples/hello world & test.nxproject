@@ -19,13 +19,13 @@ Project HelloForge {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/HelloForge.exe";
+        OutputFile: @HelloForge.OutputRoot + "/HelloForge.exe";
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @HelloForge.OutputRoot;
             UnitOutputPath: "../../../output/HelloForge/x86_64-win64/units";
             UnitPaths: [
                 ".",

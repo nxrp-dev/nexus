@@ -37,7 +37,7 @@ override it. Existing published project fields remain available. Owned object
 properties are child sections with their property name as the definition kind:
 `Toolchain`, `TargetPlatform`, `FPCBuildOptions`, and each compiler option
 section. Each section can occur at most once. String lists are unnamed text
-arrays; `Variables` entries use `"name=value"`.
+arrays.
 
 Enums use their Pascal names without the three-letter prefix: `FPC`,
 `Lazarus`, `Program`, `ObjFPC`, `Enabled`, `Disabled`, `Unset`, and so
@@ -56,23 +56,39 @@ FPCBuildOptions Compiler {
 `Enabled` emits `-Sc`; `Disabled` emits `-Sc-`. An explicit `Unset` emits
 neither switch and leaves the choice to the compiler configuration.
 
-Normal NexusScript scalar references and expressions are compiled by the
-common compiler. Native Live values are copied directly into the typed project;
+Use normal NexusScript scalar references and expressions for shared values:
+
+```nexusscript
+Project Example {
+    OutputRoot: "output";
+    FPCBuildOptions Compiler {
+        OutputFile: @Example.OutputRoot + "/example.exe";
+        Files Paths { UnitOutputPath: @Example.OutputRoot + "/units"; }
+    }
+}
+```
+
+These expressions are compiled by the common compiler. Native Live values
+are copied directly into the typed project;
 there is no intermediate JSON artifact or retained compiler ownership.
 
 ## Existing build behavior
 
 The descriptor's folder defaults to `ProjectRoot`; `ProjectFileName` defaults
-to the descriptor's absolute filename. Existing `$(Variable)` substitution,
-relative build paths, output directory preparation and FPC/Lazarus planning
-are unchanged.
+to the descriptor's absolute filename. Relative build paths, including a
+`Toolchain.CompilerPath` containing a directory, resolve against `ProjectRoot`.
+A bare compiler name remains available for lookup through `PATH`.
+
+Project scripts and generators use native references and expressions. The build
+model consumes their compiled values and resolves filesystem paths; it performs
+no additional variable substitution.
 
 The existing model makes `Toolchain.CompilerPath` authoritative over
 `FPCBuildOptions.CompilerPath`, and `TargetPlatform.TargetOS` authoritative
 over `FPCBuildOptions.Target.OperatingSystem`. Those rules remain unchanged.
 If no compiler is specified, FPC uses the `PP` environment variable or `fpc`;
 Lazarus uses `Toolchain.LazarusRoot`, `LAZARUSDIR`, `LAZBUILD`, or `lazbuild`.
-The Lazarus example sets a local example variable; adjust it for your machine.
+The Lazarus example sets `Toolchain.LazarusRoot`; adjust it for your machine.
 
 Tests: `lazbuild projects/nxbuild/test/nxbuildTests.lpi`, then run
 `output/nxbuildTests/x86_64-win64/nxbuildTests.exe` from the repository root.

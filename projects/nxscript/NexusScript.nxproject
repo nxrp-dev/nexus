@@ -19,14 +19,14 @@ Project NexusScript {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/NexusScript.exe";
+        OutputFile: @NexusScript.OutputRoot + "/NexusScript.exe";
         Config Options { DisableDefaultConfigFiles: True; }
         Language Pascal { Mode: Delphi; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @NexusScript.OutputRoot;
             UnitOutputPath: "../../output/NexusScript/x86_64-win64/units";
             UnitPaths: [
                 "../../packages/nexus-packages/nxscript/src",

@@ -19,14 +19,14 @@ Project nxpackageTests {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/nxpackageTests.exe";
+        OutputFile: @nxpackageTests.OutputRoot + "/nxpackageTests.exe";
         RawOptions: ["-dGDI", "-gh", "-gl", "-Xe"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @nxpackageTests.OutputRoot;
             UnitOutputPath: "../../../output/nxpackageTests/x86_64-win64/units";
             IncludePaths: ["../../../output/nxpackageTests/x86_64-win64/units", "../../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib", "../../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi", "../../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources"];
             UnitPaths: [

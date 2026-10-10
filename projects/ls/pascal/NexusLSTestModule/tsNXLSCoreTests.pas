@@ -85,21 +85,15 @@ begin
   end;
 end;
 
-procedure TestPascalProjectVariableResolution(AContext: TNXTestContext);
+procedure TestPascalProjectPathResolution(AContext: TNXTestContext);
 var
   lProject: TNXPascalProject;
 begin
   lProject := TNXPascalProject.Create;
   try
-    lProject.Name := 'NexusLS';
-    lProject.ProjectFileName := 'nexusls.lpi';
     lProject.ProjectRoot := 'C:' + PathDelim + 'workspace' + PathDelim +
       'NexusLS';
-    lProject.SetVariable('BuildMode', 'Debug');
 
-    AContext.AssertEquals('NexusLS-Debug',
-      lProject.ResolveValue('$(ProjectName)-$(BuildMode)'),
-      'Project variables should resolve by name.');
     AContext.AssertEquals(ExpandFileName(IncludeTrailingPathDelimiter(
       lProject.ProjectRoot) + 'src' + PathDelim + 'nexusls.lpr'),
       lProject.ResolvePath('src' + PathDelim + 'nexusls.lpr'),
@@ -949,8 +943,8 @@ begin
   lSuite.AddTest('FPCSwitchStateHelpers', @TestFPCSwitchStateHelpers);
   lSuite.AddTest('FPCBuildOptionsGenerateArguments',
     @TestFPCBuildOptionsGenerateArguments);
-  lSuite.AddTest('PascalProjectVariableResolution',
-    @TestPascalProjectVariableResolution);
+  lSuite.AddTest('PascalProjectPathResolution',
+    @TestPascalProjectPathResolution);
   lSuite.AddTest('LSPModelStartsEmpty', @TestLSPModelStartsEmpty);
   lSuite.AddTest('InitializeLoadsExplicitPaths',
     @TestInitializeLoadsExplicitPaths);

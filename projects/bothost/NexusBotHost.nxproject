@@ -19,13 +19,13 @@ Project NexusBotHost {
 
     TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
     Toolchain NexusFPC {
-        CompilerPath: "$(ProjectRoot)/../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        OutputFile: "$(OutputRoot)/NexusBotHost.exe";
+        OutputFile: @NexusBotHost.OutputRoot + "/NexusBotHost.exe";
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: "$(OutputRoot)";
+            ExecutableOutputPath: @NexusBotHost.OutputRoot;
             UnitOutputPath: "../../output/NexusBotHost/x86_64-win64/units";
             IncludePaths: ["../../output/NexusBotHost/x86_64-win64/units"];
             UnitPaths: [

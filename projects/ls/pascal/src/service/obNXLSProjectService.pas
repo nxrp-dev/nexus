@@ -310,21 +310,21 @@ var
   lBuildFile: string;
 begin
   if ABuildTool = pbtLazarus then
-    lBuildFile := AProjectName + '.lpi'
+    lBuildFile := NXLSQuoteScriptText(AProjectName + '.lpi')
   else
-    lBuildFile := '$(SourceRoot)' + DirectorySeparator + AProjectName + '.lpr';
+    lBuildFile := '@' + AProjectName + '.SourceRoot + ' +
+      NXLSQuoteScriptText('/' + AProjectName + '.lpr');
   Result := NXLSProjectScriptHeader(AProjectName, ATargetDir, ABuildTool) +
-    '    BuildFile: ' + NXLSQuoteScriptText(lBuildFile) + ';' + LineEnding +
+    '    BuildFile: ' + lBuildFile + ';' + LineEnding +
     '    SourceRoot: "src";' + LineEnding +
     LineEnding +
     '    TargetPlatform Platform { FPCMode: "objfpc"; }' + LineEnding +
     '    FPCBuildOptions Compiler {' + LineEnding +
-    '        InputFile: ' + NXLSQuoteScriptText(lBuildFile) + ';' + LineEnding +
+    '        InputFile: @' + AProjectName + '.BuildFile;' + LineEnding +
     '        Files Paths {' + LineEnding +
-    '            UnitPaths: ["$(SourceRoot)"];' + LineEnding +
-    '            UnitOutputPath: ' + NXLSQuoteScriptText('$(OutputRoot)' +
-      DirectorySeparator + 'units') + ';' + LineEnding +
-    '            ExecutableOutputPath: "$(OutputRoot)";' + LineEnding +
+    '            UnitPaths: [@' + AProjectName + '.SourceRoot];' + LineEnding +
+    '            UnitOutputPath: @' + AProjectName + '.OutputRoot + "/units";' + LineEnding +
+    '            ExecutableOutputPath: @' + AProjectName + '.OutputRoot;' + LineEnding +
     '        }' + LineEnding +
     '        Language Pascal { Mode: ObjFPC; }' + LineEnding +
     '    }' + LineEnding +
