@@ -26,6 +26,13 @@ This repository is an Object Pascal / Free Pascal project. Treat the codebase as
 - For Object Pascal / Free Pascal code, follow `.ai/standards/pascal.md`.
 - Folder-level `AGENTS.md` files should explicitly reference the standards that apply to that folder.
 
+## Attributions
+
+- Maintain third-party attribution and provenance in root `ATTRIBUTIONS.md`, including work in sibling repositories.
+- Record upstream authors, original URL/revision, fork/import date with evidence, our repository/path, upstream SPDX identifier or expression, and current or historical status.
+- Link package documentation to that record instead of creating separate attribution or provenance pages. Keep retired entries as history.
+- Preserve original licenses, distribution notices, source headers, asset notices, and consumed author/license metadata with their material.
+
 ## Project Direction
 
 - The project includes the NexusUI style GUI framework built in Object Pascal.

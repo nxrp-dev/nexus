@@ -10,8 +10,12 @@ Current major areas:
 - `projects/profiler`: NexusProfilerImport, the NexusFPC profiling trace importer.
 - `NexusTools`: repository infrastructure and support tools.
 - `packages/nexus-packages`: shared runtime packages, including core helpers and source-independent binding.
+- [Recovered MIDAS/DataSnap transport](packages/nexus-packages/network/datasnap/README.md): preserved client/server source, dependency context, and historical variants for future integration.
 
 The documentation site is built with Material for MkDocs. Start with `docs/index.md` or run MkDocs from the repository root.
+
+Project origins, upstream authors, import dates, and SPDX license indicators across
+the Nexus repositories are recorded in [ATTRIBUTIONS.md](ATTRIBUTIONS.md).
 
 ## Build
 
