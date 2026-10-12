@@ -102,6 +102,11 @@ repository rather than constituting additional forks.
   The inherited core make build recipes and `fpcmake`/`fpgmake` generators were
   retired on 2026-10-11 in favor of NexusForge. Package/test recipes remain pending
   their separate migration; this record retains credit for the retired components.
+  The unused `rmwait` file-deletion utility by Tomas Hajny (2009-2011) was also
+  retired on 2026-10-11 after confirming it had no remaining build consumers.
+  The `fpcmkcfg` configuration generator by Michael Van Canneyt (2005), its
+  templates and the `samplecfg` wrapper were retired the same day; the release
+  now ships a fixed, compiler-relative configuration directly.
 - **SPDX:** compiler `GPL-2.0-or-later`; RTL's LGPL 2.1 text and linking permission are
   recorded as `LGPL-2.1-only WITH Independent-modules-exception`, with any broader
   version grants in individual headers preserved. Packages have individual licenses;
