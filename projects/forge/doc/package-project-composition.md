@@ -28,9 +28,11 @@ search/output paths retain working-directory semantics. See
 
 ## Applied builds
 
-- Abbrevia's canonical `Package.nxscript` owns its existing 37-object LLVM codec
-  preparation, CRT staging, explicit FPC runtime-probe compilation, and execution.
-  The preserved PowerShell builder and imported codec/Pascal sources are unchanged.
+- Abbrevia's canonical `Package.nxscript` starts with a NativeCodecs group that
+  stages Pascal source and compiles all 37 C files in one Clang invocation.
+  Existing file operations own output preparation and CRT staging. Explicit
+  FPC runtime-probe compilation and execution follow. The PowerShell builder
+  has been retired; Win64 object references use Clang's generated filenames.
 - The separate Abbrevia C/C++ bzip2 round-trip is a Project with a final Run child.
 - NexusFPC Bootstrap and Cross are Projects with compiler/RTL Outputs.
   Bootstrap composes table generation before compiler construction and owns the
@@ -68,6 +70,15 @@ LibraryPaths, and LinkerOptions.
   Forge and its tests' nxbuild descriptors include the shared validator source path.
 
 ## Verification evidence
+
+The 2026-10-12 Abbrevia migration passed all 47 Forge checks with no reported
+heap leaks. One Clang command selected all 37 codec C files and produced 37
+COFF x86-64 objects. The existing Pascal runtime probe linked and ran using
+the isolated Forge compiler/RTL build. The package launched no PowerShell
+commands. The LLVM resource-header path is now explicit in the descriptor,
+alongside the existing SDK/CRT installation paths.
+
+The original composition verification below predates that migration.
 
 Logs, baseline snapshots, table comparisons, and matrix results are kept under
 the ignored `output/ForgeComposition` directory. The isolated compiler checkout

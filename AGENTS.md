@@ -13,6 +13,7 @@ These rules apply to the whole repository.
 
 ## Scripts
 
+- Lazarus and `lazbuild` are not part of the Nexus toolchain. Do not use them or add `.lpi` project files. Use the Nexus build tools and NexusFPC; older Lazarus build instructions are obsolete.
 - You may execute scripts from the /repo-automation folder.
 - When asked for a fresh archive use the ps script New-NexusSourceArchive.ps1.
 - For NexusFPC builds, use the Forge projects in `../tools/nexus-fpc/NexusFPC.Forge.nxscript`; commands and prerequisites are in `../tools/nexus-fpc/NexusFPC.Forge.md`. `Build:Bootstrap` performs the native bootstrap; `Build:Cross` selects one cross target; `Build:Release` assembles the completed matrix and runtime-package SDK. Validate full rebuilds in an isolated checkout. The make bootstrap helpers and makefile regeneration workflow are retired.

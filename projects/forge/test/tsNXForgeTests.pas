@@ -26,7 +26,7 @@ implementation
 uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
   obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine,
-  tsNXForgeContractTests;
+  tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK;
 
 function Root: string;
 begin
@@ -537,9 +537,10 @@ end;
 
 procedure TestClangOperation(AContext: TNXTestContext);
 const
-  cInvalidSettings: array[0..2] of string = (
+  cInvalidSettings: array[0..5] of string = (
     'SourceLanguage: [assembler];', 'AssemblerSymbols: "CPU64=1";',
-    'AssemblerSymbols: [["CPU64=1"]];');
+    'AssemblerSymbols: [["CPU64=1"]];', 'SystemIncludePaths: "include";',
+    'OptimizationLevel: 9;', 'DisableStackProtector: sometimes;');
 var
   lForge: TNXForge;
   lDirectory, lTemplate, lExpected, lCompiler, lSetting: string;
@@ -562,6 +563,36 @@ begin
       '" -o "object file.obj"';
     AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
       'C source paths expand and retain native quoting');
+
+    Save(lDirectory + 'second.c', 'int another(void) { return 9; }');
+    ForceDirectories(lDirectory + 'objects');
+    Save(lDirectory + 'Headers.nxscript', 'Environment Headers { System: "system include"; }');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'module "Headers.nxscript"; ' +
+      'Clang Compile { Template: "' + lTemplate + '"; Executable: "' + lCompiler + '"; ' +
+      'Source: ["*.c"]; CompileOnly: True; WorkingDirectory: "objects"; ' +
+      'SystemIncludePaths: [@Headers.System]; OptimizationLevel: 2; DisableStackProtector: True; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'The intentionally missing compiler prevents the batch launch');
+    AContext.AssertEquals(1, lForge.Invocations.Count,
+      'One command for all selected C sources: ' + lForge.Diagnostic);
+    lExpected := '"' + lCompiler + '" -c -isystem "' +
+      ExpandFileName(lDirectory + 'system include') + '" -O2 -fno-stack-protector "' +
+      ExpandFileName(lDirectory + 'input & one.c') + '" "' +
+      ExpandFileName(lDirectory + 'second.c') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Batch compilation omits -o and preserves source/header origins');
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'objects'),
+      lForge.Invocations[0].WorkingDirectory, 'Objects are emitted in the selected working directory');
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Clang Compile { Template: "' + lTemplate + '"; Executable: "' + lCompiler + '"; ' +
+      'Source: ["second.c"]; CompileOnly: True; OptimizationLevel: 0; DisableStackProtector: False; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'The intentionally missing compiler prevents launch');
+    lExpected := '"' + lCompiler + '" -c -O0 "' + ExpandFileName(lDirectory + 'second.c') + '"';
+    AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
+      'Explicit zero optimization and false stack-protector override render correctly');
 
     Save(lDirectory + 'input.as', '.text');
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
@@ -1702,6 +1733,165 @@ begin
   end;
 end;
 
+procedure TestBuildIdentity(AContext: TNXTestContext);
+var
+  lDirectory, lRepository, lOutput, lRevision, lEpoch, lCommand: string;
+  lIdentityText, lOptionsText, lRevisionText, lInvalid: string;
+  lForge: TNXForge;
+  lRecord: TJSONObject;
+  lRejected: Boolean;
+  lDateSeparator, lTimeSeparator: Char;
+
+  function Git(const AArguments: string): string;
+  var
+    lInvocation: TNXForgeInvocation;
+  begin
+    lInvocation := TNXForgeInvocation.Create;
+    try
+      lInvocation.Command := 'git ' + AArguments;
+      lInvocation.WorkingDirectory := lRepository;
+      ExecuteForgeProcess(lInvocation);
+      AContext.AssertTrue(lInvocation.Succeeded,
+        AArguments + ': ' + lInvocation.Diagnostic + lInvocation.StdErr);
+      Result := Trim(lInvocation.StdOut);
+    finally
+      lInvocation.Free;
+    end;
+  end;
+
+  procedure CheckRecord(ADirty: Boolean; const AEpoch: string);
+  var
+    lExpectedIdentity: string;
+  begin
+    lRecord := GetJSON(LoadRaw(lOutput + 'build-identity.json')) as TJSONObject;
+    try
+      lExpectedIdentity := lRevision;
+      if ADirty then lExpectedIdentity := lExpectedIdentity + '-dirty';
+      AContext.AssertEquals(lRevision, lRecord.Get('Revision', ''));
+      AContext.AssertTrue(ADirty = lRecord.Booleans['Dirty'], 'Dirty state');
+      AContext.AssertEquals(lExpectedIdentity, lRecord.Get('Identity', ''));
+      AContext.AssertEquals(AEpoch, lRecord.Find('SourceDateEpoch').AsString);
+      AContext.AssertEquals(QuotedStr(lExpectedIdentity) + #10,
+        LoadRaw(lOutput + 'source/revision.inc'), 'Pascal identity is quoted with LF and no BOM');
+      AContext.AssertEquals('-DD' + lRecord.Get('Date', '') + #10 +
+        '-DT' + lRecord.Get('Time', '') + #10,
+        LoadRaw(lOutput + 'build-options.cfg'), 'Compiler options match the record');
+    finally
+      lRecord.Free;
+    end;
+  end;
+begin
+  lDirectory := TestDir('build identity');
+  lRepository := lDirectory + 'repository & source/';
+  lOutput := lRepository + 'build/seed/';
+  ForceDirectories(lRepository);
+  Save(lRepository + '.gitignore', '/build/' + #10);
+  Save(lRepository + 'version.pas', 'unit version;' + #10);
+  Git('init -q');
+  Git('add .');
+  Git('-c user.name=ForgeIdentityTest -c user.email=forge@example.invalid ' +
+    '-c commit.gpgSign=false commit -qm Fixture');
+  lRevision := Git('rev-parse HEAD');
+  lEpoch := GetEnvironmentVariable('SOURCE_DATE_EPOCH');
+  if lEpoch = '' then lEpoch := Git('show -s --format=%ct HEAD');
+  lCommand := 'BuildIdentity Capture { Repository: "repository & source"; ' +
+    'OutputDirectory: "repository & source/build/seed"; } ';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Project Bootstrap { Id: "NXRP.IdentityTest"; ' +
+    'CreateDirectory Stage { Path: "repository & source/build/seed/source"; } ' +
+    'CopyFile Source { Source: "repository & source/version.pas"; ' +
+    'Destination: "repository & source/build/seed/source/version.pas"; Overwrite: True; } ' +
+    'Group Metadata { ' + lCommand + '} ' +
+    'CopyFile Consume { Source: "repository & source/build/seed/build-identity.json"; ' +
+    'Destination: "captured.json"; Overwrite: True; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertTrue(lForge.Invocations[2].Completed, 'Identity runs after source staging');
+    AContext.AssertFalse(lForge.Invocations[2].Exited, 'File operation has no process exit status');
+    AContext.AssertEquals('', lForge.Invocations[2].TemplatePath, 'No command template');
+    CheckRecord(False, lEpoch);
+    AContext.AssertEquals(LoadRaw(lOutput + 'build-identity.json'),
+      LoadRaw(lDirectory + 'captured.json'), 'Following child consumes newly written identity');
+    lDateSeparator := DefaultFormatSettings.DateSeparator;
+    lTimeSeparator := DefaultFormatSettings.TimeSeparator;
+    try
+      DefaultFormatSettings.DateSeparator := '-';
+      DefaultFormatSettings.TimeSeparator := '.';
+      WriteForgeBuildIdentity(lRepository, lOutput, '1234567890');
+    finally
+      DefaultFormatSettings.DateSeparator := lDateSeparator;
+      DefaultFormatSettings.TimeSeparator := lTimeSeparator;
+    end;
+    CheckRecord(False, '1234567890');
+    AContext.AssertEquals('-DD2009/02/13' + #10 + '-DT23:31:30' + #10,
+      LoadRaw(lOutput + 'build-options.cfg'), 'Fixed UTC epoch and locale-independent separators');
+    lIdentityText := LoadRaw(lOutput + 'build-identity.json');
+    WriteForgeBuildIdentity(lRepository, lOutput, '1234567890');
+    AContext.AssertEquals(lIdentityText, LoadRaw(lOutput + 'build-identity.json'), 'Repeatable capture');
+    Save(lRepository + 'version.pas', 'modified');
+    WriteForgeBuildIdentity(lRepository, lOutput, '1234567890');
+    CheckRecord(True, '1234567890');
+    Git('restore version.pas');
+    Save(lRepository + 'new.pas', 'untracked');
+    WriteForgeBuildIdentity(lRepository, lOutput, '1234567890');
+    CheckRecord(True, '1234567890');
+    lIdentityText := LoadRaw(lOutput + 'build-identity.json');
+    lOptionsText := LoadRaw(lOutput + 'build-options.cfg');
+    lRevisionText := LoadRaw(lOutput + 'source/revision.inc');
+    for lInvalid in ['invalid', '-1', '$10', '0x10', '9223372036854775808', '253402300800'] do
+    begin
+      lRejected := False;
+      try
+        WriteForgeBuildIdentity(lRepository, lOutput, lInvalid);
+      except
+        on E: Exception do lRejected := Pos('timestamp must be', E.Message) > 0;
+      end;
+      AContext.AssertTrue(lRejected, 'Reject invalid epoch ' + lInvalid);
+      AContext.AssertEquals(lIdentityText, LoadRaw(lOutput + 'build-identity.json'));
+      AContext.AssertEquals(lOptionsText, LoadRaw(lOutput + 'build-options.cfg'));
+      AContext.AssertEquals(lRevisionText, LoadRaw(lOutput + 'source/revision.inc'));
+    end;
+    WriteForgeBuildIdentity(lRepository, lOutput, '0');
+    AContext.AssertEquals('-DD1970/01/01' + #10 + '-DT00:00:00' + #10,
+      LoadRaw(lOutput + 'build-options.cfg'), 'Unix epoch zero is valid');
+    WriteForgeBuildIdentity(lRepository, lOutput, '');
+    CheckRecord(True, Git('show -s --format=%ct HEAD'));
+
+    DeleteFile(lOutput + 'source/version.pas');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Failure { ' + lCommand + 'WriteTextFile Later { Path: "never.txt"; Text: "bad"; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing staged source fails');
+    AContext.AssertTrue(Pos('must be staged', lForge.Diagnostic) > 0, lForge.Diagnostic);
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Capture failure stops the next child');
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'No later artifact');
+
+    Save(lOutput + 'source/version.pas', 'unit version;');
+    ForceDirectories(lDirectory + 'empty repository');
+    lRepository := lDirectory + 'empty repository/';
+    Git('init -q');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'BuildIdentity MissingHEAD { Repository: "empty repository"; ' +
+      'OutputDirectory: "repository & source/build/seed"; }');
+    lIdentityText := LoadRaw(lOutput + 'build-identity.json');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing HEAD fails');
+    AContext.AssertTrue(Pos('rev-parse', lForge.Diagnostic) > 0, lForge.Diagnostic);
+    AContext.AssertEquals(lIdentityText, LoadRaw(lOutput + 'build-identity.json'));
+
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Invalid { WriteTextFile First { Path: "never.txt"; Text: "bad"; } ' +
+      'BuildIdentity MissingOutput { Repository: "."; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Required output is validated');
+    AssertNoLaunch(AContext, lForge);
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'BuildIdentity Empty { Repository: ""; OutputDirectory: "output"; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Empty repository is rejected');
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
 procedure TestCompilationTimestamp(AContext: TNXTestContext);
 var
   lDirectory, lCommand: string;
@@ -1803,6 +1993,251 @@ begin
   end;
 end;
 
+procedure TestPackageSDKOptions(AContext: TNXTestContext);
+const
+  cExpected = '7B68E268877E024A8AFC598A652C8A74F777EA68D755A2F61D1DAF172725F40D';
+var
+  lDirectory, lSDK, lCommand, lFirstBuild, lPath, lBefore, lOriginal: string;
+  lForge: TNXForge;
+  lRecord: TJSONObject;
+  lIndex: Integer;
+begin
+  lDirectory := TestDir('package sdk & paths');
+  lSDK := lDirectory + 'sdk/';
+  ForceDirectories(lSDK + 'bin');
+  ForceDirectories(lSDK + 'work/rtl-units');
+  ForceDirectories(lDirectory + 'bootstrap/seed/rtl/inc');
+  Save(lSDK + 'bin/ppcx64.exe', 'compiler');
+  Save(lSDK + 'work/rtl-units/z.o', 'object');
+  Save(lSDK + 'work/rtl-units/a.ppu', 'unit');
+  Save(lDirectory + 'bootstrap/seed/rtl/inc/sample.inc', 'source');
+  Save(lDirectory + 'bootstrap/seed/build-options.cfg', 'options');
+  lCommand := 'PackageSDKOptions Identity { BootstrapDirectory: "bootstrap"; OutputDirectory: "sdk"; } ';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Project SDK { Id: "NXRP.SDKTest"; Group Prepare { ' + lCommand + '} ' +
+    'CopyFile Consume { Source: "sdk/work/identity.json"; Destination: "copied.json"; Overwrite: True; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(LoadRaw(lSDK + 'work/identity.json'), LoadRaw(lDirectory + 'copied.json'));
+    lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
+    try
+      AContext.AssertEquals(cExpected, lRecord.Get('SDK', ''), 'Independent SHA-256 fingerprint vector');
+      lFirstBuild := lRecord.Get('Build', '');
+      AContext.AssertEquals(32, Length(lFirstBuild));
+      AContext.AssertEquals('-Fj' + cExpected + #10 + '-Fk' + lFirstBuild + #10,
+        LoadRaw(lSDK + 'work/foundation.cfg'));
+      AContext.AssertEquals('-Fj' + cExpected + #10 + '-Fp' +
+        StringReplace(ExpandFileName(lSDK), '\', '/', [rfReplaceAll]) +
+        'packages' + #10 + '-FPnxrtl' + #10, LoadRaw(lSDK + 'work/startup.cfg'));
+    finally
+      lRecord.Free;
+    end;
+    for lIndex := 0 to 3 do
+    begin
+      case lIndex of
+        0: lPath := lSDK + 'bin/ppcx64.exe';
+        1: lPath := lSDK + 'work/rtl-units/z.o';
+        2: lPath := lDirectory + 'bootstrap/seed/rtl/inc/sample.inc';
+        3: lPath := lDirectory + 'bootstrap/seed/build-options.cfg';
+      end;
+      lOriginal := LoadRaw(lPath);
+      Save(lPath, lOriginal + ' changed');
+      WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK);
+      lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
+      try
+        AContext.AssertTrue(cExpected <> lRecord.Get('SDK', ''), 'Every input category affects the identity');
+      finally
+        lRecord.Free;
+      end;
+      Save(lPath, lOriginal);
+    end;
+    WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK);
+    lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
+    try
+      AContext.AssertEquals(cExpected, lRecord.Get('SDK', ''), 'Stable SDK identity');
+      AContext.AssertTrue(lFirstBuild <> lRecord.Get('Build', ''), 'Fresh foundation build identity');
+    finally
+      lRecord.Free;
+    end;
+    lBefore := LoadRaw(lSDK + 'work/identity.json');
+    DeleteFile(lDirectory + 'bootstrap/seed/build-options.cfg');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') + 'Group Failure { ' + lCommand +
+      'WriteTextFile Later { Path: "never.txt"; Text: "bad"; } }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing input fails options');
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Failure stops later tasks');
+    AContext.AssertEquals(lBefore, LoadRaw(lSDK + 'work/identity.json'));
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'PackageSDKOptions Bad { BootstrapDirectory: "bootstrap"; OutputDirectory: ""; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Empty SDK path rejected');
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestPackageSDKManifest(AContext: TNXTestContext);
+var
+  lDirectory, lSDK, lIdentity, lBuild, lPCP, lImage, lBinary, lManifest, lCommand: string;
+  lForge: TNXForge;
+  lRecord: TJSONObject;
+  lInvocation: TNXForgeInvocation;
+  lIndex: Integer;
+
+  procedure PutNumber(AOffset: Integer; AValue: QWord; ASize: Integer);
+  var
+    lByte: Integer;
+  begin
+    for lByte := 0 to ASize - 1 do
+      lBinary[AOffset + lByte + 1] := Chr((AValue shr (8 * lByte)) and $FF);
+  end;
+
+  procedure PutText(AOffset: Integer; const AText: string);
+  begin
+    Move(AText[1], lBinary[AOffset + 1], Length(AText));
+  end;
+
+  function ShortText(const AText: string): string;
+  begin
+    Result := Chr(Length(AText)) + AText;
+  end;
+
+  function Entry(AKind: Byte; const AText: string): string;
+  begin
+    lBinary := StringOfChar(#0, 6);
+    PutNumber(0, Length(AText), 4);
+    PutNumber(4, 1, 1);
+    PutNumber(5, AKind, 1);
+    Result := lBinary + AText;
+  end;
+
+  procedure Reject(const AMessage: string);
+  begin
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), AMessage);
+    AContext.AssertFalse(lForge.Invocations[1].Started, AMessage + ' stops later tasks');
+    AContext.AssertEquals(lManifest, LoadRaw(lSDK + 'sdk.json'), AMessage + ' preserves manifest');
+  end;
+begin
+  lDirectory := TestDir('package manifest & paths');
+  lSDK := lDirectory + 'sdk/';
+  ForceDirectories(lSDK + 'bin');
+  ForceDirectories(lSDK + 'work');
+  ForceDirectories(lSDK + 'packages');
+  ForceDirectories(lSDK + 'units');
+  lIdentity := StringOfChar('A', 64);
+  lBuild := StringOfChar('B', 32);
+  Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');
+  lPCP := 'NXP004' + StringOfChar(#0, 26) + Entry(93, ShortText('nxrtl')) +
+    Entry(92, ShortText('nxrtl.dll') + ShortText(lIdentity) + ShortText(lBuild)) + Entry(255, '');
+  lBinary := StringOfChar(#0, $600);
+  PutText(0, 'MZ');
+  PutNumber(60, $80, 4);
+  PutNumber($80, $4550, 4);
+  PutNumber($84, $8664, 2);
+  PutNumber($86, 1, 2);
+  PutNumber($94, $F0, 2);
+  PutNumber($98, $20B, 2);
+  PutNumber($B0, $180000000, 8);
+  PutNumber($104, 16, 4);
+  PutNumber($108, $1000, 4);
+  PutNumber($10C, $80, 4);
+  PutNumber($194, $1000, 4); // Section RVA.
+  PutNumber($198, $400, 4); // Raw section size.
+  PutNumber($19C, $200, 4); // Raw section position.
+  PutNumber($214, 1, 4); // Export function count.
+  PutNumber($218, 1, 4); // Export name count.
+  PutNumber($21C, $1048, 4);
+  PutNumber($220, $1040, 4);
+  PutNumber($224, $1044, 4);
+  PutNumber($240, $1050, 4);
+  PutNumber($248, $1080, 4);
+  PutText($250, 'FPC_PACKAGE_INFO' + #0);
+  PutNumber($280, $180001100, 8);
+  PutNumber($300, $4E58504B, 8);
+  PutNumber($308, 4, 8);
+  PutNumber($310, 168, 8);
+  PutNumber($330, $180001200, 8);
+  PutNumber($390, $180001250, 8);
+  PutNumber($398, $1800012A0, 8);
+  PutText($400, ShortText('nxrtl'));
+  PutText($450, ShortText(lIdentity));
+  PutText($4A0, ShortText(lBuild));
+  lImage := lBinary;
+  Save(lSDK + 'packages/nxrtl.pcp', lPCP);
+  Save(lSDK + 'packages/nxrtl.dll', lImage);
+  Save(lSDK + 'units/startup.ppu', 'abc');
+  Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
+  lInvocation := TNXForgeInvocation.Create;
+  try
+    lInvocation.WorkingDirectory := lDirectory;
+    lInvocation.Command := 'fpc "version.pas" "-osdk/bin/ppcx64.exe"';
+    ExecuteForgeProcess(lInvocation);
+    AContext.AssertTrue(lInvocation.Succeeded, lInvocation.Diagnostic + lInvocation.StdOut + lInvocation.StdErr);
+  finally
+    lInvocation.Free;
+  end;
+  lCommand := Dialect('NexusForge') + 'Group Publish { PackageSDKManifest Manifest { Directory: "sdk"; } ' +
+    'WriteTextFile Later { Path: "passed.txt"; Text: "ok"; } }';
+  Save(lDirectory + 'Build.nxscript', lCommand);
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    lManifest := LoadRaw(lSDK + 'sdk.json');
+    lRecord := GetJSON(lManifest) as TJSONObject;
+    try
+      AContext.AssertEquals(2, lRecord.Get('Format', 0));
+      AContext.AssertEquals('3.3.1', lRecord.Get('CompilerVersion', ''));
+      AContext.AssertEquals(lIdentity, lRecord.Get('SDKIdentity', ''));
+      AContext.AssertEquals(4, lRecord.Arrays['Artifacts'].Count);
+      AContext.AssertEquals('units/startup.ppu', lRecord.Arrays['Artifacts'].Objects[3].Get('Path', ''));
+      AContext.AssertEquals('BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD',
+        lRecord.Arrays['Artifacts'].Objects[3].Get('SHA256', ''), 'Known SHA-256 artifact vector');
+    finally
+      lRecord.Free;
+    end;
+    // Corrupt separate structures; every failure must preserve the prior manifest.
+    for lIndex := 0 to 8 do
+    begin
+      lBinary := lImage;
+      case lIndex of
+        0: PutNumber($308, 5, 8); // Wrong runtime descriptor ABI.
+        1: PutNumber($244, 1, 2); // Export ordinal beyond function table.
+        2: PutNumber($280, 0, 8); // Invalid descriptor pointer.
+        3: PutNumber($4A1, Ord('C'), 1); // Mismatched build ID.
+        4: SetLength(lBinary, $200); // Truncated image.
+        5: PutNumber($21C, $FFFFFFF0, 4); // Unmapped export table.
+        6:
+          begin
+            PutNumber($390, $1800013FF, 8);
+            PutNumber($5FF, 255, 1); // String extends beyond raw section.
+          end;
+        7: PutNumber($250, Ord('X'), 1); // Missing descriptor export.
+        8: PutNumber($84, $14C, 2); // Unsupported target.
+      end;
+      Save(lSDK + 'packages/nxrtl.dll', lBinary);
+      Reject('Invalid PE case ' + IntToStr(lIndex));
+    end;
+    Save(lSDK + 'packages/nxrtl.dll', lImage);
+    Save(lSDK + 'packages/nxrtl.pcp', Copy(lPCP, 1, Length(lPCP) - 1));
+    Reject('Truncated PCP');
+    Save(lSDK + 'packages/nxrtl.pcp', StringReplace(lPCP, lBuild, StringOfChar('C', 32), []));
+    Reject('PCP identity mismatch');
+    Save(lSDK + 'packages/nxrtl.pcp', StringReplace(lPCP, 'NXP004', 'NXP003', []));
+    Reject('Wrong PCP version');
+    Save(lSDK + 'packages/nxrtl.pcp', lPCP);
+    Save(lSDK + 'work/identity.json', '{}');
+    Reject('Incomplete JSON identity');
+    Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');
+    Save(lSDK + 'bin/ppcx64.exe', 'not executable');
+    Reject('Compiler version query failure');
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') + 'PackageSDKManifest Bad { Directory: ""; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Empty manifest path rejected');
+    AssertNoLaunch(AContext, lForge);
+  finally
+    lForge.Free;
+  end;
+end;
+
 procedure RegisterForgeTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -1843,6 +2278,9 @@ begin
   lSuite.AddTest('WorkingDirectory', @TestWorkingDirectory);
   lSuite.AddTest('RelativeCompiler', @TestRelativeCompiler);
   lSuite.AddTest('CompilationTimestamp', @TestCompilationTimestamp);
+  lSuite.AddTest('BuildIdentity', @TestBuildIdentity);
+  lSuite.AddTest('PackageSDKOptions', @TestPackageSDKOptions);
+  lSuite.AddTest('PackageSDKManifest', @TestPackageSDKManifest);
   lSuite.AddTest('SourceSelections', @TestSourceSelections);
   lSuite.AddTest('StagedSources', @TestStagedSources);
   lSuite.AddTest('SourcePreflight', @TestSourcePreflight);

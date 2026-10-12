@@ -41,6 +41,19 @@ Language ForgeFPC {
                 Property UnitOutput {
                     Value Value { EffectiveCategories: [Text]; }
                 },
+                Property ExecutableOutput { Value Value { EffectiveCategories: [Text]; } },
+                Property PackageSDKIdentity { Value Value { EffectiveCategories: [Text]; } },
+                Property PackageBuildIdentity { Value Value { EffectiveCategories: [Text]; } },
+                Property PackagePaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property RequiredPackages {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property SmartLinkUnits { Value Value { Scalar: Boolean; } },
+                Property SmartLink { Value Value { Scalar: Boolean; } },
+                Property ConsoleApplication { Value Value { Scalar: Boolean; } },
+                Property GUIApplication { Value Value { Scalar: Boolean; } },
                 Property UnitPaths {
                     Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
                 },

@@ -49,9 +49,9 @@ end;
 procedure NormalizeForgeCommandPaths(AOperation: TNexusScriptCompiledDefinition;
   AContext: TJSONObject; const AWorkingDirectory: string);
 const
-  cArrays: array[0..5] of string = ('Source', 'UnitPaths', 'IncludePaths',
-    'LibraryPaths', 'ObjectPaths', 'Objects');
-  cScalars: array[0..2] of string = ('Output', 'UnitOutput', 'CompilerUtilitiesPath');
+  cArrays: array[0..8] of string = ('Source', 'UnitPaths', 'IncludePaths',
+    'LibraryPaths', 'ObjectPaths', 'Objects', 'SystemIncludePaths', 'PackagePaths', 'ResponseFiles');
+  cScalars: array[0..3] of string = ('Output', 'UnitOutput', 'CompilerUtilitiesPath', 'ExecutableOutput');
 var
   lName: string;
   lProperty: TNexusScriptCompiledProperty;

@@ -1,0 +1,25 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+Language ForgePackageSDK {
+    Definitions: [
+        Definition PackageSDKOptions {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property BootstrapDirectory { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property OutputDirectory { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
+        Definition PackageSDKManifest {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Directory { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}

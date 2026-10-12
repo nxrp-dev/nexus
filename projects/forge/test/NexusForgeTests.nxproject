@@ -18,7 +18,7 @@ Project NexusForgeTests {
     OutputRoot: "../../../output/NexusForgeTests/x86_64-win64";
 
     Toolchain NexusFPC {
-        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        CompilerPath: "../../../../tools/nexus-fpc/build/forge-bootstrap/cycle3/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
         RawOptions: ["-gh"];
@@ -39,8 +39,29 @@ Project NexusForgeTests {
                 "../../../packages/nexus-packages/core/src",
                 "../../../packages/nexus-packages-ext/mustache/external/dmustache",
                 "../../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "../../../../tools/nexus-fpc/build/forge-bootstrap/cycle3/rtl64",
+                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/inc",
+                "../../../../tools/nexus-fpc/packages/rtl-generics/src",
+                "../../../../tools/nexus-fpc/packages/rtl-extra/src/inc",
+                "../../../../tools/nexus-fpc/packages/rtl-extra/src/win",
+                "../../../../tools/nexus-fpc/packages/fcl-base/src",
+                "../../../../tools/nexus-fpc/packages/fcl-base/src/win",
+                "../../../../tools/nexus-fpc/packages/fcl-json/src",
+                "../../../../tools/nexus-fpc/packages/fcl-process/src",
+                "../../../../tools/nexus-fpc/packages/paszlib/src",
+                "../../../../tools/nexus-fpc/packages/hash/src",
+                "../../../../tools/nexus-fpc/packages/fcl-hash/src"
+            ];
+            IncludePaths: [
+                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/inc",
+                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/win",
+                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/x86_64",
+                "../../../../tools/nexus-fpc/packages/rtl-extra/src/inc",
+                "../../../../tools/nexus-fpc/packages/rtl-extra/src/win",
+                "../../../../tools/nexus-fpc/packages/fcl-base/src",
+                "../../../../tools/nexus-fpc/packages/fcl-base/src/win",
+                "../../../../tools/nexus-fpc/packages/fcl-base/src/dummy",
+                "../../../../tools/nexus-fpc/packages/fcl-process/src/win"
             ];
         }
     }

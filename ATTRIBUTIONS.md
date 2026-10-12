@@ -285,7 +285,9 @@ Packages import is 2026-10-08, `09d5f97`, for every row.** Our paths are under P
   NexusFPC corrections to 15 Pascal files, codec sources and bundled objects.
   Corrections cover compiler directives/units, streams and byte buffers, archive
   metadata, paths, TAR processing, CRT helpers, and WavPack helpers.
-  The reproducible LLVM recipe is `compression/abbrevia/scripts/Build-AbbreviaLLVM.ps1`;
+  The reproducible LLVM recipe is `compression/abbrevia/Package.nxscript`;
+  the former `scripts/Build-AbbreviaLLVM.ps1` recovery recipe was retired after
+  migration to direct Forge operations on **2026-10-12**.
   operational build/validation details remain in that package's README.
 
 Every codec below came through the same Abbrevia revision and import dates above.

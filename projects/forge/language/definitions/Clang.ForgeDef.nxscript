@@ -23,7 +23,7 @@ Language ForgeClang {
                     Required: True;
                     Value Value { EffectiveCategories: [Array]; Array Array { Minimum: 1; EntryEffectiveCategories: [Text]; } }
                 },
-                Property Output { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Output { Value Value { EffectiveCategories: [Text]; } },
                 Property CompileOnly { Required: True; Value Value { Scalar: Boolean; } },
                 Property SourceLanguage { Value Value { EffectiveCategories: [Text]; } },
                 Property Target { Value Value { EffectiveCategories: [Text]; } },
@@ -31,6 +31,13 @@ Language ForgeClang {
                 Property IncludePaths {
                     Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
                 },
+                Property SystemIncludePaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property OptimizationLevel {
+                    Value Value { Scalar: Integer; AllowedValues: [0, 1, 2, 3]; }
+                },
+                Property DisableStackProtector { Value Value { Scalar: Boolean; } },
                 Property Defines {
                     Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
                 },

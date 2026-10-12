@@ -116,7 +116,7 @@ environment repair, or activation logic.
 `projects/forge/language/Forge.nxscript` includes
 `projects/forge/language/definitions/*.ForgeDef.nxscript`. Core, FPC,
 Git, NXBuild, MSBuild, PowerShell, LazBuild, Npm, InnoSetup, CSV, Msg2Inc, Render,
-FileOperations, Group, and Environment definitions form one
+FileOperations, BuildIdentity, Group, and Environment definitions form one
 effective Forge language through the included-definition view. The master does
 not name individual tools.
 `ForgeDef` is a convention selected by this include pattern, not a filename rule.
@@ -323,11 +323,19 @@ nxbuild remains independent of Forge.
 `Clang` and `LLVMAr` are ordinary command operations with definition contracts
 and Mustache templates; the Forge executor contains no LLVM-specific behavior.
 
-`Clang` requires `Template`, a nonempty `Source` array, `Output`, and an explicit
+`Clang` requires `Template`, a nonempty `Source` array, and an explicit
 `CompileOnly` Boolean. The example template defaults to `clang` on PATH. Set
-`Executable` to `clang++` for a C++ driver. `CompileOnly: True` emits `-c`; use
-one source per task when producing a named object. `False` compiles and links.
+`Executable` to `clang++` for a C++ driver. `CompileOnly: True` emits `-c`.
+Omit `Output` to compile a source collection in one invocation: Clang writes
+one object per source into `WorkingDirectory`, using each source's base name.
+Create that directory before the compilation and select sources with distinct
+base names. Source selections retain their declaring file's directory.
+Supply `Output` to name a single object or linked binary; the template emits
+`-o` only when it is present. `CompileOnly: False` compiles and links.
 `Target`, `Standard`, `IncludePaths`, and `Defines` render native Clang switches.
+`SystemIncludePaths` renders ordered `-isystem` paths; referenced paths retain
+their declaration origin. `OptimizationLevel` accepts 0 through 3 and emits
+`-O<level>`. `DisableStackProtector: True` emits `-fno-stack-protector`.
 Optional `SourceLanguage` emits `-x <language>`; use `assembler` for assembly
 inputs whose extension does not identify their language. `AssemblerSymbols`
 is an optional text array of `name=value` entries, each rendered as
@@ -355,8 +363,9 @@ Windows SDK/CRT headers and libraries. The recipe explicitly names SDK
 not require a Visual Studio command shell. Adjust these paths for other
 installations. It does not invoke MSBuild or `cl.exe`.
 The final Run child verifies the C/C++ round trip. The canonical Abbrevia
-`Package.nxscript` separately owns the preserved 37-object LLVM rebuild,
-an explicit FPC runtime build, and its runtime startup check.
+`Package.nxscript` separately builds all 37 codec sources with one Clang child,
+followed by an explicit FPC runtime build and its startup check. Its ordered
+children prepare files directly; no PowerShell builder is involved.
 
 ```powershell
 output/NexusForge-next/x86_64-win64/nxforge.exe /input=projects/forge/examples/AbbreviaLLVM.Forge.nxscript
@@ -441,6 +450,41 @@ See [the BotHost database example](../../../projects/bothost/doc/database-genera
 target-selected Environment. It renders Firebird SQL with no database
 semantics in Forge and no separate NexusScript executable.
 
+## Build identity
+
+`BuildIdentity` is a native file operation with required `Repository` and
+`OutputDirectory` paths. It can run at the root or inside Group, Package, or
+Project. Literal paths use the operation working directory; referenced paths
+retain their declaring source origin. No Template is required.
+
+```nxscript
+BuildIdentity CaptureBuildIdentity {
+    Repository: ".";
+    OutputDirectory: "build/forge-bootstrap/seed";
+}
+```
+
+The operation runs after preceding children. It requires
+`OutputDirectory/source/version.pas`, reads Git HEAD and tracked/untracked
+non-ignored dirty state, and chooses the UTC timestamp from `SOURCE_DATE_EPOCH`
+or the captured commit. Git must be on PATH. Epoch values must be decimal
+non-negative seconds no later than 9999-12-31 23:59:59 UTC. Invalid source,
+Git, or timestamp inputs fail before output files are changed.
+
+It writes `source/revision.inc`, `build-options.cfg` (`-DD` and `-DT`), and
+`build-identity.json` beneath OutputDirectory. The JSON fields are Revision,
+Dirty, Identity, Date, Time, and SourceDateEpoch. Text is UTF-8 without a BOM,
+with LF endings; Date and Time use fixed `yyyy/MM/dd` and `HH:mm:ss` UTC formats.
+Identity is the full revision with an optional `-dirty` suffix; it does not hash
+uncommitted changes. Later bootstrap and cross tasks reuse the captured files.
+
+This bounded operation intentionally owns the current FPC output formats in
+`utNXForgeBuildIdentity.pas`. It uses the existing process runner for Git and
+the ordinary native-operation dispatch for file generation. It adds no shell,
+runtime reference evaluation, or Render lifecycle change. File-write failures
+stop subsequent children and can leave earlier files written, as with the other
+ordered file operations.
+
 ## Filesystem operations
 
 `CreateDirectory`, `WriteTextFile`, `CopyFile`, `CompareFiles`, `DeletePath`, and `Archive` execute
@@ -508,6 +552,44 @@ requires `Recursive` unless empty.
 file or directory source and uses the same `ExcludeNames` convention as CopyFile.
 Unzip refuses entries outside its destination directory.
 
+### Package SDK metadata
+
+`PackageSDKOptions` and `PackageSDKManifest` are native file operations allowed
+at the root or inside Group, Package and Project. They currently own the standard
+NexusFPC Win64 SDK layout and formats; they do not compile or stage files.
+
+```text
+PackageSDKOptions Identity {
+    BootstrapDirectory: "build/forge-bootstrap";
+    OutputDirectory: "build/forge-bootstrap/package-sdk";
+}
+// Compile and copy the foundation and startup artifacts here.
+PackageSDKManifest Manifest {
+    Directory: "build/forge-bootstrap/package-sdk";
+}
+```
+
+The required paths must be nonempty and use the ordinary Forge path rules.
+Inputs are opened at execution time so previous children can produce them.
+`PackageSDKOptions` hashes `bin/ppcx64.exe`, the fixed standard release settings,
+the recursively sorted files in `work/rtl-units` and the bootstrap's `seed/rtl`,
+and `seed/build-options.cfg`. SHA-256 uses the existing FPC `fpsha256` unit.
+Paths within the fingerprint use `/` and sorting is case-sensitive, independent
+of the checkout's absolute location. A new GUID identifies each foundation build.
+It writes UTF-8/no-BOM, LF-terminated `work/identity.json`, `work/foundation.cfg`
+and `work/startup.cfg`. The startup response file places package search before
+`-FPnxrtl`. All input hashing completes before writing; filesystem write failures
+can leave partial output, as with the other file operations.
+
+`PackageSDKManifest` checks `work/identity.json` against both `packages/nxrtl.pcp`
+(NXP004) and the Win64 ABI-4 descriptor in `packages/nxrtl.dll`. The DLL is read
+as bytes, never loaded or executed. Invalid/truncated structures, unsupported
+formats, identity mismatches and compiler-query failures stop subsequent tasks
+without rewriting an existing manifest. After validation it queries the staged
+compiler with `-iV`, hashes the compiler and direct files in `units` and `packages`,
+and writes `sdk.json` Format 2 with relative artifact paths and SHA-256 hashes.
+Distributed SDK consumer helpers remain separate from these generation operations.
+
 ## Execution and failure
 
 The child inherits the developer's environment. Input is closed after launch.
@@ -525,15 +607,18 @@ Completed output remains available. Success returns exit status 0; failure 1.
 ## Verification
 
 ```powershell
-lazbuild projects\forge\NexusForge.lpi
-lazbuild projects\csv\NexusCSV.lpi
-lazbuild projects\forge\test\NexusForgeTests.lpi
+& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/forge/NexusForge.nxproject
+& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/forge/test/NexusForgeTests.nxproject
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
-lazbuild packages\nexus-packages\nxscript\test\NexusScriptTests.lpi
-& .\output\NexusScript\console-tests\x86_64-win64\NexusScriptTests.exe
-lazbuild projects\ls\nxscript\tests\NexusScriptLSTests.lpi
-& .\output\NexusScriptLS\console-tests\x86_64-win64\NexusScriptLSTests.exe
 ```
+
+These projects use the completed NexusFPC bootstrap at
+`../tools/nexus-fpc/build/forge-bootstrap/cycle3` and compile their required
+package units from source into their own output directories. Forge is written
+to `output/NexusForge-next/x86_64-win64/nxforge.exe`. The tests also require a
+working `fpc` on PATH and the built `output/NexusCSV/x86_64-win64/nxcsv.exe`.
+Lazarus is not a build dependency. Shared NexusScript changes additionally
+require the NexusScript and language-server suites under their own projects.
 
 The Forge tests compile and execute real Pascal source and exercise NexusScript
 validation, target selection, Group ordering, built-in file tasks,

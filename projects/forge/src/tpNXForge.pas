@@ -19,7 +19,9 @@ interface
 
 type
   TNXForgeOperationKind = (fokCommand, fokRender, fokCreateDirectory, fokWriteTextFile,
-    fokCopyFile, fokCompareFiles, fokDeletePath, fokArchive);
+    fokCopyFile, fokCompareFiles, fokDeletePath, fokArchive, fokBuildIdentity,
+    fokPackageSDKOptions, fokPackageSDKManifest, fokPackageBuildPrepare,
+    fokPackageBundlePublish);
 
 implementation
 

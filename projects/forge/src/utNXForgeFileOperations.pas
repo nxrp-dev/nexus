@@ -26,14 +26,17 @@ procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 
 implementation
 
-uses Classes, SysUtils, StrUtils, zipper, tpNXForge, utNXForgePaths;
+uses Classes, SysUtils, StrUtils, zipper, tpNXForge, utNXForgePaths,
+  utNXForgeBuildIdentity, utNXForgePackageSDK, utNXForgePackageBuild;
 
 function IsForgeFileOperation(const AKind: string): Boolean;
 begin
   Result := SameText(AKind, 'CreateDirectory') or
     SameText(AKind, 'WriteTextFile') or SameText(AKind, 'CopyFile') or
     SameText(AKind, 'CompareFiles') or SameText(AKind, 'DeletePath') or
-    SameText(AKind, 'Archive');
+    SameText(AKind, 'Archive') or SameText(AKind, 'BuildIdentity') or
+    SameText(AKind, 'PackageSDKOptions') or SameText(AKind, 'PackageSDKManifest') or
+    SameText(AKind, 'PackageBuildPrepare') or SameText(AKind, 'PackageBundlePublish');
 end;
 
 function PropertyText(AOperation: TNexusScriptCompiledDefinition;
@@ -97,6 +100,10 @@ procedure PrepareForgeFileOperation(AOperation: TNexusScriptCompiledDefinition;
   AInvocation: TNXForgeInvocation);
 var
   lLeft, lRight: string;
+  lProperty: TNexusScriptCompiledProperty;
+  lArray: TNexusScriptCompiledValue;
+  lDirectories: TStringArray;
+  lIndex: Integer;
 begin
   if SameText(AOperation.Kind, 'CreateDirectory') then
   begin
@@ -108,6 +115,64 @@ begin
     AInvocation.Kind := fokWriteTextFile;
     AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Path').Value, AInvocation.WorkingDirectory);
     AInvocation.ArtifactText := PropertyText(AOperation, 'Text');
+  end
+  else if SameText(AOperation.Kind, 'BuildIdentity') then
+  begin
+    AInvocation.Kind := fokBuildIdentity;
+    if (Trim(PropertyText(AOperation, 'Repository')) = '') or
+      (Trim(PropertyText(AOperation, 'OutputDirectory')) = '') then
+      raise Exception.Create('BuildIdentity requires nonempty Repository and OutputDirectory paths');
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('Repository').Value, AInvocation.WorkingDirectory);
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('OutputDirectory').Value, AInvocation.WorkingDirectory);
+  end
+  else if SameText(AOperation.Kind, 'PackageSDKOptions') then
+  begin
+    AInvocation.Kind := fokPackageSDKOptions;
+    if (Trim(PropertyText(AOperation, 'BootstrapDirectory')) = '') or
+      (Trim(PropertyText(AOperation, 'OutputDirectory')) = '') then
+      raise Exception.Create('PackageSDKOptions requires nonempty BootstrapDirectory and OutputDirectory paths');
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('BootstrapDirectory').Value, AInvocation.WorkingDirectory);
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('OutputDirectory').Value, AInvocation.WorkingDirectory);
+  end
+  else if SameText(AOperation.Kind, 'PackageSDKManifest') then
+  begin
+    AInvocation.Kind := fokPackageSDKManifest;
+    if Trim(PropertyText(AOperation, 'Directory')) = '' then
+      raise Exception.Create('PackageSDKManifest requires a nonempty Directory path');
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Directory').Value, AInvocation.WorkingDirectory);
+  end
+  else if SameText(AOperation.Kind, 'PackageBuildPrepare') then
+  begin
+    AInvocation.Kind := fokPackageBuildPrepare;
+    if (Trim(PropertyText(AOperation, 'SDKDirectory')) = '') or
+      (Trim(PropertyText(AOperation, 'WorkDirectory')) = '') then
+      raise Exception.Create('PackageBuildPrepare requires nonempty SDKDirectory and WorkDirectory');
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('SDKDirectory').Value, AInvocation.WorkingDirectory);
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('WorkDirectory').Value, AInvocation.WorkingDirectory);
+    lProperty := AOperation.FindProperty('PackageDirectories');
+    if lProperty <> nil then
+    begin
+      lArray := lProperty.Value.SemanticValue;
+      SetLength(lDirectories, lArray.Items.Count);
+      for lIndex := 0 to lArray.Items.Count - 1 do
+      begin
+        if Trim(lArray.Items[lIndex].EffectiveText) = '' then
+          raise Exception.Create('PackageDirectories entries must be nonempty');
+        lDirectories[lIndex] := ForgeValuePath(lArray.Items[lIndex], AInvocation.WorkingDirectory);
+      end;
+      AInvocation.PackageDirectories := lDirectories;
+    end;
+  end
+  else if SameText(AOperation.Kind, 'PackageBundlePublish') then
+  begin
+    AInvocation.Kind := fokPackageBundlePublish;
+    if (Trim(PropertyText(AOperation, 'WorkDirectory')) = '') or
+      (Trim(PropertyText(AOperation, 'OutputDirectory')) = '') then
+      raise Exception.Create('PackageBundlePublish requires nonempty WorkDirectory and OutputDirectory');
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('WorkDirectory').Value, AInvocation.WorkingDirectory);
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('OutputDirectory').Value, AInvocation.WorkingDirectory);
+    AInvocation.PackageName := PropertyText(AOperation, 'Name');
+    AInvocation.PackageKind := PropertyText(AOperation, 'Kind');
   end
   else if SameText(AOperation.Kind, 'CompareFiles') then
   begin
@@ -567,6 +632,18 @@ begin
       fokCompareFiles: ExecuteCompareFiles(AInvocation);
       fokDeletePath: ExecuteDelete(AInvocation);
       fokArchive: ExecuteArchive(AInvocation);
+      fokBuildIdentity: AInvocation.StdOut := WriteForgeBuildIdentity(
+        AInvocation.SourcePath, AInvocation.OutputPath,
+        GetEnvironmentVariable('SOURCE_DATE_EPOCH'));
+      fokPackageSDKOptions: AInvocation.StdOut := WriteForgePackageSDKOptions(
+        AInvocation.SourcePath, AInvocation.OutputPath);
+      fokPackageSDKManifest: AInvocation.StdOut := WriteForgePackageSDKManifest(
+        AInvocation.OutputPath);
+      fokPackageBuildPrepare: AInvocation.StdOut := PrepareForgePackageBuild(
+        AInvocation.SourcePath, AInvocation.OutputPath, AInvocation.PackageDirectories);
+      fokPackageBundlePublish: AInvocation.StdOut := PublishForgePackageBundle(
+        AInvocation.SourcePath, AInvocation.OutputPath, AInvocation.PackageName,
+        AInvocation.PackageKind);
       else raise Exception.Create('Not a Forge file operation');
     end;
     AInvocation.Completed := True;

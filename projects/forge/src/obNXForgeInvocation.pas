@@ -33,6 +33,9 @@ type
     FArchiveOperation: string;
     FExcludeNames: string;
     FIncludeMasks: TStringArray;
+    FPackageDirectories: TStringArray;
+    FPackageName: string;
+    FPackageKind: string;
     FOverwrite: Boolean;
     FRecursive: Boolean;
     FCleanDestination: Boolean;
@@ -62,6 +65,9 @@ type
     property ArchiveOperation: string read FArchiveOperation write FArchiveOperation;
     property ExcludeNames: string read FExcludeNames write FExcludeNames;
     property IncludeMasks: TStringArray read FIncludeMasks write FIncludeMasks;
+    property PackageDirectories: TStringArray read FPackageDirectories write FPackageDirectories;
+    property PackageName: string read FPackageName write FPackageName;
+    property PackageKind: string read FPackageKind write FPackageKind;
     property Overwrite: Boolean read FOverwrite write FOverwrite;
     property Recursive: Boolean read FRecursive write FRecursive;
     property CleanDestination: Boolean read FCleanDestination write FCleanDestination;

@@ -1,0 +1,16 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+Language ForgeBuildIdentity {
+    Definitions: [
+        Definition BuildIdentity {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Repository { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property OutputDirectory { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        }
+    ];
+}
