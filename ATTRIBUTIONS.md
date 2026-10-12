@@ -99,6 +99,9 @@ repository rather than constituting additional forks.
 - **Fork/import date:** unknown. The locally available shallow history includes
   Nexus work on **2026-09-17**, `2a3622f8`; it cannot establish the original fork date.
 - **Our location/status:** FPC repository; maintained compiler, runtime, and packages.
+  The inherited core make build recipes and `fpcmake`/`fpgmake` generators were
+  retired on 2026-10-11 in favor of NexusForge. Package/test recipes remain pending
+  their separate migration; this record retains credit for the retired components.
 - **SPDX:** compiler `GPL-2.0-or-later`; RTL's LGPL 2.1 text and linking permission are
   recorded as `LGPL-2.1-only WITH Independent-modules-exception`, with any broader
   version grants in individual headers preserved. Packages have individual licenses;

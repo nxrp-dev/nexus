@@ -15,7 +15,7 @@ These rules apply to the whole repository.
 
 - You may execute scripts from the /repo-automation folder.
 - When asked for a fresh archive use the ps script New-NexusSourceArchive.ps1.
-- For native NexusFPC bootstrap validation, use `repo-automation\Invoke-NexusFPCBootstrap.ps1` instead of assembling commands ad hoc. Add `-RegenerateMakefiles` after changing build definitions or removing targets; `-CheckOnly` performs read-only preflight checks.
+- For NexusFPC builds, use the Forge projects in `../tools/nexus-fpc/NexusFPC.Forge.nxscript`; commands and prerequisites are in `../tools/nexus-fpc/NexusFPC.Forge.md`. `Build:Bootstrap` performs the native bootstrap; `Build:Cross` selects one cross target; `Build:Release` assembles the completed matrix and runtime-package SDK. Validate full rebuilds in an isolated checkout. The make bootstrap helpers and makefile regeneration workflow are retired.
 
 ## Scope
 
