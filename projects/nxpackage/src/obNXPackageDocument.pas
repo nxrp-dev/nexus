@@ -45,18 +45,8 @@ type
     procedure AddDiagnostic(const ACode, AMessage: string;
       const ARange: TNexusScriptRange);
   protected
-    procedure CheckText(ADefinition: TNexusScriptCompiledDefinition;
-      const AName, ACode, AMessage: string);
-    procedure CheckDescriptor(ADefinition: TNexusScriptCompiledDefinition);
-    procedure CheckIndex(ADefinition: TNexusScriptCompiledDefinition);
-    procedure CheckRequirements(ADefinition: TNexusScriptCompiledDefinition);
-    procedure CheckRepository(ARecord, AIndex: TNexusScriptCompiledDefinition);
-    function RecordBelongsToIndex(ARecord, AIndex: TNexusScriptCompiledDefinition): Boolean;
-    function RequirementIndex(const ARange: TNexusScriptRange): TNexusScriptCompiledDefinition;
-    procedure ValidateImportedIndex(ADefinition: TNexusScriptCompiledDefinition);
     function GetCompiledDocument: TNexusScriptCompiledDocument;
     function GetEntityType: string;
-    function IsIndex(ADefinition: TNexusScriptCompiledDefinition): Boolean;
     procedure SetSourceText(const AValue: string);
   public
     // The document owns AProvider when supplied, otherwise it creates its own.
@@ -80,7 +70,7 @@ implementation
 
 uses
   obNexusScriptCompiler, obNexusScriptLanguageDefinition,
-  obNexusScriptValidator;
+  obNexusScriptValidator, obNXPackageContractValidator;
 
 procedure TNXPackageSourceProvider.SetEntry(const AName, AText: string);
 begin
@@ -141,178 +131,6 @@ begin
     Result := FAnalysis.EntryCompiler.CompiledDocument;
 end;
 
-procedure TNXPackageDocument.CheckText(
-  ADefinition: TNexusScriptCompiledDefinition; const AName, ACode, AMessage: string);
-var
-  lProperty: TNexusScriptCompiledProperty;
-begin
-  lProperty := ADefinition.FindProperty(AName);
-  if (lProperty <> nil) and (Trim(lProperty.Value.EffectiveText) = '') then
-    AddDiagnostic(ACode, AMessage, lProperty.SourceRange);
-end;
-
-function TNXPackageDocument.RecordBelongsToIndex(
-  ARecord, AIndex: TNexusScriptCompiledDefinition): Boolean;
-var
-  lRecord: TNexusScriptCompiledDefinition;
-begin
-  Result := False;
-  if (ARecord = nil) or (AIndex = nil) or (ARecord.Parent = nil) then Exit;
-  if not SameText(ARecord.Parent.Kind, AIndex.Kind) or
-    not FProvider.SameIdentity(ARecord.Parent.SourceRange.SourceName, AIndex.SourceRange.SourceName) or
-    (ARecord.Parent.SourceRange.StartPosition.Offset <> AIndex.SourceRange.StartPosition.Offset) then Exit;
-  { Imports retain source identity even when their compiled objects are copied. }
-  for lRecord in AIndex.Children do
-    if SameText(lRecord.Kind, ARecord.Kind) and
-      FProvider.SameIdentity(lRecord.SourceRange.SourceName, ARecord.SourceRange.SourceName) and
-      (lRecord.SourceRange.StartPosition.Offset = ARecord.SourceRange.StartPosition.Offset) then Exit(True);
-end;
-
-function TNXPackageDocument.RequirementIndex(
-  const ARange: TNexusScriptRange): TNexusScriptCompiledDefinition;
-var
-  lDefinition: TNexusScriptCompiledDefinition;
-begin
-  Result := nil;
-  for lDefinition in FAnalysis.EntryCompiler.CompiledDocument.Definitions do
-    if lDefinition.ImportedRoot and IsIndex(lDefinition) then
-    begin
-      if Result <> nil then
-      begin
-        AddDiagnostic('package-index-ambiguous',
-          'Requirements need one explicitly imported PackageIndex or RepositoryIndex, not multiple catalogs',
-          ARange);
-        Exit(nil);
-      end;
-      Result := lDefinition;
-    end;
-  if Result = nil then
-    AddDiagnostic('package-index-required', 'Requirements need an explicitly imported PackageIndex or RepositoryIndex', ARange);
-end;
-
-procedure TNXPackageDocument.CheckRequirements(
-  ADefinition: TNexusScriptCompiledDefinition);
-var
-  lProperty: TNexusScriptCompiledProperty;
-  lItems, lItem: TNexusScriptCompiledValue;
-  lIndex, lRecord: TNexusScriptCompiledDefinition;
-begin
-  lProperty := ADefinition.FindProperty('Requires');
-  if lProperty = nil then Exit;
-  lItems := lProperty.Value;
-  while lItems.EffectiveValue <> nil do lItems := lItems.EffectiveValue;
-  if lItems.Items.Count = 0 then Exit;
-  lIndex := RequirementIndex(lProperty.SourceRange);
-  if lIndex = nil then Exit;
-  for lItem in lItems.Items do
-  begin
-    lRecord := lItem.ResolvedDefinition;
-    if (lItem.Kind <> nsvReference) or (lItem.ResolvedProperty <> nil) or
-      not RecordBelongsToIndex(lRecord, lIndex) then
-      AddDiagnostic('package-requires-record',
-        'Requirement must reference a package record declared by the imported index',
-        lItem.SourceRange);
-  end;
-end;
-
-procedure TNXPackageDocument.CheckRepository(
-  ARecord, AIndex: TNexusScriptCompiledDefinition);
-var
-  lProperty: TNexusScriptCompiledProperty;
-begin
-  lProperty := ARecord.FindProperty('Repository');
-  if lProperty = nil then Exit;
-  if (lProperty.Value.ResolvedProperty <> nil) or
-    not RecordBelongsToIndex(lProperty.Value.ResolvedDefinition, AIndex) then
-    AddDiagnostic('package-repository-owner',
-      'Repository must reference a TrustedRepository declared by this index',
-      lProperty.SourceRange);
-end;
-
-procedure TNXPackageDocument.ValidateImportedIndex(
-  ADefinition: TNexusScriptCompiledDefinition);
-var
-  lCompiler: TNexusScriptCompiler;
-  lValidator: TNexusScriptValidator;
-  lDiagnostic: TNexusScriptValidationDiagnostic;
-  lIndex: TNexusScriptCompiledDefinition;
-begin
-  lCompiler := FAnalysis.Session.FindCompiler(ADefinition.SourceRange.SourceName);
-  if lCompiler = nil then
-  begin
-    AddDiagnostic('package-index-source', 'Imported index source is not in the compilation session',
-      ADefinition.SourceRange);
-    Exit;
-  end;
-  lValidator := TNexusScriptValidator.Create;
-  try
-    lValidator.Validate(lCompiler.CompiledDocument,
-      FAnalysis.EntryCompiler.CompiledDocument.DialectDocument);
-    for lDiagnostic in lValidator.Diagnostics do
-      AddDiagnostic(lDiagnostic.Code, lDiagnostic.MessageText, lDiagnostic.SourceRange);
-    if lValidator.Diagnostics.Count <> 0 then Exit;
-    lIndex := lCompiler.CompiledDocument.FindDefinition(ADefinition.Name);
-    CheckIndex(lIndex);
-  finally
-    lValidator.Free;
-  end;
-end;
-
-procedure TNXPackageDocument.CheckDescriptor(
-  ADefinition: TNexusScriptCompiledDefinition);
-var
-  lProperty: TNexusScriptCompiledProperty;
-  lPath, lFileName: string;
-begin
-  lProperty := ADefinition.FindProperty('Descriptor');
-  if lProperty = nil then Exit;
-  lPath := lProperty.Value.EffectiveText;
-  if Trim(lPath) = '' then
-  begin
-    AddDiagnostic('package-descriptor-empty', 'Descriptor location must not be empty',
-      lProperty.SourceRange);
-    Exit;
-  end;
-  lFileName := Copy(lPath, LastDelimiter('/\', lPath) + 1, Length(lPath));
-  if (lPath[1] in ['/', '\']) or (Pos(':', lPath) > 0) or
-    (Pos('*', lPath) > 0) or (Pos('?', lPath) > 0) or
-    (lFileName = '') or (lFileName = '.') or (lFileName = '..') then
-    AddDiagnostic('package-descriptor-relative',
-      'Descriptor must be a relative file location in this repository, not a URL or search mask',
-      lProperty.SourceRange);
-end;
-
-procedure TNXPackageDocument.CheckIndex(
-  ADefinition: TNexusScriptCompiledDefinition);
-var
-  lEntry, lHash: TNexusScriptCompiledDefinition;
-begin
-  for lEntry in ADefinition.Children do
-  begin
-    if SameText(lEntry.Kind, 'TrustedRepository') then
-    begin
-      CheckText(lEntry, 'Source', 'package-repository-source-empty',
-        'Canonical repository source must not be empty');
-      Continue;
-    end;
-    CheckText(lEntry, 'Id', 'package-entry-id-empty', 'Catalog identity must not be empty');
-    if SameText(lEntry.Kind, 'ExternalPackage') then CheckRepository(lEntry, ADefinition)
-    else CheckDescriptor(lEntry);
-    for lHash in lEntry.Children do
-    begin
-      CheckText(lHash, 'Algorithm', 'package-hash-algorithm-empty', 'Hash algorithm must not be empty');
-      CheckText(lHash, 'Digest', 'package-hash-digest-empty', 'Hash digest must not be empty');
-    end;
-  end;
-end;
-
-function TNXPackageDocument.IsIndex(
-  ADefinition: TNexusScriptCompiledDefinition): Boolean;
-begin
-  Result := SameText(ADefinition.Kind, 'PackageIndex') or
-    SameText(ADefinition.Kind, 'RepositoryIndex');
-end;
-
 function TNXPackageDocument.GetEntityType: string;
 var
   lDocument: TNexusScriptCompiledDocument;
@@ -323,7 +141,9 @@ begin
   if lDocument = nil then Exit;
   for lDefinition in lDocument.Definitions do
     if not lDefinition.ImportedRoot and
-      (SameText(lDefinition.Kind, 'Package') or IsIndex(lDefinition)) then
+      (SameText(lDefinition.Kind, 'Package') or
+      SameText(lDefinition.Kind, 'Project') or SameText(lDefinition.Kind, 'PackageIndex') or
+      SameText(lDefinition.Kind, 'RepositoryIndex')) then
     begin
       if (Result <> '') and not SameText(Result, lDefinition.Kind) then
         Exit('Mixed');
@@ -383,7 +203,7 @@ end;
 function TNXPackageDocument.Validate: Boolean;
 var
   lCompiler: TNexusScriptCompiler;
-  lDefinition: TNexusScriptCompiledDefinition;
+  lContracts: TNXPackageContractValidator;
   lDiagnostic: TNexusScriptDiagnostic;
   lValidationDiagnostic: TNexusScriptValidationDiagnostic;
   lIndex: Integer;
@@ -427,17 +247,12 @@ begin
       lValidationDiagnostic.MessageText,
       lValidationDiagnostic.SourceRange);
   if FDiagnostics.Count <> 0 then Exit;
-  for lDefinition in FAnalysis.EntryCompiler.CompiledDocument.Definitions do
-    if lDefinition.ImportedRoot then
-    begin
-      if IsIndex(lDefinition) then ValidateImportedIndex(lDefinition);
-    end
-    else if SameText(lDefinition.Kind, 'Package') then
-    begin
-      CheckText(lDefinition, 'Id', 'package-id-empty', 'Package identity must not be empty');
-      CheckRequirements(lDefinition);
-    end
-    else if IsIndex(lDefinition) then CheckIndex(lDefinition);
+  lContracts := TNXPackageContractValidator.Create(FAnalysis.Session, FDiagnostics);
+  try
+    lContracts.Validate;
+  finally
+    lContracts.Free;
+  end;
   FValidated := FDiagnostics.Count = 0;
   Result := FValidated;
 end;

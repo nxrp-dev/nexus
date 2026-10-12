@@ -483,7 +483,8 @@ end;
 
 procedure TestMetadataEditor(AContext: TNXTestContext);
 const
-  cNames: array[0..4] of string = ('Version', 'Author', 'Description', 'License', 'Requires');
+  cNames: array[0..8] of string = ('Version', 'Author', 'Description', 'License',
+    'Requires', 'Outputs', 'UnitPaths', 'IncludePaths', 'LibraryPaths');
 var
   lHost: TPackageEditorHost;
   lChoices: TStringList;
@@ -498,23 +499,24 @@ begin
       'Package P { Id: "NXRP.P"; }');
     AContext.AssertTrue(lHost.Validation.Validated, lHost.Validation.Diagnostics.Text);
     lHost.Editor.GetPropertyChoices(lHost.Editor.GetFirst, lChoices);
-    AContext.AssertEquals(5, lChoices.Count);
+    AContext.AssertEquals(9, lChoices.Count);
     for lName in cNames do AContext.AssertTrue(lChoices.IndexOf(lName) >= 0, lName);
     lHost.Editor.GetDefinitionChoices(lHost.Editor.GetFirst, lChoices);
     AContext.AssertEquals(0, lChoices.Count, 'Packages cannot declare child package/repository records.');
     lHost.Editor.Document.GetDefinitionKinds(-1, lChoices);
-    AContext.AssertEquals(3, lChoices.Count);
+    AContext.AssertEquals(4, lChoices.Count);
     AContext.AssertTrue(lChoices.IndexOf('Package') >= 0);
     AContext.AssertTrue(lChoices.IndexOf('PackageIndex') >= 0);
     AContext.AssertTrue(lChoices.IndexOf('RepositoryIndex') >= 0);
-    AContext.AssertTrue(lChoices.IndexOf('Project') < 0);
+    AContext.AssertTrue(lChoices.IndexOf('Project') >= 0);
     AContext.AssertTrue(lChoices.IndexOf('LocalPackage') < 0);
     AContext.AssertTrue(lChoices.IndexOf('ExternalPackage') < 0);
     AContext.AssertTrue(lChoices.IndexOf('TrustedRepository') < 0);
     AContext.AssertTrue(lChoices.IndexOf('ContentHash') < 0);
     lOffset := lHost.Editor.Document.SourceDocument.Definitions[0].SourceRange.StartPosition.Offset;
     for lName in cNames do
-      if lName = 'Requires' then
+      if (lName = 'Requires') or (lName = 'Outputs') or
+        (lName = 'UnitPaths') or (lName = 'IncludePaths') or (lName = 'LibraryPaths') then
         AContext.AssertTrue(lHost.Editor.Document.SetProperty(lOffset, lName, '[]'))
       else AContext.AssertTrue(lHost.Editor.Document.SetProperty(lOffset, lName, '"optional metadata"'));
     AContext.AssertTrue(lHost.Validation.Validated, lHost.Validation.Diagnostics.Text);

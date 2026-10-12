@@ -1,9 +1,12 @@
 # nxpackage
 
-nxpackage is an fpGUI workbench for editing package definitions and machine or
-published-repository catalogs through one NexusScript dialect. Its three roots
-are Package, PackageIndex, and RepositoryIndex. These are declarative documents,
-not Forge tasks. Projects are outside this dialect and application.
+nxpackage is an fpGUI workbench for editing Package and Project contracts and
+machine or published-repository catalogs. Its four shared roots are Package,
+Project, PackageIndex, and RepositoryIndex. The common dialect declares metadata;
+Forge composes the same contract properties with ordered build children. The
+editor can inspect a Forge descriptor without preparing or executing its build.
+The shared read-only validator lives in `src/obNXPackageContractValidator.pas`;
+there is no dependency from this project to the Forge executor.
 
 Build with `lazbuild projects/nxpackage/nxpackage.lpi`. Open the
 application and choose a file from `projects/nxpackage/examples/`, or pass
@@ -58,6 +61,18 @@ The complete ID is opaque: its spelling and case are preserved, its parts are
 not parsed, and identity is not derived from a filename, definition label,
 repository, version, or license. Naming and global uniqueness remain authoring
 responsibilities; the workbench does not certify them.
+
+Package additionally exports optional text arrays `Outputs`, `UnitPaths`,
+`IncludePaths`, and `LibraryPaths`. Values may describe files that do not exist
+yet. Inspection never requires building them. Named Outputs entries can be
+referenced with ordinary NexusScript syntax, for example `@Library.Outputs.Binary`.
+
+Project shares Id, descriptive metadata, Requires, and Outputs, but rejects
+UnitPaths, IncludePaths, and LibraryPaths: its public contract describes produced
+artifacts. Compilation paths still belong on an explicit compiler operation in a
+Forge Project. The common dialect itself permits no executable children; the
+Forge extension supplies those. Neither contract implies dependency acquisition,
+automatic builds, or output freshness checks.
 
 ## Machine and published-repository catalogs
 
@@ -144,8 +159,8 @@ to hash, and verification mechanics remain undecided. The fixture
 requirements. `PackageIndex.nxscript` is the separate machine-catalog example.
 `ExternalPackage.nxscript` and `ExternalRepositoryIndex.nxscript` illustrate an
 externally authored package whose identity is independent of our hosting.
-There is no Project root, Forge integration, dependency resolver, or
-package-acquisition workflow.
+Project contracts use the same metadata rules described above. Dependency
+resolution and package acquisition remain separate work.
 
 Imported indexes are validated using the compiled sources already loaded by the
 session. Original reference targets retain declaration identity and repository

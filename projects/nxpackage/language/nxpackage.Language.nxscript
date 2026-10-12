@@ -25,6 +25,10 @@ Language nxpackage {
                 Property Author { Value Value { EffectiveCategories: [Text]; } },
                 Property Description { Value Value { EffectiveCategories: [Text]; } },
                 Property License { Value Value { EffectiveCategories: [Text]; } },
+                Property Outputs { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } } },
+                Property UnitPaths { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } } },
+                Property IncludePaths { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } } },
+                Property LibraryPaths { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } } },
                 Property Requires {
                     Value Value {
                         EffectiveCategories: [Array];
@@ -36,6 +40,20 @@ Language nxpackage {
                         }
                     }
                 }
+            ];
+        },
+        Definition Project {
+            Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Id: @nxpackage.Definitions.Package.Properties.Id,
+                Version: @nxpackage.Definitions.Package.Properties.Version,
+                Author: @nxpackage.Definitions.Package.Properties.Author,
+                Description: @nxpackage.Definitions.Package.Properties.Description,
+                License: @nxpackage.Definitions.Package.Properties.License,
+                Requires: @nxpackage.Definitions.Package.Properties.Requires,
+                Outputs: @nxpackage.Definitions.Package.Properties.Outputs
             ];
         },
         Definition PackageIndex {

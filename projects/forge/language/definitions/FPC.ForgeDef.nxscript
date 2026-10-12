@@ -13,7 +13,7 @@ Language ForgeFPC {
     Definitions: [
         Definition FPC {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -36,7 +36,6 @@ Language ForgeFPC {
                     }
                 },
                 Property Output {
-                    Required: True;
                     Value Value { EffectiveCategories: [Text]; }
                 },
                 Property UnitOutput {
@@ -48,6 +47,29 @@ Language ForgeFPC {
                 Property IncludePaths {
                     Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
                 },
+                Property ObjectPaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property LibraryPaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property LinkerOptions {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property Rebuild { Value Value { Scalar: Boolean; } },
+                Property Mode { Value Value { EffectiveCategories: [Text]; } },
+                Property DisableDefaultConfigFiles { Value Value { Scalar: Boolean; } },
+                Property CompileSystemUnit { Value Value { Scalar: Boolean; } },
+                Property LabelAndGoto { Value Value { Scalar: Boolean; } },
+                Property OptimizationLevel {
+                    Value Value { Scalar: Integer; AllowedValues: [1, 2, 3, 4]; }
+                },
+                Property GenerateReleaseUnitFiles { Value Value { Scalar: Boolean; } },
+                Property TargetOS { Value Value { EffectiveCategories: [Text]; } },
+                Property Assembler { Value Value { EffectiveCategories: [Text]; } },
+                Property UseLLD { Value Value { Scalar: Boolean; } },
+                Property PositionIndependentCode { Value Value { Scalar: Boolean; } },
+                Property CompilerUtilitiesPath { Value Value { EffectiveCategories: [Text]; } },
                 Property Defines {
                     Value Value {
                         EffectiveCategories: [Array];

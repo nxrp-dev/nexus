@@ -13,7 +13,7 @@ Language ForgePowerShell {
     Definitions: [
         Definition PowerShell {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

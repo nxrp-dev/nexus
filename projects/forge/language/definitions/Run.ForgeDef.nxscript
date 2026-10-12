@@ -1,0 +1,18 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+Language ForgeRun {
+    Definitions: [
+        Definition Run {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Executable { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } },
+                Property Arguments { Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } } }
+            ];
+        }
+    ];
+}

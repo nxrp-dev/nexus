@@ -60,6 +60,36 @@ repository rather than constituting additional forks.
 
 ## Compiler, editor, and development foundations
 
+### Boost.Multiprecision reference arithmetic
+
+- **Credit:** Boost.Multiprecision and Boost.Config authors and contributors,
+  including John Maddock and Christopher Kormanyos; retained upstream notices
+  identify individual contributions.
+- **Upstream:** [Boost.Multiprecision](https://github.com/boostorg/multiprecision),
+  revision `b484d2f158df88e04470e7da4bcc59bf63f65688`, and
+  [Boost.Config](https://github.com/boostorg/config), revision
+  `2bd6f0dfc52ff1fb1bd502361f4d0c750ce51d93` (Boost 1.86.0).
+- **Fork/import date:** not forked or vendored. The 2026-10-11 numeric correction
+  pass used these sources to generate the retained independent reference corpus.
+- **Our location/status:** FPC `tests/compiler-real/reference.cpp` and
+  `reference-vectors.txt`; optional test-generation dependency. The corpus remains
+  a native-math comparison after retirement of the compiler's software evaluator.
+- **SPDX:** `BSL-1.0` for the upstream libraries.
+- **Evidence/notices:** generator source and the preceding numeric-repair test
+  record; downloaded upstream sources and licenses stay in ignored validation
+  output, not the distributed compiler.
+
+### innoextract bootstrap extraction tool
+
+- **Credit:** Daniel Scharrer and innoextract contributors.
+- **Upstream:** [innoextract](https://constexpr.org/innoextract/), version 1.9.
+- **Fork/import date:** not forked. Downloaded on 2026-10-11 to extract the stock
+  FPC 3.2.2 Win32 bootstrap without running its installer.
+- **Our location/status:** FPC `output/native-real/bootstrap-input/innoextract`;
+  temporary validation tool, not a source/build dependency or shipped component.
+- **SPDX:** `Zlib`; preserve the binary archive's accompanying third-party notices.
+- **Evidence/notices:** the extracted `license` directory and `README.txt`.
+
 ### Free Pascal and NexusFPC
 
 - **Credit:** Free Pascal development team and the contributors named in the retained

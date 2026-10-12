@@ -13,7 +13,7 @@ Language ForgeGit {
     Definitions: [
         Definition Git {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

@@ -34,6 +34,8 @@ begin
       WriteLn('source: ', AInvocation.SourcePath);
     if AInvocation.OutputPath <> '' then
       WriteLn('output: ', AInvocation.OutputPath);
+    if AInvocation.LeftPath <> '' then WriteLn('left: ', AInvocation.LeftPath);
+    if AInvocation.RightPath <> '' then WriteLn('right: ', AInvocation.RightPath);
     if AInvocation.Kind = fokArchive then
       WriteLn('archive: ', AInvocation.ArchiveOperation);
     if AInvocation.Kind = fokRender then

@@ -29,6 +29,7 @@ Project NexusForge {
             UnitOutputPath: @NexusForge.OutputRoot + "/units";
             UnitPaths: [
                 "src",
+                "../nxpackage/src",
                 "../../packages/nexus-packages/nxscript/src",
                 "../../packages/nexus-packages/serialization/src",
                 "../../packages/nexus-packages/serialization/json/src",

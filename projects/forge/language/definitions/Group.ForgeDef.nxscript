@@ -13,7 +13,7 @@ Language ForgeGroup {
     Definitions: [
         Definition Group {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Allow;
         }

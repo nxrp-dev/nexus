@@ -13,7 +13,9 @@ dialect "../language/Forge.nxscript";
 
 // The repository's output directory must exist. No upstream files are replaced.
 // SDK/CRT paths are explicit: no Visual Studio shell initialization is required.
-Group AbbreviaLLVM {
+Project AbbreviaLLVM {
+    Id: "NXRP.Abbrevia.NativeRoundTrip";
+    Outputs: [Binary: "../../../output/AbbreviaLLVM-roundtrip.exe"];
     Clang BlockSort {
         Template: "Clang.mustache";
         Executable: "C:/Program Files/LLVM/bin/clang.exe";
@@ -159,5 +161,9 @@ Group AbbreviaLLVM {
             "-Xlinker", "/libpath:C:/Program Files (x86)/Windows Kits/10/Lib/10.0.19041.0/ucrt/x64",
             "-Xlinker", "/libpath:C:/Program Files (x86)/Windows Kits/10/Lib/10.0.19041.0/um/x64"
         ];
+    }
+    Run VerifyRoundTrip {
+        Template: "Run.mustache";
+        Executable: @AbbreviaLLVM.Outputs.Binary;
     }
 }

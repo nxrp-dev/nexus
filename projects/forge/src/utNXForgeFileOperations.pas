@@ -26,12 +26,14 @@ procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 
 implementation
 
-uses Classes, SysUtils, zipper, tpNXForge;
+uses Classes, SysUtils, StrUtils, zipper, tpNXForge, utNXForgePaths;
 
 function IsForgeFileOperation(const AKind: string): Boolean;
 begin
-  Result := SameText(AKind, 'WriteTextFile') or SameText(AKind, 'CopyFile') or
-    SameText(AKind, 'DeletePath') or SameText(AKind, 'Archive');
+  Result := SameText(AKind, 'CreateDirectory') or
+    SameText(AKind, 'WriteTextFile') or SameText(AKind, 'CopyFile') or
+    SameText(AKind, 'CompareFiles') or SameText(AKind, 'DeletePath') or
+    SameText(AKind, 'Archive');
 end;
 
 function PropertyText(AOperation: TNexusScriptCompiledDefinition;
@@ -68,30 +70,66 @@ begin
   else Result := ExpandFileName(IncludeTrailingPathDelimiter(ABase) + APath);
 end;
 
+function CopyIncludeMasks(AOperation: TNexusScriptCompiledDefinition): TStringArray;
+var
+  lProperty: TNexusScriptCompiledProperty;
+  lArray: TNexusScriptCompiledValue;
+  lIndex: Integer;
+  lMask: string;
+begin
+  Result := nil;
+  lProperty := AOperation.FindProperty('IncludeMasks');
+  if lProperty = nil then Exit;
+  lArray := lProperty.Value.SemanticValue;
+  SetLength(Result, lArray.Items.Count);
+  for lIndex := 0 to lArray.Items.Count - 1 do
+  begin
+    lMask := lArray.Items[lIndex].SemanticValue.EffectiveText;
+    if (Trim(lMask) = '') or (Pos('/', lMask) > 0) or
+      (Pos('\', lMask) > 0) or (Pos(':', lMask) > 0) then
+      raise Exception.Create(AOperation.Name +
+        ': IncludeMasks entries must be nonempty filename masks: ' + lMask);
+    Result[lIndex] := lMask;
+  end;
+end;
+
 procedure PrepareForgeFileOperation(AOperation: TNexusScriptCompiledDefinition;
   AInvocation: TNXForgeInvocation);
+var
+  lLeft, lRight: string;
 begin
-  if SameText(AOperation.Kind, 'WriteTextFile') then
+  if SameText(AOperation.Kind, 'CreateDirectory') then
+  begin
+    AInvocation.Kind := fokCreateDirectory;
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Path').Value, AInvocation.WorkingDirectory);
+  end
+  else if SameText(AOperation.Kind, 'WriteTextFile') then
   begin
     AInvocation.Kind := fokWriteTextFile;
-    AInvocation.OutputPath := OperationPath(AInvocation.WorkingDirectory,
-      PropertyText(AOperation, 'Path'));
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Path').Value, AInvocation.WorkingDirectory);
     AInvocation.ArtifactText := PropertyText(AOperation, 'Text');
+  end
+  else if SameText(AOperation.Kind, 'CompareFiles') then
+  begin
+    AInvocation.Kind := fokCompareFiles;
+    lLeft := PropertyText(AOperation, 'Left');
+    lRight := PropertyText(AOperation, 'Right');
+    if (Trim(lLeft) = '') or (Trim(lRight) = '') then
+      raise Exception.Create('CompareFiles requires nonempty Left and Right paths');
+    AInvocation.LeftPath := ForgeValuePath(AOperation.FindProperty('Left').Value, AInvocation.WorkingDirectory);
+    AInvocation.RightPath := ForgeValuePath(AOperation.FindProperty('Right').Value, AInvocation.WorkingDirectory);
   end
   else if SameText(AOperation.Kind, 'DeletePath') then
   begin
     AInvocation.Kind := fokDeletePath;
-    AInvocation.SourcePath := OperationPath(AInvocation.WorkingDirectory,
-      PropertyText(AOperation, 'Path'));
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('Path').Value, AInvocation.WorkingDirectory);
     AInvocation.Recursive := OptionalBoolean(AOperation, 'Recursive', False);
     AInvocation.MissingOk := OptionalBoolean(AOperation, 'MissingOk', True);
   end
   else
   begin
-    AInvocation.SourcePath := OperationPath(AInvocation.WorkingDirectory,
-      PropertyText(AOperation, 'Source'));
-    AInvocation.OutputPath := OperationPath(AInvocation.WorkingDirectory,
-      PropertyText(AOperation, 'Destination'));
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('Source').Value, AInvocation.WorkingDirectory);
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Destination').Value, AInvocation.WorkingDirectory);
     AInvocation.Overwrite := OptionalBoolean(AOperation, 'Overwrite', False);
     AInvocation.ExcludeNames := OptionalText(AOperation, 'ExcludeNames');
     if SameText(AOperation.Kind, 'CopyFile') then
@@ -100,6 +138,7 @@ begin
       AInvocation.Recursive := OptionalBoolean(AOperation, 'Recursive', False);
       AInvocation.CleanDestination := OptionalBoolean(AOperation,
         'CleanDestination', False);
+      AInvocation.IncludeMasks := CopyIncludeMasks(AOperation);
     end
     else
     begin
@@ -180,8 +219,18 @@ begin
     else Result[lIndex] := Trim(Result[lIndex]);
 end;
 
+function IncludedFile(const AName: string; const AIncludeMasks: TStringArray): Boolean;
+var
+  lMask: string;
+begin
+  if Length(AIncludeMasks) = 0 then Exit(True);
+  for lMask in AIncludeMasks do
+    if IsWild(AName, lMask, {$IFDEF WINDOWS}True{$ELSE}False{$ENDIF}) then Exit(True);
+  Result := False;
+end;
+
 procedure CopyDirectory(const ASource, ADestination: string; AOverwrite: Boolean;
-  AExcludeNames: TStrings);
+  AExcludeNames: TStrings; const AIncludeMasks: TStringArray);
 var
   lSearch: TSearchRec;
   lSource, lDestination: string;
@@ -197,8 +246,9 @@ begin
       lSource := IncludeTrailingPathDelimiter(ASource) + lSearch.Name;
       lDestination := IncludeTrailingPathDelimiter(ADestination) + lSearch.Name;
       if (lSearch.Attr and faDirectory) <> 0 then
-        CopyDirectory(lSource, lDestination, AOverwrite, AExcludeNames)
-      else CopyOneFile(lSource, lDestination, AOverwrite);
+        CopyDirectory(lSource, lDestination, AOverwrite, AExcludeNames, AIncludeMasks)
+      else if IncludedFile(lSearch.Name, AIncludeMasks) then
+        CopyOneFile(lSource, lDestination, AOverwrite);
     until FindNext(lSearch) <> 0;
   finally
     FindClose(lSearch);
@@ -211,7 +261,10 @@ var
   lSourceRoot, lDestinationRoot: string;
 begin
   if FileExists(AInvocation.SourcePath) then
-    CopyOneFile(AInvocation.SourcePath, AInvocation.OutputPath, AInvocation.Overwrite)
+  begin
+    if IncludedFile(ExtractFileName(AInvocation.SourcePath), AInvocation.IncludeMasks) then
+      CopyOneFile(AInvocation.SourcePath, AInvocation.OutputPath, AInvocation.Overwrite);
+  end
   else if DirectoryExists(AInvocation.SourcePath) then
   begin
     if not AInvocation.Recursive then
@@ -235,7 +288,7 @@ begin
     lExcludeNames := ExcludeList(AInvocation.ExcludeNames);
     try
       CopyDirectory(AInvocation.SourcePath, AInvocation.OutputPath,
-        AInvocation.Overwrite, lExcludeNames);
+        AInvocation.Overwrite, lExcludeNames, AInvocation.IncludeMasks);
     finally
       lExcludeNames.Free;
     end;
@@ -449,13 +502,69 @@ begin
   end;
 end;
 
+procedure CompareStreams(ALeft, ARight: TStream);
+var
+  lLeftBuffer, lRightBuffer: array[0..65535] of Byte;
+  lLeftSize, lRightSize, lLimit, lOffset: Int64;
+  lCount, lIndex: Integer;
+begin
+  lLeftSize := ALeft.Size;
+  lRightSize := ARight.Size;
+  lLimit := lLeftSize;
+  if lRightSize < lLimit then lLimit := lRightSize;
+  lOffset := 0;
+  while lOffset < lLimit do
+  begin
+    lCount := SizeOf(lLeftBuffer);
+    if lLimit - lOffset < lCount then lCount := lLimit - lOffset;
+    ALeft.ReadBuffer(lLeftBuffer, lCount);
+    ARight.ReadBuffer(lRightBuffer, lCount);
+    for lIndex := 0 to lCount - 1 do
+      if lLeftBuffer[lIndex] <> lRightBuffer[lIndex] then
+        raise Exception.Create('Files differ at byte offset ' + IntToStr(lOffset + lIndex));
+    Inc(lOffset, lCount);
+  end;
+  if lLeftSize <> lRightSize then
+    raise Exception.CreateFmt('Files differ at byte offset %d (end of file; sizes %d and %d)',
+      [lLimit, lLeftSize, lRightSize]);
+end;
+
+procedure ExecuteCompareFiles(AInvocation: TNXForgeInvocation);
+var
+  lLeft, lRight: TFileStream;
+begin
+  try
+    if not FileExists(AInvocation.LeftPath) then
+      raise Exception.Create('Left file does not exist or is not a file');
+    if not FileExists(AInvocation.RightPath) then
+      raise Exception.Create('Right file does not exist or is not a file');
+    lLeft := TFileStream.Create(AInvocation.LeftPath, fmOpenRead or fmShareDenyWrite);
+    try
+      lRight := TFileStream.Create(AInvocation.RightPath, fmOpenRead or fmShareDenyWrite);
+      try
+        CompareStreams(lLeft, lRight);
+      finally
+        lRight.Free;
+      end;
+    finally
+      lLeft.Free;
+    end;
+  except
+    on E: Exception do
+      raise Exception.Create('CompareFiles "' + AInvocation.LeftPath + '" and "' +
+        AInvocation.RightPath + '": ' + E.Message);
+  end;
+end;
+
 procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 begin
   AInvocation.Started := True;
   try
     case AInvocation.Kind of
+      fokCreateDirectory: EnsureDirectory(AInvocation.OutputPath);
       fokWriteTextFile: ExecuteWriteTextFile(AInvocation);
       fokCopyFile: ExecuteCopy(AInvocation);
+      fokCompareFiles: ExecuteCompareFiles(AInvocation);
       fokDeletePath: ExecuteDelete(AInvocation);
       fokArchive: ExecuteArchive(AInvocation);
       else raise Exception.Create('Not a Forge file operation');

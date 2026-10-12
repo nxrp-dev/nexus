@@ -11,9 +11,18 @@
 
 Language ForgeFileOperations {
     Definitions: [
+        Definition CreateDirectory {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Path { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
         Definition WriteTextFile {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -23,7 +32,7 @@ Language ForgeFileOperations {
         },
         Definition CopyFile {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -32,12 +41,25 @@ Language ForgeFileOperations {
                 Property Overwrite { Value Value { Scalar: Boolean; } },
                 Property Recursive { Value Value { Scalar: Boolean; } },
                 Property CleanDestination { Value Value { Scalar: Boolean; } },
+                Property IncludeMasks {
+                    Value Value { EffectiveCategories: [Array]; Array Array { Minimum: 1; EntryEffectiveCategories: [Text]; } }
+                },
                 Property ExcludeNames { Value Value { EffectiveCategories: [Text]; } }
+            ];
+        },
+        Definition CompareFiles {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Left { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Right { Required: True; Value Value { EffectiveCategories: [Text]; } }
             ];
         },
         Definition DeletePath {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -48,7 +70,7 @@ Language ForgeFileOperations {
         },
         Definition Archive {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

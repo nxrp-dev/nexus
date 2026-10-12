@@ -32,14 +32,16 @@ type
     procedure PrepareRender(AOperation: TNexusScriptCompiledDefinition;
       AInvocation: TNXForgeInvocation; const AContextJSON: string);
     procedure Prepare(AOperations: TNexusScriptCompiledDefinitionList;
-      ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings);
+      ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string;
+      AContexts: TStrings; AUseOperationDirectory: Boolean);
   public
     constructor Create(ATargets: TNexusScriptTargetSelection = nil);
     destructor Destroy; override;
     function Execute(const AInput: string;
       const AWorkingDirectory: string = ''): Boolean;
     function ExecuteDefinitions(AOperations: TNexusScriptCompiledDefinitionList;
-      ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings = nil): Boolean;
+      ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string;
+      AContexts: TStrings = nil; AUseOperationDirectory: Boolean = False): Boolean;
     property Invocations: TObjectList<TNXForgeInvocation> read FInvocations;
     property Diagnostic: string read FDiagnostic;
   end;
@@ -53,10 +55,10 @@ function ForgeRelativePath(const ABase, APath: string): string;
 implementation
 
 uses SynMustache, obNexusScriptJSON, obNexusScriptValidator,
-  obNexusScriptDefinitionView, obNexusScriptArtifactModel,
+  obNexusScriptDefinitionView,
   obNexusScriptLanguageDefinition, tpNexusScript,
   fpjson, jsonparser, tpNXForge, obNXForgeSources,
-  utNXForgeFileOperations;
+  utNXForgeFileOperations, utNXForgePaths, obNXPackageContractValidator;
 
 function ReadForgeText(const AFileName: string): string;
 var
@@ -101,9 +103,12 @@ procedure CollectForgeTasks(ADefinition: TNexusScriptCompiledDefinition;
 var
   lChild: TNexusScriptCompiledDefinition;
 begin
-  if SameText(ADefinition.Kind, 'Environment') then
-    raise ENXForge.Create('Environment is data, not an executable task');
-  if not SameText(ADefinition.Kind, 'Group') then
+  if SameText(ADefinition.Kind, 'Environment') or
+    SameText(ADefinition.Kind, 'PackageIndex') or
+    SameText(ADefinition.Kind, 'RepositoryIndex') then
+    raise ENXForge.Create(ADefinition.Kind + ' is data, not an executable task');
+  if not (SameText(ADefinition.Kind, 'Group') or
+    SameText(ADefinition.Kind, 'Package') or SameText(ADefinition.Kind, 'Project')) then
   begin
     AOperations.Add(ADefinition);
     Exit;
@@ -155,6 +160,8 @@ var
   lValidator: TNexusScriptValidator;
   lDiagnostic: TNexusScriptValidationDiagnostic;
   lMessage: string;
+  lContracts: TNXPackageContractValidator;
+  lContractDiagnostics: TStringList;
 begin
   if not ASession.CompileFile(AFileName) then
     raise ENXForge.Create(ASession.LastError);
@@ -163,7 +170,22 @@ begin
     raise ENXForge.Create(AFileName + ': a declared dialect is required');
   lValidator := TNexusScriptValidator.Create;
   try
-    if lValidator.Validate(lDocument, lDocument.DialectDocument) then Exit;
+    if lValidator.Validate(lDocument, lDocument.DialectDocument) then
+    begin
+      if (lDocument.DialectDocument.FindDefinition('NexusForge') = nil) and
+        (lDocument.DialectDocument.FindDefinition('nxpackage') = nil) then Exit;
+      lContractDiagnostics := TStringList.Create;
+      lContracts := TNXPackageContractValidator.Create(ASession, lContractDiagnostics);
+      try
+        lContracts.Validate;
+        if lContractDiagnostics.Count <> 0 then
+          raise ENXForge.Create(lContractDiagnostics.Text);
+        Exit;
+      finally
+        lContracts.Free;
+        lContractDiagnostics.Free;
+      end;
+    end;
     lMessage := 'Validation failed: ' + AFileName;
     for lDiagnostic in lValidator.Diagnostics do
       lMessage := lMessage + LineEnding + Format('%s(%d,%d): %s: %s', [
@@ -180,35 +202,26 @@ end;
 function OperationFilePath(ADefinition: TNexusScriptCompiledDefinition;
   const AProperty: string): string;
 var
-  lValue: TNexusScriptCompiledValue;
   lTemplate: string;
 begin
   lTemplate := ForgePropertyText(ADefinition, AProperty);
   if lTemplate = '' then raise ENXForge.Create(ADefinition.Name + ': empty ' + AProperty);
-  lValue := ADefinition.FindProperty(AProperty).Value;
-  while True do
-  begin
-    lValue := lValue.ArtifactValue;
-    if lValue.Kind <> nsvReference then Break;
-    if lValue.ResolvedProperty <> nil then lValue := lValue.ResolvedProperty.Value
-    else if lValue.ResolvedValue <> nil then lValue := lValue.ResolvedValue
-    else Break;
-  end;
-  Result := ForgeRelativePath(ExtractFilePath(lValue.SourceRange.SourceName), lTemplate);
+  Result := ForgeValuePath(ADefinition.FindProperty(AProperty).Value, '', True);
 end;
 
 procedure NormalizeCommandExecutable(AOperation: TNexusScriptCompiledDefinition;
-  AContext: TJSONObject);
+  AContext: TJSONObject; const AProperty: string);
 var
   lValue: TJSONData;
   lExecutable: string;
 begin
-  lValue := AContext.Find('Executable');
+  lValue := AContext.Find(AProperty);
   if lValue = nil then Exit;
   lExecutable := lValue.AsString;
-  if (Pos('/', lExecutable) = 0) and (Pos('\', lExecutable) = 0) then Exit;
+  if (Pos('/', lExecutable) = 0) and (Pos('\', lExecutable) = 0) and
+    (AOperation.FindProperty(AProperty).Value.Kind <> nsvReference) then Exit;
   if (ExtractFileDrive(lExecutable) <> '') or IsPathDelimiter(lExecutable, 1) then Exit;
-  AContext.Strings['Executable'] := OperationFilePath(AOperation, 'Executable');
+  AContext.Strings[AProperty] := OperationFilePath(AOperation, AProperty);
 end;
 
 procedure TNXForge.PrepareRender(AOperation: TNexusScriptCompiledDefinition;
@@ -222,8 +235,8 @@ var
 begin
   AInvocation.Kind := fokRender;
   AInvocation.SourcePath := OperationFilePath(AOperation, 'Source');
-  AInvocation.OutputPath := ForgeRelativePath(AInvocation.WorkingDirectory,
-    ForgePropertyText(AOperation, 'Output'));
+  AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Output').Value,
+    AInvocation.WorkingDirectory);
   lSession := TNexusScriptCompilationSession.Create(FTargets);
   lEmitter := TNexusScriptJSONEmitter.Create;
   try
@@ -275,7 +288,8 @@ begin
 end;
 
 procedure TNXForge.Prepare(AOperations: TNexusScriptCompiledDefinitionList;
-  ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings);
+  ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string;
+  AContexts: TStrings; AUseOperationDirectory: Boolean);
 var
   lOperation: TNexusScriptCompiledDefinition;
   lInvocation: TNXForgeInvocation;
@@ -283,8 +297,7 @@ var
   lTemplate, lJSON: string;
   lIndex: Integer;
   lContext: TJSONObject;
-  lSources: TNXForgeSources;
-  lRoot: TNexusScriptCompiledDefinition;
+  lSource: TJSONData;
   lLanguage: TNexusScriptLanguageDefinition;
 begin
   if (AContexts <> nil) and (AContexts.Count <> AOperations.Count) then
@@ -301,6 +314,8 @@ begin
       FInvocations.Add(lInvocation);
       lInvocation.OperationName := lOperation.Name;
       lInvocation.WorkingDirectory := AWorkingDirectory;
+      if AUseOperationDirectory then
+        lInvocation.WorkingDirectory := ExtractFileDir(lOperation.SourceRange.SourceName);
       try
         if not IsForgeFileOperation(lOperation.Kind) then
           lInvocation.TemplatePath := OperationFilePath(lOperation, 'Template');
@@ -312,32 +327,40 @@ begin
           PrepareForgeFileOperation(lOperation, lInvocation)
         else
         begin
-          lRoot := lOperation;
-          while lRoot.Parent <> nil do lRoot := lRoot.Parent;
+          lTemplate := ReadForgeText(lInvocation.TemplatePath);
           lContext := GetJSON(lJSON) as TJSONObject;
-          lSources := TNXForgeSources.Create;
           try
-             NormalizeCommandBooleans(lOperation, lContext, lLanguage);
-            NormalizeCommandExecutable(lOperation, lContext);
-            lSources.Resolve(lContext, ExtractFileDir(lRoot.SourceRange.SourceName));
+            NormalizeCommandBooleans(lOperation, lContext, lLanguage);
+            NormalizeCommandExecutable(lOperation, lContext, 'Executable');
+            NormalizeCommandExecutable(lOperation, lContext, 'Compiler');
             if lContext.Find('EntryPoint') <> nil then
-              lContext.Strings['EntryPoint'] := ForgeRelativePath(
-                ExtractFileDir(lRoot.SourceRange.SourceName), lContext.Strings['EntryPoint']);
+              lContext.Strings['EntryPoint'] := OperationFilePath(lOperation, 'EntryPoint');
             if lContext.Find('WorkingDirectory') <> nil then
             begin
-              lInvocation.WorkingDirectory := ForgeRelativePath(
-                AWorkingDirectory, lContext.Strings['WorkingDirectory']);
+              lInvocation.WorkingDirectory := ForgeValuePath(
+                lOperation.FindProperty('WorkingDirectory').Value, lInvocation.WorkingDirectory);
               lContext.Strings['WorkingDirectory'] := lInvocation.WorkingDirectory;
             end;
+            NormalizeForgeCommandPaths(lOperation, lContext, lInvocation.WorkingDirectory);
             lJSON := lContext.AsJSON;
+            lSource := lContext.Find('Source');
+            if (lSource <> nil) and (lSource.JSONType = jtArray) then
+            begin
+              TSynMustache.Parse(UTF8String(lTemplate));
+              if Trim(lTemplate) = '' then raise ENXForge.Create('Empty command');
+              lInvocation.CommandTemplate := lTemplate;
+              lInvocation.CommandContext := lJSON;
+              lInvocation.SourceDirectory := ExtractFileDir(lOperation.SourceRange.SourceName);
+            end
+            else
+            begin
+              lInvocation.Command := Trim(string(TSynMustache.Parse(UTF8String(lTemplate)).
+                RenderJSON(UTF8String(lJSON))));
+              if lInvocation.Command = '' then raise ENXForge.Create('Empty command');
+            end;
           finally
-            lSources.Free;
             lContext.Free;
           end;
-          lTemplate := ReadForgeText(lInvocation.TemplatePath);
-          lInvocation.Command := Trim(string(TSynMustache.Parse(UTF8String(lTemplate)).
-            RenderJSON(UTF8String(lJSON))));
-          if lInvocation.Command = '' then raise ENXForge.Create('Empty command');
         end;
       except
         on E: Exception do
@@ -381,7 +404,9 @@ begin
         lDirectory := ForgeRelativePath(lDirectory, AWorkingDirectory);
       lTaskRoot := nil;
       for lDefinition in lView.Roots do
-        if not SameText(lDefinition.Kind, 'Environment') then
+        if not (SameText(lDefinition.Kind, 'Environment') or
+          SameText(lDefinition.Kind, 'PackageIndex') or
+          SameText(lDefinition.Kind, 'RepositoryIndex')) then
         begin
           if lTaskRoot <> nil then
             raise ENXForge.Create('Forge document must have one executable root; use Group for multiple tasks');
@@ -390,7 +415,8 @@ begin
       if lTaskRoot = nil then
         raise ENXForge.Create('Forge document has no executable root');
       CollectForgeTasks(lTaskRoot, lOperations);
-      Result := ExecuteDefinitions(lOperations, FOperations.EntryCompiler.CompiledDocument, lDirectory);
+      Result := ExecuteDefinitions(lOperations, FOperations.EntryCompiler.CompiledDocument,
+        lDirectory, nil, AWorkingDirectory = '');
     except
       on E: Exception do FDiagnostic := E.Message;
     end;
@@ -400,8 +426,28 @@ begin
   end;
 end;
 
+procedure ResolveCommandSources(AInvocation: TNXForgeInvocation);
+var
+  lContext: TJSONObject;
+  lSources: TNXForgeSources;
+begin
+  if AInvocation.CommandContext = '' then Exit;
+  lContext := GetJSON(AInvocation.CommandContext) as TJSONObject;
+  lSources := TNXForgeSources.Create;
+  try
+    lSources.Resolve(lContext, AInvocation.SourceDirectory);
+    AInvocation.Command := Trim(string(TSynMustache.Parse(UTF8String(
+      AInvocation.CommandTemplate)).RenderJSON(UTF8String(lContext.AsJSON))));
+    if AInvocation.Command = '' then raise ENXForge.Create('Empty command');
+  finally
+    lSources.Free;
+    lContext.Free;
+  end;
+end;
+
 function TNXForge.ExecuteDefinitions(AOperations: TNexusScriptCompiledDefinitionList;
-  ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string; AContexts: TStrings): Boolean;
+  ADocument: TNexusScriptCompiledDocument; const AWorkingDirectory: string;
+  AContexts: TStrings; AUseOperationDirectory: Boolean): Boolean;
 var
   lInvocation: TNXForgeInvocation;
 begin
@@ -409,13 +455,21 @@ begin
   FDiagnostic := '';
   FInvocations.Clear;
   try
-    Prepare(AOperations, ADocument, AWorkingDirectory, AContexts);
+    Prepare(AOperations, ADocument, AWorkingDirectory, AContexts, AUseOperationDirectory);
     for lInvocation in FInvocations do
     begin
       if lInvocation.Kind = fokRender then WriteForgeArtifact(lInvocation)
       else if lInvocation.Kind <> fokCommand then
         ExecuteForgeFileOperation(lInvocation)
-      else ExecuteForgeProcess(lInvocation);
+      else
+      begin
+        try
+          ResolveCommandSources(lInvocation);
+          ExecuteForgeProcess(lInvocation);
+        except
+          on E: Exception do lInvocation.Diagnostic := E.Message;
+        end;
+      end;
       if not lInvocation.Succeeded then
       begin
         FDiagnostic := InvocationLabel(lInvocation) + ': ';

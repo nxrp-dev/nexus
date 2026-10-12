@@ -1,9 +1,90 @@
 # NexusForge execution contracts
 
 `nxforge` compiles and validates a Forge document and executes its single task
-root. A `Group` runs its child tasks in declaration order and may contain other
-Groups. Command tasks render a Mustache `Template` and launch a tool. Render
+root. `Group`, `Package`, and `Project` run their children in declaration order.
+Command tasks render a Mustache `Template` and launch a tool. Render
 and filesystem tasks execute within Forge.
+
+## Package and Project contracts
+
+`Package` and `Project` use the same ordered execution as `Group`, including
+nesting, composition, target selection, preparation, and failure propagation.
+A compiler invocation is always an explicit `FPC` child. A Package containing
+no build operations is valid and performs no compilation.
+
+| Contract | Group | Package | Project |
+| --- | --- | --- | --- |
+| Ordered build children | Yes | Yes | Yes |
+| Required nonblank `Id` | No | Yes | Yes |
+| `Version`, `Author`, `Description`, `License` | No | Optional | Optional |
+| `Requires` catalog references | No | Optional | Optional |
+| `Outputs` text array | No | Optional | Optional |
+| `UnitPaths`, `IncludePaths`, `LibraryPaths` text arrays | No | Optional | Rejected |
+
+The shared definitions and semantic validator are owned by `nxpackage`. Forge
+extends the definitions with executable children. The package editor and Forge
+use the same read-only contract checks. Neither follows descriptor locations,
+fetches dependencies, selects versions, or builds `Requires` entries implicitly.
+Each nonempty Requires list names records in the single index imported by its
+supplying document, including requirements inherited through composition.
+
+`CompileForgeDocument` compiles and validates metadata without preparing tools
+or reading generated outputs. `TNXPackageDocument` can inspect the same Forge
+descriptor without executing it. A declared output is a contract, not a freshness
+cache or an implicit existence test. Add explicit validation children when build
+success depends on verifying outputs. Failure of a final validation fails the
+whole build and prevents every following child from starting; completed work
+is retained. Contracts do not imply rollback.
+
+```nexusscript
+module Library "library/Package.nxscript";
+Project Application {
+    Id: "NXRP.Application";
+    Outputs: [Binary: "bin/application.exe"];
+    Package BuildLibrary (Library) {}
+    FPC Compile {
+        Template: "FPC.mustache";
+        Source: ["src/application.pas"];
+        EntryPoint: "src/application.pas";
+        UnitPaths: @Library.UnitPaths;
+        IncludePaths: @Library.IncludePaths;
+        Output: @Application.Outputs.Binary;
+    }
+    Run Check {
+        Template: "Run.mustache";
+        Executable: @Application.Outputs.Binary;
+    }
+}
+```
+
+Importing a package makes its contract available; the explicit composed child
+schedules its build. Contract references use ordinary NexusScript `@` syntax.
+No new interpolation or placeholder syntax is involved. A language-level FPC
+runtime package remains an artifact compiled by FPC, distinct from this build
+contract and its operations.
+
+Paths supplied by direct references retain the file where their value originated.
+This applies to filesystem-operation paths and command `Output`, `UnitOutput`,
+`CompilerUtilitiesPath`, `UnitPaths`, `IncludePaths`, `LibraryPaths`, `ObjectPaths`,
+and `Objects`. A reference to an entire path array and references to individual
+entries both preserve origin. Command Source arrays and EntryPoint always retain
+the origin of their supplying values, including composition. Templates and tool
+paths retain their existing origin semantics. A referenced Executable or Compiler
+is a file path even when its text is only a filename; a literal bare tool name
+continues to use PATH.
+
+Literal output/search paths remain relative to the operation working directory.
+By default that is the operation's declaring file, including children imported
+from a package. The CLI working-directory override supplies a common base for
+all operations. An operation's explicit WorkingDirectory then overrides that
+base. Text expressions construct a new value at the expression's source location;
+use direct references when an exported path must retain its original base.
+None of this rewrites the compiled metadata or the NexusScript JSON emitter.
+
+`Run` is an ordinary command operation with required `Template` and `Executable`,
+optional text-array `Arguments`, and optional `WorkingDirectory`. The supplied
+`Run.mustache` quotes the executable and each argument. It supports generated
+tools and test programs without adding special process behavior to Forge.
 
 ## CLI
 
@@ -34,7 +115,7 @@ environment repair, or activation logic.
 
 `projects/forge/language/Forge.nxscript` includes
 `projects/forge/language/definitions/*.ForgeDef.nxscript`. Core, FPC,
-Git, NXBuild, MSBuild, PowerShell, LazBuild, Npm, InnoSetup, CSV, Render,
+Git, NXBuild, MSBuild, PowerShell, LazBuild, Npm, InnoSetup, CSV, Msg2Inc, Render,
 FileOperations, Group, and Environment definitions form one
 effective Forge language through the included-definition view. The master does
 not name individual tools.
@@ -72,7 +153,7 @@ Group Build {
 ```
 
 Select TargetOS explicitly for this example. The completed concrete operations
-must satisfy the FPC contract, including Template, Source, EntryPoint, and Output. Imported
+must satisfy the FPC contract, including Template, Source, and EntryPoint. Imported
 partial bases need not independently supply every required operation property.
 They remain module definitions, not additional commands. Existing module root
 selectors can limit which definitions a consumer imports.
@@ -82,10 +163,10 @@ names, suffixes, and target values carry no built-in platform meaning. Environme
 roots are never scheduled as commands, even if a property is named Template.
 
 There is no separate process catalog or matching by operation kind. Two FPC
-tasks can inherit different templates. All tasks in a Group are prepared before
+tasks can inherit different templates. All tasks in a Group, Package, or Project are prepared before
 the first starts, including tasks within nested Groups. Declaration order is
 preserved; module-only roots are not scheduled. A runnable document requires
-one executable root: a singular task or a Group.
+one executable root: a singular task, Group, Package, or Project.
 
 ## Source selections and entry points
 
@@ -97,14 +178,20 @@ entries without an EntryPoint; a concrete FPC operation requires both.
 Forge expands command-operation Source arrays relative to the declaring operation
 file. `src/*.pas` selects
 that directory only; `src/**/*.pas` explicitly includes subdirectories. There is
-no extension inference. Missing directories or selections matching no files fail
-preparation before commands launch. Entries retain selection order, matches are
-sorted, and duplicate files and directories are removed.
+no extension inference. Source arrays are expanded immediately before their
+command runs, after preceding tasks have completed. This allows files copied or
+generated by earlier tasks to be selected in the same run. Missing directories
+or selections matching no files stop that task before launch and prevent later
+tasks from running; earlier completed tasks are retained. Entries retain selection
+order, matches are sorted, and duplicate files and directories are removed.
 
 The command render context receives absolute file names in `Source`, unique
 containing directories in `_nx.SourcePaths`, and an absolute `EntryPoint`.
-Templates translate those directories to switches such as `-Fu`. This does not
-change the compiled NexusScript document. Scalar Source values for CSV and Render
+Templates translate those directories to switches such as `-Fu`. Schema validation
+and loading/parsing all command templates still happen before any task runs.
+For source-array commands, the normalized context and template text are retained
+until source expansion and final command rendering at execution time. This does
+not change the compiled NexusScript document. Scalar Source values for CSV and Render
 retain their existing contracts. A Source list does not create multiple commands.
 
 FPC searches these directories for dependencies and decides whether compiled units
@@ -112,6 +199,63 @@ are usable. The selected files establish search directories, not a restriction o
 which other dependencies FPC may load from those directories. Forge does not hash
 sources, generate bootstrap programs, or compile every selected unit independently.
 Each explicit FPC task invokes the compiler; FPC decides whether units need rebuilding.
+
+The FPC definition and `examples/FPC.mustache` support these optional settings:
+
+| Property | Value | Compiler switch |
+| --- | --- | --- |
+| `Mode` | Text | Emits `-M<mode>` |
+| `Rebuild` | Boolean | `True` emits `-B` |
+| `ObjectPaths` | Text array | Emits `-Fo<path>` for each path |
+| `LibraryPaths` | Text array | Emits `-Fl<path>` for each path |
+| `LinkerOptions` | Text array | Emits `-k<option>` for each option |
+| `DisableDefaultConfigFiles` | Boolean | `True` emits `-n` |
+| `CompileSystemUnit` | Boolean | `True` emits `-Us` |
+| `LabelAndGoto` | Boolean | `True` emits `-Sg` |
+| `OptimizationLevel` | Integer, 1 through 4 | Emits `-O1` through `-O4` |
+| `GenerateReleaseUnitFiles` | Boolean | `True` emits `-Ur` |
+| `TargetOS` | Text | Emits `-T<value>`, e.g. `-Tlinux` |
+| `Assembler` | Text | Emits `-A<value>`, e.g. `-Aas-clang` |
+| `UseLLD` | Boolean | `True` emits `-XLL` |
+| `PositionIndependentCode` | Boolean | `True` emits `-Cg` |
+| `CompilerUtilitiesPath` | Text | Emits quoted `-FD<path>` |
+
+Omitted properties and `False` Boolean values emit no switch. `-Ur` prevents
+automatic recompilation of the generated release units. These switches are
+rendered by Mustache; the executor has no FPC-specific option handling.
+FPC does not accept an unrestricted `Arguments` property. `Output` is optional:
+the template emits `-o` only for a supplied, nonempty value. Without it, FPC
+uses its normal output naming. Unit compilation can specify `UnitOutput`
+(`-FU`) without naming an executable output. Output directories must already
+exist when the compiler starts. `UnitPaths` and `IncludePaths` emit quoted
+`-Fu` and `-Fi` switches respectively; relative paths use the operation's
+working directory. Explicit unit paths follow the directories selected by `Source`.
+`CompilerUtilitiesPath` follows the same working-directory rule. Target-filtered
+configurations can supply these named settings while sharing one FPC template.
+
+An explicit relative `Compiler` path containing a slash or backslash resolves
+from the document supplying that property, including inherited or referenced
+values, just like `Executable`. Absolute paths and bare tool names retain their
+existing meaning. The compiler need not exist during preparation; an earlier
+task can build or copy it before invocation. This path normalization supplies the
+Mustache context and does not construct compiler commands.
+
+## FPC message generation
+
+`Msg2Inc` runs FPC's existing message generator through `examples/Msg2Inc.mustache`.
+It requires `Template`, `Source` (one message-file path), `OutputPrefix`, and
+`ConstantName`. Optional `Executable` defaults to `msg2inc` on PATH. An explicit
+relative executable path resolves from its declaring document, like other
+command tools. Relative source and output paths use the operation working
+directory.
+
+The template passes the three named operands in that order, with each quoted.
+The utility's default string-table mode writes `OutputPrefix + "idx.inc"` and
+`OutputPrefix + "txt.inc"`; `ConstantName` supplies the base name for its text
+constants. For compiler messages, use an output prefix ending in `msg` and
+`ConstantName: msg`. Create the output directory before running the operation.
+The executable may be produced by an earlier FPC task in the same Group.
+No unrestricted `Arguments` property or tool-specific executor code is used.
 
 ## Template paths and rendering
 
@@ -134,7 +278,7 @@ the same compiled document share that timestamp. A Render operation's artifact
 template receives the compiled source document's timestamp instead.
 
 ```mustache
-fpc "{{{EntryPoint}}}" "-o{{{Output}}}"{{#Defines}} -d{{{.}}}{{/Defines}}{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}
+fpc "{{{EntryPoint}}}"{{#Output}} "-o{{{Output}}}"{{/Output}}{{#Defines}} -d{{{.}}}{{/Defines}}{{#_nx.SourcePaths}} "-Fu{{{.}}}"{{/_nx.SourcePaths}}
 ```
 
 Mustache is the template language. Templates own native quoting and command
@@ -177,6 +321,11 @@ and Mustache templates; the Forge executor contains no LLVM-specific behavior.
 `Executable` to `clang++` for a C++ driver. `CompileOnly: True` emits `-c`; use
 one source per task when producing a named object. `False` compiles and links.
 `Target`, `Standard`, `IncludePaths`, and `Defines` render native Clang switches.
+Optional `SourceLanguage` emits `-x <language>`; use `assembler` for assembly
+inputs whose extension does not identify their language. `AssemblerSymbols`
+is an optional text array of `name=value` entries, each rendered as
+`-Wa,-defsym,name=value` for the assembler. These properties allow assembly
+tasks to share the Clang template with C and C++ tasks.
 `Arguments` supplies additional literal arguments, including linker selection
 and libraries. No shell is involved. Source selections use the normal expansion
 contract; output and other argument paths are interpreted in `WorkingDirectory`.
@@ -198,11 +347,12 @@ Windows SDK/CRT headers and libraries. The recipe explicitly names SDK
 `10.0.19041.0` and CRT `14.29.30133` include and Win64 library paths; it does
 not require a Visual Studio command shell. Adjust these paths for other
 installations. It does not invoke MSBuild or `cl.exe`.
-This verifies the C library build, not a Pascal port of Abbrevia's runtime.
+The final Run child verifies the C/C++ round trip. The canonical Abbrevia
+`Package.nxscript` separately owns the preserved 37-object LLVM rebuild,
+an explicit FPC runtime build, and its runtime startup check.
 
 ```powershell
 output/NexusForge-next/x86_64-win64/nxforge.exe /input=projects/forge/examples/AbbreviaLLVM.Forge.nxscript
-output/AbbreviaLLVM-roundtrip.exe
 ```
 
 Native tool contracts: [Clang](https://clang.llvm.org/docs/UsersManual.html),
@@ -286,10 +436,22 @@ semantics in Forge and no separate NexusScript executable.
 
 ## Filesystem operations
 
-`WriteTextFile`, `CopyFile`, `DeletePath`, and `Archive` execute in Forge without
-Mustache or an external shell. Relative paths resolve from the operation working
-directory. They use the same prepare-before-execute ordering and stop-on-failure
-behavior as Render; later operations may consume files created by earlier ones.
+`CreateDirectory`, `WriteTextFile`, `CopyFile`, `CompareFiles`, `DeletePath`, and `Archive` execute
+in Forge without Mustache or an external shell. Relative paths resolve from the
+operation working directory. They use the same prepare-before-execute ordering
+and stop-on-failure behavior as Render; later operations may consume files
+created by earlier ones.
+
+`CreateDirectory` requires `Path`. It creates the directory and any missing
+parents. An existing directory succeeds without changing its contents. A file
+at the destination or in a required parent path, or any other creation failure,
+reports an error and stops later operations.
+
+```text
+CreateDirectory SeedBin {
+    Path: "build/forge-bootstrap/seed/bin";
+}
+```
 
 `WriteTextFile` requires `Path` and `Text`. It creates parent directories and
 writes text with LF line endings, matching Task's text-file action.
@@ -299,6 +461,35 @@ writes text with LF line endings, matching Task's text-file action.
 `CleanDestination` removes an existing destination directory before copying.
 `ExcludeNames` is an optional semicolon-separated, case-insensitive list of
 exact file or directory names skipped during recursive copying.
+
+`IncludeMasks` optionally limits copied files to a nonempty array of filename
+masks, for example `["*.pas", "*.pp", "*.inc"]`. Each file's basename must match
+at least one mask; overlapping masks copy the file only once. `*` matches zero
+or more characters and `?` matches one. Matching is case-insensitive on Windows
+and case-sensitive elsewhere. Masks cannot be empty or contain path separators
+or drive prefixes. Directories are traversed regardless of these masks, and
+`ExcludeNames` still skips matching files or whole subdirectories. The filter
+also applies to a single-file source. No matches succeeds without copying files;
+recursive copying can still create empty directories. Omitting `IncludeMasks`
+copies all files as before. `CleanDestination` still clears the entire destination
+directory before the filtered copy.
+
+`CompareFiles` requires nonempty `Left` and `Right` file paths. It compares all
+bytes using fixed-size buffers and succeeds only when lengths and contents match.
+Two empty files compare equal. Files are opened when the operation executes, so
+earlier tasks can produce them. Comparison does not change either file or create
+output. Missing files, directories, open/read errors, and differences stop later
+tasks. Diagnostics identify both resolved paths; differences report the first
+unequal byte offset, counted from zero. If one file is an identical prefix of the
+other, the offset is the shorter file's length. There are no ignored byte ranges
+or file-format-specific rules.
+
+```text
+CompareFiles VerifyBootstrap {
+    Left: "build/forge-bootstrap/cycle2/ppcx64.exe";
+    Right: "build/forge-bootstrap/cycle3/ppcx64.exe";
+}
+```
 
 `DeletePath` requires `Path`. `Recursive` defaults to false and `MissingOk`
 defaults to true. A wildcard in the final path component matches files, not
@@ -319,8 +510,9 @@ output is buffered in memory.
 
 Each invocation records its operation name, resolved template path, command,
 working directory, launch state, separate output, exit status, and diagnostic.
-CLI output marks unstarted entries. Rendering failure prevents that operation
-list from launching; launch failure or nonzero exit stops subsequent operations.
+CLI output marks unstarted entries. Schema and template-preparation failures
+prevent that operation list from launching. Source-selection or final rendering
+failure at execution time, launch failure, or nonzero exit stops subsequent operations.
 Completed output remains available. Success returns exit status 0; failure 1.
 
 ## Verification

@@ -13,7 +13,7 @@ Language ForgeLLVMAr {
     Definitions: [
         Definition LLVMAr {
             Root: True;
-            Parents: [Group];
+            Parents: [Group, Package, Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

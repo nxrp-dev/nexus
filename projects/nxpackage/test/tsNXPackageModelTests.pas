@@ -507,7 +507,14 @@ begin
   CheckSource(AContext, 'Package P { Id: "NXRP.P"; }', True);
   CheckSource(AContext, 'PackageIndex I {}', True);
   CheckSource(AContext, 'RepositoryIndex I {}', True);
-  CheckSource(AContext, 'Project P {}', False, 'NSV2001');
+  CheckSource(AContext, 'Project P {}', False, 'NSV2101');
+  CheckSource(AContext, 'Project P { Id: "App"; Outputs: ["bin/app.exe"]; }', True);
+  CheckSource(AContext, 'Project P { Id: " "; }', False, 'package-id-empty');
+  CheckSource(AContext, 'Project P { Id: "App"; UnitPaths: ["units"]; }', False, 'NSV2102');
+  CheckSource(AContext, 'Project P { Id: "App"; IncludePaths: ["include"]; }', False, 'NSV2102');
+  CheckSource(AContext, 'Project P { Id: "App"; LibraryPaths: ["lib"]; }', False, 'NSV2102');
+  CheckSource(AContext, 'Package P { Id: "Lib"; Outputs: ["lib.dll"]; ' +
+    'UnitPaths: ["units"]; IncludePaths: ["include"]; LibraryPaths: ["lib"]; }', True);
   CheckSource(AContext, 'PackageIndex I { RepositoryIndex R {} }', False);
   CheckSource(AContext, 'RepositoryIndex I { PackageIndex P {} }', False);
 end;
@@ -563,12 +570,36 @@ begin
     False, 'package-repository-owner', 'RepositoryIndex J { TrustedRepository R { Source: "repo"; } }');
 end;
 
+procedure TestForgeContractInspection(AContext: TNXTestContext);
+var
+  lDocument: TNXPackageDocument;
+  lDialect: string;
+begin
+  lDocument := TNXPackageDocument.Create;
+  try
+    lDialect := 'dialect ' + TNexusScriptEditDocument.QuoteText(
+      Root + 'projects/forge/language/Forge.nxscript') + '; ';
+    lDocument.LoadSource(Root + 'output/nxpackageTests/model/Forge.nxscript', lDialect +
+      'Project Application { Id: "App"; Outputs: ["future.exe"]; ' +
+      'Package Library { Id: "Lib"; UnitPaths: ["units"]; ' +
+      'FPC Compile { Template: "not-created.mustache"; Source: ["not-created.pas"]; EntryPoint: "not-created.pas"; } } }');
+    AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
+    AContext.AssertEquals('Project', lDocument.EntityType);
+    AContext.AssertEquals(1, lDocument.CompiledDocument.FindDefinition('Application').Children.Count);
+    lDocument.SourceText := StringReplace(lDocument.SourceText, 'Id: "Lib"', 'Id: " "', []);
+    AContext.AssertFalse(lDocument.Validate, 'Nested contract is checked without executing its build');
+    AContext.AssertTrue(Pos('package-id-empty', lDocument.Diagnostics.Text) > 0, lDocument.Diagnostics.Text);
+  finally
+    lDocument.Free;
+  end;
+end;
 procedure RegisterPackageModelTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('PackageModel');
   lSuite.AddTest('Metadata', @TestMetadata);
+  lSuite.AddTest('ForgeContractInspection', @TestForgeContractInspection);
   lSuite.AddTest('OpaqueIdentities', @TestOpaqueIdentities);
   // TestDependencies remains paused and is deliberately not executed.
   lSuite.AddTest('Requirements', @TestRequirements);

@@ -17,7 +17,7 @@ unit obNXForgeInvocation;
 
 interface
 
-uses tpNXForge;
+uses SysUtils, tpNXForge;
 
 type
   TNXForgeInvocation = class
@@ -27,14 +27,20 @@ type
     FTemplatePath: string;
     FSourcePath: string;
     FOutputPath: string;
+    FLeftPath: string;
+    FRightPath: string;
     FArtifactText: string;
     FArchiveOperation: string;
     FExcludeNames: string;
+    FIncludeMasks: TStringArray;
     FOverwrite: Boolean;
     FRecursive: Boolean;
     FCleanDestination: Boolean;
     FMissingOk: Boolean;
     FCommand: string;
+    FCommandTemplate: string;
+    FCommandContext: string;
+    FSourceDirectory: string;
     FWorkingDirectory: string;
     FStdOut: string;
     FStdErr: string;
@@ -50,14 +56,20 @@ type
     property TemplatePath: string read FTemplatePath write FTemplatePath;
     property SourcePath: string read FSourcePath write FSourcePath;
     property OutputPath: string read FOutputPath write FOutputPath;
+    property LeftPath: string read FLeftPath write FLeftPath;
+    property RightPath: string read FRightPath write FRightPath;
     property ArtifactText: string read FArtifactText write FArtifactText;
     property ArchiveOperation: string read FArchiveOperation write FArchiveOperation;
     property ExcludeNames: string read FExcludeNames write FExcludeNames;
+    property IncludeMasks: TStringArray read FIncludeMasks write FIncludeMasks;
     property Overwrite: Boolean read FOverwrite write FOverwrite;
     property Recursive: Boolean read FRecursive write FRecursive;
     property CleanDestination: Boolean read FCleanDestination write FCleanDestination;
     property MissingOk: Boolean read FMissingOk write FMissingOk;
     property Command: string read FCommand write FCommand;
+    property CommandTemplate: string read FCommandTemplate write FCommandTemplate;
+    property CommandContext: string read FCommandContext write FCommandContext;
+    property SourceDirectory: string read FSourceDirectory write FSourceDirectory;
     property WorkingDirectory: string read FWorkingDirectory write FWorkingDirectory;
     property StdOut: string read FStdOut write FStdOut;
     property StdErr: string read FStdErr write FStdErr;
