@@ -214,6 +214,8 @@ The FPC definition and `examples/FPC.mustache` support these optional settings:
 | `LabelAndGoto` | Boolean | `True` emits `-Sg` |
 | `OptimizationLevel` | Integer, 1 through 4 | Emits `-O1` through `-O4` |
 | `GenerateReleaseUnitFiles` | Boolean | `True` emits `-Ur` |
+| `StripSymbols` | Boolean | `True` emits `-Xs` |
+| `ResponseFiles` | Text array | Emits `@<file>` for each compiler options file |
 | `TargetOS` | Text | Emits `-T<value>`, e.g. `-Tlinux` |
 | `Assembler` | Text | Emits `-A<value>`, e.g. `-Aas-clang` |
 | `UseLLD` | Boolean | `True` emits `-XLL` |
@@ -232,6 +234,11 @@ exist when the compiler starts. `UnitPaths` and `IncludePaths` emit quoted
 working directory. Explicit unit paths follow the directories selected by `Source`.
 `CompilerUtilitiesPath` follows the same working-directory rule. Target-filtered
 configurations can supply these named settings while sharing one FPC template.
+
+`ResponseFiles` entries are passed to the compiler verbatim; relative paths use
+the operation's working directory. An earlier child may generate an options
+file. The compiler reads it when the FPC child runs. This is FPC's existing
+response-file interface, not NexusScript syntax.
 
 An explicit relative `Compiler` path containing a slash or backslash resolves
 from the document supplying that property, including inherited or referenced

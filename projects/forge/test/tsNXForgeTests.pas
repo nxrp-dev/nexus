@@ -414,19 +414,21 @@ end;
 
 procedure TestFPCSwitches(AContext: TNXTestContext);
 const
-  cSettings: array[0..6] of string = (
+  cSettings: array[0..7] of string = (
     '',
     'DisableDefaultConfigFiles: False; CompileSystemUnit: False; ' +
       'LabelAndGoto: False; GenerateReleaseUnitFiles: False; ' +
-      'UseLLD: False; PositionIndependentCode: False;',
+      'UseLLD: False; PositionIndependentCode: False; StripSymbols: False;',
     'DisableDefaultConfigFiles: True; CompileSystemUnit: True; ' +
       'LabelAndGoto: True; OptimizationLevel: 2; GenerateReleaseUnitFiles: True;',
     'OptimizationLevel: 1;', 'OptimizationLevel: 3;', 'OptimizationLevel: 4;',
     'TargetOS: "android"; Assembler: "as-clang"; UseLLD: True; ' +
-      'PositionIndependentCode: True; CompilerUtilitiesPath: "C:/NDK tools/bin";');
-  cSwitches: array[0..6] of string = (
+      'PositionIndependentCode: True; CompilerUtilitiesPath: "C:/NDK tools/bin";',
+    'StripSymbols: True; ResponseFiles: ["build options.cfg"];');
+  cSwitches: array[0..7] of string = (
     '', '', ' -n -Us -Sg -O2 -Ur', ' -O1', ' -O3', ' -O4',
-    ' "-Tandroid" "-Aas-clang" -XLL -Cg "-FDC:/NDK tools/bin"');
+    ' "-Tandroid" "-Aas-clang" -XLL -Cg "-FDC:/NDK tools/bin"',
+    ' -Xs "@build options.cfg"');
 var
   lForge: TNXForge;
   lDirectory, lTemplate, lExpected, lCompiler: string;
@@ -502,14 +504,15 @@ end;
 
 procedure TestFPCSwitchValidation(AContext: TNXTestContext);
 const
-  cInvalidSettings: array[0..13] of string = (
+  cInvalidSettings: array[0..15] of string = (
     'DisableDefaultConfigFiles: invalid;', 'CompileSystemUnit: invalid;',
     'LabelAndGoto: invalid;', 'GenerateReleaseUnitFiles: invalid;',
     'OptimizationLevel: 0;', 'OptimizationLevel: 5;',
     'OptimizationLevel: 2.5;', 'OptimizationLevel: "2 -Xs";',
     'Arguments: ["-n"];', 'TargetOS: [linux];', 'Assembler: ["as-clang"];',
     'UseLLD: invalid;', 'PositionIndependentCode: invalid;',
-    'CompilerUtilitiesPath: ["tools"];');
+    'CompilerUtilitiesPath: ["tools"];', 'StripSymbols: invalid;',
+    'ResponseFiles: "file.cfg";');
 var
   lForge: TNXForge;
   lDirectory, lSetting: string;

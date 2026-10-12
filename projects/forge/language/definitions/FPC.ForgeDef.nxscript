@@ -65,6 +65,10 @@ Language ForgeFPC {
                     Value Value { Scalar: Integer; AllowedValues: [1, 2, 3, 4]; }
                 },
                 Property GenerateReleaseUnitFiles { Value Value { Scalar: Boolean; } },
+                Property StripSymbols { Value Value { Scalar: Boolean; } },
+                Property ResponseFiles {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
                 Property TargetOS { Value Value { EffectiveCategories: [Text]; } },
                 Property Assembler { Value Value { EffectiveCategories: [Text]; } },
                 Property UseLLD { Value Value { Scalar: Boolean; } },
