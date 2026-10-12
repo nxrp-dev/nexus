@@ -281,10 +281,24 @@ Packages import is 2026-10-08, `09d5f97`, for every row.** Our paths are under P
 - **Our location/status:** External `compression/abbrevia/external/abbrevia`;
   maintained directly here, formerly a separate NexusAbbrevia fork.
 - **SPDX:** Abbrevia core `MPL-1.1`; bundled codecs have the separate terms below.
-- **Preserved work:** all 627 imported files, original notices and Delphi material,
-  NexusFPC corrections to 15 Pascal files, codec sources and bundled objects.
+- **Preserved work:** the original import contained 627 files. Retained material
+  includes original notices, the NexusFPC runtime corrections, codec sources,
+  nonvisual regression cases, and archive fixtures.
   Corrections cover compiler directives/units, streams and byte buffers, archive
   metadata, paths, TAR processing, CRT helpers, and WavPack helpers.
+  The Win64 PPMd binding's C record alignment, 32-bit internal references, and
+  packed helper records were corrected on **2026-10-12**, with successful
+  extraction of the bundled PPMd corpus.
+  Unit names use the two-part `Abbrevia.Name` form; descriptive class and exception
+  names retain `TAb` and `EAb` prefixes. Source, package, test, and resource
+  references were updated together on **2026-10-12**.
+  Delphi/C++Builder package projects, VCL/CLX/FireMonkey controls and editors,
+  Delphi COM automation wrappers, IDE resources, GUI test runners, and Borland
+  OMF/ELF codec objects were retired on **2026-10-12**. Runtime components and
+  compound-file storage remain; only the latter's VCL tree-view methods were
+  removed. Compiler-specific branches now use NexusFPC and its RTL bindings.
+  Borland-only C header branches were removed; LLVM still builds the codec
+  sources through the package's Forge recipe.
   The reproducible LLVM recipe is `compression/abbrevia/Package.nxscript`;
   the former `scripts/Build-AbbreviaLLVM.ps1` recovery recipe was retired after
   migration to direct Forge operations on **2026-10-12**.
