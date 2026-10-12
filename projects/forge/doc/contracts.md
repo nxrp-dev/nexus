@@ -221,6 +221,13 @@ The FPC definition and `examples/FPC.mustache` support these optional settings:
 | `UseLLD` | Boolean | `True` emits `-XLL` |
 | `PositionIndependentCode` | Boolean | `True` emits `-Cg` |
 | `CompilerUtilitiesPath` | Text | Emits quoted `-FD<path>` |
+| `WorkingDirectory` | Text | Sets the compiler process directory using ordinary Forge path rules |
+| `ExecutableOutput` | Text | Emits quoted `-FE<path>` |
+| `PackageSDKIdentity` / `PackageBuildIdentity` | Text | Emit `-Fj` / `-Fk` identities before response files |
+| `PackagePaths` | Text array | Emits `-Fp` for each package directory |
+| `RequiredPackages` | Text array | Emits `-FP` after package search paths |
+| `SmartLinkUnits` / `SmartLink` | Boolean | Emit `-CX` / `-XX` |
+| `ConsoleApplication` / `GUIApplication` | Boolean | Emit `-WC` / `-WG`; choose one subsystem |
 
 Omitted properties and `False` Boolean values emit no switch. `-Ur` prevents
 automatic recompilation of the generated release units. These switches are
@@ -588,7 +595,81 @@ formats, identity mismatches and compiler-query failures stop subsequent tasks
 without rewriting an existing manifest. After validation it queries the staged
 compiler with `-iV`, hashes the compiler and direct files in `units` and `packages`,
 and writes `sdk.json` Format 2 with relative artifact paths and SHA-256 hashes.
-Distributed SDK consumer helpers remain separate from these generation operations.
+
+### Package consumer builds
+
+`PackageBuildPrepare` and `PackageBundlePublish` are native file operations at
+the root or inside Group, Package and Project. `examples/PackageBuild.nxscript`
+composes explicit work-directory cleanup, preparation, ordinary FPC compilation
+and publication in that order. The Win64 SDK ships this group and `FPC.mustache`
+under `forge/`. Consumers need Forge and its language definitions installed.
+
+```text
+PackageBuildPrepare Prepare {
+    SDKDirectory: "sdk";
+    WorkDirectory: "build/package-work";
+    PackageDirectories: ["providers"];
+}
+// Compile into the prepared work directory, using its package.cfg response file.
+PackageBundlePublish Publish {
+    WorkDirectory: "build/package-work";
+    OutputDirectory: "distribution";
+    Name: "mypackage";
+    Kind: Package;
+}
+```
+
+Preparation verifies Format 2 Win64 or x86-64 glibc Linux SDK artifact hashes, resolves each
+provider's selected generation, and checks NXP004/ABI-4 PCP/image pairs and exact
+dependency build identities. It requires an empty work directory and writes
+`package.cfg` plus `package-build.json` containing a fresh build identity and
+the hashes of the selected package inputs. `PackageDirectories` is optional;
+the SDK foundation is always included. Compilation remains an FPC child.
+
+Publication requires `Kind: Package`, `Console` or `GUI`. It rejects changed
+inputs, mismatched output identities, missing pairs and incompatible dependency
+builds. Packages publish PCP/image pairs; applications publish their executable and the
+supplied shared-library closure. Each completed `generation-<id>` has a hash manifest;
+`current.json` changes atomically only after copying and validation succeed.
+An I/O failure can leave an unselected generation. Existing generations remain
+until explicitly removed. Builds and publication are sequential.
+
+Provider directories may be raw PCP/image directories or published distributions.
+When present, their manifests are enforced, including rejection of unlisted
+artifacts. These operations do not acquire packages or select versions.
+Rebuilding a provider already consumed within a bundle requires rebuilding its
+dependent distribution in a new output directory.
+
+When composing the supplied group, explicitly derive replaced children from
+`PackageBuild.Prepare`, `PackageBuild.Compile`, and `PackageBuild.Publish` to
+retain their inherited settings. Supply absolute SDK/work paths: the group
+combines them into compiler and response-file paths before changing the compiler
+working directory. Relative literal FPC paths use that work directory.
+See the NexusFPC SDK guide for a complete example.
+
+Linux consumers compose `LinuxPackageBuild` for providers and
+`LinuxPackageApplication` for executables. These derive from the same ordered
+group; platform linker settings remain in the recipes. Application composition
+adds nxrtl and PIE/no-COPY/no-text-relocation/RELRO/eager-binding options to the
+shared PIC and `$ORIGIN` settings. Existing array composition appends entries.
+Preparation records the SDK target and writes resolved rpath-link directories
+to its response file. Publication preserves executable permissions on Unix.
+
+The native ELF reader supports little-endian x86-64 ELF64 and ABI 4. It reads
+section, symbol and RELA tables, resolving local descriptor pointers without
+loading code. It verifies package identities, descriptor dependency build IDs
+against PCP declarations, and application dependencies against the supplied
+providers. Truncated structures, invalid table links/indexes and external
+descriptor pointers are rejected. Linux SDK construction remains a separate,
+deferred task. Existing Linux Format 2 SDK manifests use their original lowercase
+keys; new publication manifests use the common Format/Files/Generation structure.
+
+This is a temporary migration of existing SDK policy into native operations.
+The platform layouts, identities, validation and generation publication remain
+SDK-specific responsibilities in Forge pending the owner's architectural review.
+The source-tree PowerShell compile entry point only creates the composed Forge
+document and captures its log for existing example/test callers; it is not
+distributed in the SDK.
 
 ## Execution and failure
 

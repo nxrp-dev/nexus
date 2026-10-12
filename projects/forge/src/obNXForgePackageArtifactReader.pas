@@ -9,7 +9,7 @@ interface
 uses Classes, tpNXForgePackage;
 
 type
-  // Reads NXP004 and Win64 ABI-4 identities without mapping or executing a DLL.
+  // Reads NXP004 and PE/ELF ABI-4 identities without executing package code.
   TNXForgePackageArtifactReader = class
   private
     FData: TMemoryStream;
@@ -25,12 +25,20 @@ type
     function ImageOffset(ARVA, ASize: QWord): QWord;
     function ImageText(AAddress: QWord): string;
     function ExportName(ARVA: QWord): string;
+    function ELFSection(AIndex: QWord): QWord;
+    function ELFOffset(AAddress, ASize: QWord): QWord;
+    function ELFString(AOffset, ALimit: QWord): string;
+    function ELFSymbolName(ATable, ASymbol: QWord): string;
+    function ELFRelocation(AAddress: QWord; out AKind, ASymbol, ATable, AAddend: QWord): Boolean;
+    function ELFPointer(AAddress: QWord): QWord;
+    function ELFShortText(AAddress: QWord): string;
     procedure CheckIdentity(const AName, ASDK, ABuild,
       AExpectedName, AExpectedSDK, AExpectedBuild: string);
   public
     constructor Create(const AFileName: string);
     destructor Destroy; override;
     function ReadMetadata: TNXForgePackageMetadata;
+    function ReadELFImage: TNXForgePackageMetadata;
     procedure CheckMetadata(const AName, ASDK, ABuild: string);
     procedure CheckImage(const AName, ASDK, ABuild: string);
   end;
@@ -277,6 +285,222 @@ begin
     Inc(lIndex);
   end;
   Invalid('Missing package descriptor export');
+end;
+
+function TNXForgePackageArtifactReader.ELFSection(AIndex: QWord): QWord;
+begin
+  if AIndex >= FSectionCount then Invalid('Invalid ELF section index');
+  Result := FSectionTable + AIndex * 64;
+end;
+
+function TNXForgePackageArtifactReader.ELFOffset(AAddress, ASize: QWord): QWord;
+var
+  lIndex: Integer;
+  lSection, lAddress, lSize, lDelta: QWord;
+begin
+  for lIndex := 0 to FSectionCount - 1 do
+  begin
+    lSection := ELFSection(lIndex);
+    if (Number(lSection + 4, 4) = 8) or (Number(lSection + 8, 8) and 2 = 0) then Continue;
+    lAddress := Number(lSection + 16, 8);
+    lSize := Number(lSection + 32, 8);
+    if AAddress < lAddress then Continue;
+    lDelta := AAddress - lAddress;
+    if (lDelta >= lSize) or (ASize > lSize - lDelta) then Continue;
+    Result := Number(lSection + 24, 8) + lDelta;
+    RequireRange(Result, ASize);
+    Exit;
+  end;
+  Invalid('ELF address has no file data');
+  Result := 0;
+end;
+
+function TNXForgePackageArtifactReader.ELFString(AOffset, ALimit: QWord): string;
+var
+  lEnd: QWord;
+begin
+  if AOffset >= ALimit then Invalid('Invalid ELF string');
+  lEnd := AOffset;
+  while (lEnd < ALimit) and (Number(lEnd, 1) <> 0) do Inc(lEnd);
+  if lEnd = ALimit then Invalid('Unterminated ELF string');
+  Result := Text(AOffset, lEnd - AOffset);
+end;
+
+function TNXForgePackageArtifactReader.ELFSymbolName(ATable, ASymbol: QWord): string;
+var
+  lStrings, lStart, lSize, lName: QWord;
+begin
+  lStrings := ELFSection(Number(ATable + 40, 4));
+  lStart := Number(lStrings + 24, 8);
+  lSize := Number(lStrings + 32, 8);
+  lName := Number(ASymbol, 4);
+  if lName >= lSize then Invalid('Invalid ELF symbol name');
+  Result := ELFString(lStart + lName, lStart + lSize);
+end;
+
+function TNXForgePackageArtifactReader.ELFRelocation(AAddress: QWord;
+  out AKind, ASymbol, ATable, AAddend: QWord): Boolean;
+var
+  lIndex: Integer;
+  lSection, lOffset, lLimit, lInfo, lSymbolIndex: QWord;
+begin
+  Result := False;
+  for lIndex := 0 to FSectionCount - 1 do
+  begin
+    lSection := ELFSection(lIndex);
+    if Number(lSection + 4, 4) <> 4 then Continue;
+    lOffset := Number(lSection + 24, 8);
+    lLimit := lOffset + Number(lSection + 32, 8);
+    while lOffset < lLimit do
+    begin
+      if Number(lOffset, 8) = AAddress then
+      begin
+        if Result then Invalid('Duplicate ELF descriptor relocation');
+        lInfo := Number(lOffset + 8, 8);
+        AKind := lInfo and $FFFFFFFF;
+        ATable := ELFSection(Number(lSection + 40, 4));
+        lSymbolIndex := lInfo shr 32;
+        if lSymbolIndex >= Number(ATable + 32, 8) div 24 then Invalid('Invalid ELF relocation symbol');
+        ASymbol := Number(ATable + 24, 8) + lSymbolIndex * 24;
+        AAddend := Number(lOffset + 16, 8);
+        Result := True;
+      end;
+      Inc(lOffset, 24);
+    end;
+  end;
+end;
+
+function TNXForgePackageArtifactReader.ELFPointer(AAddress: QWord): QWord;
+var
+  lKind, lSymbol, lTable, lAddend, lValue, lMagnitude: QWord;
+begin
+  if not ELFRelocation(AAddress, lKind, lSymbol, lTable, lAddend) then
+    Exit(Number(ELFOffset(AAddress, 8), 8));
+  if lKind = 8 then Exit(lAddend); // R_X86_64_RELATIVE, zero load bias.
+  if (lKind <> 1) or (Number(lSymbol + 6, 2) = 0) then
+    Invalid('ELF descriptor points outside its image');
+  lValue := Number(lSymbol + 8, 8);
+  if lAddend and (QWord(1) shl 63) <> 0 then
+  begin
+    lMagnitude := not lAddend + 1;
+    if lValue < lMagnitude then Invalid('Invalid ELF relocation addend');
+    Result := lValue - lMagnitude;
+  end
+  else
+  begin
+    if lAddend > High(QWord) - lValue then Invalid('Invalid ELF relocation addend');
+    Result := lValue + lAddend;
+  end;
+end;
+
+function TNXForgePackageArtifactReader.ELFShortText(AAddress: QWord): string;
+var
+  lSize, lOffset: QWord;
+begin
+  lSize := Number(ELFOffset(AAddress, 1), 1);
+  lOffset := ELFOffset(AAddress, lSize + 1);
+  Result := Text(lOffset + 1, lSize);
+end;
+
+function TNXForgePackageArtifactReader.ReadELFImage: TNXForgePackageMetadata;
+var
+  lIndex, lDependencyIndex: Integer;
+  lSection, lType, lOffset, lSize, lEnd, lLinked, lInfo, lRoot: QWord;
+  lDescriptor, lDependencies, lIdentities, lCount, lSlot: QWord;
+  lKind, lSymbol, lTable, lAddend: QWord;
+  lName: string;
+  lNames: TStringList;
+begin
+  Result := Default(TNXForgePackageMetadata);
+  RequireRange(0, 64);
+  if (Text(0, 7) <> #127'ELF'#2#1#1) or (Number(18, 2) <> 62) or
+    not (Number(16, 2) in [2, 3]) then Invalid('Not an x86-64 ELF image');
+  FSectionTable := Number(40, 8);
+  FSectionCount := Number(60, 2);
+  if (Number(58, 2) <> 64) or (FSectionCount = 0) or (FSectionTable < 64) then
+    Invalid('Unsupported ELF section layout');
+  RequireRange(FSectionTable, QWord(FSectionCount) * 64);
+  for lIndex := 0 to FSectionCount - 1 do
+  begin
+    lSection := ELFSection(lIndex);
+    lType := Number(lSection + 4, 4);
+    if lType <> 8 then RequireRange(Number(lSection + 24, 8), Number(lSection + 32, 8));
+    if (lType = 2) or (lType = 11) or (lType = 4) then
+    begin
+      if (Number(lSection + 56, 8) <> 24) or (Number(lSection + 32, 8) mod 24 <> 0) then
+        Invalid('Invalid ELF table size');
+      lLinked := ELFSection(Number(lSection + 40, 4));
+      if (lType <> 4) and (Number(lLinked + 4, 4) <> 3) then Invalid('Invalid ELF string table');
+      if (lType = 4) and (Number(lLinked + 4, 4) <> 2) and
+        (Number(lLinked + 4, 4) <> 11) then Invalid('Invalid ELF relocation table');
+      if lType = 4 then
+      begin
+        lOffset := Number(lSection + 24, 8);
+        lEnd := lOffset + Number(lSection + 32, 8);
+        while lOffset < lEnd do
+        begin
+          if Number(lOffset + 8, 8) shr 32 >= Number(lLinked + 32, 8) div 24 then
+            Invalid('Invalid ELF relocation symbol');
+          Inc(lOffset, 24);
+        end;
+      end;
+    end;
+  end;
+  lInfo := 0;
+  lRoot := 0;
+  for lIndex := 0 to FSectionCount - 1 do
+  begin
+    lSection := ELFSection(lIndex);
+    lType := Number(lSection + 4, 4);
+    if (lType <> 2) and (lType <> 11) then Continue;
+    lOffset := Number(lSection + 24, 8);
+    lSize := Number(lSection + 32, 8);
+    lEnd := lOffset + lSize;
+    while lOffset < lEnd do
+    begin
+      lName := ELFSymbolName(lSection, lOffset);
+      if Number(lOffset + 6, 2) <> 0 then
+      begin
+        if lName = 'FPC_PACKAGE_INFO' then lInfo := Number(lOffset + 8, 8);
+        if lName = 'FPC_PACKAGE_ROOT' then lRoot := Number(lOffset + 8, 8);
+      end;
+      Inc(lOffset, 24);
+    end;
+  end;
+  if lInfo <> 0 then lDescriptor := ELFPointer(lInfo)
+  else if lRoot <> 0 then lDescriptor := lRoot
+  else begin Invalid('Missing ELF package descriptor'); Exit; end;
+  lOffset := ELFOffset(lDescriptor, 168);
+  if (Number(lOffset, 8) <> $4E58504B) or (Number(lOffset + 8, 8) <> 4) or
+    (Number(lOffset + 16, 8) <> 168) then Invalid('Unsupported ELF package descriptor');
+  Result.Name := ELFShortText(ELFPointer(lDescriptor + 6 * 8));
+  Result.SDK := ELFShortText(ELFPointer(lDescriptor + 18 * 8));
+  Result.Build := ELFShortText(ELFPointer(lDescriptor + 19 * 8));
+  lCount := Number(lOffset + 9 * 8, 8);
+  if lCount > 65535 then Invalid('Invalid ELF dependency count');
+  lDependencies := ELFPointer(lDescriptor + 10 * 8);
+  lIdentities := ELFPointer(lDescriptor + 20 * 8);
+  SetLength(Result.Requires, lCount);
+  lNames := TStringList.Create;
+  try
+    for lDependencyIndex := 0 to Integer(lCount) - 1 do
+    begin
+      lSlot := ELFPointer(lDependencies + QWord(lDependencyIndex) * 8);
+      if not ELFRelocation(lSlot, lKind, lSymbol, lTable, lAddend) then
+        Invalid('Missing ELF dependency relocation');
+      if (lKind <> 1) or (Number(lSymbol + 6, 2) <> 0) then Invalid('Invalid ELF dependency relocation');
+      lName := ELFSymbolName(lTable, lSymbol);
+      if Copy(lName, 1, 12) <> 'FPC_PACKAGE_' then Invalid('Invalid ELF package dependency');
+      lName := Copy(lName, 13, MaxInt);
+      if (lName = '') or (lNames.IndexOf(lName) >= 0) then Invalid('Invalid or duplicate ELF dependency');
+      lNames.Add(lName);
+      Result.Requires[lDependencyIndex].Name := lName;
+      Result.Requires[lDependencyIndex].Build := ELFShortText(
+        ELFPointer(lIdentities + QWord(lDependencyIndex) * 8));
+    end;
+  finally
+    lNames.Free;
+  end;
 end;
 
 end.

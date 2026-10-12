@@ -26,7 +26,8 @@ implementation
 uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
   obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine,
-  tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK;
+  tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK,
+  utNXForgePackageBuild, obNXForgePackageArtifactReader, tpNXForgePackage;
 
 function Root: string;
 begin
@@ -414,7 +415,7 @@ end;
 
 procedure TestFPCSwitches(AContext: TNXTestContext);
 const
-  cSettings: array[0..7] of string = (
+  cSettings: array[0..9] of string = (
     '',
     'DisableDefaultConfigFiles: False; CompileSystemUnit: False; ' +
       'LabelAndGoto: False; GenerateReleaseUnitFiles: False; ' +
@@ -424,11 +425,13 @@ const
     'OptimizationLevel: 1;', 'OptimizationLevel: 3;', 'OptimizationLevel: 4;',
     'TargetOS: "android"; Assembler: "as-clang"; UseLLD: True; ' +
       'PositionIndependentCode: True; CompilerUtilitiesPath: "C:/NDK tools/bin";',
-    'StripSymbols: True; ResponseFiles: ["build options.cfg"];');
-  cSwitches: array[0..7] of string = (
+    'StripSymbols: True; ResponseFiles: ["build options.cfg"];',
+    'PackageSDKIdentity: "sdk"; PackageBuildIdentity: "build"; ResponseFiles: ["package.cfg"];',
+    'SmartLink: False; SmartLinkUnits: False; ConsoleApplication: False; GUIApplication: False;');
+  cSwitches: array[0..9] of string = (
     '', '', ' -n -Us -Sg -O2 -Ur', ' -O1', ' -O3', ' -O4',
     ' "-Tandroid" "-Aas-clang" -XLL -Cg "-FDC:/NDK tools/bin"',
-    ' -Xs "@build options.cfg"');
+    ' -Xs "@build options.cfg"', ' "-Fjsdk" "-Fkbuild" "@package.cfg"', '');
 var
   lForge: TNXForge;
   lDirectory, lTemplate, lExpected, lCompiler: string;
@@ -457,6 +460,24 @@ begin
       AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
         'Named FPC settings render through the shared Mustache template');
     end;
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'FPC Compile { Template: "' + lTemplate + '"; Compiler: "' + lCompiler + '"; ' +
+      'WorkingDirectory: "' + StringReplace(lDirectory, '\', '/', [rfReplaceAll]) + '"; ' +
+      'Source: ["input.pas"]; EntryPoint: "input.pas"; ExecutableOutput: "compiled apps"; ' +
+      'PackagePaths: ["provider one", "provider two"]; RequiredPackages: [nxrtl, provider]; ' +
+      'SmartLinkUnits: True; SmartLink: True; ConsoleApplication: True; }');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing compiler');
+    AContext.AssertEquals(1, lForge.Invocations.Count, lForge.Diagnostic);
+    AContext.AssertTrue(Pos(' "-FEcompiled apps" "-Fpprovider one" "-Fpprovider two" ' +
+      '"-FPnxrtl" "-FPprovider" -CX -XX -WC', lForge.Invocations[0].Command) > 0,
+      'Package search precedes requirements and consumer switches render together');
+    AContext.AssertEquals(ExcludeTrailingPathDelimiter(ExpandFileName(lDirectory)),
+      ExcludeTrailingPathDelimiter(ExpandFileName(lForge.Invocations[0].WorkingDirectory)),
+      'Explicit FPC work directory');
+    Save(lDirectory + 'Build.nxscript', StringReplace(LoadRaw(lDirectory + 'Build.nxscript'),
+      'ConsoleApplication: True', 'GUIApplication: True', []));
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Missing compiler');
+    AContext.AssertTrue(Pos(' -CX -XX -WG', lForge.Invocations[0].Command) > 0, 'GUI subsystem switch');
   finally
     lForge.Free;
   end;
@@ -2117,6 +2138,125 @@ var
     AContext.AssertFalse(lForge.Invocations[1].Started, AMessage + ' stops later tasks');
     AContext.AssertEquals(lManifest, LoadRaw(lSDK + 'sdk.json'), AMessage + ' preserves manifest');
   end;
+
+  procedure CheckConsumerBuild;
+  var
+    lWork, lOutput, lSelection, lGeneration, lOwnBuild, lOwnPCP, lOwnImage: string;
+    lData: TJSONObject;
+    lRejected: Boolean;
+
+    procedure RejectPublication(const AExpected: string);
+    begin
+      lRejected := False;
+      try
+        PublishForgePackageBundle(lWork, lOutput, 'mypkg', 'Package');
+      except
+        on E: Exception do
+          lRejected := Pos(AExpected, E.Message) > 0;
+      end;
+      AContext.AssertTrue(lRejected, 'Publication rejects ' + AExpected);
+      AContext.AssertEquals(lSelection, LoadRaw(lOutput + '/current.json'),
+        'Failed publication preserves the selected generation');
+    end;
+  begin
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'Group Consumer { PackageBuildPrepare Prepare { SDKDirectory: "sdk"; WorkDirectory: "app work"; } ' +
+      'WriteTextFile FakeCompiler { Path: "app work/app.exe"; Text: "fixture executable"; } ' +
+      'PackageBundlePublish Publish { WorkDirectory: "app work"; OutputDirectory: "app output"; ' +
+      'Name: "app"; Kind: Console; } }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(3, lForge.Invocations.Count, 'Prepare, produce output, publish');
+    lOutput := lDirectory + 'app output';
+    lSelection := LoadRaw(lOutput + '/current.json');
+    lGeneration := ResolveForgePackageBundle(lOutput);
+    AContext.AssertEquals(LoadRaw(lDirectory + 'app work/app.exe'), LoadRaw(lGeneration + '/app.exe'),
+      'Application publication copies the produced artifact unchanged');
+    AContext.AssertEquals(lImage, LoadRaw(lGeneration + '/nxrtl.dll'));
+    AContext.AssertFalse(FileExists(lGeneration + '/nxrtl.pcp'), 'Applications publish only runtime artifacts');
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Reusing nonempty work is rejected');
+    AContext.AssertTrue(Pos('must be empty', lForge.Diagnostic) > 0, lForge.Diagnostic);
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Preparation failure prevents compile');
+    AContext.AssertEquals(lSelection, LoadRaw(lOutput + '/current.json'));
+
+    // A new provider uses its prepared identity and records an exact foundation dependency.
+    lWork := lDirectory + 'provider work';
+    lOutput := lDirectory + 'provider output';
+    PrepareForgePackageBuild(lSDK, lWork, []);
+    lData := GetJSON(LoadRaw(lWork + '/package-build.json')) as TJSONObject;
+    try
+      lOwnBuild := lData.Get('Build', '');
+      AContext.AssertEquals(32, Length(lOwnBuild));
+    finally
+      lData.Free;
+    end;
+    lOwnPCP := StringReplace(StringReplace(lPCP, 'nxrtl', 'mypkg', [rfReplaceAll]),
+      lBuild, lOwnBuild, [rfReplaceAll]);
+    lOwnPCP := Copy(lOwnPCP, 1, Length(lOwnPCP) - 6) +
+      Entry(245, ShortText('nxrtl') + ShortText(lBuild)) + Entry(255, '');
+    lOwnImage := StringReplace(StringReplace(lImage, 'nxrtl', 'mypkg', [rfReplaceAll]),
+      lBuild, lOwnBuild, [rfReplaceAll]);
+    Save(lWork + '/mypkg.pcp', lOwnPCP);
+    Save(lWork + '/mypkg.dll', lOwnImage);
+    PublishForgePackageBundle(lWork, lOutput, 'mypkg', 'Package');
+    lSelection := LoadRaw(lOutput + '/current.json');
+    lGeneration := ResolveForgePackageBundle(lOutput);
+    AContext.AssertEquals(lOwnPCP, LoadRaw(lGeneration + '/mypkg.pcp'));
+    AContext.AssertEquals(lOwnImage, LoadRaw(lGeneration + '/mypkg.dll'));
+    AContext.AssertEquals(lPCP, LoadRaw(lGeneration + '/nxrtl.pcp'));
+    PrepareForgePackageBuild(lSDK, lDirectory + 'dependent work', [lOutput]);
+    AContext.AssertTrue(Pos(lGeneration, LoadRaw(lDirectory + 'dependent work/package.cfg')) > 0,
+      'Selected provider generation supplies compiler paths');
+
+    Save(lWork + '/mypkg.pcp', StringReplace(lOwnPCP, lOwnBuild, StringOfChar('C', 32), []));
+    RejectPublication('does not match the prepared build');
+    Save(lWork + '/mypkg.pcp', lOwnPCP);
+    Save(lWork + '/mypkg.dll', StringReplace(lOwnImage, lOwnBuild, StringOfChar('C', 32), []));
+    RejectPublication('identity does not match');
+    Save(lWork + '/mypkg.dll', lOwnImage);
+    Save(lWork + '/mypkg.pcp', StringReplace(lOwnPCP, lBuild, StringOfChar('C', 32), []));
+    RejectPublication('Dependency build mismatch');
+    Save(lWork + '/mypkg.pcp', lOwnPCP);
+    Save(lSDK + 'packages/nxrtl.dll', lImage + 'changed');
+    RejectPublication('input changed during compilation');
+    lRejected := False;
+    try
+      PrepareForgePackageBuild(lSDK, lDirectory + 'bad SDK work', []);
+    except
+      on E: Exception do lRejected := Pos('differs from its recorded build', E.Message) > 0;
+    end;
+    AContext.AssertTrue(lRejected, 'SDK hash validation rejects changed foundation');
+    AContext.AssertFalse(FileExists(lDirectory + 'bad SDK work/package.cfg'));
+    Save(lSDK + 'packages/nxrtl.dll', lImage);
+
+    Save(lGeneration + '/mypkg.dll', lOwnImage + 'changed');
+    lRejected := False;
+    try
+      ResolveForgePackageBundle(lOutput);
+    except
+      on E: Exception do lRejected := Pos('differs from its manifest', E.Message) > 0;
+    end;
+    AContext.AssertTrue(lRejected, 'Published artifact tampering is rejected');
+    Save(lGeneration + '/mypkg.dll', lOwnImage);
+    Save(lGeneration + '/unlisted.dll', 'unlisted');
+    lRejected := False;
+    try
+      ResolveForgePackageBundle(lOutput);
+    except
+      on E: Exception do lRejected := Pos('Unlisted package bundle artifact', E.Message) > 0;
+    end;
+    AContext.AssertTrue(lRejected, 'Extra runtime artifacts are rejected');
+    DeleteFile(lGeneration + '/unlisted.dll');
+    Save(lOutput + '/current.json', '{"Format":1,"Generation":"../escape"}');
+    lRejected := False;
+    try
+      ResolveForgePackageBundle(lOutput);
+    except
+      on E: Exception do lRejected := Pos('Invalid bundle selection', E.Message) > 0;
+    end;
+    AContext.AssertTrue(lRejected, 'Selection cannot escape its distribution');
+    Save(lOutput + '/current.json', lSelection);
+    Save(lDirectory + 'Build.nxscript', lCommand);
+  end;
 begin
   lDirectory := TestDir('package manifest & paths');
   lSDK := lDirectory + 'sdk/';
@@ -2165,7 +2305,7 @@ begin
   lImage := lBinary;
   Save(lSDK + 'packages/nxrtl.pcp', lPCP);
   Save(lSDK + 'packages/nxrtl.dll', lImage);
-  Save(lSDK + 'units/startup.ppu', 'abc');
+  Save(lSDK + 'units/sysinitpkg.ppu', 'abc');
   Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
   lInvocation := TNXForgeInvocation.Create;
   try
@@ -2189,12 +2329,13 @@ begin
       AContext.AssertEquals('3.3.1', lRecord.Get('CompilerVersion', ''));
       AContext.AssertEquals(lIdentity, lRecord.Get('SDKIdentity', ''));
       AContext.AssertEquals(4, lRecord.Arrays['Artifacts'].Count);
-      AContext.AssertEquals('units/startup.ppu', lRecord.Arrays['Artifacts'].Objects[3].Get('Path', ''));
+      AContext.AssertEquals('units/sysinitpkg.ppu', lRecord.Arrays['Artifacts'].Objects[3].Get('Path', ''));
       AContext.AssertEquals('BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD',
         lRecord.Arrays['Artifacts'].Objects[3].Get('SHA256', ''), 'Known SHA-256 artifact vector');
     finally
       lRecord.Free;
     end;
+    CheckConsumerBuild;
     // Corrupt separate structures; every failure must preserve the prior manifest.
     for lIndex := 0 to 8 do
     begin
@@ -2235,6 +2376,115 @@ begin
     AssertNoLaunch(AContext, lForge);
   finally
     lForge.Free;
+  end;
+end;
+
+procedure TestPackageELFImage(AContext: TNXTestContext);
+var
+  lDirectory, lBinary, lValid: string;
+  lReader: TNXForgePackageArtifactReader;
+  lMetadata: TNXForgePackageMetadata;
+  lIndex: Integer;
+  lRejected: Boolean;
+
+  procedure Put(AOffset: Integer; AValue: QWord; ASize: Integer = 8);
+  var
+    lByte: Integer;
+  begin
+    for lByte := 0 to ASize - 1 do lBinary[AOffset + lByte + 1] := Chr((AValue shr (8 * lByte)) and $FF);
+  end;
+
+  procedure PutText(AOffset: Integer; const AText: string);
+  begin
+    Move(AText[1], lBinary[AOffset + 1], Length(AText));
+  end;
+
+  procedure Section(AIndex, AType, AFlags, AAddress, AOffset, ASize, ALink, AEntrySize: Integer);
+  var
+    lBase: Integer;
+  begin
+    lBase := $900 + AIndex * 64;
+    Put(lBase + 4, AType, 4); Put(lBase + 8, AFlags); Put(lBase + 16, AAddress);
+    Put(lBase + 24, AOffset); Put(lBase + 32, ASize); Put(lBase + 40, ALink, 4);
+    Put(lBase + 56, AEntrySize);
+  end;
+
+  procedure Relocation(AIndex, AAddress, AValue: Integer; AKind: QWord = 8);
+  begin
+    Put($800 + AIndex * 24, AAddress);
+    Put($808 + AIndex * 24, AKind);
+    Put($810 + AIndex * 24, AValue);
+  end;
+begin
+  lDirectory := TestDir('package-elf');
+  lBinary := StringOfChar(#0, $A40);
+  PutText(0, #127'ELF'#2#1#1); Put(16, 3, 2); Put(18, 62, 2);
+  Put(40, $900); Put(58, 64, 2); Put(60, 5, 2);
+  Section(1, 1, 2, $1000, $200, $500, 0, 0);
+  Section(2, 3, 0, 0, $700, $80, 0, 0);
+  Section(3, 11, 0, 0, $780, 72, 2, 24);
+  Section(4, 4, 0, 0, $800, 216, 3, 24);
+  PutText($700, #0'FPC_PACKAGE_INFO'#0'FPC_PACKAGE_NXRTL'#0);
+  Put($798, 1, 4); Put($79E, 1, 2); Put($7A0, $1000);
+  Put($7B0, 18, 4); // Undefined provider symbol.
+  Put($280, $4E58504B); Put($288, 4); Put($290, 168); Put($2C8, 1);
+  PutText($400, #5'mypkg');
+  PutText($450, #64 + StringOfChar('A', 64));
+  PutText($4A0, #32 + StringOfChar('B', 32));
+  PutText($520, #32 + StringOfChar('C', 32));
+  Relocation(0, $1000, $1080);
+  Relocation(1, $10B0, $1200);
+  Relocation(2, $1110, $1250);
+  Relocation(3, $1118, $12A0);
+  Relocation(4, $10D0, $12D0);
+  Relocation(5, $1120, $12E0);
+  Relocation(6, $12D0, $12F0);
+  Relocation(7, $12F0, 0, (QWord(2) shl 32) or 1);
+  Relocation(8, $12E0, $1320);
+  lValid := lBinary;
+  Save(lDirectory + 'fixture.so', lBinary);
+  lReader := TNXForgePackageArtifactReader.Create(lDirectory + 'fixture.so');
+  try
+    lMetadata := lReader.ReadELFImage;
+    AContext.AssertEquals('mypkg', lMetadata.Name);
+    AContext.AssertEquals(StringOfChar('A', 64), lMetadata.SDK);
+    AContext.AssertEquals(StringOfChar('B', 32), lMetadata.Build);
+    AContext.AssertEquals(1, Length(lMetadata.Requires));
+    AContext.AssertEquals('NXRTL', lMetadata.Requires[0].Name);
+    AContext.AssertEquals(StringOfChar('C', 32), lMetadata.Requires[0].Build);
+  finally
+    lReader.Free;
+  end;
+  for lIndex := 0 to 7 do
+  begin
+    lBinary := lValid;
+    case lIndex of
+      0: SetLength(lBinary, 63);
+      1: Put(60, 65535, 2);
+      2: Put($900 + 3 * 64 + 40, $FFFFFFFF, 4);
+      3: Put($808, $FFFFFFFF00000001);
+      4: Put($288, 5);
+      5: Put($808, (QWord(2) shl 32) or 1);
+      6: Put($7B6, 1, 2);
+      7:
+        begin
+          Put($810 + 3 * 24, $14FF);
+          Put($6FF, 255, 1); // Build string exceeds the allocated section.
+        end;
+    end;
+    Save(lDirectory + 'fixture.so', lBinary);
+    lRejected := False;
+    lReader := TNXForgePackageArtifactReader.Create(lDirectory + 'fixture.so');
+    try
+      try
+        lMetadata := lReader.ReadELFImage;
+      except
+        on E: Exception do lRejected := True;
+      end;
+    finally
+      lReader.Free;
+    end;
+    AContext.AssertTrue(lRejected, 'Malformed ELF case ' + IntToStr(lIndex) + ' rejected');
   end;
 end;
 
@@ -2281,6 +2531,7 @@ begin
   lSuite.AddTest('BuildIdentity', @TestBuildIdentity);
   lSuite.AddTest('PackageSDKOptions', @TestPackageSDKOptions);
   lSuite.AddTest('PackageSDKManifest', @TestPackageSDKManifest);
+  lSuite.AddTest('PackageELFImage', @TestPackageELFImage);
   lSuite.AddTest('SourceSelections', @TestSourceSelections);
   lSuite.AddTest('StagedSources', @TestStagedSources);
   lSuite.AddTest('SourcePreflight', @TestSourcePreflight);

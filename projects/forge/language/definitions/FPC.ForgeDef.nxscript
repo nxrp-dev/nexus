@@ -17,6 +17,7 @@ Language ForgeFPC {
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } },
                 Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property Compiler {
                     Value Value {

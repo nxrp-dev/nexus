@@ -18,18 +18,25 @@ implementation
 
 uses Classes, fpjson, Generics.Collections, tpNXForgePackage,
   obNXForgePackageArtifactReader, utNXForgePackageFiles
-  {$IFDEF MSWINDOWS}, Windows{$ENDIF};
+  {$IFDEF MSWINDOWS}, Windows{$ENDIF}{$IFDEF UNIX}, BaseUnix{$ENDIF};
 
 function ArtifactName(const AName: string): Boolean;
 var
   lCharacter: Char;
 begin
   Result := False;
-  if AName = '' then Exit;
+  if (AName = '') or (AName = '.') or (AName = '..') then Exit;
   for lCharacter in AName do
     if not (lCharacter in ['A'..'Z', 'a'..'z', '0'..'9', '_', '.', '-']) then Exit;
   Result := SameText(ExtractFileExt(AName), '.pcp') or
-    SameText(ExtractFileExt(AName), '.dll') or SameText(ExtractFileExt(AName), '.exe');
+    SameText(ExtractFileExt(AName), '.dll') or SameText(ExtractFileExt(AName), '.exe') or
+    (ExtractFileExt(AName) = '.so') or (ExtractFileExt(AName) = '');
+end;
+
+function PackageImageName(const AName, ATarget: string): string;
+begin
+  if ATarget = 'x86_64-linux-gnu' then Result := 'lib' + AName + '.so'
+  else Result := AName + '.dll';
 end;
 
 function SDKArtifactPath(const ARoot, ARelative: string): string;
@@ -40,37 +47,58 @@ begin
     IsPathDelimiter(ARelative, 1) then raise Exception.Create('Invalid SDK artifact path');
   lRoot := IncludeTrailingPathDelimiter(ExpandFileName(ARoot));
   lPath := ExpandFileName(lRoot + ARelative);
+  {$IFDEF MSWINDOWS}
   if not SameText(Copy(lPath, 1, Length(lRoot)), lRoot) then
+  {$ELSE}
+  if Copy(lPath, 1, Length(lRoot)) <> lRoot then
+  {$ENDIF}
     raise Exception.Create('SDK artifact path escapes the SDK: ' + ARelative);
   Result := lPath;
 end;
 
-function VerifySDK(const ADirectory: string): string;
+function VerifySDK(const ADirectory: string; out ATarget: string): string;
 var
   lManifest: TJSONObject;
   lFiles: TJSONArray;
   lListed: TStringList;
   lIndex: Integer;
-  lPath, lRequired: string;
+  lPath, lRequired, lCompiler, lArtifacts, lPathKey, lHashKey: string;
 begin
   lManifest := ReadIdentity(IncludeTrailingPathDelimiter(ADirectory) + 'sdk.json');
   lListed := TStringList.Create;
   try
-    if (lManifest.Get('Format', 0) <> 2) or
-      (lManifest.Get('Target', '') <> 'x86_64-win64') then
-      raise Exception.Create('Requires a Format 2 Win64 package SDK');
-    Result := lManifest.Get('SDKIdentity', '');
+    ATarget := lManifest.Get('Target', lManifest.Get('target', ''));
+    if ATarget = 'x86_64-linux-gnu' then
+    begin
+      if lManifest.Get('format', 0) <> 2 then raise Exception.Create('Requires a Format 2 Linux package SDK');
+      Result := lManifest.Get('sdk_identity', '');
+      lCompiler := 'bin/ppcx64';
+      lArtifacts := 'artifacts';
+      lPathKey := 'path';
+      lHashKey := 'sha256';
+    end
+    else
+    begin
+      if (ATarget <> 'x86_64-win64') or (lManifest.Get('Format', 0) <> 2) then
+        raise Exception.Create('Requires a Format 2 Win64 or Linux x86-64 package SDK');
+      Result := lManifest.Get('SDKIdentity', '');
+      lCompiler := 'bin/ppcx64.exe';
+      lArtifacts := 'Artifacts';
+      lPathKey := 'Path';
+      lHashKey := 'SHA256';
+    end;
     RequireHexIdentity(Result, 64);
-    lFiles := lManifest.Arrays['Artifacts'];
+    lFiles := lManifest.Arrays[lArtifacts];
     for lIndex := 0 to lFiles.Count - 1 do
     begin
-      lPath := SDKArtifactPath(ADirectory, lFiles.Objects[lIndex].Get('Path', ''));
+      lPath := SDKArtifactPath(ADirectory, lFiles.Objects[lIndex].Get(lPathKey, ''));
       if (lListed.IndexOf(lPath) >= 0) or
-        not SameText(FileHash(lPath), lFiles.Objects[lIndex].Get('SHA256', '')) then
+        not SameText(FileHash(lPath), lFiles.Objects[lIndex].Get(lHashKey, '')) then
         raise Exception.Create('SDK artifact differs from its recorded build: ' + lPath);
       lListed.Add(lPath);
     end;
-    for lRequired in ['bin/ppcx64.exe', 'units/sysinitpkg.ppu', 'packages/nxrtl.pcp', 'packages/nxrtl.dll'] do
+    for lRequired in [lCompiler, 'units/sysinitpkg.ppu', 'packages/nxrtl.pcp',
+      'packages/' + PackageImageName('nxrtl', ATarget)] do
       if lListed.IndexOf(SDKArtifactPath(ADirectory, lRequired)) < 0 then
         raise Exception.Create('SDK manifest omits required artifact: ' + lRequired);
   finally
@@ -162,8 +190,9 @@ begin
     begin
       lName := ExtractFileName(lPath);
       if not SameText(ExtractFileExt(lName), '.pcp') and
-        not SameText(ExtractFileExt(lName), '.dll') then Continue;
-      if SameText(ChangeFileExt(lName, ''), AReplacing) then Continue;
+        not SameText(ExtractFileExt(lName), '.dll') and (ExtractFileExt(lName) <> '.so') then Continue;
+      if SameText(ChangeFileExt(lName, ''), AReplacing) or
+        SameText(lName, 'lib' + AReplacing + '.so') then Continue;
       AddInput(AInputs, lName, lPath);
     end;
   finally
@@ -171,15 +200,32 @@ begin
   end;
 end;
 
-procedure VerifyPackages(AInputs: TStrings; const ASDK, AOwnName, AOwnBuild: string);
+procedure VerifyPackages(AInputs: TStrings; const ASDK, ATarget, AOwnName, AOwnBuild,
+  AExecutable: string);
 var
   lPackages: TList<TNXForgePackageMetadata>;
-  lMetadata, lProvider: TNXForgePackageMetadata;
+  lMetadata, lProvider, lImageMetadata: TNXForgePackageMetadata;
   lDependency: TNXForgePackageDependency;
   lReader: TNXForgePackageArtifactReader;
   lIndex: Integer;
-  lName, lImage: string;
+  lName, lImage, lOwner: string;
   lFound: Boolean;
+
+  procedure CheckImageDependencies(const AImage: TNXForgePackageMetadata;
+    const AMetadata: TNXForgePackageMetadata);
+  var
+    lRequired, lDeclared: TNXForgePackageDependency;
+    lMatched: Boolean;
+  begin
+    for lRequired in AImage.Requires do
+    begin
+      lMatched := False;
+      for lDeclared in AMetadata.Requires do
+        if SameText(lRequired.Name, lDeclared.Name) and (lRequired.Build = lDeclared.Build) then
+          lMatched := True;
+      if not lMatched then raise Exception.Create('PCP and ELF dependency identities differ: ' + AMetadata.Name);
+    end;
+  end;
 begin
   lPackages := TList<TNXForgePackageMetadata>.Create;
   try
@@ -189,6 +235,12 @@ begin
       if SameText(ExtractFileExt(lName), '.dll') and
         (AInputs.IndexOfName(ChangeFileExt(lName, '.pcp')) < 0) then
         raise Exception.Create('Missing package metadata for ' + lName);
+      if ExtractFileExt(lName) = '.so' then
+      begin
+        lOwner := Copy(ChangeFileExt(lName, ''), 4, MaxInt);
+        if (Copy(lName, 1, 3) <> 'lib') or (AInputs.IndexOfName(lOwner + '.pcp') < 0) then
+          raise Exception.Create('Missing package metadata for ' + lName);
+      end;
       if not SameText(ExtractFileExt(lName), '.pcp') then Continue;
       lReader := TNXForgePackageArtifactReader.Create(AInputs.ValueFromIndex[lIndex]);
       try
@@ -200,14 +252,34 @@ begin
         raise Exception.Create('Incompatible package metadata: ' + lName);
       if SameText(lMetadata.Name, AOwnName) and (lMetadata.Build <> AOwnBuild) then
         raise Exception.Create('Package output does not match the prepared build: ' + lName);
-      lImage := AInputs.Values[lMetadata.Name + '.dll'];
+      lImage := AInputs.Values[PackageImageName(ChangeFileExt(lName, ''), ATarget)];
       if lImage = '' then raise Exception.Create('Missing package image: ' + lMetadata.Name);
       lReader := TNXForgePackageArtifactReader.Create(lImage);
       try
-        lReader.CheckImage(lMetadata.Name, lMetadata.SDK, lMetadata.Build);
+        if ATarget = 'x86_64-linux-gnu' then
+        begin
+          lImageMetadata := lReader.ReadELFImage;
+          if not SameText(lImageMetadata.Name, lMetadata.Name) or
+            (lImageMetadata.SDK <> lMetadata.SDK) or (lImageMetadata.Build <> lMetadata.Build) then
+            raise Exception.Create('PCP and ELF identities differ: ' + lName);
+          CheckImageDependencies(lImageMetadata, lMetadata);
+        end
+        else lReader.CheckImage(lMetadata.Name, lMetadata.SDK, lMetadata.Build);
       finally
         lReader.Free;
       end;
+      lPackages.Add(lMetadata);
+    end;
+    if (ATarget = 'x86_64-linux-gnu') and (AExecutable <> '') then
+    begin
+      lReader := TNXForgePackageArtifactReader.Create(AExecutable);
+      try
+        lMetadata := lReader.ReadELFImage;
+      finally
+        lReader.Free;
+      end;
+      if (lMetadata.SDK <> ASDK) or (lMetadata.Build <> AOwnBuild) then
+        raise Exception.Create('Executable identity differs from the prepared build');
       lPackages.Add(lMetadata);
     end;
     for lMetadata in lPackages do
@@ -232,7 +304,7 @@ end;
 function PrepareForgePackageBuild(const ASDKDirectory, AWorkDirectory: string;
   const APackageDirectories: TStringArray): string;
 var
-  lSDK, lWork, lIdentity, lBuild, lDirectory, lOptions: string;
+  lSDK, lWork, lIdentity, lBuild, lDirectory, lOptions, lTarget: string;
   lInputs, lDirectories, lExisting: TStringList;
   lRecord, lFile: TJSONObject;
   lFiles: TJSONArray;
@@ -240,7 +312,7 @@ var
 begin
   lSDK := ExcludeTrailingPathDelimiter(ExpandFileName(ASDKDirectory));
   lWork := ExcludeTrailingPathDelimiter(ExpandFileName(AWorkDirectory));
-  lIdentity := VerifySDK(lSDK);
+  lIdentity := VerifySDK(lSDK, lTarget);
   lInputs := TStringList.Create;
   lDirectories := TStringList.Create;
   lExisting := TStringList.Create;
@@ -249,7 +321,7 @@ begin
     lDirectories.Add(ResolveForgePackageBundle(lSDK + '/packages'));
     for lDirectory in APackageDirectories do lDirectories.Add(ResolveForgePackageBundle(lDirectory));
     for lDirectory in lDirectories do AddDirectory(lInputs, lDirectory, '');
-    VerifyPackages(lInputs, lIdentity, '', '');
+    VerifyPackages(lInputs, lIdentity, lTarget, '', '', '');
     if DirectoryExists(lWork) then
     begin
       CollectFiles(lWork, True, lExisting);
@@ -258,8 +330,16 @@ begin
     lBuild := NewPackageBuildIdentity;
     lOptions := '-Fj' + lIdentity + #10 + '-Fk' + lBuild + #10 + '-Fu' + lSDK + '/units' + #10;
     for lDirectory in lDirectories do
+    begin
       lOptions := lOptions + '-Fp' + lDirectory + #10 + '-Fl' + lDirectory + #10;
+      if lTarget = 'x86_64-linux-gnu' then
+      begin
+        if Pos('"', lDirectory) <> 0 then raise Exception.Create('Package directory cannot contain a double quote');
+        lOptions := lOptions + '-k-rpath-link' + #10 + '-k"' + lDirectory + '"' + #10;
+      end;
+    end;
     lRecord.Add('Format', 1);
+    lRecord.Add('Target', lTarget);
     lRecord.Add('SDK', lIdentity);
     lRecord.Add('Build', lBuild);
     lFiles := TJSONArray.Create;
@@ -287,6 +367,7 @@ end;
 procedure CopyArtifact(const ASource, ADestination: string);
 var
   lSource, lDestination: TFileStream;
+  {$IFDEF UNIX}lStat: Stat;{$ENDIF}
 begin
   lSource := TFileStream.Create(ASource, fmOpenRead or fmShareDenyWrite);
   try
@@ -299,6 +380,10 @@ begin
   finally
     lSource.Free;
   end;
+  {$IFDEF UNIX}
+  if fpStat(ASource, lStat) <> 0 then RaiseLastOSError;
+  if fpChmod(ADestination, lStat.st_mode and $FFF) <> 0 then RaiseLastOSError;
+  {$ENDIF}
 end;
 
 procedure SelectGeneration(const ADirectory, AGeneration: string);
@@ -319,7 +404,8 @@ end;
 function PublishForgePackageBundle(const AWorkDirectory, AOutputDirectory,
   AName, AKind: string): string;
 var
-  lWork, lOutput, lSDK, lBuild, lName, lPath, lGeneration, lDirectory, lOwnName: string;
+  lWork, lOutput, lSDK, lBuild, lName, lPath, lGeneration, lDirectory, lOwnName,
+    lTarget, lExecutable, lOwnImage: string;
   lInputs: TStringList;
   lRecord, lManifest, lFile: TJSONObject;
   lFiles, lPublished: TJSONArray;
@@ -340,10 +426,16 @@ begin
     if lRecord.Get('Format', 0) <> 1 then raise Exception.Create('Invalid prepared package build');
     lSDK := lRecord.Get('SDK', '');
     lBuild := lRecord.Get('Build', '');
+    lTarget := lRecord.Get('Target', '');
+    if (lTarget <> 'x86_64-win64') and (lTarget <> 'x86_64-linux-gnu') then
+      raise Exception.Create('Unsupported prepared package target');
     RequireHexIdentity(lSDK, 64);
     RequireHexIdentity(lBuild, 32);
     lOwnName := '';
+    lOwnImage := '';
+    lExecutable := '';
     if lPackage then lOwnName := AName;
+    if lPackage then lOwnImage := PackageImageName(AName, lTarget);
     lFiles := lRecord.Arrays['Inputs'];
     for lIndex := 0 to lFiles.Count - 1 do
     begin
@@ -351,16 +443,23 @@ begin
       lPath := lFiles.Objects[lIndex].Get('Path', '');
       if FileHash(lPath) <> lFiles.Objects[lIndex].Get('SHA256', '') then
         raise Exception.Create('Package input changed during compilation: ' + lPath);
-      if not SameText(ChangeFileExt(lName, ''), lOwnName) then AddInput(lInputs, lName, lPath);
+      if not SameText(ChangeFileExt(lName, ''), lOwnName) and
+        not SameText(lName, lOwnImage) then AddInput(lInputs, lName, lPath);
     end;
     if lPackage then
     begin
       if FileExists(lOutput + '/current.json') then AddDirectory(lInputs, lOutput, AName);
       AddInput(lInputs, AName + '.pcp', lWork + '/' + AName + '.pcp');
-      AddInput(lInputs, AName + '.dll', lWork + '/' + AName + '.dll');
+      AddInput(lInputs, lOwnImage, lWork + '/' + lOwnImage);
     end
-    else AddInput(lInputs, AName + '.exe', lWork + '/' + AName + '.exe');
-    VerifyPackages(lInputs, lSDK, lOwnName, lBuild);
+    else
+    begin
+      lName := AName;
+      if lTarget = 'x86_64-win64' then lName := lName + '.exe';
+      lExecutable := lWork + '/' + lName;
+      AddInput(lInputs, lName, lExecutable);
+    end;
+    VerifyPackages(lInputs, lSDK, lTarget, lOwnName, lBuild, lExecutable);
     lGeneration := 'generation-' + LowerCase(NewPackageBuildIdentity);
     lDirectory := lOutput + '/' + lGeneration;
     if not ForceDirectories(lDirectory) then raise Exception.Create('Cannot create package generation: ' + lDirectory);

@@ -1,0 +1,10 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+module PackageBuild "PackageBuild.nxscript";
+Group LinuxPackageBuild (PackageBuild) {
+    FPC Compile (PackageBuild.Compile) {
+        Compiler: @Prepare.SDKDirectory + "/bin/ppcx64";
+        PositionIndependentCode: True;
+        LinkerOptions: ["-rpath", "$ORIGIN", "-z", "origin"];
+    }
+}

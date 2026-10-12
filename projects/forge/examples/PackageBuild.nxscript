@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Kevin Collins.
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 // Import and compose this group inside a Package or Project. Supply Prepare's
-// directories, Compile's EntryPoint, and Publish's Name/Kind/output directory.
+// absolute SDK/work directories, Compile's EntryPoint, and Publish's Name/Kind/output directory.
 Group PackageBuild {
     DeletePath CleanWork { Path: @Prepare.WorkDirectory; Recursive: True; }
     PackageBuildPrepare Prepare {
@@ -10,6 +10,7 @@ Group PackageBuild {
         PackageDirectories: [];
     }
     FPC Compile {
+        WorkingDirectory: @Prepare.WorkDirectory;
         EntryPoint: "";
         Template: "FPC.mustache";
         Compiler: @Prepare.SDKDirectory + "/bin/ppcx64.exe";
