@@ -6,6 +6,9 @@ dist/
 *.exe
 *.o
 *.ppu
+*.nxu
+*.nxp
+*.nxtrace
 *.zip
 lib/
 

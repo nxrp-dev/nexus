@@ -588,7 +588,7 @@ and `work/startup.cfg`. The startup response file places package search before
 `-FPnxrtl`. All input hashing completes before writing; filesystem write failures
 can leave partial output, as with the other file operations.
 
-`PackageSDKManifest` checks `work/identity.json` against both `packages/nxrtl.pcp`
+`PackageSDKManifest` checks `work/identity.json` against both `packages/nxrtl.nxp`
 (NXP004) and the Win64 ABI-4 descriptor in `packages/nxrtl.dll`. The DLL is read
 as bytes, never loaded or executed. Invalid/truncated structures, unsupported
 formats, identity mismatches and compiler-query failures stop subsequent tasks

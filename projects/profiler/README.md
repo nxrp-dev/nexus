@@ -1,6 +1,6 @@
 # Nexus Profiler Import
 
-`NexusProfilerImport` imports NexusFPC `.nxp` traces into SQLite for direct
+`NexusProfilerImport` imports NexusFPC `.nxtrace` traces into SQLite for direct
 analysis with SQLite tools.
 
 The executable uses Nexus SQLite and requires SQLite 3.53.4 or newer. Use

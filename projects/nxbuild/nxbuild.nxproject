@@ -12,32 +12,24 @@
 dialect "language/nxbuild.Language.nxscript";
 
 Project nxbuild {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "nxbuild.lpr";
     OutputRoot: "../../output/nxbuild-next/x86_64-win64";
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
+    FPC Compiler {
+        SourceFiles: ["nxbuild.lpr"];
         CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-        LazarusRoot: "C:/lazarus";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @nxbuild.OutputRoot + "/nxbuild.exe";
+        Target Native { OperatingSystem: "win64"; }
+        OutputPath: @nxbuild.OutputRoot;
         RawOptions: ["-Sh-"];
         Config Options { DisableDefaultConfigFiles: True; }
         Syntax Operators { COperators: Enabled; }
         Files Paths {
-            ExecutableOutputPath: @nxbuild.OutputRoot;
-            UnitOutputPath: "../../output/nxbuild-next/x86_64-win64/units";
-            IncludePaths: ["../../output/nxbuild-next/x86_64-win64/units"];
+            IncludePaths: [@nxbuild.OutputRoot];
             UnitPaths: [
                 "src",
                 "../../packages/nexus-packages/nxscript/src",
                 "../../packages/nexus-packages/serialization/json/src",
                 "../../packages/nexus-packages/network/json-rpc/src",
                 "../../packages/nexus-packages/core/src",
-                @nxbuild.NexusFPC.LazarusRoot + "/components/lazutils",
                 "../../packages/nexus-packages/serialization/src",
                 "../../packages/nexus-packages/db/sqlite/src/bindings",
                 "../../packages/nexus-packages-ext/mustache/external/dmustache",

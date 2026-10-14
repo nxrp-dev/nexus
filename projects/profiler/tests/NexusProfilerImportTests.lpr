@@ -447,11 +447,11 @@ var
   lResumeDatabaseFile: string;
 begin
   lTraceFile := IncludeTrailingPathDelimiter(GetTempDir(False)) +
-    'nexus-profiler-import-synthetic.nxp';
+    'nexus-profiler-import-synthetic.nxtrace';
   lDatabaseFile := IncludeTrailingPathDelimiter(GetTempDir(False)) +
     'nexus-profiler-import-synthetic.sqlite';
   lResumeTraceFile := IncludeTrailingPathDelimiter(GetTempDir(False)) +
-    'nexus-profiler-import-resume.nxp';
+    'nexus-profiler-import-resume.nxtrace';
   lResumeDatabaseFile := IncludeTrailingPathDelimiter(GetTempDir(False)) +
     'nexus-profiler-import-resume.sqlite';
   DeleteFile(lTraceFile);

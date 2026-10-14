@@ -16,9 +16,9 @@ program nxbuildTests;
 {$mode objfpc}{$H+}
 
 uses
-  obNXTestRegistry, obNXTestResult, tsNXBuildTests,
-  tsNXBuildProjectGenerationTests;
+  obNXTestRegistry, obNXTestResult, tsNXBuildTests;
 
+procedure RunTests;
 var
   lRegistry: TNXTestRegistry;
   lResult: TNXTestResult;
@@ -29,7 +29,6 @@ begin
   lFailed := 0;
   try
     RegisterNXBuildTests(lRegistry);
-    RegisterNXBuildProjectGenerationTests(lRegistry);
     for lSuite := 0 to lRegistry.SuiteCount - 1 do
       for lTest := 0 to lRegistry.Suites[lSuite].TestCount - 1 do
       begin
@@ -48,4 +47,13 @@ begin
   finally
     lRegistry.Free;
   end;
+end;
+
+begin
+  if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-test-tool') then
+    ExitCode := NXBuildRunTestTool
+  else if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-source-tool') then
+    ExitCode := NXBuildRunSourceTool
+  else
+    RunTests;
 end.

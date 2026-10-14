@@ -11,26 +11,27 @@
   SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 *)
 
-unit obNXBuildProjectLoader;
+unit obNXBuildDescriptionLoader;
 
 {$mode objfpc}{$H+}
 
 interface
 
 uses
-  obNXPascalProject;
+  obNXBuildDescription, obNexusScriptModel;
 
 type
-  TNXBuildProjectLoader = class
+  TNXBuildDescriptionLoader = class
   public
-    function LoadProject(const AFileName: string): TNXPascalProject;
+    function LoadDescription(const AFileName: string;
+      ASelectedTargets: TNexusScriptTargetSelection = nil): TNXBuildDescription;
   end;
 
 implementation
 
 uses
   Classes, SysUtils, TypInfo, obNexusScriptAnalysis, obNexusScriptLive,
-  tpNexusScriptLive;
+  tpNexusScriptLive, obNXPersist, obNXBuildEntry, obNXFPCBuildOptions, obNXLLVMBuildOptions;
 
 function NXBuildEnumValue(ATypeInfo: PTypeInfo; const AText: string): Integer;
 var
@@ -96,7 +97,10 @@ var
   lChild: TNexusScriptLiveDefinition;
   lPropInfo: PPropInfo;
   lObject: TObject;
+  lDescription: TNXBuildDescription;
 begin
+  if AObject is TNXPersistObject then
+    (AObject as TNXPersistObject).Name := ADefinition.Name;
   for lProperty in ADefinition.Properties do
   begin
     lPropInfo := GetPropInfo(AObject.ClassInfo, lProperty.Name);
@@ -107,6 +111,27 @@ begin
   end;
   for lChild in ADefinition.Children do
   begin
+    if AObject is TNXBuildDescription then
+    begin
+      lDescription := AObject as TNXBuildDescription;
+      if SameText(lChild.Kind, 'FPC') then
+        lObject := TNXFPCBuildOptions.Create
+      else if SameText(lChild.Kind, 'LLVM') then
+        lObject := TNXLLVMBuildOptions.Create
+      else
+        raise Exception.CreateFmt('Unsupported build type: %s.', [lChild.Kind]);
+      try
+        NXBuildAssignDefinition(lObject, lChild);
+        if lDescription.Builds.IndexOf((lObject as TNXBuildEntry).Name) >= 0 then
+          raise Exception.CreateFmt('Duplicate build name: %s.',
+            [(lObject as TNXBuildEntry).Name]);
+        lDescription.Builds.Add(lObject as TNXBuildEntry);
+      except
+        lObject.Free;
+        raise;
+      end;
+      Continue;
+    end;
     lPropInfo := GetPropInfo(AObject.ClassInfo, lChild.Kind);
     if (lPropInfo = nil) or (lPropInfo^.PropType^.Kind <> tkClass) then
       raise Exception.CreateFmt('Unknown %s section %s.',
@@ -118,7 +143,8 @@ begin
   end;
 end;
 
-function TNXBuildProjectLoader.LoadProject(const AFileName: string): TNXPascalProject;
+function TNXBuildDescriptionLoader.LoadDescription(const AFileName: string;
+  ASelectedTargets: TNexusScriptTargetSelection): TNXBuildDescription;
 var
   lAnalysis: TNexusScriptAnalysis;
   lLive: TNexusScriptLiveDocument;
@@ -126,7 +152,7 @@ begin
   if not FileExists(AFileName) then
     raise Exception.CreateFmt('NexusScript project file was not found: %s', [AFileName]);
 
-  lAnalysis := TNexusScriptAnalysis.Create(ExpandFileName(AFileName), 1, nil);
+  lAnalysis := TNexusScriptAnalysis.Create(ExpandFileName(AFileName), 1, nil, ASelectedTargets);
   lLive := nil;
   try
     lAnalysis.Execute;
@@ -140,18 +166,22 @@ begin
       raise Exception.Create(lAnalysis.Validator.Diagnostics[0].MessageText);
 
     lLive := TNexusScriptLiveEmitter.Emit(lAnalysis.EntryCompiler.CompiledDocument);
-    if (lLive.Roots.Count <> 1) or not SameText(lLive.Roots[0].Kind, 'Project') then
-      raise Exception.Create('nxbuild requires exactly one Project root.');
+    if (lLive.Roots.Count <> 1) or
+      (not SameText(lLive.Roots[0].Kind, 'Project') and
+       not SameText(lLive.Roots[0].Kind, 'Package')) then
+      raise Exception.Create('nxbuild requires exactly one Project or Package root.');
 
-    Result := TNXPascalProject.Create;
+    Result := TNXBuildDescription.Create;
     try
-      Result.Name := lLive.Roots[0].Name;
+      Result.Kind := lLive.Roots[0].Kind;
+      Result.FileName := ExpandFileName(AFileName);
       NXBuildAssignDefinition(Result, lLive.Roots[0]);
-      if Result.ProjectFileName = '' then
-        Result.ProjectFileName := ExpandFileName(AFileName);
-      if Result.ProjectRoot = '' then
-        Result.ProjectRoot := ExtractFileDir(ExpandFileName(AFileName));
-      Result.ApplyToBuildOptions;
+      if Result.RootDirectory = '' then
+        Result.RootDirectory := ExtractFileDir(Result.FileName)
+      else
+        Result.RootDirectory := TNXBuildEntry.ResolvePath(Result.RootDirectory,
+          ExtractFileDir(Result.FileName));
+      Result.ResolvePaths;
     except
       Result.Free;
       raise;

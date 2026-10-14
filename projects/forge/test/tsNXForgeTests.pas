@@ -510,7 +510,7 @@ begin
   try
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
     AContext.AssertEquals(2, lForge.Invocations.Count, 'Unit and program compile');
-    AContext.AssertTrue(FileExists(lDirectory + 'compiled units/utoptionaloutput.ppu'),
+    AContext.AssertTrue(FileExists(lDirectory + 'compiled units/utoptionaloutput.nxu'),
       'Unit output uses the explicit unit directory');
     AContext.AssertTrue(FileExists(lDirectory + 'optional_output.exe'),
       'Program finds the compiled unit through UnitPaths and uses normal output naming');
@@ -1970,7 +1970,7 @@ begin
   lDirectory := TestDir('csv source & output');
   ForceDirectories(lDirectory + 'artifacts');
   lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/x86_64-win64/nxcsv.exe'), '\', '/', [rfReplaceAll]);
-  AContext.AssertTrue(FileExists(lTool), 'Build projects/csv/NexusCSV.lpi first');
+  AContext.AssertTrue(FileExists(lTool), 'Build projects/csv/NexusCSV.nxproject first');
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/csv/templates/SQL.mustache';
   Save(lDirectory + 'source.csv', 'ID,NAME,NOTE' + LineEnding +
     '1,O''Brien,"comma, and ""quote"""' + LineEnding + '2,,' + LineEnding);
@@ -2016,7 +2016,7 @@ end;
 
 procedure TestPackageSDKOptions(AContext: TNXTestContext);
 const
-  cExpected = '7B68E268877E024A8AFC598A652C8A74F777EA68D755A2F61D1DAF172725F40D';
+  cExpected = 'A1697AB11892A76DE12A953DE4218D76D3E97A0836E10386CCEA81EC55E55832';
 var
   lDirectory, lSDK, lCommand, lFirstBuild, lPath, lBefore, lOriginal: string;
   lForge: TNXForge;
@@ -2030,7 +2030,7 @@ begin
   ForceDirectories(lDirectory + 'bootstrap/seed/rtl/inc');
   Save(lSDK + 'bin/ppcx64.exe', 'compiler');
   Save(lSDK + 'work/rtl-units/z.o', 'object');
-  Save(lSDK + 'work/rtl-units/a.ppu', 'unit');
+  Save(lSDK + 'work/rtl-units/a.nxu', 'unit');
   Save(lDirectory + 'bootstrap/seed/rtl/inc/sample.inc', 'source');
   Save(lDirectory + 'bootstrap/seed/build-options.cfg', 'options');
   lCommand := 'PackageSDKOptions Identity { BootstrapDirectory: "bootstrap"; OutputDirectory: "sdk"; } ';
@@ -2172,7 +2172,7 @@ var
     AContext.AssertEquals(LoadRaw(lDirectory + 'app work/app.exe'), LoadRaw(lGeneration + '/app.exe'),
       'Application publication copies the produced artifact unchanged');
     AContext.AssertEquals(lImage, LoadRaw(lGeneration + '/nxrtl.dll'));
-    AContext.AssertFalse(FileExists(lGeneration + '/nxrtl.pcp'), 'Applications publish only runtime artifacts');
+    AContext.AssertFalse(FileExists(lGeneration + '/nxrtl.nxp'), 'Applications publish only runtime artifacts');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Reusing nonempty work is rejected');
     AContext.AssertTrue(Pos('must be empty', lForge.Diagnostic) > 0, lForge.Diagnostic);
     AContext.AssertFalse(lForge.Invocations[1].Started, 'Preparation failure prevents compile');
@@ -2195,27 +2195,27 @@ var
       Entry(245, ShortText('nxrtl') + ShortText(lBuild)) + Entry(255, '');
     lOwnImage := StringReplace(StringReplace(lImage, 'nxrtl', 'mypkg', [rfReplaceAll]),
       lBuild, lOwnBuild, [rfReplaceAll]);
-    Save(lWork + '/mypkg.pcp', lOwnPCP);
+    Save(lWork + '/mypkg.nxp', lOwnPCP);
     Save(lWork + '/mypkg.dll', lOwnImage);
     PublishForgePackageBundle(lWork, lOutput, 'mypkg', 'Package');
     lSelection := LoadRaw(lOutput + '/current.json');
     lGeneration := ResolveForgePackageBundle(lOutput);
-    AContext.AssertEquals(lOwnPCP, LoadRaw(lGeneration + '/mypkg.pcp'));
+    AContext.AssertEquals(lOwnPCP, LoadRaw(lGeneration + '/mypkg.nxp'));
     AContext.AssertEquals(lOwnImage, LoadRaw(lGeneration + '/mypkg.dll'));
-    AContext.AssertEquals(lPCP, LoadRaw(lGeneration + '/nxrtl.pcp'));
+    AContext.AssertEquals(lPCP, LoadRaw(lGeneration + '/nxrtl.nxp'));
     PrepareForgePackageBuild(lSDK, lDirectory + 'dependent work', [lOutput]);
     AContext.AssertTrue(Pos(lGeneration, LoadRaw(lDirectory + 'dependent work/package.cfg')) > 0,
       'Selected provider generation supplies compiler paths');
 
-    Save(lWork + '/mypkg.pcp', StringReplace(lOwnPCP, lOwnBuild, StringOfChar('C', 32), []));
+    Save(lWork + '/mypkg.nxp', StringReplace(lOwnPCP, lOwnBuild, StringOfChar('C', 32), []));
     RejectPublication('does not match the prepared build');
-    Save(lWork + '/mypkg.pcp', lOwnPCP);
+    Save(lWork + '/mypkg.nxp', lOwnPCP);
     Save(lWork + '/mypkg.dll', StringReplace(lOwnImage, lOwnBuild, StringOfChar('C', 32), []));
     RejectPublication('identity does not match');
     Save(lWork + '/mypkg.dll', lOwnImage);
-    Save(lWork + '/mypkg.pcp', StringReplace(lOwnPCP, lBuild, StringOfChar('C', 32), []));
+    Save(lWork + '/mypkg.nxp', StringReplace(lOwnPCP, lBuild, StringOfChar('C', 32), []));
     RejectPublication('Dependency build mismatch');
-    Save(lWork + '/mypkg.pcp', lOwnPCP);
+    Save(lWork + '/mypkg.nxp', lOwnPCP);
     Save(lSDK + 'packages/nxrtl.dll', lImage + 'changed');
     RejectPublication('input changed during compilation');
     lRejected := False;
@@ -2303,9 +2303,9 @@ begin
   PutText($450, ShortText(lIdentity));
   PutText($4A0, ShortText(lBuild));
   lImage := lBinary;
-  Save(lSDK + 'packages/nxrtl.pcp', lPCP);
+  Save(lSDK + 'packages/nxrtl.nxp', lPCP);
   Save(lSDK + 'packages/nxrtl.dll', lImage);
-  Save(lSDK + 'units/sysinitpkg.ppu', 'abc');
+  Save(lSDK + 'units/sysinitpkg.nxu', 'abc');
   Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
   lInvocation := TNXForgeInvocation.Create;
   try
@@ -2329,7 +2329,7 @@ begin
       AContext.AssertEquals('3.3.1', lRecord.Get('CompilerVersion', ''));
       AContext.AssertEquals(lIdentity, lRecord.Get('SDKIdentity', ''));
       AContext.AssertEquals(4, lRecord.Arrays['Artifacts'].Count);
-      AContext.AssertEquals('units/sysinitpkg.ppu', lRecord.Arrays['Artifacts'].Objects[3].Get('Path', ''));
+      AContext.AssertEquals('units/sysinitpkg.nxu', lRecord.Arrays['Artifacts'].Objects[3].Get('Path', ''));
       AContext.AssertEquals('BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD',
         lRecord.Arrays['Artifacts'].Objects[3].Get('SHA256', ''), 'Known SHA-256 artifact vector');
     finally
@@ -2359,13 +2359,13 @@ begin
       Reject('Invalid PE case ' + IntToStr(lIndex));
     end;
     Save(lSDK + 'packages/nxrtl.dll', lImage);
-    Save(lSDK + 'packages/nxrtl.pcp', Copy(lPCP, 1, Length(lPCP) - 1));
+    Save(lSDK + 'packages/nxrtl.nxp', Copy(lPCP, 1, Length(lPCP) - 1));
     Reject('Truncated PCP');
-    Save(lSDK + 'packages/nxrtl.pcp', StringReplace(lPCP, lBuild, StringOfChar('C', 32), []));
+    Save(lSDK + 'packages/nxrtl.nxp', StringReplace(lPCP, lBuild, StringOfChar('C', 32), []));
     Reject('PCP identity mismatch');
-    Save(lSDK + 'packages/nxrtl.pcp', StringReplace(lPCP, 'NXP004', 'NXP003', []));
+    Save(lSDK + 'packages/nxrtl.nxp', StringReplace(lPCP, 'NXP004', 'NXP003', []));
     Reject('Wrong PCP version');
-    Save(lSDK + 'packages/nxrtl.pcp', lPCP);
+    Save(lSDK + 'packages/nxrtl.nxp', lPCP);
     Save(lSDK + 'work/identity.json', '{}');
     Reject('Incomplete JSON identity');
     Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');

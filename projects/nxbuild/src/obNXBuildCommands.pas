@@ -28,10 +28,10 @@ implementation
 
 uses
   SysUtils,
-  obNXCommandLine,
+  obNXCommandLine, obNexusScriptModel,
   obNXBuildExecutor,
   obNXBuildPlanner,
-  obNXBuildProjectLoader;
+  obNXBuildDescriptionLoader, obNXBuildDescription;
 
 function NXBuildProjectArgument: string;
 begin
@@ -43,41 +43,67 @@ begin
   Result := TNXCommandLine.GetValueDefault('action', '');
 end;
 
+function NXBuildTargetArgument(const AName: string): string;
+begin
+  if TNXCommandLine.Supplied(AName) and not TNXCommandLine.SuppliedWithValue(AName) then
+    raise Exception.CreateFmt('Command line flag "%s" requires a value.', [AName]);
+  Result := LowerCase(Trim(TNXCommandLine.Value[AName]));
+  if Result = '' then
+    raise Exception.CreateFmt('Command line flag "%s" requires a value.', [AName]);
+end;
+
 class procedure TNXBuildCommands.RegisterCommandLineFlags;
 begin
-  TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript project file', 'Path to an nxbuild NexusScript project (.nxproject).');
+  TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript build description', 'Path to a Project or Package build description.');
   TNXCommandLine.RegisterFlag('action', False, True, '', 'Build action', 'Use /action=plan or /action=build with /project=project.nxproject.');
+  TNXCommandLine.RegisterFlag('targetos', False, True, {$I %FPCTARGETOS%},
+    'Target operating system', 'Requested target OS; defaults to the native nxbuild platform.');
+  TNXCommandLine.RegisterFlag('targetcpu', False, True, {$I %FPCTARGETCPU%},
+    'Target CPU', 'Requested target CPU; defaults to the native nxbuild platform.');
 end;
 
 class procedure TNXBuildCommands.Execute;
 var
   lAction: string;
   lProjectFile: string;
-  lLoader: TNXBuildProjectLoader;
+  lTargetOS, lTargetCPU: string;
+  lTargets: TNexusScriptTargetSelection;
+  lLoader: TNXBuildDescriptionLoader;
   lPlanner: TNXBuildPlanner;
   lExecutor: TNXBuildExecutor;
   lPlan: TNXBuildPlan;
+  lDescription: TNXBuildDescription;
 begin
   lAction := LowerCase(NXBuildRequestedAction);
   lProjectFile := NXBuildProjectArgument;
+  lTargetOS := NXBuildTargetArgument('targetos');
+  lTargetCPU := NXBuildTargetArgument('targetcpu');
 
   if lAction = '' then
     raise Exception.Create('Specify /action=plan or /action=build.');
   if lProjectFile = '' then
     raise Exception.Create('Project file is required.');
 
-  lLoader := TNXBuildProjectLoader.Create;
+  lLoader := TNXBuildDescriptionLoader.Create;
   lPlanner := TNXBuildPlanner.Create;
+  lDescription := nil;
+  lTargets := TNexusScriptTargetSelection.Create;
   try
-    lPlan := lPlanner.CreatePlan(lLoader.LoadProject(lProjectFile));
+    lTargets.Add('TargetOS', lTargetOS);
+    lTargets.Add('TargetCPU', lTargetCPU);
+    lDescription := lLoader.LoadDescription(lProjectFile, lTargets);
+    lPlan := lPlanner.CreatePlan(lDescription);
     try
       if lAction = 'plan' then
-        lPlanner.WritePlan(lPlan)
+      begin
+        WriteLn('Requested target: ', lTargetOS, '/', lTargetCPU);
+        lPlanner.WritePlan(lPlan);
+      end
       else if lAction = 'build' then
       begin
         lExecutor := TNXBuildExecutor.Create;
         try
-          lExecutor.Execute(lPlan);
+          ExitCode := lExecutor.Execute(lPlan);
         finally
           lExecutor.Free;
         end;
@@ -88,6 +114,8 @@ begin
       lPlan.Free;
     end;
   finally
+    lTargets.Free;
+    lDescription.Free;
     lPlanner.Free;
     lLoader.Free;
   end;

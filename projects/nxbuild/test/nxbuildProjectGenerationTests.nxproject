@@ -1,0 +1,43 @@
+// Copyright (c) 2026 Kevin Collins.
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+//
+// This Source Code Form is "Incompatible With Secondary Licenses",
+// as defined by the Mozilla Public License, v. 2.0.
+//
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+
+Project nxbuildProjectGenerationTests {
+    OutputRoot: "../../../output/nxbuildProjectGenerationTests/x86_64-win64";
+
+    FPC Compiler {
+        SourceFiles: ["nxbuildProjectGenerationTests.lpr"];
+        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        Target Native { OperatingSystem: "win64"; }
+        OutputPath: @nxbuildProjectGenerationTests.OutputRoot;
+        RawOptions: ["-gh", "-gl"];
+        Config Options { DisableDefaultConfigFiles: True; }
+        Files Paths {
+            UnitPaths: [
+                ".",
+                "../src",
+                "../../ls/pascal/src/service",
+                "../../ls/pascal/src/protocol",
+                "../../../packages/nexus-packages/nxscript/src",
+                "../../../packages/nexus-packages/nxtest/src",
+                "../../../packages/nexus-packages/serialization/src",
+                "../../../packages/nexus-packages/serialization/json/src",
+                "../../../packages/nexus-packages/network/json-rpc/src",
+                "../../../packages/nexus-packages/db/sqlite/src/bindings",
+                "../../../packages/nexus-packages/core/src",
+                "../../../packages/nexus-packages-ext/mustache/external/dmustache",
+                "../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
+                "../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+            ];
+        }
+    }
+}

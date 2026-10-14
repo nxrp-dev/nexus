@@ -17,53 +17,85 @@ unit obNXBuildExecutor;
 
 interface
 
-uses
-  obNXBuildPlanner;
+uses Classes, obNXBuildPlanner;
 
 type
   TNXBuildExecutor = class
+  private
+    function ExecuteInvocation(AStep: TNXBuildStep; ASources: TStrings;
+      ASourceIndex: Integer): Integer;
+    function ExecuteStep(AStep: TNXBuildStep): Integer;
   public
-    procedure Execute(APlan: TNXBuildPlan);
+    function Execute(APlan: TNXBuildPlan): Integer;
   end;
 
 implementation
 
-uses
-  Classes,
-  SysUtils,
-  LazFileUtils,
-  Process;
+uses SysUtils, Process, obNXBuildEntry;
 
-procedure NXBuildEnsureDirectory(const ADirectory: string);
-begin
-  if ADirectory <> '' then
-    ForceDirectories(ADirectory);
-end;
-
-procedure TNXBuildExecutor.Execute(APlan: TNXBuildPlan);
+function TNXBuildExecutor.ExecuteInvocation(AStep: TNXBuildStep;
+  ASources: TStrings; ASourceIndex: Integer): Integer;
 var
   lProcess: TProcess;
-  lIndex: Integer;
+begin
+  lProcess := TProcess.Create(nil);
+  try
+    lProcess.Executable := AStep.Executable;
+    lProcess.CurrentDirectory := AStep.OutputPath;
+    AStep.FillArguments(ASources, ASourceIndex, lProcess.Parameters);
+    lProcess.Options := [poWaitOnExit];
+    lProcess.Execute;
+    Result := lProcess.ExitStatus;
+  finally
+    lProcess.Free;
+  end;
+end;
+
+function TNXBuildExecutor.ExecuteStep(AStep: TNXBuildStep): Integer;
+var
+  lSources: TStringList;
+  lIndex, lCount: Integer;
+begin
+  Result := 0;
+  lSources := TStringList.Create;
+  try
+    TNXBuildEntry.ExpandSourceFiles(AStep.SourceFiles, lSources);
+    if not ForceDirectories(AStep.OutputPath) then
+      raise Exception.CreateFmt('Cannot create directory: %s.', [AStep.OutputPath]);
+    lCount := 1;
+    if AStep.CompileEachSource then lCount := lSources.Count;
+    for lIndex := 0 to lCount - 1 do
+    begin
+      Result := ExecuteInvocation(AStep, lSources, lIndex);
+      if Result <> 0 then Exit;
+    end;
+  finally
+    lSources.Free;
+  end;
+end;
+
+function TNXBuildExecutor.Execute(APlan: TNXBuildPlan): Integer;
+var
+  lStep: TNXBuildStep;
 begin
   if APlan = nil then
     raise Exception.Create('Build plan is required.');
-
-  lProcess := TProcess.Create(nil);
-  try
-    NXBuildEnsureDirectory(APlan.Project.ResolvePath(APlan.Project.OutputRoot));
-    NXBuildEnsureDirectory(APlan.Project.FPCBuildOptions.Files.ExecutableOutputPath);
-    NXBuildEnsureDirectory(APlan.Project.FPCBuildOptions.Files.UnitOutputPath);
-
-    lProcess.Executable := APlan.Executable;
-    lProcess.CurrentDirectory := APlan.WorkingDirectory;
-    for lIndex := 0 to APlan.Arguments.Count - 1 do
-      lProcess.Parameters.Add(APlan.Arguments[lIndex]);
-    lProcess.Options := [poWaitOnExit];
-    lProcess.Execute;
-    if lProcess.ExitStatus <> 0 then
-      Halt(lProcess.ExitStatus);
-  finally
-    lProcess.Free;
+  Result := 0;
+  for lStep in APlan.Steps do
+  begin
+    try
+      Result := ExecuteStep(lStep);
+    except
+      on E: Exception do
+        raise Exception.CreateFmt('Build "%s" (%s): %s',
+          [lStep.Name, lStep.BuildType, E.Message]);
+    end;
+    if Result <> 0 then
+    begin
+      WriteLn(StdErr, 'Build "', lStep.Name, '" (',
+        lStep.BuildType, ') failed with exit code ', Result, '.');
+      Exit;
+    end;
   end;
 end;
 

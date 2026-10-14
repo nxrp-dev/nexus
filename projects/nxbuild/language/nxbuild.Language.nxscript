@@ -11,7 +11,7 @@
 
 dialect "../../../packages/nexus-packages/nxscript/language/Language.nxscript";
 
-// Build input only. This dialect does not define packages or Forge tasks.
+// Project and Package builds execute in declaration order.
 Language nxbuild {
     UnknownDefinitions: Reject;
     Definitions: [
@@ -21,58 +21,45 @@ Language nxbuild {
             UnknownChildren: Reject;
             Properties: [
                 Property Name { Value Value { Scalar: Text; } },
-                Property BuildFile { Value Value { Scalar: Text; } },
-                Property BuildTool { Value Value { Scalar: Text; AllowedValues: [Unknown, FPC, Lazarus]; } },
-                Property ProjectKind { Value Value { Scalar: Text; AllowedValues: [Unknown, Program, Library, Package, LazarusProject, PascalUnitSet]; } },
-                Property ProjectFileName { Value Value { Scalar: Text; } },
-                Property ProjectRoot { Value Value { Scalar: Text; } },
+                Property RootDirectory { Value Value { Scalar: Text; } },
                 Property SourceRoot { Value Value { Scalar: Text; } },
-                Property OutputRoot { Value Value { Scalar: Text; } },
-                Property LazarusProjectFile { Value Value { Scalar: Text; } }
+                Property OutputRoot { Value Value { Scalar: Text; } }
             ];
             Children: [
-                Child TargetPlatform { Kinds: [TargetPlatform]; Maximum: 1; },
-                Child Toolchain { Kinds: [Toolchain]; Maximum: 1; },
-                Child FPCBuildOptions { Kinds: [FPCBuildOptions]; Maximum: 1; }
+                Child FPC { Kinds: [FPC]; },
+                Child LLVM { Kinds: [LLVM]; }
             ];
         },
-        Definition TargetPlatform {
-            Root: False;
-            Parents: [Project];
+        Definition Package {
+            Root: True;
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
                 Property Name { Value Value { Scalar: Text; } },
-                Property TargetOS { Value Value { Scalar: Text; } },
-                Property TargetCPU { Value Value { Scalar: Text; } },
-                Property WidgetSet { Value Value { Scalar: Text; } },
-                Property FPCMode { Value Value { Scalar: Text; } },
-                Property ConfigName { Value Value { Scalar: Text; } }
+                Property RootDirectory { Value Value { Scalar: Text; } },
+                Property SourceRoot { Value Value { Scalar: Text; } },
+                Property OutputRoot { Value Value { Scalar: Text; } }
+            ];
+            Children: [
+                Child FPC { Kinds: [FPC]; },
+                Child LLVM { Kinds: [LLVM]; }
             ];
         },
-        Definition Toolchain {
+        Definition FPC {
             Root: False;
-            Parents: [Project];
-            UnknownProperties: Reject;
-            UnknownChildren: Reject;
-            Properties: [
-                Property Name { Value Value { Scalar: Text; } },
-                Property CompilerPath { Value Value { Scalar: Text; } },
-                Property FPCSourceRoot { Value Value { Scalar: Text; } },
-                Property FPCUnitRoot { Value Value { Scalar: Text; } },
-                Property LazarusRoot { Value Value { Scalar: Text; } }
-            ];
-        },
-        Definition FPCBuildOptions {
-            Root: False;
-            Parents: [Project];
+            Parents: [Project, Package];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
                 Property Name { Value Value { Scalar: Text; } },
                 Property CompilerPath { Value Value { Scalar: Text; } },
-                Property InputFile { Value Value { Scalar: Text; } },
-                Property OutputFile { Value Value { Scalar: Text; } },
+                Property SourceFiles {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property OutputPath { Value Value { Scalar: Text; } },
                 Property BuildKind { Value Value { Scalar: Text; AllowedValues: [Unset, Program, Library, Unit, Package]; } },
                 Property RawOptions {
                     Value Value {
@@ -100,9 +87,68 @@ Language nxbuild {
                 Child Linking { Kinds: [Linking]; Maximum: 1; }
             ];
         },
+        Definition LLVM {
+            Root: False;
+            Parents: [Project, Package];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Name { Value Value { Scalar: Text; } },
+                Property CompilerPath { Value Value { Scalar: Text; } },
+                Property OutputPath { Value Value { Scalar: Text; } },
+                Property BuildKind { Value Value { Scalar: Text; AllowedValues: [Program, SharedLibrary, Object]; } },
+                Property Language { Value Value { Scalar: Text; AllowedValues: [Auto, C, CPP]; } },
+                Property Target { Value Value { Scalar: Text; } },
+                Property Standard { Value Value { Scalar: Text; } },
+                Property DebugInfo { Value Value { Scalar: Boolean; } },
+                Property PositionIndependentCode { Value Value { Scalar: Boolean; } },
+                Property SourceFiles {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property IncludePaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property ConfigFiles {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property SystemIncludePaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property LibraryPaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property Libraries {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property Defines {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        },
         Definition Config {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -118,7 +164,7 @@ Language nxbuild {
         },
         Definition Assembler {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -143,7 +189,7 @@ Language nxbuild {
         },
         Definition BuildControl {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -157,7 +203,7 @@ Language nxbuild {
         },
         Definition Definitions {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -178,7 +224,7 @@ Language nxbuild {
         },
         Definition DefFile {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -190,7 +236,7 @@ Language nxbuild {
         },
         Definition CodeGeneration {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -233,7 +279,7 @@ Language nxbuild {
         },
         Definition Files {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -256,7 +302,6 @@ Language nxbuild {
                         Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
                     }
                 },
-                Property ExecutableOutputPath { Value Value { Scalar: Text; } },
                 Property IncludePaths {
                     Value Value {
                         EffectiveCategories: [Array];
@@ -292,14 +337,13 @@ Language nxbuild {
                         Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
                     }
                 },
-                Property UnitOutputPath { Value Value { Scalar: Text; } },
                 Property WholeProgramFeedbackOutput { Value Value { Scalar: Text; } },
                 Property WholeProgramFeedbackInput { Value Value { Scalar: Text; } }
             ];
         },
         Definition Debug {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -322,7 +366,7 @@ Language nxbuild {
         },
         Definition Information {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -347,7 +391,7 @@ Language nxbuild {
         },
         Definition Language {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -369,7 +413,7 @@ Language nxbuild {
         },
         Definition Optimization {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -411,7 +455,7 @@ Language nxbuild {
         },
         Definition Syntax {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -448,7 +492,7 @@ Language nxbuild {
         },
         Definition Target {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -477,7 +521,7 @@ Language nxbuild {
         },
         Definition Units {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -489,7 +533,7 @@ Language nxbuild {
         },
         Definition Verbosity {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -524,7 +568,7 @@ Language nxbuild {
         },
         Definition Linking {
             Root: False;
-            Parents: [FPCBuildOptions];
+            Parents: [FPC];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [

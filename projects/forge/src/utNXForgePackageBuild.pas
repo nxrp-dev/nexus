@@ -28,7 +28,7 @@ begin
   if (AName = '') or (AName = '.') or (AName = '..') then Exit;
   for lCharacter in AName do
     if not (lCharacter in ['A'..'Z', 'a'..'z', '0'..'9', '_', '.', '-']) then Exit;
-  Result := SameText(ExtractFileExt(AName), '.pcp') or
+  Result := SameText(ExtractFileExt(AName), '.nxp') or
     SameText(ExtractFileExt(AName), '.dll') or SameText(ExtractFileExt(AName), '.exe') or
     (ExtractFileExt(AName) = '.so') or (ExtractFileExt(AName) = '');
 end;
@@ -97,7 +97,7 @@ begin
         raise Exception.Create('SDK artifact differs from its recorded build: ' + lPath);
       lListed.Add(lPath);
     end;
-    for lRequired in [lCompiler, 'units/sysinitpkg.ppu', 'packages/nxrtl.pcp',
+    for lRequired in [lCompiler, 'units/sysinitpkg.nxu', 'packages/nxrtl.nxp',
       'packages/' + PackageImageName('nxrtl', ATarget)] do
       if lListed.IndexOf(SDKArtifactPath(ADirectory, lRequired)) < 0 then
         raise Exception.Create('SDK manifest omits required artifact: ' + lRequired);
@@ -189,7 +189,7 @@ begin
     for lPath in lFiles do
     begin
       lName := ExtractFileName(lPath);
-      if not SameText(ExtractFileExt(lName), '.pcp') and
+      if not SameText(ExtractFileExt(lName), '.nxp') and
         not SameText(ExtractFileExt(lName), '.dll') and (ExtractFileExt(lName) <> '.so') then Continue;
       if SameText(ChangeFileExt(lName, ''), AReplacing) or
         SameText(lName, 'lib' + AReplacing + '.so') then Continue;
@@ -233,15 +233,15 @@ begin
     begin
       lName := AInputs.Names[lIndex];
       if SameText(ExtractFileExt(lName), '.dll') and
-        (AInputs.IndexOfName(ChangeFileExt(lName, '.pcp')) < 0) then
+        (AInputs.IndexOfName(ChangeFileExt(lName, '.nxp')) < 0) then
         raise Exception.Create('Missing package metadata for ' + lName);
       if ExtractFileExt(lName) = '.so' then
       begin
         lOwner := Copy(ChangeFileExt(lName, ''), 4, MaxInt);
-        if (Copy(lName, 1, 3) <> 'lib') or (AInputs.IndexOfName(lOwner + '.pcp') < 0) then
+        if (Copy(lName, 1, 3) <> 'lib') or (AInputs.IndexOfName(lOwner + '.nxp') < 0) then
           raise Exception.Create('Missing package metadata for ' + lName);
       end;
-      if not SameText(ExtractFileExt(lName), '.pcp') then Continue;
+      if not SameText(ExtractFileExt(lName), '.nxp') then Continue;
       lReader := TNXForgePackageArtifactReader.Create(AInputs.ValueFromIndex[lIndex]);
       try
         lMetadata := lReader.ReadMetadata;
@@ -412,7 +412,7 @@ var
   lIndex: Integer;
   lPackage: Boolean;
 begin
-  if not ArtifactName(AName + '.pcp') or (AName = '.') or (AName = '..') then
+  if not ArtifactName(AName + '.nxp') or (AName = '.') or (AName = '..') then
     raise Exception.Create('Invalid package/application name: ' + AName);
   lPackage := SameText(AKind, 'Package');
   if not lPackage and not SameText(AKind, 'Console') and not SameText(AKind, 'GUI') then
@@ -449,7 +449,7 @@ begin
     if lPackage then
     begin
       if FileExists(lOutput + '/current.json') then AddDirectory(lInputs, lOutput, AName);
-      AddInput(lInputs, AName + '.pcp', lWork + '/' + AName + '.pcp');
+      AddInput(lInputs, AName + '.nxp', lWork + '/' + AName + '.nxp');
       AddInput(lInputs, lOwnImage, lWork + '/' + lOwnImage);
     end
     else
@@ -471,7 +471,7 @@ begin
     for lIndex := 0 to lInputs.Count - 1 do
     begin
       lName := lInputs.Names[lIndex];
-      if not lPackage and SameText(ExtractFileExt(lName), '.pcp') then Continue;
+      if not lPackage and SameText(ExtractFileExt(lName), '.nxp') then Continue;
       lPath := lDirectory + '/' + lName;
       CopyArtifact(lInputs.ValueFromIndex[lIndex], lPath);
       lFile := TJSONObject.Create;

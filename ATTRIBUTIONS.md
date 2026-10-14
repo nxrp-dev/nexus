@@ -289,6 +289,17 @@ Packages import is 2026-10-08, `09d5f97`, for every row.** Our paths are under P
   The Win64 PPMd binding's C record alignment, 32-bit internal references, and
   packed helper records were corrected on **2026-10-12**, with successful
   extraction of the bundled PPMd corpus.
+  Cabinet API record alignment and C enum sizes were corrected on **2026-10-13**,
+  with SDK layout and CAB round-trip checks passing on Win32 and Win64.
+  CAB stream additions and concatenated gzip extraction were corrected on
+  **2026-10-13**; the original disabled cases are active nxtest regressions.
+  The existing i386 deflate assembler blocks now explicitly select Intel syntax.
+  ZIP legacy filename decoding on UTF-8 hosts, Unicode Path checksums over stored
+  bytes, and Windows NT filename precedence over OEM guessing were corrected on
+  **2026-10-14**, with regression checks passing on Win32, Win64, and Linux.
+  LZMA stream wrappers gained common Windows/Linux synchronization, a bounded
+  input queue, and reliable explicit completion/error handling on **2026-10-14**;
+  twelve shared nxtest regressions pass on Win32, Win64, and Linux.
   Unit names use the two-part `Abbrevia.Name` form; descriptive class and exception
   names retain `TAb` and `EAb` prefixes. Source, package, test, and resource
   references were updated together on **2026-10-12**.
@@ -313,6 +324,23 @@ Our repository is External; paths are under `compression/abbrevia/external/abbre
 | LZMA SDK 26.00 / Igor Pavlov | [7-Zip LZMA SDK](https://7-zip.org/sdk.html); `https://7-zip.org/a/lzma2600.7z` | `thirdparty/lzma`; public-domain source headers | `LicenseRef-LZMA-SDK-Public-Domain` |
 | PPMd from 7-Zip SDK 26.0 / Igor Pavlov, PPMd authors credited in source | [7-Zip](https://7-zip.org/) | `thirdparty/ppmd/readme.txt` and source headers | `LicenseRef-LZMA-SDK-Public-Domain` |
 | WavPack 5.90.0 / David Bryant | [dbry/WavPack](https://github.com/dbry/WavPack) | `thirdparty/wavpack`; BSD statement in `wavpack.h`; [upstream license](https://github.com/dbry/WavPack/blob/master/license.txt) | `BSD-3-Clause`; local header references `license.txt`, which is absent from this imported directory |
+
+The DCL Implode decoder was added separately on **2026-10-13**:
+
+- **Credit:** Mark Adler; original blast copyright 2003, 2012, 2013.
+- **Original location/revision:** [blast 1.3 in zlib v1.3.1](https://github.com/madler/zlib/blob/v1.3.1/contrib/blast/blast.c),
+  `contrib/blast/blast.c` and `blast.h`; algorithm and fixed Huffman tables.
+- **Our location/status:** External repository,
+  `compression/abbrevia/external/abbrevia/source/Abbrevia.DCL.pas`; active Pascal
+  adaptation for ZIP compression method 10. The altered-source declaration and
+  complete original license remain in the unit. This adds no C runtime dependency.
+- **Fork/import date:** **2026-10-13**, the dated local adaptation and nxtest
+  addition; this component was not part of the earlier Abbrevia import.
+- **Upstream SPDX:** `Zlib`.
+- **Verification provenance:** blast's eight-byte reference vector is retained in
+  `test/tsAbDecompressionTests.pas`. The additional all-256-coded-literals vector
+  was independently decoded and compared with upstream blast for dictionary
+  headers 4, 5, and 6 before being embedded in the same test unit.
 
 ### PasZLib
 

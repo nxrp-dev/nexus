@@ -12,16 +12,11 @@
 dialect "../language/nxbuild.Language.nxscript";
 
 Project Hello {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "Hello.lpr";
     OutputRoot: "../../../output/nxbuild-example";
 
-    FPCBuildOptions Compiler {
-        Files Paths {
-            ExecutableOutputPath: @Hello.OutputRoot;
-            UnitOutputPath: @Hello.OutputRoot + "/units";
-        }
+    FPC Compiler {
+        SourceFiles: ["Hello.lpr"];
+        OutputPath: @Hello.OutputRoot;
         Language Pascal { Mode: ObjFPC; }
         CodeGeneration Checks { RangeChecking: Enabled; }
         Debug Symbols { LineInfo: Enabled; }

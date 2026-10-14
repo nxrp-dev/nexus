@@ -1,0 +1,61 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+// Installation settings. The same package recipe is used on both native hosts.
+// Paths to installed compilers/SDKs belong here, not in the package.
+Environment Tools TargetCPU[x86_64] {
+    SDK WindowsSDK TargetOS[win64] {
+        Path: "C:/Program Files (x86)/Windows Kits/10";
+        Version: "10.0.19041.0";
+        IncludePath: @Tools.WindowsSDK.Path + "/Include/" + @Tools.WindowsSDK.Version;
+        LibraryPath: @Tools.WindowsSDK.Path + "/Lib/" + @Tools.WindowsSDK.Version;
+    }
+    SDK MSVC TargetOS[win64] {
+        Path: "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133";
+        IncludePath: @Tools.MSVC.Path + "/include";
+        LibraryPath: @Tools.MSVC.Path + "/lib/x64";
+    }
+    Platform Native TargetOS[win64] {
+        Name: "x86_64-win64";
+        OS: "win64";
+        LLVMCompiler: "C:/Program Files/LLVM/bin/clang.exe";
+        CompilerUtilitiesPath: "C:/Program Files/LLVM/bin";
+        Triple: "x86_64-pc-windows-msvc";
+        SystemIncludePaths: [
+            "C:/Program Files/LLVM/lib/clang/23/include",
+            @Tools.MSVC.IncludePath,
+            @Tools.WindowsSDK.IncludePath + "/ucrt",
+            @Tools.WindowsSDK.IncludePath + "/shared",
+            @Tools.WindowsSDK.IncludePath + "/um"
+        ];
+        LibraryPaths: [
+            @Tools.WindowsSDK.LibraryPath + "/um/x64",
+            @Tools.WindowsSDK.LibraryPath + "/ucrt/x64",
+            @Tools.MSVC.LibraryPath
+        ];
+        LinkerOptions: ["kernel32.lib", "ucrt.lib", "vcruntime.lib", "msvcrt.lib"];
+        FPCCompiler: "C:/gitdev/nexus/output/ForgeIdentity/workspace/tools/nexus-fpc/build/forge-bootstrap/cycle3/ppcx64.exe";
+        RTLPath: "C:/gitdev/nexus/output/ForgeIdentity/workspace/tools/nexus-fpc/build/forge-bootstrap/cycle3/rtl64";
+        PascalPlatform: "win";
+        PositionIndependentCode: False;
+        ObjectDirectory: "Win64";
+    }
+    Platform Native TargetOS[linux] {
+        Name: "x86_64-linux";
+        OS: "linux";
+        LLVMCompiler: "/usr/bin/clang-18";
+        CompilerUtilitiesPath: "/usr/bin";
+        Triple: "x86_64-unknown-linux-gnu";
+        SystemIncludePaths: [];
+        LibraryPaths: ["/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"];
+        LinkerOptions: ["-rpath=$ORIGIN"];
+        FPCCompiler: "/mnt/c/gitdev/nexus/output/nxbuild-next/x86_64-linux/ppcx64";
+        RTLPath: "/mnt/c/gitdev/nexus/output/ForgeRelease/workspace/tools/nexus-fpc/build/forge-bootstrap/cross/x86_64-linux/rtl";
+        PascalPlatform: "unix";
+        PositionIndependentCode: True;
+        ObjectDirectory: "Linux64";
+    }
+    Toolchain NexusFPC {
+        SourcePath: "../tools/nexus-fpc";
+    }
+}

@@ -98,6 +98,9 @@ $SourceFileNames = @(
 $ExcludedFileExtensions = @(
   '.exe',
   '.ppu'
+  '.nxu'
+  '.nxp'
+  '.nxtrace'
 )
 
 $ExcludedDirectoryNames = @(

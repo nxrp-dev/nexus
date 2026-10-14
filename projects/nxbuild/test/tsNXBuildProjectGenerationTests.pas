@@ -25,16 +25,15 @@ implementation
 
 uses
   Classes, SysUtils, fpjson, obNXTestContext, obNXTestSuite,
-  obNXLSProjectProtocol, obNXLSProjectService, obNXBuildProjectLoader,
-  obNXPascalProject, obNXFPCBuildOptions;
+  obNXLSProjectProtocol, obNXLSProjectService, obNXBuildDescriptionLoader,
+  obNXBuildDescription, obNXFPCBuildOptions;
 
 function NXBuildGeneratedFolder(const AName: string): string;
 begin
   Result := ExpandFileName('output/nxbuildTests/generated/' + AName);
 end;
 
-function NXBuildGenerateProject(const AName, AFolder, ABuildTool: string;
-  const AImportFile: string = ''): TNXLSProjectCreateResult;
+function NXBuildGenerateProject(const AName, AFolder: string): TNXLSProjectCreateResult;
 var
   lParams: TNXLSProjectCreateParams;
   lSource: TStringList;
@@ -48,12 +47,7 @@ begin
     try
       lParams.projectName.Value := AName;
       lParams.targetDir.Value := NXBuildGeneratedFolder(AFolder);
-      lParams.buildTool.Value := ABuildTool;
-      if AImportFile <> '' then
-      begin
-        lParams.kind.Value := 'lazarus';
-        lParams.lpiFile.Value := AImportFile;
-      end;
+      lParams.buildTool.Value := 'fpc';
       TNXLSProjectService.FillCreateNexusProject(lParams, Result);
       for lIndex := 0 to Result.files.Count - 1 do
       begin
@@ -72,17 +66,17 @@ begin
   end;
 end;
 
-function NXBuildLoadGenerated(AResult: TNXLSProjectCreateResult): TNXPascalProject;
+function NXBuildLoadGenerated(AResult: TNXLSProjectCreateResult): TNXBuildDescription;
 var
-  lLoader: TNXBuildProjectLoader;
+  lLoader: TNXBuildDescriptionLoader;
   lFile: TNXLSProjectFile;
 begin
   lFile := AResult.files[0] as TNXLSProjectFile;
   if not SameText(ExtractFileExt(lFile.path.Value), '.nxproject') then
     raise Exception.Create('The generator must emit a .nxproject descriptor.');
-  lLoader := TNXBuildProjectLoader.Create;
+  lLoader := TNXBuildDescriptionLoader.Create;
   try
-    Result := lLoader.LoadProject(lFile.path.Value);
+    Result := lLoader.LoadDescription(lFile.path.Value);
   finally
     lLoader.Free;
   end;
@@ -91,86 +85,32 @@ end;
 procedure TestGeneratedFPC(AContext: TNXTestContext);
 var
   lResult: TNXLSProjectCreateResult;
-  lProject: TNXPascalProject;
+  lDescription: TNXBuildDescription;
   lRoot: string;
 begin
-  lResult := NXBuildGenerateProject('NewFPC', 'fpc', 'fpc');
+  lResult := NXBuildGenerateProject('NewFPC', 'fpc');
   try
     AContext.AssertEquals(2, lResult.files.Count);
     AContext.AssertEquals(0,
       Pos('$(', (lResult.files[0] as TNXLSProjectFile).content.Value),
       'Generated NexusScript must use native references.');
-    lProject := NXBuildLoadGenerated(lResult);
+    lDescription := NXBuildLoadGenerated(lResult);
     try
       lRoot := NXBuildGeneratedFolder('fpc');
-      AContext.AssertEquals('NewFPC', lProject.Name);
-      AContext.AssertEquals(Ord(pbtFPC), Ord(lProject.BuildTool));
-      AContext.AssertEquals(Ord(ppkProgram), Ord(lProject.ProjectKind));
-      AContext.AssertEquals(lRoot, lProject.ProjectRoot);
-      AContext.AssertEquals('src', lProject.SourceRoot);
-      AContext.AssertEquals('output', lProject.OutputRoot);
-      AContext.AssertEquals(lProject.ResolvePath('src/NewFPC.lpr'), lProject.BuildFile);
-      AContext.AssertEquals(lProject.BuildFile, lProject.FPCBuildOptions.InputFile);
-      AContext.AssertEquals(lProject.ResolvePath('src'),
-        lProject.FPCBuildOptions.Files.UnitPaths[0]);
-      AContext.AssertEquals(lProject.ResolvePath('output/units'),
-        lProject.FPCBuildOptions.Files.UnitOutputPath);
-      AContext.AssertEquals(lProject.ResolvePath('output'),
-        lProject.FPCBuildOptions.Files.ExecutableOutputPath);
-      AContext.AssertEquals('objfpc', lProject.TargetPlatform.FPCMode);
-      AContext.AssertEquals(Ord(flmObjFPC), Ord(lProject.FPCBuildOptions.Language.Mode));
+      AContext.AssertEquals('NewFPC', lDescription.Name);
+      AContext.AssertEquals('Project', lDescription.Kind);
+      AContext.AssertEquals(1, lDescription.Builds.Count);
+      AContext.AssertEquals(lRoot, lDescription.RootDirectory);
+      AContext.AssertEquals('src', lDescription.SourceRoot);
+      AContext.AssertEquals('output', lDescription.OutputRoot);
+      AContext.AssertEquals(lDescription.ResolvePath('src/NewFPC.lpr'), (lDescription.Builds[0] as TNXFPCBuildOptions).SourceFiles[0]);
+      AContext.AssertEquals(lDescription.ResolvePath('src'),
+        (lDescription.Builds[0] as TNXFPCBuildOptions).Files.UnitPaths[0]);
+      AContext.AssertEquals(lDescription.ResolvePath('output'),
+        (lDescription.Builds[0] as TNXFPCBuildOptions).OutputPath);
+      AContext.AssertEquals(Ord(flmObjFPC), Ord((lDescription.Builds[0] as TNXFPCBuildOptions).Language.Mode));
     finally
-      lProject.Free;
-    end;
-  finally
-    lResult.Free;
-  end;
-end;
-
-procedure TestGeneratedLazarus(AContext: TNXTestContext);
-var
-  lResult: TNXLSProjectCreateResult;
-  lProject: TNXPascalProject;
-begin
-  lResult := NXBuildGenerateProject('NewLazarus', 'lazarus', 'lazarus');
-  try
-    AContext.AssertEquals(3, lResult.files.Count);
-    lProject := NXBuildLoadGenerated(lResult);
-    try
-      AContext.AssertEquals(Ord(pbtLazarus), Ord(lProject.BuildTool));
-      AContext.AssertEquals(Ord(ppkLazarusProject), Ord(lProject.ProjectKind));
-      AContext.AssertEquals(lProject.ResolvePath('NewLazarus.lpi'), lProject.BuildFile);
-      AContext.AssertEquals(lProject.BuildFile, lProject.FPCBuildOptions.InputFile);
-      AContext.AssertTrue(FileExists(lProject.BuildFile));
-    finally
-      lProject.Free;
-    end;
-  finally
-    lResult.Free;
-  end;
-end;
-
-procedure TestImportedLazarus(AContext: TNXTestContext);
-var
-  lResult: TNXLSProjectCreateResult;
-  lProject: TNXPascalProject;
-  lLPIFile: string;
-begin
-  lLPIFile := ExpandFileName('projects/nxbuild/examples/Hello.lpi');
-  lResult := NXBuildGenerateProject('ImportedHello', 'import', 'lazarus', lLPIFile);
-  try
-    AContext.AssertEquals(1, lResult.files.Count);
-    lProject := NXBuildLoadGenerated(lResult);
-    try
-      AContext.AssertEquals('ImportedHello', lProject.Name);
-      AContext.AssertEquals(Ord(pbtLazarus), Ord(lProject.BuildTool));
-      AContext.AssertEquals(Ord(ppkLazarusProject), Ord(lProject.ProjectKind));
-      AContext.AssertEquals(lLPIFile, lProject.BuildFile);
-      AContext.AssertEquals(NXBuildGeneratedFolder('import'), lProject.ProjectRoot);
-      AContext.AssertEquals('output', lProject.OutputRoot);
-      AContext.AssertEquals(0, lProject.FPCBuildOptions.Files.UnitPaths.Count);
-    finally
-      lProject.Free;
+      lDescription.Free;
     end;
   finally
     lResult.Free;
@@ -180,19 +120,19 @@ end;
 procedure TestGeneratedQuotedNames(AContext: TNXTestContext);
 var
   lResult: TNXLSProjectCreateResult;
-  lProject: TNXPascalProject;
+  lDescription: TNXBuildDescription;
 begin
-  lResult := NXBuildGenerateProject('007-game', 'caret^ and spaces', 'fpc');
+  lResult := NXBuildGenerateProject('007-game', 'caret^ and spaces');
   try
-    lProject := NXBuildLoadGenerated(lResult);
+    lDescription := NXBuildLoadGenerated(lResult);
     try
-      AContext.AssertEquals('007-game', lProject.Name);
+      AContext.AssertEquals('007-game', lDescription.Name);
       AContext.AssertEquals(NXBuildGeneratedFolder('caret^ and spaces'),
-        lProject.ProjectRoot);
-      AContext.AssertEquals(lProject.ResolvePath('src/007-game.lpr'),
-        lProject.BuildFile);
+        lDescription.RootDirectory);
+      AContext.AssertEquals(lDescription.ResolvePath('src/007-game.lpr'),
+        (lDescription.Builds[0] as TNXFPCBuildOptions).SourceFiles[0]);
     finally
-      lProject.Free;
+      lDescription.Free;
     end;
   finally
     lResult.Free;
@@ -205,7 +145,7 @@ var
   lJSON: TJSONData;
   lBefore, lAfter: TNXLSProjectFile;
 begin
-  lResult := NXBuildGenerateProject('WireProject', 'wire^ and spaces', 'fpc');
+  lResult := NXBuildGenerateProject('WireProject', 'wire^ and spaces');
   lReloaded := TNXLSProjectCreateResult.Create;
   lJSON := nil;
   try
@@ -230,8 +170,6 @@ var
 begin
   lSuite := ARegistry.AddSuite('NXBuild.ProjectGeneration');
   lSuite.AddTest('FPC', @TestGeneratedFPC);
-  lSuite.AddTest('Lazarus', @TestGeneratedLazarus);
-  lSuite.AddTest('LazarusImport', @TestImportedLazarus);
   lSuite.AddTest('QuotedNamesAndPaths', @TestGeneratedQuotedNames);
   lSuite.AddTest('WireRoundTrip', @TestGeneratedWireRoundTrip);
 end;

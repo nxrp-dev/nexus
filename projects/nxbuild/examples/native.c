@@ -9,11 +9,7 @@
 //
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
-dialect "../language/nxbuild.Language.nxscript";
-
-Project LazarusHello {
-    BuildTool: Lazarus;
-    ProjectKind: LazarusProject;
-    BuildFile: "Hello.lpi";
-    Toolchain Tools { LazarusRoot: "C:/lazarus"; }
+int nx_add(int a, int b)
+{
+    return a + b;
 }

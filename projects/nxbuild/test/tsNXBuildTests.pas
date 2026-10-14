@@ -20,37 +20,40 @@ interface
 uses obNXTestRegistry;
 
 procedure RegisterNXBuildTests(ARegistry: TNXTestRegistry);
+function NXBuildRunTestTool: Integer;
+function NXBuildRunSourceTool: Integer;
 
 implementation
 
 uses
   Classes, SysUtils, TypInfo, obNXTestContext, obNXTestSuite,
-  obNXBuildProjectLoader, obNXBuildPlanner, obNXPascalProject,
-  obNXFPCBuildOptions, obNexusScriptAnalysis, obNexusScriptLanguageDefinition;
+  obNXBuildDescriptionLoader, obNXBuildDescription, obNXBuildEntry,
+  obNXBuildPlanner, obNXBuildExecutor, obNXFPCBuildOptions,
+  obNXLLVMBuildOptions, obNexusScriptAnalysis, obNexusScriptLanguageDefinition, obNexusScriptModel;
 
-function NXBuildTestDialect: string;
+function NXBuildQuote(const AValue: string): string;
 begin
-  Result := ExpandFileName('projects/nxbuild/language/nxbuild.Language.nxscript');
+  Result := '"' + StringReplace(AValue, '\', '/', [rfReplaceAll]) + '"';
 end;
 
 function NXBuildTestLoad(const AText: string;
-  AWithDialect: Boolean = True): TNXPascalProject;
+  AWithDialect: Boolean = True; ATargets: TNexusScriptTargetSelection = nil): TNXBuildDescription;
 var
   lFileName: string;
   lSource: TStringList;
-  lLoader: TNXBuildProjectLoader;
+  lLoader: TNXBuildDescriptionLoader;
 begin
   lFileName := ExpandFileName('output/nxbuildTests/fixture.nxproject');
   ForceDirectories(ExtractFileDir(lFileName));
   lSource := TStringList.Create;
-  lLoader := TNXBuildProjectLoader.Create;
+  lLoader := TNXBuildDescriptionLoader.Create;
   try
     if AWithDialect then
-      lSource.Add('dialect "' + StringReplace(NXBuildTestDialect, '\', '/',
-        [rfReplaceAll]) + '";');
+      lSource.Add('dialect ' + NXBuildQuote(ExpandFileName(
+        'projects/nxbuild/language/nxbuild.Language.nxscript')) + ';');
     lSource.Add(AText);
     lSource.SaveToFile(lFileName);
-    Result := lLoader.LoadProject(lFileName);
+    Result := lLoader.LoadDescription(lFileName, ATargets);
   finally
     DeleteFile(lFileName);
     lLoader.Free;
@@ -61,195 +64,672 @@ end;
 procedure NXBuildTestReject(AContext: TNXTestContext; const AText: string;
   AWithDialect: Boolean = True);
 var
-  lProject: TNXPascalProject;
+  lDescription: TNXBuildDescription;
   lError: string;
 begin
-  lProject := nil;
+  lDescription := nil;
   lError := '';
   try
     try
-      lProject := NXBuildTestLoad(AText, AWithDialect);
+      lDescription := NXBuildTestLoad(AText, AWithDialect);
     except
       on E: Exception do lError := E.Message;
     end;
   finally
-    lProject.Free;
+    lDescription.Free;
   end;
   AContext.AssertTrue(lError <> '', 'The invalid build script was accepted.');
 end;
 
-procedure TestDefaults(AContext: TNXTestContext);
+function NXBuildTestFolder: string;
 var
-  lProject: TNXPascalProject;
+  lGuid: TGUID;
 begin
-  lProject := NXBuildTestLoad('Project Demo {}');
-  try
-    AContext.AssertEquals('Demo', lProject.Name);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/fixture.nxproject'),
-      lProject.ProjectFileName);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests'), lProject.ProjectRoot);
-    AContext.AssertEquals(Ord(pbtUnknown), Ord(lProject.BuildTool));
-    AContext.AssertEquals(Ord(fssEnabled),
-      Ord(lProject.FPCBuildOptions.Syntax.COperators));
-  finally
-    lProject.Free;
-  end;
+  CreateGUID(lGuid);
+  Result := ExpandFileName('output/nxbuildTests/' + GUIDToString(lGuid));
 end;
 
-procedure NXBuildCheckCOperators(AContext: TNXTestContext; const AValue: string;
-  AExpected: TNXFPCSwitchState);
+procedure TestDefaults(AContext: TNXTestContext);
 var
-  lProject: TNXPascalProject;
-  lArguments: TStringList;
+  lDescription: TNXBuildDescription;
+  lFPC: TNXFPCBuildOptions;
 begin
-  lProject := NXBuildTestLoad('Project Demo { FPCBuildOptions Compiler {' +
-    ' Syntax Options { COperators: ' + AValue + '; } } }');
-  lArguments := TStringList.Create;
+  lDescription := NXBuildTestLoad('Project Demo { FPC Pascal {} }');
   try
-    AContext.AssertEquals(Ord(AExpected),
-      Ord(lProject.FPCBuildOptions.Syntax.COperators));
-    lProject.FPCBuildOptions.AppendArguments(lArguments);
-    AContext.AssertEquals(Ord(AExpected = fssEnabled),
-      Ord(lArguments.IndexOf('-Sc') >= 0));
-    AContext.AssertEquals(Ord(AExpected = fssDisabled),
-      Ord(lArguments.IndexOf('-Sc-') >= 0));
+    AContext.AssertEquals('Demo', lDescription.Name);
+    AContext.AssertEquals('Project', lDescription.Kind);
+    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/fixture.nxproject'),
+      lDescription.FileName);
+    AContext.AssertEquals(ExpandFileName('output/nxbuildTests'), lDescription.RootDirectory);
+    AContext.AssertEquals(1, lDescription.Builds.Count);
+    lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
+    AContext.AssertEquals('Pascal', lFPC.Name);
+    AContext.AssertEquals(lDescription.RootDirectory, lFPC.OutputPath);
+    AContext.AssertEquals(Ord(fssEnabled), Ord(lFPC.Syntax.COperators));
   finally
-    lArguments.Free;
-    lProject.Free;
+    lDescription.Free;
   end;
 end;
 
 procedure TestCOperators(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lFPC: TNXFPCBuildOptions;
+  lArguments: TStringList;
+  lValue: string;
+  lSourceIndex: Integer;
 begin
-  NXBuildCheckCOperators(AContext, 'Enabled', fssEnabled);
-  NXBuildCheckCOperators(AContext, 'Disabled', fssDisabled);
-  NXBuildCheckCOperators(AContext, 'Unset', fssUnset);
+  for lValue in ['Enabled', 'Disabled', 'Unset'] do
+  begin
+    lDescription := NXBuildTestLoad('Project Demo { FPC Pascal {' +
+      ' SourceFiles: ["main.pas"]; Syntax Options { COperators: ' + lValue + '; } } }');
+    lArguments := TStringList.Create;
+    try
+      lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
+      lFPC.AppendArguments(lArguments, lSourceIndex);
+      AContext.AssertEquals(Ord(lValue = 'Enabled'), Ord(lArguments.IndexOf('-Sc') >= 0));
+      AContext.AssertEquals(Ord(lValue = 'Disabled'), Ord(lArguments.IndexOf('-Sc-') >= 0));
+    finally
+      lArguments.Free;
+      lDescription.Free;
+    end;
+  end;
 end;
 
 procedure TestNativeValues(AContext: TNXTestContext);
 var
-  lProject: TNXPascalProject;
+  lDescription: TNXBuildDescription;
+  lFPC: TNXFPCBuildOptions;
 begin
-  lProject := NXBuildTestLoad(
-    'Project Demo {' +
-    ' Name: "Native Demo"; BuildTool: FPC; ProjectKind: Program;' +
-    ' SourceRoot: "src"; OutputRoot: "out";' +
-    ' Toolchain Tools { CompilerPath: "my-fpc"; }' +
-    ' TargetPlatform Platform { TargetOS: "win64"; ConfigName: "debug"; }' +
-    ' FPCBuildOptions Compiler {' +
-    '  CompilerPath: "ignored"; RawOptions: ["-d" + @Demo.Platform.ConfigName];' +
-    '  Config Options { DisableDefaultConfigFiles: False; }' +
-    '  CodeGeneration Checks { RangeChecking: Enabled; MinimumHeapSize: 4096; }' +
-    '  Files Paths { UnitPaths: [@Demo.SourceRoot, @Demo.OutputRoot]; }' +
-    '  Language Pascal { Mode: ObjFPC; }' +
-    '  Optimization Optimize { Level: Level2; OptimizeForSize: Disabled; }' +
-    '  Linking Link { StripSymbols: Enabled; LinkerOptions: ["--one", "--two"]; }' +
+  lDescription := NXBuildTestLoad(
+    'Project Demo { Name: "Native Demo"; SourceRoot: "src"; OutputRoot: "out";' +
+    ' FPC Pascal { CompilerPath: "my-fpc"; SourceFiles: [@Demo.SourceRoot + "/main.pas"];' +
+    ' RawOptions: ["-d" + "debug"];' +
+    ' Target Platform { OperatingSystem: "win64"; }' +
+    ' Config Options { DisableDefaultConfigFiles: False; }' +
+    ' CodeGeneration Checks { RangeChecking: Enabled; MinimumHeapSize: 4096; }' +
+    ' Files Paths { UnitPaths: [@Demo.SourceRoot, @Demo.OutputRoot]; }' +
+    ' Language Pascal { Mode: ObjFPC; }' +
+    ' Optimization Optimize { Level: Level2; OptimizeForSize: Disabled; }' +
+    ' Linking Link { StripSymbols: Enabled; LinkerOptions: ["--one", "--two"]; }' +
     ' } }');
   try
-    AContext.AssertEquals('Native Demo', lProject.Name);
-    AContext.AssertEquals(Ord(pbtFPC), Ord(lProject.BuildTool));
-    AContext.AssertEquals(Ord(ppkProgram), Ord(lProject.ProjectKind));
-    AContext.AssertEquals('my-fpc', lProject.FPCBuildOptions.CompilerPath);
-    AContext.AssertEquals('win64', lProject.FPCBuildOptions.Target.OperatingSystem);
-    AContext.AssertFalse(lProject.FPCBuildOptions.Config.DisableDefaultConfigFiles);
-    AContext.AssertEquals(Ord(fssEnabled),
-      Ord(lProject.FPCBuildOptions.CodeGeneration.RangeChecking));
-    AContext.AssertEquals(4096, lProject.FPCBuildOptions.CodeGeneration.MinimumHeapSize);
-    AContext.AssertEquals(Ord(flmObjFPC), Ord(lProject.FPCBuildOptions.Language.Mode));
-    AContext.AssertEquals(Ord(folLevel2), Ord(lProject.FPCBuildOptions.Optimization.Level));
-    AContext.AssertEquals(Ord(fssDisabled),
-      Ord(lProject.FPCBuildOptions.Optimization.OptimizeForSize));
-    AContext.AssertEquals(2, lProject.FPCBuildOptions.Files.UnitPaths.Count);
-    AContext.AssertEquals(lProject.ResolvePath('src'),
-      lProject.FPCBuildOptions.Files.UnitPaths[0]);
-    AContext.AssertEquals(lProject.ResolvePath('out'),
-      lProject.FPCBuildOptions.Files.UnitPaths[1]);
-    AContext.AssertEquals('-ddebug', lProject.FPCBuildOptions.RawOptions[0]);
-    AContext.AssertEquals('--two', lProject.FPCBuildOptions.Linking.LinkerOptions[1]);
+    lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
+    AContext.AssertEquals('Native Demo', lDescription.Name);
+    AContext.AssertEquals('my-fpc', lFPC.CompilerPath);
+    AContext.AssertEquals(lDescription.ResolvePath('src/main.pas'), lFPC.SourceFiles[0]);
+    AContext.AssertEquals('win64', lFPC.Target.OperatingSystem);
+    AContext.AssertFalse(lFPC.Config.DisableDefaultConfigFiles);
+    AContext.AssertEquals(Ord(fssEnabled), Ord(lFPC.CodeGeneration.RangeChecking));
+    AContext.AssertEquals(4096, lFPC.CodeGeneration.MinimumHeapSize);
+    AContext.AssertEquals(Ord(flmObjFPC), Ord(lFPC.Language.Mode));
+    AContext.AssertEquals(Ord(folLevel2), Ord(lFPC.Optimization.Level));
+    AContext.AssertEquals(Ord(fssDisabled), Ord(lFPC.Optimization.OptimizeForSize));
+    AContext.AssertEquals(2, lFPC.Files.UnitPaths.Count);
+    AContext.AssertEquals(lDescription.ResolvePath('src'), lFPC.Files.UnitPaths[0]);
+    AContext.AssertEquals(lDescription.ResolvePath('out'), lFPC.Files.UnitPaths[1]);
+    AContext.AssertEquals('-ddebug', lFPC.RawOptions[0]);
+    AContext.AssertEquals('--two', lFPC.Linking.LinkerOptions[1]);
   finally
-    lProject.Free;
+    lDescription.Free;
   end;
 end;
 
-procedure TestRelativeCompilerPath(AContext: TNXTestContext);
+procedure TestOrderedBuilds(AContext: TNXTestContext);
+const
+  cSources: array[0..2] of string = ('first.pas', 'second file.pas', 'first.pas');
 var
-  lProject: TNXPascalProject;
-begin
-  lProject := NXBuildTestLoad('Project Demo {' +
-    ' Toolchain Tools { CompilerPath: "../../tools/my-fpc.exe"; } }');
-  try
-    AContext.AssertEquals(ExpandFileName('tools/my-fpc.exe'),
-      lProject.FPCBuildOptions.CompilerPath);
-  finally
-    lProject.Free;
-  end;
-end;
-
-procedure TestBooleanTrue(AContext: TNXTestContext);
-var
-  lProject: TNXPascalProject;
-begin
-  lProject := NXBuildTestLoad('Project Demo { FPCBuildOptions Compiler {' +
-    ' Config Options { DisableDefaultConfigFiles: True; } } }');
-  try
-    AContext.AssertTrue(lProject.FPCBuildOptions.Config.DisableDefaultConfigFiles);
-  finally
-    lProject.Free;
-  end;
-end;
-
-procedure TestFPCPlan(AContext: TNXTestContext);
-var
-  lLoader: TNXBuildProjectLoader;
+  lDescription: TNXBuildDescription;
   lPlanner: TNXBuildPlanner;
   lPlan: TNXBuildPlan;
+  lStep: TNXBuildStep;
+  lArguments: TStringList;
+  lKind: string;
+  lIndex: Integer;
 begin
-  lLoader := TNXBuildProjectLoader.Create;
+  for lKind in ['Project', 'Package'] do
+  begin
+    lDescription := NXBuildTestLoad(lKind + ' Demo {' +
+      ' LLVM First { Language: C; SourceFiles: ["missing.c"]; }' +
+      ' FPC Second { SourceFiles: ["first.pas", "second file.pas", "first.pas"];' +
+      ' OutputPath: "pascal output"; RawOptions: ["-dORDERED"]; }' +
+      ' LLVM Third { Language: CPP; SourceFiles: ["missing.cpp", "also missing.cpp"];' +
+      ' Libraries: ["support"]; }' +
+      ' FPC Fourth { SourceFiles: ["also-missing.pas"]; } }');
+    lPlanner := TNXBuildPlanner.Create;
+    lArguments := TStringList.Create;
+    try
+      AContext.AssertEquals(lKind, lDescription.Kind);
+      AContext.AssertEquals(4, lDescription.Builds.Count);
+      for lIndex := 0 to 3 do
+        (lDescription.Builds[lIndex] as TNXBuildEntry).CompilerPath := ParamStr(0);
+      lPlan := lPlanner.CreatePlan(lDescription);
+      try
+        AContext.AssertEquals(4, lPlan.Steps.Count);
+        AContext.AssertEquals('First', lPlan.Steps[0].Name);
+        AContext.AssertEquals('LLVM', lPlan.Steps[0].BuildType);
+        AContext.AssertTrue(lPlan.Steps[0].Arguments.IndexOf('c') >= 0);
+        lStep := lPlan.Steps[1];
+        AContext.AssertEquals('Second', lStep.Name);
+        AContext.AssertEquals('FPC', lStep.BuildType);
+        AContext.AssertTrue(lStep.CompileEachSource);
+        AContext.AssertEquals(ExpandFileName(ParamStr(0)), lStep.Executable);
+        AContext.AssertEquals(lDescription.ResolvePath('pascal output'), lStep.OutputPath);
+        AContext.AssertEquals(3, lStep.SourceFiles.Count);
+        for lIndex := 0 to 2 do
+        begin
+          AContext.AssertEquals(lDescription.ResolvePath(cSources[lIndex]), lStep.SourceFiles[lIndex]);
+          lStep.FillArguments(lStep.SourceFiles, lIndex, lArguments);
+          AContext.AssertEquals(lStep.Arguments.Count + 1, lArguments.Count);
+          AContext.AssertTrue(lArguments.IndexOf('-dORDERED') >= 0);
+          AContext.AssertEquals(lDescription.ResolvePath(cSources[lIndex]), lArguments[lArguments.Count - 1]);
+        end;
+        lStep := lPlan.Steps[2];
+        AContext.AssertEquals('Third', lStep.Name);
+        AContext.AssertEquals('LLVM', lStep.BuildType);
+        AContext.AssertFalse(lStep.CompileEachSource);
+        lStep.FillArguments(lStep.SourceFiles, 0, lArguments);
+        AContext.AssertTrue(lArguments.IndexOf('c++') >= 0);
+        AContext.AssertEquals(lDescription.ResolvePath('missing.cpp'), lArguments[lArguments.Count - 3]);
+        AContext.AssertEquals(lDescription.ResolvePath('also missing.cpp'), lArguments[lArguments.Count - 2]);
+        AContext.AssertEquals('-lsupport', lArguments[lArguments.Count - 1]);
+        lStep := lPlan.Steps[3];
+        AContext.AssertEquals('Fourth', lStep.Name);
+        AContext.AssertEquals('FPC', lStep.BuildType);
+        // The plan owns its source selections and arguments after loading ends.
+        FreeAndNil(lDescription);
+        lStep.FillArguments(lStep.SourceFiles, 0, lArguments);
+        AContext.AssertEquals(lStep.SourceFiles[0], lArguments[lArguments.Count - 1]);
+      finally
+        lPlan.Free;
+      end;
+    finally
+      lArguments.Free;
+      lPlanner.Free;
+      lDescription.Free;
+    end;
+  end;
+end;
+
+procedure TestLLVMOptions(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lLLVM: TNXLLVMBuildOptions;
+  lArguments: TStringList;
+  lSourceIndex: Integer;
+begin
+  lDescription := NXBuildTestLoad('Package Demo { LLVM Native {' +
+    ' Language: CPP; BuildKind: SharedLibrary; Target: "x86_64-w64-windows-gnu";' +
+    ' ConfigFiles: ["config files/base.cfg", "config files/library.cfg"];' +
+    ' Standard: "c++17"; DebugInfo: True; PositionIndependentCode: True;' +
+    ' SourceFiles: ["one file.cpp", "two.cpp"]; OutputPath: "out directory";' +
+    ' IncludePaths: ["headers"]; SystemIncludePaths: ["sdk headers", "other sdk"]; Defines: ["VALUE=2"];' +
+    ' LibraryPaths: ["libs"]; Libraries: ["support"]; } }');
+  lArguments := TStringList.Create;
+  try
+    lLLVM := lDescription.Builds[0] as TNXLLVMBuildOptions;
+    AContext.AssertEquals('clang++', lLLVM.DefaultCompiler);
+    lLLVM.AppendArguments(lArguments, lSourceIndex);
+    AContext.AssertEquals(2, lLLVM.ConfigFiles.Count);
+    AContext.AssertEquals(lDescription.ResolvePath('config files/base.cfg'), lLLVM.ConfigFiles[0]);
+    AContext.AssertEquals('--config=' + lDescription.ResolvePath('config files/base.cfg'), lArguments[0]);
+    AContext.AssertEquals('--config=' + lDescription.ResolvePath('config files/library.cfg'), lArguments[1]);
+    AContext.AssertTrue(lArguments.IndexOf('-shared') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-std=c++17') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('--target=x86_64-w64-windows-gnu') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-g') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-fPIC') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-DVALUE=2') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-I' + lDescription.ResolvePath('headers')) >= 0);
+    AContext.AssertEquals(2, lLLVM.SystemIncludePaths.Count);
+    AContext.AssertEquals(lDescription.ResolvePath('sdk headers'), lLLVM.SystemIncludePaths[0]);
+    AContext.AssertEquals(lDescription.ResolvePath('sdk headers'),
+      lArguments[lArguments.IndexOf('-isystem') + 1]);
+    AContext.AssertEquals('-isystem', lArguments[lArguments.IndexOf('-isystem') + 2]);
+    AContext.AssertEquals(lDescription.ResolvePath('other sdk'),
+      lArguments[lArguments.IndexOf('-isystem') + 3]);
+    AContext.AssertTrue(lArguments.IndexOf('-L' + lDescription.ResolvePath('libs')) >= 0);
+    AContext.AssertEquals('-lsupport', lArguments[lSourceIndex]);
+    AContext.AssertEquals('-lsupport', lArguments[lArguments.Count - 1]);
+    AContext.AssertEquals(lDescription.ResolvePath('out directory'), lLLVM.OutputPath);
+    AContext.AssertEquals(-1, lArguments.IndexOf('-o'));
+  finally
+    lArguments.Free;
+    lDescription.Free;
+  end;
+end;
+
+procedure TestResolvePaths(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lFPC: TNXFPCBuildOptions;
+  lAbsolute: string;
+begin
+  lDescription := NXBuildTestLoad('Project Demo { RootDirectory: "path root";' +
+    ' FPC Pascal { CompilerPath: "../tools/compiler.exe";' +
+    ' SourceFiles: ["../source.pas"]; Config Options { OptionFiles: ["settings.cfg"]; }' +
+    ' OutputPath: "units"; Files Paths { ObjectPaths: ["objects"]; } } }');
+  try
+    lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
+    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/path root'), lDescription.RootDirectory);
+    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/tools/compiler.exe'), lFPC.CompilerPath);
+    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/source.pas'), lFPC.SourceFiles[0]);
+    AContext.AssertEquals(lDescription.ResolvePath('settings.cfg'), lFPC.Config.OptionFiles[0]);
+    AContext.AssertEquals(lDescription.ResolvePath('units'), lFPC.OutputPath);
+    AContext.AssertEquals(lDescription.ResolvePath('objects'), lFPC.Files.ObjectPaths[0]);
+    AContext.AssertEquals('', lDescription.ResolvePath(''));
+    lAbsolute := ExpandFileName('projects/nxbuild/examples/Hello.lpr');
+    AContext.AssertEquals(lAbsolute, lDescription.ResolvePath(lAbsolute));
+    {$IFDEF MSWINDOWS}
+    AContext.AssertEquals('D:\sources\main.pas', lDescription.ResolvePath('D:\sources\main.pas'));
+    AContext.AssertEquals('\\server\share\main.pas', lDescription.ResolvePath('\\server\share\main.pas'));
+    {$ENDIF}
+  finally
+    lDescription.Free;
+  end;
+end;
+
+procedure TestOutputPaths(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lRoot, lDestination: string;
+  lKind: string;
+  lIndex: Integer;
+begin
+  lRoot := NXBuildTestFolder;
+  lDestination := NXBuildTestFolder;
+  for lKind in ['Project', 'Package'] do
+  begin
+    lDescription := NXBuildTestLoad(lKind + ' Demo { RootDirectory: ' +
+      NXBuildQuote(lRoot) + '; OutputRoot: "reference only";' +
+      ' FPC Pascal { OutputPath: "pascal files"; }' +
+      ' LLVM Native { OutputPath: ' + NXBuildQuote(lDestination) + '; }' +
+      ' FPC DefaultPascal {} LLVM DefaultNative {} }');
+    lPlanner := TNXBuildPlanner.Create;
+    try
+      for lIndex := 0 to lDescription.Builds.Count - 1 do
+      begin
+        (lDescription.Builds[lIndex] as TNXBuildEntry).CompilerPath := ParamStr(0);
+        (lDescription.Builds[lIndex] as TNXBuildEntry).SourceFiles.Add(
+          lDescription.ResolvePath('not-created-yet.pas'));
+      end;
+      lPlan := lPlanner.CreatePlan(lDescription);
+      try
+        AContext.AssertEquals(lDescription.ResolvePath('pascal files'),
+          lPlan.Steps[0].OutputPath);
+        AContext.AssertEquals(lDestination, lPlan.Steps[1].OutputPath);
+        AContext.AssertEquals(lRoot, lPlan.Steps[2].OutputPath);
+        AContext.AssertEquals(lRoot, lPlan.Steps[3].OutputPath);
+        AContext.AssertFalse(DirectoryExists(lRoot));
+        AContext.AssertFalse(DirectoryExists(lDestination));
+      finally
+        lPlan.Free;
+      end;
+    finally
+      lPlanner.Free;
+      lDescription.Free;
+    end;
+  end;
+end;
+
+procedure TestPlanningBoundary(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan, lSecondPlan: TNXBuildPlan;
+  lFolder, lError: string;
+  lFPC: TNXFPCBuildOptions;
+begin
+  lFolder := NXBuildTestFolder;
+  lDescription := NXBuildTestLoad('Project Demo { OutputRoot: ' + NXBuildQuote(lFolder) + ';' +
+    ' FPC Pascal { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + ';' +
+    ' SourceFiles: ["not-created-yet.pas", @Demo.OutputRoot + "/generated/*.pas"]; OutputPath: @Demo.OutputRoot; } }');
   lPlanner := TNXBuildPlanner.Create;
   try
-    lPlan := lPlanner.CreatePlan(lLoader.LoadProject(
-      'projects/nxbuild/examples/Hello.nxproject'));
+    lPlan := lPlanner.CreatePlan(lDescription);
     try
-      AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples'),
-        lPlan.WorkingDirectory);
-      AContext.AssertTrue(lPlan.Arguments.IndexOf('-Mobjfpc') >= 0);
-      AContext.AssertTrue(lPlan.Arguments.IndexOf('-Sc') >= 0);
-      AContext.AssertFalse(lPlan.Arguments.IndexOf('-Sc-') >= 0);
-      AContext.AssertTrue(lPlan.Arguments.IndexOf('-Cr') >= 0);
-      AContext.AssertTrue(lPlan.Arguments.IndexOf('-gl') >= 0);
-      AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples/Hello.lpr'),
-        lPlan.Arguments[lPlan.Arguments.Count - 1]);
+      AContext.AssertFalse(DirectoryExists(lFolder), 'Planning created output directories.');
+      AContext.AssertEquals(lFolder, lPlan.Steps[0].OutputPath);
+      AContext.AssertTrue(lPlan.Steps[0].Arguments.IndexOf('-FE' + lFolder) >= 0);
+      AContext.AssertTrue(lPlan.Steps[0].Arguments.IndexOf('-FU' + lFolder) >= 0);
+      AContext.AssertEquals(ExpandFileName(ParamStr(0)), lPlan.Steps[0].Executable);
+      AContext.AssertEquals(lDescription.ResolvePath('not-created-yet.pas'), lPlan.Steps[0].SourceFiles[0]);
+      AContext.AssertEquals(lDescription.ResolvePath(lFolder + '/generated/*.pas'), lPlan.Steps[0].SourceFiles[1]);
+      lSecondPlan := lPlanner.CreatePlan(lDescription);
+      try
+        AContext.AssertEquals(lPlan.Steps[0].Arguments.Text,
+          lSecondPlan.Steps[0].Arguments.Text);
+        AContext.AssertEquals(lPlan.Steps[0].SourceFiles.Text, lSecondPlan.Steps[0].SourceFiles.Text);
+      finally
+        lSecondPlan.Free;
+      end;
     finally
       lPlan.Free;
     end;
+    lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
+    lFPC.CompilerPath := lFolder + '/missing-compiler';
+    lError := '';
+    try
+      lPlan := lPlanner.CreatePlan(lDescription);
+      lPlan.Free;
+    except
+      on E: Exception do lError := E.Message;
+    end;
+    AContext.AssertTrue(Pos('Pascal', lError) > 0);
+    AContext.AssertTrue(Pos('tool not found', lError) > 0);
+    AContext.AssertFalse(DirectoryExists(lFolder));
   finally
     lPlanner.Free;
-    lLoader.Free;
+    lDescription.Free;
   end;
 end;
 
-procedure TestLazarusPlan(AContext: TNXTestContext);
+procedure TestEmptySources(AContext: TNXTestContext);
 var
-  lProject: TNXPascalProject;
+  lDescription: TNXBuildDescription;
   lPlanner: TNXBuildPlanner;
   lPlan: TNXBuildPlan;
+  lKind, lSources, lError, lFolder: string;
 begin
-  lProject := NXBuildTestLoad('Project Demo { BuildTool: Lazarus;' +
-    ' BuildFile: "../../projects/nxbuild/examples/Hello.lpi"; }');
+  lFolder := NXBuildTestFolder;
+  for lKind in ['FPC', 'LLVM'] do
+    for lSources in ['', 'SourceFiles: [];'] do
+    begin
+      lDescription := NXBuildTestLoad('Project Demo { ' + lKind + ' Empty {' +
+        ' CompilerPath: ' + NXBuildQuote(ParamStr(0)) + ';' +
+        ' OutputPath: ' + NXBuildQuote(lFolder) + '; ' + lSources + ' } }');
+      lPlanner := TNXBuildPlanner.Create;
+      try
+        lError := '';
+        try
+          lPlan := lPlanner.CreatePlan(lDescription);
+          lPlan.Free;
+        except
+          on E: Exception do lError := E.Message;
+        end;
+        AContext.AssertTrue(Pos('Empty', lError) > 0);
+        AContext.AssertTrue(Pos(lKind, lError) > 0);
+        AContext.AssertTrue(Pos('SourceFiles must contain at least one file', lError) > 0);
+        AContext.AssertFalse(DirectoryExists(lFolder));
+      finally
+        lPlanner.Free;
+        lDescription.Free;
+      end;
+    end;
+end;
+
+procedure TestEmptyPlan(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lError: string;
+begin
+  lDescription := NXBuildTestLoad('Package Empty {}');
   lPlanner := TNXBuildPlanner.Create;
   try
-    lPlan := lPlanner.CreatePlan(lProject);
+    lError := '';
     try
-      AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples'),
-        lPlan.WorkingDirectory);
-      AContext.AssertEquals('--quiet', lPlan.Arguments[0]);
-      AContext.AssertEquals(ExpandFileName('projects/nxbuild/examples/Hello.lpi'),
-        lPlan.Arguments[1]);
-    finally
+      lPlan := lPlanner.CreatePlan(lDescription);
       lPlan.Free;
+    except
+      on E: Exception do lError := E.Message;
     end;
+    AContext.AssertTrue(Pos('at least one build', lError) > 0);
   finally
     lPlanner.Free;
+    lDescription.Free;
+  end;
+end;
+
+function NXBuildRunTestTool: Integer;
+var
+  lLog: TStringList;
+begin
+  lLog := TStringList.Create;
+  try
+    if GetCurrentDir <> ExtractFileDir(ParamStr(2)) then Exit(98);
+    if FileExists(ParamStr(2)) then lLog.LoadFromFile(ParamStr(2));
+    if lLog.Count <> StrToInt(ParamStr(5)) then Exit(99);
+    lLog.Add(ParamStr(3));
+    lLog.SaveToFile(ParamStr(2));
+    Result := StrToInt(ParamStr(4));
+  finally
+    lLog.Free;
+  end;
+end;
+
+procedure NXBuildCheckExecution(AContext: TNXTestContext; AFail: Boolean);
+var
+  lPlan: TNXBuildPlan;
+  lExecutor: TNXBuildExecutor;
+  lStep: TNXBuildStep;
+  lLog: TStringList;
+  lFolder, lLogFile: string;
+  lIndex, lExitCode: Integer;
+begin
+  lFolder := NXBuildTestFolder;
+  lLogFile := IncludeTrailingPathDelimiter(lFolder) + 'execution log.txt';
+  lPlan := TNXBuildPlan.Create;
+  lExecutor := TNXBuildExecutor.Create;
+  lLog := TStringList.Create;
+  try
+    for lIndex := 0 to 2 do
+    begin
+      lStep := TNXBuildStep.Create;
+      lPlan.Steps.Add(lStep);
+      lStep.Name := 'Step' + IntToStr(lIndex);
+      if lIndex = 1 then lStep.BuildType := 'FPC' else lStep.BuildType := 'LLVM';
+      lStep.Executable := ExpandFileName(ParamStr(0));
+      lStep.OutputPath := lFolder;
+      lStep.Arguments.Add('--nxbuild-test-tool');
+      lStep.Arguments.Add(lLogFile);
+      lStep.Arguments.Add(lStep.Name);
+      if AFail and (lIndex = 1) then lExitCode := 23 else lExitCode := 0;
+      lStep.Arguments.Add(IntToStr(lExitCode));
+      lStep.Arguments.Add(IntToStr(lIndex));
+      lStep.SourceArgumentIndex := lStep.Arguments.Count;
+      lStep.SourceFiles.Add('source.pas');
+    end;
+    lExitCode := lExecutor.Execute(lPlan);
+    if AFail then AContext.AssertEquals(23, lExitCode) else AContext.AssertEquals(0, lExitCode);
+    lLog.LoadFromFile(lLogFile);
+    if AFail then AContext.AssertEquals(2, lLog.Count) else AContext.AssertEquals(3, lLog.Count);
+    for lIndex := 0 to lLog.Count - 1 do
+      AContext.AssertEquals('Step' + IntToStr(lIndex), lLog[lIndex]);
+  finally
+    lLog.Free;
+    lExecutor.Free;
+    lPlan.Free;
+    DeleteFile(lLogFile);
+    RemoveDir(lFolder);
+  end;
+end;
+
+procedure TestExecutionOrder(AContext: TNXTestContext);
+begin
+  NXBuildCheckExecution(AContext, False);
+end;
+
+procedure TestExecutionFailure(AContext: TNXTestContext);
+begin
+  NXBuildCheckExecution(AContext, True);
+end;
+procedure TestSourceMasks(AContext: TNXTestContext);
+var
+  lSources, lExpanded, lFile: TStringList;
+  lFolder, lName, lError: string;
+begin
+  lFolder := IncludeTrailingPathDelimiter(NXBuildTestFolder);
+  lSources := TStringList.Create;
+  lExpanded := TStringList.Create;
+  lFile := TStringList.Create;
+  try
+    ForceDirectories(lFolder + 'nested.c');
+    for lName in ['z.c', 'a file.c', 'item1.cpp', 'ignore.h', 'nested.c/inside.c'] do
+      lFile.SaveToFile(lFolder + lName);
+    lSources.Add(lFolder + 'z.c');
+    lSources.Add(lFolder + '*.c');
+    lSources.Add(lFolder + 'z.c');
+    lSources.Add(lFolder + 'item?.cpp');
+    TNXBuildEntry.ExpandSourceFiles(lSources, lExpanded);
+    AContext.AssertEquals(5, lExpanded.Count);
+    AContext.AssertEquals(lFolder + 'z.c', lExpanded[0]);
+    AContext.AssertEquals(lFolder + 'z.c', lExpanded[3]);
+    AContext.AssertEquals(lFolder + 'item1.cpp', lExpanded[4]);
+    AContext.AssertTrue(lExpanded[1] <> lExpanded[2]);
+    for lName in [lExpanded[1], lExpanded[2]] do
+      AContext.AssertTrue((lName = lFolder + 'z.c') or (lName = lFolder + 'a file.c'));
+    // Literal inputs still go to the compiler, even if they do not exist yet.
+    lSources.Clear;
+    lSources.Add(lFolder + 'missing.pas');
+    TNXBuildEntry.ExpandSourceFiles(lSources, lExpanded);
+    AContext.AssertEquals(lSources.Text, lExpanded.Text);
+    for lName in ['*.missing', 'absent/*.c', 'nested*/*.c'] do
+    begin
+      lSources[0] := lFolder + lName;
+      lError := '';
+      try
+        TNXBuildEntry.ExpandSourceFiles(lSources, lExpanded);
+      except
+        on E: Exception do lError := E.Message;
+      end;
+      AContext.AssertTrue(Pos(lSources[0], lError) > 0, 'Mask error must identify the selection.');
+    end;
+  finally
+    lFile.Free;
+    lExpanded.Free;
+    lSources.Free;
+    for lName in ['z.c', 'a file.c', 'item1.cpp', 'ignore.h', 'nested.c/inside.c'] do
+      DeleteFile(lFolder + lName);
+    RemoveDir(lFolder + 'nested.c');
+    RemoveDir(lFolder);
+  end;
+end;
+
+function NXBuildRunSourceTool: Integer;
+var
+  lLog, lFile: TStringList;
+  lIndex: Integer;
+  lLine: string;
+begin
+  lLog := TStringList.Create;
+  lFile := TStringList.Create;
+  try
+    if ParamStr(ParamCount) <> '--tail' then Exit(97);
+    if FileExists(ParamStr(2)) then lLog.LoadFromFile(ParamStr(2));
+    lLine := ParamStr(3);
+    Result := 0;
+    for lIndex := 6 to ParamCount - 1 do
+    begin
+      if not FileExists(ParamStr(lIndex)) then Exit(98);
+      lLine := lLine + '|' + ParamStr(lIndex);
+      if ParamStr(lIndex) = ParamStr(5) then Result := 37;
+    end;
+    if ParamStr(4) <> '-' then lFile.SaveToFile(ParamStr(4));
+    lLog.Add(lLine);
+    lLog.SaveToFile(ParamStr(2));
+  finally
+    lFile.Free;
+    lLog.Free;
+  end;
+end;
+
+procedure TestSourceMaskExecution(AContext: TNXTestContext);
+var
+  lPlan: TNXBuildPlan;
+  lStep: TNXBuildStep;
+  lExecutor: TNXBuildExecutor;
+  lLog, lFile: TStringList;
+  lFolder, lFirst, lGenerated, lLogFile, lError: string;
+  lIndex: Integer;
+begin
+  lFolder := NXBuildTestFolder;
+  lFirst := IncludeTrailingPathDelimiter(lFolder) + 'first.pas';
+  lGenerated := IncludeTrailingPathDelimiter(lFolder) + 'generated file.pas';
+  lLogFile := IncludeTrailingPathDelimiter(lFolder) + 'execution.log';
+  lPlan := TNXBuildPlan.Create;
+  lExecutor := TNXBuildExecutor.Create;
+  lLog := TStringList.Create;
+  lFile := TStringList.Create;
+  try
+    for lIndex := 0 to 2 do
+    begin
+      lStep := TNXBuildStep.Create;
+      lPlan.Steps.Add(lStep);
+      lStep.Name := 'Step' + IntToStr(lIndex);
+      lStep.CompileEachSource := lIndex = 1;
+      if lStep.CompileEachSource then lStep.BuildType := 'FPC' else lStep.BuildType := 'LLVM';
+      lStep.Executable := ExpandFileName(ParamStr(0));
+      lStep.OutputPath := lFolder;
+      lStep.Arguments.Add('--nxbuild-source-tool');
+      lStep.Arguments.Add(lLogFile);
+      lStep.Arguments.Add(lStep.Name);
+      if lIndex = 0 then lStep.Arguments.Add(lGenerated) else lStep.Arguments.Add('-');
+      lStep.Arguments.Add('-');
+      lStep.SourceArgumentIndex := lStep.Arguments.Count;
+      lStep.Arguments.Add('--tail');
+      if lIndex = 0 then
+        lStep.SourceFiles.Add(lFirst)
+      else
+      begin
+        lStep.SourceFiles.Add(IncludeTrailingPathDelimiter(lFolder) + '*.pas');
+        lStep.SourceFiles.Add(lFirst);
+      end;
+    end;
+    // Files may appear after planning and in an earlier build entry.
+    ForceDirectories(lFolder);
+    lFile.SaveToFile(lFirst);
+    AContext.AssertFalse(FileExists(lGenerated));
+    AContext.AssertEquals(0, lExecutor.Execute(lPlan));
+    lLog.LoadFromFile(lLogFile);
+    AContext.AssertEquals(5, lLog.Count);
+    AContext.AssertEquals('Step0|' + lFirst, lLog[0]);
+    AContext.AssertTrue(lLog[1] <> lLog[2]);
+    AContext.AssertTrue(lLog.IndexOf('Step1|' + lGenerated) >= 1);
+    AContext.AssertEquals('Step1|' + lFirst, lLog[3]);
+    AContext.AssertEquals('Step2' + Copy(lLog[1], 6, MaxInt) +
+      Copy(lLog[2], 6, MaxInt) + '|' + lFirst, lLog[4]);
+    AContext.AssertEquals(2, lPlan.Steps[1].SourceFiles.Count);
+    AContext.AssertEquals(IncludeTrailingPathDelimiter(lFolder) + '*.pas', lPlan.Steps[1].SourceFiles[0]);
+    // A failing FPC source stops the remaining sources and the following entry.
+    DeleteFile(lLogFile);
+    lPlan.Steps.Delete(0);
+    lStep := lPlan.Steps[0];
+    lStep.SourceFiles.Clear;
+    lStep.SourceFiles.Add(lGenerated);
+    lStep.SourceFiles.Add(lFirst);
+    lStep.SourceFiles.Add(lGenerated);
+    lStep.Arguments[4] := lFirst;
+    AContext.AssertEquals(37, lExecutor.Execute(lPlan));
+    lLog.LoadFromFile(lLogFile);
+    AContext.AssertEquals(2, lLog.Count);
+    AContext.AssertEquals('Step1|' + lGenerated, lLog[0]);
+    AContext.AssertEquals('Step1|' + lFirst, lLog[1]);
+    // An empty mask fails before launching this or any subsequent entry.
+    DeleteFile(lLogFile);
+    lStep.SourceFiles.Clear;
+    lStep.SourceFiles.Add(IncludeTrailingPathDelimiter(lFolder) + '*.missing');
+    lError := '';
+    try
+      lExecutor.Execute(lPlan);
+    except
+      on E: Exception do lError := E.Message;
+    end;
+    AContext.AssertTrue(Pos('Build "Step1" (FPC)', lError) > 0);
+    AContext.AssertTrue(Pos('Source mask matched no files:', lError) > 0);
+    AContext.AssertFalse(FileExists(lLogFile));
+  finally
+    lFile.Free;
+    lLog.Free;
+    lExecutor.Free;
+    lPlan.Free;
+    DeleteFile(lLogFile);
+    DeleteFile(lGenerated);
+    DeleteFile(lFirst);
+    RemoveDir(lFolder);
   end;
 end;
 
@@ -300,79 +780,214 @@ end;
 procedure TestCompleteSchema(AContext: TNXTestContext);
 var
   lAnalysis: TNexusScriptAnalysis;
-  lProject: TNXPascalProject;
+  lFPC: TNXFPCBuildOptions;
+  lLLVM: TNXLLVMBuildOptions;
 begin
   lAnalysis := TNexusScriptAnalysis.Create(
-    ExpandFileName('projects/nxbuild/examples/Hello.nxproject'), 1, nil);
-  lProject := TNXPascalProject.Create;
+    ExpandFileName('projects/nxbuild/examples/Mixed.nxpackage'), 1, nil);
+  lFPC := TNXFPCBuildOptions.Create;
+  lLLVM := TNXLLVMBuildOptions.Create;
   try
     lAnalysis.Execute;
     AContext.AssertTrue(lAnalysis.Succeeded, lAnalysis.Session.LastError);
     AContext.AssertEquals(0, lAnalysis.Language.DiagnosticCount);
     AContext.AssertEquals(0, lAnalysis.Validator.Diagnostics.Count);
-    NXBuildCheckSchema(AContext, lAnalysis.Language, lProject, 'Project');
+    NXBuildCheckSchema(AContext, lAnalysis.Language, lFPC, 'FPC');
+    NXBuildCheckSchema(AContext, lAnalysis.Language, lLLVM, 'LLVM');
   finally
-    lProject.Free;
+    lLLVM.Free;
+    lFPC.Free;
     lAnalysis.Free;
   end;
 end;
 
-procedure TestNoJSON(AContext: TNXTestContext);
+procedure TestSharedEnvironmentModule(AContext: TNXTestContext);
+var
+  lModule: TStringList;
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lLLVM: TNXLLVMBuildOptions;
+  lFPC: TNXFPCBuildOptions;
+  lFolder, lModuleFile, lSDKPath, lVersion, lKind, lText: string;
 begin
-  NXBuildTestReject(AContext, '{"Name":"Demo","BuildTool":"pbtFPC"}', False);
+  lFolder := NXBuildTestFolder;
+  lModuleFile := IncludeTrailingPathDelimiter(lFolder) + 'environment.nxscript';
+  lModule := TStringList.Create;
+  lPlanner := TNXBuildPlanner.Create;
+  try
+    ForceDirectories(lFolder);
+    for lVersion in ['first installation', 'second installation'] do
+    begin
+      lSDKPath := IncludeTrailingPathDelimiter(lFolder) + lVersion;
+      lModule.Text := 'Environment Shared { SDK Kit { Path: ' + NXBuildQuote(lSDKPath) + ';' +
+        ' IncludePaths: [@Shared.Kit.Path + "/headers", @Shared.Kit.Path + "/runtime"];' +
+        ' LibraryPaths: [@Shared.Kit.Path + "/lib"]; }' +
+        ' Toolchain Compiler { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + ';' +
+        ' SystemIncludePaths: @Shared.Kit.IncludePaths;' +
+        ' LibraryPaths: @Shared.Kit.LibraryPaths; } }';
+      lModule.SaveToFile(lModuleFile);
+      for lKind in ['Project', 'Package'] do
+      begin
+        lText := 'module ' + NXBuildQuote(lModuleFile) + '; ' + lKind + ' Demo {' +
+          ' LLVM Native { CompilerPath: @Shared.Compiler.CompilerPath;' +
+          ' SourceFiles: ["native.c"]; SystemIncludePaths: @Shared.Compiler.SystemIncludePaths;' +
+          ' LibraryPaths: @Shared.Compiler.LibraryPaths; }' +
+          ' FPC Pascal { CompilerPath: @Shared.Compiler.CompilerPath; SourceFiles: ["main.pas"];' +
+          ' Files Paths { LibraryPaths: @Shared.Kit.LibraryPaths; } } }';
+        lDescription := NXBuildTestLoad(lText);
+        try
+          AContext.AssertEquals('Demo', lDescription.Name);
+          AContext.AssertEquals(2, lDescription.Builds.Count);
+          lLLVM := lDescription.Builds[0] as TNXLLVMBuildOptions;
+          lFPC := lDescription.Builds[1] as TNXFPCBuildOptions;
+          AContext.AssertEquals(2, lLLVM.SystemIncludePaths.Count);
+          AContext.AssertEquals(ExpandFileName(lSDKPath + '/headers'), lLLVM.SystemIncludePaths[0]);
+          AContext.AssertEquals(ExpandFileName(lSDKPath + '/runtime'), lLLVM.SystemIncludePaths[1]);
+          AContext.AssertEquals(ExpandFileName(lSDKPath + '/lib'), lLLVM.LibraryPaths[0]);
+          AContext.AssertEquals(lLLVM.LibraryPaths.Text, lFPC.Files.LibraryPaths.Text);
+          lPlan := lPlanner.CreatePlan(lDescription);
+          try
+            AContext.AssertEquals(2, lPlan.Steps.Count, 'Module definitions must not become builds.');
+            AContext.AssertTrue(lPlan.Steps[0].Arguments.IndexOf('-L' + lLLVM.LibraryPaths[0]) >= 0);
+            AContext.AssertTrue(lPlan.Steps[1].Arguments.IndexOf('-Fl' + lFPC.Files.LibraryPaths[0]) >= 0);
+          finally
+            lPlan.Free;
+          end;
+        finally
+          lDescription.Free;
+        end;
+      end;
+    end;
+    DeleteFile(lModuleFile);
+    NXBuildTestReject(AContext, lText);
+    lModule.Text := 'SDK SharedSDK { Path: @Missing.Path; }';
+    lModule.SaveToFile(lModuleFile);
+    NXBuildTestReject(AContext, lText);
+  finally
+    lPlanner.Free;
+    lModule.Free;
+    DeleteFile(lModuleFile);
+    RemoveDir(lFolder);
+  end;
 end;
 
-procedure TestRequiredDialect(AContext: TNXTestContext);
+procedure TestTargetSelection(AContext: TNXTestContext);
+var
+  lModule: TStringList;
+  lTargets: TNexusScriptTargetSelection;
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lFPC: TNXFPCBuildOptions;
+  lFolder, lModuleFile, lOS, lCPU, lText: string;
 begin
+  lFolder := NXBuildTestFolder;
+  lModuleFile := IncludeTrailingPathDelimiter(lFolder) + 'environment.nxscript';
+  lModule := TStringList.Create;
+  lPlanner := TNXBuildPlanner.Create;
+  try
+    ForceDirectories(lFolder);
+    lModule.Text := 'Environment Tools {' +
+      ' Platform Native TargetOS[win64] { Directory: "windows"; }' +
+      ' Platform Native TargetOS[linux] { Directory: "linux"; }' +
+      ' Platform CPU TargetCPU[x86_64] { Directory: "x64"; }' +
+      ' Platform CPU TargetCPU[aarch64] { Directory: "arm64"; } }';
+    lModule.SaveToFile(lModuleFile);
+    lText := 'module ' + NXBuildQuote(lModuleFile) + '; Package Demo {' +
+      ' LLVM First { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + '; SourceFiles: ["native.c"]; }' +
+      ' FPC Unsupported TargetOS[darwin] { CompilerPath: "missing-tool"; SourceFiles: ["unused.pas"]; }' +
+      ' FPC Pascal { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + '; SourceFiles: ["main.pas"];' +
+      ' OutputPath: @Tools.Native.Directory + "/" + @Tools.CPU.Directory;' +
+      ' Files Paths TargetOS[win64] { IncludePaths: ["windows-headers"]; }' +
+      ' Files Paths TargetOS[linux] { IncludePaths: ["linux-headers"]; } } }';
+    for lOS in ['win64', 'linux'] do
+      for lCPU in ['x86_64', 'aarch64'] do
+      begin
+        lTargets := TNexusScriptTargetSelection.Create;
+        try
+          lTargets.Add('TargetOS', lOS);
+          lTargets.Add('TargetCPU', lCPU);
+          lDescription := NXBuildTestLoad(lText, True, lTargets);
+          try
+            AContext.AssertEquals(2, lDescription.Builds.Count);
+            AContext.AssertEquals('First', lDescription.Builds[0].Name);
+            lFPC := lDescription.Builds[1] as TNXFPCBuildOptions;
+            AContext.AssertEquals('Pascal', lFPC.Name);
+            if lOS = 'win64' then
+              AContext.AssertEquals(ExpandFileName('output/nxbuildTests/windows-headers'), lFPC.Files.IncludePaths[0])
+            else
+              AContext.AssertEquals(ExpandFileName('output/nxbuildTests/linux-headers'), lFPC.Files.IncludePaths[0]);
+            if lCPU = 'x86_64' then
+              AContext.AssertEquals('x64', ExtractFileName(lFPC.OutputPath))
+            else
+              AContext.AssertEquals('arm64', ExtractFileName(lFPC.OutputPath));
+            lPlan := lPlanner.CreatePlan(lDescription);
+            try
+              AContext.AssertEquals(2, lPlan.Steps.Count);
+            finally
+              lPlan.Free;
+            end;
+          finally
+            lDescription.Free;
+          end;
+        finally
+          lTargets.Free;
+        end;
+      end;
+  finally
+    lPlanner.Free;
+    lModule.Free;
+    DeleteFile(lModuleFile);
+    RemoveDir(lFolder);
+  end;
+end;
+procedure TestRejectedDescriptions(AContext: TNXTestContext);
+begin
+  NXBuildTestReject(AContext, '{"Name":"Demo"}', False);
   NXBuildTestReject(AContext, 'Project Demo {}', False);
-end;
-
-procedure TestSingleRoot(AContext: TNXTestContext);
-begin
-  NXBuildTestReject(AContext, 'Project One {} Project Two {}');
+  NXBuildTestReject(AContext, 'Project One {} Package Two {}');
   NXBuildTestReject(AContext, '');
-end;
-
-procedure TestUnknownProperty(AContext: TNXTestContext);
-begin
   NXBuildTestReject(AContext, 'Project Demo { Typo: "bad"; }');
-end;
-
-procedure TestUnknownChild(AContext: TNXTestContext);
-begin
-  NXBuildTestReject(AContext, 'Project Demo { CopyFile Copy {} }');
-end;
-
-procedure TestDuplicateSection(AContext: TNXTestContext);
-begin
+  NXBuildTestReject(AContext, 'Package Demo { Image Picture {} }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+    ' Files First {} Files Second {} } }');
   NXBuildTestReject(AContext, 'Project Demo {' +
-    ' Toolchain First {} Toolchain Second {} }');
-end;
-
-procedure TestInvalidEnum(AContext: TNXTestContext);
-begin
-  NXBuildTestReject(AContext, 'Project Demo { BuildTool: MSBuild; }');
-end;
-
-procedure TestInvalidScalar(AContext: TNXTestContext);
-begin
-  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {' +
+    ' FPC First { Name: "same"; } LLVM Second { Name: "same"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { LLVM Native { Language: Pascal; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
     ' Config Options { DisableDefaultConfigFiles: "banana"; } } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {' +
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
     ' Syntax Checks { ErrorLimit: "not-an-integer"; } } }');
-end;
-
-procedure TestInvalidArray(AContext: TNXTestContext);
-begin
-  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {' +
-    ' RawOptions: [["nested"]]; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {' +
+  NXBuildTestReject(AContext, 'Project Demo { LLVM Native {' +
+    ' SourceFiles: [["nested"]]; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
     ' RawOptions: ["named": "-dDebug"]; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { SourceFiles: "main.pas"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { SourceFiles: [["nested"]]; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { SourceFiles: ["named": "main.pas"]; } }');
 end;
 
-procedure TestRemovedVariables(AContext: TNXTestContext);
+procedure TestRemovedFields(AContext: TNXTestContext);
 begin
+  NXBuildTestReject(AContext, 'Project Demo { BuildTool: Lazarus; }');
+  NXBuildTestReject(AContext, 'Project Demo { ProjectKind: LazarusProject; }');
+  NXBuildTestReject(AContext, 'Project Demo { LazarusProjectFile: "Demo.lpi"; }');
+  NXBuildTestReject(AContext, 'Project Demo { Toolchain Tools { LazarusRoot: "tools"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { TargetPlatform Native { WidgetSet: "win32"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { BuildTool: FPC; }');
+  NXBuildTestReject(AContext, 'Project Demo { BuildFile: "main.pas"; }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { InputFile: "main.pas"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {} }');
   NXBuildTestReject(AContext, 'Project Demo { Variables: ["Flavor=debug"]; }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { OutputFile: "app.exe"; } }');
+  NXBuildTestReject(AContext, 'Package Demo { LLVM Native { OutputFile: "app.exe"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { OutputName: "app"; } }');
+  NXBuildTestReject(AContext, 'Package Demo { LLVM Native { OutputName: "app"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+    ' Files Paths { ExecutableOutputPath: "out"; } } }');
+  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+    ' Files Paths { UnitOutputPath: "out"; } } }');
 end;
 
 procedure RegisterNXBuildTests(ARegistry: TNXTestRegistry);
@@ -383,21 +998,22 @@ begin
   lSuite.AddTest('Defaults', @TestDefaults);
   lSuite.AddTest('COperators', @TestCOperators);
   lSuite.AddTest('NativeValues', @TestNativeValues);
-  lSuite.AddTest('RelativeCompilerPath', @TestRelativeCompilerPath);
-  lSuite.AddTest('BooleanTrue', @TestBooleanTrue);
-  lSuite.AddTest('FPCPlan', @TestFPCPlan);
-  lSuite.AddTest('LazarusPlan', @TestLazarusPlan);
+  lSuite.AddTest('OrderedProjectAndPackageBuilds', @TestOrderedBuilds);
+  lSuite.AddTest('LLVMOptions', @TestLLVMOptions);
+  lSuite.AddTest('ResolvePaths', @TestResolvePaths);
+  lSuite.AddTest('OutputPaths', @TestOutputPaths);
+  lSuite.AddTest('PlanningBoundary', @TestPlanningBoundary);
+  lSuite.AddTest('EmptyPlan', @TestEmptyPlan);
+  lSuite.AddTest('EmptySources', @TestEmptySources);
+  lSuite.AddTest('ExecutionOrder', @TestExecutionOrder);
+  lSuite.AddTest('ExecutionStopsOnFailure', @TestExecutionFailure);
+  lSuite.AddTest('SourceMasks', @TestSourceMasks);
+  lSuite.AddTest('SourceMaskExecution', @TestSourceMaskExecution);
   lSuite.AddTest('CompleteSchema', @TestCompleteSchema);
-  lSuite.AddTest('NoJSON', @TestNoJSON);
-  lSuite.AddTest('RequiredDialect', @TestRequiredDialect);
-  lSuite.AddTest('SingleRoot', @TestSingleRoot);
-  lSuite.AddTest('UnknownProperty', @TestUnknownProperty);
-  lSuite.AddTest('UnknownChild', @TestUnknownChild);
-  lSuite.AddTest('DuplicateSection', @TestDuplicateSection);
-  lSuite.AddTest('InvalidEnum', @TestInvalidEnum);
-  lSuite.AddTest('InvalidScalar', @TestInvalidScalar);
-  lSuite.AddTest('InvalidArray', @TestInvalidArray);
-  lSuite.AddTest('RemovedVariables', @TestRemovedVariables);
+  lSuite.AddTest('SharedEnvironmentModule', @TestSharedEnvironmentModule);
+  lSuite.AddTest('TargetSelection', @TestTargetSelection);
+  lSuite.AddTest('RejectedDescriptions', @TestRejectedDescriptions);
+  lSuite.AddTest('RemovedFields', @TestRemovedFields);
 end;
 
 end.

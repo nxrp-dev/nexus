@@ -20,7 +20,7 @@ interface
 uses
   Classes,
   SysUtils,
-  obNXPersist;
+  obNXPersist, obNXBuildEntry;
 
 type
   TNXFPCSwitchState = (
@@ -241,7 +241,6 @@ type
     FCompilerUtilitiesPath: string;
     FErrorOutputFile: string;
     FFrameworkPaths: TStringList;
-    FExecutableOutputPath: string;
     FIncludePaths: TStringList;
     FLibraryPaths: TStringList;
     FDynamicLinker: string;
@@ -252,7 +251,6 @@ type
     FErrorMessageFile: string;
     FResourceLinker: string;
     FUnitPaths: TStringList;
-    FUnitOutputPath: string;
     FWholeProgramFeedbackOutput: string;
     FWholeProgramFeedbackInput: string;
   public
@@ -269,7 +267,6 @@ type
     property CompilerUtilitiesPath: string read FCompilerUtilitiesPath write FCompilerUtilitiesPath;
     property ErrorOutputFile: string read FErrorOutputFile write FErrorOutputFile;
     property FrameworkPaths: TStringList read FFrameworkPaths;
-    property ExecutableOutputPath: string read FExecutableOutputPath write FExecutableOutputPath;
     property IncludePaths: TStringList read FIncludePaths;
     property LibraryPaths: TStringList read FLibraryPaths;
     property DynamicLinker: string read FDynamicLinker write FDynamicLinker;
@@ -280,7 +277,6 @@ type
     property ErrorMessageFile: string read FErrorMessageFile write FErrorMessageFile;
     property ResourceLinker: string read FResourceLinker write FResourceLinker;
     property UnitPaths: TStringList read FUnitPaths;
-    property UnitOutputPath: string read FUnitOutputPath write FUnitOutputPath;
     property WholeProgramFeedbackOutput: string read FWholeProgramFeedbackOutput write FWholeProgramFeedbackOutput;
     property WholeProgramFeedbackInput: string read FWholeProgramFeedbackInput write FWholeProgramFeedbackInput;
   end;
@@ -621,11 +617,8 @@ type
     property SmartLinkedUnits: TNXFPCSwitchState read FSmartLinkedUnits write FSmartLinkedUnits;
   end;
 
-  TNXFPCBuildOptions = class(TNXFPCOptionSection)
+  TNXFPCBuildOptions = class(TNXBuildEntry)
   private
-    FCompilerPath: string;
-    FInputFile: string;
-    FOutputFile: string;
     FBuildKind: TNXFPCBuildKind;
     FConfig: TNXFPCConfigOptions;
     FAssembler: TNXFPCAssemblerOptions;
@@ -647,13 +640,13 @@ type
   public
     constructor Create; override;
     destructor Destroy; override;
-    procedure AppendArguments(AArguments: TStrings); override;
-    function BuildArguments: TStringList;
+    function CompileEachSource: Boolean; override;
+    procedure AppendArguments(AArguments: TStrings; out ASourceArgumentIndex: Integer); override;
+    function BuildType: string; override;
+    function DefaultCompiler: string; override;
+    procedure ResolvePaths(const ARoot: string); override;
 
   published
-    property CompilerPath: string read FCompilerPath write FCompilerPath;
-    property InputFile: string read FInputFile write FInputFile;
-    property OutputFile: string read FOutputFile write FOutputFile;
     property BuildKind: TNXFPCBuildKind read FBuildKind write FBuildKind;
     property Config: TNXFPCConfigOptions read FConfig;
     property Assembler: TNXFPCAssemblerOptions read FAssembler;
@@ -929,7 +922,6 @@ begin
   NXAddValue(AArguments, '-FD', FCompilerUtilitiesPath);
   NXAddValue(AArguments, '-Fe', FErrorOutputFile);
   NXAddListValues(AArguments, '-Ff', FFrameworkPaths);
-  NXAddValue(AArguments, '-FE', FExecutableOutputPath);
   NXAddListValues(AArguments, '-Fi', FIncludePaths);
   NXAddListValues(AArguments, '-I', FIncludePaths);
   NXAddListValues(AArguments, '-Fl', FLibraryPaths);
@@ -941,7 +933,6 @@ begin
   NXAddValue(AArguments, '-Fr', FErrorMessageFile);
   NXAddValue(AArguments, '-FR', FResourceLinker);
   NXAddListValues(AArguments, '-Fu', FUnitPaths);
-  NXAddValue(AArguments, '-FU', FUnitOutputPath);
   NXAddValue(AArguments, '-FW', FWholeProgramFeedbackOutput);
   NXAddValue(AArguments, '-Fw', FWholeProgramFeedbackInput);
 end;
@@ -1287,6 +1278,7 @@ begin
   FLanguage := TNXFPCLanguageOptions.Create;
   FOptimization := TNXFPCOptimizationOptions.Create;
   FSyntax := TNXFPCSyntaxOptions.Create;
+  FSyntax.COperators := fssEnabled;
   FTarget := TNXFPCTargetOptions.Create;
   FUnits := TNXFPCUnitOptions.Create;
   FVerbosity := TNXFPCVerbosityOptions.Create;
@@ -1316,7 +1308,13 @@ begin
   inherited Destroy;
 end;
 
-procedure TNXFPCBuildOptions.AppendArguments(AArguments: TStrings);
+function TNXFPCBuildOptions.CompileEachSource: Boolean;
+begin
+  Result := True;
+end;
+
+procedure TNXFPCBuildOptions.AppendArguments(AArguments: TStrings;
+  out ASourceArgumentIndex: Integer);
 begin
   FConfig.AppendArguments(AArguments);
   FAssembler.AppendArguments(AArguments);
@@ -1334,16 +1332,47 @@ begin
   FUnits.AppendArguments(AArguments);
   FVerbosity.AppendArguments(AArguments);
   FLinking.AppendArguments(AArguments);
-  NXAddValue(AArguments, '-o', FOutputFile);
+  NXAddValue(AArguments, '-FE', OutputPath);
+  NXAddValue(AArguments, '-FU', OutputPath);
   NXAddRawList(AArguments, FRawOptions);
-  if FInputFile <> '' then
-    AArguments.Add(FInputFile);
+  ASourceArgumentIndex := AArguments.Count;
 end;
 
-function TNXFPCBuildOptions.BuildArguments: TStringList;
+procedure TNXFPCBuildOptions.ResolvePaths(const ARoot: string);
 begin
-  Result := TStringList.Create;
-  AppendArguments(Result);
+  inherited ResolvePaths(ARoot);
+  ResolvePathList(Config.OptionFiles, ARoot);
+  ResolvePathList(Files.FrameworkPaths, ARoot);
+  ResolvePathList(Files.IncludePaths, ARoot);
+  ResolvePathList(Files.LibraryPaths, ARoot);
+  ResolvePathList(Files.ObjectPaths, ARoot);
+  ResolvePathList(Files.UnitPaths, ARoot);
+
+  Files.ExecutableSearchPath := ResolvePath(Files.ExecutableSearchPath, ARoot);
+  Files.RCCompilerBinary := ResolvePath(Files.RCCompilerBinary, ARoot);
+  Files.CompilerUtilitiesPath := ResolvePath(Files.CompilerUtilitiesPath, ARoot);
+  Files.ErrorOutputFile := ResolvePath(Files.ErrorOutputFile, ARoot);
+  Files.DynamicLinker := ResolvePath(Files.DynamicLinker, ARoot);
+  Files.UnicodeBinaryPath := ResolvePath(Files.UnicodeBinaryPath, ARoot);
+  Files.ErrorMessageFile := ResolvePath(Files.ErrorMessageFile, ARoot);
+  Files.ResourceLinker := ResolvePath(Files.ResourceLinker, ARoot);
+  Files.WholeProgramFeedbackOutput := ResolvePath(Files.WholeProgramFeedbackOutput, ARoot);
+  Files.WholeProgramFeedbackInput := ResolvePath(Files.WholeProgramFeedbackInput, ARoot);
 end;
+
+function TNXFPCBuildOptions.BuildType: string;
+begin
+  Result := 'FPC';
+end;
+
+function TNXFPCBuildOptions.DefaultCompiler: string;
+begin
+  Result := GetEnvironmentVariable('PP');
+  if Result = '' then
+    Result := 'fpc';
+end;
+
+initialization
+  TNXPersistObject.RegisterPersistClass(TNXFPCBuildOptions);
 
 end.

@@ -620,7 +620,7 @@ var
 begin
   if FileExists(APath) then
   begin
-    if SameText(ExtractFileExt(APath), '.nxp') then
+    if SameText(ExtractFileExt(APath), '.nxtrace') then
       AFiles.Add(ExpandFileName(APath));
     Exit;
   end;
@@ -636,7 +636,7 @@ begin
       lName := IncludeTrailingPathDelimiter(APath) + lName;
       if (lSearch.Attr and faDirectory) <> 0 then
         CollectProfileFiles(lName, AFiles)
-      else if SameText(ExtractFileExt(lName), '.nxp') then
+      else if SameText(ExtractFileExt(lName), '.nxtrace') then
         AFiles.Add(ExpandFileName(lName));
     until FindNext(lSearch) <> 0;
   finally
@@ -658,7 +658,7 @@ begin
     CollectProfileFiles(AInputPath, lFiles);
     lFiles.Sort;
     if lFiles.Count = 0 then
-      raise EFOpenError.CreateFmt('No .nxp files found under %s',
+      raise EFOpenError.CreateFmt('No .nxtrace files found under %s',
         [AInputPath]);
     lDatabase := TNXProfileDatabase.Create(ADatabaseFile);
     try
