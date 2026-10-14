@@ -29,14 +29,13 @@ begin
   for lCharacter in AName do
     if not (lCharacter in ['A'..'Z', 'a'..'z', '0'..'9', '_', '.', '-']) then Exit;
   Result := SameText(ExtractFileExt(AName), '.nxp') or
-    SameText(ExtractFileExt(AName), '.dll') or SameText(ExtractFileExt(AName), '.exe') or
-    (ExtractFileExt(AName) = '.so') or (ExtractFileExt(AName) = '');
+    SameText(ExtractFileExt(AName), '.nxpl') or SameText(ExtractFileExt(AName), '.exe') or
+    (ExtractFileExt(AName) = '');
 end;
 
 function PackageImageName(const AName, ATarget: string): string;
 begin
-  if ATarget = 'x86_64-linux-gnu' then Result := 'lib' + AName + '.so'
-  else Result := AName + '.dll';
+  Result := AName + '.nxpl';
 end;
 
 function SDKArtifactPath(const ARoot, ARelative: string): string;
@@ -97,7 +96,7 @@ begin
         raise Exception.Create('SDK artifact differs from its recorded build: ' + lPath);
       lListed.Add(lPath);
     end;
-    for lRequired in [lCompiler, 'units/sysinitpkg.nxu', 'packages/nxrtl.nxp',
+    for lRequired in [lCompiler, 'units/sysinitpkg.nxu',
       'packages/' + PackageImageName('nxrtl', ATarget)] do
       if lListed.IndexOf(SDKArtifactPath(ADirectory, lRequired)) < 0 then
         raise Exception.Create('SDK manifest omits required artifact: ' + lRequired);
@@ -190,9 +189,8 @@ begin
     begin
       lName := ExtractFileName(lPath);
       if not SameText(ExtractFileExt(lName), '.nxp') and
-        not SameText(ExtractFileExt(lName), '.dll') and (ExtractFileExt(lName) <> '.so') then Continue;
-      if SameText(ChangeFileExt(lName, ''), AReplacing) or
-        SameText(lName, 'lib' + AReplacing + '.so') then Continue;
+        not SameText(ExtractFileExt(lName), '.nxpl') then Continue;
+      if SameText(ChangeFileExt(lName, ''), AReplacing) then Continue;
       AddInput(AInputs, lName, lPath);
     end;
   finally
@@ -208,7 +206,7 @@ var
   lDependency: TNXForgePackageDependency;
   lReader: TNXForgePackageArtifactReader;
   lIndex: Integer;
-  lName, lImage, lOwner: string;
+  lName, lImage: string;
   lFound: Boolean;
 
   procedure CheckImageDependencies(const AImage: TNXForgePackageMetadata;
@@ -232,16 +230,10 @@ begin
     for lIndex := 0 to AInputs.Count - 1 do
     begin
       lName := AInputs.Names[lIndex];
-      if SameText(ExtractFileExt(lName), '.dll') and
-        (AInputs.IndexOfName(ChangeFileExt(lName, '.nxp')) < 0) then
-        raise Exception.Create('Missing package metadata for ' + lName);
-      if ExtractFileExt(lName) = '.so' then
-      begin
-        lOwner := Copy(ChangeFileExt(lName, ''), 4, MaxInt);
-        if (Copy(lName, 1, 3) <> 'lib') or (AInputs.IndexOfName(lOwner + '.nxp') < 0) then
-          raise Exception.Create('Missing package metadata for ' + lName);
-      end;
-      if not SameText(ExtractFileExt(lName), '.nxp') then Continue;
+      if SameText(ExtractFileExt(lName), '.nxp') and
+        (AInputs.IndexOfName(ChangeFileExt(lName, '.nxpl')) < 0) then
+        raise Exception.Create('Missing package image for ' + lName);
+      if not SameText(ExtractFileExt(lName), '.nxpl') then Continue;
       lReader := TNXForgePackageArtifactReader.Create(AInputs.ValueFromIndex[lIndex]);
       try
         lMetadata := lReader.ReadMetadata;
@@ -449,7 +441,8 @@ begin
     if lPackage then
     begin
       if FileExists(lOutput + '/current.json') then AddDirectory(lInputs, lOutput, AName);
-      AddInput(lInputs, AName + '.nxp', lWork + '/' + AName + '.nxp');
+      if FileExists(lWork + '/' + AName + '.nxp') then
+        AddInput(lInputs, AName + '.nxp', lWork + '/' + AName + '.nxp');
       AddInput(lInputs, lOwnImage, lWork + '/' + lOwnImage);
     end
     else

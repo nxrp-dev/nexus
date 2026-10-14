@@ -224,6 +224,7 @@ The FPC definition and `examples/FPC.mustache` support these optional settings:
 | `WorkingDirectory` | Text | Sets the compiler process directory using ordinary Forge path rules |
 | `ExecutableOutput` | Text | Emits quoted `-FE<path>` |
 | `PackageSDKIdentity` / `PackageBuildIdentity` | Text | Emit `-Fj` / `-Fk` identities before response files |
+| `EmbedPackageMetadata` | Enabled / Disabled | Emit `-FJEnabled` / `-FJDisabled`; omission keeps the compiler default (embedded) |
 | `PackagePaths` | Text array | Emits `-Fp` for each package directory |
 | `RequiredPackages` | Text array | Emits `-FP` after package search paths |
 | `SmartLinkUnits` / `SmartLink` | Boolean | Emit `-CX` / `-XX` |
@@ -521,7 +522,7 @@ writes text with LF line endings, matching Task's text-file action.
 exact file or directory names skipped during recursive copying.
 
 `IncludeMasks` optionally limits copied files to a nonempty array of filename
-masks, for example `["*.pas", "*.pp", "*.inc"]`. Each file's basename must match
+masks, for example `["*.pas", "*.inc"]`. Each file's basename must match
 at least one mask; overlapping masks copy the file only once. `*` matches zero
 or more characters and `?` matches one. Matching is case-insensitive on Windows
 and case-sensitive elsewhere. Masks cannot be empty or contain path separators
@@ -588,8 +589,9 @@ and `work/startup.cfg`. The startup response file places package search before
 `-FPnxrtl`. All input hashing completes before writing; filesystem write failures
 can leave partial output, as with the other file operations.
 
-`PackageSDKManifest` checks `work/identity.json` against both `packages/nxrtl.nxp`
-(NXP004) and the Win64 ABI-4 descriptor in `packages/nxrtl.dll`. The DLL is read
+`PackageSDKManifest` checks `work/identity.json` against the compressed compiler
+metadata and Win64 ABI-4 descriptor in `packages/nxrtl.nxpl`. A package compiled
+with embedding disabled instead uses its fingerprint-bound `.nxp` sidecar. The image is read
 as bytes, never loaded or executed. Invalid/truncated structures, unsupported
 formats, identity mismatches and compiler-query failures stop subsequent tasks
 without rewriting an existing manifest. After validation it queries the staged

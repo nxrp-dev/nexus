@@ -61,12 +61,9 @@ end;
 
 class function TNXPasUnitLocator.FindUnitFile(const AUnitName: string;
   ASearchPaths: TStrings; out AFileName: string): Boolean;
-const
-  cExts: array[0..1] of string = ('.pas', '.pp');
 var
   lCandidate: string;
   lDir: string;
-  lExtIdx: Integer;
   lPathIdx: Integer;
 begin
   Result := False;
@@ -80,20 +77,12 @@ begin
     if not DirectoryExists(lDir) then
       Continue;
 
-    for lExtIdx := Low(cExts) to High(cExts) do
+    lCandidate := IncludeTrailingPathDelimiter(lDir) + AUnitName + '.pas';
+    if FileExists(lCandidate) or
+      FindCaseInsensitive(lDir, AUnitName + '.pas', lCandidate) then
     begin
-      lCandidate := IncludeTrailingPathDelimiter(lDir) + AUnitName + cExts[lExtIdx];
-      if FileExists(lCandidate) then
-      begin
-        AFileName := ExpandFileName(lCandidate);
-        Exit(True);
-      end;
-
-      if FindCaseInsensitive(lDir, AUnitName + cExts[lExtIdx], lCandidate) then
-      begin
-        AFileName := ExpandFileName(lCandidate);
-        Exit(True);
-      end;
+      AFileName := ExpandFileName(lCandidate);
+      Exit(True);
     end;
   end;
 end;

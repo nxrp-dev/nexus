@@ -36,13 +36,15 @@ Package Abbrevia {
     }
     FPC Runtime {
         CompilerPath: @Tools.Native.FPCCompiler;
-        SourceFiles: [@Abbrevia.SourceRoot + "/external/abbrevia/source/Abbrevia.*.pas"];
+        SourceFiles: [@Abbrevia.SourceRoot + "/Abbrevia.nxpk"];
         OutputPath: @Abbrevia.BZip2.OutputPath;
+        PackageSDKIdentity: @Tools.Native.PackageSDKIdentity;
         Target Platform { OperatingSystem: @Tools.Native.OS; }
         Config Options { DisableDefaultConfigFiles: True; }
         Language Pascal { Mode: Delphi; }
         Files Paths {
             UnitPaths: [
+                @Tools.Native.PackageSDKPath + "/units",
                 @Tools.Native.RTLPath,
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
@@ -55,7 +57,8 @@ Package Abbrevia {
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64"
             ];
-            LibraryPaths: @Abbrevia.BZip2.LibraryPaths;
+            PackagePaths: [@Tools.Native.PackageSDKPath + "/packages"];
+            LibraryPaths: @Tools.Native.PackageLibraryPaths;
             // Codec object directives include their platform subdirectory.
             ObjectPaths: [@Abbrevia.Native.OutputPath, @Abbrevia.Native.OutputPath + "/.."];
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;

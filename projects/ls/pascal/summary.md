@@ -41,7 +41,7 @@
   - It sends `BeginInitialize` with `fpcDir`.
   - It opens a consumer unit with `uses SysUtils;`.
   - It verifies definition on `SysUtils` resolves to
-    `fpc\source\rtl\win\SysUtils.pp` without
+    `fpc\source\rtl\win\SysUtils.pas` without
     `workspace/didChangeWorkspaceFolders` or an explicit rebuild.
 
 ## Verification

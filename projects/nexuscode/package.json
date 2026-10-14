@@ -66,14 +66,13 @@
         ],
         "extensions": [
           ".pas",
-          ".pp",
           ".lpr",
           ".inc",
           ".p",
           ".dfm",
           ".fmx",
           ".dpr",
-          ".dpk",
+          ".nxpk",
           ".dpr",
           ".lpr"
         ],
@@ -493,11 +492,11 @@
         "owner": "external",
         "pattern": [
           {
-            "regexp": "Compiling ([^\\s].*(p|pp|pas|lpr|dpr|inc))$",
+            "regexp": "Compiling ([^\\s].*\\.(p|pas|nxpk|lpr|dpr|inc))$",
             "file": 1
           },
           {
-            "regexp": "^([\\w]+\\.(p|pp|pas|lpr|dpr|inc))\\((\\d+)\\,(\\d+)\\)\\s(Fatal|Error|Warning|Note):(.*)",
+            "regexp": "^([\\w]+\\.(p|pas|nxpk|lpr|dpr|inc))\\((\\d+)\\,(\\d+)\\)\\s(Fatal|Error|Warning|Note):(.*)",
             "line": 3,
             "column": 4,
             "severity": 5,

@@ -1762,7 +1762,7 @@ begin
   end;
 end;
 
-procedure TestUnitLocatorFindsPasAndPP(AContext: TNXTestContext);
+procedure TestUnitLocatorUsesPasSource(AContext: TNXTestContext);
 var
   lFileName: string;
   lPaths: TStringList;
@@ -1776,13 +1776,19 @@ begin
   lPaths := TStringList.Create;
   try
     lPaths.Add(lRoot);
+    AContext.AssertFalse(TNXPasUnitLocator.FindUnitFile('Foo', lPaths,
+      lFileName), 'Unit locator must not find legacy .pp source files.');
+    NXPasWriteTextFile(IncludeTrailingPathDelimiter(lRoot) + 'Foo.pas',
+      'unit Foo;' + LineEnding + 'interface' + LineEnding +
+      'implementation' + LineEnding + 'end.');
     AContext.AssertTrue(TNXPasUnitLocator.FindUnitFile('Foo', lPaths,
-      lFileName), 'Unit locator should find .pp source files.');
-    AContext.AssertTrue(SameText(ExtractFileName(lFileName), 'Foo.pp'),
+      lFileName), 'Unit locator should find .pas source files.');
+    AContext.AssertTrue(SameText(ExtractFileName(lFileName), 'Foo.pas'),
       'Unit locator should return the matching source file.');
   finally
     lPaths.Free;
     DeleteFile(IncludeTrailingPathDelimiter(lRoot) + 'Foo.pp');
+    DeleteFile(IncludeTrailingPathDelimiter(lRoot) + 'Foo.pas');
     RemoveDir(lRoot);
   end;
 end;
@@ -2520,7 +2526,7 @@ begin
     @TestSearchPathTemplatesResolveConfiguredRoots);
   lSuite.AddTest('SearchPathTemplateStoreCreatesMasterList',
     @TestSearchPathTemplateStoreCreatesMasterList);
-  lSuite.AddTest('UnitLocatorFindsPasAndPP', @TestUnitLocatorFindsPasAndPP);
+  lSuite.AddTest('UnitLocatorUsesPasSource', @TestUnitLocatorUsesPasSource);
   lSuite.AddTest('WorkspaceIndexResolvesUsesViaSearchPath',
     @TestWorkspaceIndexResolvesUsesViaSearchPath);
   lSuite.AddTest('UnitMetadataCapturesHeaderAndUses',

@@ -46,6 +46,7 @@ Project NexusForge {
                 "../../../tools/nexus-fpc/packages/fcl-base/src/win",
                 "../../../tools/nexus-fpc/packages/fcl-json/src",
                 "../../../tools/nexus-fpc/packages/fcl-process/src",
+                "../../../tools/nexus-fpc/compiler",
                 "../../../tools/nexus-fpc/packages/paszlib/src",
                 "../../../tools/nexus-fpc/packages/hash/src",
                 "../../../tools/nexus-fpc/packages/fcl-hash/src"

@@ -17,6 +17,7 @@ type
     FSectionTable: QWord;
     FSectionCount: Word;
     FImageBase: QWord;
+    function ReadRawMetadata: TNXForgePackageMetadata;
     procedure Invalid(const AMessage: string);
     procedure RequireRange(AOffset, ASize: QWord);
     function Number(AOffset: QWord; ASize: Byte): QWord;
@@ -45,7 +46,7 @@ type
 
 implementation
 
-uses SysUtils;
+uses SysUtils, nxpackagefile;
 
 constructor TNXForgePackageArtifactReader.Create(const AFileName: string);
 begin
@@ -122,6 +123,22 @@ begin
 end;
 
 function TNXForgePackageArtifactReader.ReadMetadata: TNXForgePackageMetadata;
+var
+  lImage: TMemoryStream;
+  lData: TBytes;
+begin
+  lData := ReadPackageMetadata(FFileName);
+  lImage := FData;
+  FData := TMemoryStream.Create;
+  try
+    FData.WriteBuffer(lData[0], Length(lData));
+    Result := ReadRawMetadata;
+  finally
+    FData.Free;
+    FData := lImage;
+  end;
+end;
+function TNXForgePackageArtifactReader.ReadRawMetadata: TNXForgePackageMetadata;
 var
   lOffset, lLimit, lSize: QWord;
   lEntry: Byte;

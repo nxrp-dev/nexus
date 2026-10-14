@@ -135,8 +135,8 @@ begin
   try
     RequireHexIdentity(lIdentity.Get('SDK', ''), 64);
     RequireHexIdentity(lIdentity.Get('Build', ''), 32);
-    CheckPackage(lSDK + 'packages/nxrtl.nxp', lIdentity.Get('SDK', ''), lIdentity.Get('Build', ''), False);
-    CheckPackage(lSDK + 'packages/nxrtl.dll', lIdentity.Get('SDK', ''), lIdentity.Get('Build', ''), True);
+    CheckPackage(lSDK + 'packages/nxrtl.nxpl', lIdentity.Get('SDK', ''), lIdentity.Get('Build', ''), False);
+    CheckPackage(lSDK + 'packages/nxrtl.nxpl', lIdentity.Get('SDK', ''), lIdentity.Get('Build', ''), True);
     lManifest := TJSONObject.Create;
     try
       lManifest.Add('Format', 2);

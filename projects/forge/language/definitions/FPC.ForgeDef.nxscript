@@ -44,6 +44,7 @@ Language ForgeFPC {
                 },
                 Property ExecutableOutput { Value Value { EffectiveCategories: [Text]; } },
                 Property PackageSDKIdentity { Value Value { EffectiveCategories: [Text]; } },
+                Property EmbedPackageMetadata { Value Value { Scalar: Text; AllowedValues: [Enabled, Disabled]; } },
                 Property PackageBuildIdentity { Value Value { EffectiveCategories: [Text]; } },
                 Property PackagePaths {
                     Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }

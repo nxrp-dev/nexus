@@ -41,7 +41,7 @@ export class FpcOutputParser {
             return { handled: true };
         }
 
-        const reg = /^(([-:\w\\\/]+)\.(p|pp|pas|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/;
+        const reg = /^(([-:\w\\\/]+)\.(p|pas|nxpk|lpr|dpr|inc))\(((\d+)(\,(\d+))?)\)\s(Fatal|Error|Warning|Note|Hint): \((\d+)\) (.*)/;
         const matches = reg.exec(line);
 
         if (!matches) {

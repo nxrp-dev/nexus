@@ -990,12 +990,77 @@ begin
     ' Files Paths { UnitOutputPath: "out"; } } }');
 end;
 
+procedure TestPackageMetadataOption(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lArguments: TStringList;
+  lOptions: TNXFPCBuildControlOptions;
+  lState: TNXFPCSwitchState;
+begin
+  lArguments := TStringList.Create;
+  lOptions := TNXFPCBuildControlOptions.Create;
+  try
+    for lState := Low(TNXFPCSwitchState) to High(TNXFPCSwitchState) do
+    begin
+      lArguments.Clear;
+      lOptions.EmbedPackageMetadata := lState;
+      lOptions.AppendArguments(lArguments);
+      case lState of
+        fssUnset: AContext.AssertEquals(0, lArguments.Count);
+        fssEnabled: AContext.AssertEquals('-FJ', lArguments[0]);
+        fssDisabled: AContext.AssertEquals('-FJ-', lArguments[0]);
+      end;
+    end;
+  finally
+    lOptions.Free;
+    lArguments.Free;
+  end;
+  lDescription := NXBuildTestLoad('Package Demo { FPC Pascal { SourceFiles: ["demo.nxpk"]; ' +
+    'BuildControl Options { EmbedPackageMetadata: Disabled; } } }');
+  lDescription.Free;
+end;
+procedure TestRuntimePackageOptions(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lOptions: TNXFPCBuildOptions;
+  lArguments: TStringList;
+  lSourceIndex: Integer;
+  lPackagePath: string;
+begin
+  lDescription := NXBuildTestLoad('Package Demo { FPC Runtime {' +
+    ' SourceFiles: ["Demo.nxpk"]; PackageSDKIdentity: "SDK";' +
+    ' PackageBuildIdentity: "BUILD"; RequiredPackages: [nxrtl, Abbrevia];' +
+    ' Target Platform { OperatingSystem: linux; }' +
+    ' Files Paths { PackagePaths: ["sdk/packages"]; } } }');
+  lArguments := TStringList.Create;
+  try
+    lOptions := lDescription.Builds[0] as TNXFPCBuildOptions;
+    lPackagePath := ExpandFileName(lDescription.RootDirectory + '/sdk/packages');
+    AContext.AssertEquals(lPackagePath, lOptions.Files.PackagePaths[0]);
+    lOptions.AppendArguments(lArguments, lSourceIndex);
+    AContext.AssertTrue(lArguments.IndexOf('-FjSDK') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-FkBUILD') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-FPnxrtl') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-FPAbbrevia') >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-Fp' + lPackagePath) >= 0);
+    AContext.AssertTrue(lArguments.IndexOf('-Fp' + lPackagePath) <
+      lArguments.IndexOf('-FPnxrtl'), 'Package search paths must precede requirements');
+    AContext.AssertTrue(lArguments.IndexOf('-Tlinux') <
+      lArguments.IndexOf('-FPnxrtl'), 'Target selection must precede requirements');
+    AContext.AssertEquals(lArguments.Count, lSourceIndex);
+  finally
+    lArguments.Free;
+    lDescription.Free;
+  end;
+end;
 procedure RegisterNXBuildTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NXBuild');
   lSuite.AddTest('Defaults', @TestDefaults);
+  lSuite.AddTest('PackageMetadataOption', @TestPackageMetadataOption);
+  lSuite.AddTest('RuntimePackageOptions', @TestRuntimePackageOptions);
   lSuite.AddTest('COperators', @TestCOperators);
   lSuite.AddTest('NativeValues', @TestNativeValues);
   lSuite.AddTest('OrderedProjectAndPackageBuilds', @TestOrderedBuilds);

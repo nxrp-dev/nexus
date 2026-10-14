@@ -52,7 +52,7 @@ export class PascalProjectWorkspaceService implements vscode.Disposable {
             this.refresh();
         });
 
-        this.watchSource = vscode.workspace.createFileSystemWatcher('**/*.{pas,pp,lpr,inc,p,dpr,dpk,lfm}', false, false, false);
+        this.watchSource = vscode.workspace.createFileSystemWatcher('**/*.{pas,lpr,inc,p,dpr,nxpk,lfm}', false, false, false);
         this.watchSource.onDidChange(() => this.sourceFileChanged = true);
         this.watchSource.onDidCreate(() => this.sourceFileChanged = true);
         this.watchSource.onDidDelete(() => this.sourceFileChanged = true);

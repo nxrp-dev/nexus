@@ -61,6 +61,14 @@ Language nxbuild {
                 },
                 Property OutputPath { Value Value { Scalar: Text; } },
                 Property BuildKind { Value Value { Scalar: Text; AllowedValues: [Unset, Program, Library, Unit, Package]; } },
+                Property PackageSDKIdentity { Value Value { Scalar: Text; } },
+                Property PackageBuildIdentity { Value Value { Scalar: Text; } },
+                Property RequiredPackages {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
                 Property RawOptions {
                     Value Value {
                         EffectiveCategories: [Array];
@@ -198,6 +206,7 @@ Language nxbuild {
                 Property BrowserInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property BrowserLocalSymbols { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property WriteLogo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
+                Property EmbedPackageMetadata { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property GenerateProfileCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
             ];
         },
@@ -332,6 +341,12 @@ Language nxbuild {
                 Property ErrorMessageFile { Value Value { Scalar: Text; } },
                 Property ResourceLinker { Value Value { Scalar: Text; } },
                 Property UnitPaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property PackagePaths {
                     Value Value {
                         EffectiveCategories: [Array];
                         Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }

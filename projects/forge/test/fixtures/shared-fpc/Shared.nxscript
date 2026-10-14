@@ -20,9 +20,9 @@ FPC StandardFPC {
         @Installation.Units + "/rtl-objpas"
     ];
     Source: [
-        @Installation.Packages + "/fcl-base/src/*.pp",
-        @Installation.Packages + "/fcl-json/src/*.pp",
-        @Installation.Packages + "/fcl-xml/src/*.pp"
+        @Installation.Packages + "/fcl-base/src/*.pas",
+        @Installation.Packages + "/fcl-json/src/*.pas",
+        @Installation.Packages + "/fcl-xml/src/*.pas"
     ];
     IncludePaths: [@Installation.Packages + "/fcl-base/src"];
 }

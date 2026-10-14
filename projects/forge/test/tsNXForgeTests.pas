@@ -27,7 +27,7 @@ uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTest
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
   obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine,
   tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK,
-  utNXForgePackageBuild, obNXForgePackageArtifactReader, tpNXForgePackage;
+  utNXForgePackageBuild, obNXForgePackageArtifactReader, tpNXForgePackage, nxpackagefile;
 
 function Root: string;
 begin
@@ -415,7 +415,7 @@ end;
 
 procedure TestFPCSwitches(AContext: TNXTestContext);
 const
-  cSettings: array[0..9] of string = (
+  cSettings: array[0..11] of string = (
     '',
     'DisableDefaultConfigFiles: False; CompileSystemUnit: False; ' +
       'LabelAndGoto: False; GenerateReleaseUnitFiles: False; ' +
@@ -427,11 +427,11 @@ const
       'PositionIndependentCode: True; CompilerUtilitiesPath: "C:/NDK tools/bin";',
     'StripSymbols: True; ResponseFiles: ["build options.cfg"];',
     'PackageSDKIdentity: "sdk"; PackageBuildIdentity: "build"; ResponseFiles: ["package.cfg"];',
-    'SmartLink: False; SmartLinkUnits: False; ConsoleApplication: False; GUIApplication: False;');
-  cSwitches: array[0..9] of string = (
+    'SmartLink: False; SmartLinkUnits: False; ConsoleApplication: False; GUIApplication: False;', 'EmbedPackageMetadata: Enabled;', 'EmbedPackageMetadata: Disabled;');
+  cSwitches: array[0..11] of string = (
     '', '', ' -n -Us -Sg -O2 -Ur', ' -O1', ' -O3', ' -O4',
     ' "-Tandroid" "-Aas-clang" -XLL -Cg "-FDC:/NDK tools/bin"',
-    ' -Xs "@build options.cfg"', ' "-Fjsdk" "-Fkbuild" "@package.cfg"', '');
+    ' -Xs "@build options.cfg"', ' "-Fjsdk" "-Fkbuild" "@package.cfg"', '', ' -FJEnabled', ' -FJDisabled');
 var
   lForge: TNXForge;
   lDirectory, lTemplate, lExpected, lCompiler: string;
@@ -1477,7 +1477,7 @@ begin
   ForceDirectories(lDirectory + 'source/excluded');
   ForceDirectories(lDirectory + 'destination');
   Save(lDirectory + 'source/main.pas', 'program');
-  Save(lDirectory + 'source/nested/unit.pp', 'unit');
+  Save(lDirectory + 'source/nested/helper.pas', 'unit');
   Save(lDirectory + 'source/nested/shared.inc', 'include');
   Save(lDirectory + 'source/nested/UNIT.PAS', 'uppercase');
   Save(lDirectory + 'source/nested/unit.o', 'object');
@@ -1489,12 +1489,12 @@ begin
   try
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'CopyFile Stage { Source: "source"; Destination: "destination"; Recursive: True; ' +
-      'CleanDestination: True; IncludeMasks: ["*.pas", "*.pp", "*.inc", "main.*"]; ' +
+      'CleanDestination: True; IncludeMasks: ["*.pas", "*.inc", "main.*"]; ' +
       'ExcludeNames: "msgidx.inc;excluded;main.exe"; }');
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
     AContext.AssertEquals('program', LoadRaw(lDirectory + 'destination/main.pas'),
       'Overlapping masks copy a file once without requiring Overwrite');
-    AContext.AssertEquals('unit', LoadRaw(lDirectory + 'destination/nested/unit.pp'),
+    AContext.AssertEquals('unit', LoadRaw(lDirectory + 'destination/nested/helper.pas'),
       'Masks do not filter directory traversal');
     AContext.AssertEquals('include', LoadRaw(lDirectory + 'destination/nested/shared.inc'),
       'All supplied extensions are included');
@@ -2097,6 +2097,147 @@ begin
   end;
 end;
 
+function MetadataBytes(const AText: string): TBytes;
+begin
+  SetLength(Result, Length(AText));
+  if AText <> '' then Move(AText[1], Result[0], Length(AText));
+end;
+
+function MetadataText(const AData: TBytes): string;
+begin
+  SetLength(Result, Length(AData));
+  if Length(AData) > 0 then Move(AData[0], Result[1], Length(AData));
+end;
+
+function EncodedMetadata(const AText: string): string;
+begin
+  Result := MetadataText(EncodePackageMetadata(MetadataBytes(AText)));
+end;
+
+function PackageTestImage(const AImage, AMetadata: string; AEmbed: Boolean): string;
+var
+  lEnvelope: TBytes;
+  lImage: string;
+  procedure Put(AOffset: Integer; AValue: Cardinal; ASize: Integer = 4);
+  var lByte: Integer;
+  begin
+    for lByte := 0 to ASize - 1 do
+      lImage[AOffset + lByte + 1] := Chr((AValue shr (lByte * 8)) and $FF);
+  end;
+begin
+  lEnvelope := EncodePackageMetadata(MetadataBytes(AMetadata));
+  if not AEmbed then lEnvelope := PackageMetadataReference(lEnvelope);
+  lImage := Copy(AImage, 1, $600);
+  SetLength(lImage, $600);
+  Put($86, 2, 2);
+  Move(NexusPackageMetadataSection[1], lImage[$1B0 + 1], 7);
+  lImage[$1B7 + 1] := #0;
+  Put($1BC, $2000);
+  Put($1C0, Length(lEnvelope));
+  Put($1C4, $600);
+  Result := lImage + MetadataText(lEnvelope);
+end;
+procedure TestPackageStorage(AContext: TNXTestContext);
+var
+  lRaw, lEncoded, lBad, lReference: TBytes;
+  lDirectory, lImage, lRawText: string;
+  lIndex: Integer;
+  lRejected: Boolean;
+
+  procedure Put(var AData: TBytes; AOffset: Integer; AValue: QWord; ASize: Integer = 4);
+  var lByte: Integer;
+  begin
+    for lByte := 0 to ASize - 1 do AData[AOffset + lByte] := Byte(AValue shr (lByte * 8));
+  end;
+
+  procedure RejectImage(const AReason: string);
+  begin
+    lRejected := False;
+    try ReadPackageMetadata(lDirectory + 'sample.nxpl');
+    except on E: Exception do lRejected := True; end;
+    AContext.AssertTrue(lRejected, AReason);
+  end;
+
+begin
+  lRawText := 'NXP004' + StringOfChar('N', 100000);
+  lRaw := MetadataBytes(lRawText);
+  lEncoded := EncodePackageMetadata(lRaw);
+  AContext.AssertEquals(lRawText, MetadataText(DecodePackageMetadata(lEncoded)));
+  AContext.AssertTrue(Length(lEncoded) < 1000, 'Repeated metadata is compressed');
+  AContext.AssertEquals(MetadataText(lEncoded), MetadataText(EncodePackageMetadata(lRaw)), 'Stable encoding');
+  for lIndex := 0 to 10 do
+  begin
+    lBad := Copy(lEncoded);
+    case lIndex of
+      0: SetLength(lBad, 39);
+      1: lBad[0] := 0;
+      2: lBad[7] := Ord('2');
+      3: Put(lBad, 8, 2);
+      4: Put(lBad, 12, 0);
+      5: Put(lBad, 12, Length(lRaw) - 1);
+      6: Put(lBad, 16, Length(lEncoded));
+      7: lBad[20] := lBad[20] xor 1;
+      8: SetLength(lBad, Length(lBad) - 1);
+      9: lBad[40] := lBad[40] xor 1;
+      10:
+        begin
+          SetLength(lBad, Length(lBad) + 1);
+          Put(lBad, 16, Length(lBad) - NexusPackageEnvelopeSize);
+        end;
+    end;
+    lRejected := False;
+    try DecodePackageMetadata(lBad);
+    except on E: Exception do lRejected := True; end;
+    AContext.AssertTrue(lRejected, 'Invalid envelope ' + IntToStr(lIndex));
+  end;
+
+  lDirectory := TestDir('package storage');
+  SetLength(lBad, $600);
+  FillChar(lBad[0], Length(lBad), 0);
+  lBad[0] := Ord('M'); lBad[1] := Ord('Z');
+  Put(lBad, 60, $80);
+  Put(lBad, $80, $4550);
+  Put(lBad, $84, $8664, 2);
+  Put(lBad, $94, $F0, 2);
+  lImage := PackageTestImage(MetadataText(lBad), lRawText, True);
+  Save(lDirectory + 'sample.nxpl', lImage);
+  Save(lDirectory + 'sample.nxp', 'stale sidecar');
+  AContext.AssertEquals(lRawText, MetadataText(ReadPackageMetadata(lDirectory + 'sample.nxpl')),
+    'Embedded metadata takes precedence over stale sidecar');
+  Save(lDirectory + 'sample.nxpl', PackageTestImage(lImage, lRawText, False));
+  DeleteFile(lDirectory + 'sample.nxp');
+  RejectImage('Missing sidecar');
+  Save(lDirectory + 'sample.nxp', MetadataText(lEncoded));
+  AContext.AssertEquals(lRawText, MetadataText(ReadPackageMetadata(lDirectory + 'sample.nxpl')));
+  Save(lDirectory + 'sample.nxp', EncodedMetadata(lRawText + 'different build'));
+  RejectImage('Sidecar from a different build');
+  Save(lDirectory + 'sample.nxp', MetadataText(lEncoded));
+  lImage[Length(lImage)] := Chr(Ord(lImage[Length(lImage)]) xor 1);
+  Save(lDirectory + 'sample.nxpl', lImage);
+  RejectImage('Corrupt embedded metadata does not fall back to the sidecar');
+
+  // ELF64, with independent section names and non-allocated metadata.
+  SetLength(lBad, $220);
+  FillChar(lBad[0], Length(lBad), 0);
+  lBad[0] := 127; lBad[1] := Ord('E'); lBad[2] := Ord('L'); lBad[3] := Ord('F');
+  lBad[4] := 2; lBad[5] := 1;
+  Put(lBad, 18, 62, 2);
+  Put(lBad, 40, $80, 8);
+  Put(lBad, 58, 64, 2); Put(lBad, 60, 3, 2); Put(lBad, 62, 1, 2);
+  Put(lBad, $C0 + 24, $200, 8); Put(lBad, $C0 + 32, 9, 8);
+  Move(NexusPackageMetadataSection[1], lBad[$201], 7);
+  Put(lBad, $100, 1); Put(lBad, $104, 1);
+  Put(lBad, $100 + 24, $220, 8); Put(lBad, $100 + 32, Length(lEncoded), 8);
+  Save(lDirectory + 'sample.nxpl', MetadataText(lBad) + MetadataText(lEncoded));
+  AContext.AssertEquals(lRawText, MetadataText(ReadPackageMetadata(lDirectory + 'sample.nxpl')));
+  lReference := PackageMetadataReference(lEncoded);
+  Put(lBad, $100 + 32, Length(lReference), 8);
+  Save(lDirectory + 'sample.nxpl', MetadataText(lBad) + MetadataText(lReference));
+  AContext.AssertEquals(lRawText, MetadataText(ReadPackageMetadata(lDirectory + 'sample.nxpl')));
+  Put(lBad, $100 + 24, High(QWord), 8);
+  Save(lDirectory + 'sample.nxpl', MetadataText(lBad) + MetadataText(lReference));
+  RejectImage('Overflowed ELF section offset');
+end;
 procedure TestPackageSDKManifest(AContext: TNXTestContext);
 var
   lDirectory, lSDK, lIdentity, lBuild, lPCP, lImage, lBinary, lManifest, lCommand: string;
@@ -2139,6 +2280,14 @@ var
     AContext.AssertEquals(lManifest, LoadRaw(lSDK + 'sdk.json'), AMessage + ' preserves manifest');
   end;
 
+  procedure SaveMetadata(const APath, ARaw: string);
+  var lImagePath: string;
+  begin
+    Save(APath, EncodedMetadata(ARaw));
+    lImagePath := ChangeFileExt(APath, '.nxpl');
+    if FileExists(lImagePath) then
+      Save(lImagePath, PackageTestImage(LoadRaw(lImagePath), ARaw, False));
+  end;
   procedure CheckConsumerBuild;
   var
     lWork, lOutput, lSelection, lGeneration, lOwnBuild, lOwnPCP, lOwnImage: string;
@@ -2171,7 +2320,7 @@ var
     lGeneration := ResolveForgePackageBundle(lOutput);
     AContext.AssertEquals(LoadRaw(lDirectory + 'app work/app.exe'), LoadRaw(lGeneration + '/app.exe'),
       'Application publication copies the produced artifact unchanged');
-    AContext.AssertEquals(lImage, LoadRaw(lGeneration + '/nxrtl.dll'));
+    AContext.AssertEquals(lImage, LoadRaw(lGeneration + '/nxrtl.nxpl'));
     AContext.AssertFalse(FileExists(lGeneration + '/nxrtl.nxp'), 'Applications publish only runtime artifacts');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Reusing nonempty work is rejected');
     AContext.AssertTrue(Pos('must be empty', lForge.Diagnostic) > 0, lForge.Diagnostic);
@@ -2195,28 +2344,31 @@ var
       Entry(245, ShortText('nxrtl') + ShortText(lBuild)) + Entry(255, '');
     lOwnImage := StringReplace(StringReplace(lImage, 'nxrtl', 'mypkg', [rfReplaceAll]),
       lBuild, lOwnBuild, [rfReplaceAll]);
-    Save(lWork + '/mypkg.nxp', lOwnPCP);
-    Save(lWork + '/mypkg.dll', lOwnImage);
+    lOwnImage := PackageTestImage(lOwnImage, lOwnPCP, False);
+    SaveMetadata(lWork + '/mypkg.nxp', lOwnPCP);
+    Save(lWork + '/mypkg.nxpl', lOwnImage);
     PublishForgePackageBundle(lWork, lOutput, 'mypkg', 'Package');
     lSelection := LoadRaw(lOutput + '/current.json');
     lGeneration := ResolveForgePackageBundle(lOutput);
-    AContext.AssertEquals(lOwnPCP, LoadRaw(lGeneration + '/mypkg.nxp'));
-    AContext.AssertEquals(lOwnImage, LoadRaw(lGeneration + '/mypkg.dll'));
-    AContext.AssertEquals(lPCP, LoadRaw(lGeneration + '/nxrtl.nxp'));
+    AContext.AssertEquals(EncodedMetadata(lOwnPCP), LoadRaw(lGeneration + '/mypkg.nxp'));
+    AContext.AssertEquals(lOwnImage, LoadRaw(lGeneration + '/mypkg.nxpl'));
+    AContext.AssertEquals(EncodedMetadata(lPCP), LoadRaw(lGeneration + '/nxrtl.nxp'));
     PrepareForgePackageBuild(lSDK, lDirectory + 'dependent work', [lOutput]);
     AContext.AssertTrue(Pos(lGeneration, LoadRaw(lDirectory + 'dependent work/package.cfg')) > 0,
       'Selected provider generation supplies compiler paths');
 
-    Save(lWork + '/mypkg.nxp', StringReplace(lOwnPCP, lOwnBuild, StringOfChar('C', 32), []));
+    SaveMetadata(lWork + '/mypkg.nxp', StringReplace(lOwnPCP, lOwnBuild, StringOfChar('C', 32), []));
     RejectPublication('does not match the prepared build');
-    Save(lWork + '/mypkg.nxp', lOwnPCP);
-    Save(lWork + '/mypkg.dll', StringReplace(lOwnImage, lOwnBuild, StringOfChar('C', 32), []));
+    lOwnImage := PackageTestImage(lOwnImage, lOwnPCP, False);
+    SaveMetadata(lWork + '/mypkg.nxp', lOwnPCP);
+    Save(lWork + '/mypkg.nxpl', StringReplace(lOwnImage, lOwnBuild, StringOfChar('C', 32), []));
     RejectPublication('identity does not match');
-    Save(lWork + '/mypkg.dll', lOwnImage);
-    Save(lWork + '/mypkg.nxp', StringReplace(lOwnPCP, lBuild, StringOfChar('C', 32), []));
+    Save(lWork + '/mypkg.nxpl', lOwnImage);
+    SaveMetadata(lWork + '/mypkg.nxp', StringReplace(lOwnPCP, lBuild, StringOfChar('C', 32), []));
     RejectPublication('Dependency build mismatch');
-    Save(lWork + '/mypkg.nxp', lOwnPCP);
-    Save(lSDK + 'packages/nxrtl.dll', lImage + 'changed');
+    lOwnImage := PackageTestImage(lOwnImage, lOwnPCP, False);
+    SaveMetadata(lWork + '/mypkg.nxp', lOwnPCP);
+    Save(lSDK + 'packages/nxrtl.nxpl', lImage + 'changed');
     RejectPublication('input changed during compilation');
     lRejected := False;
     try
@@ -2226,9 +2378,9 @@ var
     end;
     AContext.AssertTrue(lRejected, 'SDK hash validation rejects changed foundation');
     AContext.AssertFalse(FileExists(lDirectory + 'bad SDK work/package.cfg'));
-    Save(lSDK + 'packages/nxrtl.dll', lImage);
+    Save(lSDK + 'packages/nxrtl.nxpl', lImage);
 
-    Save(lGeneration + '/mypkg.dll', lOwnImage + 'changed');
+    Save(lGeneration + '/mypkg.nxpl', lOwnImage + 'changed');
     lRejected := False;
     try
       ResolveForgePackageBundle(lOutput);
@@ -2236,8 +2388,8 @@ var
       on E: Exception do lRejected := Pos('differs from its manifest', E.Message) > 0;
     end;
     AContext.AssertTrue(lRejected, 'Published artifact tampering is rejected');
-    Save(lGeneration + '/mypkg.dll', lOwnImage);
-    Save(lGeneration + '/unlisted.dll', 'unlisted');
+    Save(lGeneration + '/mypkg.nxpl', lOwnImage);
+    Save(lGeneration + '/unlisted.nxpl', 'unlisted');
     lRejected := False;
     try
       ResolveForgePackageBundle(lOutput);
@@ -2245,7 +2397,7 @@ var
       on E: Exception do lRejected := Pos('Unlisted package bundle artifact', E.Message) > 0;
     end;
     AContext.AssertTrue(lRejected, 'Extra runtime artifacts are rejected');
-    DeleteFile(lGeneration + '/unlisted.dll');
+    DeleteFile(lGeneration + '/unlisted.nxpl');
     Save(lOutput + '/current.json', '{"Format":1,"Generation":"../escape"}');
     lRejected := False;
     try
@@ -2268,7 +2420,7 @@ begin
   lBuild := StringOfChar('B', 32);
   Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');
   lPCP := 'NXP004' + StringOfChar(#0, 26) + Entry(93, ShortText('nxrtl')) +
-    Entry(92, ShortText('nxrtl.dll') + ShortText(lIdentity) + ShortText(lBuild)) + Entry(255, '');
+    Entry(92, ShortText('nxrtl.nxpl') + ShortText(lIdentity) + ShortText(lBuild)) + Entry(255, '');
   lBinary := StringOfChar(#0, $600);
   PutText(0, 'MZ');
   PutNumber(60, $80, 4);
@@ -2302,9 +2454,9 @@ begin
   PutText($400, ShortText('nxrtl'));
   PutText($450, ShortText(lIdentity));
   PutText($4A0, ShortText(lBuild));
-  lImage := lBinary;
-  Save(lSDK + 'packages/nxrtl.nxp', lPCP);
-  Save(lSDK + 'packages/nxrtl.dll', lImage);
+  lImage := PackageTestImage(lBinary, lPCP, False);
+  SaveMetadata(lSDK + 'packages/nxrtl.nxp', lPCP);
+  Save(lSDK + 'packages/nxrtl.nxpl', lImage);
   Save(lSDK + 'units/sysinitpkg.nxu', 'abc');
   Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
   lInvocation := TNXForgeInvocation.Create;
@@ -2355,20 +2507,27 @@ begin
         7: PutNumber($250, Ord('X'), 1); // Missing descriptor export.
         8: PutNumber($84, $14C, 2); // Unsupported target.
       end;
-      Save(lSDK + 'packages/nxrtl.dll', lBinary);
+      Save(lSDK + 'packages/nxrtl.nxpl', lBinary);
       Reject('Invalid PE case ' + IntToStr(lIndex));
     end;
-    Save(lSDK + 'packages/nxrtl.dll', lImage);
-    Save(lSDK + 'packages/nxrtl.nxp', Copy(lPCP, 1, Length(lPCP) - 1));
+    Save(lSDK + 'packages/nxrtl.nxpl', lImage);
+    SaveMetadata(lSDK + 'packages/nxrtl.nxp', Copy(lPCP, 1, Length(lPCP) - 1));
     Reject('Truncated PCP');
-    Save(lSDK + 'packages/nxrtl.nxp', StringReplace(lPCP, lBuild, StringOfChar('C', 32), []));
+    SaveMetadata(lSDK + 'packages/nxrtl.nxp', StringReplace(lPCP, lBuild, StringOfChar('C', 32), []));
     Reject('PCP identity mismatch');
-    Save(lSDK + 'packages/nxrtl.nxp', StringReplace(lPCP, 'NXP004', 'NXP003', []));
+    SaveMetadata(lSDK + 'packages/nxrtl.nxp', StringReplace(lPCP, 'NXP004', 'NXP003', []));
     Reject('Wrong PCP version');
-    Save(lSDK + 'packages/nxrtl.nxp', lPCP);
+    SaveMetadata(lSDK + 'packages/nxrtl.nxp', lPCP);
     Save(lSDK + 'work/identity.json', '{}');
     Reject('Incomplete JSON identity');
     Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');
+    // An embedded foundation publishes and prepares consumers without a sidecar.
+    Save(lSDK + 'packages/nxrtl.nxpl', PackageTestImage(lImage, lPCP, True));
+    DeleteFile(lSDK + 'packages/nxrtl.nxp');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    PrepareForgePackageBuild(lSDK, lDirectory + 'embedded SDK work', []);
+    AContext.AssertTrue(FileExists(lDirectory + 'embedded SDK work/package.cfg'));
+    lManifest := LoadRaw(lSDK + 'sdk.json');
     Save(lSDK + 'bin/ppcx64.exe', 'not executable');
     Reject('Compiler version query failure');
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') + 'PackageSDKManifest Bad { Directory: ""; }');
@@ -2531,6 +2690,7 @@ begin
   lSuite.AddTest('BuildIdentity', @TestBuildIdentity);
   lSuite.AddTest('PackageSDKOptions', @TestPackageSDKOptions);
   lSuite.AddTest('PackageSDKManifest', @TestPackageSDKManifest);
+  lSuite.AddTest('PackageStorage', @TestPackageStorage);
   lSuite.AddTest('PackageELFImage', @TestPackageELFImage);
   lSuite.AddTest('SourceSelections', @TestSourceSelections);
   lSuite.AddTest('StagedSources', @TestStagedSources);

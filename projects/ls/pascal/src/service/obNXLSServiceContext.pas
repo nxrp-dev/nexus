@@ -216,7 +216,7 @@ var
   lExt: string;
 begin
   lExt := LowerCase(ExtractFileExt(AFileName));
-  Result := (lExt = '.pas') or (lExt = '.pp') or (lExt = '.inc') or
+  Result := (lExt = '.pas') or (lExt = '.inc') or
     (lExt = '.lpr') or (lExt = '.lpk');
 end;
 

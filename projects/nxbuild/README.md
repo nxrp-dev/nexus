@@ -57,7 +57,15 @@ destinations.
 
 Project/package contract resolution is a separate concern from this build
 collection. Package here identifies the containing description; an FPC runtime
-package is compiled by an FPC entry.
+package is compiled by an FPC entry whose SourceFiles selects an `.nxpk` declaration.
+
+FPC package options are named fields: `PackageSDKIdentity` emits `-Fj`,
+`PackageBuildIdentity` emits `-Fk`, and `RequiredPackages` emits one `-FP` per
+package. `Files.PackagePaths` resolves directories against RootDirectory and
+emits `-Fp`. An `.nxpk` normally lists dependencies in its `requires` clause;
+an executable lists them in RequiredPackages. The compiler creates a build
+identity when PackageBuildIdentity is omitted. All participants use the same
+SDK identity and matching shared RTL/startup units.
 
 ## Builders
 
@@ -213,10 +221,13 @@ and Linux:
 
 1. LLVM compiles 30 LZMA, PPMd and WavPack C sources to objects in one invocation.
 2. LLVM compiles and links seven bzip2 C sources into the platform shared library.
-3. FPC compiles all 50 Pascal runtime units. Tests are built separately from Abbrevia/test/AbbreviaTests.nxproject.
+3. FPC compiles `Abbrevia.nxpk`, containing all 51 Pascal runtime units and
+   requiring `nxrtl`, into `Abbrevia.nxpl` with embedded development metadata.
+   Tests are built separately from Abbrevia/test/AbbreviaTests.nxproject and
+   consume the compiled package through RequiredPackages.
 
 Source masks expand during execution without sorting. The three entries produce
-52 compiler invocations with the current sources. No build helper script is used.
+three compiler invocations. No build helper script is used.
 The LZMA sources retain their existing threading configuration.
 
 Run from the Nexus repository root on Windows:
@@ -232,7 +243,16 @@ The equivalent commands on Linux use `output/nxbuild-next/x86_64-linux/nxbuild`
 and the executables without `.exe` in
 `output/nxbuild-abbrevia/x86_64-linux/pascal`. Target flags are optional on
 either native host. Adjust `nxbuild.environment.nxscript` for the installed
-NexusFPC, RTL and Clang paths; Linux uses the system C headers and libraries.
+NexusFPC, RTL, package SDK and Clang paths; Linux uses the system C headers and libraries.
+PackageSDKPath selects the matching SDK directory, PackageSDKIdentity comes from
+its sdk.json, and PackageLibraryPaths includes its packages directory alongside
+the platform libraries. Replacing the SDK requires updating these installation
+settings together. The Linux package SDK must be installed/configured on that host.
+
+At runtime, the matching `nxrtl.nxpl` must be beside the executable or on the
+platform library search path. `Abbrevia.nxpl` and the generated bzip2 library
+are built beside the test executable. The source declaration `.nxpk` is build
+input; `.nxpl` is the compiled runtime package.
 
 Clang's `libbz2-win64.cfg` names `libbz2.dll` and references `libbz2.def`,
 which exports all 24 public bzip2 functions. Clang's `<CFGDIR>` locates that
@@ -363,3 +383,9 @@ Verified on Win64 with NexusFPC and LLVM:
 The verified executables are in output/nxbuild-next/x86_64-win64/nxbuild.exe
 and output/nxbuild-next/x86_64-linux/nxbuild.
 The test runner is in output/nxbuildTests/x86_64-win64/nxbuildTests.exe.
+
+For NexusFPC runtime packages, `BuildControl Options { EmbedPackageMetadata:
+Disabled; }` emits `-FJ-`. `Enabled` emits `-FJ`; `Unset` or omission keeps the
+compiler default. The default produces one `.nxpl` with compressed compiler
+metadata. Disabling embedding produces `.nxpl` plus `.nxp`; both modes use the
+same runtime loading behavior and can be mixed among dependencies.

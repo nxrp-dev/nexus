@@ -134,6 +134,7 @@ type
     FBrowserLocalSymbols: TNXFPCSwitchState;
     FWriteLogo: TNXFPCSwitchState;
     FGenerateProfileCode: TNXFPCSwitchState;
+    FEmbedPackageMetadata: TNXFPCSwitchState;
   public
     procedure AppendArguments(AArguments: TStrings); override;
 
@@ -142,6 +143,7 @@ type
     property BrowserInfo: TNXFPCSwitchState read FBrowserInfo write FBrowserInfo;
     property BrowserLocalSymbols: TNXFPCSwitchState read FBrowserLocalSymbols write FBrowserLocalSymbols;
     property WriteLogo: TNXFPCSwitchState read FWriteLogo write FWriteLogo;
+    property EmbedPackageMetadata: TNXFPCSwitchState read FEmbedPackageMetadata write FEmbedPackageMetadata;
     property GenerateProfileCode: TNXFPCSwitchState read FGenerateProfileCode write FGenerateProfileCode;
   end;
 
@@ -251,6 +253,7 @@ type
     FErrorMessageFile: string;
     FResourceLinker: string;
     FUnitPaths: TStringList;
+    FPackagePaths: TStringList;
     FWholeProgramFeedbackOutput: string;
     FWholeProgramFeedbackInput: string;
   public
@@ -277,6 +280,7 @@ type
     property ErrorMessageFile: string read FErrorMessageFile write FErrorMessageFile;
     property ResourceLinker: string read FResourceLinker write FResourceLinker;
     property UnitPaths: TStringList read FUnitPaths;
+    property PackagePaths: TStringList read FPackagePaths;
     property WholeProgramFeedbackOutput: string read FWholeProgramFeedbackOutput write FWholeProgramFeedbackOutput;
     property WholeProgramFeedbackInput: string read FWholeProgramFeedbackInput write FWholeProgramFeedbackInput;
   end;
@@ -620,6 +624,9 @@ type
   TNXFPCBuildOptions = class(TNXBuildEntry)
   private
     FBuildKind: TNXFPCBuildKind;
+    FPackageSDKIdentity: string;
+    FPackageBuildIdentity: string;
+    FRequiredPackages: TStringList;
     FConfig: TNXFPCConfigOptions;
     FAssembler: TNXFPCAssemblerOptions;
     FBuildControl: TNXFPCBuildControlOptions;
@@ -648,6 +655,9 @@ type
 
   published
     property BuildKind: TNXFPCBuildKind read FBuildKind write FBuildKind;
+    property PackageSDKIdentity: string read FPackageSDKIdentity write FPackageSDKIdentity;
+    property PackageBuildIdentity: string read FPackageBuildIdentity write FPackageBuildIdentity;
+    property RequiredPackages: TStringList read FRequiredPackages;
     property Config: TNXFPCConfigOptions read FConfig;
     property Assembler: TNXFPCAssemblerOptions read FAssembler;
     property BuildControl: TNXFPCBuildControlOptions read FBuildControl;
@@ -811,6 +821,7 @@ begin
   NXAddSwitch(AArguments, '-bl', FBrowserLocalSymbols);
   NXAddSwitch(AArguments, '-l', FWriteLogo);
   NXAddSwitch(AArguments, '-pg', FGenerateProfileCode);
+  NXAddSwitch(AArguments, '-FJ', FEmbedPackageMetadata);
 end;
 
 constructor TNXFPCDefinitionOptions.Create;
@@ -898,10 +909,12 @@ begin
   FDefaultUnitScopes := TStringList.Create;
   FObjectPaths := TStringList.Create;
   FUnitPaths := TStringList.Create;
+  FPackagePaths := TStringList.Create;
 end;
 
 destructor TNXFPCFileOptions.Destroy;
 begin
+  FPackagePaths.Free;
   FUnitPaths.Free;
   FObjectPaths.Free;
   FDefaultUnitScopes.Free;
@@ -933,6 +946,7 @@ begin
   NXAddValue(AArguments, '-Fr', FErrorMessageFile);
   NXAddValue(AArguments, '-FR', FResourceLinker);
   NXAddListValues(AArguments, '-Fu', FUnitPaths);
+  NXAddListValues(AArguments, '-Fp', FPackagePaths);
   NXAddValue(AArguments, '-FW', FWholeProgramFeedbackOutput);
   NXAddValue(AArguments, '-Fw', FWholeProgramFeedbackInput);
 end;
@@ -1266,6 +1280,7 @@ end;
 constructor TNXFPCBuildOptions.Create;
 begin
   inherited Create;
+  FRequiredPackages := TStringList.Create;
   FConfig := TNXFPCConfigOptions.Create;
   FAssembler := TNXFPCAssemblerOptions.Create;
   FBuildControl := TNXFPCBuildControlOptions.Create;
@@ -1288,6 +1303,7 @@ end;
 
 destructor TNXFPCBuildOptions.Destroy;
 begin
+  FRequiredPackages.Free;
   FRawOptions.Free;
   FLinking.Free;
   FVerbosity.Free;
@@ -1316,6 +1332,8 @@ end;
 procedure TNXFPCBuildOptions.AppendArguments(AArguments: TStrings;
   out ASourceArgumentIndex: Integer);
 begin
+  NXAddValue(AArguments, '-Fj', FPackageSDKIdentity);
+  NXAddValue(AArguments, '-Fk', FPackageBuildIdentity);
   FConfig.AppendArguments(AArguments);
   FAssembler.AppendArguments(AArguments);
   FBuildControl.AppendArguments(AArguments);
@@ -1335,6 +1353,7 @@ begin
   NXAddValue(AArguments, '-FE', OutputPath);
   NXAddValue(AArguments, '-FU', OutputPath);
   NXAddRawList(AArguments, FRawOptions);
+  NXAddListValues(AArguments, '-FP', FRequiredPackages);
   ASourceArgumentIndex := AArguments.Count;
 end;
 
@@ -1347,6 +1366,7 @@ begin
   ResolvePathList(Files.LibraryPaths, ARoot);
   ResolvePathList(Files.ObjectPaths, ARoot);
   ResolvePathList(Files.UnitPaths, ARoot);
+  ResolvePathList(Files.PackagePaths, ARoot);
 
   Files.ExecutableSearchPath := ResolvePath(Files.ExecutableSearchPath, ARoot);
   Files.RCCompilerBinary := ResolvePath(Files.RCCompilerBinary, ARoot);

@@ -403,7 +403,7 @@ begin
   lFPCDir := IncludeTrailingPathDelimiter(lRoot) + 'fpc';
   lSysUtilsFile := IncludeTrailingPathDelimiter(lFPCDir) +
     'source' + DirectorySeparator + 'rtl' + DirectorySeparator + 'win' +
-    DirectorySeparator + 'SysUtils.pp';
+    DirectorySeparator + 'SysUtils.pas';
   lConsumerFile := IncludeTrailingPathDelimiter(lRoot) + 'Consumer.pas';
   NXLSWriteTextFile(lSysUtilsFile, cSysUtilsUnit);
 

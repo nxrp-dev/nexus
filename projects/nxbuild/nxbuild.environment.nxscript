@@ -34,8 +34,16 @@ Environment Tools TargetCPU[x86_64] {
             @Tools.MSVC.LibraryPath
         ];
         LinkerOptions: ["kernel32.lib", "ucrt.lib", "vcruntime.lib", "msvcrt.lib"];
-        FPCCompiler: "C:/gitdev/nexus/output/ForgeIdentity/workspace/tools/nexus-fpc/build/forge-bootstrap/cycle3/ppcx64.exe";
-        RTLPath: "C:/gitdev/nexus/output/ForgeIdentity/workspace/tools/nexus-fpc/build/forge-bootstrap/cycle3/rtl64";
+        PackageSDKPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-sdk";
+        PackageSDKIdentity: "E726DB7B2D8B2468510756D0CCB2D7BFA5E6CA7DE6404B8D0F647A08FF6950BC";
+        PackageLibraryPaths: [
+            @Tools.Native.PackageSDKPath + "/packages",
+            @Tools.WindowsSDK.LibraryPath + "/um/x64",
+            @Tools.WindowsSDK.LibraryPath + "/ucrt/x64",
+            @Tools.MSVC.LibraryPath
+        ];
+        FPCCompiler: @Tools.Native.PackageSDKPath + "/bin/ppcx64.exe";
+        RTLPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-rtl64";
         PascalPlatform: "win";
         PositionIndependentCode: False;
         ObjectDirectory: "Win64";
@@ -49,6 +57,13 @@ Environment Tools TargetCPU[x86_64] {
         SystemIncludePaths: [];
         LibraryPaths: ["/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"];
         LinkerOptions: ["-rpath=$ORIGIN"];
+        // Set these values from the installed native Linux package SDK.
+        PackageSDKPath: "/mnt/c/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-sdk-linux";
+        PackageSDKIdentity: "";
+        PackageLibraryPaths: [
+            @Tools.Native.PackageSDKPath + "/packages",
+            "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"
+        ];
         FPCCompiler: "/mnt/c/gitdev/nexus/output/nxbuild-next/x86_64-linux/ppcx64";
         RTLPath: "/mnt/c/gitdev/nexus/output/ForgeRelease/workspace/tools/nexus-fpc/build/forge-bootstrap/cross/x86_64-linux/rtl";
         PascalPlatform: "unix";
