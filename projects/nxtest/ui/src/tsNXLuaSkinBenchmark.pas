@@ -24,7 +24,7 @@ implementation
 
 uses
   SysUtils,
-  Windows,
+  utNXBenchmarkClock,
   fpg_base,
   fpg_main,
   obNXSkin,
@@ -102,10 +102,10 @@ var
   lStop: Int64;
 begin
   ACanvas.ResetCounts;
-  QueryPerformanceCounter(lStart);
+  lStart := NXBenchmarkCounter;
   for lIndex := 1 to AIterations do
     ASkin.DrawControlFrame(ACanvas, 2, 3, 20, 15);
-  QueryPerformanceCounter(lStop);
+  lStop := NXBenchmarkCounter;
   if (ACanvas.RectangleCount <> AIterations) or
     (ACanvas.LineCount <> AIterations) then
     raise Exception.Create('Drawing command count did not match the iteration count.');
@@ -141,7 +141,7 @@ begin
   lLuaSkin := TNXLuaSkin.Create;
   lCanvas := TRecordingCanvas.Create(nil);
   try
-    QueryPerformanceFrequency(lFrequency);
+    lFrequency := NXBenchmarkFrequency;
     TimeBatch(lDirectSkin, lCanvas, 2000);
     TimeBatch(lLuaSkin, lCanvas, 2000);
     TimeBatch(lLuaSkin, lCanvas, 2000);

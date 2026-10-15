@@ -22,7 +22,7 @@ procedure RunNXRenderBenchmark(AIterations: Integer; const AReportPath: string);
 implementation
 
 uses
-  SysUtils, Math, Windows, fpg_main, fpg_panel, Lua51, obNXRender,
+  SysUtils, Math, utNXBenchmarkClock, fpg_main, fpg_panel, Lua51, obNXRender,
   obNXPanelRender, obNXLuaRender, obNXPascalSkin, obNXLuaSkin,
   obNXRenderRecordingCanvas;
 
@@ -101,7 +101,7 @@ begin
     SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide,
       exOverflow, exUnderflow, exPrecision]);
   try
-    QueryPerformanceCounter(lStart);
+    lStart := NXBenchmarkCounter;
     case AVariant of
       bvDirect:
         for lIndex := 1 to AIterations do FDirect.Draw(FCanvas, FState, cNXPanelFrame);
@@ -118,7 +118,7 @@ begin
           lua_settop(FLuaSkin.LuaState, lTop);
         end;
     end;
-    QueryPerformanceCounter(lStop);
+    lStop := NXBenchmarkCounter;
     if lua_gettop(FLuaSkin.LuaState) <> lTop then
       raise Exception.Create('Benchmark leaked Lua stack entries.');
   finally
@@ -158,7 +158,7 @@ begin
   fpgApplication.Initialize;
   lBenchmark := TNXRenderBenchmark.Create;
   try
-    QueryPerformanceFrequency(lFrequency);
+    lFrequency := NXBenchmarkFrequency;
     for lVariant := Low(TBenchmarkVariant) to High(TBenchmarkVariant) do
       lBenchmark.TimeBatch(lVariant, 2000);
     for lVariant := High(TBenchmarkVariant) downto Low(TBenchmarkVariant) do
