@@ -107,6 +107,15 @@ repository rather than constituting additional forks.
   The `fpcmkcfg` configuration generator by Michael Van Canneyt (2005), its
   templates and the `samplecfg` wrapper were retired the same day; the release
   now ships a fixed, compiler-relative configuration directly.
+- **Users package restoration:** bindings by Michael van Canneyt and Marco van
+  de Voort, as credited by the original package metadata, restored on
+  **2026-10-15** at FPC `packages/users` from revision
+  `b33f3bce53e299f319980d56adb40aae82ce36c4`, preceding their deletion in
+  `f40338cf8a`. Runtime and example source bytes are retained with `.pas`
+  filenames; namespace references follow the renamed files. Historical package
+  metadata identifies LGPL with modification; `packages/COPYING.FPC` retains
+  the independent-module linking exception. The restored units supply fpGUI's
+  Linux file-owner and group-name lookup; retired Make/fpmake files stay retired.
 - **SPDX:** compiler `GPL-2.0-or-later`; RTL's LGPL 2.1 text and linking permission are
   recorded as `LGPL-2.1-only WITH Independent-modules-exception`, with any broader
   version grants in individual headers preserved. Packages have individual licenses;
@@ -391,9 +400,11 @@ The DCL Implode decoder was added separately on **2026-10-13**:
 - **Upstream:** [andgineer/TRegExpr](https://github.com/andgineer/TRegExpr), revision
   `19389caeb6823cddfb110ed284f57d1088dd8ac2`.
 - **Fork/import date:** collective package import **2026-10-10**, External `b8fb14e`;
-  earlier use elsewhere is not established by this date.
-- **Our location/status:** External `regexpr/external/tregexpr`; pinned upstream
-  submodule, consumed directly by fpGUI.
+  earlier use elsewhere is not established by this date. Converted to ordinary
+  source on **2026-10-15**, preserving the pinned revision `19389ca` (TRegExpr 1.194).
+- **Our location/status:** External `regexpr/external/tregexpr`; source maintained
+  directly in the package repository and consumed directly by fpGUI. The former
+  upstream submodule is retired; original source bytes and file modes are retained.
 - **SPDX:** `MIT` in `LICENSE.txt`; `src/regexpr.pas` retains additional alternative
   license notices. The MIT identifier does not remove those alternatives.
 
@@ -401,10 +412,19 @@ The DCL Implode decoder was added separately on **2026-10-13**:
 
 - **Credit:** Lukas Gebauer and contributors; `blcksock.pas` thanks Gregor Ibic and
   Intelicom for SSL inspiration.
-- **Upstream:** [geby/synapse](https://github.com/geby/synapse).
+- **Upstream:** [geby/synapse](https://github.com/geby/synapse), imported revision
+  `18bf82e1cebd9eb22732c4e7882898802fc1560e`.
 - **Fork/import date:** original adoption unknown; collective import **2026-10-08**,
-  Packages `8e95ff2`.
-- **Our location/status:** Packages `network/external/synapse`; upstream submodule.
+  Packages `8e95ff2`. Converted to ordinary source on **2026-10-15** using the
+  original working copy's commit `9ae4133905f55d4a019caa0a0635e9e1e98c8135`,
+  based on upstream `18bf82e`.
+- **Our location/status:** Packages `network/external/synapse`; source imported
+  directly into the package repository. The former upstream submodule is retired.
+- **Nexus correction:** recovered commit `9ae4133`, "Guard the Delphi imported-data
+  directive under FPC," adds an FPC guard around `{$IFOPT G+}` in `jedi.inc`.
+  Packages `fc24ff5` selected this local commit while its submodule URL still
+  pointed at upstream, where that commit was unavailable. Recovery source:
+  `/media/kcollins/D430AF4530AF2E04/gitdev/nexus/packages/nexus-packages/network/external/synapse`.
 - **SPDX:** `BSD-3-Clause`, retained in source headers including `blcksock.pas`.
 
 ### OpenSSL and FPC bindings
@@ -441,6 +461,14 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   separate 5.1 ABI used by the Engine/plugin bridge.
 - **Fork/import date:** original acquisition unknown; collective reference-header
   import recorded **2026-10-08**, Packages `8e95ff2`.
+- **Retained Linux toolchain runtime:** unmodified Lua **5.1.5**, acquired on
+  **2026-10-15** from [the official source archive](https://www.lua.org/ftp/lua-5.1.5.tar.gz).
+  Archive SHA-256 `2640fc56a795f29d28ef15e13c34a47e223960b0240e8cb0a82d9b0738695333`
+  matches the [upstream download index](https://www.lua.org/ftp/). Built with
+  Clang for `x86_64-linux` in the workspace's shared `toolchain` directory,
+  installed at `toolchain/lua/5.1.5/x86_64-linux` for NexusTest UI and the
+  Lua 5.1 plugin bridge. The downloaded source, original `COPYRIGHT`, build
+  commands, and `build-identity.json` remain with the toolchain installation.
 - **Our location/status:** Packages `lua/reference`, bindings under `lua`, and Engine
   Lua runtime sources. Native version and ABI must be read from the actual consumer.
 - **SPDX:** native Lua and reference headers `MIT`; independently authored bindings
