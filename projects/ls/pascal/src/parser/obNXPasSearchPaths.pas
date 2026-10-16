@@ -299,7 +299,7 @@ begin
   AddUnitPath('FPC RTL Inc', '$(FPCSrcDir)\rtl\inc');
   AddUnitPath('FPC FCL Base', '$(FPCSrcDir)\packages\fcl-base\src');
   AddUnitPath('FPC FCL JSON', '$(FPCSrcDir)\packages\fcl-json\src');
-  AddUnitPath('FPC FCL XML', '$(FPCSrcDir)\packages\fcl-xml\src');
+  AddUnitPath('FPC FCL XML', '$(WorkspaceDir)/packages/nexus-packages/serialization/fcl-xml/src');
   AddUnitPath('FPC FCL DB', '$(FPCSrcDir)\packages\fcl-db\src');
   AddUnitPath('FPC FCL Image', '$(FPCSrcDir)\packages\fcl-image\src');
   AddUnitPath('FPC FCL Net', '$(FPCSrcDir)\packages\fcl-net\src');

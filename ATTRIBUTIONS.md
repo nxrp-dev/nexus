@@ -157,6 +157,38 @@ repository rather than constituting additional forks.
   `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-json/fpmake.pp`;
   those retired build files are not restored.
 
+### FCL XML
+
+- **Credit:** Sebastian Guenther, Sergei Gorelkin and the Free Pascal development
+  team, with individual authors named in the retained headers. The reader tests
+  also retain their Mono/Jason Diamond/Martin Willemoes Hansen attribution;
+  `tests/extras2.pas` retains its W3C copyright notice.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-xml`. The most recent upstream source change visible before the
+  Nexus edits is `3095698a96498400a0eedffc26f10ab23007f65e` (2026-08-01).
+  This is lineage evidence, not a claim that the imported tree is unmodified.
+- **Fork/import date:** original FPC fork date unknown. Relocated on
+  **2026-10-16** from NexusFPC revision
+  `ab22ed40f859707684f48e2a91359fe61e3ebeb9`. All 71 original files were
+  copied byte for byte before applying local corrections; the original tree
+  and SHA-256 inventory remain in Nexus `output/fcl-xml-tests/baseline` and
+  `baseline-hashes.json`.
+- **Our location/status:** Packages `serialization/fcl-xml`; maintained package
+  with an nxpackage descriptor, nxbuild runtime-unit recipe, saved code review
+  and nxtest regressions. The former NexusFPC `packages/fcl-xml` location is
+  historical. The source includes namespace wrappers, examples and useful
+  retained tests. Unsupported streaming operations and XPath namespace-axis
+  evaluation now raise explicit errors instead of silently discarding data or
+  returning a false empty result.
+- **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception`; the original
+  package metadata says “LGPL with modification”. Individual copyright notices
+  and consumed author/license metadata are preserved with their material.
+- **Evidence/notices:** source headers; `COPYING.FPC` from NexusFPC
+  `packages/COPYING.FPC`; `COPYING.txt` from NexusFPC `rtl/COPYING.txt`.
+  Original package authorship/license/dependency metadata is recoverable at
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-xml/fpmake.pp`.
+  Retired make/fpmake machinery is not restored.
+
 ### FCL Process
 
 - **Credit:** Michael van Canneyt and the Free Pascal development team, as

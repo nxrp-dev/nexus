@@ -34,6 +34,23 @@ This repository is an Object Pascal / Free Pascal project. Treat the codebase as
 - Link package documentation to that record instead of creating separate attribution or provenance pages. Keep retired entries as history.
 - Preserve original licenses, distribution notices, source headers, asset notices, and consumed author/license metadata with their material.
 
+## Package Relocation Workflow
+
+- For every package relocation, review the current source and save the review
+  with the destination package before changing its implementation.
+- Preserve an untouched source snapshot and hashes, original licenses, notices,
+  examples and useful tests. Record provenance in root `ATTRIBUTIONS.md`.
+- Move the package to `nexus-packages`, add its nxpackage descriptor and build
+  recipe, register the catalogs, and update active source paths and consumers.
+- Write an nxtest regression for each review finding. Prove failures against
+  the untouched source, then fix the proven bugs and rerun the regressions.
+- Diagnose retained-suite failures: remove invalid tests, preserve useful
+  behavioral coverage, and fix implementation bugs that can be reproduced.
+- Build the package and affected consumers with NexusFPC/Nexus tools. Save
+  before/after evidence, final results and unverified limits in the review.
+- Nexus does not support Delphi; Delphi-specific validation is not a completion
+  requirement for a relocation.
+
 ## Project Direction
 
 - The project includes the NexusUI style GUI framework built in Object Pascal.

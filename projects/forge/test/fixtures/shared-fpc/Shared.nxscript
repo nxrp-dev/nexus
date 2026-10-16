@@ -22,7 +22,7 @@ FPC StandardFPC {
     Source: [
         @Installation.Packages + "/fcl-base/src/*.pas",
         @Installation.Packages + "/fcl-json/src/*.pas",
-        @Installation.Packages + "/fcl-xml/src/*.pas"
+        "../../../../../packages/nexus-packages/serialization/fcl-xml/src/*.pas"
     ];
     IncludePaths: [@Installation.Packages + "/fcl-base/src"];
 }
