@@ -64,13 +64,16 @@ Environment Tools TargetCPU[x86_64] {
             @Tools.Native.PackageSDKPath + "/packages",
             "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"
         ];
-        FPCCompiler: "/mnt/c/gitdev/nexus/output/nxbuild-next/x86_64-linux/ppcx64";
-        RTLPath: "/mnt/c/gitdev/nexus/output/ForgeRelease/workspace/tools/nexus-fpc/build/forge-bootstrap/cross/x86_64-linux/rtl";
+        FPCCompiler: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/bin/ppcx64";
+        RTLPath: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/units/x86_64-linux/rtl";
         PascalPlatform: "unix";
         PositionIndependentCode: True;
         ObjectDirectory: "Linux64";
     }
-    Toolchain NexusFPC {
+    Toolchain NexusFPC TargetOS[win64] {
         SourcePath: "../tools/nexus-fpc";
+    }
+    Toolchain NexusFPC TargetOS[linux] {
+        SourcePath: "../nexus-fpc";
     }
 }

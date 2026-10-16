@@ -23,11 +23,16 @@ Project nxbuild {
         Config Options { DisableDefaultConfigFiles: True; }
         Syntax Operators { COperators: Enabled; }
         Files Paths {
-            IncludePaths: [@nxbuild.OutputRoot];
+            IncludePaths: [
+                @nxbuild.OutputRoot,
+                "../../packages/nexus-packages/fcl-process/src/win"
+            ];
             UnitPaths: [
                 "src",
                 "../../packages/nexus-packages/nxscript/src",
                 "../../packages/nexus-packages/serialization/json/src",
+                "../../packages/nexus-packages/serialization/fcl-json/src",
+                "../../packages/nexus-packages/fcl-process/src",
                 "../../packages/nexus-packages/network/json-rpc/src",
                 "../../packages/nexus-packages/core/src",
                 "../../packages/nexus-packages/serialization/src",

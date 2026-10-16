@@ -39,6 +39,7 @@ Project nexusls {
                 "../../../packages/nexus-packages/lsp/src",
                 "../../../packages/nexus-packages/lsp/src/protocol",
                 "../../../packages/nexus-packages/serialization/json/src",
+                "../../../packages/nexus-packages/serialization/fcl-json/src",
                 "../../../packages/nexus-packages/network/json-rpc/src",
                 "../../../packages/nexus-packages/core/src",
                 "../../nxbuild/src",

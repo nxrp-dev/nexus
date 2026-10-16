@@ -37,6 +37,11 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/db/sqlite/Package.nxscript";
         Description: "SQLite bindings, connections and write-through datasets.";
     }
+    LocalPackage FCLProcess {
+        Id: "NXRP.FCLProcess";
+        Descriptor: "nexus-packages/fcl-process/Package.nxscript";
+        Description: "External process execution, pipes, local IPC and Windows service support.";
+    }
     LocalPackage GUI {
         Id: "NXRP.GUI";
         Descriptor: "nexus-packages/gui/Package.nxscript";
@@ -101,6 +106,11 @@ PackageIndex NexusPackages {
         Id: "NXRP.Serialization";
         Descriptor: "nexus-packages/serialization/Package.nxscript";
         Description: "Object persistence and static string lookup support.";
+    }
+    LocalPackage FCLJSON {
+        Id: "NXRP.Serialization.FCLJSON";
+        Descriptor: "nexus-packages/serialization/fcl-json/Package.nxscript";
+        Description: "Free Pascal JSON values, parsing, writing, configuration and RTTI conversion.";
     }
     LocalPackage JSON {
         Id: "NXRP.Serialization.JSON";

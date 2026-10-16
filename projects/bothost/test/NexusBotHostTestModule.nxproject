@@ -27,7 +27,10 @@ Project NexusBotHostTestModule {
         Files Paths {
             ExecutableOutputPath: @NexusBotHostTestModule.OutputRoot;
             UnitOutputPath: "../../../output/NexusBotHostTestModule/x86_64-win64/units";
-            IncludePaths: ["../../../output/NexusBotHostTestModule/x86_64-win64/units"];
+            IncludePaths: [
+                "../../../output/NexusBotHostTestModule/x86_64-win64/units",
+                "../../../packages/nexus-packages/fcl-process/src/win"
+            ];
             UnitPaths: [
                 ".",
                 "../src",
@@ -37,6 +40,8 @@ Project NexusBotHostTestModule {
                 "../../../packages/nexus-packages-ext/mustache/external/dmustache",
                 "../../../packages/nexus-packages/nxtest/src",
                 "../../../packages/nexus-packages/serialization/json/src",
+                "../../../packages/nexus-packages/serialization/fcl-json/src",
+                "../../../packages/nexus-packages/fcl-process/src",
                 "../../../packages/nexus-packages/network/json-rpc/src",
                 "../../../packages/nexus-packages/core/src",
                 "../../../packages/nexus-packages/network/xmpp/src",

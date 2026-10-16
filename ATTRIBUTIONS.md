@@ -125,6 +125,64 @@ repository rather than constituting additional forks.
   [Independent Module Linking exception](https://spdx.org/licenses/Independent-modules-exception.html)
   with FPC's `COPYING.FPC`; do not invent an `FPC-exception` identifier.
 
+### FCL JSON
+
+- **Credit:** Michael van Canneyt and other Free Pascal development team
+  contributors named in the retained source headers. The original package
+  metadata names Michael van Canneyt as author.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-json`. The last upstream source change before the surviving Nexus
+  baseline is `416b51be8722c3ca3b3cc307e0df1afe64a1d5cd` (2026-08-19);
+  this is a lineage reference, not a claim that the Nexus source is unmodified.
+- **Fork/import date:** original FPC fork date unknown. Relocated from FPC
+  `packages/fcl-json` on **2026-10-15**, using the complete tree at NexusFPC
+  revision `b7361861c09b1bcc0d3ca293639539fda644c594`. All 54 existing files
+  were preserved byte for byte during relocation.
+- **Our location/status:** Packages `serialization/fcl-json`; maintained package
+  with an nxbuild static-unit recipe. Source, namespace wrappers, examples,
+  upstream tests and the pre-existing review are retained. The former FPC
+  `packages/fcl-json` location is historical; compiler release tools now stage
+  source from the Packages checkout. The optional `jsonfpcunit` helper remains
+  outside the runtime unit build.
+- **Local maintenance:** nxtest regressions subsequently reproduced and
+  corrected all eleven saved JSON review findings on Linux. A follow-up removed
+  nine invalid retained tests, added executable regression coverage and fixed
+  two further array-cleanup generator defects. Original source headers and
+  license texts remain with the modified material.
+- **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception`; original package
+  metadata says “LGPL with modification”.
+- **Evidence/notices:** retained headers, `COPYING.FPC` copied from FPC
+  `packages/COPYING.FPC`, and `COPYING.txt` copied from FPC `rtl/COPYING.txt`.
+  Author/license metadata is recoverable in FPC revision
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-json/fpmake.pp`;
+  those retired build files are not restored.
+
+### FCL Process
+
+- **Credit:** Michael van Canneyt and the Free Pascal development team, as
+  recorded by the original package metadata and retained source headers.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-process`; exact original import revision unknown. The reviewed
+  relocation snapshot is NexusFPC revision
+  `b7361861c09b1bcc0d3ca293639539fda644c594`; its last package change is
+  `6c5bd2eef00b97fe12e5b1e87310ec60313b8c52` (2026-10-14).
+- **Fork/import date:** original FPC fork date unknown. Relocated from FPC
+  `packages/fcl-process` on **2026-10-15**, preserving all 53 original files
+  byte for byte. The completed static review was saved with the package before
+  the move. Subsequent nxtest cases reproduced and corrected eleven findings
+  on Linux; three Windows findings remain open pending execution there.
+- **Our location/status:** Packages `fcl-process`; maintained external-process,
+  pipe, IPC and Windows service source with namespace wrappers, examples,
+  assets and upstream tests retained. The former FPC location is historical.
+  NexusForge, nxbuild and BotHost use the relocated process/pipe source.
+- **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception`; original package
+  metadata says “LGPL with modification”.
+- **Evidence/notices:** retained headers, `COPYING.FPC` copied from FPC
+  `packages/COPYING.FPC`, and `COPYING.txt` copied from FPC `rtl/COPYING.txt`.
+  Original author/license metadata is recoverable in FPC revision
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-process/fpmake.pp`;
+  those retired build files are not restored.
+
 ### FPCToolkit and Nexus Pascal
 
 - **Credit:** coolchyni and FPCToolkit contributors; Microsoft copyright in the

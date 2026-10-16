@@ -27,12 +27,17 @@ Project NexusBotHost {
         Files Paths {
             ExecutableOutputPath: @NexusBotHost.OutputRoot;
             UnitOutputPath: "../../output/NexusBotHost/x86_64-win64/units";
-            IncludePaths: ["../../output/NexusBotHost/x86_64-win64/units"];
+            IncludePaths: [
+                "../../output/NexusBotHost/x86_64-win64/units",
+                "../../packages/nexus-packages/fcl-process/src/win"
+            ];
             UnitPaths: [
                 "src",
                 "src/protocol",
                 "../../packages/nexus-packages/nxscript/src",
                 "../../packages/nexus-packages/serialization/json/src",
+                "../../packages/nexus-packages/serialization/fcl-json/src",
+                "../../packages/nexus-packages/fcl-process/src",
                 "../../packages/nexus-packages/network/json-rpc/src",
                 "../../packages/nexus-packages/core/src",
                 "../../packages/nexus-packages/network/xmpp/src",

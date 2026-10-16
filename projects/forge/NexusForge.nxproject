@@ -44,8 +44,8 @@ Project NexusForge {
                 "../../../tools/nexus-fpc/packages/rtl-extra/src/win",
                 "../../../tools/nexus-fpc/packages/fcl-base/src",
                 "../../../tools/nexus-fpc/packages/fcl-base/src/win",
-                "../../../tools/nexus-fpc/packages/fcl-json/src",
-                "../../../tools/nexus-fpc/packages/fcl-process/src",
+                "../../packages/nexus-packages/serialization/fcl-json/src",
+                "../../packages/nexus-packages/fcl-process/src",
                 "../../../tools/nexus-fpc/compiler",
                 "../../../tools/nexus-fpc/packages/paszlib/src",
                 "../../../tools/nexus-fpc/packages/hash/src",
@@ -60,7 +60,7 @@ Project NexusForge {
                 "../../../tools/nexus-fpc/packages/fcl-base/src",
                 "../../../tools/nexus-fpc/packages/fcl-base/src/win",
                 "../../../tools/nexus-fpc/packages/fcl-base/src/dummy",
-                "../../../tools/nexus-fpc/packages/fcl-process/src/win"
+                "../../packages/nexus-packages/fcl-process/src/win"
             ];
         }
     }

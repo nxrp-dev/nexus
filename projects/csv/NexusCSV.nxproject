@@ -33,6 +33,7 @@ Project NexusCSV {
                 "../../packages/nexus-packages/serialization/src",
                 "../../packages/nexus-packages/serialization/delimited-text/src",
                 "../../packages/nexus-packages/serialization/json/src",
+                "../../packages/nexus-packages/serialization/fcl-json/src",
                 "../../packages/nexus-packages/network/json-rpc/src",
                 "../../packages/nexus-packages/core/src",
                 "../../packages/nexus-packages-ext/mustache/external/dmustache",

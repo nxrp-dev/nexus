@@ -35,6 +35,7 @@ Project nxpackageTests {
                 "../../../packages/nexus-packages/nxscript/src",
                 "../../../packages/nexus-packages/serialization/src",
                 "../../../packages/nexus-packages/serialization/json/src",
+                "../../../packages/nexus-packages/serialization/fcl-json/src",
                 "../../../packages/nexus-packages/db/sqlite/src/bindings",
                 "../../../packages/nexus-packages/core/src",
                 "../../../packages/nexus-packages-ext/mustache/external/dmustache",

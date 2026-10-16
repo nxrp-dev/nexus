@@ -31,6 +31,7 @@ Project nxbuildProjectGenerationTests {
                 "../../../packages/nexus-packages/nxtest/src",
                 "../../../packages/nexus-packages/serialization/src",
                 "../../../packages/nexus-packages/serialization/json/src",
+                "../../../packages/nexus-packages/serialization/fcl-json/src",
                 "../../../packages/nexus-packages/network/json-rpc/src",
                 "../../../packages/nexus-packages/db/sqlite/src/bindings",
                 "../../../packages/nexus-packages/core/src",
