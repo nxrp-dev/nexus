@@ -27,7 +27,7 @@ uses Classes, SysUtils, Generics.Collections, obNXTestContext, obNXTestSuite,
   tpNXSetup, obNXSetupModel, obNXSetupLoader, obNXSetupSelection,
   obNXSetupLocations, obNXSetupPlan, obNXSetupSourceContext,
   obNXSetupFileInstaller, obNXSetupState, obNXSetupBundle, obNXSetupSession, zipper,
-  utNXSetupFiles, utNXSetupStreams, utNXSetupPaths, resource, versionresource, versiontypes, resreader, reswriter,
+  utNXSetupFiles, utNXSetupStreams, utNXSetupPaths, ResReader,
   obNexusScriptSourceProvider, obNexusScriptSession, obNexusScriptModel;
 
 type
@@ -700,23 +700,10 @@ begin
   end;
 end;
 
-procedure WriteVersionFile(const AFileName: string; AMajor: Word);
-var
-  lResources: TResources;
-  lResource: TVersionResource;
-  lVersion: TFileProductVersion;
+procedure CopyVersionFile(const AFileName: string; AMajor: Word);
 begin
-  lResources := TResources.Create;
-  try
-    lResource := TVersionResource.Create;
-    lResources.Add(lResource);
-    FillChar(lVersion, SizeOf(lVersion), 0);
-    lVersion[0] := AMajor;
-    lResource.FixedInfo.FileVersion := lVersion;
-    lResources.WriteToFile(AFileName);
-  finally
-    lResources.Free;
-  end;
+  CopySetupFile(ExpandFileName('projects/setup/test/fixtures/version-' +
+    IntToStr(AMajor) + '.res'), AFileName);
 end;
 
 procedure TestVersionPolicy(AContext: TNXTestContext);
@@ -728,8 +715,8 @@ begin
     lOld := lWork + '/old.res';
     lNew := lWork + '/new.res';
     lPlain := lWork + '/plain.txt';
-    WriteVersionFile(lOld, 1);
-    WriteVersionFile(lNew, 2);
+    CopyVersionFile(lOld, 1);
+    CopyVersionFile(lNew, 2);
     WriteTestFile(lPlain, 'plain');
     AContext.AssertTrue(FileNeedsReplacement(lNew, lOld, False, False, False), 'Newer versions replace older versions.');
     AContext.AssertTrue(not FileNeedsReplacement(lOld, lNew, False, False, False), 'Older versions do not replace newer versions.');

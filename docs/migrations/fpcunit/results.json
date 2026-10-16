@@ -1,0 +1,116 @@
+{
+  "compiler-utils": {
+    "passed": 28,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "rtl-generics": {
+    "passed": 208,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "nxtest-context": {
+    "passed": 7,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "rtl-objpas": {
+    "passed": 506,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-base": {
+    "passed": 74,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "hash": {
+    "passed": 14,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fpgui-framework": {
+    "passed": 566,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  "rtl-collections": {
+    "passed": 269,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-db": {
+    "passed": 943,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-xml": {
+    "passed": 36,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "compiler-ppu": {
+    "passed": 30,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-process": {
+    "passed": 23,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fpgui-ide": {
+    "passed": 488,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-hash": {
+    "passed": 31,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-json": {
+    "passed": 528,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 1
+  },
+  "fcl-registry": {
+    "passed": 9,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-image": {
+    "passed": 17,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "fcl-net": {
+    "passed": 110,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "total": {
+    "passed": 3887,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 2
+  }
+}

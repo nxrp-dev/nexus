@@ -297,11 +297,23 @@ begin
   AddUnitPath('FPC RTL ObjPas SysUtils',
     '$(FPCSrcDir)\rtl\objpas\sysutils');
   AddUnitPath('FPC RTL Inc', '$(FPCSrcDir)\rtl\inc');
+  AddUnitPath('Nexus Apple univint', '$(WorkspaceDir)/packages/nexus-packages-apple/univint/src');
+  AddUnitPath('Nexus Apple cocoaint', '$(WorkspaceDir)/packages/nexus-packages-apple/cocoaint/src');
+  AddUnitPath('Nexus Apple iosxlocale', '$(WorkspaceDir)/packages/nexus-packages-apple/iosxlocale/src');
   AddUnitPath('FPC FCL Base', '$(FPCSrcDir)\packages\fcl-base\src');
   AddUnitPath('FPC FCL JSON', '$(FPCSrcDir)\packages\fcl-json\src');
   AddUnitPath('FPC FCL XML', '$(WorkspaceDir)/packages/nexus-packages/serialization/fcl-xml/src');
-  AddUnitPath('FPC FCL DB', '$(FPCSrcDir)\packages\fcl-db\src');
-  AddUnitPath('FPC FCL Image', '$(FPCSrcDir)\packages\fcl-image\src');
+  AddUnitPath('Nexus FCL DB base', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/base');
+  AddUnitPath('Nexus FCL DB codegen', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/codegen');
+  AddUnitPath('Nexus FCL DB datadict', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/datadict');
+  AddUnitPath('Nexus FCL DB dbase', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/dbase');
+  AddUnitPath('Nexus FCL DB export', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/export');
+  AddUnitPath('Nexus FCL DB json', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/json');
+  AddUnitPath('Nexus FCL DB memds', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/memds');
+  AddUnitPath('Nexus FCL DB sdf', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sdf');
+  AddUnitPath('Nexus FCL DB sql', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sql');
+  AddUnitPath('Nexus FCL DB sqldb', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sqldb');
+  AddUnitPath('FPC FCL Image', '$(WorkspaceDir)/packages/nexus-packages/graphics/fcl-image/src');
   AddUnitPath('FPC FCL Net', '$(FPCSrcDir)\packages\fcl-net\src');
   AddUnitPath('FPC FCL Process', '$(FPCSrcDir)\packages\fcl-process\src');
   AddUnitPath('FPC FCL Reg', '$(FPCSrcDir)\packages\fcl-registry\src');

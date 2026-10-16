@@ -19,8 +19,12 @@ outside this package dialect.
 is the RepositoryIndex published by our third-party package repository. It describes Mustache and the compression packages Abbrevia and PasZLib.
 Third-party source lives under each package's `external` folder.
 
-The local index names both `nexus-packages` and `nexus-packages-ext` as trusted
-repositories. The owned repository's catalog names the external repository as
+[nexus-packages-apple/Packages.RepositoryIndex.nxscript](nexus-packages-apple/Packages.RepositoryIndex.nxscript)
+is the dedicated Apple repository catalog. It owns `univint`, `cocoaint` and
+`iosxlocale`; these packages are not in the standard package repository.
+
+The local index names `nexus-packages`, `nexus-packages-ext` and
+`nexus-packages-apple` as trusted repositories. The owned repository's catalog names the external repository as
 a sister repository. These declarations do not fetch, traverse, or resolve
 anything. The local inventory lists Mustache's descriptor directly rather than
 requiring traversal of the external repository's catalog.

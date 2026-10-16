@@ -13,7 +13,7 @@
 dialect "nxpackage.Language.nxscript";
 
 PackageIndex NexusPackages {
-    // Discovery only: neither repository is traversed automatically.
+    // Discovery only: repositories are not traversed automatically.
     TrustedRepository NexusOwned {
         Source: "https://github.com/nxrp-dev/nexus-packages.git";
     }
@@ -21,7 +21,26 @@ PackageIndex NexusPackages {
         Source: "https://github.com/nxrp-dev/nexus-packages-ext.git";
     }
 
+    TrustedRepository NexusApple {
+        Source: "https://github.com/nxrp-dev/nexus-packages-apple.git";
+    }
+
     // Explicit local inventory; Descriptor is relative to this index file.
+    LocalPackage UniversalInterfaces {
+        Id: "NXRP.Apple.UniversalInterfaces";
+        Descriptor: "nexus-packages-apple/univint/Package.nxscript";
+        Description: "Universal Apple C framework interfaces.";
+    }
+    LocalPackage CocoaInterfaces {
+        Id: "NXRP.Apple.CocoaInterfaces";
+        Descriptor: "nexus-packages-apple/cocoaint/Package.nxscript";
+        Description: "macOS Cocoa Objective-C interfaces.";
+    }
+    LocalPackage AppleLocale {
+        Id: "NXRP.Apple.AppleLocale";
+        Descriptor: "nexus-packages-apple/iosxlocale/Package.nxscript";
+        Description: "Apple locale and wide-string support.";
+    }
     LocalPackage Core {
         Id: "NXRP.Core";
         Descriptor: "nexus-packages/core/Package.nxscript";
@@ -32,6 +51,11 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/binding/Package.nxscript";
         Description: "Source-independent value binding, navigation and edit coordination.";
     }
+    LocalPackage FCLDB {
+        Id: "NXRP.Database.FCLDB";
+        Descriptor: "nexus-packages/db/fcl-db/Package.nxscript";
+        Description: "Datasets, SQL parsing, SQLDB, DBF files, data dictionaries and exports.";
+    }
     LocalPackage SQLite {
         Id: "NXRP.SQLite";
         Descriptor: "nexus-packages/db/sqlite/Package.nxscript";
@@ -41,6 +65,11 @@ PackageIndex NexusPackages {
         Id: "NXRP.FCLProcess";
         Descriptor: "nexus-packages/fcl-process/Package.nxscript";
         Description: "External process execution, pipes, local IPC and Windows service support.";
+    }
+    LocalPackage FCLImage {
+        Id: "NXRP.Graphics.FCLImage";
+        Descriptor: "nexus-packages/graphics/fcl-image/Package.nxscript";
+        Description: "Image storage, drawing, codecs, barcodes, QR codes and FreeType adapters.";
     }
     LocalPackage GUI {
         Id: "NXRP.GUI";

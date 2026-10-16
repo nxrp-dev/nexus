@@ -48,6 +48,7 @@ record is not a version-specific bill of materials for every installation.
 | Nexus | [nxrp-dev/nexus](https://github.com/nxrp-dev/nexus) | `C:\gitdev\nexus` |
 | Packages | [nxrp-dev/nexus-packages](https://github.com/nxrp-dev/nexus-packages) | `C:\gitdev\nexus\packages\nexus-packages` |
 | External | [nxrp-dev/nexus-packages-ext](https://github.com/nxrp-dev/nexus-packages-ext) | `C:\gitdev\nexus\packages\nexus-packages-ext` |
+| Apple | [nxrp-dev/nexus-packages-apple](https://github.com/nxrp-dev/nexus-packages-apple) | `packages/nexus-packages-apple` under the Nexus checkout |
 | FPC | [nxrp-dev/nexus-fpc](https://github.com/nxrp-dev/nexus-fpc) | `C:\gitdev\tools\nexus-fpc` |
 | Pascal | [nxrp-dev/nexus-pascal](https://github.com/nxrp-dev/nexus-pascal) | `C:\gitdev\tools\nexus-pascal` |
 | Engine | [nxrp-dev/nexus-mobile](https://github.com/nxrp-dev/nexus-mobile) | `C:\gitdev\Nexus2D` |
@@ -116,6 +117,44 @@ repository rather than constituting additional forks.
   metadata identifies LGPL with modification; `packages/COPYING.FPC` retains
   the independent-module linking exception. The restored units supply fpGUI's
   Linux file-owner and group-name lookup; retired Make/fpmake files stay retired.
+- **Resource metadata restoration/migration:** `FileInfo`, credited to the Free
+  Pascal development team (2013), was restored unchanged on **2026-10-16** from
+  NexusFPC `b33f3bce53e299f319980d56adb40aae82ce36c4:packages/fcl-extra/src/fileinfo.pp`
+  to `packages/fcl-res/src/fileinfo.pas`; SHA-256
+  `2622f48109d66b99df6f3852247ab3039c518ae14d6c42bc0d243a899c151715`.
+  The existing `Fcl.FileInfo` wrapper moved from `fcl-base` to `fcl-res`.
+  It retains its FCL header and `COPYING.FPC` license/independent-module exception
+  and supplies Setup's executable-version reader. The original upstream is the
+  Free Pascal source linked above; the original fork date remains unknown.
+  The same migration retired `utils/fpcres`, `utils/fpcreslipo`, the Pascal RC
+  parser/preprocessor, native resource writers and external-sidecar loader.
+  Their authors remain credited by the historical source at NexusFPC
+  `ca6b3976bf5417fd73251dcb9f39d9edcf48ea07`; the retained reader/model units,
+  including Giulio Bernardi's resource base classes (2008), preserve their
+  original headers and notices. New Setup version fixtures are generated from
+  the checked-in `projects/setup/test/fixtures/version-{1,2}.rc` scripts with
+  LLVM RC; they contain only the test version records.
+- **TP Lex/Yacc retirement:** the generators, grammar/template sources and
+  `tplylib` support units were retired on **2026-10-16** after removal of their
+  last production consumer, the resource-script parser. Credit remains with
+  Albert Graef (original TP Lex/Yacc), Berend de Boer (Turbo/Borland Pascal
+  adaptations) and Michael Van Canneyt (Free Pascal port), as stated in
+  NexusFPC `814f931dab:utils/tply/README.txt`. That historical README identifies
+  upstream as <http://www.musikwissenschaft.uni-mainz.de/~ag/tply> and declares
+  version 4.0 and later `GPL-2.0-or-later`; `utils/tply/COPYING.txt` and the
+  original source notices remain in Git at that revision. The original fork
+  date is unknown. Our former locations were NexusFPC `utils/tply` and
+  `packages/tplylib`; Forge no longer builds or distributes them.
+- **Unused utility retirement:** `utils/ppdep.pas`, `utils/postw32.pas`,
+  `utils/data2inc.pas` and `utils/data2inc.exm` were retired on **2026-10-16**
+  after confirming no retained production invocation. Peter Vreman is credited
+  by `ppdep` (1999-2000); `data2inc` credits Peter Vreman's `msg2inc` and Marco
+  van de Voort's adaptation (1999-2000). Their headers reference LGPL and/or
+  `COPYING.FPC`; those original notices and the independent-module exception
+  remain in historical NexusFPC `814f931dab` and the retained license files.
+  `postw32` credits Pavel Ozerski (1998-2000), under `GPL-2.0-or-later`.
+  The source upstream is Free Pascal, linked above; the original import dates
+  are unknown. `bin2obj`, `rstconv` and `creumap` remain retained utilities.
 - **SPDX:** compiler `GPL-2.0-or-later`; RTL's LGPL 2.1 text and linking permission are
   recorded as `LGPL-2.1-only WITH Independent-modules-exception`, with any broader
   version grants in individual headers preserved. Packages have individual licenses;
@@ -124,6 +163,73 @@ repository rather than constituting additional forks.
   `packages/COPYING.FPC`, individual source headers. SPDX explicitly identifies the
   [Independent Module Linking exception](https://spdx.org/licenses/Independent-modules-exception.html)
   with FPC's `COPYING.FPC`; do not invent an `FPC-exception` identifier.
+
+### Apple platform packages
+
+- **Credit:** Apple Inc. for the original framework interfaces; Free Pascal
+  and GNU Pascal interface contributors identified by the preserved headers.
+  `iosxlocale.pas` credits Yury Sidorov (2013), and `iosxwstr.pas` credits
+  Jonas Maebe (2015). Preserve the original references to contributed
+  routines and Apple interface copyright notices.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/univint`, `packages/cocoaint` and `packages/iosxlocale`.
+  Exact original fork/import date and upstream revision are unknown. The
+  relocation input is the maintained NexusFPC tree at
+  `b7bb9f717c6baf94eee76c8c051635184112680e`; it is not asserted to be an
+  unmodified upstream release.
+- **Fork/import evidence:** relocated unchanged on **2026-10-16** to the new
+  Apple repository. Per-package untouched archives and SHA-256 manifests preserve
+  all 2,645 original files: 909 universal-interface files, 1,731 Cocoa files and
+  five locale files. Previous Apple binding maintenance remains recorded in
+  FPC `nexusfpc-apple-bindings-cleanup.md` and its Git history.
+- **Our location/status:** Apple `univint`, `cocoaint` and `iosxlocale`;
+  maintained Apple-only packages, with nxpackage descriptors, nxbuild recipes
+  and explicit repository/machine catalog entries. The former FPC package
+  directories are historical. These packages do not live in the standard
+  Packages repository. The owner explicitly waived code review for this move.
+- **SPDX:** `iosxlocale`'s FPC source uses
+  `LGPL-2.1-only WITH Independent-modules-exception`. For the mixed Apple
+  interface material in `univint` and `cocoaint`, package-wide identification
+  is `NOASSERTION`; the retained Apple notices do not establish one uniform
+  package-wide grant. FPC distribution notices are preserved without replacing
+  those original per-file notices.
+- **Evidence/notices:** Apple package `migration/original-source.tar.gz`,
+  `original-hashes.json` and archive hashes; source headers and namespace maps;
+  FPC `packages/COPYING.FPC` and `rtl/COPYING.txt`, copied beside each package.
+  Apple [MIGRATION.md](packages/nexus-packages-apple/MIGRATION.md) records
+  byte-preservation checks, descriptor/plan validation and unavailable Apple
+  build/runtime verification. Metadata and registered unit roots were recovered
+  from the retired recipes at FPC
+  `781faeb495d6aeb9d98facf441b826958af2d378`.
+
+### Retired FPCUnit and retained-test conversion
+
+- **Credit:** Dean Zobec and Michael van Canneyt (FPCUnit core), Vincent
+  Snijders (console runner), Graeme Geldenhuys (reporters/fpGUI integration),
+  and the contributors credited in each preserved test and helper header.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-fpcunit` and the package/RTL/compiler test directories; fpGUI
+  integration remains credited by the fpGUI record below. Exact original import
+  date and upstream revision are unknown. The last local FPCUnit source change
+  is NexusFPC `6c5bd2eef00b97fe12e5b1e87310ec60313b8c52` (2026-10-14).
+- **Our location/status:** FPC `packages/fcl-fpcunit` and its framework-specific
+  runners retired on **2026-10-16**. Useful retained tests in FPC and Packages
+  now use nxtest directly, without a bridge. JSON's `jsonfpcunit` helper and
+  fpGUI's FPCUnit GUI/Lazarus runner integration are also historical.
+- **Preservation/evidence:** Nexus `docs/migrations/fpcunit` contains
+  untouched source archives, per-file SHA-256 manifests, original source notices
+  and the [conversion report](docs/migrations/fpcunit/README.md).
+  The first archive preserves 629 files; a second preserves 98 retired support
+  files, including ancillary templates and runner assets. Maintained converted
+  tests keep their original notices. The archive preserves material from the
+  local fork, not an asserted unmodified upstream release.
+- **SPDX:** mixed, per original file. FPC package material referencing
+  `COPYING.FPC`: `LGPL-2.1-only WITH Independent-modules-exception`;
+  console/simple runners explicitly state `LGPL-2.0-or-later`;
+  `xmlreporter.pas` explicitly states `GPL-2.0-or-later`. Preserve those narrower
+  notices rather than assigning the entire archive one package license. fpGUI
+  and individual retained tests retain the licensing recorded by their own
+  source headers and existing records in this document.
 
 ### FCL JSON
 
@@ -142,8 +248,8 @@ repository rather than constituting additional forks.
   with an nxbuild static-unit recipe. Source, namespace wrappers, examples,
   upstream tests and the pre-existing review are retained. The former FPC
   `packages/fcl-json` location is historical; compiler release tools now stage
-  source from the Packages checkout. The optional `jsonfpcunit` helper remains
-  outside the runtime unit build.
+  source from the Packages checkout. The former `jsonfpcunit` helper was retired on 2026-10-16; its original
+  source remains in the archived test snapshot.
 - **Local maintenance:** nxtest regressions subsequently reproduced and
   corrected all eleven saved JSON review findings on Linux. A follow-up removed
   nine invalid retained tests, added executable regression coverage and fixed
@@ -187,6 +293,93 @@ repository rather than constituting additional forks.
   `packages/COPYING.FPC`; `COPYING.txt` from NexusFPC `rtl/COPYING.txt`.
   Original package authorship/license/dependency metadata is recoverable at
   `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-xml/fpmake.pp`.
+  Retired make/fpmake machinery is not restored.
+
+### FCL DB
+
+- **Credit:** Michael Van Canneyt, Joost van der Sluis and the Free Pascal
+  development team; Pascal Ganaye, Micha Nelissen and TDbf contributors for DBF;
+  Reinier Olislagers for XML/XSD export. Original per-file credits remain intact.
+  The DBF expression parser also credits Egbert van Nes, John Bultena, Ralf
+  Junker, Renate Schaaf, Alin Flaider and Stefan Hoffmeister.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-db`. Last visible upstream package change before Nexus edits:
+  `d7b753592eb2c1548e1d0e9b67f55c7052a08b7e` (2026-07-27, SQLDB delegation).
+  This is lineage evidence, not a claim of an unmodified upstream tree.
+- **Fork/import date:** original FPC fork date unknown. Relocated on
+  **2026-10-16** from NexusFPC `ca6b3976bf5417fd73251dcb9f39d9edcf48ea07`.
+  All 199 original files were copied and hash-verified before corrections.
+  The package's `review/baseline-source.tar.gz` and `baseline-hashes.json`
+  preserve the untouched tree; working evidence is in `output/fcl-db-tests`.
+- **Our location/status:** Packages `db/fcl-db`; maintained nxpackage descriptor,
+  66-unit runtime recipe, console retained-suite recipe, nxtest regressions and
+  saved code review. The former NexusFPC path is historical and has been removed.
+  Source, includes, namespace wrappers, original programs, translations, notices
+  and useful tests are retained. Two obsolete IDE registration units and six
+  alternative translations with duplicate ordinary unit names are historical
+  material and are excluded from the runtime recipe. External SQLDB drivers
+  had already been removed before this relocation and are not restored.
+- **SPDX:** runtime units use `LGPL-2.1-only WITH Independent-modules-exception`
+  under the FPC package notice (old metadata: “LGPL with modification”).
+  `fpxmlxsdexport.pas` additionally offers Reinier Olislagers' MIT notice as an
+  alternative to FPC/FCL licensing; that exact notice remains with the file.
+  The retained historical `dbf_reg.pas` notice names LGPL without specifying a
+  version and includes authorship conditions; no more precise SPDX expression
+  is inferred for that historical notice. New Nexus infrastructure/tests use
+  `MPL-2.0-no-copyleft-exception`.
+- **Additional lineage:** TDbf's retained header points to
+  [tdbf.sf.net](http://tdbf.sf.net/). The expression parser header records
+  `http://www.slm.wau.nl/wkao/parseexpr.html` and
+  `http://www.datalog.ro/delphi/parser.html`; exact original revisions and
+  earlier import dates are unknown. Those URLs are historical header metadata.
+- **Evidence/notices:** all original headers; `COPYING.FPC` copied from
+  NexusFPC `packages/COPYING.FPC` and `COPYING.txt` from `rtl/COPYING.txt`.
+  Original package metadata remains recoverable at
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-db/fpmake.pp`.
+  Retired make/fpmake machinery and Lazarus dependencies are not restored.
+
+### FCL Image
+
+- **Credit:** Michael Van Canneyt and the Free Pascal development team; source
+  headers also credit Mazen Neifer, Laurent Jacques, Mattias Gaertner, Giulio
+  Bernardi, Massimo Magnano, Felipe Monteiro de Carvalho and other contributors.
+  QR generation retains Project Nayuki's MIT notice and Michael Van Canneyt's
+  Pascal translation notice. XWD headers retain The Open Group's X11 notice,
+  Tony Della Fera and William F. Wyatt credits.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-image`. Last visible upstream package source change before Nexus
+  edits: `d1e2ce13231ff2a86c386a034fd6a3c40298410f` (2026-09-04, gamma reading).
+  This records lineage and does not claim an unmodified upstream import.
+  The QR lineage points to [Project Nayuki](https://www.nayuki.io/page/qr-code-generator-library).
+- **Fork/import date:** original FPC fork date unknown. Relocated **2026-10-16**
+  from NexusFPC `ca6b3976bf5417fd73251dcb9f39d9edcf48ea07`. All 148 original
+  files were copied and hash-verified before corrections. The destination's
+  `review/baseline-source.tar.gz` and `review/baseline-hashes.json` preserve the
+  complete original package; working evidence is in Nexus `output/fcl-image-tests`.
+- **Our location/status:** Packages `graphics/fcl-image`; maintained nxpackage
+  with runtime/test recipes, preserved examples, wrappers, assets and barcode
+  tests, a saved review and nxtest proofs. The former NexusFPC package path is
+  historical after relocation. Local corrections are recorded in the review.
+- **SPDX:** principally `LGPL-2.1-only WITH Independent-modules-exception`
+  (original package metadata: “LGPL with modification”). JPEG and PCX reader/
+  writer headers explicitly specify `LGPL-2.0-or-later`; those notices remain.
+  Consumed QR generator metadata specifies `MIT`; XWD headers specify `X11`.
+  New Nexus infrastructure/tests use `MPL-2.0-no-copyleft-exception`.
+- **Font asset:** unchanged `examples/DejaVuLGCSans.ttf`, DejaVu LGC Sans 2.5,
+  contains Bitstream Inc. copyright (2003), the Bitstream Vera permission notice
+  (`Bitstream-Vera`) and the statement that DejaVu changes are public domain.
+  The embedded name-table license is also preserved as
+  `examples/DejaVuLGCSans.LICENSE.txt`. Upstream:
+  [DejaVu fonts](https://dejavu-fonts.github.io/); original asset import visible
+  in FPC history: `f737521590a0c3f1edfc3f0d1a566f6c5e14953d` (2019-02-16,
+  Ondrej Pokorny's alpha-blending example, committed by Michael Van Canneyt).
+  Exact earlier font revision/import date is unknown; embedded version and
+  SHA-256 inventory identify the retained asset without guessing.
+- **Evidence/notices:** unchanged source headers and consumed metadata;
+  `COPYING.FPC` from NexusFPC `packages/COPYING.FPC`, `COPYING.txt` from
+  `rtl/COPYING.txt`; font's original embedded license and its text extraction.
+  Historical package metadata is available at
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-image/fpmake.pp`.
   Retired make/fpmake machinery is not restored.
 
 ### FCL Process

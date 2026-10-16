@@ -206,10 +206,94 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC FCL DB",
+      "Name" : "Nexus Apple univint",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
-      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-db\\src"
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages-apple/univint/src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus Apple cocoaint",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages-apple/cocoaint/src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus Apple iosxlocale",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages-apple/iosxlocale/src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB base",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/base"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB codegen",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/codegen"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB datadict",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/datadict"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB dbase",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/dbase"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB export",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/export"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB json",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/json"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB memds",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/memds"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB sdf",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sdf"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB sql",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sql"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus FCL DB sqldb",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sqldb"
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
