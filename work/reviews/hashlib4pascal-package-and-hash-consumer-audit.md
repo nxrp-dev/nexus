@@ -11,6 +11,17 @@ defines this scope. This review records actual results, including its limits.
 No legacy package was removed and no implementation commit was created by this
 pass. The owner's concurrent compiler/RTL work was preserved.
 
+Subsequent owner direction, 2026-10-17: remove the bundled Maximus IDE entirely.
+Its complete source/test/assets/templates tree and module registration were
+deleted. The owner separately approved deleting Nanoedit, its only external
+editor-widget consumer. These applications and the IDE's 488-case suite are no
+longer retained; the PDR/OPDF integration is no longer a verification blocker.
+Removal verification: no remaining production/example uses-clause imports of
+IDE/editor/PDR units; clean native framework build and 566 passing tests (one
+existing external-HVIF-fixture skip). Archived Maximus tests/templates were also
+removed from the migration archives/manifests; all other archived file hashes
+remain unchanged. The dependent Nanoedit source/assets/fixtures were deleted.
+
 ## Resulting architecture
 
 `compiler/nxpackagefile.pas` still belongs to the existing compiler closure. Its
@@ -138,7 +149,7 @@ uses exact existing raw bytes, without introducing text recoding.
 | Packages `network/torrent/src/obNXTorrentMetaInfo.pas` | Exact original raw bencoded info slice -> same 20-byte SHA-1; fixed independent expectation added |
 | Packages `network/torrent/src/obNXTorrentFileStore.pas` | Piece bytes -> same 20-byte digest; cross-file/corruption fixtures pass |
 | Packages `network/torrent/test/NexusNetTorrentTests.lpr` | Hlp fixture helper plus independently fixed binary/info expectations; full socket-backed suite passes |
-| Packages `gui/external/fpgui/ide/src/main/pascal/ide.filemonitor.pas` | Three calls share private StateSHA1 over existing AsString bytes; lowercase output; file-monitor unit compiles and retained IDE suite passes |
+| Packages former `gui/external/fpgui/ide/src/main/pascal/ide.filemonitor.pas` | Removed with the complete Maximus application by subsequent owner direction; no remaining hash consumer |
 | Lab `examples/data/hashes/mdtest.pas` | Direct MD2/4/5 Hlp calls; every retained vector must match; demo and corresponding nxtest cases pass |
 | Lab `examples/data/hashes/hmd5.pas` | Direct HMAC-MD5, same key/data ordering; both printed fixed answers match |
 | Lab `examples/data/hashes/hsha1.pas` | Direct HMAC-SHA1; both fixed-answer checks pass |
@@ -148,14 +159,15 @@ uses exact existing raw bytes, without introducing text recoding.
 | Lab `examples/data/cryptography/sha256performancetest.pas` | Direct SHA-256; obsolete SHA256PASCAL instructions removed; compiles/runs |
 | Lab `examples/gui/fpgui/gui/threads1/workerthread.pas` | Direct ComputeFile; existing blocking file-I/O worker/lifecycle unchanged; changed unit compiles against native fpGUI/HashLib closure |
 
-The fpGUI IDE entry was verified as ide.main.pas, which reaches the file monitor.
-Its full application build stops at missing debugger unit **pdr_ports**, absent
-from the available repositories. Unit compilation and unrelated IDE test passes
-are not reported as proof that the complete IDE program links or runs.
+The former Maximus application had an incomplete PDR/OPDF debugger integration.
+Its version-based guard enabled OPDF on NexusFPC, although the native compiler
+rejects `-gO` and has no OPDF emitter. This was an unsupported application feature,
+not a HashLib requirement. The owner retired the entire application instead of
+adopting that debugger; no compiler changes or replacement debugger were added.
 
 Affected Forge, Setup and Torrent recipes now use current explicit FPC-child
 syntax and source closure instead of obsolete schema/wildcard compiled units.
-FCL Image, FCL DB, fpGUI framework/IDE test recipes and 14 Lab recipes no longer
+FCL Image, FCL DB, the fpGUI framework test recipe and 14 Lab recipes no longer
 carry unnecessary legacy hash paths. No compiler bootstrap recipe was reshaped
 to accommodate an ordinary tool dependency.
 
@@ -178,12 +190,12 @@ compiler, SDK or runtime was used for these results.
 | Torrent | Full native standalone suite passes, including localhost peer/wire fixtures and independent digest vectors |
 | FCL Image | 56-unit package builds; **18 review regressions passed** |
 | FCL DB | 66-unit package builds; **16 review regressions** and **943 retained behavior tests passed** |
-| fpGUI IDE | **488 retained tests passed**; migrated file monitor compiles; full application blocked as described above |
+| Former Maximus IDE | Subsequently removed entirely by the owner, including the previously passing 488-case suite; no active build or verification requirement remains |
 | fpGUI framework | Native build passes; **566 tests passed**, zero failures/errors; one existing test skips because its external Haiku HVIF fixture is absent |
 | fpGUI worker example / LS search paths | Both changed units compile with native NexusFPC |
 | Migrated Lab hash demos | All **7** build and run with exit zero |
-| Other affected Lab recipes | **13 of 14 build**: Hello, special-name Hello, compression, database, JSON, XML, images, script editor, virtual tree, TLS genkeypair, TLS test1, XMPP and processes |
-| Mobile plugin Lab recipe | Fails at missing **ffi.manager** used by Lua.Plugin; no verified product link; removing an unused hash path did not supply this separate dependency |
+| Other affected Lab recipes | **14 of 14 build** after correcting the mobile recipe: Hello, special-name Hello, compression, database, JSON, XML, images, script editor, virtual tree, TLS genkeypair, TLS test1, XMPP, processes and the mobile plugin |
+| Mobile plugin Lab recipe | Corrected its omitted NexusFPC `packages/libffi/src` path. Native Linux `libplugin_sample.so` builds, exports `luaopen_plugin_sample`, and requires `libffi.so.8`. All 16 C/Pascal ABI probe values match libffi 3.4.6; the existing integer/floating/managed-string RTTI invocation test passes. Simulator loading remains unverified |
 | Retained legacy hash suites | `hash`: **14 passed**; `fcl-hash`: **31 passed**, including PEM/OTP/signature coverage |
 | Descriptor/catalog validation | All three catalogs and both changed/new package descriptors pass dialect validation |
 | Import/manifest/declaration | 281 unchanged original files; exact 144-unit nxpk; central attribution and original notices retained |

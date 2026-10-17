@@ -7,6 +7,8 @@ Date: 2026-10-17.
 Implementation results and source-verified corrections to the initial inventory
 are in [the implementation review](../reviews/hashlib4pascal-package-and-hash-consumer-audit.md).
 The prospective instructions below preserve the approved planning record.
+Subsequent owner direction retired Maximus and its dependent Nanoedit example;
+their former consumer/test entries below are historical inputs.
 
 ## Inputs
 

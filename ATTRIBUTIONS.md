@@ -224,11 +224,13 @@ repository rather than constituting additional forks.
   now use nxtest directly, without a bridge. JSON's `jsonfpcunit` helper and
   fpGUI's FPCUnit GUI/Lazarus runner integration are also historical.
 - **Preservation/evidence:** Nexus `docs/migrations/fpcunit` contains
-  untouched source archives, per-file SHA-256 manifests, original source notices
+  archives of original source, per-file SHA-256 manifests, original source notices
   and the [conversion report](docs/migrations/fpcunit/README.md).
-  The first archive preserves 629 files; a second preserves 98 retired support
-  files, including ancillary templates and runner assets. Maintained converted
-  tests keep their original notices. The archive preserves material from the
+  After the owner-directed Maximus removal, the first archive preserves 604
+  files and the second preserves 95 retired support files, including ancillary
+  templates and runner assets. Maximus entries were removed from both archives
+  and manifests; all remaining source bytes match their original hashes.
+  Maintained converted tests keep their original notices. The archive preserves material from the
   local fork, not an asserted unmodified upstream release.
 - **SPDX:** mixed, per original file. FPC package material referencing
   `COPYING.FPC`: `LGPL-2.1-only WITH Independent-modules-exception`;
@@ -626,6 +628,16 @@ proprietary source and no Kylix support.
   **2026-10-08**, Packages `09d5f97`.
 - **Our location/status:** Packages `gui/external/fpgui`; maintained foundation of
   the native NexusUI controls in `gui/src`.
+- **Retired applications (2026-10-17):** the owner directed complete removal of
+  Maximus (`ide/`), including its source, assets, templates, debugger integration
+  and dedicated tests. The owner separately approved removing its dependent
+  Nanoedit demonstration from Lab `examples/gui/fpgui/apps/nanoedit`. Graeme
+  Geldenhuys and the original contributors retain historical credit; Maximus's
+  individual modified-LGPL notices and Nanoedit's `BSD-2-Clause` notices remain
+  recoverable in Git at Packages `fe5d770b66c89ed737648ea7c93d8120668f93ea` and
+  Lab `0f3f79de6602d0b2fab30a9c6f350cb4bf6e2cd2`. The fpGUI framework, shared
+  licenses and author records remain in place; no copy of either retired
+  application is maintained elsewhere.
 - **Linux runtime library correction (2026-10-17):** the X11/Xft imports now use
   the supported ABI names shared with NexusFPC's X11 bindings. The inherited
   AggPas FreeType binding now names `libfreetype.so.6` on Linux. Existing fpGUI
@@ -1274,3 +1286,69 @@ identity are preserved under
 `/media/kcollins/dev/worktree/support-mmx-retirement-20261017-enydd5t3`.
 The separate RTL MMX implementation and assembler instruction definitions
 remain active and retain their existing provenance.
+
+
+## Nexus Mobile dependency vendoring
+
+On **2026-10-17**, the owner approved converting all **21 direct and four nested
+submodules** into ordinary files tracked by Nexus Mobile, based on parent
+revision `50a17bdc3549d4c2cb1e260127b3afb8c73ccdbd`. This changes repository ownership of
+file tracking, not the inherited source licenses. The earlier Mobile engine
+component table's gitlink descriptions are historical after this conversion.
+Original upstream adoption/fork dates remain unknown.
+
+The import preserves current local edits, 351 existing deletions, file modes,
+symlinks, source headers, license texts and distribution notices. Complete Git
+metadata and working contents before conversion are backed up at
+`/media/kcollins/dev/worktree/nexus-mobile-vendoring-20261017-wh7lio2b`,
+with file hashes, source/index manifests, pending patches and exact revisions.
+Git content for all retained source files is unchanged except the dependency
+helper described below. Upstream Git histories are preserved in that backup;
+the parent repository's existing history is retained without rewriting it.
+
+Authors and license expressions remain as recorded in the Mobile engine table
+above and in each retained source file. No blanket expression is asserted for
+these mixed source trees. In particular, MetalANGLE's nested glslang sources
+credit Google, 3Dlabs and other contributors under the multiple terms retained
+in `third_party/glslang/src/LICENSE.txt` (`NOASSERTION` for the combined tree).
+The JsonCpp wrapper and source retain Baptiste Lepilleur's / The JsonCpp Authors'
+credits, MIT terms and public-domain disclaimers in their `LICENSE` files;
+the source also retains `AUTHORS`. SPIRV-Cross retains its `Apache-2.0` license
+and Khronos / individual contributor credits. All nested paths below are
+relative to `nexus-mobile/`.
+
+| Vendored path | Original upstream repository | Pinned upstream revision |
+| --- | --- | --- |
+| `external/Box2D` | [submodule-box2d](https://github.com/coronalabs/submodule-box2d.git) | `96859f3a163ce78ccdbee2d17be9a00138c59fb5` |
+| `external/CryptoPP` | [submodule-CryptoPP](https://github.com/coronalabs/submodule-CryptoPP.git) | `ca58f8e45df015bd0d5315e477f96389e80a3262` |
+| `external/MetalANGLE` | [metalangle](https://github.com/coronalabs/metalangle.git) | `acb3ae751239f170c1ab596a37679fdfedeeaea7` |
+| `external/MetalANGLE/third_party/glslang/src` | [external-metalangle-glslang](https://github.com/coronalabs/external-metalangle-glslang.git) | `7d65f09b83112c1ec9e29313cb9913ed2b850aa0` |
+| `external/MetalANGLE/third_party/jsoncpp` | [external-metalangle-jsoncpp](https://github.com/coronalabs/external-metalangle-jsoncpp.git) | `2bb815de3c287b654a7d4743e9ad7b654221657b` |
+| `external/MetalANGLE/third_party/jsoncpp/source` | [external-metalangle-jsoncpp-source](https://github.com/coronalabs/external-metalangle-jsoncpp-source.git) | `645250b6690785be60ab6780ce4b58698d884d11` |
+| `external/MetalANGLE/third_party/spirv-cross/src` | [external-metalangle-SPIRV-Cross](https://github.com/coronalabs/external-metalangle-SPIRV-Cross.git) | `f38cbeb814c73510b85697adbe5e894f9eac978f` |
+| `external/freetype-2.9` | [submodule-freetype](https://github.com/coronalabs/submodule-freetype.git) | `6585cb0203dfe53f7aad7eda3aff4117e7483921` |
+| `external/live-libs` | [submodule-live-libs](https://github.com/coronalabs/submodule-live-libs.git) | `4ba6208930c44f1e80738bc37b1d1c5fff05f2eb` |
+| `external/luafilesystem` | [submodule-lfs](https://github.com/coronalabs/submodule-lfs.git) | `e7661591ca3a355f763ddd842da1ffa3d810f27c` |
+| `external/luasocket` | [submodule-luasocket](https://github.com/coronalabs/submodule-luasocket.git) | `c7566c83d0ef097283d37334d71f6b58b764750f` |
+| `external/openal-soft` | [openal-soft](https://github.com/coronalabs/openal-soft.git) | `89a62f0153623ac0fbf74edad66b0fed72d3dc5a` |
+| `external/openal-soft_apportable` | [submodule-openal-soft_apportable](https://github.com/coronalabs/submodule-openal-soft_apportable.git) | `3550b1f2f9f6de0b2915b77452ea9e4955efba2b` |
+| `plugins/build` | [submodule-plugins-build](https://github.com/coronalabs/submodule-plugins-build.git) | `cf10f7da90754ce84d2d09256ba37e989401b889` |
+| `plugins/build-core` | [submodule-plugins-build-core](https://github.com/coronalabs/submodule-plugins-build-core.git) | `75f8814b8bc7960fc23df3a14690e6d247413339` |
+| `plugins/gameNetwork` | [submodule-plugins-gameNetwork](https://github.com/coronalabs/submodule-plugins-gameNetwork.git) | `8686798c99e3ab69971307367864771c48824fc4` |
+| `plugins/licensing` | [submodule-plugins-licensing](https://github.com/coronalabs/submodule-plugins-licensing) | `50fb7815e9beeed2d637340db9f65f4c0e43021a` |
+| `plugins/network` | [submodule-plugins-network](https://github.com/coronalabs/submodule-plugins-network) | `5ee2e55e5fb4f5adaf9ed99b8102adeb545d72f5` |
+| `simulator-extensions/welcomescreen` | [submodule-welcomescreen](https://github.com/coronalabs/submodule-welcomescreen.git) | `9c02f00d1d9bcdf1b83950d3452ef813ee1c02d1` |
+| `subrepos/composer` | [framework-composer](https://github.com/coronalabs/framework-composer.git) | `aef2ec0fc3471d179a5b3c8d8b18599d380522fa` |
+| `subrepos/easing` | [framework-easing](https://github.com/coronalabs/framework-easing.git) | `f44f1c1f5736f8892ab1cb610560bf5e130cea13` |
+| `subrepos/enterprise` | [submodule-native](https://github.com/coronalabs/submodule-native.git) | `8c668a18404e6071de73c88bac5b7b9360967694` |
+| `subrepos/timer` | [framework-timer](https://github.com/coronalabs/framework-timer.git) | `7572d05d54484f802023758ff5374aa225f461bf` |
+| `subrepos/transition` | [framework-transition](https://github.com/coronalabs/framework-transition.git) | `a58163b2b7e8ffdc06112db6d89f4b65d79262f0` |
+| `subrepos/widget` | [framework-widget](https://github.com/coronalabs/framework-widget.git) | `d425ae72f47b29a3da5880eebcb1111f2cdf6cd2` |
+
+The owner-authorized integration change replaces MetalANGLE's destructive
+`ios/xcode/fetchDependencies.sh` download/reclone behavior with checks for these
+checked-in sources. Its ANGLE Project Authors copyright and BSD notice remain;
+the new work is also credited to Kevin Collins (2026). Attribute boundaries in
+the JsonCpp wrapper and SPIRV-Cross source preserve their original byte-oriented
+Git defaults instead of inheriting MetalANGLE's text normalization. Clone
+instructions now point to the Nexus repository without submodule initialization.

@@ -29,27 +29,37 @@ restoration of result details after an intentionally caught assertion.
 Test execution now preserves messages when native failure/skip exceptions are
 raised directly. Seven dedicated regressions exercise those behaviors.
 
+On 2026-10-17 the owner retired Maximus entirely, including its dedicated
+488-case IDE suite, and separately approved removing the dependent Nanoedit
+demo. References and counts below describe the earlier conversion checkpoint;
+they are not the current test inventory. The fpGUI framework suite remains.
+
 ## Preserved originals and provenance
 
-[original-tests.tar.gz](original-tests.tar.gz) contains 629 untouched source/data
+[original-tests.tar.gz](original-tests.tar.gz) contains 604 untouched source/data
 files captured before conversion, including the complete FPCUnit package,
 retained tests and neighboring fixtures. Every file has a SHA-256 entry in
 [original-hashes.json](original-hashes.json). Archive SHA-256:
 
 ```text
-0782f5dd74ad1133b61e75412b12df3dc5c4a646f914d4daba5e5a766e040c86
+f8d20e23bd4267c2e48133c6ab2898354872624f84586848d66d205d0f352fab
 ```
 
-[retired-support.tar.gz](retired-support.tar.gz) additionally preserves 98
+[retired-support.tar.gz](retired-support.tar.gz) additionally preserves 95
 retired runner/template/support files, including ancillary files beyond the
 first snapshot. [Per-file hashes](retired-support-hashes.json) and the archive
 hash are recorded beside it. Archive SHA-256:
 
 ```text
-087380032a6e593ea3427139466b1d2845ff508c8e2b4910fdeed5b2a3db7226
+54d11e2d2ca3562c25cda245fbce5ca875b6f369e2af5975a4f107aca214ac5c
 ```
 
-Both archives and every recorded file hash were verified after the conversion.
+Maximus retirement removed its 25 original-test entries and three retired-support
+entries from these archives and manifests. Every remaining file still matches
+its original recorded hash. Pre-retirement archive versions remain in Git
+history; no separate copy of Maximus is retained.
+
+Both archives and every recorded file hash were verified after this pruning.
 Source-specific notices remain in the archived and maintained material.
 The shared FPC distribution notices remain with NexusFPC packages and RTL.
 Canonical upstream credit, revision/date evidence, locations and mixed license
@@ -161,8 +171,9 @@ runners and nxbuild recipes now live beside each owning package/compiler test
 suite. Nxtest's own context regressions live in `projects/nxtest/test`.
 `utNXTestConsole` is the shared native console entry point in the nxtest package.
 
-The original source archives and their manifests above remain byte-for-byte
-unchanged. Raw migration build/run logs and their evidence archive were
+The remaining original source files are byte-for-byte unchanged; archive
+membership/manifests reflect the later Maximus removal described above.
+Raw migration build/run logs and their evidence archive were
 removed at the owner's request. `results.json` retains the compact verified
 totals. This is an internal maintainer record.
 
