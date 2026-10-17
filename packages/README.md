@@ -16,7 +16,7 @@ definition owns the package's intrinsic metadata and requirements. Projects are
 outside this package dialect.
 
 [nexus-packages-ext/Packages.RepositoryIndex.nxscript](nexus-packages-ext/Packages.RepositoryIndex.nxscript)
-is the RepositoryIndex published by our third-party package repository. It describes Mustache and the compression packages Abbrevia and PasZLib.
+is the RepositoryIndex published by our third-party package repository. It describes Mustache, RegExpr and the compression package Abbrevia.
 Third-party source lives under each package's `external` folder.
 
 [nexus-packages-apple/Packages.RepositoryIndex.nxscript](nexus-packages-apple/Packages.RepositoryIndex.nxscript)
@@ -64,9 +64,12 @@ Package Solar2D {
 
 Core and Binding are independently described packages. The Pascal project and
 compiler-option models are project-owned under projects/nxbuild/src.
+PasJPEG is now independently described at
+`nexus-packages/graphics/pasjpeg`; FCL Image declares that dependency and uses
+the relocated source. PasZLib remains authoritative in NexusFPC for now.
 
 Some real prerequisites have no independent package descriptor in this catalog:
-Synapse, the compiler's platform-specific FFI support,
+Synapse, NexusFPC's authoritative PasZLib source, the compiler's platform-specific FFI support,
 and external runtime/host libraries. The affected descriptors identify those
 prerequisites in comments. Their absence from `Requires` does not mean those
 packages are self-contained. This draft does not invent identities or

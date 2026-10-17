@@ -159,6 +159,13 @@ repository rather than constituting additional forks.
   recorded as `LGPL-2.1-only WITH Independent-modules-exception`, with any broader
   version grants in individual headers preserved. Packages have individual licenses;
   no blanket compiler license is applied to them.
+- **Linux library linking correction (2026-10-17):** the maintained compiler now
+  preserves explicit versioned shared-library filenames and exact lookup through
+  the Linux link path. The live X11 bindings under FPC `packages/x11` share ABI
+  names in the new Nexus-authored `tpX11Libraries` unit, which carries its own
+  `MPL-2.0-no-copyleft-exception` notice. Existing binding headers and notices are
+  preserved. The source baseline is FPC `6bca029dba0aebb0389c514d1574af4923af06f4`;
+  direct nxtest regressions are retained in FPC `tests/linker`.
 - **Evidence/notices:** `compiler/COPYING.txt`, `rtl/COPYING.txt`, `rtl/COPYING.FPC`,
   `packages/COPYING.FPC`, individual source headers. SPDX explicitly identifies the
   [Independent Module Linking exception](https://spdx.org/licenses/Independent-modules-exception.html)
@@ -338,6 +345,41 @@ repository rather than constituting additional forks.
   `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-db/fpmake.pp`.
   Retired make/fpmake machinery and Lazarus dependencies are not restored.
 
+### PasJPEG
+
+- **Credit:** Jacques Nomssi Nzali (Pascal translation, 1996/1998/1999),
+  Thomas G. Lane and the Independent JPEG Group (original codec), and Free
+  Pascal contributors. Individual source headers and the original README
+  author lists remain with the material.
+- **Upstream:** PasJPEG 1.1, 1999-05-29, originally published at
+  `http://www.tu-chemnitz.de/~nomssi/pasjpeg.html`, based on IJG release 6b
+  (1998-03-27). Imported through Free Pascal `packages/pasjpeg`; relocation
+  snapshot is NexusFPC `bfd5d2156b01f1213b3fa16e3b3fde38588c9d5d`.
+- **Fork/import date:** original Nexus fork/import date unknown. Surviving FPC
+  history includes `b90270401ac81be77c30d580e1bae78ab742191d` (2008-01-24);
+  that is upstream possession evidence, not the Nexus import date. Relocated
+  on **2026-10-17** under the owner's direct instruction.
+- **Our location/status:** Packages `graphics/pasjpeg`, maintained source
+  package `NXRP.Graphics.PasJPEG`; former FPC `packages/pasjpeg` removed.
+  Canonical examples remain Lab `examples/graphics/jpeg`; no duplicate
+  example tree was introduced. FCL Image and fpGUI consume the relocated source.
+- **SPDX:** `IJG AND Zlib` for the inherited codec/translation. New Nexus bitmap
+  definitions, tests and build infrastructure carry
+  `MPL-2.0-no-copyleft-exception`. The compiler distribution's `COPYING.FPC`
+  is preserved without relabeling the inherited codec as wholly LGPL.
+  Lab colormap helpers retain their separate Jef Poskanzer/PBMPLUS notices.
+- **Evidence/notices:** all 119 original files are identified by the package's
+  `review/baseline-hashes.json`; an untouched local snapshot stays in ignored
+  Nexus output. `readme.txt` retains the Pascal port's Zlib-style legal text.
+  `README.IJG` is the unmodified original release 6b README from
+  [IJG's original archive](https://www.ijg.org/files/jpegsrc.v6b.tar.gz), archive
+  SHA-256 `75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d`,
+  README SHA-256 `4cf9c190f184019b61c36bcc49d4a24ffeb2a838c6f1690d6c4db14cfb2d0478`.
+  The saved `CODE_REVIEW.md` records compilation repairs, nil-callback and
+  bitmap-offset regression proofs, fixes, native verification and limits.
+  The modified convenience unit is plainly marked. Historical platform
+  alternatives and the unused unfinished IDCT prototype remain source-only.
+
 ### FCL Image
 
 - **Credit:** Michael Van Canneyt and the Free Pascal development team; source
@@ -399,13 +441,21 @@ repository rather than constituting additional forks.
   before implementation changes. The untouched current tree and SHA-256
   inventory are in Nexus `output/fcl-net-review/baseline` and
   `baseline-hashes.json`; no source archive is added to the repository.
-- **Our location/status:** Packages `network/fcl-net`; seven runtime units,
-  original namespace wrappers/platform includes and useful tests retained.
-  The former NexusFPC package path is historical. Demonstrations remain in
-  Nexus Lab. Synapse's Unix backend uses `netdb`; the shared OpenSSL wrappers
-  and Nexus Synapse TLS adapter use `sslbase`. The other FCL socket APIs remain
-  intact by explicit owner choice, with a consolidation recommendation in
-  the package's saved code review.
+- **Our location/status:** FCL Net was retired on **2026-10-17** after the
+  owner authorized consolidation around Synapse. The required Unix resolver
+  code now lives in `network/external/synapse/utNXSynapseResolver.pas`, with the
+  private libc declarations in `nxresolverlibc.inc`; retained FPC/UC Berkeley/DEC
+  notices, `COPYING.FPC` and the full LGPL text in `COPYING.txt` accompany that
+  material. Extraction input: Packages commit
+  `cd5d3127db14b6acf33a7c83f0c3dcb3d328a2e5`. The live certificate
+  classes and data definitions from `sslbase` now live in OpenSSL's
+  `src/obNXOpenSSLCertificates.pas` and `src/tpNXOpenSSLTypes.pas`.
+  The alternative FCL socket/component layers and unused database query APIs
+  were removed, including the FCL OpenSSL socket adapter. Useful TCP/resolver/TLS
+  demonstrations in Nexus Lab now use Synapse; redundant or retired-API examples
+  and tests were removed. Synapse and OpenSSL own their focused nxtest coverage.
+  The earlier intact relocation and its review remain in Git history; current
+  consolidation results are in `network/FCL-NET-CONSOLIDATION.md`.
 - **SPDX:** principal FPC/FCL units use
   `LGPL-2.1-only WITH Independent-modules-exception`; `resolve.pas` explicitly
   grants `GPL-1.0-or-later`. `cnetdb.pas` retains `BSD-4-Clause` and an additional
@@ -576,6 +626,12 @@ proprietary source and no Kylix support.
   **2026-10-08**, Packages `09d5f97`.
 - **Our location/status:** Packages `gui/external/fpgui`; maintained foundation of
   the native NexusUI controls in `gui/src`.
+- **Linux runtime library correction (2026-10-17):** the X11/Xft imports now use
+  the supported ABI names shared with NexusFPC's X11 bindings. The inherited
+  AggPas FreeType binding now names `libfreetype.so.6` on Linux. Existing fpGUI
+  and AggPas authorship/license notices remain intact. Two direct font-binding
+  nxtest cases live beside the framework tests; validation is recorded in
+  Nexus `docs/reviews/linux-shared-libraries.md`.
 - **SPDX:** framework/UIDesigner LGPL 2.1 text with linking permission:
   `LGPL-2.1-only WITH Independent-modules-exception`; individual file headers may
   grant later versions. DocView/examples have GPL 2.0 notices; bundled extras vary.
@@ -730,13 +786,27 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   `a7782c0f1291c1a7d6c90280a296a28e723b19f5`.
 - **Fork/import date:** collective import **2026-10-09**, External `bc4775a`.
   Original FPC adoption predates this import; its date is unknown here.
-- **Our location/status:** External `compression/paszlib/external/paszlib`;
-  FPC also retains `packages/paszlib` for its own bootstrap/package work.
+- **Our location/status:** NexusFPC `packages/paszlib` is the authoritative
+  source as of **2026-10-17**, by explicit owner direction. The duplicate External
+  `compression/paszlib/external/paszlib` tree and its separate catalog entries
+  were removed after comparison and native verification. Initially, seventeen of twenty
+  runtime source/include files were byte-identical; the remaining differences
+  supported DOS/DPMI, WebAssembly/NOGOTO and OS/2, outside the current target
+  matrix. NexusFPC's normalized `.pas` filenames and supported-target code were
+  retained. Subsequent checked tests proved unsigned match-position underflow
+  on window slides and a level-zero zlib-header range error; Nexus fixed both
+  in the official `zdeflate.pas` with five direct nxtest regressions. The official
+  package owns the reconciliation record and tests.
+  Lab demonstrations are consolidated under `examples/data/compression/paszlib`;
+  the redundant `paszlib-external` folder was removed.
 - **SPDX:** PasZLib core `Zlib`; FPC additions carry their individual FPC notices,
   with the LGPL text and `Independent-modules-exception` as applicable.
-- **Evidence/notices:** upstream `readme.txt` legal section, `src/zipper.pp`,
-  `COPYING.FPC`. Source, metadata, examples and fixtures were retained; package usage
-  instructions remain in `compression/paszlib/README.md`.
+- **Evidence/notices:** official `readme.txt` legal section, `src/zipper.pas`,
+  NexusFPC `packages/COPYING.FPC` and `rtl/COPYING.txt`. The removed external
+  `COPYING.FPC` was byte-identical to the official notice. Runtime comparison,
+  baseline hashes and test/build results are recorded in
+  NexusFPC `packages/paszlib/CONSOLIDATION.md` and ignored Nexus
+  `output/paszlib-consolidation`; prior external import history remains in Git.
 
 ### DMustache and Synopse include
 
@@ -796,7 +866,13 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   Packages `fc24ff5` selected this local commit while its submodule URL still
   pointed at upstream, where that commit was unavailable. Recovery source:
   `/media/kcollins/D430AF4530AF2E04/gitdev/nexus/packages/nexus-packages/network/external/synapse`.
-- **SPDX:** `BSD-3-Clause`, retained in source headers including `blcksock.pas`.
+- **Nexus extension (2026-10-17):** Kevin Collins / Nexus added ALPN configuration
+  and negotiated-protocol access to Synapse's TLS interface. The Nexus OpenSSL
+  adapter uses the existing shared ALPN implementation; XMPP direct TLS offers
+  `xmpp-client`. Original Synapse notices and source line endings are preserved.
+- **SPDX:** original Synapse uses `BSD-3-Clause`, retained in headers including
+  `blcksock.pas`. The resolver support extracted from FCL has the separate
+  FPC/UC Berkeley/DEC terms recorded under [FCL Net](#fcl-net).
 
 ### OpenSSL and FPC bindings
 
@@ -1069,7 +1145,7 @@ destination collections' `notices/` directories.
 | --- | --- | --- | --- |
 | [Nexus](https://github.com/nxrp-dev/nexus) / Kevin Collins | `f158194650bb` | Tool `projects/*/examples`, example BotHost configurations and `tools/workspace-index/example` → `examples/{build,packages,deployment,automation,data,workspace}` | `MPL-2.0-no-copyleft-exception`, retained file headers |
 | [Nexus Packages](https://github.com/nxrp-dev/nexus-packages) / Nexus, FPC, fpGUI and AggPas authors credited above | `4ac014d0d126` | JSON/XML/database/image/process, NexusUI, fpGUI/AggPas, OpenSSL/XMPP and Solar2D examples → `examples/{data,graphics,system,gui,network,mobile}` | Mixed collection; preceding FPC, fpGUI, AggPas, OpenSSL and Lua entries and per-file notices apply |
-| [Nexus External Packages](https://github.com/nxrp-dev/nexus-packages-ext) / TRegExpr and Pascal zlib contributors credited above | `ebb7f0dc8e88` | `regexpr/external/tregexpr/examples` → `examples/text/regular-expressions`; `compression/paszlib/external/paszlib/examples` → `examples/data/compression/paszlib-external` | Existing TRegExpr and Pascal zlib attribution and retained notices apply |
+| [Nexus External Packages](https://github.com/nxrp-dev/nexus-packages-ext) / TRegExpr and Pascal zlib contributors credited above | `ebb7f0dc8e88` | `regexpr/external/tregexpr/examples` → `examples/text/regular-expressions`; `compression/paszlib/external/paszlib/examples` → `examples/data/compression/paszlib-external` (retired duplicate; canonical examples now in `examples/data/compression/paszlib`) | Existing TRegExpr and Pascal zlib attribution and retained notices apply |
 | [NexusFPC](https://github.com/nxrp-dev/nexus-fpc) / Free Pascal contributors and Nexus package-example authors | `2400de82f87d` | `examples/dynamic-packages` → `examples/packages/runtime-loading`; package examples → `examples/{runtime,data,graphics,text,system,network}` | FPC's component-specific `GPL-2.0-or-later` / LGPL with independent-module exception terms and Pascal JPEG notices remain authoritative; no single expression asserted for all examples |
 | [Nexus Mobile](https://github.com/nxrp-dev/nexus-mobile) / Corona, Solar2D and the inherited component authors above | `3f303e61d4b6` | Android/iOS native samples and vendored MPG123, Sundown, ALmixer, Vorbis, earlier OpenAL, LuaSQLite3, zlib, ANGLE and YRK progress demos → `examples/{mobile,audio,text,data,graphics,gui}` | Mixed inherited collection; Engine component table, source/asset notices and copied distribution licenses apply |
 | [Corona native samples](https://github.com/coronalabs/submodule-native) / Corona Labs, Solar2D and contributors | `8c668a18404e` | Engine `subrepos/enterprise/contents/Samples` → `examples/mobile/native` | `MIT` / individual source and asset notices; original adoption unknown, existing submodule revision is relocation evidence |
@@ -1083,3 +1159,33 @@ live at Lab `examples/graphics/images/DejaVuLGCSans.ttf` and
 `examples/graphics/images/DejaVuLGCSans.LICENSE.txt`; the earlier image-package
 entry records their original provenance. The runtime packages and compiler
 remain in their owning repositories and are consumed from the examples.
+
+
+## RTL-extra reduction and retained test fixtures
+
+On **2026-10-17**, NexusFPC `rtl-extra` was reduced from the source at
+`bfd5d2156b01f1213b3fa16e3b3fde38588c9d5d`. The inherited material comes from
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source); the original
+fork date remains unknown. Networking and locale sources retain their original
+headers and component-specific license terms. No new blanket license is asserted.
+
+`SortAlgs`, credited to the Free Pascal development team (1999-2019), and its
+namespace wrapper moved byte for byte into `packages/rtl-objpas`. The Borland /
+Free Vision / FPC Objects implementation and its complete credit header remain
+as the private `LegacyObjects` compiler-test fixture. The complex-operator
+regression retains a small self-contained adaptation credited to Pierre Muller
+and the Free Pascal development team (1999-2000), under its original
+`COPYING.FPC` terms. The retired APIs remain attributable through the Git source
+revision and untouched snapshot with SHA-256 hashes in
+`/media/kcollins/dev/worktree/rtl-extra-cleanup-20261017-cil14_no`.
+
+The Lab `rdjpgcom` example retains Thomas G. Lane's 1994-1995 copyright notice;
+its old Objects stream use was replaced with Classes. Existing Pascal JPEG
+notices and licenses remain authoritative. The reader now reports a missing
+input file as an open failure instead of misidentifying it as non-JPEG data.
+
+The unfinished Lab `wrjpgcom` writer example was retired with owner approval.
+Thomas G. Lane's 1994-1997 credit and the complete original source remain
+in `baseline/wrjpgcom.pas` within the same worktree snapshot (SHA-256
+`7dea1bdaeedd37ffb188c05f42e7e4dc83103a00ed6eab423ce1c7baa156559f`).
+The existing Pascal JPEG notices and licenses remain in place.

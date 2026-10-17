@@ -61,10 +61,10 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/db/sqlite/Package.nxscript";
         Description: "SQLite bindings, connections and write-through datasets.";
     }
-    LocalPackage FCLNet {
-        Id: "NXRP.Network.FCLNet";
-        Descriptor: "nexus-packages/network/fcl-net/Package.nxscript";
-        Description: "Resolver and TLS support used by Synapse, plus retained FCL socket APIs.";
+    LocalPackage OpenSSL {
+        Id: "NXRP.Network.OpenSSL";
+        Descriptor: "nexus-packages/network/openssl/Package.nxscript";
+        Description: "OpenSSL 3 bindings, certificate wrappers and Nexus Synapse TLS adapter.";
     }
     LocalPackage FCLRegistry {
         Id: "NXRP.FCLRegistry";
@@ -75,6 +75,11 @@ PackageIndex NexusPackages {
         Id: "NXRP.FCLProcess";
         Descriptor: "nexus-packages/fcl-process/Package.nxscript";
         Description: "External process execution, pipes, local IPC and Windows service support.";
+    }
+    LocalPackage PasJPEG {
+        Id: "NXRP.Graphics.PasJPEG";
+        Descriptor: "nexus-packages/graphics/pasjpeg/Package.nxscript";
+        Description: "Portable Pascal baseline/progressive JPEG codec and BMP stream conversion.";
     }
     LocalPackage FCLImage {
         Id: "NXRP.Graphics.FCLImage";
@@ -100,11 +105,6 @@ PackageIndex NexusPackages {
         Id: "NXRP.Compression.Abbrevia";
         Descriptor: "nexus-packages-ext/compression/abbrevia/Package.nxscript";
         Description: "Archive and compression runtime units (Abbrevia).";
-    }
-    LocalPackage PasZLib {
-        Id: "NXRP.Compression.PasZLib";
-        Descriptor: "nexus-packages-ext/compression/paszlib/Package.nxscript";
-        Description: "Pascal DEFLATE, zlib, GZIP and ZIP runtime units.";
     }
     LocalPackage Mustache {
         Id: "NXRP.Mustache";

@@ -314,12 +314,14 @@ begin
   AddUnitPath('Nexus FCL DB sql', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sql');
   AddUnitPath('Nexus FCL DB sqldb', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/sqldb');
   AddUnitPath('FPC FCL Image', '$(WorkspaceDir)/packages/nexus-packages/graphics/fcl-image/src');
-  AddUnitPath('Nexus FCL Net', '$(WorkspaceDir)/packages/nexus-packages/network/fcl-net/src');
+  AddUnitPath('Nexus Synapse', '$(WorkspaceDir)/packages/nexus-packages/network/external/synapse');
+  AddUnitPath('Nexus OpenSSL', '$(WorkspaceDir)/packages/nexus-packages/network/openssl/src');
+  AddUnitPath('Nexus Synapse TLS', '$(WorkspaceDir)/packages/nexus-packages/network/openssl/synapse');
   AddUnitPath('FPC FCL Process', '$(FPCSrcDir)\packages\fcl-process\src');
   AddUnitPath('FCL Registry', '$(WorkspaceDir)/packages/nexus-packages/fcl-registry/src');
   AddUnitPath('FPC FCL Web Base', '$(FPCSrcDir)\packages\fcl-web\src\base');
   AddUnitPath('FPC RTL Extra', '$(FPCSrcDir)\packages\rtl-extra\src');
-  AddUnitPath('FPC PasJPEG', '$(FPCSrcDir)\packages\pasjpeg\src');
+  AddUnitPath('Nexus PasJPEG', '$(WorkspaceDir)/packages/nexus-packages/graphics/pasjpeg/src');
   AddUnitPath('FPC Hash', '$(FPCSrcDir)\packages\hash\src');
   AddUnitPath('FPC RegExpr', '$(FPCSrcDir)\packages\regexpr\src');
   AddUnitPath('FPC CHM', '$(FPCSrcDir)\packages\chm\src');

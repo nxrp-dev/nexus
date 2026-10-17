@@ -304,10 +304,24 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC FCL Net",
+      "Name" : "Nexus Synapse",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
-      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-net\\src"
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/network/external/synapse"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus OpenSSL",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/network/openssl/src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus Synapse TLS",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/network/openssl/synapse"
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
@@ -339,10 +353,10 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC PasJPEG",
+      "Name" : "Nexus PasJPEG",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
-      "PathTemplate" : "$(FPCSrcDir)\\packages\\pasjpeg\\src"
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/graphics/pasjpeg/src"
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
