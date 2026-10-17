@@ -796,7 +796,9 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   retained. Subsequent checked tests proved unsigned match-position underflow
   on window slides and a level-zero zlib-header range error; Nexus fixed both
   in the official `zdeflate.pas` with five direct nxtest regressions. The official
-  package owns the reconciliation record and tests.
+  package owns the reconciliation record and tests. Its CRC32 table/core now
+  lives in private `src/utNXPasZLibCRC32.pas`, consolidated from ZStream and
+  Zipper with inherited notices; no general-purpose hashing package is required.
   Lab demonstrations are consolidated under `examples/data/compression/paszlib`;
   the redundant `paszlib-external` folder was removed.
 - **SPDX:** PasZLib core `Zlib`; FPC additions carry their individual FPC notices,
@@ -807,6 +809,29 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   baseline hashes and test/build results are recorded in
   NexusFPC `packages/paszlib/CONSOLIDATION.md` and ignored Nexus
   `output/paszlib-consolidation`; prior external import history remains in Git.
+
+### HashLib4Pascal
+
+- **Credit:** Ugochukwu Mmaduekwe and contributors.
+- **Upstream:** [HashLib4Pascal](https://github.com/Xor-el/HashLib4Pascal), revision
+  `1687d81fd0c8a08f3f04e7fed507a19131fbc0b1`.
+- **Fork/import date:** **2026-10-17**, by the approved
+  `work/plans/hashlib4pascal-package-and-hash-consumer-audit.md`. The selected
+  runtime/include files were byte-checked against that revision's source archive;
+  `hashlib4pascal/review/import-hashes.json` records each imported file digest.
+- **Our location/status:** External `hashlib4pascal/external/hashlib4pascal`,
+  maintained as `NXRP.HashLib4Pascal`; all 144 runtime units and 135 includes,
+  original README and license retained. Useful upstream inline known-answer/API
+  tests are adapted directly to nxtest, with their source attribution retained.
+  This revision has no `HashLib.Tests/Data` directory or raw-data fixture tree.
+- **SPDX:** `MIT`. Full original `LICENSE` and source notices remain with the
+  import. Nexus build recipes/tests keep their own notices. Any FPC support units
+  incorporated into a provider retain the FPC notices recorded above; HashLib's
+  MIT license does not relabel them.
+- **Integration:** ordinary digest/HMAC/CRC/KDF library and tool dependency.
+  It is not a compiler-bootstrap, package-metadata or PasZLib dependency.
+  Source review, verification results and target limits are in the package's
+  `CODE_REVIEW.md`; examples remain in Nexus Lab.
 
 ### DMustache and Synopse include
 
@@ -1203,3 +1228,49 @@ original files, together with all other affected source headers, are preserved
 under `/media/kcollins/dev/worktree/dead-code-cleanup-20261017-iu_ybf4h/baseline`,
 with SHA-256 hashes and the source revision in `baseline.json`. Existing
 compiler and RTL licenses remain authoritative for the surviving material.
+
+The subsequent HeapTrc debug-dump repair updates a stale iterator reference
+left by Free Pascal commit `3e473b45193dfbf812a8df16b887a0eb1e1ea916`,
+credited to Rika Ichinose (2026-05-29). The original source header and RTL
+license terms are retained. The exact source before this repair is preserved
+in `/media/kcollins/dev/worktree/heaptrc-repair-20261017-oac2p6b2/heaptrc-before-repair.pas`.
+
+On **2026-10-17**, the owner separately approved removal of parked `DUMMY`
+compiler experiments from `compiler/optdfa.pas`, `compiler/x86/nx86add.pas`,
+and `compiler/aarch64/cgcpu.pas`, based on revision `00fb95dfe417ed7b7819f8414af9fb30c3735e61`
+plus the existing authorized working changes. These Free Pascal units retain
+Florian Klaempfl's and Jonas Maebe's original credits and
+`GPL-2.0-or-later` notices. Complete source snapshots and SHA-256 hashes before
+this removal are preserved under
+`/media/kcollins/dev/worktree/compiler-dummy-removal-20261017-7hdkueui/baseline`
+and in its parent `baseline.json`. RTL compatibility guards and parser-test
+uses of the same symbol were outside this removal.
+
+
+On **2026-10-17**, the owner approved retiring the `DEBUG_PPU` diagnostic
+logging in NexusFPC `compiler/entfile.pas` and `compiler/ppu.pas`, based on
+revision `781383f296b0cf32954dcfeaca65b28560cbc09e`. The retained files preserve
+the Free Pascal development team's (1998-2013) and Florian Klaempfl's
+(1998-2002) original credits and `GPL-2.0-or-later` notices. Their inherited
+source is covered by the preceding Free Pascal provenance entry; the original
+fork date remains unknown. Complete originals, source revision and SHA-256
+hashes are preserved under
+`/media/kcollins/dev/worktree/debug-ppu-removal-20261017-sgwcbl4w/baseline`
+and its parent `baseline.json`. This retires logging only; the serialized
+unit/package formats and checksum logic remain in place.
+
+
+On **2026-10-17**, the owner approved retiring NexusFPC's `SUPPORT_MMX`
+array-arithmetic extension, its directives, helpers and dependent copy
+optimization. The baseline is revision `781383f296b0cf32954dcfeaca65b28560cbc09e`
+plus the previously validated `DEBUG_PPU` removal. The inherited implementation
+comes from [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+with the Free Pascal development team and individual authors credited in the
+25 affected source files. Their original copyright headers and component
+`GPL-2.0-or-later` / `COPYING.FPC` notices remain with the retained files; no new
+blanket license is asserted. The original fork/import date remains unknown.
+Complete pre-removal files, SHA-256 hashes, exact patches and baseline compiler
+identity are preserved under
+`/media/kcollins/dev/worktree/support-mmx-retirement-20261017-enydd5t3`.
+The separate RTL MMX implementation and assembler instruction definitions
+remain active and retain their existing provenance.

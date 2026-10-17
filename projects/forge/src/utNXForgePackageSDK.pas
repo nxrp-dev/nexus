@@ -12,7 +12,7 @@ function WriteForgePackageSDKManifest(const ADirectory: string): string;
 
 implementation
 
-uses Classes, SysUtils, fpjson, jsonparser, fpsha256,
+uses Classes, SysUtils, fpjson, jsonparser, HlpHashFactory,
   obNXForgeInvocation, obNXForgeProcess, obNXForgePackageArtifactReader, utNXForgePackageFiles;
 
 function RelativePath(const ARoot, APath: string): string;
@@ -56,7 +56,7 @@ begin
     Delete(lText, Length(lText), 1); // The fingerprint has separators, no trailing LF.
     lStream := TStringStream.Create(lText);
     try
-      Result := UpperCase(TSHA256.StreamHexa(lStream));
+      Result := UpperCase(THashFactory.TCrypto.CreateSHA2_256.ComputeStream(lStream).ToString(False));
     finally
       lStream.Free;
     end;

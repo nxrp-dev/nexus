@@ -594,7 +594,7 @@ can leave partial output, as with the other file operations.
 
 `PackageSDKManifest` checks `work/identity.json` against the compressed compiler
 metadata and Win64 ABI-4 descriptor in `packages/nxrtl.nxpl`. A package compiled
-with embedding disabled instead uses its fingerprint-bound `.nxp` sidecar. The image is read
+with embedding disabled instead uses its `.nxp` sidecar with matching storage lengths. The image is read
 as bytes, never loaded or executed. Invalid/truncated structures, unsupported
 formats, identity mismatches and compiler-query failures stop subsequent tasks
 without rewriting an existing manifest. After validation it queries the staged
@@ -701,15 +701,22 @@ Completed output remains available. Success returns exit status 0; failure 1.
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
 ```
 
-These projects use the completed NexusFPC bootstrap at
-`../tools/nexus-fpc/build/forge-bootstrap/cycle3` and compile their required
-package units from source into their own output directories. Forge is written
-to `output/NexusForge-next/x86_64-win64/nxforge.exe`. The tests also require a
+These projects select `Tools.Native.ForgeCompilerPath` and `ForgeRTLPath` from
+`projects/nxbuild/nxbuild.environment.nxscript` and compile their required units
+from source into their own output directories. The Linux settings use the
+installed native compiler/RTL; the existing bootstrap compiler/RTL selections
+on other hosts remain unchanged. HashLib4Pascal supplies ordinary artifact/SDK
+SHA-256; the shared metadata codec and PasZLib have no hash-package dependency.
+Forge is written to `output/NexusForge-next/<cpu>-<os>/nxforge` (`.exe` on Windows).
+The tests also require a
 working NexusFPC `fpc` command on PATH and the built
 `output/NexusCSV/<cpu>-<os>/nxcsv` (`nxcsv.exe` on Windows). The CSV recipe uses the
 shared native installation settings in `projects/nxbuild/nxbuild.environment.nxscript`.
 The root Forge `Tests` group builds that prerequisite before the Forge test project;
 direct builds must build NexusCSV explicitly as shown above.
+On Linux the equivalent commands use `output/nxbuild-next/x86_64-linux/nxbuild`
+and `output/NexusForgeTests/x86_64-linux/NexusForgeTests`; no runtime-package SDK
+is required for these ordinary source builds.
 Lazarus is not a build dependency. Shared NexusScript changes additionally
 require the NexusScript and language-server suites under their own projects.
 

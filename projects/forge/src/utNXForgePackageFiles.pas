@@ -17,7 +17,7 @@ function NewPackageBuildIdentity: string;
 
 implementation
 
-uses SysUtils, jsonparser, fpsha256;
+uses SysUtils, jsonparser, HlpHashFactory;
 
 function NewPackageBuildIdentity: string;
 var
@@ -45,7 +45,7 @@ var
 begin
   lStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyWrite);
   try
-    Result := UpperCase(TSHA256.StreamHexa(lStream));
+    Result := UpperCase(THashFactory.TCrypto.CreateSHA2_256.ComputeStream(lStream).ToString(False));
   finally
     lStream.Free;
   end;

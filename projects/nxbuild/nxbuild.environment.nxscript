@@ -45,6 +45,8 @@ Environment Tools TargetCPU[x86_64] {
         ];
         FPCCompiler: @Tools.Native.PackageSDKPath + "/bin/ppcx64.exe";
         RTLPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-rtl64";
+        ForgeCompilerPath: @Tools.NexusFPC.SourcePath + "/build/forge-bootstrap/cycle3/ppcx64.exe";
+        ForgeRTLPath: @Tools.NexusFPC.SourcePath + "/build/forge-bootstrap/cycle3/rtl64";
         PascalPlatform: "win";
         PositionIndependentCode: False;
         ObjectDirectory: "Win64";
@@ -60,14 +62,15 @@ Environment Tools TargetCPU[x86_64] {
         LibraryPaths: ["/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"];
         LinkerOptions: ["-rpath=$ORIGIN"];
         // Set these values from the installed native Linux package SDK.
-        PackageSDKPath: "/mnt/c/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-sdk-linux";
+        PackageSDKPath: "";
         PackageSDKIdentity: "";
         PackageLibraryPaths: [
-            @Tools.Native.PackageSDKPath + "/packages",
             "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"
         ];
         FPCCompiler: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/bin/ppcx64";
         RTLPath: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/units/x86_64-linux/rtl";
+        ForgeCompilerPath: @Tools.Native.FPCCompiler;
+        ForgeRTLPath: @Tools.Native.RTLPath;
         PascalPlatform: "unix";
         PositionIndependentCode: True;
         ObjectDirectory: "Linux64";

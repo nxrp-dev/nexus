@@ -2242,16 +2242,16 @@ begin
   begin
     lBad := Copy(lEncoded);
     case lIndex of
-      0: SetLength(lBad, 39);
+      0: SetLength(lBad, NexusPackageEnvelopeSize - 1);
       1: lBad[0] := 0;
-      2: lBad[7] := Ord('2');
+      2: lBad[7] := Ord('1');
       3: Put(lBad, 8, 2);
       4: Put(lBad, 12, 0);
       5: Put(lBad, 12, Length(lRaw) - 1);
       6: Put(lBad, 16, Length(lEncoded));
-      7: lBad[20] := lBad[20] xor 1;
+      7: lBad[NexusPackageEnvelopeSize] := lBad[NexusPackageEnvelopeSize] xor 1;
       8: SetLength(lBad, Length(lBad) - 1);
-      9: lBad[40] := lBad[40] xor 1;
+      9: lBad[High(lBad)] := lBad[High(lBad)] xor 1;
       10:
         begin
           SetLength(lBad, Length(lBad) + 1);
@@ -2283,7 +2283,7 @@ begin
   Save(lDirectory + 'sample.nxp', MetadataText(lEncoded));
   AContext.AssertEquals(lRawText, MetadataText(ReadPackageMetadata(lDirectory + 'sample.nxpl')));
   Save(lDirectory + 'sample.nxp', EncodedMetadata(lRawText + 'different build'));
-  RejectImage('Sidecar from a different build');
+  RejectImage('Sidecar with inconsistent metadata lengths');
   Save(lDirectory + 'sample.nxp', MetadataText(lEncoded));
   lImage[Length(lImage)] := Chr(Ord(lImage[Length(lImage)]) xor 1);
   Save(lDirectory + 'sample.nxpl', lImage);

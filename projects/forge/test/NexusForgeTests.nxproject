@@ -10,59 +10,69 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../nxbuild/language/nxbuild.Language.nxscript";
-
+module "../../nxbuild/nxbuild.environment.nxscript";
 Project NexusForgeTests {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "NexusForgeTests.lpr";
-    OutputRoot: "../../../output/NexusForgeTests/x86_64-win64";
-
-    Toolchain NexusFPC {
-        CompilerPath: "../../../../tools/nexus-fpc/build/forge-bootstrap/cycle3/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
+    RootDirectory: "../../..";
+    OutputRoot: "output/NexusForgeTests/" + @Tools.Native.Name;
+    FPC Application {
+        CompilerPath: @Tools.Native.ForgeCompilerPath;
+        SourceFiles: ["projects/forge/test/NexusForgeTests.lpr"];
+        OutputPath: @NexusForgeTests.OutputRoot;
         Config Options { DisableDefaultConfigFiles: True; }
-        Debug Symbols { LineInfo: Enabled; }
+        Language Pascal { Mode: ObjFPC; }
+        Assembler Native TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {
-            ExecutableOutputPath: @NexusForgeTests.OutputRoot;
-            UnitOutputPath: @NexusForgeTests.OutputRoot + "/units";
-            UnitPaths: [
-                ".",
-                "../src",
-                "../../nxpackage/src",
-                "../../../packages/nexus-packages/nxscript/src",
-                "../../../packages/nexus-packages/nxtest/src",
-                "../../../packages/nexus-packages/serialization/src",
-                "../../../packages/nexus-packages/serialization/json/src",
-                "../../../packages/nexus-packages/network/json-rpc/src",
-                "../../../packages/nexus-packages/core/src",
-                "../../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../../../tools/nexus-fpc/build/forge-bootstrap/cycle3/rtl64",
-                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/inc",
-                "../../../../tools/nexus-fpc/packages/rtl-generics/src",
-                "../../../../tools/nexus-fpc/packages/rtl-extra/src/inc",
-                "../../../../tools/nexus-fpc/packages/rtl-extra/src/win",
-                "../../../../tools/nexus-fpc/packages/fcl-base/src",
-                "../../../../tools/nexus-fpc/packages/fcl-base/src/win",
-                "../../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../../packages/nexus-packages/fcl-process/src",
-                "../../../../tools/nexus-fpc/compiler",
-                "../../../../tools/nexus-fpc/packages/paszlib/src",
-                "../../../../tools/nexus-fpc/packages/hash/src",
-                "../../../../tools/nexus-fpc/packages/fcl-hash/src"
-            ];
-            IncludePaths: [
-                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/inc",
-                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/win",
-                "../../../../tools/nexus-fpc/packages/rtl-objpas/src/x86_64",
-                "../../../../tools/nexus-fpc/packages/rtl-extra/src/inc",
-                "../../../../tools/nexus-fpc/packages/rtl-extra/src/win",
-                "../../../../tools/nexus-fpc/packages/fcl-base/src",
-                "../../../../tools/nexus-fpc/packages/fcl-base/src/win",
-                "../../../../tools/nexus-fpc/packages/fcl-base/src/dummy",
-                "../../../packages/nexus-packages/fcl-process/src/win"
-            ];
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            UnitPaths: [@Tools.Native.ForgeRTLPath,
+                "projects/forge/src", "packages/nexus-packages/nxtest/src",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Base",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Checksum",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2BParams",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2SParams",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash128",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash32",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash64",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2BParams",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2SParams",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/KDF",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Misc",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/NullDigest",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Facade",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Utils",
+                "projects/nxpackage/src",
+                "projects/nxbuild/src",
+                "packages/nexus-packages/nxscript/src",
+                "packages/nexus-packages/serialization/src",
+                "packages/nexus-packages/serialization/json/src",
+                "packages/nexus-packages/network/json-rpc/src",
+                "packages/nexus-packages/core/src",
+                "packages/nexus-packages-ext/mustache/external/dmustache",
+                "packages/nexus-packages/db/sqlite/src/bindings",
+                "packages/nexus-packages/serialization/fcl-json/src",
+                "packages/nexus-packages/fcl-process/src",
+                @Tools.NexusFPC.SourcePath + "/compiler",
+                @Tools.NexusFPC.SourcePath + "/packages/paszlib/src",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src",
+                @Tools.NexusFPC.SourcePath + "/packages/pthreads/src",
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/" + @Tools.Native.PascalPlatform];
+            IncludePaths: [@Tools.NexusFPC.SourcePath + "/rtl/inc",
+                "packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src",
+                @Tools.NexusFPC.SourcePath + "/packages/pthreads/src",
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/dummy",
+                "packages/nexus-packages/fcl-process/src/" + @Tools.Native.PascalPlatform];
         }
     }
 }

@@ -56,7 +56,7 @@ type
 
 implementation
 
-uses SysUtils, sha1, utNXSetupStreams, utNXSetupFiles, obNXSetupModel;
+uses SysUtils, HlpHashFactory, utNXSetupStreams, utNXSetupFiles, obNXSetupModel;
 
 constructor TNXSetupInstalledFile.Create(const APath: string; AKeep: Boolean);
 begin
@@ -87,9 +87,13 @@ begin
 end;
 
 class function TNXSetupState.Folder(const ARoot, AProductId: string): string;
+var
+  lBytes: TBytes;
 begin
+  SetLength(lBytes, Length(AProductId));
+  if AProductId <> '' then Move(AProductId[1], lBytes[0], Length(AProductId));
   Result := IncludeTrailingPathDelimiter(ExpandFileName(ARoot)) +
-    '.nx' + PathDelim + 'setup' + PathDelim + SHA1Print(SHA1String(AProductId));
+    '.nx' + PathDelim + 'setup' + PathDelim + LowerCase(THashFactory.TCrypto.CreateSHA1.ComputeBytes(lBytes).ToString(False));
 end;
 
 function TNXSetupState.FindFile(const APath: string): TNXSetupInstalledFile;

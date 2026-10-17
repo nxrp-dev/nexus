@@ -1,7 +1,12 @@
 # Work Plan: HashLib4Pascal Package and Hash Consumer Audit
 
-Status: Proposed for owner review. After approval, execute the full scope in one pass.
+Status: Approved by the owner ("make it so"); implementation pass completed with
+native SDK/bootstrap verification limits recorded in the matching review.
 Date: 2026-10-17.
+
+Implementation results and source-verified corrections to the initial inventory
+are in [the implementation review](../reviews/hashlib4pascal-package-and-hash-consumer-audit.md).
+The prospective instructions below preserve the approved planning record.
 
 ## Inputs
 
@@ -22,7 +27,8 @@ Date: 2026-10-17.
   This supersedes both the request's SHA-1 preservation/source-substitution
   requirements and the previous plan's compiler separation and sidecar identity
   scheme. The broader package import, ordinary consumer migration and private
-  PasZLib CRC remain in scope. The plan is not yet approved.
+  PasZLib CRC remain in scope. The owner subsequently approved implementation
+  with "make it so".
 - Root `AGENTS.md`, `.ai/standards/pascal.md`,
   `.ai/protocols/architecture-change.md`, `.ai/protocols/codex-workplan-format.md`,
   `work/README.md`, and `work/plans/_template.md`.

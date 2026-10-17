@@ -1019,11 +1019,26 @@ begin
   end;
 end;
 
+procedure TestStatePathHash(AContext: TNXTestContext);
+var
+  lRoot: string;
+begin
+  lRoot := IncludeTrailingPathDelimiter(ExpandFileName('.')) + '.nx' + PathDelim +
+    'setup' + PathDelim;
+  AContext.AssertEquals(lRoot + 'a9993e364706816aba3e25717850c26c9cd0d89d',
+    TNXSetupState.Folder('.', 'abc'), 'Existing SHA-1 state path');
+  AContext.AssertEquals(lRoot + 'da39a3ee5e6b4b0d3255bfef95601890afd80709',
+    TNXSetupState.Folder('.', ''), 'Empty product ID');
+  AContext.AssertEquals(lRoot + 'edf40502887390d51182acc5a1b7b0d356a0b5c6',
+    TNXSetupState.Folder('.', 'product' + #$C3 + #$A9 + #0 + #$FF), 'Raw bytes, including NUL');
+end;
+
 procedure RegisterSetupTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NexusSetup');
+  lSuite.AddTest('StatePathHash', @TestStatePathHash);
   lSuite.AddTest('NativeModelAndLifetime', @TestModel);
   lSuite.AddTest('SelectionClosure', @TestSelection);
   lSuite.AddTest('ExclusiveChildren', @TestExclusive);
