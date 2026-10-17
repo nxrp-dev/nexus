@@ -34,6 +34,9 @@ Date: 2026-10-17.
   `4b7ff0a218ef79dbf467c7c29d8947a7c1029f4e`, and Lab
   `2f7cf1cf1164698b08d58a5a07f254271f56e435`. Existing unrelated changes are
   excluded from the plan commit.
+- This architecture revision updates plan commit `358006f`. Bootstrap/metadata
+  call sites were re-read in the current source, including the owner's ongoing
+  unrelated compiler changes; none of those files is edited by this handoff.
 - NexusFPC's `NexusFPC.Forge*.nxscript`, Forge package build templates and
   `projects/forge/doc/contracts.md`, the runtime-loading SDK guide in Lab,
   PasZLib's `README.md` and `CONSOLIDATION.md`, and root `ATTRIBUTIONS.md`.
@@ -447,18 +450,20 @@ the codec import that unit directly; NXPackageFile must not re-export aliases.
 This unit has no file I/O, codec, compression or hash dependency.
 
 Use one build-role conditional, `NEXUS_BOOTSTRAP`, on the compiler programs
-built for bootstrap. In FPCP, exclude the metadata codec import and the actual
-OpenPCP/SavePCP metadata I/O implementations in that role. Gate package input
-and `-FP` at their existing parser/option entry points with a clear unsupported
-in bootstrap diagnostic; do not advertise FPC_HAS_DYNAMIC_PACKAGES. A defensive
-call into package I/O must fail explicitly, never return an empty/fake package.
+built for bootstrap. Exclude the FPCP import and the existing branches that
+actually use TPCPPackage in PModules, FPPU and PkgUtil. FPCP and its package
+metadata processor/codec must not be compiled into that role at all. Gate
+package input and `-FP` at their existing parser/option entry points with a
+clear unsupported-in-bootstrap diagnostic; do not advertise
+FPC_HAS_DYNAMIC_PACKAGES. The ordinary Load_Packages call sites may remain,
+with the bootstrap branch doing no work for an empty package list and rejecting
+a nonempty one. Never fabricate an empty/fake package or substitute a loader.
 
-Keep the ordinary NXU reader and the small package-related type declarations
-that FPPU/PkgUtil currently reference where they are needed. Do not turn this
-into a wholesale removal of package code from every compiler unit. The aim is
-to eliminate the codec dependency and unavailable capability from bootstrap,
-not to invent an interchangeable metadata service, plugin, callback registry,
-runtime mode switch or dependency framework.
+Keep the ordinary NXU reader and the small shared FPkg/GlobType declarations
+that the general module model actually needs. Only the existing package
+capability branches change; no wholesale compiler rewrite is proposed. No
+interchangeable metadata service, plugin, callback registry, runtime mode
+switch, duplicate class model or dependency framework is introduced.
 
 The same source can then be compiled normally, without NEXUS_BOOTSTRAP, by the
 verified bootstrap compiler. The compiler doing that compilation reads ordinary
@@ -648,16 +653,19 @@ of which compiler build stage consumes it.
 ### 3. Correct bootstrap and metadata dependencies, then build the normal compiler
 
 1. Move the real constants to tpNXPackageFormat and update constant-only
-   consumers. Add the one bootstrap-role conditional at the existing package
-   entry/I/O boundaries. Keep ordinary NXU compilation intact.
+   consumers, including test helpers that currently import them via the codec.
+   Add the one bootstrap-role conditional at existing package entry/loader
+   branches. Keep ordinary NXU compilation intact.
 2. Remove the SHA-1 codec operations and implement the specified versioned
    envelope/build-identity comparison in existing codec/FPCP/Forge owners.
    Update embedded/sidecar tests and rebuild diagnostics; preserve ordinary
    SHA-1 consumers and publication SHA-256 semantics.
-3. Remove nxpackagefile.pas from initial bootstrap source staging, together with
-   metadata compression/hash staging and UnitPaths. Stage the codec and
-   canonical PasZLib only when constructing the normal compiler. No Hlp source
-   is staged into either compiler role. Clean all variant unit directories.
+3. Exclude FPCP/package metadata processing and nxpackagefile.pas from initial
+   bootstrap source closure/staging, together with metadata compression/hash
+   staging and UnitPaths. Specifically exclude fpcp.pas, pcp.pas and
+   nxpackagefile.pas from the bootstrap source fixture, then stage those sources
+   and canonical PasZLib only for the normal compiler. No Hlp source is staged
+   into either compiler role. Clean all variant unit directories.
 4. Use the stock FPC 3.2.2 seed to build bootstrap-role seed/native/generation
    compilers and static RTL through Forge in an isolated checkout. Require
    codec, PasZLib and legacy/HashLib source and compiled units to be unavailable
@@ -667,8 +675,12 @@ of which compiler build stage consumes it.
    closure and matching RTL. Verify an isolated normal self-rebuild, ordinary
    compilation, package creation and consumption. Never compare bootstrap and
    normal binaries for equality or distribute the bootstrap binary.
-6. Rewire Bootstrap output, cross compiler builds, release tools, SDK compiler
-   copy and release/identity checks to the normal compiler. Drop Stage_hash;
+6. Rebuild Forge against the revised no-SHA-1 codec before asking it to inspect
+   the new SDK/package envelopes. Its existing SHA-256 implementation can remain
+   temporarily until the ordinary HashLib migration below; that is not a
+   compiler-bootstrap source dependency. Rewire Bootstrap output, cross compiler
+   builds, release tools, SDK compiler copy and release/identity checks to the
+   normal compiler. Drop Stage_hash;
    retain a narrow PasZLib path for bin2obj rather than broad unused paths.
 7. Rebuild available SDKs/providers/consumers against the new envelope; validate
    source-free consumption, embedded and sidecar association, and old-format
@@ -695,8 +707,9 @@ not be reported as proof that the default package works.
 ### 5. Migrate ordinary consumers in dependency order
 
 1. Forge's ordinary artifact/SDK SHA-256 hashing and revised codec consumption.
-   Compare all stable hash/identity inputs with the baseline before publishing
-   any newly built SDK/provider distribution.
+   Compare fixed byte-input hash vectors with the baseline. Newly rebuilt
+   compiler/envelope bytes legitimately produce new artifact/SDK hashes; retain
+   the established hashing algorithm, canonical input ordering and case.
 2. Setup state path hashing and its deterministic tests; prove existing state
    discovery, not just agreement between two newly changed methods.
 3. Torrent info/piece hashing and test helpers; test bytes containing zeros and
@@ -739,19 +752,22 @@ artifacts, not files that already exist.
 ### Commands and host prerequisites
 
 Use installed Nexus nxbuild and Forge binaries, selected explicitly as
-`HASH_NXBUILD` and `HASH_NXFORGE`. Set `HASH_NEXUS_ROOT` to the Nexus checkout
-and configure the new package recipe with absolute SDK/work/output paths.
+`HASH_NXBUILD` and `HASH_NXFORGE`. Set `HASH_NEXUS_ROOT` to Nexus and
+`HASH_FPC_ROOT` to NexusFPC, and configure the recipes with absolute
+SDK/work/output paths.
 On this host NexusFPC is the sibling `../nexus-fpc`; checked-in Windows guides
 use `tools/nexus-fpc`. Resolve the actual configured path, not a guessed extra
 `../..` that happens to fit another machine. No automatic downloads or symlink
 source-layout workaround is part of the plan.
 
-From Nexus on Linux, once a matching SDK is supplied:
+From Nexus on Linux, run the planned bootstrap closure/capability checks with
+the configured native host prerequisites, then the package checks once a
+matching normal-compiler SDK is available:
 
 ```sh
+"$HASH_NXFORGE" /input="$HASH_FPC_ROOT/tests/bootstrap/NXBootstrapClosureTests.Forge.nxscript" /targets=TargetOS:linux,TargetCPU:x86_64
 "$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages-ext/hashlib4pascal/HashLib4Pascal.Forge.nxscript" /targets=Build:Package,TargetOS:linux,TargetCPU:x86_64
 "$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages-ext/hashlib4pascal/HashLib4Pascal.Forge.nxscript" /targets=Build:Tests,TargetOS:linux,TargetCPU:x86_64
-"$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages-ext/hashlib4pascal/tests/HashSeedCompatibility.Forge.nxscript" /targets=TargetOS:linux,TargetCPU:x86_64
 "$HASH_NXBUILD" /action=build /project=packages/nexus-packages-ext/hashlib4pascal/tests/HashLib4PascalTests.nxproject
 "$HASH_NXBUILD" /action=build /project=../nexus-fpc/packages/paszlib/tests/PasZLibTests.nxproject
 "$HASH_NXBUILD" /action=build /project=packages/nexus-packages/graphics/fcl-image/FCLImage.nxpackage
@@ -761,13 +777,16 @@ From Nexus on Linux, once a matching SDK is supplied:
 "$HASH_NXBUILD" /action=build /project=packages/nexus-packages/network/torrent/test/NexusNetTorrentTests.nxproject
 ```
 
-The seed compatibility Forge recipe explicitly selects
-`/usr/lib/x86_64-linux-gnu/fpc/3.2.2/ppcx64`, that installation's matching RTL,
-Math/StrUtils dependencies, `-n`, the canonical Hlp SHA-1 source closure and
-PasZLib/compiler metadata sources. It compiles/runs byte and envelope probes
-without any compiled Nexus runtime packages or legacy hash units. A second
-NexusFPC invocation uses its own matching RTL. The probe recipe uses ordinary
-existing FPC/Run/Compare Forge operations, not a new shell wrapper.
+The bootstrap closure recipe selects stock
+`/usr/lib/x86_64-linux-gnu/fpc/3.2.2/ppcx64` and that installation's matching RTL
+for the seed, then the matching NexusFPC RTL for subsequent stages. It uses
+`-n`, explicit unit paths and clean output directories. The bootstrap source
+fixture excludes FPCP/PCP metadata processing, the codec, PasZLib and all legacy/HashLib source and
+compiled-unit paths. Compile ordinary programs/units and the bootstrap compiler
+itself in that closure; record loaded units and reject accidental package use.
+Only the subsequent normal compiler/metadata fixtures receive the codec and
+canonical PasZLib, still without any general-purpose hash package. The recipe
+uses existing FPC/Run/Compare operations, not a new shell wrapper or framework.
 
 For Windows, use the configured current Forge executable and an isolated
 NexusFPC checkout in the documented layout:
@@ -776,16 +795,19 @@ NexusFPC checkout in the documented layout:
 & $hashForge /input=NexusFPC.Forge.nxscript /targets=Build:Bootstrap
 & $hashForge /input=NexusFPC.Forge.nxscript /targets=Build:Tools
 & $hashForge /input=NexusFPC.Forge.nxscript /targets=Build:PackageSDK
+& $hashForge /input=$hashBootstrapRecipe /targets=TargetOS:win64,TargetCPU:x86_64
 & $hashForge /input=$hashPackageRecipe /targets=Build:Package,TargetOS:win64,TargetCPU:x86_64
 & $hashForge /input=$hashPackageRecipe /targets=Build:Tests,TargetOS:win64,TargetCPU:x86_64
-& $hashForge /input=$hashSeedRecipe /targets=TargetOS:win64,TargetCPU:x86_64
 ```
 
-`$hashPackageRecipe` and `$hashSeedRecipe` are the absolute paths to the two
-new recipes above. The Windows seed recipe explicitly checks stock
+`$hashPackageRecipe` and `$hashBootstrapRecipe` are the absolute paths to the
+new package and bootstrap test recipes above. Rebuild/select the Forge binary
+with the revised codec before the SDK/publication steps; an old Forge reader
+cannot validate NXPM0002. The Windows bootstrap recipe explicitly checks stock
 `C:/fpc/3.2.2/bin/i386-win32/ppc386.exe` and its own units before the Win64
-native compiler generations. The checked-in full Bootstrap target is not a
-Linux-native command; do not claim otherwise. Native Linux whole-compiler
+bootstrap-role generations, followed by the normal compiler. The checked-in
+full Bootstrap target is not a Linux-native command; do not claim otherwise.
+Native Linux whole-compiler
 bootstrap requires a verified Forge host configuration. Select and validate
 the available configuration during implementation. Missing configuration/SDK
 construction is an explicit target limitation, not a reason to introduce make,
@@ -809,16 +831,24 @@ as legacy baselines after authorization, without deleting useful coverage.
 | PasZLib CRC | `123456789` -> `CBF43926`; empty, nil with zero/nonzero seed, non-nil zero length, arbitrary initial seed, binary buffers and split continuation; all table entries/pointer stability, independent zlib comparison |
 | ZIP/GZIP | Both low-level gzio/zip/unzip and zstream/zipper APIs; stored/deflated/empty/multiple entries; little-endian stored CRC/trailer fields; corrupted CRC rejected according to current API; retained Zip64 coverage; independent archive encode/decode and password ZIP fixture |
 | Compression self-containment | Clean ordinary and dotted builds with no hash or HashLib paths and no stale matching units; actual imports/closure inspected; retained tests use byte equality |
-| NXPM0001 | Historical compressed envelopes and sidecars; 40-byte header and exact SHA-1 offset; old/new encode/decode compatibility and unchanged fixed-input envelope bytes; tampered digest, truncation, corrupt payload and sidecar mismatch rejected |
-| Stock seed/compiler | FPC 3.2.2 source probes, real isolated Forge bootstrap on an available supported host, generation equality, all compiler/tool/cross source paths resolved; no runtime package construction cycle |
-| Forge SDK/artifacts | Fixed-input SHA-256/serialization ordering unchanged; same captured identity inputs produce the same fingerprints; existing fresh-build GUID behavior retained; invalid manifests/provider hashes still fail without selecting a new generation |
+| NXPM0002 | Embedded and sidecar roundtrips; bounded variable identity header; invalid mode/length/identity, truncated image/stream and incorrect zlib check rejected; old NXPM0001 explicitly rejected with rebuild advice; no SHA-1 field or legacy decoder |
+| Metadata structure/association | Retain NXP checksum, CPU/target/SDK/name, embedded NXU bounds and exact dependency identities; reject equal-sized valid sidecar from another same-name/same-SDK generation and envelope-versus-decoded BuildIdentity mismatch; preserve image-descriptor and manifest checks |
+| Stock seed/bootstrap | FPC 3.2.2 and isolated Forge seed/native/cycle compiler builds with FPCP/PCP metadata processing, codec, PasZLib, legacy hash and HashLib unavailable; actual loaded-unit/object closure proves absence, not merely omitted search flags; plain static programs/RTL still compile |
+| Bootstrap capability | Reject `.nxpk` and RequiredPackages/`-FP` explicitly; no dynamic-package capability macro; ordinary NXU checks remain, including existing internal FPCHash checksums |
+| Normal compiler | Verified bootstrap builds normal source with package capability and self-contained PasZLib, no SHA-1/HashLib codec dependency; normal self-rebuild, SDK nxrtl build and source-free package consumer succeed; only normal compiler is published or used for package SDK/cross/release work |
+| Generation comparisons | Bootstrap cycle2/cycle3 compiler and RTL objects compare with identical role/settings; normal self-build comparison is separate; no minimal/full binary equality claim |
+| Forge SDK/artifacts | SHA-256 algorithms, case and input ordering unchanged for fixed byte inputs; fresh metadata/compiler bytes correctly change artifact hashes and SDK identity; new GUID behavior retained; old-envelope/malformed/mismatched bundles fail without selecting a new generation |
 | Setup | Preexisting `.nx/setup/<lowercase-sha1>` location found; byte encoding and non-ASCII product IDs; no automatic state migration or changed directory algorithm |
 | Torrent | Fixed raw bencoded info slice, zero/high-byte payloads, 20-byte hashes, percent-encoded/wire consumers unchanged, cross-file pieces and corruption; test helper independent expected values |
 | Coverage failures | Prove a failure before fixing; distinguish invalid test expectations from real bugs; record missing target/tool prerequisites explicitly; never weaken a format assertion to obtain a pass |
 
 Focused searches after changes must show no `crc`/`System.Hash.Crc`, Hlp unit,
 HashLib package or legacy hash search path in the PasZLib runtime/test closure.
-Compiler/Forge seed closure must have no legacy SHA-1 after migration. Other
+Bootstrap closure must exclude FPCP/PCP metadata processing, NXPackageFile,
+ZBase/ZCompres/ZInflate and every general-purpose hashing package, including
+Hlp units. Internal FPCHash/NXU integrity code is not such a package and remains
+where required for ordinary compilation. The later codec must have no SHA-1 or
+HashLib import. Forge's ordinary SHA-256 consumer is classified separately. Other
 legacy references remain only in classified retained services/tests or explicit
 unresolved blockers. Source search must cover namespace wrappers, scripts,
 catalog descriptors and editor search-path records, not just Pascal uses.
@@ -840,14 +870,15 @@ console test.
    disposable nxrtl images do not prove a complete matching SDK. If a new SDK
    construction path or shared RTL ownership change is unavailable within this
    scope, record the concrete target limitation in the completed results.
-3. **Compiler source prerequisite is explicit.** The
-   selected SHA-1 migration makes the explicitly pinned External Packages
-   source available to bootstrap staging. It does not depend on compiled
-   packages or create a second maintained import. Initial approval covers this
-   source prerequisite and its Forge staging changes.
-4. **FPC's declared minimum is not execution proof.** Stock seed, inline SIMD,
-   platform helpers, current SyncObjs/generics sources and package ownership
-   require the specified builds. No build/test was run in this planning turn.
+3. **Actual bootstrap constraints are source coupling and output selection.**
+   Constant-only clients import the codec; TPCPPackage branches sit inside the
+   ordinary loader; SDK/tools/cross currently select cycle3. Correct these
+   concrete sites and verify the two compiler roles. No inherent technical
+   blocker requiring metadata or a hash provider in bootstrap was found.
+4. **Source inspection is not execution proof.** Stock bootstrap exclusion,
+   normal compiler capability, the format transition and ordinary HashLib
+   SIMD/platform/package behavior need their specified builds. No build or
+   test was run in this planning revision.
 5. **Zipper has raw-state CRC uses.** Consolidating only complemented APIs can
    preserve simple roundtrips yet break password processing; independent
    encrypted fixtures and raw-byte update vectors are required.
@@ -858,6 +889,14 @@ console test.
    PEM, HOTP/TOTP, HKDF, UUID, NTLM and Unix crypt retain their current ownership
    because replacing those services is outside this plan. No absence of ordinary application uses
    authorizes deleting their tests, APIs or original source packages.
+8. **Sidecar identity is not payload authentication.** New associations use the
+   existing unique generation identity; zlib and structural checks validate
+   accidental corruption. Published byte integrity remains the manifest's job.
+   Tests must not claim those checks authenticate arbitrary replacement data.
+9. **The envelope transition requires a coordinated rebuild.** An old normal
+   compiler or Forge reader must not be mixed with new SDK/provider envelopes.
+   Reject old storage versions; do not preserve a SHA-1 decoder simply to avoid
+   rebuilding development artifacts. Ordinary Setup/torrent formats stay intact.
 
 ## Execution
 
@@ -867,6 +906,7 @@ No implementation starts during the planning handoff.
 Once the owner approves the plan, complete its entire implementation and
 verification scope in one pass, without intermediate approval gates. The
 completion report includes the import, private PasZLib CRC, consumer migrations,
+bootstrap/normal-compiler separation, metadata format/association correction,
 test/build evidence and residual dependency inventory. Legacy packages remain
 intact under the defined non-goals; there is no additional retirement approval
 step inside this work.
