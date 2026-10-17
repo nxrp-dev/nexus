@@ -318,10 +318,10 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC FCL Reg",
+      "Name" : "FCL Registry",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
-      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-registry\\src"
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/fcl-registry/src"
     },
     {
       "Class" : "TNXPasSearchPathTemplate",

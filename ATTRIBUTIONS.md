@@ -382,6 +382,94 @@ repository rather than constituting additional forks.
   `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-image/fpmake.pp`.
   Retired make/fpmake machinery is not restored.
 
+### FCL Net
+
+- **Credit:** Sebastian Guenther, Michael Van Canneyt and the Free Pascal
+  development team; Frederic Kehrein for the 2024 `fpsockets` implementation.
+  `cnetdb.pas` preserves the University of California, Berkeley and Digital
+  Equipment Corporation notices from its C networking header lineage.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-net`. Exact original upstream import revision/date are unknown.
+  The reviewed NexusFPC revision is `86b61cc9dd212d58802a77383f6264bd2de1f9a5`;
+  the most recent visible source normalization is
+  `6c5bd2eef00b97fe12e5b1e87310ec60313b8c52` (2026-10-14).
+- **Fork/import date:** relocated on **2026-10-17**, after the separately
+  authorized retirement of unused `fpSock`/`HTTPSvlt` async consumers. All 25
+  remaining source/test/documentation files were copied and hash-verified
+  before implementation changes. The untouched current tree and SHA-256
+  inventory are in Nexus `output/fcl-net-review/baseline` and
+  `baseline-hashes.json`; no source archive is added to the repository.
+- **Our location/status:** Packages `network/fcl-net`; seven runtime units,
+  original namespace wrappers/platform includes and useful tests retained.
+  The former NexusFPC package path is historical. Demonstrations remain in
+  Nexus Lab. Synapse's Unix backend uses `netdb`; the shared OpenSSL wrappers
+  and Nexus Synapse TLS adapter use `sslbase`. The other FCL socket APIs remain
+  intact by explicit owner choice, with a consolidation recommendation in
+  the package's saved code review.
+- **SPDX:** principal FPC/FCL units use
+  `LGPL-2.1-only WITH Independent-modules-exception`; `resolve.pas` explicitly
+  grants `GPL-1.0-or-later`. `cnetdb.pas` retains `BSD-4-Clause` and an additional
+  DEC permission/disclaimer notice, whose exact SPDX mapping is not inferred.
+  New Nexus infrastructure/tests use `MPL-2.0-no-copyleft-exception`.
+- **Evidence/notices:** original per-file headers; `COPYING.FPC` copied from
+  NexusFPC `packages/COPYING.FPC`, and `COPYING.txt` from `rtl/COPYING.txt`.
+  Historical package metadata is recoverable at
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-net/fpmake.pp`.
+  Retired Make/fpmake machinery is not restored.
+
+### FCL Registry
+
+- **Credit:** Michael van Canneyt and the Free Pascal development team,
+  including the contributors named in the retained source headers (1999–2022).
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-registry`. Exact original upstream import revision/date are
+  unknown. Reviewed NexusFPC revision:
+  `86b61cc9dd212d58802a77383f6264bd2de1f9a5`; latest visible source normalization
+  `6c5bd2eef00b97fe12e5b1e87310ec60313b8c52` (2026-10-14).
+- **Fork/import date:** relocated on **2026-10-17**. All 15 original runtime,
+  wrapper and test files were copied and SHA-256 checked before implementation
+  changes. An untouched local snapshot and hash inventory are in Nexus
+  `output/fcl-registry-review/baseline` and `baseline-hashes.json`; the saved
+  package review records the individual hashes and before/after results.
+- **Our location/status:** Packages `fcl-registry`; native Windows registry
+  backend and portable XML emulation retained. Former NexusFPC package path
+  is historical. Demonstrations remain in Nexus Lab; compiler test fixtures
+  remain with compiler tests. Production consumers include Windows COM support,
+  Abbrevia ZIP associations and Synapse serial-port integration.
+- **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception` for the FPC/FCL
+  runtime; new Nexus infrastructure and direct nxtest regressions use
+  `MPL-2.0-no-copyleft-exception`.
+- **Evidence/notices:** original source headers, `COPYING.FPC` from NexusFPC
+  `packages/COPYING.FPC`, and `COPYING.txt` from `rtl/COPYING.txt` are retained.
+  Historical package author/dependency/license metadata is available at
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-registry/fpmake.pp`.
+  Retired Make/fpmake machinery is not restored.
+
+### Retired FCL Async
+
+- **Credit:** Areca Systems GmbH / Sebastian Guenther (2001–2005), with
+  Michaël Van Canneyt and other Free Pascal contributors recorded in source history.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-async`. The most recent upstream package commit visible before
+  Nexus changes is `2784c71b220de16a7d36bff7d1bd94c44013086a`
+  (2026-01-01; comment corrections). This is lineage evidence.
+- **Fork/import date:** original fork date unknown. Relocated on **2026-10-17**
+  from NexusFPC `86b61cc9dd212d58802a77383f6264bd2de1f9a5`. All seven original
+  files were copied and hash-verified before implementation changes. Retired
+  later the same day after verifying that no production Nexus code used it.
+- **Our location/status:** former NexusFPC `packages/fcl-async` and Nexus
+  `packages/nexus-packages/fcl-async` removed, including package registrations,
+  build recipes and dedicated tests. The unused FCL Net `fpSock` and `HTTPSvlt`
+  units, their namespace wrappers, and their dependent Lab demonstrations and
+  RPC helpers were also removed. No source or verification archive is retained;
+  the original package remains recoverable from the NexusFPC revision above.
+- **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception`.
+- **Evidence/notices:** original source headers in that revision, with the
+  NexusFPC package notice `packages/COPYING.FPC` and LGPL text `rtl/COPYING.txt`.
+  Historical authorship, license and Unix platform metadata are available at
+  `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-async/fpmake.pp`.
+  Retired Make/fpmake files are not restored.
+
 ### FCL Process
 
 - **Credit:** Michael van Canneyt and the Free Pascal development team, as

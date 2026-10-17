@@ -9,13 +9,13 @@ These rules apply to the whole repository.
 
 ## Local Notifications
 
-- When a task completes or user input is needed, run `repo-automation\Notify-Codex.ps1` with a spoken sentence.
+- On Windows, when a task completes or user input is needed, run `..\nexus-private\scripts\windows\Notify-Codex.ps1` with a spoken sentence.
 
 ## Scripts
 
 - Lazarus and `lazbuild` are not part of the Nexus toolchain. Do not use them or add `.lpi` project files. Use the Nexus build tools and NexusFPC; older Lazarus build instructions are obsolete.
-- You may execute scripts from the /repo-automation folder.
-- When asked for a fresh archive use the ps script New-NexusSourceArchive.ps1.
+- Development helpers live in the sibling `../nexus-private/scripts` folder; you may execute them within the authorized task scope.
+- When asked for a fresh archive, use `../nexus-private/scripts/linux/new-nexus-source-archive.py` on Linux or `../nexus-private/scripts/windows/New-NexusSourceArchive.ps1` on Windows.
 - For NexusFPC builds, use the Forge projects in `../tools/nexus-fpc/NexusFPC.Forge.nxscript`; commands and prerequisites are in `../tools/nexus-fpc/NexusFPC.Forge.md`. `Build:Bootstrap` performs the native bootstrap; `Build:Cross` selects one cross target; `Build:Release` assembles the completed matrix and runtime-package SDK. Validate full rebuilds in an isolated checkout. The make bootstrap helpers and makefile regeneration workflow are retired.
 
 ## Scope

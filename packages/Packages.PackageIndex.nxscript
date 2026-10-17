@@ -61,6 +61,16 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/db/sqlite/Package.nxscript";
         Description: "SQLite bindings, connections and write-through datasets.";
     }
+    LocalPackage FCLNet {
+        Id: "NXRP.Network.FCLNet";
+        Descriptor: "nexus-packages/network/fcl-net/Package.nxscript";
+        Description: "Resolver and TLS support used by Synapse, plus retained FCL socket APIs.";
+    }
+    LocalPackage FCLRegistry {
+        Id: "NXRP.FCLRegistry";
+        Descriptor: "nexus-packages/fcl-registry/Package.nxscript";
+        Description: "Native Windows registry access with portable XML registry emulation.";
+    }
     LocalPackage FCLProcess {
         Id: "NXRP.FCLProcess";
         Descriptor: "nexus-packages/fcl-process/Package.nxscript";

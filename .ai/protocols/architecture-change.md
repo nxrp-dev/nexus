@@ -134,10 +134,16 @@ When reporting completion, include what compiled and what focused greps showed. 
 
 After completing an approved architecture implementation pass, Codex creates a fresh archive automatically before the final response.
 
-Use:
+From the Nexus repository, use the helper in sibling `nexus-private`:
 
-```text
-repo-automation\New-NexusSourceArchive.ps1
+```bash
+python3 ../nexus-private/scripts/linux/new-nexus-source-archive.py
+```
+
+On Windows:
+
+```powershell
+..\nexus-private\scripts\windows\New-NexusSourceArchive.ps1
 ```
 
 Archives are checkpoints around meaningful architecture milestones. They are not a substitute for compile/test verification, and they do not authorize new work.
