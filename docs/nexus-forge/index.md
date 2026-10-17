@@ -17,7 +17,7 @@ infers database behavior.
 
 Maintained inputs live with their owners:
 
-- `projects/forge/language/` and `projects/forge/examples/`: Forge definitions and build examples.
+- `projects/forge/language/` and `../nexus-lab/examples/build/orchestration/`: Forge definitions and build examples.
 - `projects/bothost/`: BotHost schema task, configuration, tables, and Firebird template.
 - `projects/csv/`: CSV compiler configuration, templates, lookup inputs, and task example.
 - `projects/schema/`: Schema dialect and retained Schema examples.
@@ -29,7 +29,7 @@ lazbuild projects\forge\NexusForge.lpi
 lazbuild projects\csv\NexusCSV.lpi
 $env:PATH = (Resolve-Path output\NexusCSV\x86_64-win64).Path + ';' + $env:PATH
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=projects/csv/examples/Lookup.Forge.nxscript
+  /input=../nexus-lab/examples/data/csv/Lookup.Forge.nxscript
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
   /input=projects/bothost/BotHost.Forge.nxscript /targets=TargetDB:Firebird
 ```

@@ -47,7 +47,7 @@ begin
     lForm.WindowPosition := wpUser;
     lForm.Left := 80;
     lForm.Top := 80;
-    lForm.LoadFile(ExpandFileName('projects/setup/examples/Nexus.nxscript'));
+    lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Nexus.nxscript'));
     lForm.Show;
     fpgApplication.ProcessMessages;
     AContext.AssertEquals(5, Integer(lForm.Tree.RootNodeCount), 'UI expands only the owned feature roots.');
@@ -77,7 +77,7 @@ var
 begin
   lForm := TNXSetupMainForm.Create(nil);
   try
-    lForm.LoadFile(ExpandFileName('projects/setup/examples/Nexus.nxscript'));
+    lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Nexus.nxscript'));
     lForm.LoadFile(ExpandFileName('projects/setup/test/fixtures/Nexus.nxscript'));
     AContext.AssertEquals(7, Integer(lForm.Tree.TotalCount), 'Reload replaces owned nodes rather than appending.');
     lDocument := lForm.Document;
@@ -105,7 +105,7 @@ begin
     lForm.WindowPosition := wpUser;
     lForm.Left := 80;
     lForm.Top := 80;
-    lForm.LoadFile(ExpandFileName('projects/setup/examples/Nexus.nxscript'));
+    lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Nexus.nxscript'));
     lForm.Destination.Directory := lRoot;
     lForm.Show;
     lRejected := False;
@@ -115,7 +115,7 @@ begin
     AContext.AssertTrue(not lForm.Busy and lForm.Tree.Enabled and lForm.CloseQuery,
       'Failure restores the local busy state and controls.');
     AContext.AssertTrue(not DirectoryExists(lRoot), 'Rejected operations do not write payload files.');
-    lForm.LoadFile(ExpandFileName('projects/setup/examples/Files.nxscript'));
+    lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Files.nxscript'));
     lForm.ExecuteOperation(sopInstall);
     AContext.AssertTrue(not lForm.Busy, 'Installation completes before ExecuteOperation returns.');
     AContext.AssertTrue(Pos('Installed.', lForm.Status.Text) = 1, lForm.Status.Text);
@@ -143,7 +143,7 @@ begin
     lForm.WindowPosition := wpUser;
     lForm.Left := 80;
     lForm.Top := 80;
-    lForm.LoadFile(ExpandFileName('projects/setup/examples/Files.nxscript'));
+    lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Files.nxscript'));
     lForm.Show;
     AContext.AssertTrue(lForm.Page = swpWelcome, 'A loaded installer begins at Welcome.');
     AContext.AssertTrue(not lForm.Tree.Parent.Visible, 'Component selection is not shown on Welcome.');
@@ -190,7 +190,7 @@ begin
   lRoot := ExpandFileName(lWork + '/installed');
   lForm := TNXSetupMainForm.Create(nil);
   try
-    lForm.LoadFile(ExpandFileName('projects/setup/examples/Nexus.nxscript'));
+    lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Nexus.nxscript'));
     lForm.Destination.Directory := lRoot;
     lForm.NextButton.OnClick(lForm.NextButton);
     lForm.NextButton.OnClick(lForm.NextButton);

@@ -88,7 +88,7 @@ end;
 
 function Example(const AName: string): string;
 begin
-  Result := Root + 'projects/nxpackage/examples/' + AName + '.nxscript';
+  Result := Root + '../nexus-lab/examples/packages/catalogs/' + AName + '.nxscript';
 end;
 
 procedure TestEntityExamples(AContext: TNXTestContext);
@@ -184,7 +184,7 @@ end;
 procedure LoadProjectionExample(ADocument: TNXPackageDocument);
 begin
   ADocument.LoadSource(Example('Package'),
-    'dialect "../language/nxpackage.Language.nxscript";' + LineEnding +
+    'dialect "../../../../nexus/projects/nxpackage/language/nxpackage.Language.nxscript";' + LineEnding +
     'Package Example { Id: "NXRP.NexusScript"; Requires: []; }');
 end;
 
@@ -220,7 +220,7 @@ begin
     lTree.FocusedNode := lRequires;
     lTree.Selected[lRequires] := True;
     lDocument.LoadSource(Example('RepositoryIndex'),
-      'dialect "../language/nxpackage.Language.nxscript";' + LineEnding +
+      'dialect "../../../../nexus/projects/nxpackage/language/nxpackage.Language.nxscript";' + LineEnding +
       'RepositoryIndex Example {}');
     AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
     lTree.LoadDocument(lDocument.CompiledDocument);
@@ -373,7 +373,7 @@ begin
       AContext.AssertEquals(cLabels[lIndex], lHost.Editor.Text[lHost.Editor.GetFirst, 1]);
       AContext.AssertFalse(lHost.Editor.Document.Dirty);
       AssertSourceView(AContext, lHost.SourceView, lHost.Editor.Document.SourceText);
-      AContext.AssertTrue(Pos('dialect "../language/nxpackage.Language.nxscript";',
+      AContext.AssertTrue(Pos('dialect "../../../../nexus/projects/nxpackage/language/nxpackage.Language.nxscript";',
         lHost.SourceView.Text) > 0, 'The text view includes the dialect declaration.');
       AContext.AssertTrue(Pos('// Copyright (c) 2026 Kevin Collins.',
         lHost.SourceView.Text) > 0, 'The text view includes source comments.');
@@ -495,7 +495,7 @@ begin
   lChoices := TStringList.Create;
   try
     lHost.Editor.LoadSource(Example('Package'),
-      'dialect "../language/nxpackage.Language.nxscript";' + LineEnding +
+      'dialect "../../../../nexus/projects/nxpackage/language/nxpackage.Language.nxscript";' + LineEnding +
       'Package P { Id: "NXRP.P"; }');
     AContext.AssertTrue(lHost.Validation.Validated, lHost.Validation.Diagnostics.Text);
     lHost.Editor.GetPropertyChoices(lHost.Editor.GetFirst, lChoices);

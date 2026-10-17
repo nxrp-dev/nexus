@@ -32,12 +32,12 @@ The existing `output/nxbuild/x86_64-win64/nxbuild.exe` builds nxbuild into
 Forge builds into `output/NexusForge-next/x86_64-win64`, without replacing the
 running Forge executable. Promoting either replacement is a separate operation.
 
-The script builds applications, test executables/modules, samples, the LLVM
+The script builds applications, test executables/modules, the LLVM
 bzip2/C++ check, and NexusCode's JavaScript bundle. It does not run the tests,
 launch applications, install dependencies, deploy extensions, or publish.
 Groups execute in declaration order and stop at the first failure.
-Small Forge/nxbuild compiler fixtures and the Lazarus-only example are not
-components in this build list.
+Examples are organized by Nexus capability in [nexus-lab](../nexus-lab/README.md),
+with their own `NexusLab.Forge.nxscript` build entry point.
 
 Prerequisites are the existing Forge/nxbuild runners, sibling NexusFPC checkout
 with built RTL/FCL units, package checkouts, LLVM, the Windows SDK/CRT paths

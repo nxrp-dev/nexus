@@ -13,7 +13,7 @@ module "Installation.nxscript";
 
 // Shared FPC configuration; Tiny supplies its own entry point and output.
 FPC StandardFPC {
-    Template: "../../../../../projects/forge/examples/FPC.mustache";
+    Template: "../../../../../projects/forge/templates/FPC.mustache";
     Compiler: @Installation.Compiler;
     UnitPaths: [
         @Installation.Units + "/rtl",

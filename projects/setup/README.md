@@ -33,7 +33,7 @@ Build/run from the repository root:
 ```powershell
 lazbuild projects\setup\NexusSetup.lpi
 lazbuild projects\setup\NexusSetupBuilder.lpi
-& .\output\NexusSetup\x86_64-win64\NexusSetup.exe projects\setup\examples\Files.nxscript
+& .\output\NexusSetup\x86_64-win64\NexusSetup.exe ..\nexus-lab\examples\deployment\installers\Files.nxscript
 ```
 
 Use Next to choose an absolute installation folder and select components, then
@@ -48,7 +48,7 @@ install files directly, but only bundled installations retain payload for repair
 Build a standalone installer:
 
 ```powershell
-& .\output\NexusSetupBuilder\x86_64-win64\NexusSetupBuilder.exe projects\setup\examples\Files.nxscript output\NexusSetup\x86_64-win64\NexusSetup.exe output\FileExampleSetup.exe
+& .\output\NexusSetupBuilder\x86_64-win64\NexusSetupBuilder.exe ..\nexus-lab\examples\deployment\installers\Files.nxscript output\NexusSetup\x86_64-win64\NexusSetup.exe output\FileExampleSetup.exe
 ```
 
 Additional builder arguments are selected targets in `Name=Value` form.
@@ -70,7 +70,7 @@ These commands write only when explicitly invoked. Exit code is zero for success
 and nonzero for failure. The Windows GUI executable has no console; use
 `--log` for the operation result.
 
-The separate `examples/Nexus.nxscript` uses real Nexus sources, cyclic feature
+The separate `../../../nexus-lab/examples/deployment/installers/Nexus.nxscript` uses real Nexus sources, cyclic feature
 requirements, shared VS Code and an owned VSIX declaration. It is an inspection
 fixture, **not a complete Nexus distribution manifest**. Its dependency package
 sources are illustrative, not usable acquisition/provider configurations.

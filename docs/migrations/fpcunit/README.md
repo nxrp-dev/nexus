@@ -51,8 +51,9 @@ hash are recorded beside it. Archive SHA-256:
 
 Both archives and every recorded file hash were verified after the conversion.
 Source-specific notices remain in the archived and maintained material.
-The shared FPC distribution notices remain with NexusFPC packages and RTL. Canonical upstream
-credit, revision/date evidence, locations and mixed license status are recorded
+The shared FPC distribution notices remain with NexusFPC packages and RTL.
+Canonical upstream credit, revision/date evidence, locations and mixed license
+status are recorded
 in [Nexus attributions](../../../ATTRIBUTIONS.md#retired-fpcunit-and-retained-test-conversion).
 The FPCUnit files last changed at NexusFPC
 `6c5bd2eef00b97fe12e5b1e87310ec60313b8c52` (2026-10-14); that is local lineage,
@@ -164,3 +165,8 @@ The original source archives and their manifests above remain byte-for-byte
 unchanged. Raw migration build/run logs and their evidence archive were
 removed at the owner's request. `results.json` retains the compact verified
 totals. This is an internal maintainer record.
+
+The ownership cleanup was rebuilt and executed on Linux: all 18 suites retain
+identical test IDs, with 3,887 passes, zero failures/errors and two unchanged
+skips. Both fpGUI suites ran on the local display. No raw logs or evidence
+archive were added back to the source tree.

@@ -1,7 +1,0 @@
-{
-  "Class": "TNXBotHostLaunchConfig",
-  "AutoStart": true,
-  "BotName": "NexusBot",
-  "ControllerFile": "NexusBotController.example.json",
-  "RoomJID": "nexus-test@conference.nexus.local"
-}

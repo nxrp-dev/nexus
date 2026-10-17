@@ -52,7 +52,7 @@ record is not a version-specific bill of materials for every installation.
 | FPC | [nxrp-dev/nexus-fpc](https://github.com/nxrp-dev/nexus-fpc) | `C:\gitdev\tools\nexus-fpc` |
 | Pascal | [nxrp-dev/nexus-pascal](https://github.com/nxrp-dev/nexus-pascal) | `C:\gitdev\tools\nexus-pascal` |
 | Engine | [nxrp-dev/nexus-mobile](https://github.com/nxrp-dev/nexus-mobile) | `C:\gitdev\Nexus2D` |
-| Lab | [nxrp-dev/Rogue](https://github.com/nxrp-dev/Rogue) | `C:\gitdev\nexus-lab` |
+| Lab | [nxrp-dev/nexus-lab](https://github.com/nxrp-dev/nexus-lab) | sibling `nexus-lab` checkout |
 
 The Engine and Lab repository names above are their verified current Git remotes;
 their checkout names differ. This record does not rename them. Temporary compiler
@@ -959,3 +959,39 @@ source, licenses, author lists, upstream READMEs, and asset notices were not edi
 Pre-consolidation documentation and the verification manifest are retained locally at
 `C:\backup\Attributions-20261010`. Git history remains the durable record of the edits.
 
+
+## Centralized Nexus examples
+
+On **2026-10-16**, 1,926 existing example files were relocated to Lab
+`examples/`, organized by Nexus capability. Another 15 production Forge
+templates/shared build modules moved within Nexus to `projects/forge/templates`.
+Every original file was SHA-256 checked after copying and before its old copy
+was removed. This is a relocation, not a new upstream fork or a license change.
+Test-only fixtures remain with their tests. Original import dates and historical
+paths in the preceding entries remain part of the record.
+
+The source revisions below identify the local material at relocation. The
+preceding component entries supply original upstream URLs, credited authors,
+original import evidence and individual license expressions. The imported
+source headers, asset notices and consumed metadata remain with the material;
+ancestor license, copyright, author and notice files were also copied into the
+destination collections' `notices/` directories.
+
+| Supplier / credited authors | Verified source revision | Original source / current Lab location | SPDX / attribution context |
+| --- | --- | --- | --- |
+| [Nexus](https://github.com/nxrp-dev/nexus) / Kevin Collins | `f158194650bb` | Tool `projects/*/examples`, example BotHost configurations and `tools/workspace-index/example` → `examples/{build,packages,deployment,automation,data,workspace}` | `MPL-2.0-no-copyleft-exception`, retained file headers |
+| [Nexus Packages](https://github.com/nxrp-dev/nexus-packages) / Nexus, FPC, fpGUI and AggPas authors credited above | `4ac014d0d126` | JSON/XML/database/image/process, NexusUI, fpGUI/AggPas, OpenSSL/XMPP and Solar2D examples → `examples/{data,graphics,system,gui,network,mobile}` | Mixed collection; preceding FPC, fpGUI, AggPas, OpenSSL and Lua entries and per-file notices apply |
+| [Nexus External Packages](https://github.com/nxrp-dev/nexus-packages-ext) / TRegExpr and Pascal zlib contributors credited above | `ebb7f0dc8e88` | `regexpr/external/tregexpr/examples` → `examples/text/regular-expressions`; `compression/paszlib/external/paszlib/examples` → `examples/data/compression/paszlib-external` | Existing TRegExpr and Pascal zlib attribution and retained notices apply |
+| [NexusFPC](https://github.com/nxrp-dev/nexus-fpc) / Free Pascal contributors and Nexus package-example authors | `2400de82f87d` | `examples/dynamic-packages` → `examples/packages/runtime-loading`; package examples → `examples/{runtime,data,graphics,text,system,network}` | FPC's component-specific `GPL-2.0-or-later` / LGPL with independent-module exception terms and Pascal JPEG notices remain authoritative; no single expression asserted for all examples |
+| [Nexus Mobile](https://github.com/nxrp-dev/nexus-mobile) / Corona, Solar2D and the inherited component authors above | `3f303e61d4b6` | Android/iOS native samples and vendored MPG123, Sundown, ALmixer, Vorbis, earlier OpenAL, LuaSQLite3, zlib, ANGLE and YRK progress demos → `examples/{mobile,audio,text,data,graphics,gui}` | Mixed inherited collection; Engine component table, source/asset notices and copied distribution licenses apply |
+| [Corona native samples](https://github.com/coronalabs/submodule-native) / Corona Labs, Solar2D and contributors | `8c668a18404e` | Engine `subrepos/enterprise/contents/Samples` → `examples/mobile/native` | `MIT` / individual source and asset notices; original adoption unknown, existing submodule revision is relocation evidence |
+| [OpenAL Soft](https://github.com/coronalabs/openal-soft) / Chris Robinson and contributors | `89a62f015362` | Engine `external/openal-soft/examples` → `examples/audio/openal` | Existing OpenAL entry and source-specific notices, including example terms, apply |
+| [MetalANGLE](https://github.com/coronalabs/metalangle) / ANGLE, MetalANGLE and Chromium contributors | `acb3ae751239` | Engine `external/MetalANGLE/samples` and iOS samples (including `ios/xcode/MGLPaint`) → `examples/graphics/{metalangle,metalangle-ios}` | `BSD-3-Clause` foundation with retained individual notices; inherited Engine component attribution applies |
+| [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) / Khronos and SPIRV-Cross contributors | `f38cbeb814c7` | MetalANGLE `third_party/spirv-cross/src/samples` → `examples/graphics/spirv` | `Apache-2.0`, copied `LICENSE` and source headers; original adoption unknown, nested repository revision is relocation evidence |
+| [LuaSocket](https://github.com/coronalabs/submodule-luasocket) / Diego Nehab and contributors | `c7566c83d0ef` | Engine `external/luasocket/samples` → `examples/network/lua-sockets` | `MIT`, existing LuaSocket attribution and copied notices |
+
+In particular, the unchanged DejaVu LGC Sans example font and its license now
+live at Lab `examples/graphics/images/DejaVuLGCSans.ttf` and
+`examples/graphics/images/DejaVuLGCSans.LICENSE.txt`; the earlier image-package
+entry records their original provenance. The runtime packages and compiler
+remain in their owning repositories and are consumed from the examples.

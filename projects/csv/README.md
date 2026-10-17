@@ -4,10 +4,26 @@
 artifact. Forge invokes it through the same native-command path as FPC. Neither
 Forge nor the NexusScript compiler parses CSV or understands SQL output.
 
+Build with nxbuild and NexusFPC from the Nexus root. The recipe uses the shared
+installation settings in `projects/nxbuild/nxbuild.environment.nxscript` and writes
+to `output/NexusCSV/<cpu>-<os>`.
+
+On Linux:
+
+```sh
+./output/nxbuild-next/x86_64-linux/nxbuild /action=build /project=projects/csv/NexusCSV.nxproject
+./output/NexusCSV/x86_64-linux/nxcsv \
+  /input=../nexus-lab/examples/data/csv/data/lookup/STATE.csv \
+  /template=projects/csv/templates/SQL.mustache \
+  /output=output/state.sql /name=STATE_TBL
+```
+
+On Windows:
+
 ```powershell
-lazbuild projects\csv\NexusCSV.lpi
+& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/csv/NexusCSV.nxproject
 & .\output\NexusCSV\x86_64-win64\nxcsv.exe `
-  /input=projects/csv/examples/data/lookup/STATE.csv `
+  /input=../nexus-lab/examples/data/csv/data/lookup/STATE.csv `
   /template=projects/csv/templates/SQL.mustache `
   /output=output/state.sql /name=STATE_TBL
 ```
@@ -43,15 +59,30 @@ template supplied to nxcsv.
 Source, SourceTemplate, and Output are native tool arguments relative to the task
 working directory. Compiler defaults to `nxcsv` on PATH and can be supplied explicitly.
 
-The ready-to-run CSV task is `projects/csv/examples/Lookup.Forge.nxscript`.
+The ready-to-run CSV task is `../nexus-lab/examples/data/csv/Lookup.Forge.nxscript`.
 Put the built executable directory on PATH and run that Forge document. It writes
 `generated/state.sql` on each run.
 
 CSV process and SQL/plain-text tests are registered in the existing Forge suite.
-Build NexusCSV before running that suite. Shared reader regressions also run in
+The root Forge `Tests` group builds NexusCSV before the Forge test executable.
+When building the test executable directly, build NexusCSV first with the command
+above. The test requires the tool under `output/NexusCSV/<cpu>-<os>/nxcsv`
+(`nxcsv.exe` on Windows), matching the test host; a missing tool is a failed
+prerequisite. It runs the real executable to check quoting, delimiters, error
+propagation and preservation of an existing artifact after invalid input.
+Shared reader regressions also run in
 NexusScript's existing external-data tests; both consumers use
 `packages/nexus-packages/serialization/delimited-text/src/utNXDelimitedText.pas`
 (the JSON implementation is under `packages/nexus-packages/serialization/json/src`).
+
+## Verified 2026-10-16
+
+The native Linux executable built with NexusFPC SDK `3175c76fba` and nxbuild;
+the existing Forge `CSVTool` integration test passed. The build verification
+selected that SDK's matching compiler and RTL in an ignored recipe. The full
+Forge suite passed 54/54 after fixing Unix child-status decoding and copied-file
+permissions, including two added Unix regressions. The Windows build plan selects
+`x86_64-win64/nxcsv.exe`; Windows compilation and execution were not run here.
 
 ## Verified 2026-09-15
 
@@ -63,8 +94,8 @@ NexusScript's existing external-data tests; both consumers use
 - Installer tasks materialized successfully with Forge and nxcsv build/install steps.
   Full installer staging and packaging were not run.
 
-NexusSchema source/project/tests are retired. CSV configuration, templates,
-examples, and lookup inputs are owned by this project; test-only/invalid fixtures
-remain with their suites.
+NexusSchema source/project/tests are retired. CSV configuration and templates
+are owned by this project. Examples and lookup inputs live in
+`../nexus-lab/examples/data/csv`; test-only fixtures remain with their suites.
 The existing NexusScript external-source manifest adapter uses the same delimited
 reader; it is not a second implementation of CSV parsing.

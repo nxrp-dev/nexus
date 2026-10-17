@@ -17,7 +17,7 @@ program NexusForgeTests;
 
 uses
   Classes, SysUtils, obNXTestRegistry, obNXTestSuite, obNXTestResult,
-  tsNXForgeTests;
+  tsNXForgeTests {$IFDEF UNIX}, BaseUnix{$ENDIF};
 
 procedure Run;
 var
@@ -53,7 +53,6 @@ end;
 begin
   if ParamStr(1) = 'child' then
   begin
-    HeapTrc.GlobalSkipIfNoLeaks := True;
     if ParamStr(2) = 'streams' then
     begin
       Write(StringOfChar('O', 1048576));
@@ -65,6 +64,12 @@ begin
       WriteLn(StdErr, 'failure');
       ExitCode := 7;
     end
+    {$IFDEF UNIX}
+    else if ParamStr(2) = 'signal' then
+    begin
+      if fpKill(fpGetPid, SIGKILL) <> 0 then RaiseLastOSError;
+    end
+    {$ENDIF}
     else WriteLn('ok');
   end
   else Run;

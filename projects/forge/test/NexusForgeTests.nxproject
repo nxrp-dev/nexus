@@ -21,7 +21,6 @@ Project NexusForgeTests {
         CompilerPath: "../../../../tools/nexus-fpc/build/forge-bootstrap/cycle3/ppcx64.exe";
     }
     FPCBuildOptions Compiler {
-        RawOptions: ["-gh"];
         Config Options { DisableDefaultConfigFiles: True; }
         Debug Symbols { LineInfo: Enabled; }
         Files Paths {

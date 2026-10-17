@@ -9,7 +9,7 @@ The shared read-only validator lives in `src/obNXPackageContractValidator.pas`;
 there is no dependency from this project to the Forge executor.
 
 Build with `lazbuild projects/nxpackage/nxpackage.lpi`. Open the
-application and choose a file from `projects/nxpackage/examples/`, or pass
+application and choose a file from `../nexus-lab/examples/packages/catalogs/`, or pass
 an example filename on the command line. The editable pane embeds the reusable
 `TNXScriptEditor` widget. F2 or double-click edits a value or definition name;
 right-click or Insert offers the actions allowed by the document's dialect.

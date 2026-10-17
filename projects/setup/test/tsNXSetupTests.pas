@@ -288,7 +288,7 @@ procedure TestSourceReplay(AContext: TNXTestContext);
 var
   lDocument, lReplay: TNXSetupDocument;
 begin
-  lDocument := TNXSetupLoader.LoadFile(ExpandFileName('projects/setup/examples/Nexus.nxscript'));
+  lDocument := TNXSetupLoader.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Nexus.nxscript'));
   lReplay := nil;
   try
     AContext.AssertTrue(lDocument.SourceContext.Sources.Count >= 4,

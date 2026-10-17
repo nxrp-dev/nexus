@@ -131,10 +131,10 @@ passed to the compiler, which reports missing or invalid input as usual.
 ## Planning and execution
 
 ```powershell
-nxbuild /action=plan /project=projects/nxbuild/examples/Hello.nxproject
-nxbuild /action=build /project=projects/nxbuild/examples/Hello.nxproject
-nxbuild /action=plan /project=projects/nxbuild/examples/Mixed.nxpackage
-nxbuild /action=build /project=projects/nxbuild/examples/Mixed.nxpackage
+nxbuild /action=plan /project=../nexus-lab/examples/build/native/Hello.nxproject
+nxbuild /action=build /project=../nexus-lab/examples/build/native/Hello.nxproject
+nxbuild /action=plan /project=../nexus-lab/examples/build/native/Mixed.nxpackage
+nxbuild /action=build /project=../nexus-lab/examples/build/native/Mixed.nxpackage
 ```
 
 Optional `/targetos=<os>` and `/targetcpu=<cpu>` select the requested target.
@@ -145,7 +145,7 @@ uses its own platform, not the underlying machine's hardware. Values are
 normalized to lowercase. Explicit flags require nonempty values.
 
 ```powershell
-nxbuild /action=plan /project=projects/nxbuild/examples/Abbrevia.nxpackage /targetos=linux /targetcpu=x86_64
+nxbuild /action=plan /project=../nexus-lab/examples/build/native/Abbrevia.nxpackage /targetos=linux /targetcpu=x86_64
 ```
 
 nxbuild supplies these values to the existing NexusScript target selection as
@@ -216,7 +216,7 @@ The supplied regression cases and the former codec probes now use nxtest under
 Current full-suite results and remaining failures are recorded there. The older
 52-check verification below is historical codec-only evidence.
 
-`examples/Abbrevia.nxpackage` uses the same three ordered entries on Windows
+`../../../nexus-lab/examples/build/native/Abbrevia.nxpackage` uses the same three ordered entries on Windows
 and Linux:
 
 1. LLVM compiles 30 LZMA, PPMd and WavPack C sources to objects in one invocation.
@@ -233,8 +233,8 @@ The LZMA sources retain their existing threading configuration.
 Run from the Nexus repository root on Windows:
 
 ```powershell
-output/nxbuild-next/x86_64-win64/nxbuild.exe /action=plan /project=projects/nxbuild/examples/Abbrevia.nxpackage
-output/nxbuild-next/x86_64-win64/nxbuild.exe /action=build /project=projects/nxbuild/examples/Abbrevia.nxpackage
+output/nxbuild-next/x86_64-win64/nxbuild.exe /action=plan /project=../nexus-lab/examples/build/native/Abbrevia.nxpackage
+output/nxbuild-next/x86_64-win64/nxbuild.exe /action=build /project=../nexus-lab/examples/build/native/Abbrevia.nxpackage
 output/nxbuild-next/x86_64-win64/nxbuild.exe /action=build /project=packages/nexus-packages-ext/compression/abbrevia/test/AbbreviaTests.nxproject
 output/nxbuild-abbrevia/x86_64-win64/pascal/AbbreviaTests.exe packages/nexus-packages-ext/compression/abbrevia/test/testfiles
 ```

@@ -18,6 +18,7 @@ Environment Tools TargetCPU[x86_64] {
     Platform Native TargetOS[win64] {
         Name: "x86_64-win64";
         OS: "win64";
+        ExecutableSuffix: ".exe";
         LLVMCompiler: "C:/Program Files/LLVM/bin/clang.exe";
         CompilerUtilitiesPath: "C:/Program Files/LLVM/bin";
         Triple: "x86_64-pc-windows-msvc";
@@ -51,6 +52,7 @@ Environment Tools TargetCPU[x86_64] {
     Platform Native TargetOS[linux] {
         Name: "x86_64-linux";
         OS: "linux";
+        ExecutableSuffix: "";
         LLVMCompiler: "/usr/bin/clang-18";
         CompilerUtilitiesPath: "/usr/bin";
         Triple: "x86_64-unknown-linux-gnu";

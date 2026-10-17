@@ -93,7 +93,7 @@ From the repository root, with working `fpc` and `git` executables on PATH:
 ```powershell
 lazbuild projects\forge\NexusForge.lpi
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=projects\forge\examples\Build.nxscript
+  /input=..\nexus-lab\examples\build\orchestration\Build.nxscript
 ```
 
 The example compiles `hello world & test.lpr` and runs local `git status --short`.
@@ -316,7 +316,7 @@ the declaring document to an absolute path, and the example template quotes the
 entire `/project` argument. Optional `Executable` defaults to `nxbuild` on PATH;
 optional `WorkingDirectory` follows the normal command-operation contract.
 
-The template is `projects/forge/examples/NXBuild.mustache`. The project owns its
+The template is `projects/forge/templates/NXBuild.mustache`. The project owns its
 compiler selection, search paths, compiler options, and output locations. Forge
 does not parse `.nxproject` files or copy their settings into Forge operations.
 nxbuild remains independent of Forge.
@@ -376,7 +376,7 @@ followed by an explicit FPC runtime build and its startup check. Its ordered
 children prepare files directly; no PowerShell builder is involved.
 
 ```powershell
-output/NexusForge-next/x86_64-win64/nxforge.exe /input=projects/forge/examples/AbbreviaLLVM.Forge.nxscript
+output/NexusForge-next/x86_64-win64/nxforge.exe /input=../nexus-lab/examples/build/orchestration/AbbreviaLLVM.Forge.nxscript
 ```
 
 Native tool contracts: [Clang](https://clang.llvm.org/docs/UsersManual.html),
@@ -389,7 +389,7 @@ MSBuild is an ordinary native operation. Its required `Template`, `EntryPoint`,
 resolves from the declaring document to an absolute path. `Executable` defaults to `MSBuild` in
 the example template. Optional `BuildTarget` and text-array `Properties` render
 as `/t:` and `/p:` arguments. The template lives at
-`projects/forge/examples/MSBuild.mustache`. For Nexus2D, the operation values
+`projects/forge/templates/MSBuild.mustache`. For Nexus2D, the operation values
 are `platform/windows/Corona.Simulator.sln`, `Release`, and `x64` when declared
 from the Nexus2D root. Dependency preparation and output staging are separate
 work; this operation alone is not a complete simulator build recipe.
@@ -404,7 +404,7 @@ currently installed tools and assumes the sibling `nexus` and `tools` folders.
 It does not isolate Nexus2D's shared Win32/x64 `Bin/Corona` output directory.
 
 LazBuild, Npm, and InnoSetup are command operations with ForgeDef contracts and
-Mustache examples in `projects/forge/examples/`. `LazBuild.EntryPoint` names the
+Mustache examples in `../nexus-lab/examples/build/orchestration/`. `LazBuild.EntryPoint` names the
 project file; `Npm.Command` is a command such as `ci`, `install`, or `run`, with
 additional tokens in `Arguments`; `InnoSetup.EntryPoint` names the `.iss` file.
 InnoSetup `Defines` and `Arguments` are text arrays, not semicolon-separated
@@ -520,6 +520,9 @@ writes text with LF line endings, matching Task's text-file action.
 `CleanDestination` removes an existing destination directory before copying.
 `ExcludeNames` is an optional semicolon-separated, case-insensitive list of
 exact file or directory names skipped during recursive copying.
+On Unix, copied files retain the source's read, write and execute permission bits,
+including when an existing destination is overwritten. Permission-copy errors fail
+the operation. Ownership and special permission bits are not copied.
 
 `IncludeMasks` optionally limits copied files to a nonempty array of filename
 masks, for example `["*.pas", "*.inc"]`. Each file's basename must match
@@ -682,6 +685,8 @@ output is buffered in memory.
 
 Each invocation records its operation name, resolved template path, command,
 working directory, launch state, separate output, exit status, and diagnostic.
+On Unix, normal exits record the decoded exit code; signal termination records
+128 plus the signal number and fails the operation.
 CLI output marks unstarted entries. Schema and template-preparation failures
 prevent that operation list from launching. Source-selection or final rendering
 failure at execution time, launch failure, or nonzero exit stops subsequent operations.
@@ -691,6 +696,7 @@ Completed output remains available. Success returns exit status 0; failure 1.
 
 ```powershell
 & .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/forge/NexusForge.nxproject
+& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/csv/NexusCSV.nxproject
 & .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/forge/test/NexusForgeTests.nxproject
 & .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
 ```
@@ -699,7 +705,11 @@ These projects use the completed NexusFPC bootstrap at
 `../tools/nexus-fpc/build/forge-bootstrap/cycle3` and compile their required
 package units from source into their own output directories. Forge is written
 to `output/NexusForge-next/x86_64-win64/nxforge.exe`. The tests also require a
-working `fpc` on PATH and the built `output/NexusCSV/x86_64-win64/nxcsv.exe`.
+working NexusFPC `fpc` command on PATH and the built
+`output/NexusCSV/<cpu>-<os>/nxcsv` (`nxcsv.exe` on Windows). The CSV recipe uses the
+shared native installation settings in `projects/nxbuild/nxbuild.environment.nxscript`.
+The root Forge `Tests` group builds that prerequisite before the Forge test project;
+direct builds must build NexusCSV explicitly as shown above.
 Lazarus is not a build dependency. Shared NexusScript changes additionally
 require the NexusScript and language-server suites under their own projects.
 
@@ -707,3 +717,11 @@ The Forge tests compile and execute real Pascal source and exercise NexusScript
 validation, target selection, Group ordering, built-in file tasks,
 and command failure reporting. Compiler bootstrap
 and cross-compilation are separate work.
+
+Verified on Linux on 2026-10-16 with NexusFPC SDK `3175c76fba` and nxbuild:
+the Forge CLI built and all 54 Forge tests passed. The normal-exit and staged
+compiler regressions failed before the fixes. Two added Unix regressions also
+failed before the fixes and passed afterward, covering signal termination and
+permission preservation/removal on file-copy overwrite. Matching compiler/RTL
+paths were selected in ignored verification recipes. Windows execution was not
+verified here.

@@ -27,7 +27,8 @@ uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTest
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
   obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine,
   tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK,
-  utNXForgePackageBuild, obNXForgePackageArtifactReader, tpNXForgePackage, nxpackagefile;
+  utNXForgePackageBuild, obNXForgePackageArtifactReader, tpNXForgePackage, nxpackagefile
+  {$IFDEF UNIX}, BaseUnix{$ENDIF};
 
 function Root: string;
 begin
@@ -173,7 +174,7 @@ begin
   lForge := TNXForge.Create;
   try
     AContext.AssertFalse(lForge.Execute(Root +
-      'projects/nxpackage/examples/Package.nxscript'),
+      '../nexus-lab/examples/packages/catalogs/Package.nxscript'),
       'Package entity is not a Forge task');
     AContext.AssertTrue(Pos('NexusForge dialect', lForge.Diagnostic) > 0,
       lForge.Diagnostic);
@@ -232,11 +233,13 @@ end;
 procedure TestPowerShellOperation(AContext: TNXTestContext);
 var
   lForge: TNXForge;
-  lDirectory, lTemplate, lExpected: string;
+  lDirectory, lTemplate, lExpected, lExecutable: string;
 begin
   lDirectory := TestDir('powershell');
+  lExecutable := StringReplace(ExpandFileName(lDirectory + 'tools/powershell.exe'),
+    '\', '/', [rfReplaceAll]);
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/PowerShell.mustache';
+    'projects/forge/templates/PowerShell.mustache';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { PowerShell Dependencies { Template: "' + lTemplate + '"; ' +
     'EntryPoint: "Build-X64Dependencies.ps1"; } ' +
@@ -254,13 +257,13 @@ begin
 
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'Group Build { PowerShell Dependencies { Template: "' + lTemplate + '"; ' +
-      'Executable: "C:/Tools/powershell.exe"; EntryPoint: "Build-X64Dependencies.ps1"; ' +
+      'Executable: "' + lExecutable + '"; EntryPoint: "Build-X64Dependencies.ps1"; ' +
       'Arguments: ["-CMakePath", "../tools/cmake.exe"]; } ' +
       'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
       'Missing later template prevents the optional form from executing');
     AssertNoLaunch(AContext, lForge);
-    lExpected := '"C:/Tools/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "' +
+    lExpected := '"' + lExecutable + '" -NoProfile -ExecutionPolicy Bypass -File "' +
       ExpandFileName(lDirectory + 'Build-X64Dependencies.ps1') +
       '" "-CMakePath" "../tools/cmake.exe"';
     AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
@@ -273,11 +276,13 @@ end;
 procedure TestMSBuildOperation(AContext: TNXTestContext);
 var
   lForge: TNXForge;
-  lDirectory, lTemplate, lExpected: string;
+  lDirectory, lTemplate, lExpected, lExecutable: string;
 begin
   lDirectory := TestDir('msbuild');
+  lExecutable := StringReplace(ExpandFileName(lDirectory + 'tools/MSBuild.exe'),
+    '\', '/', [rfReplaceAll]);
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/MSBuild.mustache';
+    'projects/forge/templates/MSBuild.mustache';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { MSBuild Simulator { Template: "' + lTemplate + '"; ' +
     'EntryPoint: "Corona.Simulator.sln"; Configuration: Release; Platform: x64; } ' +
@@ -295,14 +300,14 @@ begin
 
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'Group Build { MSBuild Simulator { Template: "' + lTemplate + '"; ' +
-      'Executable: "C:/Tools/MSBuild.exe"; EntryPoint: "Corona.Simulator.sln"; ' +
+      'Executable: "' + lExecutable + '"; EntryPoint: "Corona.Simulator.sln"; ' +
       'Configuration: Release; Platform: x64; BuildTarget: Build; ' +
       'Properties: ["ForgeTest=value with spaces"]; } ' +
       'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
       'Missing later template prevents the optional form from executing');
     AssertNoLaunch(AContext, lForge);
-    lExpected := '"C:/Tools/MSBuild.exe" "' +
+    lExpected := '"' + lExecutable + '" "' +
       ExpandFileName(lDirectory + 'Corona.Simulator.sln') +
       '" "/p:Configuration=Release" "/p:Platform=x64" "/t:Build" ' +
       '"/p:ForgeTest=value with spaces"';
@@ -325,11 +330,13 @@ end;
 procedure TestNXBuildOperation(AContext: TNXTestContext);
 var
   lForge: TNXForge;
-  lDirectory, lTemplate, lExpected: string;
+  lDirectory, lTemplate, lExpected, lExecutable: string;
 begin
   lDirectory := TestDir('nxbuild');
+  lExecutable := StringReplace(ExpandFileName(lDirectory + 'tools & builds/nxbuild.exe'),
+    '\', '/', [rfReplaceAll]);
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/NXBuild.mustache';
+    'projects/forge/templates/NXBuild.mustache';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
     'EntryPoint: "project & source/app.nxproject"; } ' +
@@ -347,13 +354,13 @@ begin
 
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
-      'Executable: "C:/Tools & builds/nxbuild.exe"; ' +
+      'Executable: "' + lExecutable + '"; ' +
       'EntryPoint: "project & source/app.nxproject"; WorkingDirectory: "project & source"; } ' +
       'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
       'Missing later template prevents the explicit form from executing');
     AssertNoLaunch(AContext, lForge);
-    lExpected := '"C:/Tools & builds/nxbuild.exe" /action=build "/project=' +
+    lExpected := '"' + lExecutable + '" /action=build "/project=' +
       ExpandFileName(lDirectory + 'project & source/app.nxproject') + '"';
     AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
       'Explicit nxbuild executable is quoted separately');
@@ -440,7 +447,7 @@ begin
   lDirectory := TestDir('fpc-switches');
   lCompiler := StringReplace(lDirectory, '\', '/', [rfReplaceAll]) + 'missing compiler.exe';
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/FPC.mustache';
+    'projects/forge/templates/FPC.mustache';
   Save(lDirectory + 'input.pas', 'program input; begin end.');
   lForge := TNXForge.Create;
   try
@@ -493,7 +500,7 @@ begin
   ForceDirectories(lDirectory + 'source');
   ForceDirectories(lDirectory + 'include paths');
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/FPC.mustache';
+    'projects/forge/templates/FPC.mustache';
   Save(lDirectory + 'include paths/value.inc', 'cValue = 42;');
   Save(lDirectory + 'source/utOptionalOutput.pas',
     'unit utOptionalOutput; interface const {$I value.inc} implementation end.');
@@ -510,9 +517,9 @@ begin
   try
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
     AContext.AssertEquals(2, lForge.Invocations.Count, 'Unit and program compile');
-    AContext.AssertTrue(FileExists(lDirectory + 'compiled units/utoptionaloutput.nxu'),
+    AContext.AssertTrue(FileExists(lDirectory + 'compiled units/utOptionalOutput.nxu'),
       'Unit output uses the explicit unit directory');
-    AContext.AssertTrue(FileExists(lDirectory + 'optional_output.exe'),
+    AContext.AssertTrue(FileExists(lDirectory + 'optional_output' {$IFDEF WINDOWS} + '.exe' {$ENDIF}),
       'Program finds the compiled unit through UnitPaths and uses normal output naming');
     AContext.AssertEquals(0, Pos('"-o', lForge.Invocations[0].Command),
       'Unit compilation has no executable output switch');
@@ -569,7 +576,7 @@ begin
   lDirectory := TestDir('clang');
   lCompiler := StringReplace(lDirectory, '\', '/', [rfReplaceAll]) + 'missing clang.exe';
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/Clang.mustache';
+    'projects/forge/templates/Clang.mustache';
   Save(lDirectory + 'input & one.c', 'int sample(void) { return 7; }');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Clang Compile { Template: "' + lTemplate + '"; Executable: "' + lCompiler + '"; ' +
@@ -680,11 +687,13 @@ end;
 procedure TestLLVMArOperation(AContext: TNXTestContext);
 var
   lForge: TNXForge;
-  lDirectory, lTemplate: string;
+  lDirectory, lTemplate, lExecutable: string;
 begin
   lDirectory := TestDir('llvm-ar');
+  lExecutable := StringReplace(ExpandFileName(lDirectory + 'tools/LLVM/bin/llvm-ar.exe'),
+    '\', '/', [rfReplaceAll]);
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/LLVMAr.mustache';
+    'projects/forge/templates/LLVMAr.mustache';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { LLVMAr Library { Template: "' + lTemplate + '"; ' +
     'Operation: "rcs"; Output: "library file.lib"; Objects: ["first.obj", "second file.obj"]; } ' +
@@ -700,14 +709,14 @@ begin
 
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
       'Group Build { LLVMAr Library { Template: "' + lTemplate + '"; ' +
-      'Executable: "C:/Tools/LLVM/bin/llvm-ar.exe"; Operation: "rcs"; ' +
+      'Executable: "' + lExecutable + '"; Operation: "rcs"; ' +
       'Output: "library.lib"; Objects: ["object.obj"]; Arguments: ["--format=coff"]; } ' +
       'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
       'Missing later template prevents execution');
     AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
     AssertNoLaunch(AContext, lForge);
-    AContext.AssertEquals('"C:/Tools/LLVM/bin/llvm-ar.exe" "--format=coff" ' +
+    AContext.AssertEquals('"' + lExecutable + '" "--format=coff" ' +
       '"rcs" "library.lib" "object.obj"', lForge.Invocations[0].Command,
       'Explicit archiver and native options render unchanged');
 
@@ -726,15 +735,17 @@ end;
 procedure TestToolOperations(AContext: TNXTestContext);
 var
   lForge: TNXForge;
-  lDirectory, lExamples, lExpected: string;
+  lDirectory, lExamples, lExpected, lExecutable: string;
 begin
   lDirectory := TestDir('tool-operations');
+  lExecutable := StringReplace(ExpandFileName(lDirectory + 'tools/lazbuild.exe'),
+    '\', '/', [rfReplaceAll]);
   lExamples := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/';
+    'projects/forge/templates/';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { LazBuild Compile { Template: "' + lExamples + 'LazBuild.mustache"; ' +
     'EntryPoint: "project/app.lpi"; WorkingDirectory: "project"; ' +
-    'Executable: "C:/Tools/lazbuild.exe"; Quiet: True; BuildAll: True; ' +
+    'Executable: "' + lExecutable + '"; Quiet: True; BuildAll: True; ' +
     'PrimaryConfigPath: "C:/Lazarus Config"; LazarusDirectory: "C:/Lazarus"; } ' +
     'Npm Bundle { Template: "' + lExamples + 'Npm.mustache"; ' +
     'Command: run; Arguments: [esbuild, "--watch=false"]; ' +
@@ -751,7 +762,7 @@ begin
       'Missing later template prevents any tool launch');
     AContext.AssertEquals(4, lForge.Invocations.Count, 'All tool operations prepared');
     AssertNoLaunch(AContext, lForge);
-    lExpected := '"C:/Tools/lazbuild.exe" "--pcp=C:/Lazarus Config" ' +
+    lExpected := '"' + lExecutable + '" "--pcp=C:/Lazarus Config" ' +
       '"--lazarusdir=C:/Lazarus" --quiet --build-all "' +
       ExpandFileName(lDirectory + 'project/app.lpi') + '"';
     AContext.AssertEquals(lExpected, lForge.Invocations[0].Command,
@@ -939,6 +950,65 @@ begin
   end;
 end;
 
+{$IFDEF UNIX}
+procedure TestSignaledProcess(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lDirectory: string;
+begin
+  lDirectory := TestDir('signaled-process');
+  Fixture(lDirectory,
+    'Group Build { Git First { Template: "command.mustache"; Repository: "."; } ' +
+    'WriteTextFile Later { Path: "never.txt"; Text: "never"; } }',
+    ChildCommand('signal'));
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'A process killed by a signal fails the operation');
+    AContext.AssertTrue(lForge.Invocations[0].Exited, 'The child has terminated');
+    AContext.AssertEquals(128 + SIGKILL, lForge.Invocations[0].ExitStatus,
+      'Signal termination uses 128 plus the signal number');
+    AContext.AssertFalse(lForge.Invocations[0].Succeeded, 'Signal termination is not success');
+    AContext.AssertFalse(lForge.Invocations[1].Started, 'Later operation not launched');
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'), 'Later output was not written');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestCopyPermissions(AContext: TNXTestContext);
+const
+  cModes: array[0..1] of Integer = (
+    S_IRUSR or S_IWUSR or S_IXUSR or S_IRGRP or S_IXGRP,
+    S_IRUSR or S_IWUSR or S_IRGRP);
+var
+  lForge: TNXForge;
+  lDirectory: string;
+  lMode: Integer;
+  lStat: Stat;
+begin
+  lDirectory := TestDir('copy-permissions');
+  Save(lDirectory + 'source', 'staged contents');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'CopyFile Stage { Source: "source"; Destination: "copied"; Overwrite: True; }');
+  lForge := TNXForge.Create;
+  try
+    for lMode in cModes do
+    begin
+      if fpChmod(lDirectory + 'source', lMode) <> 0 then RaiseLastOSError;
+      AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+      if fpStat(lDirectory + 'copied', lStat) <> 0 then RaiseLastOSError;
+      AContext.AssertEquals(lMode, lStat.st_mode and (S_IRWXU or S_IRWXG or S_IRWXO),
+        'Copy preserves source permissions, including removal of execute bits on overwrite');
+      AContext.AssertEquals('staged contents', LoadRaw(lDirectory + 'copied'),
+        'Copy preserves file contents');
+    end;
+  finally
+    lForge.Free;
+  end;
+end;
+{$ENDIF}
+
 procedure TestNativeTools(AContext: TNXTestContext);
 var
   lForge: TNXForge;
@@ -948,7 +1018,7 @@ begin
   lDirectory := TestDir('native tools & paths');
   Save(lDirectory + 'hello world & test.lpr', 'program Hello; begin WriteLn(''forge-ok''); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/forge/examples/Shared.nxscript"; ' +
+    'module "' + StringReplace(Root, '\', '/', [rfReplaceAll]) + '../nexus-lab/examples/build/orchestration/Shared.nxscript"; ' +
     'Group Build { FPC Compile (CompileFPC) { Source: ["hello world & test.lpr"]; EntryPoint: "hello world & test.lpr"; Output: "hello world & test.exe"; } ' +
     'Git Inspect (GitStatus) { Repository: "."; } }');
   lInvocation := TNXForgeInvocation.Create;
@@ -1105,7 +1175,7 @@ begin
   Save(lDirectory + 'input/main.pas',
     'program main; uses uStaged; begin WriteLn(cAnswer); end.');
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/examples/FPC.mustache';
+    'projects/forge/templates/FPC.mustache';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { CopyFile Stage { Source: "input"; Destination: "staged"; Recursive: True; } ' +
     'FPC Compile { Template: "' + lTemplate + '"; Source: ["staged/**/*.pas"]; ' +
@@ -1969,8 +2039,11 @@ var
 begin
   lDirectory := TestDir('csv source & output');
   ForceDirectories(lDirectory + 'artifacts');
-  lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/x86_64-win64/nxcsv.exe'), '\', '/', [rfReplaceAll]);
-  AContext.AssertTrue(FileExists(lTool), 'Build projects/csv/NexusCSV.nxproject first');
+  lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/' +
+    LowerCase({$I %FPCTARGETCPU%} + '-' + {$I %FPCTARGETOS%}) + '/nxcsv'
+    {$IFDEF WINDOWS} + '.exe' {$ENDIF}), '\', '/', [rfReplaceAll]);
+  AContext.AssertTrue(FileExists(lTool),
+    'Build projects/csv/NexusCSV.nxproject for the test host first: ' + lTool);
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/csv/templates/SQL.mustache';
   Save(lDirectory + 'source.csv', 'ID,NAME,NOTE' + LineEnding +
     '1,O''Brien,"comma, and ""quote"""' + LineEnding + '2,,' + LineEnding);
@@ -2682,6 +2755,10 @@ begin
   lSuite.AddTest('TemplateComposition', @TestTemplateComposition);
   lSuite.AddTest('TargetsOrderAndRendering', @TestTargetsOrderAndRendering);
   lSuite.AddTest('FailuresAndReuse', @TestFailuresAndReuse);
+  {$IFDEF UNIX}
+  lSuite.AddTest('SignaledProcess', @TestSignaledProcess);
+  lSuite.AddTest('CopyPermissions', @TestCopyPermissions);
+  {$ENDIF}
   lSuite.AddTest('Streams', @TestStreams);
   lSuite.AddTest('NativeTools', @TestNativeTools);
   lSuite.AddTest('WorkingDirectory', @TestWorkingDirectory);

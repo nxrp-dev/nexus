@@ -12,25 +12,25 @@
 dialect "../../../../projects/forge/language/Forge.nxscript";
 
 FPC CompileExample {
-    Template: "../../examples/FPC.mustache";
+    Template: "../../templates/FPC.mustache";
     Source: ["hello world & test.lpr"];
     EntryPoint: "hello world & test.lpr";
     Output: "hello world & test.exe";
 }
 
 Git InspectRepository {
-    Template: "../../examples/Git.mustache";
+    Template: "../../templates/Git.mustache";
     Repository: ".";
 }
 
 MSBuild BuildSimulator {
-    Template: "../../examples/MSBuild.mustache";
+    Template: "../../templates/MSBuild.mustache";
     EntryPoint: "Corona.Simulator.sln";
     Configuration: Release;
     Platform: x64;
 }
 
 PowerShell BuildDependencies {
-    Template: "../../examples/PowerShell.mustache";
+    Template: "../../templates/PowerShell.mustache";
     EntryPoint: "Build-X64Dependencies.ps1";
 }

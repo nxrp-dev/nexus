@@ -318,7 +318,7 @@ begin
     AContext.AssertEquals(lDescription.ResolvePath('units'), lFPC.OutputPath);
     AContext.AssertEquals(lDescription.ResolvePath('objects'), lFPC.Files.ObjectPaths[0]);
     AContext.AssertEquals('', lDescription.ResolvePath(''));
-    lAbsolute := ExpandFileName('projects/nxbuild/examples/Hello.lpr');
+    lAbsolute := ExpandFileName('../nexus-lab/examples/build/native/Hello.lpr');
     AContext.AssertEquals(lAbsolute, lDescription.ResolvePath(lAbsolute));
     {$IFDEF MSWINDOWS}
     AContext.AssertEquals('D:\sources\main.pas', lDescription.ResolvePath('D:\sources\main.pas'));
@@ -780,11 +780,16 @@ end;
 procedure TestCompleteSchema(AContext: TNXTestContext);
 var
   lAnalysis: TNexusScriptAnalysis;
+  lTargets: TNexusScriptTargetSelection;
   lFPC: TNXFPCBuildOptions;
   lLLVM: TNXLLVMBuildOptions;
 begin
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('TargetOS', 'linux');
+  lTargets.Add('TargetCPU', 'x86_64');
   lAnalysis := TNexusScriptAnalysis.Create(
-    ExpandFileName('projects/nxbuild/examples/Mixed.nxpackage'), 1, nil);
+    ExpandFileName('../nexus-lab/examples/build/native/Mixed.nxpackage'), 1, nil, lTargets);
+  lTargets.Free;
   lFPC := TNXFPCBuildOptions.Create;
   lLLVM := TNXLLVMBuildOptions.Create;
   try

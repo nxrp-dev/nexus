@@ -227,7 +227,7 @@ var
 begin
   lDocument := TNXPackageDocument.Create;
   try
-    lDocument.Load(Root + 'projects/nxpackage/examples/Package.nxscript');
+    lDocument.Load(Root + '../nexus-lab/examples/packages/catalogs/Package.nxscript');
     lValid := lDocument.Validate;
     AContext.AssertTrue(lValid, lDocument.Diagnostics.Text);
     AContext.AssertEquals('Package', lDocument.EntityType);
@@ -257,7 +257,7 @@ var
 begin
   lDocument := TNXPackageDocument.Create;
   try
-    lDocument.Load(Root + 'projects/nxpackage/examples/Package.nxscript');
+    lDocument.Load(Root + '../nexus-lab/examples/packages/catalogs/Package.nxscript');
     AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
     lPackage := lDocument.CompiledDocument.FindDefinition('Example');
     AContext.AssertEquals('NXRP.NexusScript', lPackage.FindProperty('Id').Value.EffectiveText);
@@ -434,7 +434,7 @@ var
 begin
   lDocument := TNXPackageDocument.Create;
   try
-    lDocument.Load(Root + 'projects/nxpackage/examples/PackageIndex.nxscript');
+    lDocument.Load(Root + '../nexus-lab/examples/packages/catalogs/PackageIndex.nxscript');
     AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
     lIndex := lDocument.CompiledDocument.Definitions[0];
     AContext.AssertEquals(4, lIndex.Children.Count);
@@ -442,7 +442,7 @@ begin
       lIndex.FindChild('ExternalPackages').FindProperty('Source').Value.EffectiveText);
     AContext.AssertEquals('NXRP.NexusScript', lIndex.FindChild('NexusScript').FindProperty('Id').Value.EffectiveText);
     AContext.AssertEquals('ExternalPackage', lIndex.FindChild('SQLite').Kind);
-    lDocument.Load(Root + 'projects/nxpackage/examples/ExternalRepositoryIndex.nxscript');
+    lDocument.Load(Root + '../nexus-lab/examples/packages/catalogs/ExternalRepositoryIndex.nxscript');
     AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
     lIndex := lDocument.CompiledDocument.Definitions[0];
     AContext.AssertEquals('RepositoryIndex', lDocument.EntityType);
@@ -451,7 +451,7 @@ begin
     AContext.AssertEquals('LocalPackage', lEntry.Kind, 'Local means housed here, not authored by us.');
     AContext.AssertEquals('SQLite.SQLite', lEntry.FindProperty('Id').Value.EffectiveText);
     AContext.AssertEquals('ExternalPackage.nxscript', lEntry.FindProperty('Descriptor').Value.EffectiveText);
-    lDocument.Load(Root + 'projects/nxpackage/examples/ExternalPackage.nxscript');
+    lDocument.Load(Root + '../nexus-lab/examples/packages/catalogs/ExternalPackage.nxscript');
     AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
     AContext.AssertEquals('SQLite.SQLite',
       lDocument.CompiledDocument.Definitions[0].FindProperty('Id').Value.EffectiveText);
@@ -525,7 +525,7 @@ var
 begin
   lDocument := TNXPackageDocument.Create;
   try
-    lDocument.Load(Root + 'projects/nxpackage/examples/RepositoryIndex.nxscript');
+    lDocument.Load(Root + '../nexus-lab/examples/packages/catalogs/RepositoryIndex.nxscript');
     AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
     AContext.AssertEquals('RepositoryIndex', lDocument.EntityType);
     AContext.AssertEquals(4, lDocument.CompiledDocument.Definitions[0].Children.Count);

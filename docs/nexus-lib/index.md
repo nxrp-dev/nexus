@@ -19,7 +19,7 @@ The deterministic Win64 test entry point is `packages/nexus-packages/network/xmp
 fpc -B -Fupackages\nexus-packages\network\xmpp\src -Fupackages\nexus-packages\network\external\synapse -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\fcl-xml -FuC:\lazarus\fpc\3.2.2\units\x86_64-win64\hash -FUoutput\NexusNetXMPPTests\units -FEoutput\NexusNetXMPPTests\bin packages\nexus-packages\network\xmpp\test\NexusNetXMPPTests.lpr
 ```
 
-The explicit live-test client is `packages/nexus-packages/network/xmpp/examples/NexusXMPPConsole.lpr`. It reads its JID, password, CA bundle, and optional endpoint override only from `NEXUS_XMPP_*` environment variables. Applications receive replayable transmitted stanzas that become uncertain after rejected resumption through `OnUnrecoverableStanzas`; NexusXMPP does not resend them automatically. Live server interoperability is not part of the deterministic test claim.
+The explicit live-test client is `../nexus-lab/examples/network/xmpp/NexusXMPPConsole.lpr`. It reads its JID, password, CA bundle, and optional endpoint override only from `NEXUS_XMPP_*` environment variables. Applications receive replayable transmitted stanzas that become uncertain after rejected resumption through `OnUnrecoverableStanzas`; NexusXMPP does not resend them automatically. Live server interoperability is not part of the deterministic test claim.
 
 The retained deterministic and Openfire 5.1.2 live verification record is
 `packages/nexus-packages/network/xmpp/test/NexusNetXMPPTests.md`. The live test entry point is

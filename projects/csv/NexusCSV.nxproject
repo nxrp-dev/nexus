@@ -10,35 +10,46 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
+module "../nxbuild/nxbuild.environment.nxscript";
 
 Project NexusCSV {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "src/NexusCSV.lpr";
-    OutputRoot: "../../output/NexusCSV/x86_64-win64";
+    RootDirectory: "../..";
+    OutputRoot: "output/NexusCSV/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @NexusCSV.OutputRoot + "/nxcsv.exe";
-        RawOptions: ["-gl"];
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/csv/src/NexusCSV.lpr"];
+        OutputPath: @NexusCSV.OutputRoot;
+        RawOptions: ["-onxcsv" + @Tools.Native.ExecutableSuffix];
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
         Config Options { DisableDefaultConfigFiles: True; }
+        Debug Symbols { LineInfo: Enabled; }
+        Assembler Native TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {
-            ExecutableOutputPath: @NexusCSV.OutputRoot;
-            UnitOutputPath: "../../output/NexusCSV/x86_64-win64/units";
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "src",
-                "../../packages/nexus-packages/serialization/src",
-                "../../packages/nexus-packages/serialization/delimited-text/src",
-                "../../packages/nexus-packages/serialization/json/src",
-                "../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../packages/nexus-packages/network/json-rpc/src",
-                "../../packages/nexus-packages/core/src",
-                "../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/csv/src",
+                "packages/nexus-packages/serialization/src",
+                "packages/nexus-packages/serialization/delimited-text/src",
+                "packages/nexus-packages/serialization/json/src",
+                "packages/nexus-packages/serialization/fcl-json/src",
+                "packages/nexus-packages/network/json-rpc/src",
+                "packages/nexus-packages/core/src",
+                "packages/nexus-packages-ext/mustache/external/dmustache",
+                @Tools.Native.RTLPath,
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
+                @Tools.NexusFPC.SourcePath + "/packages/pthreads/src",
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src"
+            ];
+            IncludePaths: [
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
+                @Tools.NexusFPC.SourcePath + "/packages/pthreads/src",
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/dummy"
             ];
         }
     }

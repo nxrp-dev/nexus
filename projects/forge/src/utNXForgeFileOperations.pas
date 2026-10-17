@@ -27,7 +27,8 @@ procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 implementation
 
 uses Classes, SysUtils, StrUtils, zipper, tpNXForge, utNXForgePaths,
-  utNXForgeBuildIdentity, utNXForgePackageSDK, utNXForgePackageBuild;
+  utNXForgeBuildIdentity, utNXForgePackageSDK, utNXForgePackageBuild
+  {$IFDEF UNIX}, BaseUnix{$ENDIF};
 
 function IsForgeFileOperation(const AKind: string): Boolean;
 begin
@@ -248,6 +249,7 @@ procedure CopyOneFile(const ASource, ADestination: string; AOverwrite: Boolean);
 var
   lDestination: string;
   lInput, lOutput: TFileStream;
+  {$IFDEF UNIX}lStat: Stat;{$ENDIF}
 begin
   lDestination := ADestination;
   if DirectoryExists(lDestination) then
@@ -259,6 +261,9 @@ begin
   EnsureDirectory(ExtractFileDir(lDestination));
   lInput := TFileStream.Create(ASource, fmOpenRead or fmShareDenyWrite);
   try
+    {$IFDEF UNIX}
+    if fpFStat(lInput.Handle, lStat) <> 0 then RaiseLastOSError;
+    {$ENDIF}
     lOutput := TFileStream.Create(lDestination, fmCreate);
     try
       lOutput.CopyFrom(lInput, 0);
@@ -268,6 +273,10 @@ begin
   finally
     lInput.Free;
   end;
+  {$IFDEF UNIX}
+  if fpChmod(lDestination, lStat.st_mode and (S_IRWXU or S_IRWXG or S_IRWXO)) <> 0 then
+    RaiseLastOSError;
+  {$ENDIF}
 end;
 
 function ExcludeList(const AText: string): TStringList;

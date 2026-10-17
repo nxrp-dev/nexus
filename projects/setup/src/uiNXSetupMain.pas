@@ -629,8 +629,8 @@ begin
     try
       if TNXSetupBundle.HasPayload(ParamStr(0)) then lForm.LoadExecutable(ParamStr(0))
       else if ParamCount > 0 then lForm.LoadFile(ParamStr(1))
-      else if FileExists('projects/setup/examples/Files.nxscript') then
-        lForm.LoadFile(ExpandFileName('projects/setup/examples/Files.nxscript'));
+      else if FileExists('../nexus-lab/examples/deployment/installers/Files.nxscript') then
+        lForm.LoadFile(ExpandFileName('../nexus-lab/examples/deployment/installers/Files.nxscript'));
     except
       on lError: Exception do lForm.Status.Text := lError.Message;
     end;

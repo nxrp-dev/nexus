@@ -163,7 +163,7 @@ var
   lForge: TNXForge;
 begin
   lDirectory := NewDirectory;
-  lTemplates := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/forge/examples/';
+  lTemplates := StringReplace(Root, '\', '/', [rfReplaceAll]) + 'projects/forge/templates/';
   ForceDirectories(lDirectory + 'library');
   Save(lDirectory + 'library/Index.nxscript', DocumentText(
     'PackageIndex Catalog { LocalPackage Support { Id: "Support"; Descriptor: "Support.nxscript"; } }'));

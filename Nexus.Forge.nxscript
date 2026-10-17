@@ -240,6 +240,13 @@ Group Nexus {
             EntryPoint: "projects/nxbuild/test/nxbuildTests.nxproject";
         }
 
+        // The CSV process test needs its tool even when Applications is omitted.
+        NXBuild ForgeCSVPrerequisite {
+            Template: @BuildTools.NXBuildTemplate;
+            Executable: @BuildTools.NXBuild;
+            EntryPoint: "projects/csv/NexusCSV.nxproject";
+        }
+
         NXBuild NexusForgeTests {
             Template: @BuildTools.NXBuildTemplate;
             Executable: @BuildTools.NXBuild;
@@ -379,49 +386,15 @@ Group Nexus {
         }
     }
 
-    Group Samples {
-        NXBuild NexusVirtualTreeViewDemo {
-            Template: @BuildTools.NXBuildTemplate;
-            Executable: @BuildTools.NXBuild;
-            EntryPoint: "packages/nexus-packages/gui/examples/virtual-treeview/NexusVirtualTreeViewDemo.nxproject";
-        }
-
-        NXBuild NexusScriptEditorDemo {
-            Template: @BuildTools.NXBuildTemplate;
-            Executable: @BuildTools.NXBuild;
-            EntryPoint: "packages/nexus-packages/gui/examples/nxscript-editor/NexusScriptEditorDemo.nxproject";
-        }
-
-        NXBuild NexusXMPPConsole {
-            Template: @BuildTools.NXBuildTemplate;
-            Executable: @BuildTools.NXBuild;
-            EntryPoint: "packages/nexus-packages/network/xmpp/examples/NexusXMPPConsole.nxproject";
-        }
-
-        NXBuild OpenSSLTest1 {
-            Template: @BuildTools.NXBuildTemplate;
-            Executable: @BuildTools.NXBuild;
-            EntryPoint: "packages/nexus-packages/network/openssl/examples/test1.nxproject";
-        }
-
-        NXBuild OpenSSLKeyPair {
-            Template: @BuildTools.NXBuildTemplate;
-            Executable: @BuildTools.NXBuild;
-            EntryPoint: "packages/nexus-packages/network/openssl/examples/genkeypair.nxproject";
-        }
-
-        NXBuild Solar2DPluginSample {
-            Template: @BuildTools.NXBuildTemplate;
-            Executable: @BuildTools.NXBuild;
-            EntryPoint: "packages/nexus-packages/solar2d/sample/plugin_sample.nxproject";
-        }
-
+    Group TestBoundary {
         NXBuild NexusTestSample {
             Template: @BuildTools.NXBuildTemplate;
             Executable: @BuildTools.NXBuild;
             EntryPoint: "projects/nxtest/host/test/sample/nxtest_sampletests.nxproject";
         }
+    }
 
+    Group Benchmarks {
         NXBuild NXFastParseBenchmark {
             Template: @BuildTools.NXBuildTemplate;
             Executable: @BuildTools.NXBuild;
@@ -431,7 +404,7 @@ Group Nexus {
 
     Group NexusCode {
         Npm BuildExtension {
-            Template: "projects/forge/examples/Npm.mustache";
+            Template: "projects/forge/templates/Npm.mustache";
             Command: "run";
             Arguments: ["esbuild"];
             WorkingDirectory: "projects/nexuscode";

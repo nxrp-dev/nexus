@@ -13,11 +13,11 @@ dialect "projects/forge/language/Forge.nxscript";
 
 // Shared settings imported by the root build. This module runs no tasks.
 Environment BuildTools {
-    NXBuildTemplate: "projects/forge/examples/NXBuild.mustache";
+    NXBuildTemplate: "projects/forge/templates/NXBuild.mustache";
     BootstrapNXBuild: "output/nxbuild/x86_64-win64/nxbuild.exe";
     NXBuild: "output/nxbuild-next/x86_64-win64/nxbuild.exe";
-    ClangTemplate: "projects/forge/examples/Clang.mustache";
-    LLVMArTemplate: "projects/forge/examples/LLVMAr.mustache";
+    ClangTemplate: "projects/forge/templates/Clang.mustache";
+    LLVMArTemplate: "projects/forge/templates/LLVMAr.mustache";
     Clang: "C:/Program Files/LLVM/bin/clang.exe";
     ClangCXX: "C:/Program Files/LLVM/bin/clang++.exe";
     LLVMAr: "C:/Program Files/LLVM/bin/llvm-ar.exe";

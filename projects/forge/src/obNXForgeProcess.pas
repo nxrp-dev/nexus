@@ -23,7 +23,7 @@ procedure ExecuteForgeProcess(AInvocation: TNXForgeInvocation);
 
 implementation
 
-uses Process, Pipes;
+uses Process, Pipes {$IFDEF UNIX}, BaseUnix{$ENDIF};
 
 procedure DrainPipe(APipe: TInputPipeStream; AOutput: TMemoryStream);
 var
@@ -68,6 +68,12 @@ begin
         Sleep(1);
       until False;
       AInvocation.ExitStatus := lProcess.ExitStatus;
+      {$IFDEF UNIX}
+      if wifexited(AInvocation.ExitStatus) then
+        AInvocation.ExitStatus := wexitstatus(AInvocation.ExitStatus)
+      else if wifsignaled(AInvocation.ExitStatus) then
+        AInvocation.ExitStatus := 128 + wtermsig(AInvocation.ExitStatus);
+      {$ENDIF}
       AInvocation.Exited := True;
       AInvocation.Completed := True;
     except

@@ -28,7 +28,7 @@ The Environment is the convention authority. Normal composition can override its
 values. Physical SQL names derive consistently from TableName, not definition names.
 The template supplies trigger-based generation; it introduces no compiler defaults.
 The older Schema example constants remain at
-`projects/schema/examples/constants/Firebird.Constants.nxscript`;
+`../nexus-lab/examples/data/schema/constants/Firebird.Constants.nxscript`;
 this task uses its own Environment, not that legacy configuration.
 
 ## Stored data and scope
