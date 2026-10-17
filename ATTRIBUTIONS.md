@@ -1189,3 +1189,17 @@ Thomas G. Lane's 1994-1997 credit and the complete original source remain
 in `baseline/wrjpgcom.pas` within the same worktree snapshot (SHA-256
 `7dea1bdaeedd37ffb188c05f42e7e4dc83103a00ed6eab423ce1c7baa156559f`).
 The existing Pascal JPEG notices and licenses remain in place.
+
+## Compiler dead-path reduction
+
+On **2026-10-17**, unused compiler and RTL paths were reduced from NexusFPC
+revision `00fb95dfe417ed7b7819f8414af9fb30c3735e61`. The inherited material comes from
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source); its original
+fork date remains unknown. The removed `compiler/syscinfo.pas` credits Karoly
+Balogh (2016) and declares `GPL-2.0-or-later`. The retired
+`compiler/utils/fixnasm.pas` credits Peter Vreman (1998-2002) and refers to its
+original `COPYING.FPC` terms; no replacement license is asserted. Both complete
+original files, together with all other affected source headers, are preserved
+under `/media/kcollins/dev/worktree/dead-code-cleanup-20261017-iu_ybf4h/baseline`,
+with SHA-256 hashes and the source revision in `baseline.json`. Existing
+compiler and RTL licenses remain authoritative for the surviving material.
