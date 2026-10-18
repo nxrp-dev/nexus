@@ -20,6 +20,14 @@ PasZLib's private CRC32 and the compiler bootstrap/build sequence stay unchanged
 The matching review records this completed follow-up separately from the initial
 pass and its still-outstanding compiled-package SDK verification.
 
+
+Subsequent owner direction, 2026-10-17 ("do it" after rejecting example-only
+retention): remove both `hash` and `fcl-hash` entirely, including their remaining
+services, namespace wrappers, dedicated tests and dependent Lab demonstrations.
+This supersedes all earlier instructions in this planning record to retain those
+services. Ordinary consumers continue to use HashLib4Pascal; PasZLib remains
+self-contained and the compiler bootstrap/build sequence stays unchanged.
+
 ## Inputs
 
 - [Source request](../requests/hashlib4pascal-package-and-hash-consumer-audit.md),

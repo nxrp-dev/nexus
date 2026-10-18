@@ -339,8 +339,6 @@ begin
   AddUnitPath('Nexus HashLib4Pascal Simd/Backend', '$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend');
   AddUnitPath('Nexus HashLib4Pascal Simd/Facade', '$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Facade');
   AddUnitPath('Nexus HashLib4Pascal Utils', '$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Utils');
-  AddUnitPath('FPC UUID NTLM Unix crypt', '$(FPCSrcDir)\packages\hash\src');
-  AddUnitPath('FPC RSA ECC PEM OTP support', '$(FPCSrcDir)/packages/fcl-hash/src');
   AddUnitPath('FPC RegExpr', '$(FPCSrcDir)\packages\regexpr\src');
   AddUnitPath('FPC CHM', '$(FPCSrcDir)\packages\chm\src');
   AddUnitPath('FPC SQLite', '$(FPCSrcDir)\packages\sqlite\src');

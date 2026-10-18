@@ -360,13 +360,6 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC UUID NTLM Unix crypt",
-      "Enabled" : true,
-      "PathKind" : "pspkUnitPath",
-      "PathTemplate" : "$(FPCSrcDir)\\packages\\hash\\src"
-    },
-    {
-      "Class" : "TNXPasSearchPathTemplate",
       "Name" : "FPC RegExpr",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
@@ -406,13 +399,6 @@
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
       "PathTemplate" : "$(FPCSrcDir)\\packages\\ibase\\src"
-    },
-    {
-      "Class": "TNXPasSearchPathTemplate",
-      "Name": "FPC RSA ECC PEM OTP support",
-      "Enabled": true,
-      "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(FPCSrcDir)/packages/fcl-hash/src"
     },
     {
       "Class": "TNXPasSearchPathTemplate",

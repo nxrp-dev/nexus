@@ -113,9 +113,15 @@ repository rather than constituting additional forks.
   their assembly includes and obsolete runners/benchmarks were removed after
   migrating ordinary consumers and retained crypto services to HashLib4Pascal.
   The source baseline is FPC `9dec5243bef0552d346f22005e3ac3e06ad8185e`;
-  original authors/notices remain in that Git history. RSA, ECC/ECDSA, ASN.1,
-  PEM, OTP, UUID, NTLM and the system crypt binding remain with their existing
-  FPC headers and licenses. Useful RFC/CRC vectors now run directly in Packages
+  original authors/notices remain in that Git history. Later on 2026-10-17,
+  the owner directed removal of the remaining RSA, ECC/ECDSA, ASN.1, PEM, OTP,
+  UUID, NTLM, system crypt and supporting services, their namespace wrappers,
+  dedicated tests and four dependent Lab demonstrations. Both package directories
+  are retired in full; their final source/notices remain in NexusFPC Git history
+  at `a9eb6b312de147d38502c12bca34c493ac2908be`. The removed Lab demonstrations
+  were `authenticator`, `gentotp`, `dumppem` and `extractrsa`. No production
+  consumer was found in the maintained repositories. Useful RFC/CRC vectors
+  continue to run directly in Packages
   `hashlib4pascal/tests`; its FPC-derived HMAC tests retain `COPYING.FPC` and
   `COPYING.txt` beside them. PasZLib's private CRC32 remains independent.
 - **Users package restoration:** bindings by Michael van Canneyt and Marco van

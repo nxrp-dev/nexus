@@ -12,6 +12,13 @@ The initial pass retained the legacy providers under its approved non-goals.
 The subsequent owner-directed consolidation below removes them. No implementation
 commit was created; the owner's concurrent compiler/RTL work was preserved.
 
+
+Latest owner direction, 2026-10-17: remove `hash` and `fcl-hash` completely,
+including the remaining non-hash services and examples that were their only
+external consumers. This retirement is complete; both package directories are
+absent. The earlier retention descriptions below are historical checkpoints,
+superseded by the complete package retirement results in this review.
+
 Subsequent owner direction, 2026-10-17: remove the bundled Maximus IDE entirely.
 Its complete source/test/assets/templates tree and module registration were
 deleted. The owner separately approved deleting Nanoedit, its only external
@@ -225,9 +232,9 @@ source review, package declaration, descriptor, Forge/nxbuild recipes, notices
 and tests moved with it. Both repository catalogs, the Nexus package index,
 all active source recipes and editor discovery now point to the main location.
 
-### Final source ownership
+### Source ownership at the initial consolidation checkpoint
 
-| Owner | Current disposition |
+| Owner | Disposition at that checkpoint |
 | --- | --- |
 | `packages/hash/src/{ntlm,uuid,unixcrypt}.pas` | Retained services. NTLM MD4 and UUID MD5/SHA-1 now call Hlp directly. Unix crypt continues to delegate to the existing system library; it never used the removed digest providers. NTLM returns `TBytes`, replacing the removed provider's `TMDDigest`; no existing external caller was found |
 | `packages/fcl-hash/src/{fpecdsa,fprsa,fppem,onetimepass}.pas` | Direct Hlp SHA-1/SHA-256/SHA-384/SHA-512/HMAC calls. RSA callback signatures, MGF1 behavior, ECDSA signatures, unpadded URL-base64 thumbprints and OTP byte/counter contracts remain covered |
@@ -308,6 +315,57 @@ The compiler/bootstrap Forge documents and compiler metadata codec are unchanged
 by this follow-up. Concurrent owner edits in compiler/RTL/tests are not part of
 this change and were preserved. The compiled-package limit below remains a
 separate SDK-construction task; these results do not claim an actual `.nxpl`.
+
+
+## Complete package retirement, 2026-10-17
+
+Authorization: the owner rejected retaining services for examples or potential
+future users and directed "do it". That direction supersedes the earlier choice
+to retain non-hash functionality. No replacement service, compatibility unit,
+bridge or relocated copy was introduced.
+
+Deleted both NexusFPC package directories, including **35 files**: eleven
+runtime units, eleven namespace wrappers, two namespace maps, and eleven test,
+fixture and runner/support files. The final pre-deletion source is recoverable
+from NexusFPC `a9eb6b312de147d38502c12bca34c493ac2908be`; no duplicate source or
+evidence archive was added. Deleted the four Lab demonstrations importing those
+services: `authenticator.pas`, `gentotp.pas`, `dumppem.lpr` and `extractrsa.lpr`.
+The independent seven HashLib digest/HMAC demonstrations remain.
+
+Removed the two obsolete source paths from the Lab build recipe, both editor
+path defaults and the two corresponding bundled editor JSON entries. Marked
+both packages retired in the FPC package-build inventory and updated central
+attribution and the approved plan's superseding scope. Historical audit records
+and original-file hash manifests describe the former source; they are not
+active package dependencies.
+
+Verification after deletion, using native Linux x86-64 NexusFPC and nxbuild:
+
+- A comment/string-aware uses-clause scan checked **12,375 Pascal files** across
+  Nexus, NexusFPC, Lab, Mobile, Private, main Packages, External Packages and
+  Apple Packages. It found **zero imports** of the removed services, including
+  dotted names. Active source/configuration path checks found **zero references**
+  to either retired package directory. Historical migration records were
+  excluded from active-path checks.
+- The maintained HashLib test recipe builds. An additional build into an empty
+  output directory compiles its complete 144-unit source selection and runs
+  **26 tests: 26 passed, zero failures/errors/skips**.
+- The cleaned maintained Lab recipe builds. A separate empty-output build and
+  execution of all **seven retained examples** succeeds. HMAC-MD5 and the
+  million-byte SHA-256 outputs also match their known answers.
+- The changed editor search-path unit and its persistence dependencies compile
+  from source into empty output. Its actual defaults contain **74 templates**,
+  including all **17 HashLib paths**, and neither retired package path. The
+  bundled JSON parses successfully.
+- Both old package directories and all four retired example files are absent.
+  Compiler, RTL, bootstrap/build sequence and PasZLib source are unchanged.
+  Diff whitespace checks pass in all four affected repositories.
+
+Working verification logs, the source audit and removal inventory are under
+ignored `output/hash-retirement`. A normal source checkpoint is created with
+the existing Linux helper; it is not a retained evidence archive or provider
+copy. These retirement checks are complete. The unrelated compiled-runtime-
+package verification limits below remain the limits of the earlier migration.
 
 ## Outstanding native verification
 
