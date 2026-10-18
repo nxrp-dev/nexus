@@ -36,7 +36,7 @@ The affected bindings now request:
 | Xrender | `libXrender.so.1` |
 | FreeType | `libfreetype.so.6` |
 
-`packages/x11/src/tpX11Libraries.pas` in NexusFPC owns the shared X11 constants,
+`packages/nexus-packages/graphics/x11/src/tpX11Libraries.pas` in Nexus owns the shared X11 constants,
 with an `Api.X11.Libraries` namespaced wrapper. The used X11 bindings import
 that definition directly. fpGUI's previously unnamed external functions now
 identify their owning library. Redundant bare X11/Xext/Xft directives were

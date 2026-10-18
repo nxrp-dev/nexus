@@ -321,6 +321,7 @@ begin
   AddUnitPath('FCL Registry', '$(WorkspaceDir)/packages/nexus-packages/fcl-registry/src');
   AddUnitPath('FPC FCL Web Base', '$(FPCSrcDir)\packages\fcl-web\src\base');
   AddUnitPath('FPC RTL Extra', '$(FPCSrcDir)\packages\rtl-extra\src');
+  AddUnitPath('Nexus X11', '$(WorkspaceDir)/packages/nexus-packages/graphics/x11/src');
   AddUnitPath('Nexus PasJPEG', '$(WorkspaceDir)/packages/nexus-packages/graphics/pasjpeg/src');
   AddUnitPath('Nexus HashLib4Pascal Base', '$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Base');
   AddUnitPath('Nexus HashLib4Pascal Checksum', '$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Checksum');

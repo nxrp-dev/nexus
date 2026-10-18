@@ -177,7 +177,8 @@ repository rather than constituting additional forks.
   no blanket compiler license is applied to them.
 - **Linux library linking correction (2026-10-17):** the maintained compiler now
   preserves explicit versioned shared-library filenames and exact lookup through
-  the Linux link path. The live X11 bindings under FPC `packages/x11` share ABI
+  the Linux link path. The X11 bindings (subsequently relocated to Nexus
+  `packages/nexus-packages/graphics/x11`) share ABI
   names in the new Nexus-authored `tpX11Libraries` unit, which carries its own
   `MPL-2.0-no-copyleft-exception` notice. Existing binding headers and notices are
   preserved. The source baseline is FPC `6bca029dba0aebb0389c514d1574af4923af06f4`;
@@ -186,6 +187,41 @@ repository rather than constituting additional forks.
   `packages/COPYING.FPC`, individual source headers. SPDX explicitly identifies the
   [Independent Module Linking exception](https://spdx.org/licenses/Independent-modules-exception.html)
   with FPC's `COPYING.FPC`; do not invent an `FPC-exception` identifier.
+
+
+### X11
+
+- **Credit:** the Free Pascal contributors and header translators, including
+  Ido Kanner (XKB) and Felipe Monteiro de Carvalho (Xft extensions); The Open
+  Group, Digital Equipment Corporation, Hewlett-Packard/Compaq, Silicon
+  Graphics, XFree86, Keith Packard, Red Hat, Oracle and the other authors named
+  in the preserved per-file notices. fpGUI's original authors are retained in
+  the accompanying `AUTHORS.txt`; Kevin Collins owns the Nexus library-name
+  definitions, build integration and direct tests.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  derived X.Org/XFree86 client headers and the fpGUI Xft translation credited in
+  `src/xft.pas`. The original fork/import date is unknown.
+- **Relocation date/evidence:** 2026-10-17, all 125 original files inventoried
+  from NexusFPC `0f60ce9c1bfd30e56fd6d5246a8ed46077f9990a`, Git tree
+  `7ae8f892b6a34bb10abb3067ddb5296ca483c8bd`. Destination
+  `graphics/x11/review/baseline-hashes.json` records each original SHA-256.
+- **Our location/status:** maintained Packages `graphics/x11`, comprising all
+  45 runtime units and 16 includes, namespace wrappers/maps, saved code review and
+  Nexus package/build/test integration. The compiler-side directory is removed.
+  The 17 link-only programs were converted into 227 direct nxtest symbol
+  checks. The keyboard-map printer moved to Lab `examples/gui/x11/KeyboardMap.pas`.
+  Proven C ABI, library import and XKB/helper corrections are recorded in the
+  destination `CODE_REVIEW.md`; no duplicate provider/evidence archive is kept.
+- **SPDX/notices:** imported C bindings retain their individual MIT/X11-family
+  notices; the fpGUI-derived Xft material retains
+  `LGPL-2.1-only WITH Independent-modules-exception` and its author record.
+  `COPYING.FPC`, `COPYING.modifiedLGPL` and `COPYING.LGPL.txt` preserve the
+  accompanying linking permission and license texts. Nexus-authored library
+  definitions/integration/tests carry `MPL-2.0-no-copyleft-exception`.
+  No single blanket license is asserted for the imported tree.
+- **Verification tools:** native Ubuntu Xvfb and X11/Fontconfig development
+  packages were downloaded/extracted only under ignored `output/x11-review`;
+  they are not imported package source or a distributed build dependency.
 
 ### RTL Unicode
 
@@ -729,7 +765,7 @@ proprietary source and no Kylix support.
   licenses and author records remain in place; no copy of either retired
   application is maintained elsewhere.
 - **Linux runtime library correction (2026-10-17):** the X11/Xft imports now use
-  the supported ABI names shared with NexusFPC's X11 bindings. The inherited
+  the supported ABI names shared with the X11 package (now Nexus `graphics/x11`). The inherited
   AggPas FreeType binding now names `libfreetype.so.6` on Linux. Existing fpGUI
   and AggPas authorship/license notices remain intact. Two direct font-binding
   nxtest cases live beside the framework tests; validation is recorded in
@@ -1571,3 +1607,52 @@ The untouched source archive, original files and SHA-256 hashes, removal patch,
 bootstrap identities, validation commands, logs and artifact comparisons are
 preserved under
 `/media/kcollins/dev/worktree/compiler-five-cleanups-20261017-lz31ef87`.
+
+
+## NexusFPC orphaned Mach-O units and unsupported metadata retirement
+
+On **2026-10-17**, the owner approved removing the orphaned sibling
+`nexus-fpc/compiler/macho.pas` and `machoutils.pas` units, the ineffective
+`-XV` VLink selector, 27 unsupported ABI descriptors and their PowerPC/EABI
+branches, nine unregistered assembler modes, and orphaned target/compiler
+switches and application kinds. The baseline is NexusFPC revision
+`0f60ce9c1bfd30e56fd6d5246a8ed46077f9990a`.
+
+The inherited sources originate in
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source).
+`compiler/macho.pas` preserves the Apple Inc. 1999–2008 notice under
+`APSL-2.0`, including its full original license header, and credits Dmitry
+Boyarintsev for the 2009 Pascal conversion. `compiler/machoutils.pas` credits
+Dmitry Boyarintsev (2009–2010) under `GPL-2.0-or-later`. The other retained
+compiler source headers preserve their existing `GPL-2.0-or-later` notices and
+credits to the Free Pascal development team and individual authors. Original
+fork/import dates remain unknown; preceding Free Pascal provenance records
+continue to apply. No license or original notice has been rewritten.
+
+Retained serialized switch and assembler-mode ordinals and set widths are
+preserved; NXU compatibility revision 46 is unchanged. The remaining ABI and
+application enums are internal compiler metadata. Existing catalog encodings
+are preserved. The unrelated X11 working-tree removals predate this cleanup.
+
+The untouched source archive, original files with exact Apple/GPL notices,
+SHA-256 hashes, enum-value records, removal patch, bootstrap identities,
+validation scripts, logs and before/after artifact analysis are preserved under
+`/media/kcollins/dev/worktree/obsolete-compiler-metadata-20261017-1zsteua6`.
+
+
+## NexusFPC legacy GDB build-wrapper retirement
+
+On **2026-10-17**, the owner approved removing the standalone
+`nexus-fpc/compiler/utils/gppc386.pas` program (`fpc_with_gdb`) and its exclusive
+support: the wrapper README entry/cross-reference, generated-command-file and
+executable ignore entries, and its breakpoint rationale in the compiler status
+comment. No separate wrapper-only compiler or RTL implementation was found.
+Shared error counting and runtime-error handling remain in use.
+
+The 246-line utility credits **Pierre Muller (2000–2002)** and originates in
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source), under
+`GPL-2.0-or-later`. The retained NexusFPC source reference before this retirement
+is `0f60ce9c1bfd30e56fd6d5246a8ed46077f9990a`. Original upstream fork/import dates remain unknown;
+preceding Free Pascal provenance records continue to apply. The exact original
+source, copyright/license header and distribution license files are preserved
+under `/media/kcollins/dev/worktree/gdb-wrapper-retirement-20261017-pa1fkjjs`, together with hashes, the patch and reference audit.

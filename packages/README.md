@@ -67,6 +67,9 @@ compiler-option models are project-owned under projects/nxbuild/src.
 PasJPEG is now independently described at
 `nexus-packages/graphics/pasjpeg`; FCL Image declares that dependency and uses
 the relocated source. PasZLib remains authoritative in NexusFPC for now.
+X11 is independently described at `nexus-packages/graphics/x11`; fpGUI declares
+that source dependency. Its native bindings use explicit supported Linux ABI
+names, with direct nxtest and symbol coverage beside the package.
 `nexus-packages/rtl-unicode` restores the optional Unicode services and code-page
 maps. Its source supports ANSI and Unicode defaults; compiled units require a
 matching RTL. The package does not participate in compiler bootstrap.

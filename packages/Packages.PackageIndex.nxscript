@@ -81,6 +81,11 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/fcl-process/Package.nxscript";
         Description: "External process execution, pipes, local IPC and Windows service support.";
     }
+    LocalPackage X11 {
+        Id: "NXRP.Graphics.X11";
+        Descriptor: "nexus-packages/graphics/x11/Package.nxscript";
+        Description: "Xlib, XKB, input, rendering, font and X11 extension bindings.";
+    }
     LocalPackage PasJPEG {
         Id: "NXRP.Graphics.PasJPEG";
         Descriptor: "nexus-packages/graphics/pasjpeg/Package.nxscript";

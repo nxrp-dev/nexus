@@ -40,7 +40,7 @@ Project NexusSetup {
                 "packages/nexus-packages/serialization/fcl-xml/src",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform,
-                @Tools.NexusFPC.SourcePath + "/packages/x11/src",
+                "packages/nexus-packages/graphics/x11/src",
                 @Tools.NexusFPC.SourcePath + "/packages/users/src",
                 @Tools.NexusFPC.SourcePath + "/packages/paszlib/src",
                 @Tools.NexusFPC.SourcePath + "/packages/fcl-res/src",

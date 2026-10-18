@@ -353,6 +353,13 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
+      "Name" : "Nexus X11",
+      "Enabled" : true,
+      "PathKind" : "pspkUnitPath",
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/graphics/x11/src"
+    },
+    {
+      "Class" : "TNXPasSearchPathTemplate",
       "Name" : "Nexus PasJPEG",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
