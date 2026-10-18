@@ -108,6 +108,16 @@ repository rather than constituting additional forks.
   The `fpcmkcfg` configuration generator by Michael Van Canneyt (2005), its
   templates and the `samplecfg` wrapper were retired the same day; the release
   now ships a fixed, compiler-relative configuration directly.
+- **Hash provider retirement (2026-10-17):** the MD2/4/5, SHA-1, SHA-2,
+  HMAC, CRC and FNV implementations in FPC `packages/hash` and `packages/fcl-hash`,
+  their assembly includes and obsolete runners/benchmarks were removed after
+  migrating ordinary consumers and retained crypto services to HashLib4Pascal.
+  The source baseline is FPC `9dec5243bef0552d346f22005e3ac3e06ad8185e`;
+  original authors/notices remain in that Git history. RSA, ECC/ECDSA, ASN.1,
+  PEM, OTP, UUID, NTLM and the system crypt binding remain with their existing
+  FPC headers and licenses. Useful RFC/CRC vectors now run directly in Packages
+  `hashlib4pascal/tests`; its FPC-derived HMAC tests retain `COPYING.FPC` and
+  `COPYING.txt` beside them. PasZLib's private CRC32 remains independent.
 - **Users package restoration:** bindings by Michael van Canneyt and Marco van
   de Voort, as credited by the original package metadata, restored on
   **2026-10-15** at FPC `packages/users` from revision
@@ -831,7 +841,8 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   `work/plans/hashlib4pascal-package-and-hash-consumer-audit.md`. The selected
   runtime/include files were byte-checked against that revision's source archive;
   `hashlib4pascal/review/import-hashes.json` records each imported file digest.
-- **Our location/status:** External `hashlib4pascal/external/hashlib4pascal`,
+- **Our location/status:** Packages `hashlib4pascal/external/hashlib4pascal`,
+  moved from External Packages on **2026-10-17** by direct owner instruction,
   maintained as `NXRP.HashLib4Pascal`; all 144 runtime units and 135 includes,
   original README and license retained. Useful upstream inline known-answer/API
   tests are adapted directly to nxtest, with their source attribution retained.
@@ -1352,3 +1363,47 @@ the new work is also credited to Kevin Collins (2026). Attribute boundaries in
 the JsonCpp wrapper and SPIRV-Cross source preserve their original byte-oriented
 Git defaults instead of inheriting MetalANGLE's text normalization. Clone
 instructions now point to the Nexus repository without submodule initialization.
+
+
+## NexusFPC FPUSOFT cleanup
+
+On **2026-10-17**, the owner approved removing the unreachable `FPUSOFT`
+checks, commented x86 software-FPU entries, and the unused software-FPU entry
+in the generic utility CPU descriptor. The baseline is NexusFPC revision
+`9dec5243be` (the full revision and original file hashes are saved in
+`baseline.json` below). The inherited code comes from
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source); upstream
+authors and original GPL / RTL `COPYING.FPC` notices remain with the retained
+files. Original fork/import dates remain unknown; the preceding Free Pascal
+provenance records continue to apply. The 11 original files, exact patch,
+validation commands and artifact comparisons are preserved under
+`/media/kcollins/dev/worktree/fpusoft-cleanup-20261017-7f5k1mzo`.
+`FPUNONE` support and the separate softfloat calling conventions remain active.
+
+
+## NexusFPC FPUNONE retirement and Currency reader correction
+
+On **2026-10-17**, the owner approved retiring the selectable no-floating-point
+configuration and its `FPUNONE` / `FPU_NONE` branches in NexusFPC. This follows
+the earlier FPUSOFT cleanup; that entry's statement retaining FPUNONE is now
+historical. The baseline is revision
+`9dec5243bef0552d346f22005e3ac3e06ad8185e` plus the preserved FPUSOFT cleanup.
+The inherited code comes from
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source), with the Free
+Pascal development team and individual authors credited in the retained files.
+Their original `GPL-2.0-or-later` compiler notices and RTL/package
+`COPYING.FPC` library-license/linking-exception notices remain unchanged. No
+new blanket license is asserted. Original upstream fork/import dates remain
+unknown; preceding Free Pascal provenance entries continue to apply.
+
+The owner separately approved correcting `TBinaryObjectReader.ReadCurrency`
+to assign its raw 64-bit payload to the QWord overlay field. The unchanged
+baseline reproduces the extra Currency scaling; the isolated correction and
+zero, signed-fraction and storage-boundary regressions are preserved. New
+regressions are Copyright (c) 2026 Kevin Collins,
+`MPL-2.0-no-copyleft-exception`. Original files and hashes, branch decisions,
+patches, bootstrap identities, test logs and artifact analysis are under
+`/media/kcollins/dev/worktree/fpunone-retirement-20261017-_pulziuj`. The internal
+`fpu_none` sentinel remains for generic utilities and empty controller
+descriptors; supported FPU ordinals and softfloat calling conventions remain
+unchanged.

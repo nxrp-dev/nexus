@@ -8,8 +8,9 @@ verification remain blocked by native host/SDK prerequisites described below.
 
 The [approved plan](../plans/hashlib4pascal-package-and-hash-consumer-audit.md)
 defines this scope. This review records actual results, including its limits.
-No legacy package was removed and no implementation commit was created by this
-pass. The owner's concurrent compiler/RTL work was preserved.
+The initial pass retained the legacy providers under its approved non-goals.
+The subsequent owner-directed consolidation below removes them. No implementation
+commit was created; the owner's concurrent compiler/RTL work was preserved.
 
 Subsequent owner direction, 2026-10-17: remove the bundled Maximus IDE entirely.
 Its complete source/test/assets/templates tree and module registration were
@@ -53,13 +54,13 @@ zipper and retained tests have no HashLib or legacy hash dependency. Duplicate
 ZStream/Zipper tables and the MD5-only test equality dependency were removed.
 Dotted wrappers map to the same implementation.
 
-HashLib4Pascal is an ordinary library/tool dependency in External Packages.
+HashLib4Pascal is an ordinary library/tool dependency in main Nexus Packages.
 Its original Hlp API is consumed directly; no public wrapper was added.
 
 ## Import and package infrastructure
 
 The pre-integration source review is saved with
-[the destination package](../../packages/nexus-packages-ext/hashlib4pascal/CODE_REVIEW.md).
+[the destination package](../../packages/nexus-packages/hashlib4pascal/CODE_REVIEW.md).
 Upstream revision is `1687d81fd0c8a08f3f04e7fed507a19131fbc0b1`. All **281** selected
 files match the pinned archive and import-hash manifest: 144 runtime
 Pascal units, 135 includes, LICENSE and README. No upstream algorithm was patched.
@@ -171,7 +172,7 @@ FCL Image, FCL DB, the fpGUI framework test recipe and 14 Lab recipes no longer
 carry unnecessary legacy hash paths. No compiler bootstrap recipe was reshaped
 to accommodate an ordinary tool dependency.
 
-## Verification results
+## Initial-pass verification results
 
 Host: native x86_64 Linux. NexusFPC 3.3.1 and its matching installed RTL;
 stock FPC 3.2.2 with its own RTL for focused seed-compatibility checks.
@@ -212,45 +213,101 @@ archive, redundant provider source or copied test-runner hierarchy was added.
 A fresh source checkpoint of Nexus, NexusFPC and Lab is produced with the
 existing Linux archive helper under ignored `output/hashlib-audit/checkpoint`.
 
-## Residual legacy ownership and removal blockers
+## Completed consolidation follow-up, 2026-10-17
 
-A final comment-stripped uses-clause scan of tracked Pascal sources across all
-five repositories finds no ordinary legacy digest import in migrated consumers.
-The remaining import-bearing files are classified below. Dotted wrappers and
-provider implementation includes remain with their existing owners.
+Authorization: the owner's placement/removal correction followed by "finish it".
+The initial non-goals retaining digest implementations are superseded.
 
-| Files / owner | Remaining purpose and disposition |
+HashLib moved from External Packages to main `packages/nexus-packages/hashlib4pascal`.
+The old tree is deleted, not retained as a second provider. All **281** original
+import hashes still match, including all 144 units and 135 includes. The saved
+source review, package declaration, descriptor, Forge/nxbuild recipes, notices
+and tests moved with it. Both repository catalogs, the Nexus package index,
+all active source recipes and editor discovery now point to the main location.
+
+### Final source ownership
+
+| Owner | Current disposition |
 | --- | --- |
-| NexusFPC `packages/hash/src/{sha1,md5,crc,fnvhash}.pas` | Legacy providers retained by the approved non-goal; CRC also supplies CRC64/128 |
-| `packages/hash/src/hmac.pas` | Internal MD5/SHA-1; retained for OTP/services |
-| `packages/hash/src/ntlm.pas` | NTLM service and internal MD5; no protocol replacement authorized |
-| `packages/hash/src/uuid.pas` | UUID byte-order/namespace/version semantics with internal MD5/SHA-1; retained |
-| `packages/hash/src/unixcrypt.pas` | Unix password service; a digest substitution does not replace it |
-| `packages/fcl-hash/src/{fpsha256,fpsha512}.pas` | Remaining SHA-2/HMAC/HKDF provider functionality for crypto services; retained |
-| `packages/fcl-hash/src/fphashutils.pas` | Shared byte/encoding/crypto support types; retained |
-| `packages/fcl-hash/src/{fpasn,fptlsbigint}.pas` | ASN.1 and big integers used by RSA/PEM; retained |
-| `packages/fcl-hash/src/{fpecc,fpecdsa}.pas` | ECC/ECDSA with internal SHA-256; retained |
-| `packages/fcl-hash/src/fprsa.pas` | RSA, ASN.1, big integers and internal SHA-1/SHA-2; retained |
-| `packages/fcl-hash/src/fppem.pas` | Key/PEM parsing and thumbprints with ECC/SHA-256; retained |
-| `packages/fcl-hash/src/onetimepass.pas` | HOTP/TOTP, HMAC/SHA-1, Base32/counter/time contracts; retained |
-| `packages/hash/tests/{tsha1test,tcrctest,utestshmac}.pas` | Direct nxtest provider baseline; retained, all 14 cases pass |
-| `packages/fcl-hash/tests/{utestsha256,utestsha512,utestpem,utestonetimepass}.pas` | Direct nxtest digest/signature/PEM/OTP baseline; retained, all 31 cases pass |
-| NexusFPC `tests/bench/bmd5.pas` | Old benchmark source with no active build established; preserved and classified as inactive, not a production dependency |
-| NexusFPC `tests/test/packages/hash/{tmdtest,sha1test}.pas` | Historical compiler-test fixtures; useful MD/SHA vectors are also covered by direct nxtest; no current runner was established or removed |
-| Lab `examples/data/cryptography/{authenticator,gentotp}.pas` | OTP demonstrations still use onetimepass; retained non-hash service callers |
-| Lab `examples/data/cryptography/dumppem.lpr` | ASN.1 demonstration still uses fpasn; retained |
-| Lab `examples/data/cryptography/extractrsa.lpr` | RSA/ASN.1 demonstration still uses fprsa/fpasn; retained |
+| `packages/hash/src/{ntlm,uuid,unixcrypt}.pas` | Retained services. NTLM MD4 and UUID MD5/SHA-1 now call Hlp directly. Unix crypt continues to delegate to the existing system library; it never used the removed digest providers. NTLM returns `TBytes`, replacing the removed provider's `TMDDigest`; no existing external caller was found |
+| `packages/fcl-hash/src/{fpecdsa,fprsa,fppem,onetimepass}.pas` | Direct Hlp SHA-1/SHA-256/SHA-384/SHA-512/HMAC calls. RSA callback signatures, MGF1 behavior, ECDSA signatures, unpadded URL-base64 thumbprints and OTP byte/counter contracts remain covered |
+| `packages/fcl-hash/src/{fpasn,fptlsbigint,fpecc,fphashutils}.pas` | ASN.1, big integers, ECC and byte/random/encoding support remain. They are service support, not duplicate general-purpose digest implementations |
+| Former `hash` providers | `md5`, `sha1`, `hmac`, `crc`, `fnvhash`, their dotted wrappers and seven assembly includes deleted |
+| Former `fcl-hash` digest providers | `fpsha256`, `fpsha512`, their dotted wrappers and SHA-256 assembly include deleted |
+| Old runners and historical hash programs | `packages/hash/tests`, `tests/bench/bmd5.pas` and `tests/test/packages/hash` deleted after carrying useful vectors forward. All 14 RFC HMAC cases now run in a 91-line direct nxtest unit, with no fixture classes or bridge. Long/million-byte SHA-1 and both CRC32/CRC64 protein vectors also remain covered |
+| Unused legacy features | CRC128 and the old SHA-record HKDF helpers had no consumer in the audited repositories. Their unused implementation/API-only tests are retired with the providers; no replacement feature was invented |
+| Native bootstrap helper | Only its obsolete `packages/hash/src` source input was removed. Compiler generations, flags, RTL builds and comparisons are unchanged; HashLib is never staged into bootstrap |
 
-FCL DB's System.Hash.Base64 imports in xmldatapacketreader and fpxmlxsdexport
-belong to FCL Base, not either legacy hash package. Synapse's internal algorithms,
-the shared OpenSSL wrapper, FPImage/fpGUI/Abbrevia/Mustache private hashes,
-Generics.Hashes and compiler FPCHash/NXU integrity code are independent owners
-outside this migration. Search-path records for retained services/tests are
-still intentional. Historical reviews and attribution are not active consumers.
+A comment-stripped uses-clause scan of tracked and newly added Pascal source in
+Nexus, Packages, External Packages, NexusFPC and Lab finds **zero imports** of the
+removed legacy digest providers or dotted equivalents. Retained service source
+paths are named as such in editor discovery. No compatibility unit, alias facade
+or general hash wrapper was added. Independent OpenSSL/Synapse/private hashes,
+Generics.Hashes, compiler integrity code and FCL Base's Base64 unit remain outside
+this consolidation. PasZLib still owns its private CRC32 and imports no Hlp unit.
 
-Neither legacy package is ready for deletion: the retained crypto services and
-their callers/tests require separately scoped ownership/API decisions. No
-package retirement or unsupported Delphi validation is claimed here.
+### Proven consumer failures and fixes
+
+The unchanged before source comes from NexusFPC
+`9dec5243bef0552d346f22005e3ac3e06ad8185e`, materialized only under temporary
+`/tmp/nexus-hash-consolidation-before`. Its file hashes and native test logs are
+in ignored `output/hash-consolidation`; no tracked source/evidence archive was
+added.
+
+1. **UUID variant corrupts digest bits.** The existing formatter assigned `$3F`
+   instead of masking the byte with `$3F`. RFC name-based UUID generation produced
+   `{3D813CBB-47FB-32BA-BFDF-831E1593AC29}` instead of
+   `{3D813CBB-47FB-32BA-91DF-831E1593AC29}`. `HashConsumers.UUIDNames` fails
+   before and passes after correcting that assignment. It checks MD5/SHA-1
+   names and empty names against fixed independently verified UUID values.
+2. **ECC checked-build failures.** The existing ECDSA tests raise `ERangeError`
+   in `vli_modInv` when setting a high limb bit, then in `EccNative2Bytes`
+   after correcting that first failure. Give the high-bit mask its unsigned
+   64-bit type and explicitly mask each truncated output byte. No ECC algorithm
+   was replaced or range checking disabled. All three retained ECDSA cases pass
+   with `-Cr`; the own-signature test now actually verifies the signature and
+   rejects a changed payload instead of signing twice.
+3. **Empty-key OTP fails with range checks.** The unchanged
+   `HashConsumers.HOTPEmptyKey` raises `ERangeError`; without checks it produces
+   the expected `328482`. The migrated implementation sends the decoded key and
+   explicit eight big-endian counter bytes directly to Hlp HMAC, eliminating the
+   zero-length raw-string buffer indexing. The fixed-answer case passes with
+   range checks. Legacy RSA hash/MGF1 and PEM digest range-check failures also
+   disappear with removal of the old providers, without weakening assertions.
+
+The complete original 31-case FCL suite and 14-case HMAC suite passed before
+migration with their original settings. With the six new consumer cases and
+range checks, unchanged service/provider sources produce **29 passed, 1 failed,
+7 errors**. The migrated/fixed suite produces **37 passed, zero failures/errors**.
+New checks cover NTLM/LM known answers, all four RSA hash callbacks including
+empty input, fixed MGF1 bytes and the independently computed PEM thumbprint.
+
+### Follow-up verification
+
+- Main HashLib source closure and direct nxtest: **26 passed**, all 144 units
+  compile; upstream SIMD defaults unchanged.
+- Crypto service suite: **37 passed with range checks**, clean output after
+  deleting the old providers; no stale legacy compiled unit is available there.
+- Forge application builds; **54 tests pass**, including artifact/SDK hashes.
+  Its first run lacked `PPC_CONFIG_PATH` for the native fixture compiler; setting
+  that existing verification configuration fixed all five prerequisite failures.
+- Setup application builds and **24 tests pass**. Torrent builds and its complete
+  localhost/socket-backed suite passes.
+- Canonical PasZLib: **11 passed**; metadata source tests: **3 passed**. They
+  remain independent of HashLib, and no legacy provider source exists to load.
+- All eleven Lab digest/crypto examples build and run successfully through the
+  existing recipe: seven digest demonstrations, fixed-secret OTP calculation,
+  authenticator help/startup, ASN.1 PEM dumping and RSA fixture extraction.
+  The recipe explicitly selects Object Pascal for its class-based PEM/RSA
+  demonstrations. `output/hash-consolidation/results.json` and individual logs
+  record all **155 passing nxtest cases**, Torrent and the eleven example runs.
+- All three catalogs, HashLib and Torrent descriptors validate. Editor search
+  path code compiles. Original import hashes and single-copy ownership pass.
+
+The compiler/bootstrap Forge documents and compiler metadata codec are unchanged
+by this follow-up. Concurrent owner edits in compiler/RTL/tests are not part of
+this change and were preserved. The compiled-package limit below remains a
+separate SDK-construction task; these results do not claim an actual `.nxpl`.
 
 ## Outstanding native verification
 
@@ -272,14 +329,15 @@ Therefore these required checks remain **unverified**:
 - complete isolated compiler bootstrap, cycle equality, SDK/cross/release reruns;
 - full dotted compression closure with a matching dotted RTL.
 
-This is an actual existing tooling constraint, not evidence that metadata needs
-hashing. `NexusFPC.Forge.md`'s current deferred list explicitly states that native
-Linux-hosted compiler/SDK construction through Forge is deferred. The checked-in
-bootstrap names a stock Win32 seed compiler and `.exe` cycle outputs; Cross
-still selects that existing cycle3. Preserving this sequence was a hard owner
-requirement. This pass neither executes another host's toolchain nor introduces
-a replacement native builder to obtain a passing claim. Focused stock/native
-codec and compression tests establish source compatibility, not complete cycle
-or runtime-package proof.
+Linux package consumption already exists in Forge; SDK production is the missing
+part. The existing `PackageSDK` operation is post-bootstrap and still assumes a
+Win64 compiler filename/target and image format. Completing its Linux support
+does not require changing the compiler bootstrap sequence or adding compiler
+variants/stages. That producer work was not performed in this hash consolidation.
+The native bootstrap helper installs an ordinary compiler/RTL, not this runtime
+SDK. The installed compiler still contains NXPM0001 while the current source
+codec writes NXPM0002, so actual SDK/provider verification also needs a matching
+normal compiler rebuild. No substitute foundation image, stale SDK or source
+fallback is reported as compiled-package success.
 
 The implementation is available for owner review with these limits explicit.

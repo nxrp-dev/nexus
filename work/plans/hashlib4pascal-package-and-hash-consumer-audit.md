@@ -10,6 +10,16 @@ The prospective instructions below preserve the approved planning record.
 Subsequent owner direction retired Maximus and its dependent Nanoedit example;
 their former consumer/test entries below are historical inputs.
 
+Subsequent owner direction, 2026-10-17 ("finish it"), supersedes the original
+External Packages placement and the non-goal of retaining the old digest
+providers. HashLib4Pascal now belongs in main `nexus-packages/hashlib4pascal`,
+with one unchanged upstream source tree. Retain useful crypto services, migrate
+all their legacy digest/HMAC calls to the Hlp API, carry useful vectors into
+nxtest, then remove superseded providers, includes, obsolete runners and paths.
+PasZLib's private CRC32 and the compiler bootstrap/build sequence stay unchanged.
+The matching review records this completed follow-up separately from the initial
+pass and its still-outstanding compiled-package SDK verification.
+
 ## Inputs
 
 - [Source request](../requests/hashlib4pascal-package-and-hash-consumer-audit.md),
@@ -374,7 +384,7 @@ Register exactly these discovery records:
 | --- | --- |
 | E `Packages.RepositoryIndex.nxscript` | LocalPackage HashLib4Pascal, descriptor `hashlib4pascal/Package.nxscript` |
 | P `Packages.RepositoryIndex.nxscript` | ExternalPackage HashLib4Pascal, `Id: "NXRP.HashLib4Pascal"`, `Repository: @NexusPackages.NexusExternal`; no Descriptor property, which the external-record schema does not accept |
-| N `packages/Packages.PackageIndex.nxscript` | LocalPackage HashLib4Pascal, descriptor `nexus-packages-ext/hashlib4pascal/Package.nxscript` |
+| N `packages/Packages.PackageIndex.nxscript` | LocalPackage HashLib4Pascal, descriptor `nexus-packages/hashlib4pascal/Package.nxscript` |
 
 Root ATTRIBUTIONS.md records author, original URL/revision, actual import date,
 MIT, destination/status and preserved test provenance. The package README links
@@ -681,9 +691,9 @@ From Nexus on Linux, run the package and affected-consumer checks once a
 matching SDK is available:
 
 ```sh
-"$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages-ext/hashlib4pascal/HashLib4Pascal.Forge.nxscript" /targets=Build:Package,TargetOS:linux,TargetCPU:x86_64
-"$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages-ext/hashlib4pascal/HashLib4Pascal.Forge.nxscript" /targets=Build:Tests,TargetOS:linux,TargetCPU:x86_64
-"$HASH_NXBUILD" /action=build /project=packages/nexus-packages-ext/hashlib4pascal/tests/HashLib4PascalTests.nxproject
+"$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages/hashlib4pascal/HashLib4Pascal.Forge.nxscript" /targets=Build:Package,TargetOS:linux,TargetCPU:x86_64
+"$HASH_NXFORGE" /input="$HASH_NEXUS_ROOT/packages/nexus-packages/hashlib4pascal/HashLib4Pascal.Forge.nxscript" /targets=Build:Tests,TargetOS:linux,TargetCPU:x86_64
+"$HASH_NXBUILD" /action=build /project=packages/nexus-packages/hashlib4pascal/tests/HashLib4PascalTests.nxproject
 "$HASH_NXBUILD" /action=build /project=../nexus-fpc/packages/paszlib/tests/PasZLibTests.nxproject
 "$HASH_NXBUILD" /action=build /project=packages/nexus-packages/graphics/fcl-image/FCLImage.nxpackage
 "$HASH_NXBUILD" /action=build /project=packages/nexus-packages/db/fcl-db/FCLDB.nxpackage

@@ -173,7 +173,7 @@ PackageIndex NexusPackages {
     }
     LocalPackage HashLib4Pascal {
         Id: "NXRP.HashLib4Pascal";
-        Descriptor: "nexus-packages-ext/hashlib4pascal/Package.nxscript";
+        Descriptor: "nexus-packages/hashlib4pascal/Package.nxscript";
         Description: "HashLib4Pascal hashing, checksums, HMAC and KDFs.";
     }
 }

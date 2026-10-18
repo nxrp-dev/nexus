@@ -360,7 +360,7 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC Hash",
+      "Name" : "FPC UUID NTLM Unix crypt",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
       "PathTemplate" : "$(FPCSrcDir)\\packages\\hash\\src"
@@ -409,122 +409,129 @@
     },
     {
       "Class": "TNXPasSearchPathTemplate",
+      "Name": "FPC RSA ECC PEM OTP support",
+      "Enabled": true,
+      "PathKind": "pspkUnitPath",
+      "PathTemplate": "$(FPCSrcDir)/packages/fcl-hash/src"
+    },
+    {
+      "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Base",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Base"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Base"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Checksum",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Checksum"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Checksum"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Crypto",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Crypto/Blake2BParams",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2BParams"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2BParams"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Crypto/Blake2SParams",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2SParams"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2SParams"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Hash128",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash128"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash128"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Hash32",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash32"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash32"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Hash64",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash64"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash64"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Interfaces",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Interfaces/IBlake2BParams",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2BParams"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2BParams"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Interfaces/IBlake2SParams",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2SParams"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2SParams"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal KDF",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/KDF"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/KDF"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Misc",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Misc"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Misc"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal NullDigest",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/NullDigest"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/NullDigest"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Simd/Backend",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Simd/Facade",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Facade"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Facade"
     },
     {
       "Class": "TNXPasSearchPathTemplate",
       "Name": "Nexus HashLib4Pascal Utils",
       "Enabled": true,
       "PathKind": "pspkUnitPath",
-      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages-ext/hashlib4pascal/external/hashlib4pascal/HashLib/src/Utils"
+      "PathTemplate": "$(WorkspaceDir)/packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Utils"
     }
   ]
 }
