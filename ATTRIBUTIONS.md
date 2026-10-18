@@ -181,6 +181,29 @@ repository rather than constituting additional forks.
   [Independent Module Linking exception](https://spdx.org/licenses/Independent-modules-exception.html)
   with FPC's `COPYING.FPC`; do not invent an `FPC-exception` identifier.
 
+### Unicode collation conformance data
+
+- **Credit:** Unicode, Inc.; original 2025 copyright, trademark and terms-of-use
+  headers remain inside both dataset members.
+- **Upstream:** Unicode CLDR [root collation data](https://www.unicode.org/reports/tr35/tr35-collation.html#Root_Data_Files).
+  NexusFPC commit `e48ce1c6aa60ce12ebab4761867f82e64494ac90`, **2026-05-16**,
+  records the update from CLDR 48.2. The retained file headers identify UCA/UCD
+  **17.0.0** and **2025-08-04**. The original Nexus fork/import date is unknown.
+- **Our location/status:** FPC `tests/test/units/fpwidestring/CollationTests.zip`;
+  the two former loose `.txt` fixtures were compressed without byte changes on
+  **2026-10-17** by owner direction. The tests extract directly into owned memory
+  streams and write no expanded files. The archive is retained test input, not
+  a source/evidence checkpoint. Existing collation consumers still require the
+  removed `unicodeducet` provider; the independent extraction/cleanup suite passes.
+- **SPDX:** `Unicode-3.0`, as identified by the upstream
+  [Unicode License V3](https://www.unicode.org/license.txt). Original file notices
+  remain intact; Nexus-authored loader/tests use their own source notices.
+- **Original byte hashes:** `CollationTest_NON_IGNORABLE_SHORT.txt`, 2,245,489 bytes,
+  SHA-256 `7063c05ad292803f8d4269abc64e2ce50ab96d0038f799670ed325f9a5e20bb8`;
+  `CollationTest_SHIFTED_SHORT.txt`, 2,482,352 bytes,
+  SHA-256 `51a2f9d9d0ed4a54bb123c72df7211e9f3b83ca15249ad350cd8780f8ccbf7c5`.
+  Both extracted archive members match those original bytes exactly.
+
 ### Apple platform packages
 
 - **Credit:** Apple Inc. for the original framework interfaces; Free Pascal
