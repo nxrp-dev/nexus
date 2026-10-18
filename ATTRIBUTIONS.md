@@ -181,6 +181,56 @@ repository rather than constituting additional forks.
   [Independent Module Linking exception](https://spdx.org/licenses/Independent-modules-exception.html)
   with FPC's `COPYING.FPC`; do not invent an `FPC-exception` identifier.
 
+### RTL Unicode
+
+- **Credit/upstream:** Inoussa Ouedraogo (collations), Nikolay Nikolov (grapheme
+  and width units), the Free Pascal team and LazUtils contributors, as credited
+  in the retained headers and package metadata. Source upstream is the
+  [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source); UTF8Utils
+  identifies its origin as LazUtils. Original fork/import date unknown.
+- **Restoration evidence:** recovered on **2026-10-17** from NexusFPC
+  `ab6ea7e3d03556520972fbd480b37c6611e1b7fa:packages/rtl-unicode`, preceding
+  deletion in `334e806fea1b1ee4cd89d6ccf4ac8a74e19cb83c`. That immutable Git tree
+  is the untouched snapshot; `packages/nexus-packages/rtl-unicode/UPSTREAM.sha256`
+  records all original paths/hashes. The historical package contained 59 files
+  and 443,483 lines, predominantly generated tables. Retired Make/fpmake files
+  and unused namespace wrappers remain historical. Runtime `.pp` files are now
+  `.pas`; there is one maintained source tree.
+- **Our location/status:** active at `packages/nexus-packages/rtl-unicode` with
+  Nexus package metadata, build recipe and direct nxtest regressions. Corrections
+  make UTF-8 bytes independent of default Char width, preserve caller code-page
+  policy and update grapheme segmentation. The collation inheritance fix stays
+  in its owning NexusFPC RTL unit, `rtl/objpas/unicodedata.pas`. Bootstrap and its
+  build sequence are unchanged. The original NFD runner is converted to direct
+  nxtest coverage of the complete matching fixture; no duplicate runner is kept.
+- **Licensing/notices:** original per-file notices remain intact. `COPYING.txt`
+  and `COPYING.FPC` preserve FPC's LGPL text and independent-module exception
+  (`LGPL-2.1-only WITH Independent-modules-exception`, with broader per-file
+  grants preserved). LazUtils' [modified LGPL notice](https://gitlab.com/freepascal.org/lazarus/lazarus/-/raw/main/COPYING.modifiedLGPL.txt)
+  and [LGPL 2.0 text](https://gitlab.com/freepascal.org/lazarus/lazarus/-/raw/main/COPYING.LGPL.txt)
+  are retained separately. Their SHA-256 values are respectively
+  `0624a5291021279446fbea96cdd33527d09c64c87d5616f789b2521e2a9e3d71` and
+  `7a4436f9ec37603356791c87de3bc444989befd2682d29efb3d97604e04c1852`.
+  Generated tables retain Inoussa's original permissive data notices. New Nexus
+  code uses `MPL-2.0-no-copyleft-exception`; no blanket license replaces these
+  individual headers.
+- **Unicode 17 inputs:** Unicode, Inc., `Unicode-3.0`. Original headers and
+  license remain inside `tests/data/Unicode17.zip`. Official sources fetched
+  **2026-10-17**: [GraphemeBreakTest.txt](https://www.unicode.org/Public/17.0.0/ucd/auxiliary/GraphemeBreakTest.txt),
+  [NormalizationTest.txt](https://www.unicode.org/Public/17.0.0/ucd/NormalizationTest.txt),
+  [emoji-data.txt](https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-data.txt)
+  and [DerivedCoreProperties.txt](https://www.unicode.org/Public/17.0.0/ucd/DerivedCoreProperties.txt).
+  Their SHA-256 values in that order are
+  `e2d134d2c52919bace503ebb6a551c1855fe1a1faec18478c78fff254a1793ec`,
+  `5019ffd530751a741900c849c0e010332f142a3612234639bd200b82138a87db`,
+  `2cb2bb9455cda83e8481541ecf5b6dfda66a3bb89efa3fa7c5297eccf607b72b`,
+  `24c7fed1195c482faaefd5c1e7eb821c5ee1fb6de07ecdbaa64b56a99da22c08`.
+  The bundled [Unicode License V3](https://www.unicode.org/license.txt) has SHA-256
+  `e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96`.
+  `tools/generate-grapheme-context.py` regenerates the additional runtime
+  property include from those pinned ZIP members without network access.
+  Collation fixtures remain in their single FPC test archive, recorded below.
+
 ### Unicode collation conformance data
 
 - **Credit:** Unicode, Inc.; original 2025 copyright, trademark and terms-of-use
@@ -193,8 +243,9 @@ repository rather than constituting additional forks.
   the two former loose `.txt` fixtures were compressed without byte changes on
   **2026-10-17** by owner direction. The tests extract directly into owned memory
   streams and write no expanded files. The archive is retained test input, not
-  a source/evidence checkpoint. Existing collation consumers still require the
-  removed `unicodeducet` provider; the independent extraction/cleanup suite passes.
+  a source/evidence checkpoint. The restored `rtl-unicode` package supplies
+  `unicodeducet`; all three collation programs pass against matching ANSI and
+  Unicode RTLs. The independent extraction/cleanup suite also passes.
 - **SPDX:** `Unicode-3.0`, as identified by the upstream
   [Unicode License V3](https://www.unicode.org/license.txt). Original file notices
   remain intact; Nexus-authored loader/tests use their own source notices.
@@ -1454,3 +1505,63 @@ The 26 original compiler files and their SHA-256 hashes, removal patch,
 bootstrap identity, validation commands and before/after artifact comparisons
 are preserved under
 `/media/kcollins/dev/worktree/node-xml-removal-20261017-380hxyup`.
+
+
+## NexusFPC retired compiler scaffolding cleanup
+
+On **2026-10-17**, the owner approved removing four inherited compiler features:
+the abandoned `state_tracking` pass, the `USE_FAKE_SYSUTILS` / `FKSysUtl` fallback,
+bare-metal controller tables and settings, and the unsupported Amiga syscall
+procedure convention with its explicit parameter-location machinery. The baseline
+is NexusFPC revision `187e411902eab39c79b6265c6272cd20a3372c34`.
+
+The inherited implementation and message catalogs originate in
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source), under their
+existing `GPL-2.0-or-later` compiler notices and the applicable original
+`COPYING.FPC` notice for generic CPU metadata. Credits to the Free Pascal
+development team and individual authors remain in every retained source header;
+all catalog encodings and license/distribution notices are preserved. Original
+fork/import dates remain unknown; preceding Free Pascal provenance records
+continue to apply. No new blanket license is asserted.
+
+NXU long compatibility revision 46 identifies the changed tokens, procedure
+option sets and generic settings. Retained public RTTI calling-convention values
+and native CPU syscall instructions are unchanged. The existing owner-copyrighted
+SYSCALL regression now checks ordinary unknown-directive handling.
+
+The untouched compiler/build/test source archive, SHA-256 records, changed-file
+originals, exact patch, bootstrap identities, validation commands, logs and
+artifact comparisons are preserved under
+`/media/kcollins/dev/worktree/compiler-four-cleanups-20261017-lfa346e2`.
+
+
+## NexusFPC dormant compiler modes and maintenance-tool retirement
+
+On **2026-10-17**, the owner approved removing the dormant `gpc_mode`,
+`PREPROCWRITE` and `DEBUG_GENERATE_INTERFACE_PPU` features, the unused
+`Unix2AmigaPath` shim, MPW enum entries, the `USEEXCEPT` define and obsolete LLVM
+conditionals, and the four maintenance utilities `fixlog`, `fixtab`, `fixmsg`
+and `dummyas` from sibling `nexus-fpc/compiler`. The baseline is NexusFPC
+revision `4ea76abb78d001de8a5fd94f94c0aa76ae94350f`.
+
+The inherited sources and message catalogs originate in
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source). Retained
+compiler headers preserve their existing `GPL-2.0-or-later` notices and credits
+to Florian Klaempfl, Pierre Muller, Peter Vreman, Jonas Maebe and the Free Pascal
+development team. The retired `fixlog` credits Peter Vreman (1998–2002),
+`fixtab` credits Peter Vreman (1999–2002), and `dummyas` credits Pierre Muller
+(2007). The `fixlog` and `dummyas` sources refer to `COPYING.FPC`; those exact
+notices and the distribution license files are preserved in the source archive.
+`fixmsg` has no individual author/license header. No new blanket license is
+asserted for these historical helpers. Original fork/import dates remain
+unknown; preceding Free Pascal provenance records continue to apply.
+
+The lowercase `-m` no-op is retired with preprocessing output. Ordinary
+language modes, macro processing, unit CRC tracking and NXU tools remain;
+NXU compatibility revision 46 is unchanged. Original catalog encodings and all
+retained copyright/license headers remain unchanged.
+
+The untouched source archive, original files and SHA-256 hashes, removal patch,
+bootstrap identities, validation commands, logs and artifact comparisons are
+preserved under
+`/media/kcollins/dev/worktree/compiler-five-cleanups-20261017-lz31ef87`.

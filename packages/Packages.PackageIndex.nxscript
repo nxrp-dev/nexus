@@ -26,6 +26,11 @@ PackageIndex NexusPackages {
     }
 
     // Explicit local inventory; Descriptor is relative to this index file.
+    LocalPackage RTLUnicode {
+        Id: "NXRP.RTLUnicode";
+        Descriptor: "nexus-packages/rtl-unicode/Package.nxscript";
+        Description: "Unicode collation, UTF-8 utilities, graphemes, width and code-page mappings.";
+    }
     LocalPackage UniversalInterfaces {
         Id: "NXRP.Apple.UniversalInterfaces";
         Descriptor: "nexus-packages-apple/univint/Package.nxscript";

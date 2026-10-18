@@ -67,6 +67,9 @@ compiler-option models are project-owned under projects/nxbuild/src.
 PasJPEG is now independently described at
 `nexus-packages/graphics/pasjpeg`; FCL Image declares that dependency and uses
 the relocated source. PasZLib remains authoritative in NexusFPC for now.
+`nexus-packages/rtl-unicode` restores the optional Unicode services and code-page
+maps. Its source supports ANSI and Unicode defaults; compiled units require a
+matching RTL. The package does not participate in compiler bootstrap.
 
 Some real prerequisites have no independent package descriptor in this catalog:
 Synapse, NexusFPC's authoritative PasZLib source, the compiler's platform-specific FFI support,
