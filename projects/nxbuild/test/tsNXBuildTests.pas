@@ -1058,12 +1058,71 @@ begin
     lDescription.Free;
   end;
 end;
+procedure TestRetainedDebugFormats(AContext: TNXTestContext);
+const
+  cFormats: array[0..1] of string = ('Dwarf3', 'Dwarf4');
+  cSwitches: array[0..1] of string = ('-gw3', '-gw4');
+var
+  lDescription: TNXBuildDescription;
+  lOptions: TNXFPCBuildOptions;
+  lArguments: TStringList;
+  lIndex: Integer;
+  lState: TNXFPCSwitchState;
+begin
+  lArguments := TStringList.Create;
+  try
+    for lIndex := Low(cFormats) to High(cFormats) do
+    begin
+      lDescription := NXBuildTestLoad('Project Demo { FPC Pascal {' +
+        ' Debug Settings { Format: ' + cFormats[lIndex] + '; } } }');
+      try
+        lOptions := lDescription.Builds[0] as TNXFPCBuildOptions;
+        lArguments.Clear;
+        lOptions.Debug.AppendArguments(lArguments);
+        AContext.AssertEquals(1, lArguments.Count);
+        AContext.AssertEquals(cSwitches[lIndex], lArguments[0]);
+        for lState := Low(TNXFPCSwitchState) to High(TNXFPCSwitchState) do
+        begin
+          lOptions.Debug.Valgrind := lState;
+          lArguments.Clear;
+          lOptions.Debug.AppendArguments(lArguments);
+          case lState of
+            fssUnset: AContext.AssertEquals(1, lArguments.Count);
+            fssEnabled: AContext.AssertTrue(lArguments.IndexOf('-gv') >= 0);
+            fssDisabled: AContext.AssertTrue(lArguments.IndexOf('-gv-') >= 0);
+          end;
+        end;
+      finally
+        lDescription.Free;
+      end;
+    end;
+  finally
+    lArguments.Free;
+  end;
+end;
+
+procedure TestRetiredDebugOptions(AContext: TNXTestContext);
+var
+  lKind, lFormat: string;
+begin
+  for lKind in ['Project', 'Package'] do
+  begin
+    for lFormat in ['Stabs', 'Dwarf2', 'CodeView'] do
+      NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+        ' Debug Settings { Format: ' + lFormat + '; } } }');
+    NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+      ' Debug Settings { PreserveStabsCase: Enabled; } } }');
+  end;
+end;
+
 procedure RegisterNXBuildTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NXBuild');
   lSuite.AddTest('Defaults', @TestDefaults);
+  lSuite.AddTest('RetainedDebugFormats', @TestRetainedDebugFormats);
+  lSuite.AddTest('RetiredDebugOptions', @TestRetiredDebugOptions);
   lSuite.AddTest('PackageMetadataOption', @TestPackageMetadataOption);
   lSuite.AddTest('RuntimePackageOptions', @TestRuntimePackageOptions);
   lSuite.AddTest('COperators', @TestCOperators);
