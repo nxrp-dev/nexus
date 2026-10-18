@@ -43,7 +43,7 @@ Project NexusSetup {
                 "packages/nexus-packages/graphics/x11/src",
                 @Tools.NexusFPC.SourcePath + "/packages/users/src",
                 @Tools.NexusFPC.SourcePath + "/packages/paszlib/src",
-                @Tools.NexusFPC.SourcePath + "/packages/fcl-res/src",
+                "packages/nexus-packages/fcl-res/src",
                 @Tools.Native.RTLPath,
                 "projects/setup/src",
                 "packages/nexus-packages/nxscript/src",

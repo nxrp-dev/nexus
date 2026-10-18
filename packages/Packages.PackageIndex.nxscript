@@ -71,6 +71,11 @@ PackageIndex NexusPackages {
         Descriptor: "nexus-packages/network/openssl/Package.nxscript";
         Description: "OpenSSL 3 bindings, certificate wrappers and Nexus Synapse TLS adapter.";
     }
+    LocalPackage FCLRes {
+        Id: "NXRP.FCLRes";
+        Descriptor: "nexus-packages/fcl-res/Package.nxscript";
+        Description: "Executable resource readers, resource models and file version information.";
+    }
     LocalPackage FCLRegistry {
         Id: "NXRP.FCLRegistry";
         Descriptor: "nexus-packages/fcl-registry/Package.nxscript";

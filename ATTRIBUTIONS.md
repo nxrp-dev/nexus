@@ -604,6 +604,26 @@ repository rather than constituting additional forks.
   `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-net/fpmake.pp`.
   Retired Make/fpmake machinery is not restored.
 
+### FCL Res
+
+- **Credit:** Giulio Bernardi (2008) and the Free Pascal development team;
+  FileInfo credits the FPC team (2013). Original source headers remain intact.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  inherited through NexusFPC `809ba610ddd2de4af75d6e7e372ac5a03efb270b`,
+  `packages/fcl-res`, Git tree `dfeac8afcaaeccd0e103ad3af93975c52372928f`.
+- **Fork/import date:** original date unknown, as recorded in the preceding
+  Free Pascal entry. Relocated on **2026-10-18**, evidenced by the destination
+  `review/baseline-hashes.json` (all 59 inherited files) and saved code review.
+- **Our location/status:** maintained at `packages/nexus-packages/fcl-res`.
+  Setup consumes the executable metadata readers; compiler resource-format
+  tests resolve this package. Demonstrations remain in
+  `../nexus-lab/examples/system/resources`. The original compiler-side provider
+  and unused release-tool staging were removed; bootstrap stages are unchanged.
+- **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception`;
+  original FPC license and exception texts accompany the package.
+- **Evidence/notices:** source headers, `COPYING.FPC`, `COPYING.txt`,
+  `CODE_REVIEW.md` and the baseline hash inventory at the package destination.
+
 ### FCL Registry
 
 - **Credit:** Michael van Canneyt and the Free Pascal development team,
