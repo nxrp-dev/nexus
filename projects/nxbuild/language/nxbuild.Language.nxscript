@@ -367,14 +367,13 @@ Language nxbuild {
                 Property PointerChecks { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property HeapTrace { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property LineInfo { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
-                Property Format { Value Value { Scalar: Text; AllowedValues: [Unset, Default, Stabs, Dwarf2, Dwarf3, Dwarf4, CodeView]; } },
+                Property Format { Value Value { Scalar: Text; AllowedValues: [Unset, Default, Dwarf3, Dwarf4]; } },
                 Property Options {
                     Value Value {
                         EffectiveCategories: [Array];
                         Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
                     }
                 },
-                Property PreserveStabsCase { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property TrashLocalVariables { Value Value { Scalar: Integer; } },
                 Property Valgrind { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } }
             ];

@@ -44,11 +44,8 @@ type
   TNXFPCDebugFormat = (
     fdfUnset,
     fdfDefault,
-    fdfStabs,
-    fdfDwarf2,
     fdfDwarf3,
-    fdfDwarf4,
-    fdfCodeView
+    fdfDwarf4
   );
 
   TNXFPCOptimizationLevel = (
@@ -293,7 +290,6 @@ type
     FLineInfo: TNXFPCSwitchState;
     FFormat: TNXFPCDebugFormat;
     FOptions: TStringList;
-    FPreserveStabsCase: TNXFPCSwitchState;
     FTrashLocalVariables: Integer;
     FValgrind: TNXFPCSwitchState;
   public
@@ -308,7 +304,6 @@ type
     property LineInfo: TNXFPCSwitchState read FLineInfo write FLineInfo;
     property Format: TNXFPCDebugFormat read FFormat write FFormat;
     property Options: TStringList read FOptions;
-    property PreserveStabsCase: TNXFPCSwitchState read FPreserveStabsCase write FPreserveStabsCase;
     property TrashLocalVariables: Integer read FTrashLocalVariables write FTrashLocalVariables;
     property Valgrind: TNXFPCSwitchState read FValgrind write FValgrind;
   end;
@@ -971,18 +966,11 @@ begin
   NXAddSwitch(AArguments, '-gl', FLineInfo);
   if FFormat = fdfDefault then
     AArguments.Add('-g')
-  else if FFormat = fdfStabs then
-    AArguments.Add('-gs')
-  else if FFormat = fdfDwarf2 then
-    AArguments.Add('-gw2')
   else if FFormat = fdfDwarf3 then
     AArguments.Add('-gw3')
   else if FFormat = fdfDwarf4 then
-    AArguments.Add('-gw4')
-  else if FFormat = fdfCodeView then
-    AArguments.Add('-gm');
+    AArguments.Add('-gw4');
   NXAddListValues(AArguments, '-go', FOptions);
-  NXAddSwitch(AArguments, '-gp', FPreserveStabsCase);
   if FTrashLocalVariables > 0 then
     AArguments.Add('-g' + StringOfChar('t', FTrashLocalVariables));
   NXAddSwitch(AArguments, '-gv', FValgrind);

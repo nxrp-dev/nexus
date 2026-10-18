@@ -604,6 +604,27 @@ repository rather than constituting additional forks.
   `781faeb495d6aeb9d98facf441b826958af2d378:packages/fcl-net/fpmake.pp`.
   Retired Make/fpmake machinery is not restored.
 
+### LibFFI Pascal binding
+
+- **Credit:** Sven Barth (2017) and the Free Pascal development team, as
+  preserved in `ffi.pas` and `ffi.manager.pas`; native libffi credits Anthony
+  Green, Red Hat, Inc. and contributors separately below.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  inherited through NexusFPC `83d89d45657c66a5ae4636233cb16961fd00a1ed`,
+  `packages/libffi`, Git tree `a386598c08cbe28ad598a09dc2679506af547862`.
+- **Fork/import date:** original date unknown, as recorded in the preceding
+  Free Pascal entry. Relocated on **2026-10-18**; all nine inherited files are
+  identified by `packages/nexus-packages/libffi/review/baseline-hashes.json`.
+- **Our location/status:** maintained at `packages/nexus-packages/libffi`.
+  The native C library remains external. Lua's RTTI adapter, invocation tests
+  and Lab examples consume this package; it is not a bootstrap or RTL build
+  input. The old compiler-side provider is removed.
+- **SPDX:** Pascal binding: `LGPL-2.1-only WITH Independent-modules-exception`;
+  native libffi: `MIT` (external distribution's notices apply).
+- **Evidence/notices:** original source headers, `COPYING.FPC`, `COPYING.txt`,
+  saved `CODE_REVIEW.md`, namespace wrappers/map and inherited native ABI probes.
+  The original source snapshot is preserved by the Git tree and worktree proof.
+
 ### FCL Res
 
 - **Credit:** Giulio Bernardi (2008) and the Free Pascal development team;
@@ -760,7 +781,7 @@ unless evidence is specified. Our repository is Nexus unless another key is give
 | MkDocs / Tom Christie and contributors | [mkdocs/mkdocs](https://github.com/mkdocs/mkdocs) | No fork; Nexus docs scaffold `86537efd`, 2026-05-17 | `mkdocs.yml`, `docs/`; documentation build tool | `BSD-2-Clause` |
 | Material for MkDocs / Martin Donath and contributors | [squidfunk/mkdocs-material](https://github.com/squidfunk/mkdocs-material) | No fork; Nexus docs scaffold `86537efd`, 2026-05-17 | `mkdocs.yml`; installed documentation theme | `MIT` |
 | LLVM / LLVM contributors | [llvm/llvm-project](https://github.com/llvm/llvm-project) | No fork; first use unknown | Nexus build tooling; External Abbrevia C-codec builds; external compiler/linker | `Apache-2.0 WITH LLVM-exception` for current LLVM; component notices retained by installation |
-| libffi / Anthony Green, Red Hat, Inc., and contributors | [libffi/libffi](https://github.com/libffi/libffi) | No fork; first use unknown | FPC `packages/libffi`; external native runtime, FPC binding has separate inherited terms | `MIT` for native libffi |
+| libffi / Anthony Green, Red Hat, Inc., and contributors | [libffi/libffi](https://github.com/libffi/libffi) | No fork; first use unknown | Nexus `packages/nexus-packages/libffi`; external native runtime, Pascal binding terms are recorded above | `MIT` for native libffi |
 
 Delphi, VCL, Lazarus/LCL, and longstanding Pascal ownership, event, control, form,
 and IDE conventions are conceptual influences. Their original locations are
