@@ -1407,3 +1407,27 @@ patches, bootstrap identities, test logs and artifact analysis are under
 `fpu_none` sentinel remains for generic utilities and empty controller
 descriptors; supported FPU ordinals and softfloat calling conventions remain
 unchanged.
+
+
+## NexusFPC XML node-dump retirement
+
+On **2026-10-17**, the owner approved removing the compiler's optional
+`DEBUG_NODE_XML` exporter, including its node/type/procedure serialization,
+XML escaping and module file state. The XML-only x86 and ARM assembler-node
+subclasses and their registrations were also retired; the shared code-generation
+node and ordinary `-vp` text diagnostics remain. The baseline is NexusFPC
+revision `11990ef801c3de7022f7394f075f9566b31914a8`.
+
+The inherited sources originate in
+[Free Pascal source](https://gitlab.com/freepascal.org/fpc/source), under
+`GPL-2.0-or-later`. Original file credits include Florian Klaempfl, Daniel
+Mantione, Pierre Muller, Peter Vreman, Jonas Maebe, Blaise.ru, and J. Gareth
+"Kit" Moreton; Moreton's 2024 notices accompany the two retired assembler-node
+units in the preserved originals and Git history. All retained copyright and
+license headers are unchanged. Original upstream fork/import dates remain
+unknown; preceding Free Pascal provenance records continue to apply.
+
+The 26 original compiler files and their SHA-256 hashes, removal patch,
+bootstrap identity, validation commands and before/after artifact comparisons
+are preserved under
+`/media/kcollins/dev/worktree/node-xml-removal-20261017-380hxyup`.
