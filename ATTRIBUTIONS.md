@@ -124,6 +124,15 @@ repository rather than constituting additional forks.
   continue to run directly in Packages
   `hashlib4pascal/tests`; its FPC-derived HMAC tests retain `COPYING.FPC` and
   `COPYING.txt` beside them. PasZLib's private CRC32 remains independent.
+- **FGL retirement (2026-10-18):** `rtl/objpas/fgl.pas`, credited to Micha
+  Nelissen (2006) and the Free Pascal development team, and its `System.FGL`
+  wrapper were retired after migrating the application consumers and RTTI cache
+  to `Generics.Collections`. The experimental FGL-based `Classes` branch and
+  dedicated obsolete fixtures were removed; useful compiler regressions now use
+  Collections. The original source, headers and notices remain in NexusFPC Git
+  at `867b50d8d09a92ac6999d9fa16f9bd7c5072ee52`. The upstream and unknown fork
+  date are recorded above; the RTL SPDX expression and linking exception below
+  apply. Contnrs remains maintained.
 - **Users package restoration:** bindings by Michael van Canneyt and Marco van
   de Voort, as credited by the original package metadata, restored on
   **2026-10-15** at FPC `packages/users` from revision
