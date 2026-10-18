@@ -204,6 +204,27 @@ The module is ordinary NexusScript. Its descriptive kinds (`Environment`,
 `SDK`, `Platform`, `Toolchain`) do not become build entries. Packages reference
 the selected values without duplicating their build sequence.
 
+`Tools.OutputRoot` is the common generated-output root. Its checked-in value,
+`../../worktree/nexus`, keeps the affected builds and tests outside source.
+The native nxbuild and nxbuildTests projects use this module on Linux and
+Windows, including the matching compiler/RTL and platform-specific source paths.
+The Linux installation settings currently select the validated bootstrap SDK;
+changing that selection does not move the installed toolchain's `current` link.
+
+From the Nexus repository root, build and run the actual test project with the
+native tool (the commands below use the default Linux output root):
+
+```sh
+../../worktree/nexus/nxbuild-next/x86_64-linux/nxbuild /action=build /project=projects/nxbuild/test/nxbuildTests.nxproject /targetos=linux /targetcpu=x86_64
+../../worktree/nexus/nxbuildTests/x86_64-linux/nxbuildTests
+```
+
+The test project retains `-gh -gl`. Its generated fixtures live beside its
+executable, and HeapTrc is compiled from the original RTL source when needed.
+No modified recipe or source copy is required. On 2026-10-18 the real Linux
+project passed all 25 tests and reported zero unfreed blocks after the implicit
+HeapTrc source-loading correction in NexusFPC.
+
 There is no automatic environment import or environment command-line switch.
 The package's module declaration selects its configuration. Existing NexusScript
 errors report missing modules and unresolved references. Build-option validation
@@ -380,9 +401,8 @@ Verified on Win64 with NexusFPC and LLVM:
 - Missing source was accepted during planning; execution reported Clang's
   failure, preserved its exit code, and skipped subsequent entries.
 
-The verified executables are in output/nxbuild-next/x86_64-win64/nxbuild.exe
-and output/nxbuild-next/x86_64-linux/nxbuild.
-The test runner is in output/nxbuildTests/x86_64-win64/nxbuildTests.exe.
+The native tool is under `Tools.OutputRoot + "/nxbuild-next/" + Tools.Native.Name`.
+The test runner is under `Tools.OutputRoot + "/nxbuildTests/" + Tools.Native.Name`.
 
 For NexusFPC runtime packages, `BuildControl Options { EmbedPackageMetadata:
 Disabled; }` emits `-FJ-`. `Enabled` emits `-FJ`; `Unset` or omission keeps the

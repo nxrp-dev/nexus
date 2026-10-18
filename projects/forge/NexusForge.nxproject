@@ -55,7 +55,7 @@ Project NexusForge {
                 "packages/nexus-packages/serialization/fcl-json/src",
                 "packages/nexus-packages/fcl-process/src",
                 @Tools.NexusFPC.SourcePath + "/compiler",
-                @Tools.NexusFPC.SourcePath + "/packages/paszlib/src",
+                @Tools.NexusFPC.SourcePath + "/rtl/objpas",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc",

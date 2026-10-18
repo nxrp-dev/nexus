@@ -4,6 +4,7 @@
 // Installation settings. The same package recipe is used on both native hosts.
 // Paths to installed compilers/SDKs belong here, not in the package.
 Environment Tools TargetCPU[x86_64] {
+    OutputRoot: "../../worktree/nexus";
     SDK WindowsSDK TargetOS[win64] {
         Path: "C:/Program Files (x86)/Windows Kits/10";
         Version: "10.0.19041.0";
@@ -67,8 +68,8 @@ Environment Tools TargetCPU[x86_64] {
         PackageLibraryPaths: [
             "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"
         ];
-        FPCCompiler: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/bin/ppcx64";
-        RTLPath: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/units/x86_64-linux/rtl";
+        FPCCompiler: "/media/kcollins/dev/worktree/retire-platform-big-endian-lab3bj62/real-validation/toolchain/nexus-fpc/x86_64-linux/7b17fb63a7-work-9d9fc18cb8/bin/ppcx64";
+        RTLPath: "/media/kcollins/dev/worktree/retire-platform-big-endian-lab3bj62/real-validation/toolchain/nexus-fpc/x86_64-linux/7b17fb63a7-work-9d9fc18cb8/units/x86_64-linux/rtl";
         ForgeCompilerPath: @Tools.Native.FPCCompiler;
         ForgeRTLPath: @Tools.Native.RTLPath;
         PascalPlatform: "unix";

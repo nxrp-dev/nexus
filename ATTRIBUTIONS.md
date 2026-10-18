@@ -123,7 +123,7 @@ repository rather than constituting additional forks.
   consumer was found in the maintained repositories. Useful RFC/CRC vectors
   continue to run directly in Packages
   `hashlib4pascal/tests`; its FPC-derived HMAC tests retain `COPYING.FPC` and
-  `COPYING.txt` beside them. PasZLib's private CRC32 remains independent.
+  `COPYING.txt` beside them. The RTL's shared CRC32 remains independent.
 - **FGL retirement (2026-10-18):** `rtl/objpas/fgl.pas`, credited to Micha
   Nelissen (2006) and the Free Pascal development team, and its `System.FGL`
   wrapper were retired after migrating the application consumers and RTTI cache
@@ -133,6 +133,16 @@ repository rather than constituting additional forks.
   at `867b50d8d09a92ac6999d9fa16f9bd7c5072ee52`. The upstream and unknown fork
   date are recorded above; the RTL SPDX expression and linking exception below
   apply. Contnrs remains maintained.
+- **Standalone AVL retirement (2026-10-18):** FCL
+  `packages/fcl-base/src/avl_tree.pas`, credited to Mattias Gaertner (2008),
+  and its `Fcl.AVLTree` wrapper were retired after converting fpGUI listview
+  selection and both translation tools to `Generics.Collections`. The original
+  source, headers and license notices remain in NexusFPC Git at
+  `8976685dafd97146ea8a14a576e161cfabc173ca`. The Lab AVL demonstration by
+  Marco van de Voort (2009) now uses the shared generic AVL map and preserves
+  its original FPC/BSD license notice. Upstream and the unknown original fork
+  date are recorded above; the FCL license expression below applies to the
+  retired implementation. Contnrs remains maintained.
 - **Users package restoration:** bindings by Michael van Canneyt and Marco van
   de Voort, as credited by the original package metadata, restored on
   **2026-10-15** at FPC `packages/users` from revision
@@ -281,6 +291,13 @@ repository rather than constituting additional forks.
   `tools/generate-grapheme-context.py` regenerates the additional runtime
   property include from those pinned ZIP members without network access.
   Collation fixtures remain in their single FPC test archive, recorded below.
+- **Little-endian platform retirement (2026-10-18):** retained little-endian
+  collation blobs are byte-identical to the restored import. Removed seven
+  unused native big-endian blobs and their host selectors. Their original
+  hashes remain in `UPSTREAM.sha256` and the immutable restoration tree above.
+  The old `utils/unicode` collation generators were already retired in
+  `334e806fea`; no active collation regeneration pipeline is restored here.
+  Future imports must follow the documented little-endian-only contract.
 
 ### Unicode collation conformance data
 
@@ -974,8 +991,9 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   `a7782c0f1291c1a7d6c90280a296a28e723b19f5`.
 - **Fork/import date:** collective import **2026-10-09**, External `bc4775a`.
   Original FPC adoption predates this import; its date is unknown here.
-- **Our location/status:** NexusFPC `packages/paszlib` is the authoritative
-  source as of **2026-10-17**, by explicit owner direction. The duplicate External
+- **Our location/status:** NexusFPC `rtl/objpas/paszlib.pas` and
+  `paszlibio.pas` are the authoritative runtime source as of **2026-10-18**, by
+  explicit owner direction; tests/legal history remain in `packages/paszlib`. The duplicate External
   `compression/paszlib/external/paszlib` tree and its separate catalog entries
   were removed after comparison and native verification. Initially, seventeen of twenty
   runtime source/include files were byte-identical; the remaining differences
@@ -983,20 +1001,24 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   matrix. NexusFPC's normalized `.pas` filenames and supported-target code were
   retained. Subsequent checked tests proved unsigned match-position underflow
   on window slides and a level-zero zlib-header range error; Nexus fixed both
-  in the official `zdeflate.pas` with five direct nxtest regressions. The official
-  package owns the reconciliation record and tests. Its CRC32 table/core now
-  lives in private `src/utNXPasZLibCRC32.pas`, consolidated from ZStream and
-  Zipper with inherited notices; no general-purpose hashing package is required.
+  in the original `zdeflate.pas` with five direct nxtest regressions, retained
+  in the consolidated source. The former package owns the reconciliation record
+  and tests. The 2026-10-18 consolidation also retains regressions for the
+  owner-approved gzip initialization/file-ownership cleanup correction. CRC32 now lives in `rtl/objpas/crc32.pas`, inherited from
+  ZStream/private utNXPasZLibCRC32 with Daniel Mantione/FPC notices, and is shared
+  with the compiler instead of its separate table. No hashing package is required.
   Lab demonstrations are consolidated under `examples/data/compression/paszlib`;
   the redundant `paszlib-external` folder was removed.
 - **SPDX:** PasZLib core `Zlib`; FPC additions carry their individual FPC notices,
   with the LGPL text and `Independent-modules-exception` as applicable.
-- **Evidence/notices:** official `readme.txt` legal section, `src/zipper.pas`,
+- **Evidence/notices:** official `packages/paszlib/readme.txt` legal section, the consolidated
+  `rtl/objpas/paszlib*.pas` headers,
   NexusFPC `packages/COPYING.FPC` and `rtl/COPYING.txt`. The removed external
   `COPYING.FPC` was byte-identical to the official notice. Runtime comparison,
   baseline hashes and test/build results are recorded in
-  NexusFPC `packages/paszlib/CONSOLIDATION.md` and ignored Nexus
-  `output/paszlib-consolidation`; prior external import history remains in Git.
+  NexusFPC `packages/paszlib/CONSOLIDATION.md` and
+  `rtl/objpas/paszlib-consolidation.md`; isolated validation outputs are in the
+  development worktree. Prior external import history remains in Git.
 
 ### HashLib4Pascal
 

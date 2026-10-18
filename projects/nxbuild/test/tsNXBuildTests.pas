@@ -36,6 +36,12 @@ begin
   Result := '"' + StringReplace(AValue, '\', '/', [rfReplaceAll]) + '"';
 end;
 
+function NXBuildTestPath(const ARelativePath: string = ''): string;
+begin
+  Result := ExcludeTrailingPathDelimiter(ExpandFileName(
+    IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0))) + 'fixtures/' + ARelativePath));
+end;
+
 function NXBuildTestLoad(const AText: string;
   AWithDialect: Boolean = True; ATargets: TNexusScriptTargetSelection = nil): TNXBuildDescription;
 var
@@ -43,7 +49,7 @@ var
   lSource: TStringList;
   lLoader: TNXBuildDescriptionLoader;
 begin
-  lFileName := ExpandFileName('output/nxbuildTests/fixture.nxproject');
+  lFileName := NXBuildTestPath('fixture.nxproject');
   ForceDirectories(ExtractFileDir(lFileName));
   lSource := TStringList.Create;
   lLoader := TNXBuildDescriptionLoader.Create;
@@ -86,7 +92,7 @@ var
   lGuid: TGUID;
 begin
   CreateGUID(lGuid);
-  Result := ExpandFileName('output/nxbuildTests/' + GUIDToString(lGuid));
+  Result := NXBuildTestPath(GUIDToString(lGuid));
 end;
 
 procedure TestDefaults(AContext: TNXTestContext);
@@ -98,9 +104,9 @@ begin
   try
     AContext.AssertEquals('Demo', lDescription.Name);
     AContext.AssertEquals('Project', lDescription.Kind);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/fixture.nxproject'),
+    AContext.AssertEquals(NXBuildTestPath('fixture.nxproject'),
       lDescription.FileName);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests'), lDescription.RootDirectory);
+    AContext.AssertEquals(NXBuildTestPath, lDescription.RootDirectory);
     AContext.AssertEquals(1, lDescription.Builds.Count);
     lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
     AContext.AssertEquals('Pascal', lFPC.Name);
@@ -311,9 +317,9 @@ begin
     ' OutputPath: "units"; Files Paths { ObjectPaths: ["objects"]; } } }');
   try
     lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/path root'), lDescription.RootDirectory);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/tools/compiler.exe'), lFPC.CompilerPath);
-    AContext.AssertEquals(ExpandFileName('output/nxbuildTests/source.pas'), lFPC.SourceFiles[0]);
+    AContext.AssertEquals(NXBuildTestPath('path root'), lDescription.RootDirectory);
+    AContext.AssertEquals(NXBuildTestPath('tools/compiler.exe'), lFPC.CompilerPath);
+    AContext.AssertEquals(NXBuildTestPath('source.pas'), lFPC.SourceFiles[0]);
     AContext.AssertEquals(lDescription.ResolvePath('settings.cfg'), lFPC.Config.OptionFiles[0]);
     AContext.AssertEquals(lDescription.ResolvePath('units'), lFPC.OutputPath);
     AContext.AssertEquals(lDescription.ResolvePath('objects'), lFPC.Files.ObjectPaths[0]);
@@ -920,9 +926,9 @@ begin
             lFPC := lDescription.Builds[1] as TNXFPCBuildOptions;
             AContext.AssertEquals('Pascal', lFPC.Name);
             if lOS = 'win64' then
-              AContext.AssertEquals(ExpandFileName('output/nxbuildTests/windows-headers'), lFPC.Files.IncludePaths[0])
+              AContext.AssertEquals(NXBuildTestPath('windows-headers'), lFPC.Files.IncludePaths[0])
             else
-              AContext.AssertEquals(ExpandFileName('output/nxbuildTests/linux-headers'), lFPC.Files.IncludePaths[0]);
+              AContext.AssertEquals(NXBuildTestPath('linux-headers'), lFPC.Files.IncludePaths[0]);
             if lCPU = 'x86_64' then
               AContext.AssertEquals('x64', ExtractFileName(lFPC.OutputPath))
             else
@@ -1115,6 +1121,26 @@ begin
   end;
 end;
 
+procedure TestRetiredLanguageModes(AContext: TNXTestContext);
+var
+  lKind, lMode: string;
+begin
+  for lKind in ['Project', 'Package'] do
+    for lMode in ['ExtendedPascal', 'NexusUnknownMode'] do
+      NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+        ' Language Settings { Mode: ' + lMode + '; } } }');
+end;
+
+procedure TestRetiredByteOrderOption(AContext: TNXTestContext);
+var
+  lKind, lState: string;
+begin
+  for lKind in ['Project', 'Package'] do
+    for lState in ['Unset', 'Enabled', 'Disabled'] do
+      NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+        ' CodeGeneration Settings { BigEndianCode: ' + lState + '; } } }');
+end;
+
 procedure RegisterNXBuildTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -1123,6 +1149,8 @@ begin
   lSuite.AddTest('Defaults', @TestDefaults);
   lSuite.AddTest('RetainedDebugFormats', @TestRetainedDebugFormats);
   lSuite.AddTest('RetiredDebugOptions', @TestRetiredDebugOptions);
+  lSuite.AddTest('RetiredLanguageModes', @TestRetiredLanguageModes);
+  lSuite.AddTest('RetiredByteOrderOption', @TestRetiredByteOrderOption);
   lSuite.AddTest('PackageMetadataOption', @TestPackageMetadataOption);
   lSuite.AddTest('RuntimePackageOptions', @TestRuntimePackageOptions);
   lSuite.AddTest('COperators', @TestCOperators);

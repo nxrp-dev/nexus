@@ -252,7 +252,6 @@ Language nxbuild {
                 Property Name { Value Value { Scalar: Text; } },
                 Property IEEEConstantChecks { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property ABI { Value Value { Scalar: Text; } },
-                Property BigEndianCode { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property CallingConvention { Value Value { Scalar: Text; } },
                 Property DynamicLibrary { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
                 Property EmulatedFloatingPoint { Value Value { Scalar: Text; AllowedValues: [Unset, Enabled, Disabled]; } },
@@ -410,7 +409,7 @@ Language nxbuild {
             UnknownChildren: Reject;
             Properties: [
                 Property Name { Value Value { Scalar: Text; } },
-                Property Mode { Value Value { Scalar: Text; AllowedValues: [Unset, FPC, ObjFPC, Delphi, TP, MacPas, ISO, ExtendedPascal, DelphiUnicode]; } },
+                Property Mode { Value Value { Scalar: Text; AllowedValues: [Unset, FPC, ObjFPC, Delphi, TP, MacPas, ISO, DelphiUnicode]; } },
                 Property EnabledModeSwitches {
                     Value Value {
                         EffectiveCategories: [Array];

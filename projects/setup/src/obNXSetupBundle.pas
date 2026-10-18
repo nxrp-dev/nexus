@@ -42,7 +42,7 @@ type
 
 implementation
 
-uses SysUtils, zipper, tpNXSetup, obNXSetupLoader, obNXSetupLocations,
+uses SysUtils, PasZLibIO, tpNXSetup, obNXSetupLoader, obNXSetupLocations,
   utNXSetupPaths, utNXSetupStreams, utNXSetupFiles;
 
 const

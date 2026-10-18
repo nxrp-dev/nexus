@@ -26,7 +26,7 @@ implementation
 uses Classes, SysUtils, Generics.Collections, obNXTestContext, obNXTestSuite,
   tpNXSetup, obNXSetupModel, obNXSetupLoader, obNXSetupSelection,
   obNXSetupLocations, obNXSetupPlan, obNXSetupSourceContext,
-  obNXSetupFileInstaller, obNXSetupState, obNXSetupBundle, obNXSetupSession, zipper,
+  obNXSetupFileInstaller, obNXSetupState, obNXSetupBundle, obNXSetupSession, PasZLibIO,
   utNXSetupFiles, utNXSetupStreams, utNXSetupPaths, ResReader,
   obNexusScriptSourceProvider, obNexusScriptSession, obNexusScriptModel;
 

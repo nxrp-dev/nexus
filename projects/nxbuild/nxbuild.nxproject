@@ -10,36 +10,45 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "language/nxbuild.Language.nxscript";
+module "nxbuild.environment.nxscript";
 
 Project nxbuild {
-    OutputRoot: "../../output/nxbuild-next/x86_64-win64";
+    RootDirectory: "../..";
+    OutputRoot: @Tools.OutputRoot + "/nxbuild-next/" + @Tools.Native.Name;
 
     FPC Compiler {
-        SourceFiles: ["nxbuild.lpr"];
-        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-        Target Native { OperatingSystem: "win64"; }
+        SourceFiles: ["projects/nxbuild/nxbuild.lpr"];
+        CompilerPath: @Tools.Native.FPCCompiler;
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
         OutputPath: @nxbuild.OutputRoot;
         RawOptions: ["-Sh-"];
         Config Options { DisableDefaultConfigFiles: True; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Syntax Operators { COperators: Enabled; }
         Files Paths {
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             IncludePaths: [
-                @nxbuild.OutputRoot,
-                "../../packages/nexus-packages/fcl-process/src/win"
+                "packages/nexus-packages/fcl-process/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
             ];
             UnitPaths: [
-                "src",
-                "../../packages/nexus-packages/nxscript/src",
-                "../../packages/nexus-packages/serialization/json/src",
-                "../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../packages/nexus-packages/fcl-process/src",
-                "../../packages/nexus-packages/network/json-rpc/src",
-                "../../packages/nexus-packages/core/src",
-                "../../packages/nexus-packages/serialization/src",
-                "../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                @Tools.Native.RTLPath,
+                @Tools.NexusFPC.SourcePath + "/rtl/inc",
+                @Tools.NexusFPC.SourcePath + "/rtl/objpas",
+                "projects/nxbuild/src",
+                "packages/nexus-packages/nxscript/src",
+                "packages/nexus-packages/serialization/src",
+                "packages/nexus-packages/serialization/json/src",
+                "packages/nexus-packages/serialization/fcl-json/src",
+                "packages/nexus-packages/fcl-process/src",
+                "packages/nexus-packages/network/json-rpc/src",
+                "packages/nexus-packages/db/sqlite/src/bindings",
+                "packages/nexus-packages/core/src",
+                "packages/nexus-packages-ext/mustache/external/dmustache",
+                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
             ];
         }
     }

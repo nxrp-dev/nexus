@@ -37,7 +37,6 @@ type
     flmTP,
     flmMacPas,
     flmISO,
-    flmExtendedPascal,
     flmDelphiUnicode
   );
 
@@ -176,7 +175,6 @@ type
   private
     FIEEEConstantChecks: TNXFPCSwitchState;
     FABI: string;
-    FBigEndianCode: TNXFPCSwitchState;
     FCallingConvention: string;
     FDynamicLibrary: TNXFPCSwitchState;
     FEmulatedFloatingPoint: TNXFPCSwitchState;
@@ -206,7 +204,6 @@ type
   published
     property IEEEConstantChecks: TNXFPCSwitchState read FIEEEConstantChecks write FIEEEConstantChecks;
     property ABI: string read FABI write FABI;
-    property BigEndianCode: TNXFPCSwitchState read FBigEndianCode write FBigEndianCode;
     property CallingConvention: string read FCallingConvention write FCallingConvention;
     property DynamicLibrary: TNXFPCSwitchState read FDynamicLibrary write FDynamicLibrary;
     property EmulatedFloatingPoint: TNXFPCSwitchState read FEmulatedFloatingPoint write FEmulatedFloatingPoint;
@@ -864,7 +861,6 @@ procedure TNXFPCCodeGenerationOptions.AppendArguments(AArguments: TStrings);
 begin
   NXAddSwitch(AArguments, '-C3', FIEEEConstantChecks);
   NXAddValue(AArguments, '-Ca', FABI);
-  NXAddSwitch(AArguments, '-Cb', FBigEndianCode);
   NXAddValue(AArguments, '-Cc', FCallingConvention);
   NXAddSwitch(AArguments, '-CD', FDynamicLibrary);
   NXAddSwitch(AArguments, '-Ce', FEmulatedFloatingPoint);
@@ -1021,7 +1017,6 @@ begin
     flmTP: AArguments.Add('-Mtp');
     flmMacPas: AArguments.Add('-Mmacpas');
     flmISO: AArguments.Add('-Miso');
-    flmExtendedPascal: AArguments.Add('-Mextendedpascal');
     flmDelphiUnicode: AArguments.Add('-Mdelphiunicode');
   end;
   NXAddListValues(AArguments, '-M', FEnabledModeSwitches);

@@ -24,9 +24,9 @@ Project NexusSetupTests {
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                @Tools.NexusFPC.SourcePath + "/packages/paszlib/src",
-                "packages/nexus-packages/fcl-res/src",
                 @Tools.Native.RTLPath,
+                @Tools.NexusFPC.SourcePath + "/rtl/objpas",
+                "packages/nexus-packages/fcl-res/src",
                 "projects/setup/src",
                 "packages/nexus-packages/nxscript/src",
                 "packages/nexus-packages/nxtest/src",

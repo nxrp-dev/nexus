@@ -26,7 +26,7 @@ procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 
 implementation
 
-uses Classes, SysUtils, StrUtils, zipper, tpNXForge, utNXForgePaths,
+uses Classes, SysUtils, StrUtils, PasZLibIO, tpNXForge, utNXForgePaths,
   utNXForgeBuildIdentity, utNXForgePackageSDK, utNXForgePackageBuild
   {$IFDEF UNIX}, BaseUnix{$ENDIF};
 
