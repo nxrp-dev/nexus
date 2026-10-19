@@ -48,6 +48,7 @@ begin
   try
     lTargets.Add('TargetOS', 'linux');
     lTargets.Add('TargetCPU', 'x86_64');
+    lTargets.Add('BuildConfiguration', 'Debug');
     lDescription := lLoader.LoadDescription(lEngineProject, lTargets);
     lPlan := lPlanner.CreatePlan(lDescription, False);
     lFileName := ExpandFileName(ARelativeFileName,
@@ -130,6 +131,7 @@ begin
   try
     lTargets.Add('TargetOS', 'linux');
     lTargets.Add('TargetCPU', 'x86_64');
+    lTargets.Add('BuildConfiguration', 'Debug');
     lDescription := lLoader.LoadDescription(lEngineProject, lTargets);
     lPlan := lPlanner.CreatePlan(lDescription, False);
     lEngineRoot := ExtractFilePath(lEngineProject);
@@ -396,6 +398,7 @@ begin
   try
     lTargets.Add('TargetOS', 'linux');
     lTargets.Add('TargetCPU', 'x86_64');
+    lTargets.Add('BuildConfiguration', 'Debug');
     lDescription := lLoader.LoadDescription(lEngineProject, lTargets);
     lPlan := lPlanner.CreatePlan(lDescription, False);
     lFileName := ExtractFilePath(lEngineProject) + 'librtt/Core/Rtt_Allocator.cpp';
@@ -474,6 +477,7 @@ begin
   try
     lTargets.Add('TargetOS', 'linux');
     lTargets.Add('TargetCPU', 'x86_64');
+    lTargets.Add('BuildConfiguration', 'Debug');
     lDescription := lLoader.LoadDescription(lEngineProject, lTargets);
     lPlan := lPlanner.CreatePlan(lDescription, False);
     lFileName := ExtractFilePath(lEngineProject) + 'librtt/Core/Rtt_Allocator.cpp';

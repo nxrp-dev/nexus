@@ -1,0 +1,7 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../../language/nxbuild.Language.nxscript";
+ProjectIndex ConfigurationProjects {
+    ProjectReference Producer { Id: "Tests.Configuration.Producer"; Descriptor: "Producer.nxproject"; }
+    ProjectReference Bridge { Id: "Tests.Configuration.Bridge"; Descriptor: "Bridge.nxproject"; }
+}

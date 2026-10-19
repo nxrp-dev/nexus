@@ -1,0 +1,18 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+
+Project PackageSDK TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.SDK.PackageSDK";
+    RootDirectory: "../../..";
+    Description: "Installed runtime-package SDK units and libraries.";
+    Publishes Directories TargetOS[linux] {
+        Sources: [@Tools.Native.PackageSDKPath + "/units"];
+    }
+    Publishes Directories TargetOS[win64] {
+        Sources: [@Tools.Native.PackageSDKPath + "/units"];
+        Libraries: [@Tools.Native.PackageSDKPath + "/packages"];
+    }
+}

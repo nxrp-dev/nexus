@@ -5,9 +5,9 @@ module "../nxbuild.environment.nxscript";
 module Projects "../Projects.nxscript";
 Project PluginTests TargetOS[linux] TargetCPU[x86_64] {
     Id: "NXRP.Tests.Nexus2D.PascalPlugin";
-    Requires: [@Projects.NexusTest, @Projects.FCLProcess, @Projects.FCLBase];
+    Requires: [@Projects.NexusRTL, @Projects.NexusTest, @Projects.FCLProcess, @Projects.FCLBase];
     RootDirectory: "../../..";
-    OutputRoot: @Tools.OutputRoot + "/nexus2d-plugin-tests/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/nexus2d-plugin-tests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
     FPC Tests {
         CompilerPath: @Tools.Native.FPCCompiler;
         SourceFiles: ["projects/nxbuild/test/nxbuildPluginTests.lpr"];
@@ -16,7 +16,6 @@ Project PluginTests TargetOS[linux] TargetCPU[x86_64] {
         Assembler Native { OutputFormat: "as-clang"; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
-            UnitPaths: [@Tools.Native.RTLPath];
         }
     }
 }

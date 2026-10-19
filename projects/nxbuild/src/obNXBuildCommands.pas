@@ -1,13 +1,5 @@
 (*
   Copyright (c) 2026 Kevin Collins.
-
-  This Source Code Form is subject to the terms of the Mozilla Public
-  License, v. 2.0. If a copy of the MPL was not distributed with this
-  file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-  This Source Code Form is "Incompatible With Secondary Licenses",
-  as defined by the Mozilla Public License, v. 2.0.
-
   SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 *)
 
@@ -28,7 +20,7 @@ implementation
 
 uses
   SysUtils,
-  obNXCommandLine, obNexusScriptModel,
+  obNXCommandLine, obNexusScriptModel, tpNXBuild,
   obNXBuildExecutor,
   obNXBuildPlanner,
   obNXBuildDescriptionLoader, obNXBuildDescription;
@@ -47,7 +39,7 @@ function NXBuildTargetArgument(const AName: string): string;
 begin
   if TNXCommandLine.Supplied(AName) and not TNXCommandLine.SuppliedWithValue(AName) then
     raise Exception.CreateFmt('Command line flag "%s" requires a value.', [AName]);
-  Result := LowerCase(Trim(TNXCommandLine.Value[AName]));
+  Result := Trim(TNXCommandLine.Value[AName]);
   if Result = '' then
     raise Exception.CreateFmt('Command line flag "%s" requires a value.', [AName]);
 end;
@@ -60,13 +52,15 @@ begin
     'Target operating system', 'Requested target OS; defaults to the native nxbuild platform.');
   TNXCommandLine.RegisterFlag('targetcpu', False, True, {$I %FPCTARGETCPU%},
     'Target CPU', 'Requested target CPU; defaults to the native nxbuild platform.');
+  TNXCommandLine.RegisterFlag('buildconfiguration', False, True, cNXBuildDefaultConfiguration,
+    'Build configuration', 'Selected build configuration; defaults to Debug. Values are case-sensitive.');
 end;
 
 class procedure TNXBuildCommands.Execute;
 var
   lAction: string;
   lProjectFile: string;
-  lTargetOS, lTargetCPU: string;
+  lTargetOS, lTargetCPU, lConfiguration: string;
   lTargets: TNexusScriptTargetSelection;
   lLoader: TNXBuildDescriptionLoader;
   lPlanner: TNXBuildPlanner;
@@ -76,8 +70,9 @@ var
 begin
   lAction := LowerCase(NXBuildRequestedAction);
   lProjectFile := NXBuildProjectArgument;
-  lTargetOS := NXBuildTargetArgument('targetos');
-  lTargetCPU := NXBuildTargetArgument('targetcpu');
+  lTargetOS := LowerCase(NXBuildTargetArgument('targetos'));
+  lTargetCPU := LowerCase(NXBuildTargetArgument('targetcpu'));
+  lConfiguration := NXBuildTargetArgument('buildconfiguration');
 
   if lAction = '' then
     raise Exception.Create('Specify /action=validate, /action=plan or /action=build.');
@@ -91,17 +86,19 @@ begin
   try
     lTargets.Add('TargetOS', lTargetOS);
     lTargets.Add('TargetCPU', lTargetCPU);
+    lTargets.Add('BuildConfiguration', lConfiguration);
     lDescription := lLoader.LoadDescription(lProjectFile, lTargets);
     lPlan := lPlanner.CreatePlan(lDescription, lAction <> 'validate');
     try
+      WriteLn('Requested target: ', lTargetOS, '/', lTargetCPU, '/', lConfiguration);
       if lAction = 'validate' then
-        WriteLn('Validated ', lDescription.Id, ': ', lPlan.Projects.Count,
-          ' projects, ', lPlan.Steps.Count, ' builds; target ', lTargetOS, '/', lTargetCPU, '.')
-      else if lAction = 'plan' then
       begin
-        WriteLn('Requested target: ', lTargetOS, '/', lTargetCPU);
-        lPlanner.WritePlan(lPlan);
+        WriteLn('Validated ', lDescription.Id, ': ', lPlan.Projects.Count,
+          ' projects, ', lPlan.Steps.Count, ' builds.');
+        lPlanner.WriteProjects(lPlan);
       end
+      else if lAction = 'plan' then
+        lPlanner.WritePlan(lPlan)
       else if lAction = 'build' then
       begin
         lExecutor := TNXBuildExecutor.Create;

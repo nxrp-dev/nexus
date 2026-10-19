@@ -1,0 +1,12 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+
+Project NexusRTL TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.SDK.NexusRTL";
+    RootDirectory: "../../..";
+    Description: "Installed native Nexus RTL units.";
+    Publishes Directories { Sources: [@Tools.Native.RTLPath]; }
+}

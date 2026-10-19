@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../language/nxbuild.Language.nxscript";
@@ -17,7 +9,7 @@ Project nxbuildProjectGenerationTests {
     Id: "NXRP.Tools.nxbuildProjectGenerationTests";
     Requires: [@Projects.NexusScript, @Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.SQLite, @Projects.Core, @Projects.Mustache];
     RootDirectory: "../../..";
-    OutputRoot: @Tools.OutputRoot + "/nxbuildProjectGenerationTests/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/nxbuildProjectGenerationTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         SourceFiles: ["projects/nxbuild/test/nxbuildProjectGenerationTests.lpr"];

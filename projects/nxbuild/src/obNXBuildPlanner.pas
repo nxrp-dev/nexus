@@ -1,13 +1,5 @@
 (*
   Copyright (c) 2026 Kevin Collins.
-
-  This Source Code Form is subject to the terms of the Mozilla Public
-  License, v. 2.0. If a copy of the MPL was not distributed with this
-  file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-  This Source Code Form is "Incompatible With Secondary Licenses",
-  as defined by the Mozilla Public License, v. 2.0.
-
   SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 *)
 
@@ -88,6 +80,7 @@ type
   public
     function CreatePlan(ADescription: TNXBuildDescription;
       ACheckTools: Boolean = True): TNXBuildPlan;
+    procedure WriteProjects(APlan: TNXBuildPlan);
     procedure WritePlan(APlan: TNXBuildPlan);
   end;
 
@@ -294,11 +287,9 @@ begin
     WriteLn('  ', ACategory, ': ', lDirectory);
 end;
 
-procedure TNXBuildPlanner.WritePlan(APlan: TNXBuildPlan);
+procedure TNXBuildPlanner.WriteProjects(APlan: TNXBuildPlan);
 var
-  lIndex: Integer;
   lValue: string;
-  lStep: TNXBuildStep;
   lProject: TNXBuildPlannedProject;
 begin
   if APlan = nil then
@@ -313,6 +304,15 @@ begin
     WriteDirectories('Objects', lProject.Directories.Objects);
     WriteDirectories('Libraries', lProject.Directories.Libraries);
   end;
+end;
+
+procedure TNXBuildPlanner.WritePlan(APlan: TNXBuildPlan);
+var
+  lIndex: Integer;
+  lValue: string;
+  lStep: TNXBuildStep;
+begin
+  WriteProjects(APlan);
   for lIndex := 0 to APlan.Steps.Count - 1 do
   begin
     lStep := APlan.Steps[lIndex];

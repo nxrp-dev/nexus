@@ -1,0 +1,21 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+
+Project NativeLibraries TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.SDK.NativeLibraries";
+    RootDirectory: "../../..";
+    Description: "Installed native SDK library directories.";
+    Publishes Directories TargetOS[win64] {
+        Libraries: [
+            @Tools.WindowsSDK.Path + "/Lib/" + @Tools.WindowsSDK.Version + "/um/x64",
+            @Tools.WindowsSDK.Path + "/Lib/" + @Tools.WindowsSDK.Version + "/ucrt/x64",
+            @Tools.MSVC.Path + "/lib/x64"
+        ];
+    }
+    Publishes Directories TargetOS[linux] {
+        Libraries: ["/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"];
+    }
+}

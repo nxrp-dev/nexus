@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../nxbuild/language/nxbuild.Language.nxscript";
@@ -15,9 +7,9 @@ module "../../../nxbuild/nxbuild.environment.nxscript";
 
 Project NexusScriptLSTestModule TargetOS[win64] {
     Id: "NXRP.Tools.NexusScriptLSTestModule";
-    Requires: [@Projects.NexusScript, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.NexusTest, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
+    Requires: [@Projects.NexusRTL, @Projects.NexusScript, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.NexusTest, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
     RootDirectory: "../../../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusScriptLSTestModule/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusScriptLSTestModule/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         CompilerPath: @Tools.Native.FPCCompiler;
@@ -32,8 +24,7 @@ Project NexusScriptLSTestModule TargetOS[win64] {
                 "projects/ls/nxscript/test",
                 "projects/ls/nxscript/src/model",
                 "projects/ls/nxscript/src/protocol",
-                "C:/lazarus" + "/components/lazutils",
-                @Tools.Native.RTLPath
+                "C:/lazarus" + "/components/lazutils"
             ];
         }
     }

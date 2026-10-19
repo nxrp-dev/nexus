@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../nxbuild/language/nxbuild.Language.nxscript";
@@ -15,9 +7,9 @@ module "../../../nxbuild/nxbuild.environment.nxscript";
 
 Project nxtest_host TargetOS[win64] {
     Id: "NXRP.Tools.nxtest_host";
-    Requires: [@Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core];
+    Requires: [@Projects.NexusRTL, @Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core];
     RootDirectory: "../../../..";
-    OutputRoot: @Tools.OutputRoot + "/nxtest_host/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/nxtest_host/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         CompilerPath: @Tools.Native.FPCCompiler;
@@ -29,8 +21,7 @@ Project nxtest_host TargetOS[win64] {
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "projects/nxtest/host/src",
-                @Tools.Native.RTLPath
+                "projects/nxtest/host/src"
             ];
         }
     }

@@ -87,6 +87,29 @@ begin
   finally lDocument.Free; RemoveDir(lFolder); end;
 end;
 
+procedure TestProjectConfiguration(AContext: TNXTestContext);
+var
+  lDocument: TNXPackageDocument;
+  lFolder: string;
+begin
+  lFolder := NewFolder;
+  lDocument := TNXPackageDocument.Create;
+  try
+    lDocument.LoadSource(lFolder + '/Configured.nxproject', Dialect +
+      'Project Configured BuildConfiguration[Debug] { Id: "Tests.Configured";' +
+      ' Publishes Directories { Objects: ["objects/" + $BuildConfiguration]; } }');
+    AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
+    lDocument.SetTarget('BuildConfiguration', 'Release');
+    AContext.AssertFalse(lDocument.Validate);
+    lDocument.SourceText := Dialect + 'Project Configured BuildConfiguration[Release] {' +
+      ' Id: "Tests.Configured"; Publishes Directories { Objects: ["objects/" + $BuildConfiguration]; } }';
+    AContext.AssertTrue(lDocument.Validate, lDocument.Diagnostics.Text);
+  finally
+    lDocument.Free;
+    RemoveDir(lFolder);
+  end;
+end;
+
 procedure TestProjectCatalog(AContext: TNXTestContext);
 var lDocument: TNXPackageDocument; lFolder: string;
 begin
@@ -107,6 +130,7 @@ begin
   lSuite.AddTest('UnsavedSourceProject', @TestUnsavedSourceProject);
   lSuite.AddTest('GraphWithoutExecution', @TestGraphWithoutExecution);
   lSuite.AddTest('TargetSelection', @TestProjectTargetSelection);
+  lSuite.AddTest('Configuration', @TestProjectConfiguration);
   lSuite.AddTest('Catalog', @TestProjectCatalog);
 end;
 end.

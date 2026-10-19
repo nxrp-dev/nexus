@@ -6,9 +6,9 @@ module NativeProjects "Projects.nxscript";
 module Projects "../../../Projects.nxscript";
 Project Pascal TargetOS[linux] {
     Id: "Tests.Native.Pascal";
-    Requires: [@NativeProjects.Producer, @Projects.NexusTest];
+    Requires: [@Projects.NexusRTL, @Projects.RTLObjPas, @Projects.RTLGenerics, @NativeProjects.Producer, @Projects.NexusTest];
     RootDirectory: "../../../../..";
-    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/pascal";
+    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/pascal" + "/" + $BuildConfiguration;
     FPC Tests {
         CompilerPath: @Tools.Native.FPCCompiler;
         SourceFiles: ["projects/nxbuild/test/fixtures/native-dependencies/GeneratedNativeTests.lpr"];
@@ -18,7 +18,6 @@ Project Pascal TargetOS[linux] {
         Assembler Native { OutputFormat: "as-clang"; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
-            UnitPaths: [@Tools.Native.RTLPath, @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"];
         }
     }
 }

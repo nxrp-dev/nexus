@@ -1,0 +1,25 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../../language/nxbuild.Language.nxscript";
+module "../../../nxbuild.environment.nxscript";
+module ConfigurationProjects "Projects.nxscript";
+module Projects "../../../Projects.nxscript";
+Project Consumer TargetOS[linux] {
+    Id: "Tests.Configuration.Consumer";
+    Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @ConfigurationProjects.Bridge, @Projects.NexusTest];
+    RootDirectory: "../../../../..";
+    OutputRoot: @Tools.OutputRoot + "/configuration-publications/" + $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration + "/application";
+    FPC Tests {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/nxbuild/test/fixtures/configuration-publications/ConfigurationTests.lpr"];
+        OutputPath: @Consumer.OutputRoot;
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
+        Config Options { DisableDefaultConfigFiles: True; }
+        Assembler Native { OutputFormat: "as-clang"; }
+        RawOptions: ["-gh", "-gl"];
+        Files Paths {
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+        }
+        Linking Runtime { LinkerOptions: ["-rpath=$ORIGIN/../libraries"]; }
+    }
+}

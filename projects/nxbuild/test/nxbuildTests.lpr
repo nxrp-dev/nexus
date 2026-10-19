@@ -1,13 +1,5 @@
 (*
   Copyright (c) 2026 Kevin Collins.
-
-  This Source Code Form is subject to the terms of the Mozilla Public
-  License, v. 2.0. If a copy of the MPL was not distributed with this
-  file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-  This Source Code Form is "Incompatible With Secondary Licenses",
-  as defined by the Mozilla Public License, v. 2.0.
-
   SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 *)
 
@@ -18,7 +10,7 @@ program nxbuildTests;
 uses
   obNXTestRegistry, obNXTestResult, tsNXBuildTests, tsNXBuildDependencyTests;
 
-procedure RunTests;
+procedure RunTests(AKnownProjectIssues: Boolean);
 var
   lRegistry: TNXTestRegistry;
   lResult: TNXTestResult;
@@ -28,8 +20,13 @@ begin
   lPassed := 0;
   lFailed := 0;
   try
-    RegisterNXBuildTests(lRegistry);
-    RegisterNXBuildDependencyTests(lRegistry);
+    if AKnownProjectIssues then
+      RegisterNXBuildKnownProjectIssues(lRegistry)
+    else
+    begin
+      RegisterNXBuildTests(lRegistry);
+      RegisterNXBuildDependencyTests(lRegistry);
+    end;
     for lSuite := 0 to lRegistry.SuiteCount - 1 do
       for lTest := 0 to lRegistry.Suites[lSuite].TestCount - 1 do
       begin
@@ -51,12 +48,14 @@ begin
 end;
 
 begin
-  if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-dependency-tool') then
+  if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-command') then
+    ExitCode := NXBuildRunCommandLine
+  else if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-dependency-tool') then
     ExitCode := NXBuildRunDependencyTool
   else if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-test-tool') then
     ExitCode := NXBuildRunTestTool
   else if (ParamCount > 0) and (ParamStr(1) = '--nxbuild-source-tool') then
     ExitCode := NXBuildRunSourceTool
   else
-    RunTests;
+    RunTests((ParamCount > 0) and (ParamStr(1) = '--known-project-issues'));
 end.

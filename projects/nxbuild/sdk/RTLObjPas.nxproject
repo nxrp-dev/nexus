@@ -1,0 +1,15 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+
+Project RTLObjPas TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.SDK.RTLObjPas";
+    RootDirectory: "../../..";
+    Description: "Object-Pascal RTL sources and includes.";
+    Publishes Directories {
+        Sources: [@Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform];
+        Headers: [@Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform, @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + $TargetCPU];
+    }
+}

@@ -99,6 +99,38 @@ an `.nxpk` or consume `.nxpl` metadata using explicit SDK/package options.
 `RequiredPackages` emits `-FP`, and `Files.PackagePaths` emits `-Fp`.
 Use a matching compiler, RTL, startup units and SDK for runtime-package builds.
 
+## Installed resource projects
+
+The shared `Projects.nxscript` catalog includes directory-only projects for
+installed SDK resources and RTL source support. A consumer requires the resources
+it uses; these projects have no build operations.
+
+| Project | Published directories |
+| --- | --- |
+| `NexusRTL` | Installed native RTL units |
+| `RTLSystem` | RTL system and object-Pascal source directories |
+| `RTLObjPas` | Object-Pascal support units and platform/CPU includes |
+| `RTLGenerics` | Generic collections and their includes |
+| `RTLExtra` | Additional platform RTL units and includes |
+| `NativeLibraries` | Native SDK library search directories |
+| `PackageSDK` | Runtime-package SDK units and its Windows library directory |
+| `AppleRTL` | RTL units from the selected Apple target SDK |
+| `RTLUnicodeRTL` | RTL units matching the Unicode build configuration |
+
+The RTL source projects publish their complete relevant source/include paths;
+consumers no longer reconstruct those directory layouts. Keep installed package
+SDK units before standalone RTL units, and installed RTL units before fallback
+sources in the requirement list. Ordinary project-local paths stay with the
+consumer. The Solar2D API project also publishes its existing Windows native
+plugin library directory.
+
+Installation roots and compiler selection still come from the configuration
+modules. System headers stay in `SystemIncludePaths` because those use `-isystem`,
+while published `Headers` use `-I`. Package lookup stays in `Files.PackagePaths`
+(`-Fp`). Compiler executables, target triples, SDK identities, library names and
+linker options remain explicit settings; directory publication does not carry
+them. This migration does not add publication fields or external-value handlers.
+
 ## Builders
 
 FPC entries directly contain the existing typed FPC settings: SourceFiles,
@@ -185,20 +217,52 @@ Execution still stops if the producer fails or the tool cannot be launched.
 ```sh
 nxbuild /action=validate /project=Project.nxproject /targetos=linux /targetcpu=x86_64
 nxbuild /action=plan /project=Project.nxproject /targetos=linux /targetcpu=x86_64
-nxbuild /action=build /project=Project.nxproject /targetos=linux /targetcpu=x86_64
+nxbuild /action=build /project=Project.nxproject /targetos=linux /targetcpu=x86_64 /buildconfiguration=Release
 ```
 
 `validate` checks the project model and complete graph without requiring installed
-tools. It provides metadata/graph evidence, not compilation evidence. `plan`
-additionally resolves installed tools and shows project identities, dependency
-edges, inherited directories and operations. Neither action runs producers,
+tools. Both `validate` and `plan` display the selected OS, CPU and configuration,
+project identities, dependency edges and inherited directories. `plan` also
+resolves installed tools and shows operations. Validation provides model/graph
+evidence; only `build` compiles the project. Neither action runs producers,
 expands source masks or creates output directories.
 
-The selected TargetOS/TargetCPU context is passed unchanged to every dependency
-and its NexusScript imports. Explicit FPC OS and LLVM triple values must agree
+The complete `TargetOS` / `TargetCPU` / `BuildConfiguration` selection is passed
+unchanged to every dependency and its NexusScript imports. Explicit FPC OS and LLVM triple values must agree
 with that context. nxbuild does not choose or install a compiler automatically.
-Defaults come from the native nxbuild executable; cross compilation needs
-appropriately configured compilers, RTLs and SDKs.
+OS and CPU default to the native nxbuild platform. `BuildConfiguration` defaults
+to `Debug`, including in the nxpackage project workbench. Configuration names
+are case-sensitive, matching NexusScript target criteria; custom names such as
+`Profile` are accepted. An explicitly empty configuration is an error.
+Cross compilation needs appropriately configured compilers, RTLs and SDKs.
+
+Selected values are available as `$TargetOS`, `$TargetCPU` and
+`$BuildConfiguration`. Common and selected directories can share one publication:
+
+```nexusscript
+Project Library {
+    Id: "Local.Library";
+    OutputRoot: @Tools.OutputRoot + "/Library/" + $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration;
+    Publishes Directories {
+        Sources: ["src", "src/" + $TargetOS];
+        Headers: ["include"];
+        Objects: [@Library.OutputRoot + "/objects"];
+        Libraries: [@Library.OutputRoot + "/libraries"];
+    }
+    // Producer operations use those same OutputRoot-based directories.
+}
+```
+
+The migrated nxbuild descriptions include `$BuildConfiguration` in generated output paths.
+Source-only publications and prebuilt SDK paths remain independent where
+appropriate. Output paths are script expressions; nxbuild adds no directories
+automatically. Reuse the producer's output value in its publications so the
+published path matches its actual output. Consumers continue to require projects.
+
+Configuration names select script criteria such as `BuildConfiguration[Debug]`.
+They do not automatically enable optimization, debug information or compiler
+defines. The project owns those settings. Existing projects keep their compiler
+settings while gaining separate output directories for each configuration.
 
 `build` executes the dependency-first plan sequentially. FPC invokes its compiler
 once per source; LLVM uses one invocation for its list. Execution expands masks,
@@ -219,9 +283,9 @@ root:
 ```sh
 "$NXBUILD" /action=build /project=projects/nxbuild/nxbuild.nxproject
 "$NXBUILD" /action=build /project=projects/nxbuild/test/nxbuildTests.nxproject
-"$NX_OUT/nxbuildTests/x86_64-linux/nxbuildTests"
+"$NX_OUT/nxbuildTests/x86_64-linux/Debug/nxbuildTests"
 "$NXBUILD" /action=build /project=projects/nxpackage/test/nxprojectDocumentTests.nxproject
-"$NX_OUT/nxproject-document-tests/x86_64-linux/nxprojectDocumentTests"
+"$NX_OUT/nxproject-document-tests/x86_64-linux/Debug/nxprojectDocumentTests"
 ```
 
 The nxpackage workbench edits `.nxproject` and ProjectIndex documents. Unsaved
@@ -229,6 +293,11 @@ project validation uses the same native analysis, model loader and graph/planner
 as nxbuild, with tool availability checks disabled. It does not run builds.
 
 Real integration descriptions include:
+
+- [Configuration publications](test/fixtures/configuration-publications/README.md):
+  Debug/Release objects and shared libraries reach a Pascal NXTest consumer
+  through an intermediate project; common sources and configuration-selected
+  headers are inherited with them.
 
 - [Mixed.nxproject](../../../nexus-lab/examples/build/native/Mixed.nxproject):
   Pascal consumers require a C/C++ producer and inherit its object directory.
@@ -251,7 +320,7 @@ reuse the actual engine recipe's compiler settings to check its decoder sources:
 
 ```sh
 "$NXBUILD" /action=build /project=projects/nxbuild/test/nxbuildEngineTests.nxproject /targetos=linux /targetcpu=x86_64
-"$NX_OUT/nexus2d-decoder-tests/x86_64-linux/nxbuildEngineTests" ../nexus-mobile/Nexus2DEngine.nxproject
+"$NX_OUT/nexus2d-decoder-tests/x86_64-linux/Debug/nxbuildEngineTests" ../nexus-mobile/Nexus2DEngine.nxproject
 ```
 
 The expanded eight-case suite currently has one passing cleanup control and
@@ -269,3 +338,12 @@ For NexusFPC runtime packages, `BuildControl Options { EmbedPackageMetadata:
 Disabled; }` emits `-FJ-`; Enabled emits `-FJ`; Unset keeps the compiler default.
 Embedding produces `.nxpl` with compressed metadata. Disabling it produces `.nxpl`
 plus `.nxp`. These compiler options are independent of nxproject dependencies.
+
+## Recorded project issue
+
+The legacy `nexus-lab/examples/build/orchestration/hello world & test.nxproject`
+example has no required project `Id`, so the existing loader rejects it. Its
+source was left unchanged during the configuration migration.
+`nxbuildTests --known-project-issues` runs the `LegacyProjectIdentity` NXTest
+and currently exits with a failing test for that missing identity. This is
+separate from the passing configuration suite and is pending repair.

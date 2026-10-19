@@ -1,0 +1,15 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+
+Project RTLGenerics TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.SDK.RTLGenerics";
+    RootDirectory: "../../..";
+    Description: "Generic collection RTL sources and includes.";
+    Publishes Directories {
+        Sources: [@Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"];
+        Headers: [@Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src", @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc"];
+    }
+}

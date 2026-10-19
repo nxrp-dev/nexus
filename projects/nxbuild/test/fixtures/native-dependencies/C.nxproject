@@ -8,7 +8,7 @@ Project C TargetOS[linux] {
     Id: "Tests.Native.C";
     Requires: [@NativeProjects.Producer];
     RootDirectory: "../../../../..";
-    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/c";
+    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/c" + "/" + $BuildConfiguration;
     LLVM Test {
         CompilerPath: @Tools.Native.LLVMCompiler;
         Target: @Tools.Native.Triple;

@@ -1,0 +1,33 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../../language/nxbuild.Language.nxscript";
+module "../../../nxbuild.environment.nxscript";
+Project Producer TargetOS[linux] {
+    Id: "Tests.Configuration.Producer";
+    RootDirectory: "../../../../..";
+    SourceRoot: "projects/nxbuild/test/fixtures/configuration-publications";
+    OutputRoot: @Tools.OutputRoot + "/configuration-publications/" + $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration;
+    Publishes Directories {
+        Sources: [@Producer.SourceRoot + "/src"];
+        Headers: [@Producer.SourceRoot + "/include", @Producer.SourceRoot + "/include/" + $BuildConfiguration];
+        Objects: [@Producer.OutputRoot + "/objects"];
+        Libraries: [@Producer.OutputRoot + "/libraries"];
+    }
+    LLVM Object {
+        CompilerPath: @Tools.Native.LLVMCompiler;
+        Target: @Tools.Native.Triple;
+        BuildKind: Object;
+        PositionIndependentCode: True;
+        SourceFiles: [@Producer.SourceRoot + "/src/ConfigurationObject.c"];
+        OutputPath: @Producer.OutputRoot + "/objects";
+    }
+    LLVM Library {
+        CompilerPath: @Tools.Native.LLVMCompiler;
+        Target: @Tools.Native.Triple;
+        BuildKind: SharedLibrary;
+        PositionIndependentCode: True;
+        SourceFiles: [@Producer.SourceRoot + "/src/ConfigurationLibrary.c"];
+        RawOptions: ["-fuse-ld=lld", "-o", "libnxconfiguration.so"];
+        OutputPath: @Producer.OutputRoot + "/libraries";
+    }
+}

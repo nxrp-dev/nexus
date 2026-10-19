@@ -191,9 +191,13 @@ Build and run the focused tests with:
 
 ```text
 lazbuild projects/nxpackage/test/nxpackageTests.lpi
-output/nxpackageTests/x86_64-win64/nxpackageTests.exe
+output/nxpackageTests/x86_64-win64/Debug/nxpackageTests.exe
 ```
 
 The earlier local-cross-root dependency fixture is retained unchanged and remains
 paused at the owner's request; the runner reports that it is not executed. New
 imported-index requirement tests cover the revised model independently.
+
+Project validation starts with the native OS/CPU and `BuildConfiguration=Debug`.
+Use the existing target selection to choose another configuration. `$BuildConfiguration`
+resolves through the same NexusScript mechanism used by nxbuild.

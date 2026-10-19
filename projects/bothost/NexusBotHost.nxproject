@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
@@ -15,9 +7,9 @@ module "../nxbuild/nxbuild.environment.nxscript";
 
 Project NexusBotHost TargetOS[win64] {
     Id: "NXRP.Tools.NexusBotHost";
-    Requires: [@Projects.FCLProcess, @Projects.NexusScript, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.XMPP, @Projects.Synapse, @Projects.OpenSSL, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
+    Requires: [@Projects.NexusRTL, @Projects.FCLProcess, @Projects.NexusScript, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.XMPP, @Projects.Synapse, @Projects.OpenSSL, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
     RootDirectory: "../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusBotHost/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusBotHost/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         CompilerPath: @Tools.Native.FPCCompiler;
@@ -30,8 +22,7 @@ Project NexusBotHost TargetOS[win64] {
             IncludePaths: [@NexusBotHost.OutputRoot];
             UnitPaths: [
                 "projects/bothost/src",
-                "projects/bothost/src/protocol",
-                @Tools.Native.RTLPath
+                "projects/bothost/src/protocol"
             ];
         }
     }

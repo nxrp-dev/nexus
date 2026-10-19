@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../projects/nxbuild/language/nxbuild.Language.nxscript";
@@ -14,9 +6,9 @@ module Projects "../../nxbuild/Projects.nxscript";
 module "../../../projects/nxbuild/nxbuild.environment.nxscript";
 Project NexusSetupTests {
     Id: "NXRP.Tools.NexusSetupTests";
-    Requires: [@Projects.FCLRes, @Projects.NexusScript, @Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache, @Projects.HashLib4Pascal, @Projects.FCLBase, @Projects.Pthreads, @Projects.FCLProcess];
+    Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.FCLRes, @Projects.NexusScript, @Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache, @Projects.HashLib4Pascal, @Projects.FCLBase, @Projects.Pthreads, @Projects.FCLProcess];
     RootDirectory: "../../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusSetupTests/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusSetupTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
     FPC Tests {
         CompilerPath: @Tools.Native.FPCCompiler;
         SourceFiles: ["projects/setup/test/NexusSetupTests.lpr"];
@@ -27,16 +19,7 @@ Project NexusSetupTests {
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                @Tools.Native.RTLPath,
-                @Tools.NexusFPC.SourcePath + "/rtl/objpas",
-                "projects/setup/src",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
-            ];
-            IncludePaths: [
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc"
+                "projects/setup/src"
             ];
         }
     }

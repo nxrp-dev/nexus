@@ -1,20 +1,18 @@
 // Copyright (c) 2026 Kevin Collins.
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
-// Installation settings. The same package recipe is used on both native hosts.
-// Paths to installed compilers/SDKs belong here, not in the package.
+// Installation roots and tool settings shared by native build recipes.
+// Resource projects publish the derived source, include and library directories.
 Environment Tools TargetCPU[x86_64] {
     OutputRoot: "../../worktree/nexus";
     SDK WindowsSDK TargetOS[win64] {
         Path: "C:/Program Files (x86)/Windows Kits/10";
         Version: "10.0.19041.0";
         IncludePath: @Tools.WindowsSDK.Path + "/Include/" + @Tools.WindowsSDK.Version;
-        LibraryPath: @Tools.WindowsSDK.Path + "/Lib/" + @Tools.WindowsSDK.Version;
     }
     SDK MSVC TargetOS[win64] {
         Path: "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133";
         IncludePath: @Tools.MSVC.Path + "/include";
-        LibraryPath: @Tools.MSVC.Path + "/lib/x64";
     }
     Platform Native TargetOS[win64] {
         Name: "x86_64-win64";
@@ -31,20 +29,9 @@ Environment Tools TargetCPU[x86_64] {
             @Tools.WindowsSDK.IncludePath + "/shared",
             @Tools.WindowsSDK.IncludePath + "/um"
         ];
-        LibraryPaths: [
-            @Tools.WindowsSDK.LibraryPath + "/um/x64",
-            @Tools.WindowsSDK.LibraryPath + "/ucrt/x64",
-            @Tools.MSVC.LibraryPath
-        ];
         LinkerOptions: ["kernel32.lib", "ucrt.lib", "vcruntime.lib", "msvcrt.lib"];
         PackageSDKPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-sdk";
         PackageSDKIdentity: "E726DB7B2D8B2468510756D0CCB2D7BFA5E6CA7DE6404B8D0F647A08FF6950BC";
-        PackageLibraryPaths: [
-            @Tools.Native.PackageSDKPath + "/packages",
-            @Tools.WindowsSDK.LibraryPath + "/um/x64",
-            @Tools.WindowsSDK.LibraryPath + "/ucrt/x64",
-            @Tools.MSVC.LibraryPath
-        ];
         FPCCompiler: @Tools.Native.PackageSDKPath + "/bin/ppcx64.exe";
         RTLPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-rtl64";
         ForgeCompilerPath: @Tools.NexusFPC.SourcePath + "/build/forge-bootstrap/cycle3/ppcx64.exe";
@@ -62,14 +49,10 @@ Environment Tools TargetCPU[x86_64] {
         CompilerUtilitiesPath: "/usr/bin";
         Triple: "x86_64-unknown-linux-gnu";
         SystemIncludePaths: [];
-        LibraryPaths: ["/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"];
         LinkerOptions: ["-rpath=$ORIGIN"];
         // Set these values from the installed native Linux package SDK.
         PackageSDKPath: "";
         PackageSDKIdentity: "";
-        PackageLibraryPaths: [
-            "/usr/lib/x86_64-linux-gnu", "/lib/x86_64-linux-gnu"
-        ];
         FPCCompiler: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/bin/ppcx64";
         RTLPath: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/units/x86_64-linux/rtl";
         ForgeCompilerPath: @Tools.Native.FPCCompiler;

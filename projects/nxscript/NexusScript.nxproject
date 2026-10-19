@@ -1,36 +1,28 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
 module Projects "../nxbuild/Projects.nxscript";
 module "../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusScript TargetOS[win64] {
+Project NexusScript {
     Id: "NXRP.Tools.NexusScript";
-    Requires: [@Projects.NexusScript, @Projects.SQLite, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Mustache, @Projects.Serialization, @Projects.DelimitedText];
+    Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.NexusScript, @Projects.SQLite, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Mustache, @Projects.Serialization, @Projects.DelimitedText];
     RootDirectory: "../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusScript/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusScript/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         CompilerPath: @Tools.Native.FPCCompiler;
         SourceFiles: ["projects/nxscript/cli/NexusScript.lpr"];
         OutputPath: @NexusScript.OutputRoot;
-        Target Platform { OperatingSystem: "win64"; }
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
         Config Options { DisableDefaultConfigFiles: True; }
         Language Pascal { Mode: Delphi; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "projects/nxscript/cli",
-                @Tools.Native.RTLPath
+                "projects/nxscript/cli"
             ];
         }
     }

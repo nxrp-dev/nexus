@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../nxbuild/language/nxbuild.Language.nxscript";
@@ -15,9 +7,9 @@ module "../../../nxbuild/nxbuild.environment.nxscript";
 
 Project NexusTestUI TargetOS[win64] {
     Id: "NXRP.Tools.NexusTestUI";
-    Requires: [@Projects.GUI, @Projects.JSON, @Projects.FCLJSON, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache, @Projects.RegExpr, @Projects.JSONRPC, @Projects.Core, @Projects.NexusTest, @Projects.NexusScript, @Projects.Lua];
+    Requires: [@Projects.NexusRTL, @Projects.GUI, @Projects.JSON, @Projects.FCLJSON, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache, @Projects.RegExpr, @Projects.JSONRPC, @Projects.Core, @Projects.NexusTest, @Projects.NexusScript, @Projects.Lua];
     RootDirectory: "../../../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusTestUI/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusTestUI/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         CompilerPath: @Tools.Native.FPCCompiler;
@@ -32,8 +24,7 @@ Project NexusTestUI TargetOS[win64] {
             LibraryPaths: [@NexusTestUI.OutputRoot];
             UnitPaths: [
                 "projects/nxtest/ui",
-                "projects/nxtest/ui/src",
-                @Tools.Native.RTLPath
+                "projects/nxtest/ui/src"
             ];
         }
     }

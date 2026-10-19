@@ -4,6 +4,16 @@
 dialect "language/nxbuild.Language.nxscript";
 
 ProjectIndex Projects {
+    ProjectReference Solar2DNative { Id: "NXRP.Solar2D.NativeSDK"; Descriptor: "../../packages/nexus-packages/solar2d/Native.nxproject"; }
+    ProjectReference RTLExtra { Id: "NXRP.SDK.RTLExtra"; Descriptor: "sdk/RTLExtra.nxproject"; }
+    ProjectReference NativeLibraries { Id: "NXRP.SDK.NativeLibraries"; Descriptor: "sdk/NativeLibraries.nxproject"; }
+    ProjectReference PackageSDK { Id: "NXRP.SDK.PackageSDK"; Descriptor: "sdk/PackageSDK.nxproject"; }
+    ProjectReference AppleRTL { Id: "NXRP.SDK.AppleRTL"; Descriptor: "../../packages/nexus-packages-apple/RTL.nxproject"; }
+    ProjectReference RTLUnicodeRTL { Id: "NXRP.SDK.RTLUnicodeRTL"; Descriptor: "../../packages/nexus-packages/rtl-unicode/RTL.nxproject"; }
+    ProjectReference NexusRTL { Id: "NXRP.SDK.NexusRTL"; Descriptor: "sdk/NexusRTL.nxproject"; }
+    ProjectReference RTLSystem { Id: "NXRP.SDK.RTLSystem"; Descriptor: "sdk/RTLSystem.nxproject"; }
+    ProjectReference RTLObjPas { Id: "NXRP.SDK.RTLObjPas"; Descriptor: "sdk/RTLObjPas.nxproject"; }
+    ProjectReference RTLGenerics { Id: "NXRP.SDK.RTLGenerics"; Descriptor: "sdk/RTLGenerics.nxproject"; }
     ProjectReference Core { Id: "NXRP.Core"; Descriptor: "../../packages/nexus-packages/core/Project.nxproject"; }
     ProjectReference Pthreads { Id: "NXRP.Unix.Pthreads"; Descriptor: "../../packages/nexus-packages/pthreads/Project.nxproject"; }
     ProjectReference FCLBase { Id: "NXRP.FCLBase"; Descriptor: "../../packages/nexus-packages/fcl-base/Project.nxproject"; }

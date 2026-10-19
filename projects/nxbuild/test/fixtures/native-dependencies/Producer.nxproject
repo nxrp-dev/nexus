@@ -8,7 +8,7 @@ Project Producer TargetOS[linux] {
     Id: "Tests.Native.Producer";
     RootDirectory: "../../../../..";
     SourceRoot: "projects/nxbuild/test/fixtures/native-dependencies";
-    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/" + $BuildConfiguration;
     Publishes Directories {
         Sources: [@Producer.OutputRoot + "/generated/pascal"];
         Headers: [@Producer.OutputRoot + "/generated/include"];

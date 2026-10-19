@@ -1,13 +1,5 @@
 (*
   Copyright (c) 2026 Kevin Collins.
-
-  This Source Code Form is subject to the terms of the Mozilla Public
-  License, v. 2.0. If a copy of the MPL was not distributed with this
-  file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
-  This Source Code Form is "Incompatible With Secondary Licenses",
-  as defined by the Mozilla Public License, v. 2.0.
-
   SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 *)
 
@@ -20,11 +12,14 @@ interface
 uses obNXTestRegistry;
 
 procedure RegisterNXBuildDependencyTests(ARegistry: TNXTestRegistry);
+procedure RegisterNXBuildKnownProjectIssues(ARegistry: TNXTestRegistry);
 function NXBuildRunDependencyTool: Integer;
+function NXBuildRunCommandLine: Integer;
 
 implementation
 
-uses Classes, SysUtils, obNXTestContext, obNXTestSuite,
+uses Classes, SysUtils, Process, obNXCommandLine, obNXBuildCommands,
+  obNXTestContext, obNXTestSuite,
   obNXBuildDescription, obNXBuildDescriptionLoader, obNXBuildPlanner,
   obNXBuildExecutor, obNXFPCBuildOptions, obNexusScriptModel;
 
@@ -678,16 +673,293 @@ begin
   end;
 end;
 
+procedure TestExternalPublisherPaths(AContext: TNXTestContext);
+var
+  lFixture: TNXDependencyFixture;
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lTargets: TNexusScriptTargetSelection;
+  lOS, lExpected: string;
+begin
+  lFixture := TNXDependencyFixture.Create;
+  lPlanner := TNXBuildPlanner.Create;
+  lTargets := TNexusScriptTargetSelection.Create;
+  try
+    lFixture.Project('Shared', 'RootDirectory: ".."; Publishes Directories {' +
+      'Sources: ["units/" + $TargetOS + "/" + $TargetCPU + "/" + $Profile];' +
+      'Headers: ["include/" + $TargetOS]; Libraries: ["lib/" + $TargetCPU]; }');
+    lFixture.Project('Root', 'Requires: [@Projects.Shared];');
+    lTargets.SetValue('TargetCPU', 'aarch64');
+    lTargets.SetValue('Profile', 'Preview');
+    for lOS in ['linux', 'win64'] do
+    begin
+      lTargets.SetValue('TargetOS', lOS);
+      lDescription := lFixture.Load(lTargets);
+      try
+        lPlan := lPlanner.CreatePlan(lDescription);
+      finally
+        lDescription.Free;
+      end;
+      try
+        lExpected := lFixture.Path('units/' + lOS + '/aarch64/Preview');
+        AContext.AssertEquals(lExpected, lPlan.Projects[1].Directories.Sources[0],
+          'Dependency publications evaluate the same generic selection as the root project.');
+        AContext.AssertEquals(lFixture.Path('include/' + lOS), lPlan.Projects[1].Directories.Headers[0]);
+        AContext.AssertEquals(lFixture.Path('lib/aarch64'), lPlan.Projects[1].Directories.Libraries[0]);
+      finally
+        lPlan.Free;
+      end;
+    end;
+  finally
+    lTargets.Free;
+    lPlanner.Free;
+    lFixture.Free;
+  end;
+end;
+
+
+function NXBuildRunCommandLine: Integer;
+var
+  lArguments: array of string;
+  lIndex: Integer;
+begin
+  Result := 0;
+  try
+    SetLength(lArguments, ParamCount - 1);
+    for lIndex := 0 to High(lArguments) do lArguments[lIndex] := ParamStr(lIndex + 2);
+    TNXBuildCommands.RegisterCommandLineFlags;
+    TNXCommandLine.AllowUnknownFlags := False;
+    TNXCommandLine.ParseArguments(lArguments);
+    TNXCommandLine.Validate;
+    TNXBuildCommands.Execute;
+  except
+    on E: Exception do
+    begin
+      WriteLn(StdErr, E.Message);
+      Result := 1;
+    end;
+  end;
+end;
+
+procedure CheckConfigurationCommand(AContext: TNXTestContext;
+  const AConfiguration: string; ASupplyConfiguration: Boolean);
+var
+  lFixture: TNXDependencyFixture;
+  lArguments: array of string;
+  lAction, lExpected, lOutput: string;
+begin
+  lFixture := TNXDependencyFixture.Create;
+  try
+    lFixture.Project('Shared', 'Publishes Directories { Sources: ["common"];' +
+      ' Objects: ["objects/" + $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration]; }');
+    lFixture.Project('Left', 'Requires: [@Projects.Shared];');
+    lFixture.Project('Root', 'Requires: [@Projects.Left];');
+    for lAction in ['validate', 'plan'] do
+    begin
+      SetLength(lArguments, 5 + Ord(ASupplyConfiguration));
+      lArguments[0] := '--nxbuild-command';
+      lArguments[1] := '/project=' + lFixture.Path('Root.nxproject');
+      lArguments[2] := '/action=' + lAction;
+      lArguments[3] := '/targetos=LINUX';
+      lArguments[4] := '/targetcpu=X86_64';
+      if ASupplyConfiguration then lArguments[5] := '/buildconfiguration=' + AConfiguration;
+      AContext.AssertTrue(RunCommand(ParamStr(0), lArguments, lOutput, [poStderrToOutPut]), lOutput);
+      AContext.AssertTrue(Pos('Requested target: linux/x86_64/' + AConfiguration, lOutput) > 0, lOutput);
+      lExpected := lFixture.Path('providers/objects/linux/x86_64/' + AConfiguration);
+      AContext.AssertTrue(Pos('Objects: ' + lExpected, lOutput) > 0, lOutput);
+      AContext.AssertTrue(Pos('Project: Root', lOutput) > 0, lOutput);
+      AContext.AssertFalse(DirectoryExists(lExpected), 'Planning/validation must not create outputs.');
+    end;
+  finally
+    lFixture.Free;
+  end;
+end;
+
+procedure TestDefaultConfiguration(AContext: TNXTestContext);
+begin
+  CheckConfigurationCommand(AContext, 'Debug', False);
+end;
+
+procedure TestExplicitConfigurations(AContext: TNXTestContext);
+begin
+  CheckConfigurationCommand(AContext, 'Release', True);
+  CheckConfigurationCommand(AContext, 'PreviewFast', True);
+end;
+
+procedure TestInvalidConfiguration(AContext: TNXTestContext);
+var
+  lFixture: TNXDependencyFixture;
+  lArgument, lOutput: string;
+begin
+  lFixture := TNXDependencyFixture.Create;
+  try
+    lFixture.Project('Root', '');
+    for lArgument in ['/buildconfiguration', '/buildconfiguration=', '/buildconfiguration=   '] do
+    begin
+      AContext.AssertFalse(RunCommand(ParamStr(0), ['--nxbuild-command',
+        '/project=' + lFixture.Path('Root.nxproject'), '/action=validate', lArgument],
+        lOutput, [poStderrToOutPut]), lOutput);
+      AContext.AssertTrue(Pos('buildconfiguration', lOutput) > 0, lOutput);
+      AContext.AssertTrue(Pos('requires a value', lOutput) > 0, lOutput);
+    end;
+  finally
+    lFixture.Free;
+  end;
+end;
+
+procedure TestConfigurationPublications(AContext: TNXTestContext);
+var
+  lFixture: TNXDependencyFixture;
+  lTargets: TNexusScriptTargetSelection;
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lOS, lCPU, lConfiguration, lExpected: string;
+begin
+  lFixture := TNXDependencyFixture.Create;
+  lTargets := TNexusScriptTargetSelection.Create;
+  lPlanner := TNXBuildPlanner.Create;
+  try
+    lFixture.Project('Shared', 'RootDirectory: "..";' +
+      ' OutputRoot: "artifacts/" + $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration;' +
+      ' Publishes Directories { Sources: ["common", "src/" + $TargetOS];' +
+      ' Headers: ["include"]; Objects: [@Shared.OutputRoot + "/objects"];' +
+      ' Libraries: [@Shared.OutputRoot + "/libraries"]; }' +
+      ' LLVM Object BuildConfiguration[Debug] { SourceFiles: ["value.c"];' +
+      ' BuildKind: Object; Defines: ["VARIANT=101"]; OutputPath: @Shared.OutputRoot + "/objects"; }' +
+      ' LLVM Object BuildConfiguration[Release] { SourceFiles: ["value.c"];' +
+      ' BuildKind: Object; Defines: ["VARIANT=202"]; OutputPath: @Shared.OutputRoot + "/objects"; }');
+    lFixture.Project('Left', 'Requires: [@Projects.Shared];');
+    lFixture.Project('Root', 'Requires: [@Projects.Left];');
+    for lOS in ['linux', 'win64'] do
+      for lCPU in ['x86_64', 'aarch64'] do
+        for lConfiguration in ['Debug', 'Release'] do
+        begin
+          lTargets.SetValue('TargetOS', lOS);
+          lTargets.SetValue('TargetCPU', lCPU);
+          lTargets.SetValue('BuildConfiguration', lConfiguration);
+          lDescription := lFixture.Load(lTargets);
+          try
+            lPlan := lPlanner.CreatePlan(lDescription, False);
+          finally
+            lDescription.Free;
+          end;
+          try
+            lExpected := lFixture.Path('artifacts/' + lOS + '/' + lCPU + '/' + lConfiguration);
+            AContext.AssertEquals(3, lPlan.Projects.Count);
+            AContext.AssertEquals(2, lPlan.Projects[2].Directories.Sources.Count);
+            AContext.AssertEquals(lFixture.Path('common'), lPlan.Projects[2].Directories.Sources[0]);
+            AContext.AssertEquals(lFixture.Path('src/' + lOS), lPlan.Projects[2].Directories.Sources[1]);
+            AContext.AssertEquals(lFixture.Path('include'), lPlan.Projects[2].Directories.Headers[0]);
+            AContext.AssertEquals(1, lPlan.Projects[2].Directories.Objects.Count);
+            AContext.AssertEquals(1, lPlan.Projects[2].Directories.Libraries.Count);
+            AContext.AssertEquals(lExpected + '/objects', lPlan.Projects[2].Directories.Objects[0]);
+            AContext.AssertEquals(lExpected + '/libraries', lPlan.Projects[2].Directories.Libraries[0]);
+            AContext.AssertEquals(1, lPlan.Steps.Count);
+            AContext.AssertEquals(lExpected + '/objects', lPlan.Steps[0].OutputPath);
+            if lConfiguration = 'Debug' then
+              AContext.AssertTrue(lPlan.Steps[0].Arguments.IndexOf('-DVARIANT=101') >= 0)
+            else
+              AContext.AssertTrue(lPlan.Steps[0].Arguments.IndexOf('-DVARIANT=202') >= 0);
+            AContext.AssertFalse(DirectoryExists(lExpected));
+          finally
+            lPlan.Free;
+          end;
+        end;
+  finally
+    lPlanner.Free;
+    lTargets.Free;
+    lFixture.Free;
+  end;
+end;
+
+procedure TestAppleConfigurationPaths(AContext: TNXTestContext);
+var
+  lLoader: TNXBuildDescriptionLoader;
+  lDescription: TNXBuildDescription;
+  lTargets: TNexusScriptTargetSelection;
+  lBuild: TNXFPCBuildOptions;
+  lCPU, lConfiguration, lRelative, lExpected: string;
+begin
+  lLoader := TNXBuildDescriptionLoader.Create;
+  lTargets := TNexusScriptTargetSelection.Create;
+  try
+    lTargets.Add('TargetOS', 'darwin');
+    for lCPU in ['x86_64', 'aarch64'] do
+      for lConfiguration in ['Debug', 'Release'] do
+        for lRelative in ['univint/UniversalInterfaces', 'cocoaint/CocoaInterfaces', 'iosxlocale/AppleLocale'] do
+        begin
+          lTargets.SetValue('TargetCPU', lCPU);
+          lTargets.SetValue('BuildConfiguration', lConfiguration);
+          lDescription := lLoader.LoadDescription(ExpandFileName(
+            'packages/nexus-packages-apple/' + lRelative + '.nxproject'), lTargets);
+          try
+            lExpected := ExpandFileName('../../worktree/nexus/nxbuild-apple/' +
+              lCPU + '-darwin/univint/' + lConfiguration);
+            lBuild := lDescription.Builds[0] as TNXFPCBuildOptions;
+            AContext.AssertTrue(lBuild.Files.UnitPaths.IndexOf(lExpected) >= 0,
+              'Apple unit search must use the selected configuration: ' + lExpected);
+            AContext.AssertEquals(lBuild.OutputPath, lDescription.Publishes.Sources[0]);
+          finally
+            lDescription.Free;
+          end;
+        end;
+  finally
+    lTargets.Free;
+    lLoader.Free;
+  end;
+end;
+
+procedure TestLegacyProjectIdentity(AContext: TNXTestContext);
+var
+  lLoader: TNXBuildDescriptionLoader;
+  lTargets: TNexusScriptTargetSelection;
+  lDescription: TNXBuildDescription;
+begin
+  lLoader := TNXBuildDescriptionLoader.Create;
+  lTargets := TNexusScriptTargetSelection.Create;
+  try
+    lTargets.Add('TargetOS', 'linux');
+    lTargets.Add('TargetCPU', 'x86_64');
+    lTargets.Add('BuildConfiguration', 'Debug');
+    lDescription := lLoader.LoadDescription(ExpandFileName(
+      '../nexus-lab/examples/build/orchestration/hello world & test.nxproject'), lTargets);
+    try
+      AContext.AssertTrue(lDescription.Id <> '', 'The example must declare its project identity.');
+    finally
+      lDescription.Free;
+    end;
+  finally
+    lTargets.Free;
+    lLoader.Free;
+  end;
+end;
+
+procedure RegisterNXBuildKnownProjectIssues(ARegistry: TNXTestRegistry);
+var
+  lSuite: TNXTestSuite;
+begin
+  lSuite := ARegistry.AddSuite('NXBuild.KnownProjectIssues');
+  lSuite.AddTest('LegacyProjectIdentity', @TestLegacyProjectIdentity);
+end;
+
 procedure RegisterNXBuildDependencyTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NXBuild.Dependencies');
+  lSuite.AddTest('DefaultConfiguration', @TestDefaultConfiguration);
+  lSuite.AddTest('ExplicitConfigurations', @TestExplicitConfigurations);
+  lSuite.AddTest('InvalidConfiguration', @TestInvalidConfiguration);
+  lSuite.AddTest('ConfigurationPublications', @TestConfigurationPublications);
+  lSuite.AddTest('AppleConfigurationPaths', @TestAppleConfigurationPaths);
   lSuite.AddTest('SourceOnly', @TestSourceOnlyProject);
   lSuite.AddTest('TransitiveDiamond', @TestTransitiveDiamond);
   lSuite.AddTest('MissingAndCycle', @TestMissingAndCyclicRequirements);
   lSuite.AddTest('CompilerArguments', @TestInheritedCompilerArguments);
   lSuite.AddTest('ProducerOrderAndFailure', @TestProducerOrderAndFailure);
+  lSuite.AddTest('ExternalPublisherPaths', @TestExternalPublisherPaths);
   lSuite.AddTest('TargetSelectedPublisherPaths', @TestTargetSelectedPublisherPaths);
   lSuite.AddTest('PublisherChange', @TestPublisherChange);
   lSuite.AddTest('InvalidProjectReference', @TestInvalidProjectReference);

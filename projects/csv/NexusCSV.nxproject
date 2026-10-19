@@ -1,12 +1,4 @@
 // Copyright (c) 2026 Kevin Collins.
-//
-// This Source Code Form is subject to the terms of the Mozilla Public
-// License, v. 2.0. If a copy of the MPL was not distributed with this
-// file, You can obtain one at https://mozilla.org/MPL/2.0/.
-//
-// This Source Code Form is "Incompatible With Secondary Licenses",
-// as defined by the Mozilla Public License, v. 2.0.
-//
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
@@ -15,9 +7,9 @@ module "../nxbuild/nxbuild.environment.nxscript";
 
 Project NexusCSV {
     Id: "NXRP.Tools.NexusCSV";
-    Requires: [@Projects.Serialization, @Projects.DelimitedText, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Mustache, @Projects.Pthreads, @Projects.FCLBase];
+    Requires: [@Projects.NexusRTL, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.Serialization, @Projects.DelimitedText, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Mustache, @Projects.Pthreads, @Projects.FCLBase];
     RootDirectory: "../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusCSV/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusCSV/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
     FPC Compiler {
         CompilerPath: @Tools.Native.FPCCompiler;
@@ -31,16 +23,7 @@ Project NexusCSV {
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "projects/csv/src",
-                @Tools.Native.RTLPath,
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
-            ];
-            IncludePaths: [
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64"
+                "projects/csv/src"
             ];
         }
     }

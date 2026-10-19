@@ -1,0 +1,14 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+
+Project RTLSystem TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.SDK.RTLSystem";
+    RootDirectory: "../../..";
+    Description: "System and object-Pascal RTL source support.";
+    Publishes Directories {
+        Sources: [@Tools.NexusFPC.SourcePath + "/rtl/inc", @Tools.NexusFPC.SourcePath + "/rtl/objpas"];
+    }
+}

@@ -14,12 +14,12 @@ to the configured external `Tools.OutputRoot`:
 ```sh
 "$NXBUILD" /action=plan /project=projects/nxbuild/test/fixtures/native-dependencies/All.nxproject /targetos=linux /targetcpu=x86_64
 "$NXBUILD" /action=build /project=projects/nxbuild/test/fixtures/native-dependencies/All.nxproject /targetos=linux /targetcpu=x86_64
-"$NX_OUT/generated-dependencies/x86_64-linux/pascal/GeneratedNativeTests"
-LD_LIBRARY_PATH="$NX_OUT/generated-dependencies/x86_64-linux/libraries${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$NX_OUT/generated-dependencies/x86_64-linux/c/GeneratedCConsumer"
+"$NX_OUT/generated-dependencies/x86_64-linux/pascal/Debug/GeneratedNativeTests"
+LD_LIBRARY_PATH="$NX_OUT/generated-dependencies/x86_64-linux/Debug/libraries${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$NX_OUT/generated-dependencies/x86_64-linux/c/Debug/GeneratedCConsumer"
 ```
 
 Use a fresh external OutputRoot for the once-only check. Planning must leave it
-absent. After one aggregate build, `generated/producer-runs.txt` beneath the
+absent. After one aggregate build, `Debug/generated/producer-runs.txt` beneath the
 fixture output directory must have exactly one line. Each subsequent build
 runs the producer again: this fixture checks per-invocation graph deduplication,
 not incremental caching. `readelf -d` on the C executable identifies
