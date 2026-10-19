@@ -1,75 +1,75 @@
 # Work Plan: Unified nxproject Architecture and Dependency-Aware nxbuild
 
-Status: Proposed; implementation requires direct owner approval.
+Status: Revised proposal for owner review; implementation is not authorized.
 Date: 2026-10-18.
-Planning verification: source inspection only; no builds, tests, applications, or migration executed.
+Planning verification: source inspection only; no implementation changes, builds or tests performed.
 
 ## Inputs
 
-- Owner's conversation request to read the supplied document and provide a work plan/commentary.
-- `/home/kcollins/Downloads/nxproject-unified-build-and-dependencies.md`, including its twelve binding architectural decisions and eventual acceptance criteria. This is planning input, not implementation authorization.
+- Owner's request and `/home/kcollins/Downloads/nxproject-unified-build-and-dependencies.md`.
+- Subsequent owner clarifications: migrate existing nxbuild descriptions/scripts completely; defer LS work to the planned LS overhaul; compile and test actual Solar2D integration on Linux; leave Forge and its dependent contracts untouched until a later pass.
 - `AGENTS.md`, `projects/nxbuild/AGENTS.md`, `projects/nxpackage/AGENTS.md`, `.ai/protocols/architecture-change.md`, and `.ai/protocols/codex-workplan-format.md`.
-- Live source in Nexus and its locally available package, lab, mobile, and compiler repositories. The separate compiler naming goal remains paused.
+- Source inspection underlying the original plan: Nexus `7e082536e7d3`; nexus-packages `331bfca0a5c6`; nexus-packages-ext `bbe61fcb0a11`; nexus-packages-apple `55e95914bee0`; nexus-lab `cf6922a396a8`; nexus-mobile `fed1539cc1fb`; nexus-fpc `030c3ad17f45`. Forge imports and Linux engine CMake targets were rechecked for this revision. These are local-source findings, not claims about uninspected remote revisions.
 
-Inspection revisions: Nexus `7e082536e7d3`; nexus-packages `331bfca0a5c6`; nexus-packages-ext `bbe61fcb0a11`; nexus-packages-apple `55e95914bee0`; nexus-lab `cf6922a396a8`; nexus-mobile `fed1539cc1fb`; nexus-fpc `030c3ad17f45`. Findings concern these local working trees; no claim is made about uninspected remote revisions.
+The owner's clarifications govern this revision where they narrow or correct the supplied request. The compiler naming goal remains paused.
 
 ## Summary
 
-Replace the two incomplete description contracts with one `Project` contract in a canonical `nxproject` dialect. Every project has the same identity, requirements, directory publication, target selection, and ordered build-operation capabilities, including projects with no operations. `nxbuild` resolves one complete project graph, creates dependency-first plans, and executes those plans sequentially.
+Make `nxproject` the single universal entity understood by nxbuild. Every project may require other projects, publish directories and perform build operations, regardless of whether it produces an application, library, tool or source materials. nxbuild resolves the full dependency graph, inherits all published directory categories and builds required producers before consumers.
 
-Keep catalog records as descriptor locators and keep the editing workbench as an editor. Neither is another kind of build entity. Remove the obsolete Package execution root and duplicate package publication contract. Preserve compiler-native NexusFPC package options and formats.
+Migrate all existing inputs that depend on the changed nxbuild contract. Preserve the separate contracts and files Forge currently uses. Record LS integration issues for its planned overhaul instead of repairing that subsystem here. Validate the resulting system with real Abbrevia consumers, mixed FPC/LLVM builds and an actual Linux Solar2D engine/integration build.
 
-This is a complete migration, including real providers, consumers, editor generators, and tests. It is not an optional resolver layered on the current split. Forge execution and dialect reconciliation are deferred explicitly; they do not dictate the corrected nxbuild model.
+The required results below are binding. Suggested syntax, internal structures and implementation mechanisms are proposals that may be replaced by simpler equivalent solutions. They are not additional acceptance requirements.
 
 ## Verified Findings
 
-### Current call paths and responsibilities
+### Current nxbuild path
 
-| Verified source | Present behavior and required correction |
+| Source | Confirmed behavior |
 | --- | --- |
-| `projects/nxbuild/language/nxbuild.Language.nxscript`, definitions `Project`, `Package`, `FPC`, `LLVM` | Project and Package repeat the same root properties and FPC/LLVM children. Neither root exposes identity, requirements, or publications. Replace with one Project root, retaining operation-specific settings. |
-| `projects/nxbuild/src/obNXBuildCommands.pas`, `TNXBuildCommands.Execute` | Creates TargetOS/TargetCPU selections, calls `LoadDescription`, then `CreatePlan`, then either `WritePlan` or `Execute`. This is the CLI entry for a single shared resolution/planning path. |
-| `obNXBuildDescriptionLoader.pas`, `LoadDescription` / `NXBuildAssignDefinition` | Runs NexusScript analysis/validation, emits native Live output, demands exactly one Project or Package root, assigns RTTI properties and FPC/LLVM children, resolves paths, and frees the analysis/Live document. New requirements need typed reference handling before these objects are freed; the present generic string-array assignment is insufficient. |
-| `obNXBuildDescription.pas`, `TNXBuildDescription` | Stores Kind, filename, root/source/output roots and builds. Has no project identity, dependency model, or publication collections. |
-| `obNXBuildEntry.pas`, `ResolvePath` / `ResolvePaths` | Resolves relative paths against the description's RootDirectory. Defaults a missing operation OutputPath to that root. Source masks are expanded separately at execution. Preserve publisher ownership and stop relying on a default that can put generated files in source. |
-| `obNXBuildPlanner.pas`, `CreatePlan` | Rejects zero-build descriptions, checks source lists and installed tools, and creates one step per operation in declaration order. No graph, closure, context, or producer scheduling exists. Source masks remain unexpanded during planning. |
-| `obNXBuildExecutor.pas`, `Execute` / `ExecuteStep` / `ExecuteInvocation` | Expands masks per step, creates OutputPath, launches TProcess synchronously and stops on failure. Retain these useful execution boundaries; add project attribution and graph ordering rather than another executor. |
-| `obNXFPCBuildOptions.pas`, `TNXFPCFileOptions.AppendArguments` | UnitPaths -> `-Fu`; IncludePaths -> both `-Fi` and `-I`; LibraryPaths -> `-Fl`; ObjectPaths -> `-Fo`. These are actual existing mappings, not interchangeable properties. |
-| Same file, `TNXFPCBuildOptions.AppendArguments` / `ResolvePaths` | Adds SDK/build identities `-Fj`/`-Fk`, RequiredPackages `-FP`, output paths `-FE`/`-FU`, raw options, and other sections. These compiler-package settings are independent of project dependencies. |
-| `obNXLLVMBuildOptions.pas`, `AppendArguments` | IncludePaths -> `-I`, SystemIncludePaths -> `-isystem`, LibraryPaths -> `-L`, Libraries -> `-l`; sources are inserted before libraries. Object build uses `-c`. There is no LLVM object-search-directory switch or explicit object-input collection in this model. |
-| `projects/nxpackage/language/nxpackage.Language.nxscript` | Package defines metadata, Requires and publication arrays. Project reuses metadata/Requires/Outputs but excludes UnitPaths, IncludePaths and LibraryPaths. Neither permits build operations. |
-| `projects/nxpackage/src/obNXPackageContractValidator.pas` | Requires references LocalPackage/ExternalPackage records from one imported index. Checks index membership, relative descriptor syntax, and repository associations. Does not open required descriptors, verify identity agreement, resolve a dependency graph, aggregate paths, or build producers. |
-| `obNXPackageDocument.pas` / `uiNXPackageMain.pas` | Document validates analysis plus the separate contract validator. GUI already delegates edits, dirty state, undo and save to TNXScriptEditor. Keep that ownership; replace contract checks with the canonical project/catalog service. |
-| `packages/nexus-packages/nxscript/src/obNexusScriptLive.pas` | Native Live values expose definitions/references and source ranges. The owned snapshot has non-owning navigation/reference links. Use these mechanisms, not JSON conversion, text substitution, or a second reference parser. |
+| `projects/nxbuild/language/nxbuild.Language.nxscript` | Project and Package repeat the same roots and FPC/LLVM children. Neither has requirements or publications. |
+| `projects/nxbuild/src/obNXBuildCommands.pas`, `TNXBuildCommands.Execute` | Selects TargetOS/TargetCPU, calls LoadDescription, then CreatePlan, then WritePlan or Execute. |
+| `obNXBuildDescriptionLoader.pas`, `LoadDescription` / `NXBuildAssignDefinition` | Uses NexusScript analysis, validation and native Live output; accepts one Project or Package root; assigns properties/build entries; resolves paths. Its generic string-array assignment does not load a dependency graph. |
+| `obNXBuildDescription.pas` | Holds kind, filename, roots and builds, without identities, requirements or publications. |
+| `obNXBuildPlanner.pas`, `CreatePlan` | Rejects zero-operation descriptions and makes steps for a single description in declaration order. There is no dependency graph or aggregation. |
+| `obNXBuildExecutor.pas` | Expands masks at execution, prepares output directories, invokes tools synchronously and stops on the first failure. |
+| `obNXBuildEntry.pas` | Resolves paths against the description's root. Source masks expand separately at execution. A missing OutputPath currently defaults to that root. |
+| `obNXFPCBuildOptions.pas` | UnitPaths -> `-Fu`; IncludePaths -> `-Fi` and `-I`; ObjectPaths -> `-Fo`; LibraryPaths -> `-Fl`. Compiler-native package options are separately authored. |
+| `obNXLLVMBuildOptions.pas` | IncludePaths -> `-I`; SystemIncludePaths -> `-isystem`; LibraryPaths -> `-L`; Libraries -> `-l`. Sources precede libraries. No explicit object-input collection exists in this model. |
+| `packages/nexus-packages/nxscript/src/obNexusScriptLive.pas` | Provides native definitions, reference targets and original source ranges. These mechanisms can represent concise project references without a new reference parser. |
 
-All nxbuild source filenames above are under `projects/nxbuild/src/` unless otherwise stated.
+Unqualified nxbuild unit names in the table are under `projects/nxbuild/src/`.
 
-### Real providers and consumers
+### Publication metadata and real consumers
 
-- Abbrevia's authoritative catalog location is **`packages/nexus-packages-ext/compression/abbrevia`**, not the first-party package repository. Its `Package.nxscript` is currently a Forge recipe with metadata, published output/unit/include/library paths, Windows installation literals and source-tree output paths. It cannot simply be loaded by current nxbuild.
-- `../nexus-lab/examples/build/native/Abbrevia.nxpackage` is a different nxbuild recipe for the same library: native codec objects, bzip2 shared library, then the NexusFPC `.nxpk` runtime-package build. It repeats the provider's build facts elsewhere and explicitly wires native object directories into FPC. Consolidate ownership rather than retaining both as authoritative descriptions.
-- `packages/nexus-packages/nxscript/Package.nxscript` declares Core, SQLite, DelimitedText, JSON, FCLJSON and Mustache requirements but publishes no source paths. The actual `projects/nxbuild/nxbuild.nxproject` hardcodes those source locations and others in its compiler paths. This is a direct real migration case: require NexusScript and the other actual direct dependencies, then inherit their complete closures.
-- `packages/nexus-packages/fcl-process/Package.nxscript` already declares FCLBase, providing a real transitive edge to retain. Many other metadata-only providers still lack directory publications; migration must populate them from real source and consumer usage, not just rename files.
-- `packages/nexus-packages/solar2d/Package.nxscript` is the **Pascal plugin bridge** and requires Lua. It explicitly says consumers supply a matching host. `lua/Package.nxscript` similarly bundles no Lua runtime; its comments identify platform-dependent LibFFI needs not yet represented as complete project dependencies.
-- The **actual engine is present** in sibling `../nexus-mobile`, including `librtt/`, `platform/windows/Corona.Simulator.sln`, and `Nexus2D.Win64.Forge.nxscript`. No `.nxproject` describes it. Its existing Win64 recipe runs `Build-X64Dependencies.ps1` then MSBuild Release/x64; it is not an LLVM-only direct compiler invocation.
-- The engine's dependency script defaults its cache to `.build/win64-deps`, fetches pinned Git sources when absent, and copies built dependencies into `external/vulkan/Lib64` and `external/live-libs64`. Existing MSBuild props also write/copy into `platform/windows/Bin/Corona` and other checkout-relative directories. Passing only OutDir/IntDir would not relocate every generated output.
-- The engine's root CMakeLists selects the Linux implementation and explicitly rejects other host OSs. It is not an existing substitute for the Win64 MSBuild solution.
-- `../nexus-lab/examples/mobile/pascal-plugin/plugin_sample.nxproject` hardcodes Lua, Solar2D, LibFFI and other paths. Its Win64 LinkerOptions explicitly name `CoronaLabs.Corona.Native.lib`. The import library filename remains legitimate link intent; its directory must come from the engine's publication.
-- `projects/nxbuild/nxbuild.environment.nxscript` already supplies target-selected FPC/LLVM/SDK settings via ordinary modules. It contains installation-specific paths and a relative common OutputRoot whose interpretation currently depends on callers' roots. Keep toolchain configuration distinct from dependency discovery, and normalize the common output root once before using it in differently located publishers.
+- `projects/nxpackage/language/nxpackage.Language.nxscript` separately defines Package metadata, requirements and path publication; its Project root excludes development path publication. The associated validator checks catalog/reference contracts but does not resolve or build dependencies.
+- `projects/nxbuild/nxbuild.nxproject` manually lists NexusScript, serialization, Core, SQLite, Mustache and other dependency paths. Meanwhile NexusScript's `Package.nxscript` declares several of those requirements without publishing source directories. FCLProcess metadata already declares FCLBase. These provide real migration and transitive-dependency cases.
+- Abbrevia lives under `packages/nexus-packages-ext/compression/abbrevia`. Its `Package.nxscript` uses Forge's dialect. The separate lab `examples/build/native/Abbrevia.nxpackage` uses nxbuild and orders codec-object, bzip2-library and `.nxpk` builds. The nxbuild recipe is in scope; the Forge recipe is not.
+- The Solar2D descriptor under `packages/nexus-packages/solar2d` describes the Pascal plugin bridge and refers to Lua. It does not describe or build the engine. Lua metadata also does not supply a Lua host/runtime.
+- The actual engine source is in sibling `../nexus-mobile`. Its root CMakeLists selects `platform/linux/CMakeList.txt` on Linux. That file defines actual `Solar2D`, `Solar2DSimulator` and `Solar2DBuilder` executable targets and native dependency checks. Existence of these targets is not proof they currently compile.
+- The Win64 engine has a separate MSBuild solution and a Forge recipe. Its prerequisite script can fetch pinned sources and writes some generated files into checkout-relative directories. Those existing Forge scripts must not be changed by this work.
+- The lab's `examples/mobile/pascal-plugin/plugin_sample.nxproject` repeats Lua, bridge and other dependency paths; its Win64 linking options name `CoronaLabs.Corona.Native.lib`. Library filenames remain normal link intent; dependency directories should be inherited.
+- The existing environment module supplies target-specific FPC/LLVM/SDK settings. Its machine-specific installation paths and relative common OutputRoot need careful interpretation when publishers live at different directory depths.
 
-### Editor and other callers
+### Forge boundary
 
-- `projects/ls/pascal/src/service/obNXLSProjectService.pas`, `NXLSProjectScriptHeader` / `NXLSNexusProjectScript`, locates nxbuild's dialect but emits retired fields such as BuildTool, ProjectKind, BuildFile and an FPCBuildOptions child. This is a verified source mismatch; no new test execution is claimed.
-- `projects/nxbuild/test/tsNXBuildProjectGenerationTests.pas` has three NXTest cases intended to load generated descriptors. The README explicitly records their separation/blockage pending model adoption. Migrate and run them; do not leave them out of the architecture correction.
-- `projects/ls/pascal/NexusLSTestModule/tsNXLSCoreTests.pas` still accesses TNXFPCBuildOptions.InputFile, OutputFile and BuildArguments, which are absent from the current options class. Update these tests to the real API, preserving the behavior they cover. Its module currently imports Windows, so Linux cannot stand in for executing that entire module.
-- `projects/nexuscode/src/build/nexusBuildCommandBuilder.ts` already invokes nxbuild with `/action=build /project=...`. `projectTypes/nexusProjectAdapter.ts` finds `.nxproject` files but returns an empty projectFile/fpcOptions language-server context. The editor does not currently inherit project dependencies for code intelligence.
-- `projects/forge/src/obNXForge.pas` imports TNXPackageContractValidator and conditionally recognizes the nxpackage dialect. `projects/forge/language/definitions/Contracts.ForgeDef.nxscript` imports that language and composes its properties/index definitions. These are concrete deferred dependencies, not evidence of a need for two nxbuild entities.
+`projects/forge/language/definitions/Contracts.ForgeDef.nxscript` imports `projects/nxpackage/language/nxpackage.Language.nxscript`. `projects/forge/src/obNXForge.pas` imports `obNXPackageContractValidator` from the nxpackage project. Forge does not import nxbuild's dialect in those execution/contract paths.
 
-### Descriptor and catalog inventory
+The previous plan proposed deleting those separate dependencies. That removal was outside the intended scope and is withdrawn. Keep the Forge-facing language, validator API and behavior, catalog contracts and Forge descriptions unchanged. Their continued existence serves another tool; it does not create two execution models inside nxbuild.
 
-A read-only filesystem inventory included nested repositories, preserving `examples/build` as source. It excluded `.git`, node_modules, generated output/dist and Python cache directories. Counts are file inventory, including fixtures; they do not assert that every descriptor currently builds.
+A `.nxproject` build recipe read by nxbuild is an nxbuild input even if the executable it produces is Forge or an LS tool. Adapting such a recipe to the nxbuild contract is different from changing the produced tool's runtime, DSL or contracts. Select migrations by the actual consumer, not by filename, extension, folder or the words Project/Package alone.
 
-| Repository/area | `.nxproject` | `.nxpackage` | `Package.nxscript` | Documents declaring index roots |
+### LS findings retained for the later pass
+
+NexusLS project generation still emits retired fields and an FPCBuildOptions child. Three nxbuild project-generation cases depend on that LS path. NexusLS tests also reference obsolete options-model members. The VS Code adapter currently supplies an empty projectFile/options context for code intelligence.
+
+These are verified affected integrations, but fixing LS generators, LS option-model callers, VS Code language-server context or adding an editor plan-query interface is deferred at the owner's direction. Report their status separately; do not count them as passing or silently repair them during nxbuild implementation. Checked-in build recipes consumed by nxbuild still receive required descriptor migration.
+
+### Inventory and migration classification
+
+The earlier read-only inventory included nested repositories and source directories such as `examples/build`, and excluded Git metadata and generated output/cache directories. It includes test fixtures; it does not assert that every file is a live build or builds successfully.
+
+| Area | `.nxproject` | `.nxpackage` | `Package.nxscript` | Index-root documents |
 | --- | ---: | ---: | ---: | ---: |
 | Nexus, excluding the three nested package repositories | 29 | 0 | 0 | 2 |
 | nexus-packages | 40 | 16 | 32 | 1 |
@@ -77,266 +77,213 @@ A read-only filesystem inventory included nested repositories, preserving `examp
 | nexus-packages-apple | 0 | 3 | 3 | 1 |
 | nexus-lab | 26 | 2 | 1 | 3 |
 | nexus-fpc | 14 | 0 | 0 | 0 |
-| nexus-mobile | 0 | 0 | 0 | 0 |
-| nexus-private | 0 | 0 | 0 | 0 |
 | **Total** | **110** | **21** | **39** | **8** |
 
-There are 131 descriptions declaring the nxbuild dialect and 47 documents declaring the nxpackage dialect. These are overlapping views of the same inventory, not additional counts to add to the table. Forge descriptions, inline test fixture strings, documentation snippets, and the extra catalog-example `ExternalPackage.nxscript` also require reference searches.
+There are 131 descriptions declaring nxbuild's dialect and 47 declaring nxpackage's dialect; these overlap the table. The latter group is an inspection inventory, not a blanket deletion or conversion list. Reconfirm actual consumers before migration.
 
-The 21 `.nxpackage` files are the first-party FCLXML, FCLJSON, FCLBase, Pthreads, Iconv, Users, RTLUnicode, FCLDB, SQLite, OpenSSL, PasJPEG, X11, FCLImage, FCLRegistry, LibFFI and FCLRes builds; Apple's CocoaInterfaces, AppleLocale and UniversalInterfaces builds; and lab Mixed/Abbrevia native examples. Consolidate with colocated metadata where they describe the same project; do not blindly turn each old file into a competing new descriptor.
-
-The eight catalogs are Nexus's `packages/Packages.PackageIndex.nxscript`, the three package repositories' `Packages.RepositoryIndex.nxscript`, the workbench's IndexWithHash fixture, and the lab's PackageIndex, RepositoryIndex and ExternalRepositoryIndex examples. The workspace package index has explicit local locations across repositories; repository indexes include external identity records. Keep those discovery roles distinct from project execution.
+The 21 legacy nxbuild `.nxpackage` files cover sixteen first-party library builds, three Apple library builds and the lab's Mixed/Abbrevia examples. They must migrate. For colocated metadata and catalogs, establish one authoritative nxbuild description per project, while preserving any existing Forge-facing documents. New nxbuild provider descriptions can be placed alongside retained Forge descriptions; nxbuild must not consume the latter as a parallel package execution contract.
 
 ## Architecture Problem
 
-A consumer cannot express one requirement and obtain a usable build environment because metadata/publication and execution have different owners and neither owns the graph. Manual compiler-path wiring fills the gap and defeats transitive inheritance. The editor and build generators have consequently drifted onto yet another obsolete description shape.
+Nxbuild lacks a project-level publication/dependency contract and a single owner for resolving it. Explicit consumer paths compensate for that gap and make transitive dependencies and producer scheduling manual.
 
-The correction is one project definition and one resolver/planner. Catalogs locate definitions; they do not supply competing requirements or publications. Compiler option classes translate resolved environments; they do not independently discover dependencies. Execution consumes the completed plan; it does not discover a second graph.
+Correct the nxbuild model and its consuming inputs. Do not solve this by changing the separate contracts on which Forge depends, or by adding independent traversal logic for each compiler or consumer.
 
 ## Target Contract
 
-The following is proposed design, separate from the verified behavior above. The binding decisions in the request remain fixed.
+### Required outcomes
 
-### Universal project and ownership
+1. **One nxbuild entity:** nxproject has identity, optional metadata, requirements, categorized directory publications, operations and normal target/toolchain settings. Source-only projects with no operations are valid. Output kind introduces no separate dependency rules.
+2. **Declarative dependencies:** consumers identify required projects rather than their resource directories. Discovery is explicit and deterministic; missing and cyclic dependencies have useful diagnostics.
+3. **Full inheritance:** every dependency contributes all published categories recursively. No import selection or re-export declarations. A shared diamond dependency builds once for the same required build context.
+4. **Publisher-owned paths:** relative publications resolve against their publisher, and descriptor locators against their declared discovery context. Selected target/configuration must remain consistent through the graph.
+5. **Producer scheduling:** generated and existing directories share one publication contract. Required producers run before consumers. Failures identify the producer, preserve failure information and prevent dependent execution.
+6. **Read-only planning:** plans expose the graph, resolved categorized directories and relevant operations/options without building producers or creating outputs. Directories produced by a dependency need not already exist.
+7. **Toolchain consumption:** operations receive applicable inherited directories centrally. Explicit local and SDK settings retain their genuine purposes. Compiler-native `.nxpk`/`.nxpl`, SDK identities, RequiredPackages and associated flags remain independent.
+8. **Complete nxbuild migration:** adapt every existing nxbuild description/script affected by the new contract; consolidate duplicate nxbuild definitions and remove rejected nxbuild paths/models. Retain Forge's independent contracts and scripts unchanged.
+9. **Real validation:** actual Abbrevia and mixed compiler builds plus actual Linux Solar2D engine/integration compilation and execution evidence. Graph tests alone do not satisfy the native build requirement.
 
-- One canonical `nxproject.Language.nxscript` under `projects/nxbuild/language/`, with one execution/publication root, `Project`. `.nxproject` is the universal description extension. Remove the old `nxbuild.Language.nxscript` and `nxpackage.Language.nxscript` contracts after the coordinated cutover; no Package-root alias.
-- One shared project definition/loader and one graph implementation under `projects/nxbuild/src/`, named for their actual ownership (`obNXProject...`, shared record/enumeration definitions in `tpNXProject...`). FPC/LLVM operation classes remain operation-specific. No Project/Package subclass hierarchy or duplicate metadata model.
-- Project owns Id, optional descriptive metadata, Requires, categorized published directories, root configuration and ordered operations. The source descriptor is authoritative. A metadata/source-only project has zero operations and is valid.
-- Loader owns analysis/Live snapshots while loading; materializes owned project values and requirement locators with original source identity/ranges before releasing them. Graph owns each loaded node once. Plans own resolved operation arguments and project/dependency attribution. Neither plan nor editor retains dangling analysis references.
-- Publication state is declared once on the project. The resolved environment adds the project's own directories and the complete dependency closure. Every category is retained, even if a particular operation cannot use it.
-- Planning/editor inspection creates no directories, expands no source masks, launches no producer, and requires no published directory to exist. Execution creates outputs and expands masks only after prerequisites have run.
-- Executor remains sequential on the current thread and uses the existing synchronous process path. No threads, scheduling pool, or concurrency changes.
+### Ownership and state flow
 
-### Discovery and identities
+The project definition owns authored identity, requirements, publications and operations. One shared nxbuild resolution/planning path loads projects, resolves the closure, aggregates directories and schedules operations. FPC/LLVM option generation consumes that resolved environment. The executor consumes the plan and runs required operations in order; it does not rediscover dependencies.
 
-Retain NexusScript `module` declarations and `@` references. Rename catalog build-entity records to LocalProject/ExternalProject and PackageIndex to ProjectIndex; retain RepositoryIndex and existing repository/hash metadata where still useful. These are locators, not executable roots.
+Use the existing NexusScript compiler and native Live analysis/reference facilities. Preserve source provenance for diagnostics and path interpretation. Keep loaded data and plans valid for their actual lifetimes. These responsibilities do not prescribe particular class names, allocation structures or unit boundaries.
 
-A requirement references a catalog record. A LocalProject supplies Id and Descriptor; resolve Descriptor against the **catalog document declaring that record**, including imported records, not against the consumer or the module alias. Load that file and require its Project.Id to match the record's opaque, case-preserved identity. Project labels and catalog labels are reference names, not alternate IDs.
+### Resource and path semantics
 
-For an ExternalProject, resolve its identity through an explicitly supplied local workspace ProjectIndex. Recommend `/catalog=<file>` for this selection; allow the explicitly imported workspace index itself to provide the local locator when it already does so. Never search arbitrary directories, fetch a repository, or guess a sibling checkout. Diagnose a referenced identity with no local locator. If multiple supplied local locators disagree, report the ambiguity; this is necessary dependency resolution, not resource-collision management or a version solver.
+Begin with directories for source/unit lookup, headers/includes, objects and libraries. The existing FPC `-Fu`, `-Fi`/`-I`, `-Fo`, `-Fl` mappings and LLVM `-I`, `-L` mappings provide concrete integration points. System headers keep their existing system-header meaning. A source directory does not mean compile every file in it.
 
-An explicit reference identifies its catalog directly. Remove the validator's blanket assumption that every requirement must belong to one implicitly selected imported index. Validate each referenced record and retain provenance. Repeated references to the same loaded project/context reuse its node. Catalog Version/Description are browsing summaries; descriptor values stay authoritative. Existing remote/trust/hash records remain descriptive and trigger no acquisition or verification subsystem.
+Do not perform spelling-based substitutions: UnitPaths on a publisher means exported lookup locations, while the same-named compiler field can express local or SDK configuration. SourceFiles are compilation inputs; OutputPath is a destination; root settings establish context. Classify existing Outputs entries by their real use rather than treating file paths as published directories. Forge's Outputs properties are outside this migration.
 
-### Graph, aggregation and build context
+A directory does not tell a linker which object or library to link. Preserve explicit filenames/library names and existing Pascal link directives as operation-level link intent. If an operation needs additional explicit object inputs, address that concrete need within the operation. Do not turn publication into a file manifest.
 
-1. Carry one immutable invocation target/toolchain selection through every descriptor load, including imported modules and target-selected requirements/publications. Preserve TargetOS/TargetCPU selection and any genuinely selected configuration. Diagnose inconsistent FPC target OS/CPU versus LLVM triple rather than silently mixing target artifacts.
-2. Resolve the complete closure using visiting/visited states. Missing-descriptor diagnostics include the requiring project, requirement source range and attempted locator. Cycle diagnostics show the project chain and offending edge before any producer runs.
-3. Deduplicate nodes by canonical descriptor identity plus effective invocation context. Repeated same-context diamond nodes build once per invocation. Detect inconsistent identity/descriptor bindings instead of selecting a version. Do not introduce persistent caching.
-4. Use stable dependency traversal in authored Requires order. Schedule each dependency before its dependents; preserve operation order within each project. Aggregate categories in stable first-encounter dependency order and declaration order, deduplicating normalized directory identities while retaining provenance from every contributing project. This internal order is documented and tested; expose no precedence knobs or category filters.
-5. Resolve every relative publication against the publisher's effective root (default: its descriptor directory; RootDirectory relative to that descriptor). References yielding strings do not transfer path ownership to the consumer. Keep author-facing directory lists coarse-grained.
-6. Normalize the configured external output root once in the shared context, then derive target/project output directories. Publish generated paths using the same lists as existing paths. No GeneratedResources category, existence switch, special generated-path contract, or mandatory artifact manifest.
-7. Initial freshness rule: visit/build every required project once per invocation; invoke its operations and let existing native builders use their own incremental behavior. Do not skip a producer because its output directory happens to exist. A source-only project contributes no steps. This establishes correctness without cache design.
-8. Plan output shows project identities/descriptors, target/context, edges, dependency-first steps, each categorized resolved directory with publisher provenance, applicable compiler arguments and output destinations. Failure reports name the producer/project/operation, preserve exit status and do not execute dependents. Retain the existing stop-on-first-failure behavior.
+Use deterministic traversal and directory deduplication appropriate to the platform. Preserve explicit linker input order/repetitions. No new collision policy or author-facing precedence controls are needed.
 
-### Publications and operation paths
+### Candidate approaches, not additional requirements
 
-Proposed publication child: `Publishes Directories`, containing `Sources`, `Headers`, `Objects`, and `Libraries`. Four categories reflect actual existing distinct toolchain facilities, rather than a speculative taxonomy.
+- Retain a single `Project` root for nxbuild and add identity, Requires and publications. A renamed dialect file, wholesale class renaming or a renamed workbench executable is not necessary merely to express nxproject.
+- Use existing NexusScript module/reference syntax and explicit project catalogs to locate requirements. The exact record names, catalog binding and CLI syntax remain implementation choices. Nxbuild's locators must not require modifying Forge's catalogs or validator.
+- Initially run each required project's operations once per invocation and let existing native builders handle their own incremental work. This is a simple freshness policy, not a prerequisite cache framework.
+- Let one configured external output location feed target/project destinations. Exact context binding and directory layout should follow existing toolchain configuration where practical, without embedding a checkout path in every consumer.
+- Adapt the existing process execution path to invoke a real native builder when necessary. Whether that needs a small new operation or another existing mechanism should follow the actual engine build, not a prescribed process framework.
+- Keep the existing editing workbench useful where practical by letting it inspect/edit the nxbuild dialect and use nxbuild's validation for that contract. Preserve its existing Forge document capability and Forge-facing validator. Avoid an application rename or GUI redesign unless actually needed.
 
-| Existing field/concept | Proposed meaning |
-| --- | --- |
-| Package UnitPaths | Move to project Publishes.Sources after reviewing whether each entry is a source or precompiled-unit directory. Both are unit lookup directories for FPC. |
-| Package IncludePaths | Move to Publishes.Headers. |
-| Package LibraryPaths | Move to Publishes.Libraries. |
-| Object directories currently smuggled through Outputs or consumer ObjectPaths | Move to Publishes.Objects after checking the actual contents/use. |
-| FPC Files.UnitPaths/IncludePaths/ObjectPaths/LibraryPaths | Keep for the operation's local and explicit toolchain/SDK settings. Add applicable resolved project directories through one options input; remove manually repeated dependency paths. |
-| LLVM IncludePaths/LibraryPaths | Same distinction: local settings remain; inherited headers/libraries are appended centrally. |
-| LLVM SystemIncludePaths | Retain its genuine system-header semantics. Publishing ordinary headers must not silently mark third-party code as system headers. |
-| SourceFiles | Keep explicit compilation inputs/masks; published source directories are search paths, not permission to compile every file. |
-| OutputPath, OutputRoot, SourceRoot, RootDirectory | Output destination and authoring/root configuration, not publication categories. Review each use; no global spelling-based replacement. Require generated destinations outside source. SourceRoot is currently a referenceable value, not an automatic source search path. |
-| Outputs | Remove as a publication catch-all. Classify published directories into the four lists; keep actual build destination settings on operations. Inspected named executable Outputs references are in Forge recipes/tests, with other uses in contract test fixtures. They do not justify a new output-file publication mechanism for nxbuild. Defer those Forge consumers. |
-| FPC PackagePaths, RequiredPackages, PackageSDKIdentity, PackageBuildIdentity and `.nxpk`/`.nxpl` | Preserve their compiler-native meanings and explicit operation settings. A project requirement is never converted into `-FP` or a package identity. |
+Choose the smallest coherent solution meeting the required outcomes. If a proposed mechanism proves unnecessary, omit it and explain the simpler choice. Discuss a material contract change or encountered blocker rather than silently changing the objective.
 
-FPC consumes Sources with `-Fu`, Headers with the existing `-Fi`/`-I` mapping, Objects with `-Fo`, and Libraries with `-Fl`. LLVM consumes Headers with `-I` and Libraries with `-L`. Sources remains visible in the environment but does not cause a C/C++ compiler to search for or compile arbitrary implementation files.
+### Illustrative descriptors
 
-A search directory alone does not tell a native linker which object/library to link. Preserve library names in LLVM Libraries and existing Pascal link directives/options. Add a narrow LLVM operation-level `ObjectFiles` input if required by the mixed example: resolve named object inputs against inherited Objects directories at execution after producers finish. This is link intent on the consuming operation, not a file manifest on the publisher. Keep sources/objects before libraries and preserve deliberate repetitions/order of explicit linker inputs; directory deduplication must not deduplicate link arguments.
-
-### Illustrative descriptor form
-
-These examples propose syntax for review; they are not installed descriptors. `Tools` is the ordinary configured environment module, with an already normalized absolute external OutputRoot, platform settings and installed tool paths. Catalogs below locate projects; none of the consumers repeat dependency resource directories.
+The following is proposed syntax, not installed or required spelling. The toolchain module supplies configured paths and an external output root. Catalog references identify projects; they do not wire resource paths into consumers.
 
 ```nexusscript
-// Provider's own descriptor, beside its source tree.
-dialect "nxproject.Language.nxscript";
-module "BuildEnvironment.nxscript";
+// Provider's own nxbuild descriptor.
 Project Abbrevia {
     Id: "NXRP.Compression.Abbrevia";
-    OutputRoot: @Tools.OutputRoot + "/abbrevia/" + @Tools.Native.Name;
     Publishes Directories {
         Sources: ["external/abbrevia/source"];
         Headers: ["external/abbrevia/source"];
         Objects: [@Abbrevia.OutputRoot + "/native"];
         Libraries: [@Abbrevia.OutputRoot + "/libraries"];
     }
-    // Real native-codec and bzip2 LLVM operations live here.
-    // Existing filename subdirectories/link directives determine the final layout.
+    // Actual native codec build operations and target/output settings.
 }
 ```
 
 ```nexusscript
-// The imported catalog contains LocalProject Abbrevia with its Id/Descriptor.
-dialect "nxproject.Language.nxscript";
-module Projects "Projects.ProjectIndex.nxscript";
-module "BuildEnvironment.nxscript";
+module Projects "Projects.nxscript";
 Project ArchiveApplication {
     Id: "Local.ArchiveApplication";
     Requires: [@Projects.Abbrevia];
     FPC Application {
-        CompilerPath: @Tools.Native.FPCCompiler;
         SourceFiles: ["ArchiveApplication.lpr"];
-        OutputPath: @Tools.OutputRoot + "/archive-app/" + @Tools.Native.Name;
+        // Normal compiler/output settings; no Abbrevia directory list.
     }
 }
 ```
 
 ```nexusscript
-// Distinct ordinary projects, each in its own real descriptor.
-// Their catalog locators are supplied explicitly by the workspace.
+// Three separate descriptors; module/dialect/toolchain declarations omitted.
 Project Nexus2DIntegration {
     Id: "NXRP.Nexus2D.Integration";
     Requires: [@Projects.Solar2DBridge, @Projects.Nexus2DEngine];
-    // May publish its own materials or compile a plugin using normal FPC entries.
 }
 Project Solar2DBridge {
     Id: "NXRP.Solar2D";
     Requires: [@Projects.Lua];
     Publishes Directories { Sources: ["src"]; }
 }
-Project Lua {
-    Id: "NXRP.Lua";
-    Publishes Directories { Sources: ["src", "src/bindings"]; }
-    // Add the actually required target-selected LibFFI edge after inspecting uses.
-}
-Project Nexus2DEngine TargetOS[win64] {
+Project Nexus2DEngine {
     Id: "NXRP.Nexus2D.Engine";
-    // Publish header/library/object directories verified from the actual engine build.
-    // Ordered external-tool operations invoke its native Win64 build.
+    // Actual target-selected engine build and verified published directories.
 }
 ```
 
-The last block shows graph shape, not four roots in one accepted build file. Integration inherits the bridge, Lua, engine and every further dependency automatically. Actual engine source is `../nexus-mobile`; final publication paths must be derived from its relocated build outputs, not invented here. Library-only, executable-only and source-only projects use this same contract.
+Integration receives Lua's directories transitively through the bridge, along with the engine's publications and all further dependencies. The engine project points to the actual available nexus-mobile source, not a fictitious host path. Exact engine directories follow inspection of its real build outputs.
 
 ## Scope
 
-### Concrete change inventory and removals
+| Area | Planned correction |
+| --- | --- |
+| nxbuild dialect/model/loading | One project contract; requirements/publications and valid zero-operation projects; source-aware loading using existing NexusScript facilities. |
+| Graph/planner/CLI | Explicit discovery, complete closure, diagnostic chains, resolved categories, target consistency and dependency-first plans. Preserve read-only plan behavior. |
+| FPC/LLVM option generation | Consume inherited paths centrally; preserve local/toolchain/compiler-package semantics and actual linker input requirements. |
+| Execution/native build integration | Producer-before-consumer scheduling, useful failures, real native tool invocation and external output handling. No concurrency changes. |
+| Existing nxbuild scripts/descriptors | Migrate all affected consumers across Nexus, nested package repositories, lab and compiler test recipes, regardless of output purpose or old extension. |
+| Providers/catalogs | Establish authoritative nxbuild publications/requirements and discovery entries. Review existing metadata as evidence; leave Forge-dependent files unchanged. |
+| Workbench/discovery surfaces | Make only changes needed to consume the new nxbuild contract; do not alter Forge's validator/contracts or require a GUI rename. |
+| Tests/docs | Update actual nxbuild coverage, fixtures, examples and documentation. Record LS work for its later pass. |
 
-- **Dialect/model:** canonical nxproject language; one project metadata/publication/build model; typed requirement references and source provenance. Remove duplicate Project/Package roots, Kind-dependent semantics and old description model if replaced. Do not retain forwarding type aliases.
-- **Loading/discovery:** reshape obNXBuildDescriptionLoader into the canonical project loader; reuse NexusScript Live. Extract useful catalog validation from obNXPackageContractValidator into the shared owner and remove the old validator API. Add explicit workspace catalog selection and identity/descriptor checks.
-- **Resolution/plans:** one resolver and graph/context owned by the planning service; effective-directory collections and edges in plans. Replace CreatePlan's zero-build rejection. Keep no consumer-specific closure algorithms.
-- **Option generators:** FPC/LLVM receive an effective environment without mutating authored settings; local/SDK configuration stays distinct. Preserve independent runtime-package options. Add explicit object-input support only where the actual native-link scenario requires it.
-- **Native engine adapter:** nxbuild currently has only FPC/LLVM operations. Add one narrow external-process operation using executable plus argument array, working/output directories and the existing synchronous executor. It can invoke existing MSBuild/CMake/PowerShell-based native builds without importing Forge's operation hierarchy or implementing a general scripting engine. Installed tools come from environment configuration.
-- **CLI/editor query:** `/project`, `/action=plan|build`, target selection and explicit local catalog binding use the shared service. Provide a machine-readable rendering of the same read-only resolved plan for editor context; this serializes an existing plan, not a second JSON project-description format or JSON translation before Live analysis. Include per-operation FPC paths/target settings and actionable resolution diagnostics.
-- **Workbench:** rename the nxpackage application/project to nxproject and update file filters, captions, tests and documentation. Retain TNXScriptEditor's editing/undo/save ownership. Move semantic project/catalog checks into the shared service; editor inspection does not invoke producers or require installed build outputs. No duplicate requirement parser inside the GUI.
-- **NexusLS/NexusCode:** update generators to emit canonical Project/FPC syntax; update three project-generation NXTests and stale options-model callers. NexusProjectAdapter forwards project/target/catalog context and reads resolved options through the shared query path rather than walking dependencies in TypeScript. Stop relying on an empty context/global unit-path fallback to conceal unresolved project dependencies. Keep editor file discovery distinct from dependency discovery.
-- **Descriptors/catalogs:** inventory all 110 existing projects, 21 legacy build-extension files and 39 Package.nxscript files; merge colocated same-identity descriptions. Rename catalog records/locators and dialect references. Preserve licenses/metadata. Migrate known source-only providers, native producers and all first-party consumers of the changed contract, including lab/package/compiler test recipes. Do not keep the old formats as aliases.
-- **Documentation/tests:** nxbuild/nxpackage READMEs, packages/README.md, affected AGENTS instructions, lab build/catalog examples, package build documentation, installation/tool lookup paths and inline generated fixture strings. Retire negative tests that enforce the rejected Project publication restriction; replace with positive universal-capability tests. Preserve still-useful source-mask, ordering, output, tool-failure, target and native package coverage.
+### Abbrevia
 
-### Abbrevia consolidation
+Consolidate the nxbuild recipe and its directory publication in the provider's source location, and migrate the lab/test consumers to requirements. Keep the provider's existing Forge `Package.nxscript` unchanged.
 
-Make the provider repository authoritative for Abbrevia's source/header publication and native codec producers. Move the useful nxbuild recipe out of the lab into that project and remove the duplicate Forge-owned package definition as its public build contract. Keep the lab as a consumer/example.
+Preserve source/static consumption and existing compiler-native runtime-package capability. A source consumer should not gain an unnecessary package-SDK prerequisite. A separate ordinary runtime-package producer requiring the source/native provider is one possible arrangement, not a mandatory project split.
 
-Separate the genuinely distinct `.nxpk` runtime-package build into an ordinary runtime-package build project requiring the provider, so a source/static-unit consumer does not acquire a new mandatory runtime-package SDK prerequisite. That project explicitly owns its compiler-native SDK/package options. This distinguishes real build products without reintroducing project/package entity kinds.
+### Solar2D on Linux and Windows
 
-Migrate a lab direct source consumer and Abbrevia's test consumer to Requires. Native object layout and Pascal `{$L}`/library directives must agree with the published directories; retain platform subdirectories where the existing sources require them. Do not change codec implementation to accommodate an incorrectly planned path.
+Describe the actual engine as an ordinary dependency alongside Lua and the Pascal bridge. Add the required nxbuild descriptions/integration without rewriting or removing existing Forge recipes.
 
-### Real Win64 engine integration
+On Linux, use the real CMake build in nexus-mobile, compile the engine targets needed by the scenario, compile/link the Pascal integration against its actual outputs, and run a meaningful host/plugin scenario. Inspect required native libraries, generated inputs and output locations before selecting commands. Merely invoking a no-op command, using a stub engine, inspecting a graph or compiling only the bridge is insufficient.
 
-Create an engine Project in `nexus-mobile` and a separate integration Project referencing the bridge and engine. Use the existing native solution as the initial producer. Do not claim the bridge builds the engine, or that Clang directly replaces the existing solution.
+Use existing native build machinery where it fits, with generated files under the external worktree. Do not prescribe a source snapshot, rewrite prerequisite scripts or introduce acquisition machinery before proving it is necessary. If missing prerequisites, engine defects or native output handling block the build, investigate and report the concrete problem for discussion; do not silently weaken verification or start an unrelated engine repair.
 
-Before running it, split the dependency script's explicit acquisition preparation from its build-only use of already provisioned pinned sources. The nxbuild producer must not silently fetch sources. A missing source/tool is an actionable prerequisite failure; provisioning remains an owner-controlled existing workflow, not a new package manager. Add parameters only as necessary for build-only inputs and external output directories.
-
-Review all MSBuild props and dependency-copy destinations. Relocate generated artifacts to the authorized external worktree, or run the existing checkout-relative build in a declared isolated source snapshot under that worktree and publish its actual generated directories. Recommend the isolated-snapshot route initially because overriding only OutDir does not cover the verified copy steps. The snapshot is an ordinary producer preparation operation, never an edited test copy or a patched source tree used to hide failures; it preserves the engine inputs, records source identity, and is not created during plan inspection. Define its invalidation/update from the current engine source so it cannot silently build stale input.
-
-Derive engine library/header publications from inspected native outputs. Run an actual Win64 engine -> plugin link/load scenario on Windows before claiming that acceptance criterion. Linux graph/argument tests are useful but cannot substitute for MSBuild execution. Planning alone will not prove the solution's current health or that every third-party build input is already provisioned.
+Retain the original Win64 engine/integration requirement using the actual available solution and tools. Linux success does not prove Win64 success, or vice versa. Report platform-limited evidence explicitly; native Windows validation availability does not remove the required Linux build.
 
 ## Out Of Scope
 
-- Forge source, dialect, templates, executor, or runtime reconciliation. Migrating its own `.nxproject` as an nxbuild consumer is different from redesigning Forge.
-- The old Forge dialect and obNXForge imports will need a separate follow-up once the old nxpackage language/validator are removed. Until reconciled, Forge's build/descriptor validation path may be unavailable; report that consequence explicitly. Do not retain a duplicate contract, alias or adapter solely to conceal it.
-- Compiler package formats/flags, compiler or RTL changes, codec changes, new threads, generalized caches, package acquisition/version solving/trust redesign, resource import filters, re-export controls, collision registries and speculative categories.
-- Broad repair of existing obsolete Lazarus integration. Generate the approved native Nexus project shape and retire obsolete assumptions on that path; do not introduce lazbuild use.
-- The paused compiler identifier-naming goal.
+- Forge runtime, DSL, templates, native build scripts, dependent language/catalog contracts and validator changes/removals. Forge remains untouched and usable under its existing contracts; it will be addressed after nxbuild works.
+- LS/NexusCode integration repairs: generated-project logic, obsolete model callers, code-intelligence dependency propagation, new query interfaces and their associated acceptance tests. Record them for the planned LS overhaul.
+- Compiler/RTL changes, compiler package formats or flags, codec changes, new threads, speculative caches/categories, dependency downloads/version solving/trust redesign, resource filters/re-exports and collision registries.
+- Broad workbench redesign, mandatory application/type renaming, or native engine build-system replacement without a demonstrated requirement.
+- Resuming the paused compiler naming goal.
 
 ## Staged Implementation Plan
 
-Each stage is part of one final migration; staging is not permission to leave two permanent contracts.
+1. **Confirm boundaries and baseline.** Reclassify the inventory by actual consuming tool. Record which nxbuild descriptions must migrate and which Forge contracts/files remain unchanged. After implementation authorization, run the relevant existing nxbuild tests and real build baselines; report failures. Inspect the actual Linux engine prerequisites/build before choosing its integration mechanism.
+2. **Correct the nxbuild contract.** Add universal project identity, requirements and directory publications; allow no-operation providers. Use the existing parser/Live model and retain useful operation settings. Keep Forge's separate language/validator APIs unchanged. Build the new nxbuild using the existing toolchain/self-build path; do not introduce compiler bootstrap changes.
+3. **Resolve and plan complete graphs.** Implement deterministic discovery, missing/cyclic dependency diagnostics, target-aware publisher-relative paths, all-category inheritance and dependency-first scheduling. Expose resolved environments in plans without executing producers or creating outputs.
+4. **Connect options and execution.** Apply applicable inherited paths to FPC/LLVM, handle actual linker inputs and native builder invocation, and propagate producer failures. Verify generated inputs, diamond deduplication and operation order without adding concurrency or a cache framework.
+5. **Migrate all affected nxbuild inputs.** Consolidate nxbuild providers and adapt consumers, catalogs, examples and checked-in build descriptions. Remove manual dependency-directory repetition and obsolete nxbuild execution models. Preserve Forge-facing descriptions/contracts and document LS deferral; do not use either as a reason to retain two nxbuild execution models.
+6. **Validate real scenarios.** Build/run Abbrevia and mixed FPC/LLVM consumers, nxbuild itself and its focused tests, then the actual Linux engine plus Pascal integration. Gather Win64 evidence using its real builder where available. Any blocker remains a reported blocker; it does not become a substitute acceptance test.
+7. **Review and finish.** Check every required migration, remove unused nxbuild-only machinery, update documentation, review source/output cleanliness and verify protected Forge files are unchanged. Report exact commands/results, unresolved failures and deferred LS work. Implementation completion requires the agreed build/runtime evidence, including Linux Solar2D.
 
-1. **Capture baseline and prepare the cutover.** Reconfirm inventory/source identities and record real current NXTest results after implementation is authorized. Save the current native nxbuild self-build command/recipe and executable as a seed for the tool's own replacement. Use existing unmodified descriptions for that initial tool build; do not invent compiler bootstrap changes. Establish external output roots and identify all runtime consumers of the old contract, with Forge explicitly deferred.
-2. **Implement the canonical contract and loader.** Add universal metadata, typed requirements and directory publications; catalog locators with provenance; target-aware owned project values. Move useful validation to the shared owner. Permit zero operations. Compile the new tool using the existing installed nxbuild and still-unmodified self-build recipe before removing that recipe's old dialect. No new runtime compatibility branch is required for the old seed tool to compile new Pascal source.
-3. **Implement graph resolution and read-only plans.** Resolve full closure, cycles/missing identities, publisher-relative paths, deterministic category aggregation and once-per-context ordering. Add resolved environment/graph diagnostics and machine-readable plan output. Keep planning free of outputs and processes. Test incomplete generated directories without preparing them.
-4. **Connect options and execution.** Feed effective collections into FPC/LLVM; add the narrowly necessary link-input/external-process capability. Execute dependency-first, preserve per-project order and exit codes. Run producer/source-generation/failure scenarios on actual files with the same authored descriptors. Keep execution sequential.
-5. **Migrate providers and consumers coherently.** Populate actual publications and requirements, merge duplicate metadata/build descriptions, migrate catalogs and the full inventory. Consolidate Abbrevia and migrate its direct/static consumer plus nxbuild's own transitive source dependencies. Then switch to the newly built nxbuild for migrated recipes. Remove legacy language files/root support once active migrated paths use the new model; record Forge's deferred consequences instead of maintaining aliases.
-6. **Migrate editor/workbench consumers.** Rename/reshape the workbench, repair generated project syntax and current-model test callers, and connect the VS Code language-server context to the shared resolved plan. Verify unsaved editing and disk discovery without executing builds. No second graph implementation.
-7. **Integrate and validate the actual engine project.** Add its project/catalog entry, external native build invocation, build-only prerequisite handling and output isolation. Add target-selected integration requirements and run the native Win64 engine/plugin acceptance scenario where tools are available. Record an explicit platform blocker if Windows tools/runners are absent; do not report end-to-end completion based on Linux stubs.
-8. **Remove rejected machinery and finish migration evidence.** Delete obsolete duplicate APIs/files, old `.nxpackage` roots/aliases, manual dependency path copies, restrictions/tests/docs. Search the complete repository set, review the final diff and run the approved verification matrix. Publish precise results and deferred Forge/platform limitations. Do not silently repair unrelated bugs found during this work; discuss them with the owner.
+These stages lead to one final nxbuild architecture, not an indefinite dual system. Particular class names, CLI switches or staging methods are not stage gates.
 
 ## Sub-Agent Delegation
 
-Implementation remains local. No sub-agent use is authorized by this request or this plan; later implementation approval alone would not authorize it.
+Implementation remains local. No sub-agent use is authorized by this request or this plan; later implementation approval alone does not authorize delegation.
 
 ## Verification Plan
 
-These are future checks after authorization, not checks executed while writing this plan. Use NXTest for new behavioral regressions. Use checked-in source and descriptors directly; no edited copies to convert failures to passes.
+All builds/tests below are future work after implementation approval. Use NXTest for new regressions, real checked-in inputs and external worktree outputs. Do not alter copied source or test expectations to turn a failure into a pass.
 
-### Focused tests
+### Focused NXTests
 
-- Universal root accepts identity, every publication category, executables/libraries and no-operation source providers; rejects the retired Package root and old dialect/extension entry points after cutover.
-- Requires binds actual catalog references, retains source provenance, validates catalog-to-project Id agreement and locates external identities only through an explicit local index. Missing descriptors/records, conflicting locators and cycles provide complete diagnostic chains before execution.
-- Direct, three-level transitive and diamond graphs inherit **every** category. A shared producer executes once for the selected context. Different target selections yield separate valid outputs and no mixed-target reuse.
-- Relative paths are publisher-owned with nested modules/catalogs, different roots, spaces and platform-specific paths. Directory normalization deduplicates paths without discarding provenance; link argument repetitions/order remain intact.
-- A producer creates source/header/object/library directories from nothing. Its consumer sees the same ordinary publications and runs afterward. Producer failure preserves its code, identifies the failing project/operation and leaves a consumer marker absent. Planning creates no marker/directory and invokes no producer.
-- Test exact FPC `-Fu`, `-Fi`/`-I`, `-Fo`, `-Fl` and LLVM `-I`, `-L` mappings. System include paths remain distinct. Test real native object linking after production and missing-object diagnostics. Unit directories do not become C source files.
-- Runtime-package options still produce their existing SDK/identity/package flags only when explicitly authored; project Requires emits no automatic `-FP`.
-- NXTest regression for the old Workbench Project publication restriction becomes a positive test. Retain editor undo/save/source-byte ownership and imported-reference editing boundaries. Generated descriptions pass the same loader/resolver, including quoted names and wire serialization.
-- Editor plan/query produces the same effective FPC paths as build planning. TypeScript forwards context rather than resolving a second graph; query failure becomes an editor diagnostic instead of an implicit global-path fallback.
+- Universal projects publish every supported directory category regardless of output kind, including no-operation providers. Retired nxbuild Package execution behavior is removed; this says nothing about Forge's roots.
+- Direct, transitive and diamond requirements inherit all categories. A shared producer builds once for the same context. Missing identities/descriptors, cycles and inconsistent target contexts have useful diagnostics before dependent execution.
+- Publisher-relative paths work with different roots, nested catalogs/modules, spaces and target-selected directories. Directory deduplication does not remove required explicit linker argument repetitions.
+- A real producer creates initially absent headers/source/objects/libraries. Consumers run afterward with those directories. Producer failure preserves its code and prevents a consumer marker. Planning creates no marker, output directory or producer process.
+- FPC/LLVM receive the applicable inherited categories with the current verified switches. Sources are not indiscriminately compiled; ordinary headers are not silently made system headers. Explicit compiler-native package options retain their meaning and are not inferred from project requirements.
+- Retain useful existing option, source-mask, ordering, tool-failure and output tests. Adapt nxbuild fixture strings to the new contract. Document the LS-dependent generation cases as deferred rather than treating them as passing or repairing LS to obtain a green total.
 
-### Compiler-backed migration evidence
+### Real migration/build evidence
 
-1. Create/migrate a real Abbrevia source/static-unit consumer whose descriptor has Requires and **no Abbrevia resource directory literals**. Build and execute a compression round trip, including its required native codecs where available. Save the descriptor hash, resolved plan and commands.
-2. Change only Abbrevia's publication to a second real source directory containing the same tested inputs. Re-plan and build without touching the consumer. Assert that the old directory disappears and the new publisher-relative directory appears in the consumer's effective arguments; compare the unchanged consumer hash. Use a real fixture arrangement/source relocation in the test setup, not an amended source implementation to hide a failure.
-3. Rebuild nxbuild itself and its NXTests from migrated descriptors requiring NexusScript/FCLProcess/etc. Prove that transitive Core/serialization/Mustache paths now originate in providers rather than duplicated consumer lists. Verify actual compiled behavior, not just strings.
-4. Build a native Clang producer and FPC consumer using only requirements for resource paths; also exercise the converse Clang link operation with an object produced by another project. Include a generated header/source and a diamond producer marker.
-5. On native Win64 with prerequisites provisioned, build the actual engine, then the bridge/integration consumer, verify import-library architecture/exports and load/run the plugin against the resulting host. Record exact solution/configuration/artifact locations and process results. On Linux, validate graph/category/target plan behavior and native mixed compiler scenarios; explicitly leave native Win64 execution unverified until run there.
+1. **Abbrevia direct consumer:** require Abbrevia without repeating any provider directory. Build and run compression/decompression using the required real codecs. Save the consumer descriptor hash and resolved compiler paths.
+2. **Publisher change:** change only the provider's published source directory to a real equivalent input location. Re-plan/build and prove the consumer's resolved paths change while its descriptor hash is unchanged. Do not patch implementation code to hide failure.
+3. **Transitive consumer:** rebuild nxbuild and its NXTests from migrated descriptions. Show that transitive Core/serialization/Mustache or other real requirements supply their paths through providers rather than copied consumer lists.
+4. **Mixed native/Pascal:** build a real Clang producer and FPC consumer; exercise a native link needing explicit object inputs and generated headers/source. Prove producer ordering, target agreement and failure handling.
+5. **Linux Solar2D:** compile the actual engine targets required for the host scenario, compile/link the Pascal integration using resolved dependencies, and execute a host/plugin interaction with observable assertions. Save builder/compiler logs, binary architecture/linkage evidence and runtime results. Graph-only tests or bridge-only builds cannot satisfy this requirement. Report any display/runtime-environment blocker honestly; do not substitute an unrelated smoke test.
+6. **Win64 Solar2D:** use the actual native solution/toolchain and verify engine -> integration build/link/load behavior. Keep this evidence distinct from Linux validation and state any unavailable native coverage explicitly.
+7. **Forge preservation:** compare protected language/validator/Forge script files before and after. No migration search should require deleting Forge references just to reach zero matches. Any nxbuild-owned build-recipe migration must leave Forge's runtime contract intact.
 
-### Commands and regression entry points
+### Commands and review expectations
 
-The existing Linux tools were found at `../../worktree/nexus/nxbuild-next/x86_64-linux/nxbuild` and `../../worktree/nexus/nxbuildTests/x86_64-linux/nxbuildTests`; `/usr/bin/clang-18` is present. Presence is not a successful build/run. Let `$NXBUILD`, `$NXBUILD_TESTS`, `$PROJECT_GENERATION_TESTS`, `$PROJECT_TESTS` and `$OUT` denote the newly validated binaries and a unique external worktree directory. Native settings must point to the selected existing NexusFPC SDK; do not alter its bootstrap stages/options.
+Use the existing installed nxbuild and configured NexusFPC/LLVM tools, then the newly built nxbuild for migrated inputs. The previously inspected Linux nxbuild executable is under `../../worktree/nexus/nxbuild-next/x86_64-linux/`; its presence is not validation. Representative commands from the Nexus repository are:
 
 ```sh
 "$NXBUILD" /action=plan /project=projects/nxbuild/nxbuild.nxproject /targetos=linux /targetcpu=x86_64
 "$NXBUILD" /action=build /project=projects/nxbuild/nxbuild.nxproject /targetos=linux /targetcpu=x86_64
 "$NXBUILD" /action=build /project=projects/nxbuild/test/nxbuildTests.nxproject /targetos=linux /targetcpu=x86_64
 "$NXBUILD_TESTS"
-"$NXBUILD" /action=build /project=projects/nxbuild/test/nxbuildProjectGenerationTests.nxproject /targetos=linux /targetcpu=x86_64
-"$PROJECT_GENERATION_TESTS"
-"$PROJECT_TESTS"
 ```
 
-PROJECT_TESTS denotes the migrated workbench/shared-project NXTest runner, whose new path must be recorded when the old nxpackage project is renamed. Also build/test the NexusScript engine/editor suites affected by reference/schema changes. Compile NexusLS and execute its applicable native test modules; report the existing Windows-only test-module boundary rather than treating a Linux subset as full coverage.
+For Linux native engine integration, inspect and run the appropriate CMake configure/build commands through its nxbuild producer. For example, a configured external `$ENGINE_OUT` can hold `cmake -S "$ENGINE_SOURCE" -B "$ENGINE_OUT"` and `cmake --build "$ENGINE_OUT" --target Solar2D Solar2DSimulator`, subject to the real scenario/prerequisites. These are native targets verified in source, not commands run during planning. No privileged install or automatic dependency acquisition is implicit.
 
-For the extension, run `npm run compile` in `projects/nexuscode` with existing dependencies, configure TypeScript output externally for this validation, and verify the project task/query flow manually in VS Code. Do not install tools/dependencies or run package publishing as an implicit part of these commands.
+Review actual nxbuild dialect references across nested package repositories, lab and compiler descriptions. Confirm all affected nxbuild scripts are migrated and consumer resource paths disappear where requirements replace them. Classify remaining nxpackage/PackageIndex/validator references by their consumer; Forge matches are intentional and remain. Update relevant docs, check generated-output locations and record exact native/test commands in the implementation report.
 
-Focused reference searches must cover nested package repositories and siblings, not only Nexus's tracked files:
-
-```sh
-rg -n --hidden -g '!**/.git/**' -g '!**/node_modules/**' 'nxpackage\.Language|nxbuild\.Language|LocalPackage|ExternalPackage|PackageIndex|TNXPackageContractValidator' projects packages ../nexus-lab ../nexus-mobile ../nexus-fpc
-rg -n --hidden -g '!**/.git/**' -g '!**/node_modules/**' 'FPCBuildOptions Compiler|ProjectKind:|BuildTool:|BuildArguments|\.InputFile|\.OutputFile' projects/nxbuild projects/ls projects/nexuscode
-```
-
-Review matches by meaning: retain genuine compiler-native packages and unrelated option classes; record deferred Forge references explicitly. Re-inventory old extension/descriptor names and prove every active provider has one canonical description. Review source-tree cleanliness after execution. GUI checks cover opening/editing a publisher, catalog and consumer, updating a requirement, diagnostics, undo/save/reload and a zero-operation project without building it.
+No LS test-module build, TypeScript compilation, LS project-generation repair or new editor query endpoint is an acceptance gate for this pass. Preserve a clear handoff listing those known integrations for the later LS work.
 
 ## Risks And Questions
 
-The universal entity, automatic all-category inheritance, directory publication, normal project build relationships and removal of unsupported compatibility contracts are settled. The following are narrower design choices or verified integration limits:
+The universal entity, complete inheritance, producer scheduling, full nxbuild-input migration, Forge preservation, LS deferral and actual Linux engine validation are settled. Remaining choices are narrow:
 
-1. **Discovery binding:** recommend reference-valued Requires plus an explicit local workspace index for ExternalProject resolution. It preserves existing NexusScript identities and avoids a new name grammar or discovery scan. `/catalog` and machine-readable plan syntax are proposed CLI additions for review, not implemented APIs.
-2. **Output-root normalization:** the current environment's relative OutputRoot cannot safely be reused at every publisher depth unchanged. Recommend a single resolved absolute external workspace output root in the invocation/environment context, then target/project subdirectories. Agree its concise binding syntax during contract review; do not insert machine paths into every descriptor or add compiler bootstrap processing.
-3. **Abbrevia build products:** recommend a source/native provider plus an ordinary runtime-package producer requiring it. This prevents a static source consumer from accidentally needing the package SDK while retaining the existing `.nxpk` capability. Verify real codec filename/subdirectory requirements during migration.
-4. **Win64 engine prerequisites and output locations:** source and recipe exist, but current script acquisition and copy destinations make a naive process wrapper insufficient. Recommend build-only operation against provisioned sources and an exact isolated worktree snapshot until native output paths can be relocated coherently. Missing prerequisites/Windows execution are blockers to that scenario, not grounds to invent success or broaden into a package manager.
-5. **Forge fallout:** removing its imported old dialect/validator makes its current dependent code require follow-up. This is a documented consequence of the explicitly deferred reconciliation, not a reason to preserve the wrong nxbuild model. Do not claim Forge builds/tests pass in this migration.
-6. **Scope size:** the inventory is larger than the request's representative examples. Metadata-only providers, existing build descriptions, catalog entries, inline test fixtures and editor-generated strings must all be migrated; otherwise manual-path and dual-model behavior survives. Recount at implementation start because repositories can change independently.
+- **Discovery representation:** prefer existing NexusScript references/catalog capabilities. Choose the simplest explicit local resolution mechanism that meets the graph requirements; exact catalog records and CLI syntax are not preapproved obligations.
+- **Path/output context:** preserve publisher-relative meaning and select an external target-specific output location. Resolve the current environment module's relative output settings consistently, without forcing new machine paths into consumer descriptions.
+- **Native link intent:** directories alone do not select objects/libraries. Retain explicit normal link intent and add only the operation capability proven necessary by the real mixed/engine builds.
+- **Engine build health/prerequisites:** actual source/build targets exist, but current compilation and runtime health have not been demonstrated by planning inspection. Investigate and discuss concrete failures before deciding whether additional repair or provisioning is authorized.
+- **Inventory versus scope:** metadata/catalog files may belong to another tool even when they share names with nxbuild concepts. Recheck consumers; do not turn a wide inventory into blanket authorization to rename/delete them.
 
 ## Approval Gate
 
-This artifact supplies architecture analysis and a work plan only. No implementation code or descriptor changes, builds/tests, engine preparation, source acquisition or migration are authorized by it. Implementation begins only when the human owner directly approves the plan and authorizes the work. If a verified implementation obstacle materially changes these contracts, stop and discuss it rather than silently work around it.
+This is a plan-only revision for review; its commit/publication is the requested planning handoff. Implementation code, descriptors, Forge contracts, LS components, builds/tests, acquisition and migration remain unauthorized until the human owner directly approves implementation.
 
-Creating, committing and pushing this single work-plan artifact is the planning handoff required by the repository protocol. It authorizes no implementation, Forge reconciliation, sub-agent delegation or resumption of the paused compiler naming goal.
+If implementation reveals a material conflict with this scope or a blocking bug, investigate and discuss the facts instead of silently broadening the work, bypassing the problem or weakening acceptance. Forge will be addressed later after nxbuild works. The paused compiler naming goal remains paused.
