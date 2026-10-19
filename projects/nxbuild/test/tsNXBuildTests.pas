@@ -100,7 +100,7 @@ var
   lDescription: TNXBuildDescription;
   lFPC: TNXFPCBuildOptions;
 begin
-  lDescription := NXBuildTestLoad('Project Demo { FPC Pascal {} }');
+  lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; FPC Pascal {} }');
   try
     AContext.AssertEquals('Demo', lDescription.Name);
     AContext.AssertEquals('Project', lDescription.Kind);
@@ -127,7 +127,7 @@ var
 begin
   for lValue in ['Enabled', 'Disabled', 'Unset'] do
   begin
-    lDescription := NXBuildTestLoad('Project Demo { FPC Pascal {' +
+    lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
       ' SourceFiles: ["main.pas"]; Syntax Options { COperators: ' + lValue + '; } } }');
     lArguments := TStringList.Create;
     try
@@ -148,7 +148,7 @@ var
   lFPC: TNXFPCBuildOptions;
 begin
   lDescription := NXBuildTestLoad(
-    'Project Demo { Name: "Native Demo"; SourceRoot: "src"; OutputRoot: "out";' +
+    'Project Demo { Id: "Tests.Demo"; Name: "Native Demo"; SourceRoot: "src"; OutputRoot: "out";' +
     ' FPC Pascal { CompilerPath: "my-fpc"; SourceFiles: [@Demo.SourceRoot + "/main.pas"];' +
     ' RawOptions: ["-d" + "debug"];' +
     ' Target Platform { OperatingSystem: "win64"; }' +
@@ -193,9 +193,9 @@ var
   lKind: string;
   lIndex: Integer;
 begin
-  for lKind in ['Project', 'Package'] do
+  for lKind in ['Project'] do
   begin
-    lDescription := NXBuildTestLoad(lKind + ' Demo {' +
+    lDescription := NXBuildTestLoad(lKind + ' Demo { Id: "Tests.Demo";' +
       ' LLVM First { Language: C; SourceFiles: ["missing.c"]; }' +
       ' FPC Second { SourceFiles: ["first.pas", "second file.pas", "first.pas"];' +
       ' OutputPath: "pascal output"; RawOptions: ["-dORDERED"]; }' +
@@ -264,16 +264,17 @@ var
   lArguments: TStringList;
   lSourceIndex: Integer;
 begin
-  lDescription := NXBuildTestLoad('Package Demo { LLVM Native {' +
+  lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; LLVM Native {' +
     ' Language: CPP; BuildKind: SharedLibrary; Target: "x86_64-w64-windows-gnu";' +
     ' ConfigFiles: ["config files/base.cfg", "config files/library.cfg"];' +
     ' Standard: "c++17"; DebugInfo: True; PositionIndependentCode: True;' +
-    ' SourceFiles: ["one file.cpp", "two.cpp"]; OutputPath: "out directory";' +
+    ' RawOptions: ["-O2", "-fno-stack-protector"]; SourceFiles: ["one file.cpp", "two.cpp"]; OutputPath: "out directory";' +
     ' IncludePaths: ["headers"]; SystemIncludePaths: ["sdk headers", "other sdk"]; Defines: ["VALUE=2"];' +
     ' LibraryPaths: ["libs"]; Libraries: ["support"]; } }');
   lArguments := TStringList.Create;
   try
     lLLVM := lDescription.Builds[0] as TNXLLVMBuildOptions;
+    AContext.AssertEquals(2, lLLVM.RawOptions.Count);
     AContext.AssertEquals('clang++', lLLVM.DefaultCompiler);
     lLLVM.AppendArguments(lArguments, lSourceIndex);
     AContext.AssertEquals(2, lLLVM.ConfigFiles.Count);
@@ -295,6 +296,8 @@ begin
     AContext.AssertEquals(lDescription.ResolvePath('other sdk'),
       lArguments[lArguments.IndexOf('-isystem') + 3]);
     AContext.AssertTrue(lArguments.IndexOf('-L' + lDescription.ResolvePath('libs')) >= 0);
+    AContext.AssertEquals('-O2', lArguments[lSourceIndex - 2]);
+    AContext.AssertEquals('-fno-stack-protector', lArguments[lSourceIndex - 1]);
     AContext.AssertEquals('-lsupport', lArguments[lSourceIndex]);
     AContext.AssertEquals('-lsupport', lArguments[lArguments.Count - 1]);
     AContext.AssertEquals(lDescription.ResolvePath('out directory'), lLLVM.OutputPath);
@@ -311,7 +314,7 @@ var
   lFPC: TNXFPCBuildOptions;
   lAbsolute: string;
 begin
-  lDescription := NXBuildTestLoad('Project Demo { RootDirectory: "path root";' +
+  lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; RootDirectory: "path root";' +
     ' FPC Pascal { CompilerPath: "../tools/compiler.exe";' +
     ' SourceFiles: ["../source.pas"]; Config Options { OptionFiles: ["settings.cfg"]; }' +
     ' OutputPath: "units"; Files Paths { ObjectPaths: ["objects"]; } } }');
@@ -346,9 +349,9 @@ var
 begin
   lRoot := NXBuildTestFolder;
   lDestination := NXBuildTestFolder;
-  for lKind in ['Project', 'Package'] do
+  for lKind in ['Project'] do
   begin
-    lDescription := NXBuildTestLoad(lKind + ' Demo { RootDirectory: ' +
+    lDescription := NXBuildTestLoad(lKind + ' Demo { Id: "Tests.Demo"; RootDirectory: ' +
       NXBuildQuote(lRoot) + '; OutputRoot: "reference only";' +
       ' FPC Pascal { OutputPath: "pascal files"; }' +
       ' LLVM Native { OutputPath: ' + NXBuildQuote(lDestination) + '; }' +
@@ -389,7 +392,7 @@ var
   lFPC: TNXFPCBuildOptions;
 begin
   lFolder := NXBuildTestFolder;
-  lDescription := NXBuildTestLoad('Project Demo { OutputRoot: ' + NXBuildQuote(lFolder) + ';' +
+  lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; OutputRoot: ' + NXBuildQuote(lFolder) + ';' +
     ' FPC Pascal { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + ';' +
     ' SourceFiles: ["not-created-yet.pas", @Demo.OutputRoot + "/generated/*.pas"]; OutputPath: @Demo.OutputRoot; } }');
   lPlanner := TNXBuildPlanner.Create;
@@ -443,7 +446,7 @@ begin
   for lKind in ['FPC', 'LLVM'] do
     for lSources in ['', 'SourceFiles: [];'] do
     begin
-      lDescription := NXBuildTestLoad('Project Demo { ' + lKind + ' Empty {' +
+      lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; ' + lKind + ' Empty {' +
         ' CompilerPath: ' + NXBuildQuote(ParamStr(0)) + ';' +
         ' OutputPath: ' + NXBuildQuote(lFolder) + '; ' + lSources + ' } }');
       lPlanner := TNXBuildPlanner.Create;
@@ -471,19 +474,17 @@ var
   lDescription: TNXBuildDescription;
   lPlanner: TNXBuildPlanner;
   lPlan: TNXBuildPlan;
-  lError: string;
 begin
-  lDescription := NXBuildTestLoad('Package Empty {}');
+  lDescription := NXBuildTestLoad('Project Empty { Id: "Tests.Empty"; }');
   lPlanner := TNXBuildPlanner.Create;
   try
-    lError := '';
+    lPlan := lPlanner.CreatePlan(lDescription);
     try
-      lPlan := lPlanner.CreatePlan(lDescription);
+      AContext.AssertEquals(0, lPlan.Steps.Count);
+      AContext.AssertEquals(1, lPlan.Projects.Count);
+    finally
       lPlan.Free;
-    except
-      on E: Exception do lError := E.Message;
     end;
-    AContext.AssertTrue(Pos('at least one build', lError) > 0);
   finally
     lPlanner.Free;
     lDescription.Free;
@@ -794,7 +795,7 @@ begin
   lTargets.Add('TargetOS', 'linux');
   lTargets.Add('TargetCPU', 'x86_64');
   lAnalysis := TNexusScriptAnalysis.Create(
-    ExpandFileName('../nexus-lab/examples/build/native/Mixed.nxpackage'), 1, nil, lTargets);
+    ExpandFileName('../nexus-lab/examples/build/native/Mixed.nxproject'), 1, nil, lTargets);
   lTargets.Free;
   lFPC := TNXFPCBuildOptions.Create;
   lLLVM := TNXLLVMBuildOptions.Create;
@@ -838,9 +839,9 @@ begin
         ' SystemIncludePaths: @Shared.Kit.IncludePaths;' +
         ' LibraryPaths: @Shared.Kit.LibraryPaths; } }';
       lModule.SaveToFile(lModuleFile);
-      for lKind in ['Project', 'Package'] do
+      for lKind in ['Project'] do
       begin
-        lText := 'module ' + NXBuildQuote(lModuleFile) + '; ' + lKind + ' Demo {' +
+        lText := 'module ' + NXBuildQuote(lModuleFile) + '; ' + lKind + ' Demo { Id: "Tests.Demo";' +
           ' LLVM Native { CompilerPath: @Shared.Compiler.CompilerPath;' +
           ' SourceFiles: ["native.c"]; SystemIncludePaths: @Shared.Compiler.SystemIncludePaths;' +
           ' LibraryPaths: @Shared.Compiler.LibraryPaths; }' +
@@ -905,7 +906,7 @@ begin
       ' Platform CPU TargetCPU[x86_64] { Directory: "x64"; }' +
       ' Platform CPU TargetCPU[aarch64] { Directory: "arm64"; } }';
     lModule.SaveToFile(lModuleFile);
-    lText := 'module ' + NXBuildQuote(lModuleFile) + '; Package Demo {' +
+    lText := 'module ' + NXBuildQuote(lModuleFile) + '; Project Demo { Id: "Tests.Demo";' +
       ' LLVM First { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + '; SourceFiles: ["native.c"]; }' +
       ' FPC Unsupported TargetOS[darwin] { CompilerPath: "missing-tool"; SourceFiles: ["unused.pas"]; }' +
       ' FPC Pascal { CompilerPath: ' + NXBuildQuote(ParamStr(0)) + '; SourceFiles: ["main.pas"];' +
@@ -956,48 +957,48 @@ end;
 procedure TestRejectedDescriptions(AContext: TNXTestContext);
 begin
   NXBuildTestReject(AContext, '{"Name":"Demo"}', False);
-  NXBuildTestReject(AContext, 'Project Demo {}', False);
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo";}', False);
   NXBuildTestReject(AContext, 'Project One {} Package Two {}');
   NXBuildTestReject(AContext, '');
-  NXBuildTestReject(AContext, 'Project Demo { Typo: "bad"; }');
-  NXBuildTestReject(AContext, 'Package Demo { Image Picture {} }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; Typo: "bad"; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; Image Picture {} }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
     ' Files First {} Files Second {} } }');
-  NXBuildTestReject(AContext, 'Project Demo {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo";' +
     ' FPC First { Name: "same"; } LLVM Second { Name: "same"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { LLVM Native { Language: Pascal; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; LLVM Native { Language: Pascal; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
     ' Config Options { DisableDefaultConfigFiles: "banana"; } } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
     ' Syntax Checks { ErrorLimit: "not-an-integer"; } } }');
-  NXBuildTestReject(AContext, 'Project Demo { LLVM Native {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; LLVM Native {' +
     ' SourceFiles: [["nested"]]; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
     ' RawOptions: ["named": "-dDebug"]; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { SourceFiles: "main.pas"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { SourceFiles: [["nested"]]; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { SourceFiles: ["named": "main.pas"]; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal { SourceFiles: "main.pas"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal { SourceFiles: [["nested"]]; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal { SourceFiles: ["named": "main.pas"]; } }');
 end;
 
 procedure TestRemovedFields(AContext: TNXTestContext);
 begin
-  NXBuildTestReject(AContext, 'Project Demo { BuildTool: Lazarus; }');
-  NXBuildTestReject(AContext, 'Project Demo { ProjectKind: LazarusProject; }');
-  NXBuildTestReject(AContext, 'Project Demo { LazarusProjectFile: "Demo.lpi"; }');
-  NXBuildTestReject(AContext, 'Project Demo { Toolchain Tools { LazarusRoot: "tools"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { TargetPlatform Native { WidgetSet: "win32"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { BuildTool: FPC; }');
-  NXBuildTestReject(AContext, 'Project Demo { BuildFile: "main.pas"; }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { InputFile: "main.pas"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPCBuildOptions Compiler {} }');
-  NXBuildTestReject(AContext, 'Project Demo { Variables: ["Flavor=debug"]; }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { OutputFile: "app.exe"; } }');
-  NXBuildTestReject(AContext, 'Package Demo { LLVM Native { OutputFile: "app.exe"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal { OutputName: "app"; } }');
-  NXBuildTestReject(AContext, 'Package Demo { LLVM Native { OutputName: "app"; } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; BuildTool: Lazarus; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; ProjectKind: LazarusProject; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; LazarusProjectFile: "Demo.lpi"; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; Toolchain Tools { LazarusRoot: "tools"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; TargetPlatform Native { WidgetSet: "win32"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; BuildTool: FPC; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; BuildFile: "main.pas"; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal { InputFile: "main.pas"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPCBuildOptions Compiler {} }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; Variables: ["Flavor=debug"]; }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal { OutputFile: "app.exe"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; LLVM Native { OutputFile: "app.exe"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal { OutputName: "app"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; LLVM Native { OutputName: "app"; } }');
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
     ' Files Paths { ExecutableOutputPath: "out"; } } }');
-  NXBuildTestReject(AContext, 'Project Demo { FPC Pascal {' +
+  NXBuildTestReject(AContext, 'Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
     ' Files Paths { UnitOutputPath: "out"; } } }');
 end;
 
@@ -1026,7 +1027,7 @@ begin
     lOptions.Free;
     lArguments.Free;
   end;
-  lDescription := NXBuildTestLoad('Package Demo { FPC Pascal { SourceFiles: ["demo.nxpk"]; ' +
+  lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; FPC Pascal { SourceFiles: ["demo.nxpk"]; ' +
     'BuildControl Options { EmbedPackageMetadata: Disabled; } } }');
   lDescription.Free;
 end;
@@ -1038,7 +1039,7 @@ var
   lSourceIndex: Integer;
   lPackagePath: string;
 begin
-  lDescription := NXBuildTestLoad('Package Demo { FPC Runtime {' +
+  lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; FPC Runtime {' +
     ' SourceFiles: ["Demo.nxpk"]; PackageSDKIdentity: "SDK";' +
     ' PackageBuildIdentity: "BUILD"; RequiredPackages: [nxrtl, Abbrevia];' +
     ' Target Platform { OperatingSystem: linux; }' +
@@ -1079,7 +1080,7 @@ begin
   try
     for lIndex := Low(cFormats) to High(cFormats) do
     begin
-      lDescription := NXBuildTestLoad('Project Demo { FPC Pascal {' +
+      lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Demo"; FPC Pascal {' +
         ' Debug Settings { Format: ' + cFormats[lIndex] + '; } } }');
       try
         lOptions := lDescription.Builds[0] as TNXFPCBuildOptions;
@@ -1111,12 +1112,12 @@ procedure TestRetiredDebugOptions(AContext: TNXTestContext);
 var
   lKind, lFormat: string;
 begin
-  for lKind in ['Project', 'Package'] do
+  for lKind in ['Project'] do
   begin
     for lFormat in ['Stabs', 'Dwarf2', 'CodeView'] do
-      NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+      NXBuildTestReject(AContext, lKind + ' Demo { Id: "Tests.Demo"; FPC Pascal {' +
         ' Debug Settings { Format: ' + lFormat + '; } } }');
-    NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+    NXBuildTestReject(AContext, lKind + ' Demo { Id: "Tests.Demo"; FPC Pascal {' +
       ' Debug Settings { PreserveStabsCase: Enabled; } } }');
   end;
 end;
@@ -1125,9 +1126,9 @@ procedure TestRetiredLanguageModes(AContext: TNXTestContext);
 var
   lKind, lMode: string;
 begin
-  for lKind in ['Project', 'Package'] do
+  for lKind in ['Project'] do
     for lMode in ['ExtendedPascal', 'NexusUnknownMode'] do
-      NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+      NXBuildTestReject(AContext, lKind + ' Demo { Id: "Tests.Demo"; FPC Pascal {' +
         ' Language Settings { Mode: ' + lMode + '; } } }');
 end;
 
@@ -1135,9 +1136,9 @@ procedure TestRetiredByteOrderOption(AContext: TNXTestContext);
 var
   lKind, lState: string;
 begin
-  for lKind in ['Project', 'Package'] do
+  for lKind in ['Project'] do
     for lState in ['Unset', 'Enabled', 'Disabled'] do
-      NXBuildTestReject(AContext, lKind + ' Demo { FPC Pascal {' +
+      NXBuildTestReject(AContext, lKind + ' Demo { Id: "Tests.Demo"; FPC Pascal {' +
         ' CodeGeneration Settings { BigEndianCode: ' + lState + '; } } }');
 end;
 
@@ -1155,7 +1156,7 @@ begin
   lSuite.AddTest('RuntimePackageOptions', @TestRuntimePackageOptions);
   lSuite.AddTest('COperators', @TestCOperators);
   lSuite.AddTest('NativeValues', @TestNativeValues);
-  lSuite.AddTest('OrderedProjectAndPackageBuilds', @TestOrderedBuilds);
+  lSuite.AddTest('OrderedProjectBuilds', @TestOrderedBuilds);
   lSuite.AddTest('LLVMOptions', @TestLLVMOptions);
   lSuite.AddTest('ResolvePaths', @TestResolvePaths);
   lSuite.AddTest('OutputPaths', @TestOutputPaths);

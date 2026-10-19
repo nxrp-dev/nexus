@@ -10,35 +10,27 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../nxbuild/Projects.nxscript";
+module "../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusSetupBuilder {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "NexusSetupBuilder.lpr";
-    OutputRoot: "../../output/NexusSetupBuilder/x86_64-win64";
+Project NexusSetupBuilder TargetOS[win64] {
+    Id: "NXRP.Tools.NexusSetupBuilder";
+    Requires: [@Projects.NexusScript, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache];
+    RootDirectory: "../..";
+    OutputRoot: @Tools.OutputRoot + "/NexusSetupBuilder/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @NexusSetupBuilder.OutputRoot + "/NexusSetupBuilder.exe";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/setup/NexusSetupBuilder.lpr"];
+        OutputPath: @NexusSetupBuilder.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-gl", "-Cr", "-Co", "-Ci"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @NexusSetupBuilder.OutputRoot;
-            UnitOutputPath: "../../output/NexusSetupBuilder/x86_64-win64/units";
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "src",
-                "../../packages/nexus-packages/nxscript/src",
-                "../../packages/nexus-packages/serialization/src",
-                "../../packages/nexus-packages/serialization/json/src",
-                "../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../packages/nexus-packages/core/src",
-                "../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/setup/src",
+                @Tools.Native.RTLPath
             ];
         }
     }

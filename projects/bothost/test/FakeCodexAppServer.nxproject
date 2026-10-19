@@ -10,28 +10,25 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../nxbuild/language/nxbuild.Language.nxscript";
+module "../../nxbuild/nxbuild.environment.nxscript";
 
-Project FakeCodexAppServer {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "FakeCodexAppServer.lpr";
-    OutputRoot: "../../../output/FakeCodexAppServer/x86_64-win64";
+Project FakeCodexAppServer TargetOS[win64] {
+    Id: "NXRP.Tools.FakeCodexAppServer";
+    RootDirectory: "../../..";
+    OutputRoot: @Tools.OutputRoot + "/FakeCodexAppServer/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @FakeCodexAppServer.OutputRoot + "/FakeCodexAppServer.exe";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/bothost/test/FakeCodexAppServer.lpr"];
+        OutputPath: @FakeCodexAppServer.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-gl"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @FakeCodexAppServer.OutputRoot;
-            UnitOutputPath: "../../../output/FakeCodexAppServer/x86_64-win64/units";
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                ".",
-                "../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/bothost/test",
+                @Tools.Native.RTLPath
             ];
         }
     }

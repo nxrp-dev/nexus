@@ -10,44 +10,28 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../nxbuild/Projects.nxscript";
+module "../nxbuild/nxbuild.environment.nxscript";
 
-Project nxpackage {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "nxpackage.lpr";
-    OutputRoot: "../../output/nxpackage/x86_64-win64";
+Project nxpackage TargetOS[win64] {
+    Id: "NXRP.Tools.nxpackage";
+    Requires: [@Projects.NXBuild, @Projects.GUI, @Projects.NexusScript, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache, @Projects.RegExpr];
+    RootDirectory: "../..";
+    OutputRoot: @Tools.OutputRoot + "/nxpackage/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @nxpackage.OutputRoot + "/nxpackage.exe";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/nxpackage/nxpackage.lpr"];
+        OutputPath: @nxpackage.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-dGDI", "-WG", "-Xe"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @nxpackage.OutputRoot;
-            UnitOutputPath: "../../output/nxpackage/x86_64-win64/units";
-            IncludePaths: ["../../output/nxpackage/x86_64-win64/units", "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib", "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi", "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources"];
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            IncludePaths: [@nxpackage.OutputRoot];
             UnitPaths: [
-                "src",
-                "../../packages/nexus-packages/nxscript/src",
-                "../../packages/nexus-packages/serialization/src",
-                "../../packages/nexus-packages/serialization/json/src",
-                "../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../packages/nexus-packages/core/src",
-                "../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../packages/nexus-packages-ext/regexpr/external/tregexpr/src",
-                "../../packages/nexus-packages/gui/src",
-                "../../packages/nexus-packages/gui/src/vtv",
-                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib",
-                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software",
-                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi",
-                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/gui",
-                "../../packages/nexus-packages/gui/external/fpgui/framework/src/main/resources",
-                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/nxpackage/src",
+                @Tools.Native.RTLPath
             ];
         }
     }

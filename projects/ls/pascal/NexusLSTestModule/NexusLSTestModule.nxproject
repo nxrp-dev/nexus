@@ -10,48 +10,35 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../../../nxbuild/Projects.nxscript";
+module "../../../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusLSTestModule {
-    BuildTool: FPC;
-    ProjectKind: Library;
-    BuildFile: "NexusLSTestModule.lpr";
-    OutputRoot: "../../../../output/NexusLSTestModule/x86_64-win64";
+Project NexusLSTestModule TargetOS[win64] {
+    Id: "NXRP.Tools.NexusLSTestModule";
+    Requires: [@Projects.NexusTest, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite];
+    RootDirectory: "../../../..";
+    OutputRoot: @Tools.OutputRoot + "/NexusLSTestModule/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
-        LazarusRoot: "C:/lazarus";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @NexusLSTestModule.OutputRoot + "/NexusLSTestModule.dll";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/ls/pascal/NexusLSTestModule/NexusLSTestModule.lpr"];
+        OutputPath: @NexusLSTestModule.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-Sh-"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @NexusLSTestModule.OutputRoot;
-            UnitOutputPath: "../../../../output/NexusLSTestModule/x86_64-win64/units";
-            IncludePaths: ["../../../../output/NexusLSTestModule/x86_64-win64/units"];
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            IncludePaths: [@NexusLSTestModule.OutputRoot];
             UnitPaths: [
-                ".",
-                "../src",
-                "../src/protocol",
-                "../src/service",
-                "../src/parser",
-                "../src/toolchain",
-                "../../../../packages/nexus-packages/nxtest/src",
-                "../../../../packages/nexus-packages/lsp/src",
-                "../../../../packages/nexus-packages/lsp/src/protocol",
-                "../../../../packages/nexus-packages/serialization/json/src",
-                "../../../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../../../packages/nexus-packages/network/json-rpc/src",
-                "../../../../packages/nexus-packages/core/src",
-                "../../../nxbuild/src",
-                "../../../../packages/nexus-packages/network/external/synapse",
+                "projects/ls/pascal/NexusLSTestModule",
+                "projects/ls/pascal/src",
+                "projects/ls/pascal/src/protocol",
+                "projects/ls/pascal/src/service",
+                "projects/ls/pascal/src/parser",
+                "projects/ls/pascal/src/toolchain",
+                "projects/nxbuild/src",
                 "C:/lazarus/components/lazutils",
-                "../../../../packages/nexus-packages/serialization/src",
-                "../../../../packages/nexus-packages/db/sqlite/src",
-                "../../../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                @Tools.Native.RTLPath
             ];
         }
     }

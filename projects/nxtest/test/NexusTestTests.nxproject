@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../../nxbuild/Projects.nxscript";
 module "../../nxbuild/nxbuild.environment.nxscript";
 
 Project NexusTestTests {
+    Id: "NXRP.Tools.NexusTestTests";
+    Requires: [@Projects.NexusTest];
     RootDirectory: "../../..";
-    OutputRoot: "output/nxtest-tests/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusTestTests/" + @Tools.Native.Name;
     FPC Tests {
         CompilerPath: @Tools.Native.FPCCompiler;
-        SourceFiles: [
-            "projects/nxtest/test/NexusTestTests.lpr"
-        ];
+        SourceFiles: ["projects/nxtest/test/NexusTestTests.lpr"];
         OutputPath: @NexusTestTests.OutputRoot;
         Config Options { DisableDefaultConfigFiles: True; }
         Language Pascal { Mode: ObjFPC; }
@@ -20,8 +21,7 @@ Project NexusTestTests {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
                 @Tools.Native.RTLPath,
-                "projects/nxtest/test",
-                "packages/nexus-packages/nxtest/src"
+                "projects/nxtest/test"
             ];
         }
     }

@@ -1,5 +1,22 @@
 # nxpackage
 
+## nxbuild project documents
+
+The workbench opens `.nxproject` files and ProjectIndex catalogs using nxbuild's
+universal project dialect. Project validation consumes the current unsaved
+NexusScript source through the shared nxbuild loader and graph/planner. It checks
+requirements and inherited paths without executing producers or requiring a
+native compiler. Project target selection defaults to the native host; the
+model's SetTarget operation selects another context and invalidates old results.
+
+Headless coverage is in `test/nxprojectDocumentTests.nxproject`; build it with
+nxbuild and run the resulting executable from the Nexus repository root. These
+cases exercise unsaved projects, missing dependencies, target changes and project
+catalogs. Build outputs belong under the configured external worktree root.
+
+The following sections describe the workbench's other document dialect.
+
+
 nxpackage is an fpGUI workbench for editing Package and Project contracts and
 machine or published-repository catalogs. Its four shared roots are Package,
 Project, PackageIndex, and RepositoryIndex. The common dialect declares metadata;
@@ -8,7 +25,7 @@ editor can inspect a Forge descriptor without preparing or executing its build.
 The shared read-only validator lives in `src/obNXPackageContractValidator.pas`;
 there is no dependency from this project to the Forge executor.
 
-Build with `lazbuild projects/nxpackage/nxpackage.lpi`. Open the
+Build with `nxbuild /action=build /project=projects/nxpackage/nxpackage.nxproject` using its configured native Windows toolchain. Open the
 application and choose a file from `../nexus-lab/examples/packages/catalogs/`, or pass
 an example filename on the command line. The editable pane embeds the reusable
 `TNXScriptEditor` widget. F2 or double-click edits a value or definition name;

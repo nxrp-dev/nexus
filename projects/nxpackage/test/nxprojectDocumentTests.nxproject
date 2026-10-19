@@ -1,0 +1,24 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../nxbuild/language/nxbuild.Language.nxscript";
+module "../../nxbuild/nxbuild.environment.nxscript";
+module Projects "../../nxbuild/Projects.nxscript";
+Project NXProjectDocumentTests {
+    Id: "NXRP.Tests.NXProjectDocuments";
+    Requires: [@Projects.NXBuild, @Projects.NexusTest];
+    RootDirectory: "../../..";
+    OutputRoot: @Tools.OutputRoot + "/nxproject-document-tests/" + @Tools.Native.Name;
+    FPC Tests {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/nxpackage/test/nxprojectDocumentTests.lpr"];
+        OutputPath: @NXProjectDocumentTests.OutputRoot;
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
+        Config Options { DisableDefaultConfigFiles: True; }
+        Assembler Native TargetOS[linux] { OutputFormat: "as-clang"; }
+        RawOptions: ["-gh", "-gl"];
+        Files Paths {
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            UnitPaths: [@Tools.Native.RTLPath, @Tools.NexusFPC.SourcePath + "/rtl/inc", @Tools.NexusFPC.SourcePath + "/rtl/objpas", "projects/nxpackage/src", "projects/nxpackage/test", @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"];
+        }
+    }
+}

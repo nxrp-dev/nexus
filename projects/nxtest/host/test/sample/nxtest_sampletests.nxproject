@@ -10,34 +10,27 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../../../../nxbuild/Projects.nxscript";
+module "../../../../nxbuild/nxbuild.environment.nxscript";
 
-Project nxtest_sampletests {
-    BuildTool: FPC;
-    ProjectKind: Library;
-    BuildFile: "nxtest_sampletests.lpr";
-    OutputRoot: "../../../../../output/nxtest_sampletests/x86_64-win64";
+Project nxtest_sampletests TargetOS[win64] {
+    Id: "NXRP.Tools.nxtest_sampletests";
+    Requires: [@Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core];
+    RootDirectory: "../../../../..";
+    OutputRoot: @Tools.OutputRoot + "/nxtest_sampletests/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @nxtest_sampletests.OutputRoot + "/nxtest_sampletests.dll";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/nxtest/host/test/sample/nxtest_sampletests.lpr"];
+        OutputPath: @nxtest_sampletests.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-MObjFPC", "-Scgi"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @nxtest_sampletests.OutputRoot;
-            UnitOutputPath: "../../../../../output/nxtest_sampletests/x86_64-win64/units";
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                ".",
-                "../../../../../packages/nexus-packages/nxtest/src",
-                "../../../../../packages/nexus-packages/serialization/src",
-                "../../../../../packages/nexus-packages/serialization/json/src",
-                "../../../../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../../../../packages/nexus-packages/network/json-rpc/src",
-                "../../../../../packages/nexus-packages/core/src",
-                "../../../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/nxtest/host/test/sample",
+                @Tools.Native.RTLPath
             ];
         }
     }

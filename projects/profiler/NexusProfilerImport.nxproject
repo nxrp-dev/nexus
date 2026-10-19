@@ -10,31 +10,28 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../nxbuild/Projects.nxscript";
+module "../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusProfilerImport {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "NexusProfilerImport.lpr";
-    OutputRoot: "../../output/NexusProfilerImport/x86_64-win64";
+Project NexusProfilerImport TargetOS[win64] {
+    Id: "NXRP.Tools.NexusProfilerImport";
+    Requires: [@Projects.SQLite];
+    RootDirectory: "../..";
+    OutputRoot: @Tools.OutputRoot + "/NexusProfilerImport/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @NexusProfilerImport.OutputRoot + "/NexusProfilerImport.exe";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/profiler/NexusProfilerImport.lpr"];
+        OutputPath: @NexusProfilerImport.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-Sh-"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @NexusProfilerImport.OutputRoot;
-            UnitOutputPath: "../../output/NexusProfilerImport/x86_64-win64/units";
-            IncludePaths: ["../../output/NexusProfilerImport/x86_64-win64/units"];
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            IncludePaths: [@NexusProfilerImport.OutputRoot];
             UnitPaths: [
-                "src",
-                "../../packages/nexus-packages/db/sqlite/src",
-                "../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/profiler/src",
+                @Tools.Native.RTLPath
             ];
         }
     }

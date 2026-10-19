@@ -200,7 +200,7 @@ begin
   if not ConfirmDiscard then Exit;
   lDialog := TNXFileDialog.Create(Self);
   try
-    lDialog.Filter := 'NexusScript|*.nxscript|All files|*.*';
+    lDialog.Filter := 'Nexus projects|*.nxproject|NexusScript|*.nxscript|All files|*.*';
     if FEditor.Document.SourceName <> '' then
       lDialog.InitialDir := ExtractFileDir(FEditor.Document.SourceName);
     if lDialog.RunOpenFile then

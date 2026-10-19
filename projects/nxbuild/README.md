@@ -1,71 +1,103 @@
 # nxbuild
 
-nxbuild reads a NexusScript Project or Package description, plans its ordered
-build invocations, and executes them on request. FPC invokes the compiler once
-per source file; LLVM passes its source list to one invocation. Entries may repeat
-and may be mixed in the same description.
+nxbuild loads a universal NexusScript `Project`, resolves its complete dependency
+graph, inherits published directories, and executes producers before consumers.
+Projects can publish existing sources, generate resources, compile libraries or
+applications, or simply group other projects. A source-only project needs no
+build operations.
 
-## Description
+## Project descriptions and discovery
 
-A description has exactly one Project or Package root. Both currently have the
-same build-container fields: Name, RootDirectory, SourceRoot, and OutputRoot.
-The root label supplies Name. RootDirectory defaults to the descriptor's
-directory; a relative RootDirectory is resolved from that directory.
+A `.nxproject` contains one `Project` root with a nonempty, opaque `Id`.
+`Version`, `Author`, `Description` and `License` are optional metadata. The root
+label supplies `Name`. `RootDirectory` defaults to the descriptor's directory;
+a relative root resolves from that descriptor. Build inputs, local lookup paths
+and publications resolve against the publishing project's root.
 
-Builds are direct children, in declaration order:
+A project requires records from explicitly imported `ProjectIndex` catalogs:
 
 ```nexusscript
+// Projects.nxscript, beside the consumer.
 dialect "path/to/nxbuild.Language.nxscript";
-
-Package Example {
-    OutputRoot: "output";
-
-    LLVM Native {
-        Language: C;
-        BuildKind: Object;
-        SourceFiles: ["native.c"];
-        OutputPath: @Example.OutputRoot + "/native";
-    }
-    FPC Application {
-        SourceFiles: ["main.lpr"];
-        OutputPath: @Example.OutputRoot + "/application";
-        Files Paths {
-            ObjectPaths: [@Example.Native.OutputPath];
-        }
+ProjectIndex Projects {
+    ProjectReference Archives {
+        Id: "Local.Archives";
+        Descriptor: "libraries/Archives.nxproject";
     }
 }
 ```
 
-Build names must be unique within the root. Build paths resolve against
-RootDirectory. SourceRoot and OutputRoot are available to ordinary NexusScript
-references and expressions; entries explicitly specify their compiler paths
-and settings. OutputRoot is a reference value, not an implicit destination.
+```nexusscript
+// libraries/Archives.nxproject
+dialect "path/to/nxbuild.Language.nxscript";
+Project Archives {
+    Id: "Local.Archives";
+    Publishes Directories {
+        Sources: ["src"];
+        Headers: ["include"];
+        Objects: ["path/to/external/output/objects"];
+        Libraries: ["path/to/external/output/libraries"];
+    }
+}
+```
 
-Every build entry has a SourceFiles array. Paths resolve against RootDirectory
-and retain their listed order, including repeated entries. Planning requires a
-nonempty list but does not check whether the files exist. InputFile is no longer
-supported.
+```nexusscript
+// Consumer.nxproject
+dialect "path/to/nxbuild.Language.nxscript";
+module Projects "Projects.nxscript";
+Project Consumer {
+    Id: "Local.Consumer";
+    Requires: [@Projects.Archives];
+    FPC Application {
+        SourceFiles: ["main.lpr"];
+        OutputPath: "path/to/external/output/application";
+    }
+}
+```
 
-Every build entry has an OutputPath directory. It resolves against RootDirectory
-and defaults to RootDirectory when omitted. Execution creates it and runs the
-tool there. Inputs and search paths still resolve against RootDirectory.
+A named module selects the root with that name; it does not rename the root.
+Descriptor locators resolve from the catalog declaring them. nxbuild checks that
+the loaded project's `Id` matches its record, diagnoses missing projects and
+cycles, and rejects two descriptors claiming the same identity in one graph.
+Discovery uses local descriptors, without downloading dependencies.
 
-The tool chooses the filenames, number of files, and contents in that directory.
-nxbuild has no OutputFile or OutputName setting and does not rename or enumerate
-build outputs. Choose separate OutputPath values when builds need separate
-destinations.
+Every requirement contributes all four directory categories recursively. A
+shared diamond dependency builds once per invocation. There are no category
+imports, filters or re-export declarations. Paths from a dependency retain their
+publisher's context, including target-selected variants and generated directories
+that do not exist yet.
 
-Project/package contract resolution is a separate concern from this build
-collection. Package here identifies the containing description; an FPC runtime
-package is compiled by an FPC entry whose SourceFiles selects an `.nxpk` declaration.
+| Publication | FPC operation | LLVM operation |
+| --- | --- | --- |
+| Sources | `-Fu` unit lookup | Available in the resolved environment |
+| Headers | `-Fi` and `-I` includes | `-I` includes |
+| Objects | `-Fo` object lookup | Available for explicitly named inputs |
+| Libraries | `-Fl` library lookup | `-L` during linking |
 
-FPC package options are named fields: `PackageSDKIdentity` emits `-Fj`,
-`PackageBuildIdentity` emits `-Fk`, and `RequiredPackages` emits one `-FP` per
-package. `Files.PackagePaths` resolves directories against RootDirectory and
-emits `-Fp`. An `.nxpk` normally lists dependencies in its `requires` clause;
-an executable lists them in RequiredPackages. The compiler creates a build
-identity when PackageBuildIdentity is omitted. All participants use the same
-SDK identity and matching shared RTL/startup units.
+A directory publication does not compile its contents or select linker inputs.
+Keep object filenames, library names and Pascal link directives explicit.
+`SourceFiles` is an operation's explicit compilation/link input list. It retains
+its order and repeated entries. Source masks expand at execution after required
+producers have run, so generated inputs are supported.
+
+Operations are direct children in declaration order: `FPC`, `LLVM`, or `Process`.
+`OutputPath` supplies their working/output directory unless a Process specifies
+`Directory`. Configure every real build's output outside the source tree. The
+shared environment's `Tools.OutputRoot` defaults under the external worktree;
+set it to a unique worktree directory for isolated validation. Migrated repository
+descriptions establish the Nexus workspace root explicitly, keeping that setting
+consistent across differently located publishers.
+
+`SourceRoot` and `OutputRoot` are ordinary reference values. Operations explicitly
+select their inputs and output directory. The native tool chooses output names;
+Clang-specific naming flags can be supplied through `RawOptions` or `ConfigFiles`.
+
+NexusFPC compiler-native packages remain independent. An FPC operation can compile
+an `.nxpk` or consume `.nxpl` metadata using explicit SDK/package options.
+`Requires` never infers `RequiredPackages`, SDK identities or `-FP` flags.
+`PackageSDKIdentity` emits `-Fj`, `PackageBuildIdentity` emits `-Fk`,
+`RequiredPackages` emits `-FP`, and `Files.PackagePaths` emits `-Fp`.
+Use a matching compiler, RTL, startup units and SDK for runtime-package builds.
 
 ## Builders
 
@@ -77,7 +109,7 @@ and the remaining compiler option sections in the dialect. For example:
 FPC Application {
     SourceFiles: ["main.lpr"];
     CompilerPath: "tools/ppcx64.exe";
-    OutputPath: "output/application";
+    OutputPath: "path/to/external/output/application";
     Config Options { DisableDefaultConfigFiles: True; }
     Language Pascal { Mode: ObjFPC; }
     Target Platform { OperatingSystem: "win64"; }
@@ -99,10 +131,10 @@ replaced by this common property.
 LLVM entries invoke Clang. Language is Auto, C, or CPP; CPP defaults to
 clang++, while Auto and C default to clang. CompilerPath overrides that choice.
 SourceFiles expands to the files passed to that single invocation. BuildKind is Program,
-SharedLibrary, or Object. Other named settings are OutputPath, ConfigFiles, Target, Standard,
+SharedLibrary, or Object. Other named settings are OutputPath, RawOptions, ConfigFiles, Target, Standard,
 IncludePaths, SystemIncludePaths, LibraryPaths, Libraries, Defines, DebugInfo, and
 PositionIndependentCode. SystemIncludePaths uses -isystem for SDK/compiler headers;
-IncludePaths uses -I for project headers. Clang runs in OutputPath without an -o override.
+IncludePaths uses -I for project headers. Clang runs in OutputPath. RawOptions passes explicit native argument strings before the input list and libraries.
 For example, an Object entry with two source files can produce two object files
 in one invocation. Clang determines whether the supplied combination is buildable.
 
@@ -128,284 +160,112 @@ are preserved. List files explicitly when their compile order matters.
 An unmatched mask fails that entry and stops the build. Literal filenames are
 passed to the compiler, which reports missing or invalid input as usual.
 
-## Planning and execution
+## Process operations
 
-```powershell
-nxbuild /action=plan /project=../nexus-lab/examples/build/native/Hello.nxproject
-nxbuild /action=build /project=../nexus-lab/examples/build/native/Hello.nxproject
-nxbuild /action=plan /project=../nexus-lab/examples/build/native/Mixed.nxpackage
-nxbuild /action=build /project=../nexus-lab/examples/build/native/Mixed.nxpackage
-```
-
-Optional `/targetos=<os>` and `/targetcpu=<cpu>` select the requested target.
-Each omitted value defaults independently to nxbuild's native OS or CPU, using
-FPC platform names (for example, `win64` and `x86_64` on this machine).
-These defaults describe the nxbuild executable's platform; an emulated executable
-uses its own platform, not the underlying machine's hardware. Values are
-normalized to lowercase. Explicit flags require nonempty values.
-
-```powershell
-nxbuild /action=plan /project=../nexus-lab/examples/build/native/Abbrevia.nxpackage /targetos=linux /targetcpu=x86_64
-```
-
-nxbuild supplies these values to the existing NexusScript target selection as
-`TargetOS` and `TargetCPU`. Selectors apply to the description and its imported
-modules before the build plan is created. The selected values and references
-configure each tool; nxbuild does not override compiler options or select a
-compiler automatically. The supplied Abbrevia environment has native x86-64
-Windows and Linux settings. A different target requires corresponding settings.
-
-The existing /project flag accepts either root kind. Planning validates the
-description and resolves each tool to an existing file, using PATH for bare
-names. The plan contains one step per build entry, showing its tool, source
-selections (including unexpanded masks), compiler options, and OutputPath.
-It does not expand masks, run tools, create directories, check source existence,
-or predict compilation success.
-
-Execution follows the plan in declaration order. For each entry it expands
-SourceFiles, prepares OutputPath, and invokes the compiler: once for all LLVM
-sources, or once per FPC source. It waits for each invocation and stops at the
-first failure.
-A nonzero tool exit code is reported with the build's name and returned by
-nxbuild. Launch and directory errors also identify the responsible build.
-
-## Shared tool and SDK settings
-
-[nxbuild.environment.nxscript](nxbuild.environment.nxscript) contains this
-installation's tool and SDK settings under the root named `Tools`. Abbrevia
-imports it explicitly, using the existing NexusScript module mechanism:
+`Process` runs an executable directly, with an argument array and no shell.
+`Directory` is its working directory and defaults to `OutputPath`. Relative
+Directory/OutputPath values resolve against the project root; argument strings
+retain ordinary process semantics relative to Directory.
 
 ```nexusscript
-module "../nxbuild.environment.nxscript";
-
-Package Abbrevia {
-    LLVM Native {
-        CompilerPath: @Tools.Native.LLVMCompiler;
-        Target: @Tools.Native.Triple;
-        SystemIncludePaths: @Tools.Native.SystemIncludePaths;
-        LibraryPaths: @Tools.Native.LibraryPaths;
-        // SourceFiles and OutputPath describe this package's build.
-    }
+Process Generate {
+    Executable: "python3";
+    Directory: ".";
+    OutputPath: @Example.OutputRoot + "/generated";
+    Arguments: ["generate.py", @Example.OutputRoot + "/generated"];
 }
 ```
 
-Module paths resolve relative to the file declaring them. Packages can share
-one module and obtain updated values without changing their build descriptions.
-For another environment, configure that shared file's installation paths and
-versions. A package can also explicitly reference another module file.
+An explicitly named tool may be produced by an earlier operation. Planning
+accepts that future executable beneath the earlier producer's output directory.
+Execution still stops if the producer fails or the tool cannot be launched.
 
-`Tools.Native` selects platform-specific compiler, RTL, system include and
-library paths with `TargetOS[win64]` and `TargetOS[linux]`.
-`Tools.WindowsSDK` and `Tools.MSVC` describe the Windows-only installations.
-`Tools.NexusFPC` supplies the compiler source path. The enclosing `Tools`
-definition selects `TargetCPU[x86_64]`.
-
-The module is ordinary NexusScript. Its descriptive kinds (`Environment`,
-`SDK`, `Platform`, `Toolchain`) do not become build entries. Packages reference
-the selected values without duplicating their build sequence.
-
-`Tools.OutputRoot` is the common generated-output root. Its checked-in value,
-`../../worktree/nexus`, keeps the affected builds and tests outside source.
-The native nxbuild and nxbuildTests projects use this module on Linux and
-Windows, including the matching compiler/RTL and platform-specific source paths.
-The Linux installation settings currently select the validated bootstrap SDK;
-changing that selection does not move the installed toolchain's `current` link.
-
-From the Nexus repository root, build and run the actual test project with the
-native tool (the commands below use the default Linux output root):
+## Validation, planning and execution
 
 ```sh
-../../worktree/nexus/nxbuild-next/x86_64-linux/nxbuild /action=build /project=projects/nxbuild/test/nxbuildTests.nxproject /targetos=linux /targetcpu=x86_64
-../../worktree/nexus/nxbuildTests/x86_64-linux/nxbuildTests
+nxbuild /action=validate /project=Project.nxproject /targetos=linux /targetcpu=x86_64
+nxbuild /action=plan /project=Project.nxproject /targetos=linux /targetcpu=x86_64
+nxbuild /action=build /project=Project.nxproject /targetos=linux /targetcpu=x86_64
 ```
 
-The test project retains `-gh -gl`. Its generated fixtures live beside its
-executable, and HeapTrc is compiled from the original RTL source when needed.
-No modified recipe or source copy is required. On 2026-10-18 the real Linux
-project passed all 25 tests and reported zero unfreed blocks after the implicit
-HeapTrc source-loading correction in NexusFPC.
+`validate` checks the project model and complete graph without requiring installed
+tools. It provides metadata/graph evidence, not compilation evidence. `plan`
+additionally resolves installed tools and shows project identities, dependency
+edges, inherited directories and operations. Neither action runs producers,
+expands source masks or creates output directories.
 
-There is no automatic environment import or environment command-line switch.
-The package's module declaration selects its configuration. Existing NexusScript
-errors report missing modules and unresolved references. Build-option validation
-inside FPC and LLVM entries remains unchanged.
+The selected TargetOS/TargetCPU context is passed unchanged to every dependency
+and its NexusScript imports. Explicit FPC OS and LLVM triple values must agree
+with that context. nxbuild does not choose or install a compiler automatically.
+Defaults come from the native nxbuild executable; cross compilation needs
+appropriately configured compilers, RTLs and SDKs.
 
-## Abbrevia integration example
+`build` executes the dependency-first plan sequentially. FPC invokes its compiler
+once per source; LLVM uses one invocation for its list. Execution expands masks,
+creates each operation's output directory and waits for completion. A failure
+identifies the project/operation, preserves the tool's exit code and stops later
+operations. Directory/launch failures identify their responsible operation.
 
-The supplied regression cases and the former codec probes now use nxtest under
-[Abbrevia/test](../../packages/nexus-packages-ext/compression/abbrevia/test/README.md).
-Current full-suite results and remaining failures are recorded there. The older
-52-check verification below is historical codec-only evidence.
+## Repository builds and examples
 
-`../../../nexus-lab/examples/build/native/Abbrevia.nxpackage` uses the same three ordered entries on Windows
-and Linux:
+The central catalog is [Projects.nxscript](Projects.nxscript). Source providers
+live with their libraries. Optional compiled-unit checks remain ordinary
+projects with separate identities; requiring a source provider does not force
+those checks to compile every unit.
 
-1. LLVM compiles 30 LZMA, PPMd and WavPack C sources to objects in one invocation.
-2. LLVM compiles and links seven bzip2 C sources into the platform shared library.
-3. FPC compiles `Abbrevia.nxpk`, containing all 51 Pascal runtime units and
-   requiring `nxrtl`, into `Abbrevia.nxpl` with embedded development metadata.
-   Tests are built separately from Abbrevia/test/AbbreviaTests.nxproject and
-   consume the compiled package through RequiredPackages.
+From the Nexus repository, with configured installed tools and an external output
+root:
 
-Source masks expand during execution without sorting. The three entries produce
-three compiler invocations. No build helper script is used.
-The LZMA sources retain their existing threading configuration.
-
-Run from the Nexus repository root on Windows:
-
-```powershell
-output/nxbuild-next/x86_64-win64/nxbuild.exe /action=plan /project=../nexus-lab/examples/build/native/Abbrevia.nxpackage
-output/nxbuild-next/x86_64-win64/nxbuild.exe /action=build /project=../nexus-lab/examples/build/native/Abbrevia.nxpackage
-output/nxbuild-next/x86_64-win64/nxbuild.exe /action=build /project=packages/nexus-packages-ext/compression/abbrevia/test/AbbreviaTests.nxproject
-output/nxbuild-abbrevia/x86_64-win64/pascal/AbbreviaTests.exe packages/nexus-packages-ext/compression/abbrevia/test/testfiles
+```sh
+"$NXBUILD" /action=build /project=projects/nxbuild/nxbuild.nxproject
+"$NXBUILD" /action=build /project=projects/nxbuild/test/nxbuildTests.nxproject
+"$NX_OUT/nxbuildTests/x86_64-linux/nxbuildTests"
+"$NXBUILD" /action=build /project=projects/nxpackage/test/nxprojectDocumentTests.nxproject
+"$NX_OUT/nxproject-document-tests/x86_64-linux/nxprojectDocumentTests"
 ```
 
-The equivalent commands on Linux use `output/nxbuild-next/x86_64-linux/nxbuild`
-and the executables without `.exe` in
-`output/nxbuild-abbrevia/x86_64-linux/pascal`. Target flags are optional on
-either native host. Adjust `nxbuild.environment.nxscript` for the installed
-NexusFPC, RTL, package SDK and Clang paths; Linux uses the system C headers and libraries.
-PackageSDKPath selects the matching SDK directory, PackageSDKIdentity comes from
-its sdk.json, and PackageLibraryPaths includes its packages directory alongside
-the platform libraries. Replacing the SDK requires updating these installation
-settings together. The Linux package SDK must be installed/configured on that host.
+The nxpackage workbench edits `.nxproject` and ProjectIndex documents. Unsaved
+project validation uses the same native analysis, model loader and graph/planner
+as nxbuild, with tool availability checks disabled. It does not run builds.
 
-At runtime, the matching `nxrtl.nxpl` must be beside the executable or on the
-platform library search path. `Abbrevia.nxpl` and the generated bzip2 library
-are built beside the test executable. The source declaration `.nxpk` is build
-input; `.nxpl` is the compiled runtime package.
+Real integration descriptions include:
 
-Clang's `libbz2-win64.cfg` names `libbz2.dll` and references `libbz2.def`,
-which exports all 24 public bzip2 functions. Clang's `<CFGDIR>` locates that
-definition file. `libbz2-linux.cfg` names `libbz2.so.1` and sets its SONAME.
-These are compiler configurations; nxbuild supplies only OutputPath.
-Both libraries are built beside the Pascal executables. Linux executables use
-the linker's `$ORIGIN` rpath to load that sibling library.
+- [Mixed.nxproject](../../../nexus-lab/examples/build/native/Mixed.nxproject):
+  Pascal consumers require a C/C++ producer and inherit its object directory.
+- [Generated native integration](test/fixtures/native-dependencies/All.nxproject):
+  a diamond-shared producer creates Pascal source, C/Pascal includes, an object
+  and a shared library. Pascal NXTests and a C consumer use their inherited paths.
+- [Abbrevia source tests](../../packages/nexus-packages-ext/compression/abbrevia/test/AbbreviaSourceTests.nxproject):
+  codec producers precede source consumption, without a package SDK prerequisite.
+  [Test instructions](../../packages/nexus-packages-ext/compression/abbrevia/test/README.md)
+  describe strict runtime-library identity verification.
+- [AbbreviaRuntime.nxproject](../../packages/nexus-packages-ext/compression/abbrevia/AbbreviaRuntime.nxproject):
+  a separate compiler-native runtime-package product requiring the same provider.
+- [Nexus2DEngine.nxproject](../../../nexus-mobile/Nexus2DEngine.nxproject):
+  native Linux simulator compilation and Lua generation run as direct LLVM and
+  Process operations. [Native prerequisites](../../../nexus-mobile/platform/linux/README.md)
+  belong to machine provisioning, not build execution.
 
-SDK headers use LLVM SystemIncludePaths. LibraryPaths provides libraries to
-both builders. Windows object directives retain their `Win64/` prefix;
-Linux directives use the object filenames. FPC ObjectPaths includes the
-Native entry's output directory and its parent.
+The separate [engine source regressions](test/nxbuildEngineTests.nxproject)
+reuse the actual engine recipe's compiler settings to check its decoder sources:
 
-The binding updates enable the existing bzip2, LZMA, PPMd and WavPack codec
-paths on Linux and link the newly compiled ELF objects against libc, libm and pthread.
-PPMd's allocation callbacks use the Pascal allocator on both platforms.
-The shared size_t declaration in Abbrevia.CRuntime is available on Windows and
-Linux and uses ctypes.csize_t, preserving C's unsigned, pointer-sized contract.
-The LZMA and PPMd bindings use that declaration. The nxtest codec suite checks its size
-and unsigned range before exercising the codecs.
-Linux verification programs that use LZMA place cthreads first in their uses
-clause under an explicit LINUX guard, initializing the Pascal thread support
-required by the existing codec.
-The codec's threading defaults and IsMultiThread initialization are unchanged.
-WavPack's implementation-only C import now declares its callback record as
-a var parameter, matching the pointer required by WavpackOpenFileInputEx.
-The previous const declaration passed a record value under the Linux ABI;
-the public DecompressWavPack interface is unchanged.
-The pre-existing bzip2 correction scopes `{$PACKRECORDS C}` to TBZStreamRec;
-the nxtest codec suite checks its 80-byte layout on both tested 64-bit platforms.
-
-The codec checks exercise:
-
-- Eight bzip2 buffer/stream round trips at 0, 1, 4,096 and 1,048,576 bytes,
-  plus verification that the generated sibling library was loaded.
-- All 11 entries in each Canterbury Deflate, LZMA and PPMd ZIP, comparing
-  extracted bytes with Store.zip (33 comparisons).
-- Eight LZMA buffer/stream round trips at the same four sizes.
-- Three WavPack decodes (8-, 16- and 24-bit PCM), comparing complete WAV bytes.
-
-The small WAV fixtures contain 256 mono samples at 8 kHz: unsigned sample
-`i` at 8 bits, or signed `(i - 128) * 2^(bits - 8)` at 16/24 bits.
-Their WavPack files were generated with the reference WavPack 5.9.0 encoder
-using default lossless settings. They are generated test data, not recordings.
-The reference encoder is not a package build or runtime dependency.
-
-Verified on 2026-10-13: the shared package compiled all 50 Pascal
-units and 30 native codec objects, then linked the bzip2 shared library and all three probes
-on x86-64 Windows and native Ubuntu Linux under WSL. Startup and all 52 codec
-checks passed on each platform, including confirmation of the generated bzip2
-library's location. All 19 nxbuild grouped tests passed on Windows with zero
-unfreed heap blocks.
-After correcting the shared size_t declaration and explicit Linux guards, both
-package builds and all 52 codec checks passed again, including the new checks
-that size_t is unsigned and pointer-sized.
-
-Recorded build invocations took 63.61 seconds on Windows and 194.80 seconds
-on Linux, excluding the subsequent codec checks. These are local verification
-timings, including WSL invocation overhead, not a platform performance comparison.
-Local verification used Clang 23 on Windows and Clang 18 on Linux. A matching
-native NexusFPC compiler was generated from the existing staged compiler sources
-for Linux; its binary is in output/nxbuild-next/x86_64-linux/ppcx64.
-Clang 18 and the reference WavPack encoder were installed in the WSL environment
-for this verification. No compiler or Forge source changes were needed.
-This pass targets native x86-64 Windows and glibc Linux. It does not change
-Windows-specific CAB facilities or the separately threaded LZMAStream wrapper.
-Portable LZMA buffer/stream functions and ZIP extraction use the enabled codec.
-Forge and common NexusScript source are unchanged.
-
-## Building and testing nxbuild
-
-The executable and its own test suite have descriptions:
-nxbuild.nxproject and test/nxbuildTests.nxproject. Set CompilerPath and the FPC
-unit/include paths inside each FPC entry for your NexusFPC installation.
-
-```powershell
-nxbuild /action=build /project=projects/nxbuild/nxbuild.nxproject
-nxbuild /action=build /project=projects/nxbuild/test/nxbuildTests.nxproject
-output/nxbuildTests/x86_64-win64/nxbuildTests.exe
+```sh
+"$NXBUILD" /action=build /project=projects/nxbuild/test/nxbuildEngineTests.nxproject /targetos=linux /targetcpu=x86_64
+"$NX_OUT/nexus2d-decoder-tests/x86_64-linux/nxbuildEngineTests" ../nexus-mobile/Nexus2DEngine.nxproject
 ```
 
-Run the tests from the Nexus repository root. They cover ordered mixed builds
-under both root kinds, typed options, relative paths, common output destinations, tool availability,
-planning without existing source files or directory creation, execution-time
-mask expansion (including generated sources), shared environment modules, OS/CPU selection in imported modules, and
-sequential execution that
-preserves the failing tool's exit code and skips later entries.
+The expanded eight-case suite currently has one passing cleanup control and
+seven failing ABI, header-configuration and dispatcher-contract cases;
+they are separate from the passing core nxbuild tests. The actual engine code
+is unchanged. [Native finding and evidence](../../../nexus-mobile/platform/linux/NXBUILD_REVIEW.md)
+record the blocker and required follow-up discussion.
 
-The mixed example compiles C and C++ objects in one LLVM invocation. Its FPC
-entry then builds Mixed.lpr and Hello.lpr in separate invocations using the same
-settings and output directory. Configure both toolchains for the same target.
-
-The three existing NexusLS project-generation cases are preserved in the
-separate test/nxbuildProjectGenerationTests.lpr and .nxproject runner. They remain
-blocked until NexusLS adopts the current description model and dialect.
-NexusLS was not modified in this nxbuild-only pass.
-
-The earlier Pascal-only root fields and FPCBuildOptions child have been
-replaced by FPC entries. Lazarus settings remain unsupported.
-
-## Verification
-
-Verified on Win64 with NexusFPC and LLVM:
-
-- Fresh source compilation and nxbuild rebuilding itself through its FPC entry.
-- All 19 grouped tests passed, with zero unfreed heap blocks in the test runner
-  and its helper processes.
-- The mixed package built its C and C++ objects in one LLVM invocation, with
-  Clang choosing both object filenames, and one FPC entry built both Pascal
-  executables through separate compiler invocations;
-  both executables ran successfully, including the linked native functions.
-- OutputPath worked with spaces and separate destinations; all generated files
-  stayed in those directories, with no build artifacts in the example sources.
-- FPC source lists preserved order, repeated entries, shared settings and the
-  shared output directory in the plan.
-- A missing middle FPC source preserved the compiler exit code and stopped both
-  the remaining source and the following LLVM entry.
-- A missing tool in a later entry prevented every build from starting.
-- Masks expand per build entry at execution, with filesystem enumeration order,
-  no recursion, and declaration order/repeats preserved. Tests cover generated
-  sources from a preceding entry and unmatched-mask failures.
-- An explicitly imported environment module supplied both LLVM and FPC paths.
-  Changing its values updated plans for both Project and Package descriptions
-  without changing those descriptions; missing or invalid modules were rejected.
-- Missing source was accepted during planning; execution reported Clang's
-  failure, preserved its exit code, and skipped subsequent entries.
-
-The native tool is under `Tools.OutputRoot + "/nxbuild-next/" + Tools.Native.Name`.
-The test runner is under `Tools.OutputRoot + "/nxbuildTests/" + Tools.Native.Name`.
+NexusLS-generated projects and editor integration remain deferred to the owner's
+planned LS overhaul. The checked-in build descriptions were migrated; the three
+LS-dependent project-generation cases remain separate and are not counted as
+passing nxbuild regressions.
 
 For NexusFPC runtime packages, `BuildControl Options { EmbedPackageMetadata:
-Disabled; }` emits `-FJ-`. `Enabled` emits `-FJ`; `Unset` or omission keeps the
-compiler default. The default produces one `.nxpl` with compressed compiler
-metadata. Disabling embedding produces `.nxpl` plus `.nxp`; both modes use the
-same runtime loading behavior and can be mixed among dependencies.
+Disabled; }` emits `-FJ-`; Enabled emits `-FJ`; Unset keeps the compiler default.
+Embedding produces `.nxpl` with compressed metadata. Disabling it produces `.nxpl`
+plus `.nxp`. These compiler options are independent of nxproject dependencies.

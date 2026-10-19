@@ -10,8 +10,11 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../nxbuild/Projects.nxscript";
 module "../nxbuild/nxbuild.environment.nxscript";
 Project NexusSetup {
+    Id: "NXRP.Tools.NexusSetup";
+    Requires: [@Projects.GUI, @Projects.RegExpr, @Projects.FCLImage, @Projects.PasJPEG, @Projects.FCLXML, @Projects.X11, @Projects.Users, @Projects.FCLRes, @Projects.NexusScript, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache, @Projects.HashLib4Pascal, @Projects.FCLBase, @Projects.Pthreads, @Projects.FCLProcess];
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/NexusSetup/" + @Tools.Native.Name;
     FPC Application {
@@ -26,72 +29,21 @@ Project NexusSetup {
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "packages/nexus-packages/gui/src",
-                "packages/nexus-packages/gui/src/vtv",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/gui",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/resources",
-                "packages/nexus-packages-ext/regexpr/external/tregexpr/src",
-                "packages/nexus-packages/graphics/fcl-image/src",
-                "packages/nexus-packages/graphics/pasjpeg/src",
-                "packages/nexus-packages/serialization/fcl-xml/src",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform,
-                "packages/nexus-packages/graphics/x11/src",
-                "packages/nexus-packages/users/src",
                 @Tools.Native.RTLPath,
                 @Tools.NexusFPC.SourcePath + "/rtl/objpas",
-                "packages/nexus-packages/fcl-res/src",
                 "projects/setup/src",
-                "packages/nexus-packages/nxscript/src",
-                "packages/nexus-packages/serialization/src",
-                "packages/nexus-packages/serialization/json/src",
-                "packages/nexus-packages/serialization/fcl-json/src",
-                "packages/nexus-packages/db/sqlite/src/bindings",
-                "packages/nexus-packages/core/src",
-                "packages/nexus-packages-ext/mustache/external/dmustache",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Base",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Checksum",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2BParams",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Crypto/Blake2SParams",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash128",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash32",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Hash64",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2BParams",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Interfaces/IBlake2SParams",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/KDF",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Misc",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/NullDigest",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Facade",
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Utils",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
-                "packages/nexus-packages/fcl-base/src",
-                "packages/nexus-packages/pthreads/src"
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
             ];
             IncludePaths: [
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/x11",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/gdi",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/pascal/corelib/render/software",
-                "packages/nexus-packages/gui/external/fpgui/framework/src/main/resources",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.OS,
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform,
-                "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
-                "packages/nexus-packages/fcl-base/src/" + @Tools.Native.PascalPlatform,
-                "packages/nexus-packages/fcl-base/src/dummy",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc",
-                "packages/nexus-packages/pthreads/src",
-                "packages/nexus-packages/fcl-process/src/" + @Tools.Native.PascalPlatform
+                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc"
             ];
         }
     }

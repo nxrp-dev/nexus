@@ -10,37 +10,27 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../nxbuild/Projects.nxscript";
+module "../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusScript {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "cli/NexusScript.lpr";
-    OutputRoot: "../../output/NexusScript/x86_64-win64";
+Project NexusScript TargetOS[win64] {
+    Id: "NXRP.Tools.NexusScript";
+    Requires: [@Projects.NexusScript, @Projects.SQLite, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Mustache, @Projects.Serialization, @Projects.DelimitedText];
+    RootDirectory: "../..";
+    OutputRoot: @Tools.OutputRoot + "/NexusScript/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @NexusScript.OutputRoot + "/NexusScript.exe";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/nxscript/cli/NexusScript.lpr"];
+        OutputPath: @NexusScript.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         Config Options { DisableDefaultConfigFiles: True; }
         Language Pascal { Mode: Delphi; }
         Files Paths {
-            ExecutableOutputPath: @NexusScript.OutputRoot;
-            UnitOutputPath: "../../output/NexusScript/x86_64-win64/units";
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
-                "../../packages/nexus-packages/nxscript/src",
-                "cli",
-                "../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../packages/nexus-packages/serialization/json/src",
-                "../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../packages/nexus-packages/network/json-rpc/src",
-                "../../packages/nexus-packages/core/src",
-                "../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../packages/nexus-packages/serialization/src",
-                "../../packages/nexus-packages/serialization/delimited-text/src",
-                "../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/nxscript/cli",
+                @Tools.Native.RTLPath
             ];
         }
     }

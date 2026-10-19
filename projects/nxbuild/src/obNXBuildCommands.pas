@@ -54,8 +54,8 @@ end;
 
 class procedure TNXBuildCommands.RegisterCommandLineFlags;
 begin
-  TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript build description', 'Path to a Project or Package build description.');
-  TNXCommandLine.RegisterFlag('action', False, True, '', 'Build action', 'Use /action=plan or /action=build with /project=project.nxproject.');
+  TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript build description', 'Path to an nxproject build description.');
+  TNXCommandLine.RegisterFlag('action', False, True, '', 'Build action', 'Use /action=validate, /action=plan or /action=build with /project=project.nxproject.');
   TNXCommandLine.RegisterFlag('targetos', False, True, {$I %FPCTARGETOS%},
     'Target operating system', 'Requested target OS; defaults to the native nxbuild platform.');
   TNXCommandLine.RegisterFlag('targetcpu', False, True, {$I %FPCTARGETCPU%},
@@ -80,7 +80,7 @@ begin
   lTargetCPU := NXBuildTargetArgument('targetcpu');
 
   if lAction = '' then
-    raise Exception.Create('Specify /action=plan or /action=build.');
+    raise Exception.Create('Specify /action=validate, /action=plan or /action=build.');
   if lProjectFile = '' then
     raise Exception.Create('Project file is required.');
 
@@ -92,9 +92,12 @@ begin
     lTargets.Add('TargetOS', lTargetOS);
     lTargets.Add('TargetCPU', lTargetCPU);
     lDescription := lLoader.LoadDescription(lProjectFile, lTargets);
-    lPlan := lPlanner.CreatePlan(lDescription);
+    lPlan := lPlanner.CreatePlan(lDescription, lAction <> 'validate');
     try
-      if lAction = 'plan' then
+      if lAction = 'validate' then
+        WriteLn('Validated ', lDescription.Id, ': ', lPlan.Projects.Count,
+          ' projects, ', lPlan.Steps.Count, ' builds; target ', lTargetOS, '/', lTargetCPU, '.')
+      else if lAction = 'plan' then
       begin
         WriteLn('Requested target: ', lTargetOS, '/', lTargetCPU);
         lPlanner.WritePlan(lPlan);

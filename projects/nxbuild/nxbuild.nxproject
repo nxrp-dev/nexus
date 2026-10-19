@@ -11,8 +11,12 @@
 
 dialect "language/nxbuild.Language.nxscript";
 module "nxbuild.environment.nxscript";
+module Projects "Projects.nxscript";
 
 Project nxbuild {
+    Id: "NXRP.nxbuild";
+    Requires: [@Projects.NexusScript, @Projects.Serialization, @Projects.FCLProcess];
+    Publishes Directories { Sources: ["projects/nxbuild/src"]; }
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/nxbuild-next/" + @Tools.Native.Name;
 
@@ -28,7 +32,6 @@ Project nxbuild {
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             IncludePaths: [
-                "packages/nexus-packages/fcl-process/src/" + @Tools.Native.PascalPlatform,
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
             ];
@@ -36,17 +39,6 @@ Project nxbuild {
                 @Tools.Native.RTLPath,
                 @Tools.NexusFPC.SourcePath + "/rtl/inc",
                 @Tools.NexusFPC.SourcePath + "/rtl/objpas",
-                "projects/nxbuild/src",
-                "packages/nexus-packages/nxscript/src",
-                "packages/nexus-packages/serialization/src",
-                "packages/nexus-packages/serialization/json/src",
-                "packages/nexus-packages/serialization/fcl-json/src",
-                "packages/nexus-packages/fcl-process/src",
-                "packages/nexus-packages/network/json-rpc/src",
-                "packages/nexus-packages/db/sqlite/src/bindings",
-                "packages/nexus-packages/core/src",
-                "packages/nexus-packages-ext/mustache/external/dmustache",
-                "packages/nexus-packages/fcl-base/src",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"
             ];

@@ -10,34 +10,30 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../language/nxbuild.Language.nxscript";
+module Projects "../Projects.nxscript";
+module "../nxbuild.environment.nxscript";
 
 Project nxbuildProjectGenerationTests {
-    OutputRoot: "../../../output/nxbuildProjectGenerationTests/x86_64-win64";
+    Id: "NXRP.Tools.nxbuildProjectGenerationTests";
+    Requires: [@Projects.NexusScript, @Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.SQLite, @Projects.Core, @Projects.Mustache];
+    RootDirectory: "../../..";
+    OutputRoot: @Tools.OutputRoot + "/nxbuildProjectGenerationTests/" + @Tools.Native.Name;
 
     FPC Compiler {
-        SourceFiles: ["nxbuildProjectGenerationTests.lpr"];
-        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
+        SourceFiles: ["projects/nxbuild/test/nxbuildProjectGenerationTests.lpr"];
+        CompilerPath: @Tools.Native.FPCCompiler;
         Target Native { OperatingSystem: "win64"; }
         OutputPath: @nxbuildProjectGenerationTests.OutputRoot;
         RawOptions: ["-gh", "-gl"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
             UnitPaths: [
-                ".",
-                "../src",
-                "../../ls/pascal/src/service",
-                "../../ls/pascal/src/protocol",
-                "../../../packages/nexus-packages/nxscript/src",
-                "../../../packages/nexus-packages/nxtest/src",
-                "../../../packages/nexus-packages/serialization/src",
-                "../../../packages/nexus-packages/serialization/json/src",
-                "../../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../../packages/nexus-packages/network/json-rpc/src",
-                "../../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../../packages/nexus-packages/core/src",
-                "../../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/nxbuild/test",
+                "projects/nxbuild/src",
+                "projects/ls/pascal/src/service",
+                "projects/ls/pascal/src/protocol",
+                "../tools/nexus-fpc/rtl/units/x86_64-win64",
+                "../tools/nexus-fpc/packages/*/units/x86_64-win64"
             ];
         }
     }

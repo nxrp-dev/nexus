@@ -20,7 +20,7 @@ interface
 uses
   Classes,
   SysUtils,
-  obNXPersist, obNXBuildEntry;
+  obNXPersist, obNXBuildEntry, obNXBuildDirectories;
 
 type
   TNXFPCSwitchState = (
@@ -641,9 +641,12 @@ type
     destructor Destroy; override;
     function CompileEachSource: Boolean; override;
     procedure AppendArguments(AArguments: TStrings; out ASourceArgumentIndex: Integer); override;
+    procedure ValidateTarget(const AOS, ACPU: string); override;
     function BuildType: string; override;
     function DefaultCompiler: string; override;
     procedure ResolvePaths(const ARoot: string); override;
+    procedure AppendEnvironment(APaths: TNXBuildDirectories; AArguments: TStrings;
+      var ASourceArgumentIndex: Integer); override;
 
   published
     property BuildKind: TNXFPCBuildKind read FBuildKind write FBuildKind;
@@ -1338,6 +1341,24 @@ begin
   NXAddRawList(AArguments, FRawOptions);
   NXAddListValues(AArguments, '-FP', FRequiredPackages);
   ASourceArgumentIndex := AArguments.Count;
+end;
+
+procedure TNXFPCBuildOptions.ValidateTarget(const AOS, ACPU: string);
+begin
+  if (AOS <> '') and (FTarget.OperatingSystem <> '') and
+    not SameText(FTarget.OperatingSystem, AOS) then
+    raise Exception.CreateFmt('FPC target OS "%s" conflicts with selected TargetOS "%s".',
+      [FTarget.OperatingSystem, AOS]);
+end;
+
+procedure TNXFPCBuildOptions.AppendEnvironment(APaths: TNXBuildDirectories;
+  AArguments: TStrings; var ASourceArgumentIndex: Integer);
+begin
+  InsertPaths(AArguments, APaths.Sources, '-Fu', ASourceArgumentIndex);
+  InsertPaths(AArguments, APaths.Headers, '-Fi', ASourceArgumentIndex);
+  InsertPaths(AArguments, APaths.Headers, '-I', ASourceArgumentIndex);
+  InsertPaths(AArguments, APaths.Objects, '-Fo', ASourceArgumentIndex);
+  InsertPaths(AArguments, APaths.Libraries, '-Fl', ASourceArgumentIndex);
 end;
 
 procedure TNXFPCBuildOptions.ResolvePaths(const ARoot: string);

@@ -1,0 +1,25 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../language/nxbuild.Language.nxscript";
+module "../nxbuild.environment.nxscript";
+module Projects "../Projects.nxscript";
+
+Project EngineSourceTests TargetOS[linux] TargetCPU[x86_64] {
+    Id: "NXRP.Tests.Nexus2D.DecoderABI";
+    Requires: [@Projects.NXBuild, @Projects.NexusTest];
+    RootDirectory: "../../..";
+    OutputRoot: @Tools.OutputRoot + "/nexus2d-decoder-tests/" + @Tools.Native.Name;
+    FPC Tests {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/nxbuild/test/nxbuildEngineTests.lpr"];
+        OutputPath: @EngineSourceTests.OutputRoot;
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
+        Config Options { DisableDefaultConfigFiles: True; }
+        Assembler Native { OutputFormat: "as-clang"; }
+        RawOptions: ["-gh", "-gl"];
+        Files Paths {
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            UnitPaths: [@Tools.Native.RTLPath, @Tools.NexusFPC.SourcePath + "/rtl/inc", @Tools.NexusFPC.SourcePath + "/rtl/objpas", "projects/nxbuild/test", @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"];
+        }
+    }
+}

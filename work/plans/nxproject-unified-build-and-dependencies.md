@@ -1,8 +1,8 @@
 # Work Plan: Unified nxproject Architecture and Dependency-Aware nxbuild
 
-Status: Revised proposal for owner review; implementation is not authorized.
+Status: Owner-authorized implementation in progress.
 Date: 2026-10-19.
-Planning verification: source inspection only; no implementation changes, builds or tests performed.
+Planning verification was source inspection. Implementation builds and tests are recorded separately.
 
 ## Inputs
 
@@ -194,7 +194,7 @@ Preserve source/static consumption and existing compiler-native runtime-package 
 
 Describe the actual engine as an ordinary dependency alongside Lua and the Pascal bridge. Add the required nxbuild descriptions and integration.
 
-On Linux, use the real CMake build in nexus-mobile, compile the engine targets needed by the scenario, compile/link the Pascal integration against its actual outputs, and run a meaningful host/plugin scenario. Inspect required native libraries, generated inputs and output locations before selecting commands. Merely invoking a no-op command, using a stub engine, inspecting a graph or compiling only the bridge is insufficient.
+On Linux, express the actual engine build directly through nxbuild LLVM/Process operations and any necessary task types. Existing native recipes are reference material for source lists, generation and tool options. Compile the engine targets needed by the scenario, compile/link the Pascal integration against their actual outputs, and run a meaningful host/plugin scenario. Inspect required native libraries, generated inputs and output locations before selecting commands. Merely invoking a no-op command, using a stub engine, inspecting a graph or compiling only the bridge is insufficient.
 
 Use existing native build machinery where it fits, with generated files under the external worktree. Do not prescribe a source snapshot, rewrite prerequisite scripts or introduce acquisition machinery before proving it is necessary. If missing prerequisites, engine defects or native output handling block the build, investigate and report the concrete problem for discussion; do not silently weaken verification or start an unrelated engine repair.
 
@@ -256,7 +256,12 @@ Use the existing installed nxbuild and configured NexusFPC/LLVM tools, then the 
 "$NXBUILD_TESTS"
 ```
 
-For Linux native engine integration, inspect and run the appropriate CMake configure/build commands through its nxbuild producer. For example, a configured external `$ENGINE_OUT` can hold `cmake -S "$ENGINE_SOURCE" -B "$ENGINE_OUT"` and `cmake --build "$ENGINE_OUT" --target Solar2D Solar2DSimulator`, subject to the real scenario/prerequisites. These are native targets verified in source, not commands run during planning. No privileged install or automatic dependency acquisition is implicit.
+For Linux native engine integration, invoke `../nexus-mobile/Nexus2DEngine.nxproject`
+through nxbuild. Its LLVM and Process operations compile the native tools, generate
+embedded Lua sources and compile/link the actual simulator under the configured
+external output root. Native development-library provisioning is documented in
+`nexus-mobile/platform/linux/README.md`; system installation is separate from
+build execution.
 
 Review actual nxbuild dialect references across nested package repositories, lab and compiler descriptions. Confirm all affected in-scope nxbuild scripts are migrated and consumer resource paths disappear where requirements replace them. Update relevant docs, check generated-output locations and record exact native/test commands in the implementation report.
 
@@ -274,6 +279,6 @@ The universal entity, complete inheritance, producer scheduling, in-scope nxbuil
 
 ## Approval Gate
 
-This is a plan-only revision for review; its commit/publication is the requested planning handoff. Implementation code, descriptors, builds/tests, acquisition and migration remain unauthorized until the human owner directly approves implementation. LS work remains deferred.
+The owner authorized implementation in the conversation. Later clarification requires direct nxbuild task execution for the native engine. LS work remains deferred. Problems and unrelated repairs must be investigated and discussed; they must not be bypassed to obtain passing results.
 
 If implementation reveals a material conflict with this scope or a blocking bug, investigate and discuss the facts instead of silently broadening the work, bypassing the problem or weakening acceptance. The paused compiler naming goal remains paused.

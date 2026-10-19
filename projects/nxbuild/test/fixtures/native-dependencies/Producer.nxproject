@@ -1,0 +1,41 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../../language/nxbuild.Language.nxscript";
+module "../../../nxbuild.environment.nxscript";
+module NativeProjects "Projects.nxscript";
+
+Project Producer TargetOS[linux] {
+    Id: "Tests.Native.Producer";
+    RootDirectory: "../../../../..";
+    SourceRoot: "projects/nxbuild/test/fixtures/native-dependencies";
+    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name;
+    Publishes Directories {
+        Sources: [@Producer.OutputRoot + "/generated/pascal"];
+        Headers: [@Producer.OutputRoot + "/generated/include"];
+        Objects: [@Producer.OutputRoot + "/objects"];
+        Libraries: [@Producer.OutputRoot + "/libraries"];
+    }
+    Process Generate {
+        Executable: "python3";
+        Directory: ".";
+        OutputPath: @Producer.OutputRoot + "/generated";
+        Arguments: [@Producer.SourceRoot + "/generate_native.py", @Producer.OutputRoot + "/generated"];
+    }
+    LLVM Object {
+        CompilerPath: @Tools.Native.LLVMCompiler;
+        Target: @Tools.Native.Triple;
+        BuildKind: Object;
+        PositionIndependentCode: True;
+        SourceFiles: [@Producer.OutputRoot + "/generated/c/GeneratedValue.c"];
+        OutputPath: @Producer.OutputRoot + "/objects";
+    }
+    LLVM Library {
+        CompilerPath: @Tools.Native.LLVMCompiler;
+        Target: @Tools.Native.Triple;
+        BuildKind: SharedLibrary;
+        PositionIndependentCode: True;
+        SourceFiles: [@Producer.OutputRoot + "/generated/c/GeneratedValue.c"];
+        RawOptions: ["-fuse-ld=lld", "-o", "libnxgenerated.so"];
+        OutputPath: @Producer.OutputRoot + "/libraries";
+    }
+}

@@ -1178,6 +1178,16 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   intact; they explicitly describe possible platform dependencies, not one universal
   runtime dependency set.
 
+The 2026-10-19 ALmixer interface correction in `../nexus-mobile/external/ALmixer`
+was informed by **bglogic**'s [Solar2D PR 866](https://github.com/coronalabs/corona/pull/866),
+revision `2e69928ee191f1056b08fc121b4b42fb634952b1` (submitted 2025-11-07).
+Its callback-width and supported-decoder const-correctness findings were adopted;
+the reversed HAVE_* tests were analyzed and replaced by a configuration correction
+preserving their meaning. Additional dispatcher, I/O, seek, size and cleanup fixes
+are Nexus modifications, not an upstream release. Per-file licenses and original
+author notices remain. The patch was open/unmerged when inspected. Evidence and
+platform limits are in the engine's `platform/linux/NXBUILD_REVIEW.md`.
+
 The following inventory consolidates the inherited attribution sources. **For every
 row below, exact upstream adoption and Nexus fork dates are unknown; the surviving
 Nexus baseline is 2026-09-30, `1113ae2b`. Our repository is Engine.** Paths are relative

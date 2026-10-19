@@ -17,17 +17,26 @@ unit obNXBuildDescription;
 
 interface
 
-uses obNXPersist, obNXBuildEntry;
+uses Generics.Collections, obNXPersist, obNXBuildEntry, obNXBuildDirectories,
+  obNXBuildRequirement, obNexusScriptModel;
 
 type
   TNXBuildDescription = class(TNXPersistObject)
   private
     FKind: string;
+    FId: string;
+    FVersion: string;
+    FAuthor: string;
+    FDescription: string;
+    FLicense: string;
     FFileName: string;
     FRootDirectory: string;
     FSourceRoot: string;
     FOutputRoot: string;
     FBuilds: TNXPersistList;
+    FPublishes: TNXBuildDirectories;
+    FRequires: specialize TObjectList<TNXBuildRequirement>;
+    FSelectedTargets: TNexusScriptTargetSelection;
   public
     constructor Create; override;
     destructor Destroy; override;
@@ -35,10 +44,18 @@ type
     procedure ResolvePaths;
     property Kind: string read FKind write FKind;
     property FileName: string read FFileName write FFileName;
+    property Requirements: specialize TObjectList<TNXBuildRequirement> read FRequires;
+    property SelectedTargets: TNexusScriptTargetSelection read FSelectedTargets;
   published
+    property Id: string read FId write FId;
+    property Version: string read FVersion write FVersion;
+    property Author: string read FAuthor write FAuthor;
+    property Description: string read FDescription write FDescription;
+    property License: string read FLicense write FLicense;
     property RootDirectory: string read FRootDirectory write FRootDirectory;
     property SourceRoot: string read FSourceRoot write FSourceRoot;
     property OutputRoot: string read FOutputRoot write FOutputRoot;
+    property Publishes: TNXBuildDirectories read FPublishes;
     property Builds: TNXPersistList read FBuilds;
   end;
 
@@ -49,10 +66,16 @@ begin
   inherited Create;
   StoreReadOnlyProperties := True;
   FBuilds := TNXPersistList.Create;
+  FPublishes := TNXBuildDirectories.Create;
+  FRequires := specialize TObjectList<TNXBuildRequirement>.Create(True);
+  FSelectedTargets := TNexusScriptTargetSelection.Create;
 end;
 
 destructor TNXBuildDescription.Destroy;
 begin
+  FSelectedTargets.Free;
+  FRequires.Free;
+  FPublishes.Free;
   FBuilds.Free;
   inherited Destroy;
 end;
@@ -66,6 +89,7 @@ procedure TNXBuildDescription.ResolvePaths;
 var
   lIndex: Integer;
 begin
+  FPublishes.ResolvePaths(FRootDirectory);
   for lIndex := 0 to FBuilds.Count - 1 do
     (FBuilds[lIndex] as TNXBuildEntry).ResolvePaths(FRootDirectory);
 end;

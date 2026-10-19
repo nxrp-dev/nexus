@@ -40,6 +40,7 @@ type
     FDirty: Boolean;
     FFileName: string;
     FProvider: TNXPackageSourceProvider;
+    FProjectTargets: TNexusScriptTargetSelection;
     FSourceText: string;
     FValidated: Boolean;
     procedure AddDiagnostic(const ACode, AMessage: string;
@@ -55,6 +56,7 @@ type
     procedure Load(const AFileName: string);
     procedure LoadSource(const AFileName, ASourceText: string);
     procedure Save;
+    procedure SetTarget(const AName, AValue: string);
     function Validate: Boolean;
     property CompiledDocument: TNexusScriptCompiledDocument
       read GetCompiledDocument;
@@ -70,7 +72,8 @@ implementation
 
 uses
   obNexusScriptCompiler, obNexusScriptLanguageDefinition,
-  obNexusScriptValidator, obNXPackageContractValidator;
+  obNexusScriptValidator, obNXPackageContractValidator,
+  obNXBuildDescription, obNXBuildDescriptionLoader, obNXBuildPlanner;
 
 procedure TNXPackageSourceProvider.SetEntry(const AName, AText: string);
 begin
@@ -104,11 +107,15 @@ begin
   FProvider := AProvider;
   if FProvider = nil then FProvider := TNXPackageSourceProvider.Create;
   FDiagnostics := TStringList.Create;
+  FProjectTargets := TNexusScriptTargetSelection.Create;
+  FProjectTargets.Add('TargetOS', {$I %FPCTARGETOS%});
+  FProjectTargets.Add('TargetCPU', {$I %FPCTARGETCPU%});
 end;
 
 destructor TNXPackageDocument.Destroy;
 begin
   FAnalysis.Free;
+  FProjectTargets.Free;
   FDiagnostics.Free;
   FProvider.Free;
   inherited Destroy;
@@ -143,7 +150,7 @@ begin
     if not lDefinition.ImportedRoot and
       (SameText(lDefinition.Kind, 'Package') or
       SameText(lDefinition.Kind, 'Project') or SameText(lDefinition.Kind, 'PackageIndex') or
-      SameText(lDefinition.Kind, 'RepositoryIndex')) then
+      SameText(lDefinition.Kind, 'RepositoryIndex') or SameText(lDefinition.Kind, 'ProjectIndex')) then
     begin
       if (Result <> '') and not SameText(Result, lDefinition.Kind) then
         Exit('Mixed');
@@ -200,13 +207,26 @@ begin
   end;
 end;
 
+procedure TNXPackageDocument.SetTarget(const AName, AValue: string);
+begin
+  FProjectTargets.SetValue(AName, AValue);
+  FValidated := False;
+  FDiagnostics.Clear;
+end;
+
 function TNXPackageDocument.Validate: Boolean;
 var
   lCompiler: TNexusScriptCompiler;
   lContracts: TNXPackageContractValidator;
   lDiagnostic: TNexusScriptDiagnostic;
   lValidationDiagnostic: TNexusScriptValidationDiagnostic;
-  lIndex: Integer;
+  lIndex, lProjectCount, lIndexCount: Integer;
+  lTargets: TNexusScriptTargetSelection;
+  lDefinition: TNexusScriptCompiledDefinition;
+  lLoader: TNXBuildDescriptionLoader;
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
 begin
   Result := False;
   FValidated := False;
@@ -215,7 +235,9 @@ begin
     raise Exception.Create('No document is open');
   FreeAndNil(FAnalysis);
   FProvider.SetEntry(FFileName, FSourceText);
-  FAnalysis := TNexusScriptAnalysis.Create(FFileName, 1, FProvider);
+  lTargets := nil;
+  if SameText(ExtractFileExt(FFileName), '.nxproject') then lTargets := FProjectTargets;
+  FAnalysis := TNexusScriptAnalysis.Create(FFileName, 1, FProvider, lTargets);
   FAnalysis.Execute;
   for lDiagnostic in FAnalysis.Session.Diagnostics do
     AddDiagnostic(lDiagnostic.Code, lDiagnostic.MessageText,
@@ -235,7 +257,7 @@ begin
   end;
   if FAnalysis.EntryCompiler.CompiledDocument.DialectDocument = nil then
   begin
-    FDiagnostics.Add('A nxpackage dialect declaration is required');
+    FDiagnostics.Add('A NexusScript dialect declaration is required');
     Exit;
   end;
   for lIndex := 0 to FAnalysis.Language.DiagnosticCount - 1 do
@@ -247,6 +269,43 @@ begin
       lValidationDiagnostic.MessageText,
       lValidationDiagnostic.SourceRange);
   if FDiagnostics.Count <> 0 then Exit;
+  if FAnalysis.EntryCompiler.CompiledDocument.DialectDocument.FindDefinition('nxbuild') <> nil then
+  begin
+    lProjectCount := 0;
+    lIndexCount := 0;
+    for lDefinition in FAnalysis.EntryCompiler.CompiledDocument.Definitions do
+      if not lDefinition.ImportedRoot then
+      begin
+        if SameText(lDefinition.Kind, 'Project') then Inc(lProjectCount);
+        if SameText(lDefinition.Kind, 'ProjectIndex') then Inc(lIndexCount);
+      end;
+    if (lProjectCount + lIndexCount) <> 1 then
+    begin
+      FDiagnostics.Add('Exactly one Project or ProjectIndex root is required.');
+      Exit;
+    end;
+    if lProjectCount = 1 then
+    begin
+      lLoader := TNXBuildDescriptionLoader.Create;
+      lPlanner := TNXBuildPlanner.Create;
+      lDescription := nil;
+      try
+        try
+          lDescription := lLoader.LoadAnalysis(FAnalysis, lTargets);
+          lPlan := lPlanner.CreatePlan(lDescription, False);
+          lPlan.Free;
+        except
+          on E: Exception do FDiagnostics.Add(E.Message);
+        end;
+      finally
+        lDescription.Free;
+        lPlanner.Free;
+        lLoader.Free;
+      end;
+    end;
+    FValidated := FDiagnostics.Count = 0;
+    Exit(FValidated);
+  end;
   lContracts := TNXPackageContractValidator.Create(FAnalysis.Session, FDiagnostics);
   try
     lContracts.Validate;

@@ -1,0 +1,20 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../../language/nxbuild.Language.nxscript";
+module "../../../nxbuild.environment.nxscript";
+module NativeProjects "Projects.nxscript";
+
+Project C TargetOS[linux] {
+    Id: "Tests.Native.C";
+    Requires: [@NativeProjects.Producer];
+    RootDirectory: "../../../../..";
+    OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/c";
+    LLVM Test {
+        CompilerPath: @Tools.Native.LLVMCompiler;
+        Target: @Tools.Native.Triple;
+        SourceFiles: ["projects/nxbuild/test/fixtures/native-dependencies/consumer.c"];
+        Libraries: ["nxgenerated"];
+        RawOptions: ["-fuse-ld=lld", "-o", "GeneratedCConsumer"];
+        OutputPath: @C.OutputRoot;
+    }
+}

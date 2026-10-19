@@ -41,7 +41,7 @@ begin
   lProcess := TProcess.Create(nil);
   try
     lProcess.Executable := AStep.Executable;
-    lProcess.CurrentDirectory := AStep.OutputPath;
+    lProcess.CurrentDirectory := AStep.WorkingDirectory;
     AStep.FillArguments(ASources, ASourceIndex, lProcess.Parameters);
     lProcess.Options := [poWaitOnExit];
     lProcess.Execute;
@@ -88,12 +88,12 @@ begin
     except
       on E: Exception do
         raise Exception.CreateFmt('Build "%s" (%s): %s',
-          [lStep.Name, lStep.BuildType, E.Message]);
+          [lStep.Name, lStep.BuildType, 'Project "' + lStep.ProjectId + '": ' + E.Message]);
     end;
     if Result <> 0 then
     begin
       WriteLn(StdErr, 'Build "', lStep.Name, '" (',
-        lStep.BuildType, ') failed with exit code ', Result, '.');
+        lStep.BuildType, ') in project "', lStep.ProjectId, '" failed with exit code ', Result, '.');
       Exit;
     end;
   end;

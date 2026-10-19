@@ -17,7 +17,7 @@ unit obNXBuildEntry;
 
 interface
 
-uses Classes, SysUtils, obNXPersist;
+uses Classes, SysUtils, obNXPersist, obNXBuildDirectories;
 
 type
   TNXBuildEntry = class(TNXPersistObject)
@@ -31,6 +31,13 @@ type
     constructor Create; override;
     destructor Destroy; override;
     function CompileEachSource: Boolean; virtual;
+    function RequiresSources: Boolean; virtual;
+    function WorkingDirectory: string; virtual;
+    procedure ValidateTarget(const AOS, ACPU: string); virtual;
+    procedure AppendEnvironment(APaths: TNXBuildDirectories; AArguments: TStrings;
+      var ASourceArgumentIndex: Integer); virtual;
+    class procedure InsertPaths(AArguments, APaths: TStrings;
+      const APrefix: string; var AIndex: Integer); static;
     class procedure ExpandSourceFiles(ASourceFiles, AExpanded: TStrings); static;
     class function ResolvePath(const APath, ARoot: string): string; static;
     function BuildType: string; virtual; abstract;
@@ -61,6 +68,37 @@ end;
 function TNXBuildEntry.CompileEachSource: Boolean;
 begin
   Result := False;
+end;
+
+function TNXBuildEntry.RequiresSources: Boolean;
+begin
+  Result := True;
+end;
+
+function TNXBuildEntry.WorkingDirectory: string;
+begin
+  Result := FOutputPath;
+end;
+
+procedure TNXBuildEntry.ValidateTarget(const AOS, ACPU: string);
+begin
+end;
+
+procedure TNXBuildEntry.AppendEnvironment(APaths: TNXBuildDirectories;
+  AArguments: TStrings; var ASourceArgumentIndex: Integer);
+begin
+end;
+
+class procedure TNXBuildEntry.InsertPaths(AArguments, APaths: TStrings;
+  const APrefix: string; var AIndex: Integer);
+var
+  lPath: string;
+begin
+  for lPath in APaths do
+  begin
+    AArguments.Insert(AIndex, APrefix + lPath);
+    Inc(AIndex);
+  end;
 end;
 
 class procedure TNXBuildEntry.ExpandSourceFiles(ASourceFiles, AExpanded: TStrings);

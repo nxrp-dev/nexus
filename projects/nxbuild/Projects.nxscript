@@ -1,0 +1,69 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "language/nxbuild.Language.nxscript";
+
+ProjectIndex Projects {
+    ProjectReference Core { Id: "NXRP.Core"; Descriptor: "../../packages/nexus-packages/core/Project.nxproject"; }
+    ProjectReference Pthreads { Id: "NXRP.Unix.Pthreads"; Descriptor: "../../packages/nexus-packages/pthreads/Project.nxproject"; }
+    ProjectReference FCLBase { Id: "NXRP.FCLBase"; Descriptor: "../../packages/nexus-packages/fcl-base/Project.nxproject"; }
+    ProjectReference FCLProcess { Id: "NXRP.FCLProcess"; Descriptor: "../../packages/nexus-packages/fcl-process/Project.nxproject"; }
+    ProjectReference FCLJSON { Id: "NXRP.Serialization.FCLJSON"; Descriptor: "../../packages/nexus-packages/serialization/fcl-json/Project.nxproject"; }
+    ProjectReference Serialization { Id: "NXRP.Serialization"; Descriptor: "../../packages/nexus-packages/serialization/Project.nxproject"; }
+    ProjectReference JSON { Id: "NXRP.Serialization.JSON"; Descriptor: "../../packages/nexus-packages/serialization/json/Project.nxproject"; }
+    ProjectReference DelimitedText { Id: "NXRP.Serialization.DelimitedText"; Descriptor: "../../packages/nexus-packages/serialization/delimited-text/Project.nxproject"; }
+    ProjectReference SQLite { Id: "NXRP.SQLite"; Descriptor: "../../packages/nexus-packages/db/sqlite/Project.nxproject"; }
+    ProjectReference JSONRPC { Id: "NXRP.Network.JSONRPC"; Descriptor: "../../packages/nexus-packages/network/json-rpc/Project.nxproject"; }
+    ProjectReference NexusScript { Id: "NXRP.NexusScript"; Descriptor: "../../packages/nexus-packages/nxscript/Project.nxproject"; }
+    ProjectReference NexusTest { Id: "NXRP.NexusTest"; Descriptor: "../../packages/nexus-packages/nxtest/Project.nxproject"; }
+    ProjectReference Mustache { Id: "NXRP.Mustache"; Descriptor: "../../packages/nexus-packages-ext/mustache/Project.nxproject"; }
+    ProjectReference NXBuild { Id: "NXRP.nxbuild"; Descriptor: "nxbuild.nxproject"; }
+    ProjectReference MixedNative { Id: "NXRP.Examples.MixedNative"; Descriptor: "../../../nexus-lab/examples/build/native/MixedNative.nxproject"; }
+    ProjectReference Nexus2DEngine { Id: "NXRP.Nexus2D.Engine"; Descriptor: "../../../nexus-mobile/Nexus2DEngine.nxproject"; }
+    ProjectReference Iconv { Id: "NXRP.Unix.Iconv"; Descriptor: "../../packages/nexus-packages/iconvenc/Project.nxproject"; }
+    ProjectReference FCLXML { Id: "NXRP.Serialization.FCLXML"; Descriptor: "../../packages/nexus-packages/serialization/fcl-xml/Project.nxproject"; }
+    ProjectReference FCLRegistry { Id: "NXRP.FCLRegistry"; Descriptor: "../../packages/nexus-packages/fcl-registry/Project.nxproject"; }
+    ProjectReference Abbrevia { Id: "NXRP.Compression.Abbrevia"; Descriptor: "../../packages/nexus-packages-ext/compression/abbrevia/Abbrevia.nxproject"; }
+    ProjectReference AbbreviaRuntime { Id: "NXRP.Compression.Abbrevia.RuntimePackage"; Descriptor: "../../packages/nexus-packages-ext/compression/abbrevia/AbbreviaRuntime.nxproject"; }
+    ProjectReference RegExpr { Id: "NXRP.RegExpr"; Descriptor: "../../packages/nexus-packages-ext/regexpr/Project.nxproject"; }
+    ProjectReference HashLib4Pascal { Id: "NXRP.HashLib4Pascal"; Descriptor: "../../packages/nexus-packages/hashlib4pascal/Project.nxproject"; }
+    ProjectReference Solar2D { Id: "NXRP.Solar2D"; Descriptor: "../../packages/nexus-packages/solar2d/Project.nxproject"; }
+    ProjectReference Binding { Id: "NXRP.Binding"; Descriptor: "../../packages/nexus-packages/binding/Project.nxproject"; }
+    ProjectReference Users { Id: "NXRP.Unix.Users"; Descriptor: "../../packages/nexus-packages/users/Project.nxproject"; }
+    ProjectReference RTLUnicode { Id: "NXRP.RTLUnicode"; Descriptor: "../../packages/nexus-packages/rtl-unicode/Project.nxproject"; }
+    ProjectReference Lua { Id: "NXRP.Lua"; Descriptor: "../../packages/nexus-packages/lua/Project.nxproject"; }
+    ProjectReference LSP { Id: "NXRP.LSP"; Descriptor: "../../packages/nexus-packages/lsp/Project.nxproject"; }
+    ProjectReference GUI { Id: "NXRP.GUI"; Descriptor: "../../packages/nexus-packages/gui/Project.nxproject"; }
+    ProjectReference LibFFI { Id: "NXRP.LibFFI"; Descriptor: "../../packages/nexus-packages/libffi/Project.nxproject"; }
+    ProjectReference FCLRes { Id: "NXRP.FCLRes"; Descriptor: "../../packages/nexus-packages/fcl-res/Project.nxproject"; }
+    ProjectReference FCLDB { Id: "NXRP.Database.FCLDB"; Descriptor: "../../packages/nexus-packages/db/fcl-db/Project.nxproject"; }
+    ProjectReference Torrent { Id: "NXRP.Network.Torrent"; Descriptor: "../../packages/nexus-packages/network/torrent/Project.nxproject"; }
+    ProjectReference OpenSSL { Id: "NXRP.Network.OpenSSL"; Descriptor: "../../packages/nexus-packages/network/openssl/Project.nxproject"; }
+    ProjectReference XMPP { Id: "NXRP.Network.XMPP"; Descriptor: "../../packages/nexus-packages/network/xmpp/Project.nxproject"; }
+    ProjectReference PasJPEG { Id: "NXRP.Graphics.PasJPEG"; Descriptor: "../../packages/nexus-packages/graphics/pasjpeg/Project.nxproject"; }
+    ProjectReference X11 { Id: "NXRP.Graphics.X11"; Descriptor: "../../packages/nexus-packages/graphics/x11/Project.nxproject"; }
+    ProjectReference FCLImage { Id: "NXRP.Graphics.FCLImage"; Descriptor: "../../packages/nexus-packages/graphics/fcl-image/Project.nxproject"; }
+    ProjectReference CocoaInterfaces { Id: "NXRP.Apple.CocoaInterfaces"; Descriptor: "../../packages/nexus-packages-apple/cocoaint/Project.nxproject"; }
+    ProjectReference AppleLocale { Id: "NXRP.Apple.AppleLocale"; Descriptor: "../../packages/nexus-packages-apple/iosxlocale/Project.nxproject"; }
+    ProjectReference UniversalInterfaces { Id: "NXRP.Apple.UniversalInterfaces"; Descriptor: "../../packages/nexus-packages-apple/univint/Project.nxproject"; }
+    ProjectReference Synapse { Id: "NXRP.Network.Synapse"; Descriptor: "../../packages/nexus-packages/network/Synapse.nxproject"; }
+    ProjectReference FCLBaseUnits { Id: "NXRP.FCLBase.Units"; Descriptor: "../../packages/nexus-packages/fcl-base/FCLBase.nxproject"; }
+    ProjectReference PthreadsUnits { Id: "NXRP.Unix.Pthreads.Units"; Descriptor: "../../packages/nexus-packages/pthreads/Pthreads.nxproject"; }
+    ProjectReference IconvUnits { Id: "NXRP.Unix.Iconv.Units"; Descriptor: "../../packages/nexus-packages/iconvenc/Iconv.nxproject"; }
+    ProjectReference UsersUnits { Id: "NXRP.Unix.Users.Units"; Descriptor: "../../packages/nexus-packages/users/Users.nxproject"; }
+    ProjectReference RTLUnicodeUnits { Id: "NXRP.RTLUnicode.Units"; Descriptor: "../../packages/nexus-packages/rtl-unicode/RTLUnicode.nxproject"; }
+    ProjectReference FCLRegistryUnits { Id: "NXRP.FCLRegistry.Units"; Descriptor: "../../packages/nexus-packages/fcl-registry/FCLRegistry.nxproject"; }
+    ProjectReference LibFFIUnits { Id: "NXRP.LibFFI.Units"; Descriptor: "../../packages/nexus-packages/libffi/LibFFI.nxproject"; }
+    ProjectReference FCLResUnits { Id: "NXRP.FCLRes.Units"; Descriptor: "../../packages/nexus-packages/fcl-res/FCLRes.nxproject"; }
+    ProjectReference FCLXMLUnits { Id: "NXRP.Serialization.FCLXML.Units"; Descriptor: "../../packages/nexus-packages/serialization/fcl-xml/FCLXML.nxproject"; }
+    ProjectReference FCLJSONUnits { Id: "NXRP.Serialization.FCLJSON.Units"; Descriptor: "../../packages/nexus-packages/serialization/fcl-json/FCLJSON.nxproject"; }
+    ProjectReference FCLDBUnits { Id: "NXRP.Database.FCLDB.Units"; Descriptor: "../../packages/nexus-packages/db/fcl-db/FCLDB.nxproject"; }
+    ProjectReference SQLiteUnits { Id: "NXRP.SQLite.Units"; Descriptor: "../../packages/nexus-packages/db/sqlite/SQLite.nxproject"; }
+    ProjectReference OpenSSLUnits { Id: "NXRP.Network.OpenSSL.Units"; Descriptor: "../../packages/nexus-packages/network/openssl/OpenSSL.nxproject"; }
+    ProjectReference PasJPEGUnits { Id: "NXRP.Graphics.PasJPEG.Units"; Descriptor: "../../packages/nexus-packages/graphics/pasjpeg/PasJPEG.nxproject"; }
+    ProjectReference X11Units { Id: "NXRP.Graphics.X11.Units"; Descriptor: "../../packages/nexus-packages/graphics/x11/X11.nxproject"; }
+    ProjectReference FCLImageUnits { Id: "NXRP.Graphics.FCLImage.Units"; Descriptor: "../../packages/nexus-packages/graphics/fcl-image/FCLImage.nxproject"; }
+    ProjectReference CocoaInterfacesUnits { Id: "NXRP.Apple.CocoaInterfaces.Units"; Descriptor: "../../packages/nexus-packages-apple/cocoaint/CocoaInterfaces.nxproject"; }
+    ProjectReference AppleLocaleUnits { Id: "NXRP.Apple.AppleLocale.Units"; Descriptor: "../../packages/nexus-packages-apple/iosxlocale/AppleLocale.nxproject"; }
+    ProjectReference UniversalInterfacesUnits { Id: "NXRP.Apple.UniversalInterfaces.Units"; Descriptor: "../../packages/nexus-packages-apple/univint/UniversalInterfaces.nxproject"; }
+}

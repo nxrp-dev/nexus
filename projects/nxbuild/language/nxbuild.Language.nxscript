@@ -11,7 +11,7 @@
 
 dialect "../../../packages/nexus-packages/nxscript/language/Language.nxscript";
 
-// Project and Package builds execute in declaration order.
+// Projects publish directories and execute dependency-first ordered builds.
 Language nxbuild {
     UnknownDefinitions: Reject;
     Definitions: [
@@ -20,34 +20,78 @@ Language nxbuild {
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
+                Property Id { Required: True; Value Value { Scalar: Text; } },
+                Property Version { Value Value { Scalar: Text; } },
+                Property Author { Value Value { Scalar: Text; } },
+                Property Description { Value Value { Scalar: Text; } },
+                Property License { Value Value { Scalar: Text; } },
+                Property Requires {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array {
+                            Names: Optional;
+                            EntrySourceForms: [Reference];
+                            EntryEffectiveCategories: [Definition];
+                            DefinitionKinds: [ProjectReference];
+                        }
+                    }
+                },
                 Property Name { Value Value { Scalar: Text; } },
                 Property RootDirectory { Value Value { Scalar: Text; } },
                 Property SourceRoot { Value Value { Scalar: Text; } },
                 Property OutputRoot { Value Value { Scalar: Text; } }
             ];
             Children: [
+                Child Publishes { Kinds: [Publishes]; Maximum: 1; },
+                Child Process { Kinds: [Process]; },
                 Child FPC { Kinds: [FPC]; },
                 Child LLVM { Kinds: [LLVM]; }
             ];
         },
-        Definition Package {
+        Definition ProjectIndex {
             Root: True;
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Children: [Child Projects { Kinds: [ProjectReference]; }];
+        },
+        Definition ProjectReference {
+            Root: False;
+            Parents: [ProjectIndex];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Id { Required: True; Value Value { Scalar: Text; } },
+                Property Descriptor { Required: True; Value Value { Scalar: Text; } }
+            ];
+        },
+        Definition Publishes {
+            Root: False;
+            Parents: [Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Sources { Value Value { EffectiveCategories: [Array]; Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; } } },
+                Property Headers { Value Value { EffectiveCategories: [Array]; Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; } } },
+                Property Objects { Value Value { EffectiveCategories: [Array]; Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; } } },
+                Property Libraries { Value Value { EffectiveCategories: [Array]; Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; } } }
+            ];
+        },
+        Definition Process {
+            Root: False;
+            Parents: [Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
                 Property Name { Value Value { Scalar: Text; } },
-                Property RootDirectory { Value Value { Scalar: Text; } },
-                Property SourceRoot { Value Value { Scalar: Text; } },
-                Property OutputRoot { Value Value { Scalar: Text; } }
-            ];
-            Children: [
-                Child FPC { Kinds: [FPC]; },
-                Child LLVM { Kinds: [LLVM]; }
+                Property Executable { Required: True; Value Value { Scalar: Text; } },
+                Property Directory { Value Value { Scalar: Text; } },
+                Property OutputPath { Required: True; Value Value { Scalar: Text; } },
+                Property Arguments { Value Value { EffectiveCategories: [Array]; Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; } } }
             ];
         },
         Definition FPC {
             Root: False;
-            Parents: [Project, Package];
+            Parents: [Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -97,7 +141,7 @@ Language nxbuild {
         },
         Definition LLVM {
             Root: False;
-            Parents: [Project, Package];
+            Parents: [Project];
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
@@ -117,6 +161,12 @@ Language nxbuild {
                     }
                 },
                 Property IncludePaths {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }
+                    }
+                },
+                Property RawOptions {
                     Value Value {
                         EffectiveCategories: [Array];
                         Array Array { Names: Forbidden; EntryEffectiveCategories: [Text]; }

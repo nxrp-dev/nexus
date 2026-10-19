@@ -10,28 +10,23 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../../../nxbuild/language/nxbuild.Language.nxscript";
+module "../../../../nxbuild/nxbuild.environment.nxscript";
 
-Project nxFastParseBenchmark {
-    BuildTool: FPC;
-    ProjectKind: Program;
-    BuildFile: "nxFastParseBenchmark.lpr";
-    OutputRoot: "../../../../../output/nxFastParseBenchmark/x86_64-win64";
+Project nxFastParseBenchmark TargetOS[win64] {
+    Id: "NXRP.Tools.nxFastParseBenchmark";
+    RootDirectory: "../../../../..";
+    OutputRoot: @Tools.OutputRoot + "/nxFastParseBenchmark/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @nxFastParseBenchmark.OutputRoot + "/nxFastParseBenchmark.exe";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/ls/pascal/src/nx_fast_parse_benchmark/nxFastParseBenchmark.lpr"];
+        OutputPath: @nxFastParseBenchmark.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         RawOptions: ["-gw3"];
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @nxFastParseBenchmark.OutputRoot;
-            UnitOutputPath: "../../../../../output/nxFastParseBenchmark/x86_64-win64/units";
-            UnitPaths: [
-                "../../../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
-            ];
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            UnitPaths: [@Tools.Native.RTLPath];
         }
     }
 }

@@ -10,48 +10,30 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "../../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../../nxbuild/Projects.nxscript";
+module "../../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusBotHostTestModule {
-    BuildTool: FPC;
-    ProjectKind: Library;
-    BuildFile: "NexusBotHostTestModule.lpr";
-    OutputRoot: "../../../output/NexusBotHostTestModule/x86_64-win64";
+Project NexusBotHostTestModule TargetOS[win64] {
+    Id: "NXRP.Tools.NexusBotHostTestModule";
+    Requires: [@Projects.FCLProcess, @Projects.NexusScript, @Projects.Mustache, @Projects.NexusTest, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.XMPP, @Projects.Synapse, @Projects.OpenSSL, @Projects.Serialization, @Projects.SQLite];
+    RootDirectory: "../../..";
+    OutputRoot: @Tools.OutputRoot + "/NexusBotHostTestModule/" + @Tools.Native.Name;
 
-    TargetPlatform Native { TargetCPU: "x86_64"; TargetOS: "win64"; }
-    Toolchain NexusFPC {
-        CompilerPath: "../../../../tools/nexus-fpc/compiler/ppcx64.exe";
-    }
-    FPCBuildOptions Compiler {
-        OutputFile: @NexusBotHostTestModule.OutputRoot + "/NexusBotHostTestModule.dll";
+    FPC Compiler {
+        CompilerPath: @Tools.Native.FPCCompiler;
+        SourceFiles: ["projects/bothost/test/NexusBotHostTestModule.lpr"];
+        OutputPath: @NexusBotHostTestModule.OutputRoot;
+        Target Platform { OperatingSystem: "win64"; }
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
-            ExecutableOutputPath: @NexusBotHostTestModule.OutputRoot;
-            UnitOutputPath: "../../../output/NexusBotHostTestModule/x86_64-win64/units";
-            IncludePaths: [
-                "../../../output/NexusBotHostTestModule/x86_64-win64/units",
-                "../../../packages/nexus-packages/fcl-process/src/win"
-            ];
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            IncludePaths: [@NexusBotHostTestModule.OutputRoot];
             UnitPaths: [
-                ".",
-                "../src",
-                "../src/protocol",
-                "../../../packages/nexus-packages/nxscript/src",
-                "../../forge/src",
-                "../../../packages/nexus-packages-ext/mustache/external/dmustache",
-                "../../../packages/nexus-packages/nxtest/src",
-                "../../../packages/nexus-packages/serialization/json/src",
-                "../../../packages/nexus-packages/serialization/fcl-json/src",
-                "../../../packages/nexus-packages/fcl-process/src",
-                "../../../packages/nexus-packages/network/json-rpc/src",
-                "../../../packages/nexus-packages/core/src",
-                "../../../packages/nexus-packages/network/xmpp/src",
-                "../../../packages/nexus-packages/network/external/synapse",
-                "../../../packages/nexus-packages/network/openssl/src",
-                "../../../packages/nexus-packages/network/openssl/synapse",
-                "../../../packages/nexus-packages/serialization/src",
-                "../../../packages/nexus-packages/db/sqlite/src/bindings",
-                "../../../../tools/nexus-fpc/rtl/units/x86_64-win64",
-                "../../../../tools/nexus-fpc/packages/*/units/x86_64-win64"
+                "projects/bothost/test",
+                "projects/bothost/src",
+                "projects/bothost/src/protocol",
+                "projects/forge/src",
+                @Tools.Native.RTLPath
             ];
         }
     }
