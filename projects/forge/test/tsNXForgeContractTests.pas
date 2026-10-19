@@ -13,7 +13,7 @@ procedure RegisterForgeContractTests(ASuite: TNXTestSuite);
 implementation
 
 uses Classes, SysUtils, obNXTestContext, obNXForge, obNXForgeInvocation,
-  obNexusScriptModel, obNexusScriptSession;
+  obNexusScriptModel, obNexusScriptLive;
 
 function Root: string;
 begin
@@ -104,8 +104,8 @@ end;
 procedure TestContractInspection(AContext: TNXTestContext);
 var
   lDirectory: string;
-  lSession: TNexusScriptCompilationSession;
-  lDefinition: TNexusScriptCompiledDefinition;
+  lDocument: TNexusScriptLiveDocument;
+  lDefinition: TNexusScriptLiveDefinition;
 begin
   lDirectory := NewDirectory;
   Save(lDirectory + 'Build.nxscript', DocumentText(
@@ -113,16 +113,16 @@ begin
     'IncludePaths: ["generated"]; UnitPaths: ["units"]; LibraryPaths: ["native"]; ' +
     'FPC Compile { Template: "not-created.mustache"; Source: ["future.pas"]; ' +
     'EntryPoint: "future.pas"; } }'));
-  lSession := TNexusScriptCompilationSession.Create;
+  lDocument := nil;
   try
-    CompileForgeDocument(lSession, lDirectory + 'Build.nxscript');
-    lDefinition := lSession.EntryCompiler.CompiledDocument.FindDefinition('Library');
+    lDocument := LoadForgeDocument(lDirectory + 'Build.nxscript');
+    lDefinition := lDocument.FindDefinition('Library');
     AContext.AssertEquals('NXRP.Library', ForgePropertyText(lDefinition, 'Id'));
-    AContext.AssertEquals('future.dll', lDefinition.FindProperty('Outputs').Value.SemanticValue.Items[0].EffectiveText);
+    AContext.AssertEquals('future.dll', lDefinition.FindProperty('Outputs').Value.Items[0].AsText);
     AContext.AssertEquals(1, lDefinition.Children.Count, 'Build remains available without preparing or executing');
     AContext.AssertFalse(FileExists(lDirectory + 'future.dll'), 'Inspection has no side effects');
   finally
-    lSession.Free;
+    lDocument.Free;
   end;
 end;
 
@@ -258,7 +258,7 @@ end;
 procedure TestUnrelatedDialect(AContext: TNXTestContext);
 var
   lDirectory: string;
-  lSession: TNexusScriptCompilationSession;
+  lDocument: TNexusScriptLiveDocument;
 begin
   lDirectory := NewDirectory;
   Save(lDirectory + 'DataLanguage.nxscript',
@@ -267,13 +267,13 @@ begin
     'Array Array { EntryEffectiveCategories: [Text]; } } }]; }]; }');
   Save(lDirectory + 'Data.nxscript', 'dialect "DataLanguage.nxscript"; ' +
     'Package Data { Requires: ["ordinary data, not package requirements"]; }');
-  lSession := TNexusScriptCompilationSession.Create;
+  lDocument := nil;
   try
-    CompileForgeDocument(lSession, lDirectory + 'Data.nxscript');
-    AContext.AssertTrue(lSession.EntryCompiler.CompiledDocument.FindDefinition('Data') <> nil,
+    lDocument := LoadForgeDocument(lDirectory + 'Data.nxscript');
+    AContext.AssertTrue(lDocument.FindDefinition('Data') <> nil,
       'Generic render-source inspection respects the source dialect');
   finally
-    lSession.Free;
+    lDocument.Free;
   end;
 end;
 procedure RegisterForgeContractTests(ASuite: TNXTestSuite);

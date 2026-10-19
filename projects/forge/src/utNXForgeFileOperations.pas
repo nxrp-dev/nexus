@@ -9,10 +9,10 @@ unit utNXForgeFileOperations;
 
 interface
 
-uses obNexusScriptModel, obNXForgeInvocation;
+uses obNexusScriptLive, tpNexusScriptLive, obNXForgeInvocation;
 
 function IsForgeFileOperation(const AKind: string): Boolean;
-procedure PrepareForgeFileOperation(AOperation: TNexusScriptCompiledDefinition;
+procedure PrepareForgeFileOperation(AOperation: TNexusScriptLiveDefinition;
   AInvocation: TNXForgeInvocation);
 procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 
@@ -32,18 +32,18 @@ begin
     SameText(AKind, 'PackageBuildPrepare') or SameText(AKind, 'PackageBundlePublish');
 end;
 
-function PropertyText(AOperation: TNexusScriptCompiledDefinition;
+function PropertyText(AOperation: TNexusScriptLiveDefinition;
   const AName: string): string;
 var
-  lProperty: TNexusScriptCompiledProperty;
+  lProperty: TNexusScriptLiveProperty;
 begin
   lProperty := AOperation.FindProperty(AName);
-  if (lProperty = nil) or not lProperty.Value.HasEffectiveText then
+  if (lProperty = nil) or (lProperty.Value.Kind <> nslvText) then
     raise Exception.Create(AOperation.Name + ': missing text property ' + AName);
-  Result := lProperty.Value.EffectiveText;
+  Result := lProperty.Value.AsText;
 end;
 
-function OptionalText(AOperation: TNexusScriptCompiledDefinition;
+function OptionalText(AOperation: TNexusScriptLiveDefinition;
   const AName: string): string;
 begin
   Result := '';
@@ -51,7 +51,7 @@ begin
     Result := PropertyText(AOperation, AName);
 end;
 
-function OptionalBoolean(AOperation: TNexusScriptCompiledDefinition;
+function OptionalBoolean(AOperation: TNexusScriptLiveDefinition;
   const AName: string; ADefault: Boolean): Boolean;
 begin
   Result := ADefault;
@@ -66,21 +66,21 @@ begin
   else Result := ExpandFileName(IncludeTrailingPathDelimiter(ABase) + APath);
 end;
 
-function CopyIncludeMasks(AOperation: TNexusScriptCompiledDefinition): TStringArray;
+function CopyIncludeMasks(AOperation: TNexusScriptLiveDefinition): TStringArray;
 var
-  lProperty: TNexusScriptCompiledProperty;
-  lArray: TNexusScriptCompiledValue;
+  lProperty: TNexusScriptLiveProperty;
+  lArray: TNexusScriptLiveValue;
   lIndex: Integer;
   lMask: string;
 begin
   Result := nil;
   lProperty := AOperation.FindProperty('IncludeMasks');
   if lProperty = nil then Exit;
-  lArray := lProperty.Value.SemanticValue;
+  lArray := lProperty.Value;
   SetLength(Result, lArray.Items.Count);
   for lIndex := 0 to lArray.Items.Count - 1 do
   begin
-    lMask := lArray.Items[lIndex].SemanticValue.EffectiveText;
+    lMask := lArray.Items[lIndex].AsText;
     if (Trim(lMask) = '') or (Pos('/', lMask) > 0) or
       (Pos('\', lMask) > 0) or (Pos(':', lMask) > 0) then
       raise Exception.Create(AOperation.Name +
@@ -89,12 +89,12 @@ begin
   end;
 end;
 
-procedure PrepareForgeFileOperation(AOperation: TNexusScriptCompiledDefinition;
+procedure PrepareForgeFileOperation(AOperation: TNexusScriptLiveDefinition;
   AInvocation: TNXForgeInvocation);
 var
   lLeft, lRight: string;
-  lProperty: TNexusScriptCompiledProperty;
-  lArray: TNexusScriptCompiledValue;
+  lProperty: TNexusScriptLiveProperty;
+  lArray: TNexusScriptLiveValue;
   lDirectories: TStringArray;
   lIndex: Integer;
 begin
@@ -145,11 +145,11 @@ begin
     lProperty := AOperation.FindProperty('PackageDirectories');
     if lProperty <> nil then
     begin
-      lArray := lProperty.Value.SemanticValue;
+      lArray := lProperty.Value;
       SetLength(lDirectories, lArray.Items.Count);
       for lIndex := 0 to lArray.Items.Count - 1 do
       begin
-        if Trim(lArray.Items[lIndex].EffectiveText) = '' then
+        if Trim(lArray.Items[lIndex].AsText) = '' then
           raise Exception.Create('PackageDirectories entries must be nonempty');
         lDirectories[lIndex] := ForgeValuePath(lArray.Items[lIndex], AInvocation.WorkingDirectory);
       end;

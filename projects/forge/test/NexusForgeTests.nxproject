@@ -4,12 +4,14 @@
 dialect "../../nxbuild/language/nxbuild.Language.nxscript";
 module "../../nxbuild/nxbuild.environment.nxscript";
 Project NexusForgeTests {
+    Id: "NXRP.NexusForgeTests";
     RootDirectory: "../../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusForgeTests/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusForgeTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
     FPC Application {
         CompilerPath: @Tools.Native.ForgeCompilerPath;
         SourceFiles: ["projects/forge/test/NexusForgeTests.lpr"];
         OutputPath: @NexusForgeTests.OutputRoot;
+        RawOptions: ["-gl"];
         Config Options { DisableDefaultConfigFiles: True; }
         Language Pascal { Mode: ObjFPC; }
         Assembler Native TargetOS[linux] { OutputFormat: "as-clang"; }

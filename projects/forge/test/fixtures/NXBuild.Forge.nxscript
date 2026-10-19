@@ -5,6 +5,5 @@ dialect "../../language/Forge.nxscript";
 
 NXBuild ForgeTests {
     Template: "../../templates/NXBuild.mustache";
-    Executable: "../../../../output/nxbuild/x86_64-win64/nxbuild.exe";
     EntryPoint: "../NexusForgeTests.nxproject";
 }

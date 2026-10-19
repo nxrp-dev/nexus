@@ -4,8 +4,9 @@
 dialect "../nxbuild/language/nxbuild.Language.nxscript";
 module "../nxbuild/nxbuild.environment.nxscript";
 Project NexusForge {
+    Id: "NXRP.NexusForge";
     RootDirectory: "../..";
-    OutputRoot: @Tools.OutputRoot + "/NexusForge-next/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusForge-next/" + @Tools.Native.Name + "/" + $BuildConfiguration;
     FPC Application {
         CompilerPath: @Tools.Native.ForgeCompilerPath;
         SourceFiles: ["projects/forge/cli/NexusForge.lpr"];

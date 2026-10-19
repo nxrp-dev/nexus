@@ -1,7 +1,8 @@
 # NexusForge execution contracts
 
-`nxforge` compiles and validates a Forge document and executes its single task
-root. `Group`, `Package`, and `Project` run their children in declaration order.
+`nxforge` compiles and validates a Forge document, emits an owned NexusScript
+Live document, and releases the compilation session before preparing its single
+task root. `Group`, `Package`, and `Project` run their children in declaration order.
 Command tasks render a Mustache `Template` and launch a tool. Render
 and filesystem tasks execute within Forge.
 
@@ -28,8 +29,8 @@ fetches dependencies, selects versions, or builds `Requires` entries implicitly.
 Each nonempty Requires list names records in the single index imported by its
 supplying document, including requirements inherited through composition.
 
-`CompileForgeDocument` compiles and validates metadata without preparing tools
-or reading generated outputs. `TNXPackageDocument` can inspect the same Forge
+`LoadForgeDocument` returns an owned Live document after compilation and
+validation, without preparing tools or reading generated outputs. `TNXPackageDocument` can inspect the same Forge
 descriptor without executing it. A declared output is a contract, not a freshness
 cache or an implicit existence test. Add explicit validation children when build
 success depends on verifying outputs. Failure of a final validation fails the
@@ -79,7 +80,7 @@ from a package. The CLI working-directory override supplies a common base for
 all operations. An operation's explicit WorkingDirectory then overrides that
 base. Text expressions construct a new value at the expression's source location;
 use direct references when an exported path must retain its original base.
-None of this rewrites the compiled metadata or the NexusScript JSON emitter.
+Path normalization changes the command context, leaving the Live document unchanged.
 
 `Run` is an ordinary command operation with required `Template` and `Executable`,
 optional text-array `Arguments`, and optional `WorkingDirectory`. The supplied
@@ -88,15 +89,16 @@ tools and test programs without adding special process behavior to Forge.
 
 ## CLI
 
-From the repository root, with working `fpc` and `git` executables on PATH:
+From the repository root, build with the installed `nxbuild` and the native
+compiler settings in `projects/nxbuild/nxbuild.environment.nxscript`:
 
-```powershell
-lazbuild projects\forge\NexusForge.lpi
-& .\output\NexusForge\x86_64-win64\nxforge.exe `
-  /input=..\nexus-lab\examples\build\orchestration\Build.nxscript
+```bash
+nxbuild /action=build /project=projects/forge/NexusForge.nxproject
+../../worktree/nexus/NexusForge-next/x86_64-linux/Debug/nxforge /input=Build.nxscript
 ```
 
-The example compiles `hello world & test.lpr` and runs local `git status --short`.
+On Windows, use the corresponding `x86_64-win64/Debug/nxforge.exe` output.
+
 Required: `/input=...`. Optional: `/targets=Name:Value,OtherName:OtherValue` and
 `/working-directory=...`. There is no `/package` or `/manifest` argument.
 
@@ -121,6 +123,37 @@ effective Forge language through the included-definition view. The master does
 not name individual tools.
 `ForgeDef` is a convention selected by this include pattern, not a filename rule.
 The document declaration identifies its dialect.
+
+## Live values
+
+Forge prepares commands, file operations, and Render sources from
+`TNexusScriptLiveDocument`. The compiler still owns parsing, composition, target
+filtering, and schema validation. Execution borrows no compiled nodes.
+
+Every selected target is available through the common `$Name` mechanism:
+
+```nexusscript
+WriteTextFile Selection {
+    Path: "selected-target.txt";
+    Text: $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration;
+}
+```
+
+For example, invoke that document with
+`/targets=TargetOS:linux,TargetCPU:aarch64,BuildConfiguration:Release`.
+Target names are generic and case-sensitive. Forge supplies no implicit target
+values; an unselected value fails when read. Selected targets are read-only.
+
+Embedded hosts can supply other external values through `TNXForge.OnReadExternal`.
+The same handler serves Render source documents. Reads are deferred to value
+consumption, so unused external values need no provider. The CLI does not map
+`$Name` to operating-system environment variables. A missing value or a deferred
+dialect-constraint failure prevents the prepared task list from executing.
+
+The shared JSON emitter renders Live values while retaining `_nx` metadata,
+public declaration collections, named array entries, and bounded reference
+projections. Its compiled-document artifact entry point still requires fully
+materialized data; only the explicit Live entry points evaluate external values.
 
 ## Shared configurations and environment data
 
@@ -309,22 +342,64 @@ not change this resolution. This applies to all command operations.
 
 ## Nexus project compilation
 
-`NXBuild` is an ordinary command operation that invokes
-`nxbuild /action=build /project=...`. Its required `Template` and `EntryPoint`
-identify the command template and `.nxproject` file. `EntryPoint` resolves from
-the declaring document to an absolute path, and the example template quotes the
-entire `/project` argument. Optional `Executable` defaults to `nxbuild` on PATH;
-optional `WorkingDirectory` follows the normal command-operation contract.
+`NXBuild` is an ordinary command operation. Its required `Template` and
+`EntryPoint` identify the command template and `.nxproject` file. `EntryPoint`
+resolves from the declaring document to an absolute path. Optional `Executable`
+defaults to `nxbuild` on PATH; optional `WorkingDirectory` follows the normal
+command-operation contract.
 
-The template is `projects/forge/templates/NXBuild.mustache`. The project owns its
-compiler selection, search paths, compiler options, and output locations. Forge
-does not parse `.nxproject` files or copy their settings into Forge operations.
-nxbuild remains independent of Forge.
+The template is `projects/forge/templates/NXBuild.mustache`. It accepts:
+
+| Property | nxbuild argument | Default when omitted |
+| --- | --- | --- |
+| `Action` | `/action=` | `build`; also accepts `validate` and `plan` |
+| `TargetOS` | `/targetos=` | nxbuild's native operating system |
+| `TargetCPU` | `/targetcpu=` | nxbuild's native CPU |
+| `BuildConfiguration` | `/buildconfiguration=` | nxbuild's `Debug` configuration |
+
+Action names are case-insensitive and validated before execution, including
+values resolved through Live. Supplied target/configuration properties emit
+quoted arguments; omitted properties emit no argument. Explicitly empty values
+are passed to nxbuild, which rejects them instead of selecting a default.
+Configuration names are passed through, including custom names and spaces.
+
+Properties can use literals, internal references, composition, and Live `$`
+references. Forge selections are forwarded only when the operation requests
+them, for example:
+
+```nexusscript
+NXBuild Application {
+    Template: "path/to/NXBuild.mustache";
+    EntryPoint: "Application.nxproject";
+    Action: build;
+    TargetOS: $TargetOS;
+    TargetCPU: $TargetCPU;
+    BuildConfiguration: $BuildConfiguration;
+}
+```
+
+For this example, supply Forge's `/targets=TargetOS:linux,TargetCPU:x86_64,BuildConfiguration:Release`.
+Omit the three properties to use nxbuild's own defaults without requiring
+those Forge selections. An unresolved `$` reference is an error before any
+operation executes.
+
+The project owns its dependencies, compiler selection, published directories,
+compiler options, and output locations. Forge does not parse `.nxproject`
+files or copy their settings into Forge operations. nxbuild remains independent
+of Forge. A failing nxbuild invocation stops the workflow before later tasks.
 
 `projects/forge/test/fixtures/NXBuild.Forge.nxscript` builds
 `NexusForgeTests.nxproject` with the sibling NexusFPC toolchain, without LazBuild.
-`projects/forge/NexusForge.nxproject` builds the updated CLI into
-`output/NexusForge-next/x86_64-win64/nxforge.exe`, leaving the existing runner intact.
+`projects/forge/NexusForge.nxproject` builds the CLI below
+`Tools.OutputRoot/NexusForge-next/<cpu>-<os>/<configuration>/`.
+
+Verified on Linux on 2026-10-19: all 65 Forge NXTests passed. The rebuilt CLI
+invoked real nxbuild `validate`, `plan`, and `build` actions, built and ran native
+programs with default selections and Live selections (including the custom
+configuration `Profile & Trace`), and stopped before later tasks on child
+failure. Explicitly empty target/configuration values were rejected by nxbuild.
+The Win64 selection was validated on Linux; native Windows execution was not
+part of this pass.
 
 ## LLVM C and C++ compilation
 
@@ -694,31 +769,32 @@ Completed output remains available. Success returns exit status 0; failure 1.
 
 ## Verification
 
-```powershell
-& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/forge/NexusForge.nxproject
-& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/csv/NexusCSV.nxproject
-& .\output\nxbuild-next\x86_64-win64\nxbuild.exe /action=build /project=projects/forge/test/NexusForgeTests.nxproject
-& .\output\NexusForgeTests\x86_64-win64\NexusForgeTests.exe
+```bash
+nxbuild /action=build /project=projects/forge/NexusForge.nxproject
+nxbuild /action=build /project=projects/csv/NexusCSV.nxproject
+nxbuild /action=build /project=projects/forge/test/NexusForgeTests.nxproject
+export NXTEST_FPC=/path/to/matching/nexus/compiler/ppcx64
+export NXTEST_RTL=/path/to/matching/nexus/rtl
+../../worktree/nexus/NexusForgeTests/x86_64-linux/Debug/NexusForgeTests
 ```
 
-These projects select `Tools.Native.ForgeCompilerPath` and `ForgeRTLPath` from
-`projects/nxbuild/nxbuild.environment.nxscript` and compile their required units
-from source into their own output directories. The Linux settings use the
-installed native compiler/RTL; the existing bootstrap compiler/RTL selections
-on other hosts remain unchanged. HashLib4Pascal supplies ordinary artifact/SDK
-SHA-256; the shared metadata codec and PasZLib have no hash-package dependency.
-Forge is written to `output/NexusForge-next/<cpu>-<os>/nxforge` (`.exe` on Windows).
-The tests also require a
-working NexusFPC `fpc` command on PATH and the built
-`output/NexusCSV/<cpu>-<os>/nxcsv` (`nxcsv.exe` on Windows). The CSV recipe uses the
-shared native installation settings in `projects/nxbuild/nxbuild.environment.nxscript`.
-The root Forge `Tests` group builds that prerequisite before the Forge test project;
-direct builds must build NexusCSV explicitly as shown above.
-On Linux the equivalent commands use `output/nxbuild-next/x86_64-linux/nxbuild`
-and `output/NexusForgeTests/x86_64-linux/NexusForgeTests`; no runtime-package SDK
-is required for these ordinary source builds.
-Lazarus is not a build dependency. Shared NexusScript changes additionally
-require the NexusScript and language-server suites under their own projects.
+Run the tests from the Nexus repository root. Generated products use
+`Tools.OutputRoot`, which defaults to `../../worktree/nexus`. On Windows, use the
+`x86_64-win64/Debug` paths and `.exe` suffixes and set the same two test variables.
+The CSV prerequisite must use the same output root and configuration as the tests.
+
+The Forge projects select `Tools.Native.ForgeCompilerPath` and `ForgeRTLPath`
+from `projects/nxbuild/nxbuild.environment.nxscript`. Linux uses the installed
+native compiler/RTL. These are ordinary source builds and require no runtime-package
+SDK. HashLib4Pascal supplies artifact/SDK SHA-256; the shared metadata codec and
+PasZLib have no hash-package dependency. The tests also require `fpc` and `git`
+on PATH. The CLI is written to
+`Tools.OutputRoot/NexusForge-next/<cpu>-<os>/<configuration>/nxforge` (`.exe` on Windows).
+
+Shared NexusScript changes require the NexusScript suite as well. Its SQLite
+emitter tests require the matching SQLite 3.53.4 runtime; on Linux select its
+folder through `LD_LIBRARY_PATH`. The current NexusScript LS test recipe is
+Windows-only and is not part of this Linux validation.
 
 The Forge tests compile and execute real Pascal source and exercise NexusScript
 validation, target selection, Group ordering, built-in file tasks,
@@ -732,3 +808,15 @@ failed before the fixes and passed afterward, covering signal termination and
 permission preservation/removal on file-copy overwrite. Matching compiler/RTL
 paths were selected in ignored verification recipes. Windows execution was not
 verified here.
+
+Verified on Linux on 2026-10-19 for the Live-model migration: all 61 Forge
+NXTests and all 88 NexusScript NXTests passed. The 54 original Forge tests passed
+before the migration; four new valid tests demonstrated the missing Live behavior.
+The seven final Live tests cover target arrays and text expressions, file tasks,
+Render sources, inherited path origins, unresolved external values, the host
+read event, and deferred Boolean constraints. NexusScript's heap check reported
+zero unfreed blocks. All 43 nxbuild regressions also passed with zero unfreed
+blocks. The rebuilt Forge CLI passed selected targets into a real nxbuild
+validation, and an unresolved external value returned exit status 1 without
+writing earlier task outputs. Both Windows Release descriptors validated;
+Windows execution was not performed.

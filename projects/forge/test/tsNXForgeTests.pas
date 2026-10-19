@@ -17,7 +17,7 @@ implementation
 
 uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
-  obNexusScriptLanguageDefinition, obNexusScriptJSON, obNXCommandLine,
+  obNexusScriptLanguageDefinition, obNexusScriptLive, obNexusScriptJSON, obNXCommandLine,
   tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK,
   utNXForgePackageBuild, obNXForgePackageArtifactReader, tpNXForgePackage, nxpackagefile
   {$IFDEF UNIX}, BaseUnix{$ENDIF};
@@ -411,6 +411,149 @@ begin
     AssertNoLaunch(AContext, lForge);
   finally
     lForge.Free;
+  end;
+end;
+
+procedure TestNXBuildActions(AContext: TNXTestContext);
+const
+  cActions: array[0..3] of string = ('build', 'validate', 'plan', 'VaLiDaTe');
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate, lAction: string;
+begin
+  lDirectory := TestDir('nxbuild-actions');
+  lTemplate := Root + 'projects/forge/templates/NXBuild.mustache';
+  lForge := TNXForge.Create;
+  try
+    for lAction in cActions do
+    begin
+      Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+        'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+        'EntryPoint: "app.nxproject"; Action: ' + lAction + '; } ' +
+        'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+      AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'));
+      AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+      AssertNoLaunch(AContext, lForge);
+      AContext.AssertEquals('nxbuild /action=' + lAction + ' "/project=' +
+        ExpandFileName(lDirectory + 'app.nxproject') + '"',
+        lForge.Invocations[0].Command, 'Explicit action reaches nxbuild');
+    end;
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestNXBuildSelections(AContext: TNXTestContext);
+const
+  cProperties: array[0..4] of string = (
+    'TargetOS: linux;', 'TargetCPU: aarch64;',
+    'BuildConfiguration: "Profile & Trace";',
+    'TargetOS: win64; TargetCPU: x86_64; BuildConfiguration: Release;',
+    'TargetOS: ""; TargetCPU: ""; BuildConfiguration: "";');
+  cArguments: array[0..4] of string = (
+    ' "/targetos=linux"', ' "/targetcpu=aarch64"',
+    ' "/buildconfiguration=Profile & Trace"',
+    ' "/targetos=win64" "/targetcpu=x86_64" "/buildconfiguration=Release"',
+    ' "/targetos=" "/targetcpu=" "/buildconfiguration="');
+var
+  lForge: TNXForge;
+  lDirectory, lTemplate: string;
+  lIndex: Integer;
+begin
+  lDirectory := TestDir('nxbuild-selections');
+  lTemplate := Root + 'projects/forge/templates/NXBuild.mustache';
+  lForge := TNXForge.Create;
+  try
+    for lIndex := Low(cProperties) to High(cProperties) do
+    begin
+      Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+        'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+        'EntryPoint: "app.nxproject"; ' + cProperties[lIndex] + ' } ' +
+        'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+      AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'));
+      AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+      AssertNoLaunch(AContext, lForge);
+      AContext.AssertEquals('nxbuild /action=build "/project=' +
+        ExpandFileName(lDirectory + 'app.nxproject') + '"' + cArguments[lIndex],
+        lForge.Invocations[0].Command, 'Only supplied selections are forwarded');
+    end;
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestNXBuildLiveSelections(AContext: TNXTestContext);
+var
+  lForge: TNXForge;
+  lTargets: TNexusScriptTargetSelection;
+  lDirectory, lTemplate: string;
+begin
+  lDirectory := TestDir('nxbuild-live-selections');
+  lTemplate := Root + 'projects/forge/templates/NXBuild.mustache';
+  ForceDirectories(lDirectory + 'settings');
+  Save(lDirectory + 'settings/Values.nxscript',
+    'Environment Settings { Action: $BuildAction; Configuration: "Profile " + $Flavor; }');
+  Save(lDirectory + 'settings/Shared.nxscript',
+    'module "Values.nxscript"; NXBuild Defaults { Template: "' + lTemplate + '"; ' +
+    'Action: @Settings.Action; EntryPoint: "app.nxproject"; ' +
+    'TargetOS: $TargetOS; TargetCPU: $TargetCPU; ' +
+    'BuildConfiguration: @Settings.Configuration; }');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'module "settings/Shared.nxscript"; Group Build { NXBuild Compile (Defaults) { } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('BuildAction', 'plan');
+  lTargets.Add('TargetOS', 'linux');
+  lTargets.Add('TargetCPU', 'aarch64');
+  lTargets.Add('Flavor', '& Trace');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'));
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertEquals('nxbuild /action=plan "/project=' +
+      ExpandFileName(lDirectory + 'settings/app.nxproject') +
+      '" "/targetos=linux" "/targetcpu=aarch64" "/buildconfiguration=Profile & Trace"',
+      lForge.Invocations[0].Command,
+      'Inherited values retain source paths and evaluate references through Live');
+  finally
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestNXBuildValidation(AContext: TNXTestContext);
+const
+  cInvalid: array[0..6] of string = (
+    'Action: clean;', 'Action: "";', 'Action: [build];',
+    'TargetOS: [linux];', 'TargetCPU: [x86_64];',
+    'BuildConfiguration: [Debug];', 'Action: $BuildAction;');
+var
+  lForge: TNXForge;
+  lTargets: TNexusScriptTargetSelection;
+  lDirectory, lTemplate, lProperties: string;
+begin
+  lDirectory := TestDir('nxbuild-validation');
+  lTemplate := Root + 'projects/forge/templates/NXBuild.mustache';
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('BuildAction', 'clean');
+  lForge := TNXForge.Create(lTargets);
+  try
+    for lProperties in cInvalid do
+    begin
+      Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+        'Group Build { WriteTextFile First { Path: "never.txt"; Text: "never"; } ' +
+        'NXBuild Invalid { Template: "' + lTemplate + '"; ' +
+        'EntryPoint: "app.nxproject"; ' + lProperties + ' } }');
+      AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), lProperties);
+      AContext.AssertTrue(Pos('NSV23', lForge.Diagnostic) > 0, lForge.Diagnostic);
+      AssertNoLaunch(AContext, lForge);
+      AContext.AssertFalse(FileExists(lDirectory + 'never.txt'),
+        'Invalid NXBuild values must prevent all workflow execution');
+    end;
+  finally
+    lForge.Free;
+    lTargets.Free;
   end;
 end;
 
@@ -1271,8 +1414,10 @@ var
   lSession: TNexusScriptCompilationSession;
   lEmitter: TNexusScriptJSONEmitter;
   lBefore: string;
+  lDocument: TNexusScriptLiveDocument;
   lJSON: TJSONData;
 begin
+  lDocument := nil;
   lSession := TNexusScriptCompilationSession.Create;
   lEmitter := TNexusScriptJSONEmitter.Create;
   try
@@ -1280,9 +1425,9 @@ begin
       'projects/forge/test/fixtures/composition.nxscript'), lSession.LastError);
     lEmitter.AddDocument(lSession.EntryCompiler.CompiledDocument);
     lBefore := lEmitter.JSON;
+    lDocument := TNexusScriptLiveEmitter.Emit(lSession.EntryCompiler.CompiledDocument);
     lJSON := GetJSON(lEmitter.RenderDefinition(
-      lSession.EntryCompiler.CompiledDocument.FindDefinition('CompileExample'),
-      lSession.EntryCompiler.CompiledDocument));
+      lDocument.FindDefinition('CompileExample'), lDocument));
     try
       AContext.AssertEquals('hello world & test.lpr', lJSON.FindPath('EntryPoint').AsString,
         'Selected context contains direct resolved properties');
@@ -1295,6 +1440,7 @@ begin
       lJSON.Free;
     end;
   finally
+    lDocument.Free;
     lEmitter.Free;
     lSession.Free;
   end;
@@ -2045,8 +2191,9 @@ var
 begin
   lDirectory := TestDir('csv source & output');
   ForceDirectories(lDirectory + 'artifacts');
-  lTool := StringReplace(ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../NexusCSV/' +
-    LowerCase({$I %FPCTARGETCPU%} + '-' + {$I %FPCTARGETOS%}) + '/nxcsv'
+  lTool := StringReplace(ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../NexusCSV/' +
+    LowerCase({$I %FPCTARGETCPU%} + '-' + {$I %FPCTARGETOS%}) + '/' +
+    ExtractFileName(ExcludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))) + '/nxcsv'
     {$IFDEF WINDOWS} + '.exe' {$ENDIF}), '\', '/', [rfReplaceAll]);
   AContext.AssertTrue(FileExists(lTool),
     'Build projects/csv/NexusCSV.nxproject for the test host first: ' + lTool);
@@ -2726,6 +2873,238 @@ begin
   end;
 end;
 
+procedure TestLiveTargets(AContext: TNXTestContext);
+var
+  lDirectory, lTemplate: string;
+  lTargets: TNexusScriptTargetSelection;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-targets');
+  lTemplate := Root + 'projects/forge/templates/Run.mustache';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Environment Unused { Value: $NeverRead; } ' +
+    'Run Compile { Template: "' + lTemplate + '"; Executable: "' + ParamStr(0) + '"; ' +
+    'Arguments: ["child", "ok", $TargetOS, $TargetCPU, $BuildConfiguration, ' +
+    '"flavor=" + $Flavor]; }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('TargetOS', 'linux');
+  lTargets.Add('TargetCPU', 'aarch64');
+  lTargets.Add('BuildConfiguration', 'Release');
+  lTargets.Add('Flavor', 'custom value');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('"' + ParamStr(0) + '" "child" "ok" "linux" "aarch64" ' +
+      '"Release" "flavor=custom value"', lForge.Invocations[0].Command,
+      'Generic selected targets and compositions reach the command template');
+    AContext.AssertEquals('ok' + LineEnding, lForge.Invocations[0].StdOut);
+  finally
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestLiveFileOperations(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lTargets: TNexusScriptTargetSelection;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-files');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { CreateDirectory Output { Path: $BuildConfiguration; } ' +
+    'WriteTextFile Generate { Path: $BuildConfiguration + "/first.txt"; Text: $TargetCPU; } ' +
+    'CopyFile Copy { Source: $BuildConfiguration + "/first.txt"; ' +
+    'Destination: $BuildConfiguration + "/second.txt"; Overwrite: $Overwrite; } ' +
+    'CompareFiles Compare { Left: $BuildConfiguration + "/first.txt"; ' +
+    'Right: $BuildConfiguration + "/second.txt"; } }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('BuildConfiguration', 'Debug');
+  lTargets.Add('TargetCPU', 'x86_64');
+  lTargets.Add('Overwrite', 'False');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('x86_64' + #10, LoadRaw(lDirectory + 'Debug/second.txt'));
+    AContext.AssertFalse(lForge.Invocations[2].Overwrite, 'Deferred Boolean is false');
+    AContext.AssertTrue(lForge.Invocations[3].Completed, 'Task order is preserved');
+  finally
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestLiveRender(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lTargets: TNexusScriptTargetSelection;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-render');
+  Save(lDirectory + 'model.nxscript', Dialect('Schema') +
+    'Table Demo { TableName: "CONFIG_" + $BuildConfiguration; ' +
+    'Fields: [Field Value { Type: varchar(20); }]; }');
+  Save(lDirectory + 'artifact.mustache',
+    '{{Demo.TableName}}|{{#_nx.Collections.Table}}{{TableName}}{{/_nx.Collections.Table}}');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Render Generate { Source: "model.nxscript"; Template: "artifact.mustache"; ' +
+    'Output: $BuildConfiguration + ".txt"; }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('BuildConfiguration', 'Release');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('CONFIG_Release|CONFIG_Release', LoadRaw(lDirectory + 'Release.txt'),
+      'Render source receives the same target selection through Live values');
+  finally
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestLiveInheritedPaths(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lTargets: TNexusScriptTargetSelection;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-paths');
+  ForceDirectories(lDirectory + 'settings/Release');
+  Save(lDirectory + 'settings/Release/command.mustache', ChildCommand('ok'));
+  Save(lDirectory + 'settings/Paths.nxscript',
+    'Environment Paths { Template: $BuildConfiguration + "/command.mustache"; ' +
+    'Output: $BuildConfiguration + "/output.txt"; }');
+  Save(lDirectory + 'settings/Shared.nxscript',
+    'module "Paths.nxscript"; Run Base { Template: @Paths.Template; Executable: "ignored"; }');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'module "settings/Shared.nxscript"; Group Build { Run Compile (Base) {} ' +
+    'WriteTextFile Output { Path: @Paths.Output; Text: $BuildConfiguration; } }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('BuildConfiguration', 'Release');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(ExpandFileName(lDirectory + 'settings/Release/command.mustache'),
+      lForge.Invocations[0].TemplatePath, 'Inherited dynamic template retains its origin');
+    AContext.AssertEquals('Release' + #10, LoadRaw(lDirectory + 'settings/Release/output.txt'),
+      'Referenced dynamic file path retains its origin');
+  finally
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestLiveMissingExternal(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-missing');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { WriteTextFile First { Path: "never.txt"; Text: "never"; } ' +
+    'WriteTextFile Missing { Path: "missing.txt"; Text: $PATH; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'An unhandled external value fails preparation');
+    AContext.AssertTrue(Pos('Unresolved external reference $PATH', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AContext.AssertTrue(Pos('Build.nxscript', lForge.Diagnostic) > 0,
+      'The diagnostic identifies the expression source');
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'),
+      'Preparation failure prevents all file operations');
+  finally
+    lForge.Free;
+  end;
+end;
+
+
+type
+  TForgeExternalValues = class
+  private
+    FValue: string;
+    FReads: Integer;
+  public
+    procedure ReadExternal(const APath: string; out AValue: string; out AHandled: Boolean);
+    property Value: string read FValue write FValue;
+    property Reads: Integer read FReads;
+  end;
+
+procedure TForgeExternalValues.ReadExternal(const APath: string;
+  out AValue: string; out AHandled: Boolean);
+begin
+  Inc(FReads);
+  AHandled := APath = 'Settings.Value';
+  AValue := FValue;
+end;
+
+procedure TestLiveExternalEvent(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lTargets: TNexusScriptTargetSelection;
+  lValues: TForgeExternalValues;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-event');
+  Save(lDirectory + 'model.nxscript', Dialect('Schema') +
+    'Table Demo { TableName: $Settings.Value; Fields: [Field Name { Type: integer; }]; }');
+  Save(lDirectory + 'artifact.mustache', '{{Demo.TableName}}');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { WriteTextFile Write { Path: "event.txt"; ' +
+    'Text: $TargetOS + ":" + $Settings.Value; } ' +
+    'Render Generate { Source: "model.nxscript"; Template: "artifact.mustache"; Output: "rendered.txt"; } }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('TargetOS', 'linux');
+  lValues := TForgeExternalValues.Create;
+  lForge := TNXForge.Create(lTargets);
+  try
+    lForge.OnReadExternal := lValues.ReadExternal;
+    lValues.Value := 'first';
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('linux:first' + #10, LoadRaw(lDirectory + 'event.txt'));
+    AContext.AssertEquals('first', LoadRaw(lDirectory + 'rendered.txt'),
+      'The same event provider serves Render source documents');
+    lValues.Value := 'second';
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('linux:second' + #10, LoadRaw(lDirectory + 'event.txt'),
+      'Selected targets are automatic and external values are read again');
+    AContext.AssertEquals('second', LoadRaw(lDirectory + 'rendered.txt'));
+    AContext.AssertTrue(lValues.Reads > 0, 'The host event was used');
+  finally
+    lForge.Free;
+    lValues.Free;
+    lTargets.Free;
+  end;
+end;
+
+procedure TestLiveDeferredValidation(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lTargets: TNexusScriptTargetSelection;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('live-validation');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { WriteTextFile First { Path: "never.txt"; Text: "never"; } ' +
+    'CopyFile Invalid { Source: "first.txt"; Destination: "second.txt"; Overwrite: $Overwrite; } }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('Overwrite', 'not-a-boolean');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
+      'Deferred values must satisfy the dialect constraints');
+    AContext.AssertTrue(Pos('NSV2305: Value must be True or False.', lForge.Diagnostic) > 0,
+      lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertFalse(FileExists(lDirectory + 'never.txt'));
+  finally
+    lForge.Free;
+    lTargets.Free;
+  end;
+end;
+
+
 procedure RegisterForgeTests(ARegistry: TNXTestRegistry);
 var
   lSuite: TNXTestSuite;
@@ -2750,6 +3129,10 @@ begin
   lSuite.AddTest('RejectEntityDocument', @TestRejectEntityDocument);
   lSuite.AddTest('MSBuildOperation', @TestMSBuildOperation);
   lSuite.AddTest('NXBuildOperation', @TestNXBuildOperation);
+  lSuite.AddTest('NXBuildActions', @TestNXBuildActions);
+  lSuite.AddTest('NXBuildSelections', @TestNXBuildSelections);
+  lSuite.AddTest('NXBuildLiveSelections', @TestNXBuildLiveSelections);
+  lSuite.AddTest('NXBuildValidation', @TestNXBuildValidation);
   lSuite.AddTest('FPCSwitches', @TestFPCSwitches);
   lSuite.AddTest('FPCOptionalOutput', @TestFPCOptionalOutput);
   lSuite.AddTest('FPCSwitchValidation', @TestFPCSwitchValidation);
@@ -2780,6 +3163,13 @@ begin
   lSuite.AddTest('SourcePreflight', @TestSourcePreflight);
   lSuite.AddTest('SourceExecutionFailure', @TestSourceExecutionFailure);
   lSuite.AddTest('SelectedDefinition', @TestSelectedDefinition);
+  lSuite.AddTest('LiveTargets', @TestLiveTargets);
+  lSuite.AddTest('LiveFileOperations', @TestLiveFileOperations);
+  lSuite.AddTest('LiveRender', @TestLiveRender);
+  lSuite.AddTest('LiveInheritedPaths', @TestLiveInheritedPaths);
+  lSuite.AddTest('LiveMissingExternal', @TestLiveMissingExternal);
+  lSuite.AddTest('LiveExternalEvent', @TestLiveExternalEvent);
+  lSuite.AddTest('LiveDeferredValidation', @TestLiveDeferredValidation);
 end;
 
 end.

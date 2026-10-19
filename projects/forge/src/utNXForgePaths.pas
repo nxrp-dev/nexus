@@ -6,39 +6,51 @@ unit utNXForgePaths;
 
 interface
 
-uses obNexusScriptModel, fpjson;
+uses obNexusScriptLive, fpjson;
 
-function ForgeValuePath(AValue: TNexusScriptCompiledValue;
+function IsInternalReference(AValue: TNexusScriptLiveValue): Boolean;
+
+function ForgeValuePath(AValue: TNexusScriptLiveValue;
   const AWorkingDirectory: string; AUseOrigin: Boolean = False): string;
-procedure NormalizeForgeCommandPaths(AOperation: TNexusScriptCompiledDefinition;
+procedure NormalizeForgeCommandPaths(AOperation: TNexusScriptLiveDefinition;
   AContext: TJSONObject; const AWorkingDirectory: string);
 
 implementation
 
-uses SysUtils, obNexusScriptArtifactModel, tpNexusScript;
+uses SysUtils, tpNexusScriptLive;
 
-function PathOrigin(AValue: TNexusScriptCompiledValue;
-  var AUseOrigin: Boolean): TNexusScriptCompiledValue;
+function IsInternalReference(AValue: TNexusScriptLiveValue): Boolean;
 begin
-  if AValue.Kind = nsvReference then AUseOrigin := True;
-  Result := AValue.ArtifactValue;
-  while Result.Kind = nsvReference do
+  Result := (AValue.Reference <> nil) and
+    (AValue.Reference.Kind = nslrInternal);
+end;
+
+function PathOrigin(AValue: TNexusScriptLiveValue;
+  var AUseOrigin: Boolean): TNexusScriptLiveValue;
+var
+  lTarget: TNexusScriptLiveNode;
+begin
+  Result := AValue;
+  while IsInternalReference(Result) do
   begin
     AUseOrigin := True;
-    if Result.ResolvedProperty <> nil then Result := Result.ResolvedProperty.Value.ArtifactValue
-    else if Result.ResolvedValue <> nil then Result := Result.ResolvedValue.ArtifactValue
+    lTarget := Result.Reference.Target;
+    if lTarget is TNexusScriptLiveProperty then
+      Result := (lTarget as TNexusScriptLiveProperty).Value
+    else if lTarget is TNexusScriptLiveValue then
+      Result := lTarget as TNexusScriptLiveValue
     else Break;
   end;
 end;
 
-function ForgeValuePath(AValue: TNexusScriptCompiledValue;
+function ForgeValuePath(AValue: TNexusScriptLiveValue;
   const AWorkingDirectory: string; AUseOrigin: Boolean): string;
 var
-  lValue: TNexusScriptCompiledValue;
+  lValue: TNexusScriptLiveValue;
   lBase: string;
 begin
   lValue := PathOrigin(AValue, AUseOrigin);
-  Result := AValue.EffectiveText;
+  Result := AValue.AsText;
   if (Result = '') then Exit;
   if (ExtractFileDrive(Result) <> '') or IsPathDelimiter(Result, 1) then Exit;
   lBase := AWorkingDirectory;
@@ -46,7 +58,7 @@ begin
   Result := ExpandFileName(IncludeTrailingPathDelimiter(lBase) + Result);
 end;
 
-procedure NormalizeForgeCommandPaths(AOperation: TNexusScriptCompiledDefinition;
+procedure NormalizeForgeCommandPaths(AOperation: TNexusScriptLiveDefinition;
   AContext: TJSONObject; const AWorkingDirectory: string);
 const
   cArrays: array[0..8] of string = ('Source', 'UnitPaths', 'IncludePaths',
@@ -54,8 +66,8 @@ const
   cScalars: array[0..3] of string = ('Output', 'UnitOutput', 'CompilerUtilitiesPath', 'ExecutableOutput');
 var
   lName: string;
-  lProperty: TNexusScriptCompiledProperty;
-  lArray, lItem: TNexusScriptCompiledValue;
+  lProperty: TNexusScriptLiveProperty;
+  lArray, lItem: TNexusScriptLiveValue;
   lJSON: TJSONData;
   lIndex: Integer;
   lOrigin: Boolean;
@@ -72,7 +84,7 @@ begin
     for lIndex := 0 to lArray.Items.Count - 1 do
     begin
       lItem := lArray.Items[lIndex];
-      if lOrigin or (lItem.Kind = nsvReference) then
+      if lOrigin or IsInternalReference(lItem) then
         TJSONArray(lJSON).Strings[lIndex] := ForgeValuePath(lItem, AWorkingDirectory, lOrigin);
     end;
   end;
@@ -80,7 +92,7 @@ begin
   begin
     lProperty := AOperation.FindProperty(lName);
     if (lProperty <> nil) and (AContext.Find(lName) <> nil) and
-      (lProperty.Value.Kind = nsvReference) then
+      IsInternalReference(lProperty.Value) then
       AContext.Strings[lName] := ForgeValuePath(lProperty.Value, AWorkingDirectory);
   end;
 end;
