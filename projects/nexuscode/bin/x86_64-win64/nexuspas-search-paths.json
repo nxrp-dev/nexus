@@ -185,10 +185,10 @@
     },
     {
       "Class" : "TNXPasSearchPathTemplate",
-      "Name" : "FPC FCL Base",
+      "Name" : "Nexus FCL Base",
       "Enabled" : true,
       "PathKind" : "pspkUnitPath",
-      "PathTemplate" : "$(FPCSrcDir)\\packages\\fcl-base\\src"
+      "PathTemplate" : "$(WorkspaceDir)/packages/nexus-packages/fcl-base/src"
     },
     {
       "Class" : "TNXPasSearchPathTemplate",

@@ -100,6 +100,8 @@ repository rather than constituting additional forks.
 - **Fork/import date:** unknown. The locally available shallow history includes
   Nexus work on **2026-09-17**, `2a3622f8`; it cannot establish the original fork date.
 - **Our location/status:** FPC repository; maintained compiler, runtime, and packages.
+  FCL Base moved on 2026-10-18 to Nexus
+  `packages/nexus-packages/fcl-base`; its dedicated provenance record is below.
   The inherited core make build recipes and `fpcmake`/`fpgmake` generators were
   retired on 2026-10-11 in favor of NexusForge. Package/test recipes remain pending
   their separate migration; this record retains credit for the retired components.
@@ -1728,3 +1730,98 @@ is `0f60ce9c1bfd30e56fd6d5246a8ed46077f9990a`. Original upstream fork/import dat
 preceding Free Pascal provenance records continue to apply. The exact original
 source, copyright/license header and distribution license files are preserved
 under `/media/kcollins/dev/worktree/gdb-wrapper-retirement-20261017-pa1fkjjs`, together with hashes, the patch and reference audit.
+
+### Unix users
+
+- **Credit:** Michael van Canneyt, Marco van de Voort and the Free Pascal development team, as credited by the restored package metadata.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source).
+  Original fork/import date is unknown; the general Free Pascal record above
+  identifies the earliest locally available history.
+- **Relocation date/evidence:** **2026-10-18**, NexusFPC
+  `4f78c6c072c538cb2514a0a8226d53bca982cdf0:packages/users`, Git tree
+  `82f01255f9d6e3d32da06dc6c63c6dfb5c310cb1`. Original file SHA-256 values are recorded
+  in Packages `users/review/baseline-hashes.json`; untouched source remains in
+  Git and the external relocation worktree.
+- **Our location/status:** maintained Nexus Packages `users`; the former
+  compiler-side package directory is removed. Account/group lookup and Linux shadow-record bindings; the optional crypth binding uses the target system crypt library.
+- **License:** `LGPL-2.1-only WITH Independent-modules-exception`. Original source notices and the inherited
+  `COPYING.FPC` linking exception and LGPL `COPYING.txt` accompany the package.
+  Nexus-authored build integration and direct nxtest tests identify their own
+  `MPL-2.0-no-copyleft-exception` notices. The saved package review records
+  baseline proofs, fixes, consumer validation and platform limits.
+
+### Unix iconvenc
+
+- **Credit:** Marco van de Voort (2000; inherited Lab demonstration 2008) and the Free Pascal development team.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source).
+  Original fork/import date is unknown; the general Free Pascal record above
+  identifies the earliest locally available history.
+- **Relocation date/evidence:** **2026-10-18**, NexusFPC
+  `4f78c6c072c538cb2514a0a8226d53bca982cdf0:packages/iconvenc`, Git tree
+  `58e855095d9727570086c1ac78507cf55953f405`. Original file SHA-256 values are recorded
+  in Packages `iconvenc/review/baseline-hashes.json`; untouched source remains in
+  Git and the external relocation worktree.
+- **Our location/status:** maintained Nexus Packages `iconvenc`; the former
+  compiler-side package directory is removed. Native iconv declarations and conversion helpers; the original demonstration remains in Nexus Lab examples/text/encoding.
+- **License:** `LGPL-2.1-only WITH Independent-modules-exception`. Original source notices and the inherited
+  `COPYING.FPC` linking exception and LGPL `COPYING.txt` accompany the package.
+  Nexus-authored build integration and direct nxtest tests identify their own
+  `MPL-2.0-no-copyleft-exception` notices. The saved package review records
+  baseline proofs, fixes, consumer validation and platform limits.
+
+### Unix pthreads
+
+- **Credit:** Michael Van Canneyt (1999-2000), Marco van de Voort (BSD port, 2000), Benjamin Rosseaux (Android modifications, 2017), and the Free Pascal development team. The preserved BSD header translation also credits Chris Provenzano (1993-1994) and John Birrell (1995-1998).
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source).
+  Original fork/import date is unknown; the general Free Pascal record above
+  identifies the earliest locally available history.
+- **Relocation date/evidence:** **2026-10-18**, NexusFPC
+  `4f78c6c072c538cb2514a0a8226d53bca982cdf0:packages/pthreads`, Git tree
+  `3c3cf80eb217998e6238612af731d7bef81fc843`. Original file SHA-256 values are recorded
+  in Packages `pthreads/review/baseline-hashes.json`; untouched source remains in
+  Git and the external relocation worktree.
+- **Our location/status:** maintained Nexus Packages `pthreads`; the former
+  compiler-side package directory is removed. POSIX thread/synchronization bindings with Linux, Android and BSD platform selection. The embedded BSD notice retains its advertising and non-endorsement clauses; the dormant AIX include remains preserved without a support claim.
+- **License:** `LGPL-2.1-only WITH Independent-modules-exception AND BSD-4-Clause`. Original source notices and the inherited
+  `COPYING.FPC` linking exception and LGPL `COPYING.txt` accompany the package.
+  Nexus-authored build integration and direct nxtest tests identify their own
+  `MPL-2.0-no-copyleft-exception` notices. The saved package review records
+  baseline proofs, fixes, consumer validation and platform limits.
+
+
+### FCL Base
+
+- **Credit:** Michael Van Canneyt, Sebastian Guenther, Florian Klaempfl and the
+  Free Pascal development team; Vladimir Zhirov and the CSV contributors named
+  in those headers; Ondrej Pokorny (IPC/single-instance support); José Mejuto
+  (buffered file streams); Danny Milosavljevic (original ASCII85 code), and the
+  other authors credited in the preserved unit headers. RTTI utilities retain
+  their Delphi VCL Extensions/RX author notices. ASCII85 retains its references
+  to Jeff Atwood's C# implementation and the original C implementation.
+- **Upstream:** [Free Pascal source](https://gitlab.com/freepascal.org/fpc/source),
+  `packages/fcl-base`. The local source baseline is NexusFPC
+  `4f78c6c072c538cb2514a0a8226d53bca982cdf0`, with the current native nxtest
+  migration and expression Boolean-text correction included. The exact upstream
+  import revision and original fork date are not established by local history.
+- **Fork/import evidence:** relocated **2026-10-18**, with all 133 inherited
+  working-source files recorded in the destination's `review/baseline-hashes.json`.
+  The untouched snapshot and before/after regression logs are outside the source
+  tree under `/media/kcollins/dev/worktree/fcl-base-relocation`. The initial
+  review was saved before implementation fixes.
+- **Our location/status:** maintained at Nexus
+  `packages/nexus-packages/fcl-base`, package `NXRP.FCLBase`; the former NexusFPC
+  directory is removed. Existing examples remain centralized in Nexus Lab
+  `examples/runtime/base`. Platform includes, namespace wrappers/map, text
+  documentation and direct nxtest coverage remain with their owners. Contnrs
+  is retained. Compiler bootstrap stages and general SysUtils Boolean conversion
+  are unchanged.
+- **SPDX:** the FPC library notice and supplied LGPL 2.1 text are recorded as
+  `LGPL-2.1-only WITH Independent-modules-exception`; the explicit CSV headers
+  additionally grant `LGPL-2.0-or-later WITH Independent-modules-exception`.
+  ASCII85 preserves Danny Milosavljevic's explicit public-domain declaration
+  (`LicenseRef-Ascii85-Public-Domain`) and its subsequent FPC library notices.
+  Broader grants in individual headers are preserved. New Nexus integration and
+  regression files use `MPL-2.0-no-copyleft-exception`.
+- **Evidence/notices:** destination `COPYING.FPC`, `COPYING.txt`, original source
+  headers, `CODE_REVIEW.md`, and `review/baseline-hashes.json`. Package docs link
+  here instead of duplicating provenance.

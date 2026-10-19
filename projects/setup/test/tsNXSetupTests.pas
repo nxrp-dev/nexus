@@ -540,7 +540,7 @@ var
   lPlan: TNXSetupPlan;
   lState: TNXSetupState;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lSource := StringReplace(lWork + '/source', '\', '/', [rfReplaceAll]);
   lRoot := ExpandFileName(lWork + '/installed');
   lDocument := nil;
@@ -592,7 +592,7 @@ var
   lPlan: TNXSetupPlan;
   lRejected: Boolean;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lRoot := ExpandFileName(lWork + '/not-created');
   lDocument := LoadText('Product P { Id: P; Name: P; Version: 1; Location App { Kind: ApplicationRoot; } ' +
     'Feature A { Default: True; File Missing { Source: "not-present"; Location: @P.App; } } }');
@@ -629,7 +629,7 @@ var
   lLocked: TFileStream;
   lRejected: Boolean;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lRoot := ExpandFileName(lWork + '/installed');
   lSource := StringReplace(lWork + '/source', '\', '/', [rfReplaceAll]);
   lDocument := nil;
@@ -665,7 +665,7 @@ var
   lWork, lRoot, lFolder, lTransaction, lTarget: string;
   lStream: TFileStream;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lRoot := ExpandFileName(lWork + '/installed');
   lFolder := TNXSetupState.Folder(lRoot, 'P');
   try
@@ -710,7 +710,7 @@ procedure TestVersionPolicy(AContext: TNXTestContext);
 var
   lWork, lOld, lNew, lPlain: string;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   try
     lOld := lWork + '/old.res';
     lNew := lWork + '/new.res';
@@ -739,7 +739,7 @@ var
   lStream: TFileStream;
   lRejected: Boolean;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lSource := StringReplace(lWork + '/source', '\', '/', [rfReplaceAll]);
   lRoot := ExpandFileName(lWork + '/installed');
   lExecutable := lWork + '/Setup.exe';
@@ -796,7 +796,7 @@ var
   lContext: TNXSetupSourceContext;
   lFirst, lSecond: TMemoryStream;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lEntry := lWork + '/entry.nxscript';
   lDefinitions := lWork + '/definitions.nxscript';
   lExecutable := lWork + '/Setup.exe';
@@ -846,7 +846,7 @@ var
   lSession: TNXSetupSession;
   lState: TNXSetupState;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lSource := StringReplace(lWork + '/source', '\', '/', [rfReplaceAll]);
   lRoot := ExpandFileName(lWork + '/installed');
   lExtra := ExpandFileName(lWork + '/user-data');
@@ -903,7 +903,7 @@ var
   lBundle: TNXSetupBundle;
   lRejected: Boolean;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lArchive := lWork + '/malformed.zip';
   lZip := TZipper.Create;
   lBytes := TStringStream.Create('not a payload');
@@ -961,7 +961,7 @@ var
   end;
 
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lRoot := ExpandFileName(lWork + '/installed');
   lSource := StringReplace(lWork + '/source.txt', '\', '/', [rfReplaceAll]);
   try
@@ -986,7 +986,7 @@ var
   lPlan: TNXSetupPlan;
   lState: TNXSetupState;
 begin
-  lWork := SetupWorkFolder(ExpandFileName('output'));
+  lWork := SetupWorkFolder(GetTempDir(False));
   lSource := StringReplace(lWork + '/source', '\', '/', [rfReplaceAll]);
   lRoot := ExpandFileName(lWork + '/installed');
   lDocument := nil;

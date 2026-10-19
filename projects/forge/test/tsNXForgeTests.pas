@@ -32,7 +32,9 @@ uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTest
 
 function Root: string;
 begin
-  Result := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../');
+  Result := IncludeTrailingPathDelimiter(GetCurrentDir);
+  if not FileExists(Result + 'projects/forge/language/Forge.nxscript') then
+    raise Exception.Create('Run NexusForgeTests from the Nexus repository root.');
 end;
 
 procedure DeleteDirRecursive(const APath: string);
@@ -64,7 +66,7 @@ end;
 
 function TestDir(const AName: string): string;
 begin
-  Result := Root + 'output/ForgeVerification/' + AName + '/';
+  Result := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'ForgeVerification/' + AName + '/';
   // Discard any prior run's fixture so stale ownership/state never leaks between runs.
   DeleteDirRecursive(Result);
   ForceDirectories(Result);
@@ -493,8 +495,16 @@ end;
 procedure TestFPCOptionalOutput(AContext: TNXTestContext);
 var
   lForge: TNXForge;
-  lDirectory, lTemplate: string;
+  lDirectory, lTemplate, lCompiler, lRTL, lCompilerSettings: string;
 begin
+  lCompiler := GetEnvironmentVariable('NXTEST_FPC');
+  lRTL := GetEnvironmentVariable('NXTEST_RTL');
+  AContext.AssertTrue(FileExists(lCompiler) and DirectoryExists(lRTL),
+    'Set NXTEST_FPC and NXTEST_RTL to the matching NexusFPC compiler and RTL.');
+  lCompilerSettings := 'Compiler: "' + StringReplace(lCompiler, '\', '/', [rfReplaceAll]) +
+    '"; DisableDefaultConfigFiles: True; ' +
+    {$IFDEF UNIX}'Assembler: "as-clang"; UseLLD: True; ' +{$ENDIF}
+    'UnitPaths: ["' + StringReplace(lRTL, '\', '/', [rfReplaceAll]) + '"]; ';
   lDirectory := TestDir('fpc-optional-output');
   ForceDirectories(lDirectory + 'compiled units');
   ForceDirectories(lDirectory + 'source');
@@ -508,11 +518,15 @@ begin
     'program optional_output; uses utOptionalOutput; begin if cValue <> 42 then Halt(1); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Group Build { FPC CompileUnit { Template: "' + lTemplate + '"; ' +
+    lCompilerSettings +
     'Source: ["source/utOptionalOutput.pas"]; EntryPoint: "source/utOptionalOutput.pas"; ' +
     'UnitOutput: "compiled units"; IncludePaths: ["include paths"]; } ' +
     'FPC CompileProgram { Template: "' + lTemplate + '"; ' +
+    'Compiler: "' + StringReplace(lCompiler, '\', '/', [rfReplaceAll]) +
+    '"; DisableDefaultConfigFiles: True; ' +
+    {$IFDEF UNIX}'Assembler: "as-clang"; UseLLD: True; ' +{$ENDIF}
     'Source: ["optional_output.lpr"]; EntryPoint: "optional_output.lpr"; ' +
-    'UnitPaths: ["compiled units"]; } }');
+    'UnitPaths: ["compiled units", "' + StringReplace(lRTL, '\', '/', [rfReplaceAll]) + '"]; } }');
   lForge := TNXForge.Create;
   try
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
@@ -2039,7 +2053,7 @@ var
 begin
   lDirectory := TestDir('csv source & output');
   ForceDirectories(lDirectory + 'artifacts');
-  lTool := StringReplace(ExpandFileName(Root + 'output/NexusCSV/' +
+  lTool := StringReplace(ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../NexusCSV/' +
     LowerCase({$I %FPCTARGETCPU%} + '-' + {$I %FPCTARGETOS%}) + '/nxcsv'
     {$IFDEF WINDOWS} + '.exe' {$ENDIF}), '\', '/', [rfReplaceAll]);
   AContext.AssertTrue(FileExists(lTool),

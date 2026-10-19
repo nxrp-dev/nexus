@@ -13,7 +13,7 @@ dialect "../../../projects/nxbuild/language/nxbuild.Language.nxscript";
 module "../../../projects/nxbuild/nxbuild.environment.nxscript";
 Project NexusSetupTests {
     RootDirectory: "../../..";
-    OutputRoot: "output/NexusSetupTests/" + @Tools.Native.Name;
+    OutputRoot: @Tools.OutputRoot + "/NexusSetupTests/" + @Tools.Native.Name;
     FPC Tests {
         CompilerPath: @Tools.Native.FPCCompiler;
         SourceFiles: ["projects/setup/test/NexusSetupTests.lpr"];
@@ -55,17 +55,17 @@ Project NexusSetupTests {
                 "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Utils",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
-                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src",
-                @Tools.NexusFPC.SourcePath + "/packages/pthreads/src"
+                "packages/nexus-packages/fcl-base/src",
+                "packages/nexus-packages/pthreads/src"
             ];
             IncludePaths: [
                 "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
-                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/" + @Tools.Native.PascalPlatform,
-                @Tools.NexusFPC.SourcePath + "/packages/fcl-base/src/dummy",
+                "packages/nexus-packages/fcl-base/src/" + @Tools.Native.PascalPlatform,
+                "packages/nexus-packages/fcl-base/src/dummy",
                 @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/pthreads/src",
+                "packages/nexus-packages/pthreads/src",
                 "packages/nexus-packages/fcl-process/src/" + @Tools.Native.PascalPlatform
             ];
         }

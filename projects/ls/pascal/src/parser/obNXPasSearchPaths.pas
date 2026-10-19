@@ -300,7 +300,7 @@ begin
   AddUnitPath('Nexus Apple univint', '$(WorkspaceDir)/packages/nexus-packages-apple/univint/src');
   AddUnitPath('Nexus Apple cocoaint', '$(WorkspaceDir)/packages/nexus-packages-apple/cocoaint/src');
   AddUnitPath('Nexus Apple iosxlocale', '$(WorkspaceDir)/packages/nexus-packages-apple/iosxlocale/src');
-  AddUnitPath('FPC FCL Base', '$(FPCSrcDir)\packages\fcl-base\src');
+  AddUnitPath('Nexus FCL Base', '$(WorkspaceDir)/packages/nexus-packages/fcl-base/src');
   AddUnitPath('FPC FCL JSON', '$(FPCSrcDir)\packages\fcl-json\src');
   AddUnitPath('FPC FCL XML', '$(WorkspaceDir)/packages/nexus-packages/serialization/fcl-xml/src');
   AddUnitPath('Nexus FCL DB base', '$(WorkspaceDir)/packages/nexus-packages/db/fcl-db/src/base');

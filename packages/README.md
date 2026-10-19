@@ -103,3 +103,14 @@ The existing compiler supports this catalog setting. The nxpackage GUI
 currently does not configure a dialect root, so these catalog-relative dialect
 names are not yet resolved when opening the drafts there. No compiler, editor,
 dialect, or Forge implementation changes are included in this data-only draft.
+
+The Unix `users`, `iconvenc` and `pthreads` bindings now have independent
+metadata and native build/test recipes in `nexus-packages`. Their original
+NexusFPC package directories are removed. GUI declares its users dependency;
+FCL XML declares the iconv adapter dependency. FCL Base SyncObjs also uses
+the relocated pthreads source on Unix. Compiler bootstrap stages are unchanged.
+
+FCL Base is independently described as `NXRP.FCLBase` at
+`nexus-packages/fcl-base`. Its former NexusFPC directory is removed. The package
+owns its runtime units, namespace wrappers and native tests; examples stay in
+Nexus Lab. Consuming descriptors declare their direct FCL Base dependency.

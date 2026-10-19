@@ -17,7 +17,9 @@ uses Classes, SysUtils, obNXTestContext, obNXForge, obNXForgeInvocation,
 
 function Root: string;
 begin
-  Result := ExpandFileName(ExtractFilePath(ParamStr(0)) + '../../../');
+  Result := IncludeTrailingPathDelimiter(GetCurrentDir);
+  if not FileExists(Result + 'projects/forge/language/Forge.nxscript') then
+    raise Exception.Create('Run NexusForgeTests from the Nexus repository root.');
 end;
 
 function NewDirectory: string;
@@ -25,7 +27,7 @@ var
   lId: TGUID;
 begin
   CreateGUID(lId);
-  Result := Root + 'output/ForgeComposition/tests/' + GUIDToString(lId) + '/';
+  Result := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'ForgeComposition/tests/' + GUIDToString(lId) + '/';
   ForceDirectories(Result);
 end;
 
