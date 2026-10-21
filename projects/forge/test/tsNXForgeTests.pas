@@ -628,7 +628,7 @@ begin
   end;
 end;
 
-procedure TestFPCOptionalOutput(AContext: TNXTestContext);
+procedure TestNXPCOptionalOutput(AContext: TNXTestContext);
 var
   lForge: TNXForge;
   lDirectory, lTemplate, lCompiler, lRTL, lCompilerSettings: string;
@@ -641,23 +641,23 @@ begin
     '"; DisableDefaultConfigFiles: True; ' +
     {$IFDEF UNIX}'Assembler: "as-clang"; UseLLD: True; ' +{$ENDIF}
     'UnitPaths: ["' + StringReplace(lRTL, '\', '/', [rfReplaceAll]) + '"]; ';
-  lDirectory := TestDir('fpc-optional-output');
+  lDirectory := TestDir('nxpc-optional-output');
   ForceDirectories(lDirectory + 'compiled units');
   ForceDirectories(lDirectory + 'source');
   ForceDirectories(lDirectory + 'include paths');
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
-    'projects/forge/templates/FPC.mustache';
+    'projects/forge/templates/NXPC.mustache';
   Save(lDirectory + 'include paths/value.inc', 'cValue = 42;');
   Save(lDirectory + 'source/utOptionalOutput.pas',
     'unit utOptionalOutput; interface const {$I value.inc} implementation end.');
   Save(lDirectory + 'optional_output.lpr',
     'program optional_output; uses utOptionalOutput; begin if cValue <> 42 then Halt(1); end.');
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-    'Group Build { FPC CompileUnit { Template: "' + lTemplate + '"; ' +
+    'Group Build { NXPC CompileUnit { Template: "' + lTemplate + '"; ' +
     lCompilerSettings +
     'Source: ["source/utOptionalOutput.pas"]; EntryPoint: "source/utOptionalOutput.pas"; ' +
     'UnitOutput: "compiled units"; IncludePaths: ["include paths"]; } ' +
-    'FPC CompileProgram { Template: "' + lTemplate + '"; ' +
+    'NXPC CompileProgram { Template: "' + lTemplate + '"; ' +
     'Compiler: "' + StringReplace(lCompiler, '\', '/', [rfReplaceAll]) +
     '"; DisableDefaultConfigFiles: True; ' +
     {$IFDEF UNIX}'Assembler: "as-clang"; UseLLD: True; ' +{$ENDIF}
@@ -2875,12 +2875,35 @@ begin
   Save(lDirectory + 'sample.nxpl', MetadataText(lBad) + MetadataText(lReference));
   RejectImage('Overflowed ELF section offset');
 end;
+procedure CompileSDKVersionFixture(AContext: TNXTestContext;
+  const ADirectory, ASuffix: string);
+var
+  lCompiler, lRTL: string;
+  lInvocation: TNXForgeInvocation;
+begin
+  lCompiler := GetEnvironmentVariable('NXTEST_NXPC');
+  lRTL := GetEnvironmentVariable('NXTEST_NXPC_RTL');
+  AContext.AssertTrue(FileExists(lCompiler) and DirectoryExists(lRTL),
+    'SDK fixtures require matching NXTEST_NXPC and NXTEST_NXPC_RTL');
+  lInvocation := TNXForgeInvocation.Create;
+  try
+    lInvocation.WorkingDirectory := ADirectory;
+    lInvocation.Command := '"' + lCompiler + '" -n "-Fu' + lRTL + '" ' +
+      {$IFDEF UNIX}'-Aas-clang -XLL ' +{$ENDIF}
+      '"version.pas" "-osdk/bin/nxpc-x86_64' + ASuffix + '"';
+    ExecuteForgeProcess(lInvocation);
+    AContext.AssertTrue(lInvocation.Succeeded,
+      lInvocation.Diagnostic + lInvocation.StdOut + lInvocation.StdErr);
+  finally
+    lInvocation.Free;
+  end;
+end;
+
 procedure TestPackageSDKManifest(AContext: TNXTestContext);
 var
   lDirectory, lSDK, lIdentity, lBuild, lPCP, lImage, lBinary, lManifest, lCommand: string;
   lForge: TNXForge;
   lRecord: TJSONObject;
-  lInvocation: TNXForgeInvocation;
   lIndex: Integer;
 
   procedure PutNumber(AOffset: Integer; AValue: QWord; ASize: Integer);
@@ -3096,15 +3119,7 @@ begin
   Save(lSDK + 'packages/nxrtl.nxpl', lImage);
   Save(lSDK + 'units/sysinitpkg.nxu', 'abc');
   Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
-  lInvocation := TNXForgeInvocation.Create;
-  try
-    lInvocation.WorkingDirectory := lDirectory;
-    lInvocation.Command := 'fpc "version.pas" "-osdk/bin/nxpc-x86_64.exe"';
-    ExecuteForgeProcess(lInvocation);
-    AContext.AssertTrue(lInvocation.Succeeded, lInvocation.Diagnostic + lInvocation.StdOut + lInvocation.StdErr);
-  finally
-    lInvocation.Free;
-  end;
+  CompileSDKVersionFixture(AContext, lDirectory, '.exe');
   lCommand := Dialect('NexusForge') + 'Group Publish { PackageSDKManifest Manifest { Directory: "sdk"; } ' +
     'WriteTextFile Later { Path: "passed.txt"; Text: "ok"; } }';
   Save(lDirectory + 'Build.nxscript', lCommand);
@@ -3311,7 +3326,6 @@ var
   lDirectory, lSDK, lBinary, lIdentity, lBuild, lRaw: string;
   lRecord: TJSONObject;
   lEnvelope: TBytes;
-  lInvocation: TNXForgeInvocation;
 
   procedure Put(AOffset: Integer; AValue: QWord; ASize: Integer = 8);
   var
@@ -3359,15 +3373,7 @@ begin
   Save(lDirectory + 'bootstrap/seed/build-options.cfg', 'options');
   Save(lSDK + 'work/rtl-units/system.nxu', 'fixture unit');
   Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
-  lInvocation := TNXForgeInvocation.Create;
-  try
-    lInvocation.WorkingDirectory := lDirectory;
-    lInvocation.Command := 'fpc "version.pas" "-osdk/bin/nxpc-x86_64"';
-    ExecuteForgeProcess(lInvocation);
-    AContext.AssertTrue(lInvocation.Succeeded, lInvocation.Diagnostic + lInvocation.StdOut + lInvocation.StdErr);
-  finally
-    lInvocation.Free;
-  end;
+  CompileSDKVersionFixture(AContext, lDirectory, '');
   WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK, 'x86_64-linux-gnu', 'nxpc-x86_64');
   lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
   try
@@ -3732,7 +3738,7 @@ begin
   lSuite.AddTest('NXBuildLiveSelections', @TestNXBuildLiveSelections);
   lSuite.AddTest('NXBuildValidation', @TestNXBuildValidation);
   lSuite.AddTest('FPCSwitches', @TestFPCSwitches);
-  lSuite.AddTest('FPCOptionalOutput', @TestFPCOptionalOutput);
+  lSuite.AddTest('NXPCOptionalOutput', @TestNXPCOptionalOutput);
   lSuite.AddTest('FPCSwitchValidation', @TestFPCSwitchValidation);
   lSuite.AddTest('ClangOperation', @TestClangOperation);
   lSuite.AddTest('LLVMArOperation', @TestLLVMArOperation);
