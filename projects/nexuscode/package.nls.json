@@ -19,7 +19,6 @@
     "config.languageServer.initializationOptions.showSyntaxErrors":  "Show syntax error prompts in popup \u0027window/showMessage\u0027",
     "config.debug.autoBuildBeforeLaunch":  "Automatically build the default Pascal project before launching the debugger when source files have changed",
     "project.newNexusProject":  "New Nexus Project...",
-    "project.importLazarusProject":  "Import Lazarus Project...",
     "project.createTestModule":  "Create NexusTest Module...",
     "project.buildLazarusProject":  "Build Lazarus Project",
     "project.runLazarusProject":  "Run Lazarus Project",

@@ -149,7 +149,7 @@ var
 begin
   Result := Default(TNXForgePackageMetadata);
   RequireRange(0, 32);
-  if Text(0, 6) <> 'NXP004' then Invalid('Unsupported package metadata; expected NexusFPC NXP004');
+  if Text(0, 6) <> 'NXP004' then Invalid('Unsupported package metadata; expected NXPC NXP004');
   lOffset := 32;
   lHasName := False;
   lHasIdentity := False;
@@ -257,7 +257,14 @@ var
   lPE, lOptional, lExports, lExportRVA, lExportSize: QWord;
   lFunctions, lNames, lOrdinals, lCount, lFunctionCount: QWord;
   lIndex, lOrdinal, lRVA, lDescriptor, lAddress: QWord;
+  lMetadata: TNXForgePackageMetadata;
 begin
+  if Text(0, 4) = #127'ELF' then
+  begin
+    lMetadata := ReadELFImage;
+    CheckIdentity(lMetadata.Name, lMetadata.SDK, lMetadata.Build, AName, ASDK, ABuild);
+    Exit;
+  end;
   if Number(0, 2) <> $5A4D then Invalid('Not a Win64 package image');
   lPE := Number(60, 4);
   if (Number(lPE, 4) <> $4550) or (Number(lPE + 4, 2) <> $8664) then

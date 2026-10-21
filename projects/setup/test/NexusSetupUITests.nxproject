@@ -11,8 +11,8 @@ Project NexusSetupUITests TargetOS[win64] {
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusSetupUITests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/setup/test/NexusSetupUITests.lpr"];
         OutputPath: @NexusSetupUITests.OutputRoot;
         Target Platform { OperatingSystem: "win64"; }

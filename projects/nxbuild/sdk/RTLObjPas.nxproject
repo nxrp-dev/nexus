@@ -9,7 +9,7 @@ Project RTLObjPas TargetCPU[x86_64] TargetOS[linux, win64] {
     RootDirectory: "../../..";
     Description: "Object-Pascal RTL sources and includes.";
     Publishes Directories {
-        Sources: [@Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform];
-        Headers: [@Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform, @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + $TargetCPU];
+        Sources: [@Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform];
+        Headers: [@Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/inc", @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform, @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/" + $TargetCPU];
     }
 }

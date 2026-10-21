@@ -2,10 +2,6 @@
 
 Pick the module that matches the work you are doing.
 
-## Build a UI Application
-
-Start with `NexusUI` if you are building a native-style Pascal application or testing controls, layout, windows, skins, and SDL2-backed rendering.
-
 ## Work on Pascal Tooling
 
 Start with `NexusLS` for language-server behavior and `Nexus Pascal` documentation for the VS Code-facing tooling workflow.

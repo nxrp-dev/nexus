@@ -24,7 +24,6 @@ Nexus Pascal supports Lazarus projects for:
 
 - project discovery
 - import into Nexus project workflows
-- build behavior through Lazarus tooling
 - language-server context such as paths, target settings, and unit resolution
 
 ## Free Pascal Projects
@@ -37,8 +36,7 @@ context so a workspace can work without requiring a Lazarus project file.
 
 ## Future Targets
 
-The project model is designed to grow toward additional targets such as Android
-and Nexus UI applications. These targets require more than compiler paths: they
+The project model is designed to grow toward additional targets such as Android. These targets require more than compiler paths: they
 need toolchains, packaging rules, launch behavior, and debug integration.
 
 Nexus Pascal treats those as project and toolchain concerns, not random editor

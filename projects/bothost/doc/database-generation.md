@@ -3,7 +3,7 @@
 Run from the repository root:
 
 ```powershell
-lazbuild projects\forge\NexusForge.lpi
+nxbuild /action=build /project=projects/forge/NexusForge.nxproject
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
   /input=projects\bothost\BotHost.Forge.nxscript /targets=TargetDB:Firebird
 ```
@@ -53,7 +53,7 @@ persistence, and patch execution are outside this pass.
 ## Native verification
 
 ```powershell
-lazbuild projects\bothost\test\NexusBotHostTestModule.lpi
+nxbuild /action=build /project=projects/bothost/test/NexusBotHostTestModule.nxproject
 $env:NEXUS_FIREBIRD_ISQL = 'C:\Program Files\Firebird\Firebird_5_0\isql.exe'
 & .\output\NexusTestHost\nxtest_host.exe `
   .\output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll `

@@ -16,8 +16,10 @@ It consumes:
 
 From the repository root:
 
-```text
-lazbuild projects/nxtest/ui/src/NexusTestUI.lpi
+```sh
+nxbuild /action=build /project=projects/nxtest/ui/src/NexusTestUI.nxproject
 ```
+
+Run the generated programs from the output directories resolved by their projects.
 
 The UI loads a NexusTest module and presents its suites, categories, and test results. The test protocol remains owned by `packages/nexus-packages/nxtest`; fpGUI is only the presentation layer.

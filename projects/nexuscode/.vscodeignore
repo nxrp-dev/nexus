@@ -12,3 +12,6 @@ dist/*.map
 .kiro
 scripts
 bin/debug
+
+AGENTS.md
+architecture-bug-risk-review.md

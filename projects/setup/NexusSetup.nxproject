@@ -9,13 +9,14 @@ Project NexusSetup {
     Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.RTLExtra, @Projects.GUI, @Projects.RegExpr, @Projects.FCLImage, @Projects.PasJPEG, @Projects.FCLXML, @Projects.X11, @Projects.Users, @Projects.FCLRes, @Projects.NexusScript, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache, @Projects.HashLib4Pascal, @Projects.FCLBase, @Projects.Pthreads, @Projects.FCLProcess];
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/NexusSetup/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Application {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Application {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/setup/NexusSetup.lpr"];
         OutputPath: @NexusSetup.OutputRoot;
         RawOptions: ["-gl"];
         Definitions Options TargetOS[win64] { Defines: [GDI]; }
         Target Windows TargetOS[win64] { ApplicationType: Graphic; }
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
         Assembler Native TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {

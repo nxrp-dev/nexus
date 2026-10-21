@@ -10,8 +10,8 @@ Project NexusTestTests {
     Requires: [@Projects.NexusRTL, @Projects.NexusTest];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusTestTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/nxtest/test/NexusTestTests.lpr"];
         OutputPath: @NexusTestTests.OutputRoot;
         Config Options { DisableDefaultConfigFiles: True; }

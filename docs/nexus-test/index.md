@@ -68,7 +68,7 @@ The same command shape is used by the sample host, NexusTestUI, and the NexusLS 
 
 ## Visual Test Running
 
-NexusTestUI is a NexusUI-based runner for loadable test modules. It presents suites and cases in a tree, runs selected tests or full modules, and displays status, duration, and messages.
+NexusTestUI is an fpGUI-based runner for loadable test modules. It presents suites and cases in a tree, runs selected tests or full modules, and displays status, duration, and messages.
 
 The UI does not own the tests. It is a client of the test module. That separation keeps test state in the framework and module where it belongs.
 
@@ -90,4 +90,4 @@ It is especially useful for tooling-heavy Pascal code such as language servers, 
 - `packages/nexus-packages/nxtest/src` contains the framework, registry, runner, result store, command processor, and module client.
 - `projects/nxtest/host` contains the sample module and command-line host.
 - `projects/nxtest/ui` contains the GUI runner.
-- `NexusTools/LS/NexusLSTestModule` shows NexusTest being used for real NexusLS coverage.
+- `projects/ls/pascal/NexusLSTestModule` shows NexusTest being used for real NexusLS coverage.

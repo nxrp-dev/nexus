@@ -19,7 +19,7 @@ type
 implementation
 
 uses
-  SysUtils,
+  SysUtils, utNXBuildTargets,
   obNXCommandLine, obNexusScriptModel, tpNXBuild,
   obNXBuildExecutor,
   obNXBuildPlanner,
@@ -46,6 +46,8 @@ end;
 
 class procedure TNXBuildCommands.RegisterCommandLineFlags;
 begin
+  TNXCommandLine.RegisterFlag('targets', False, True, '', 'Additional target selections',
+    'Comma-separated Name:Value selections exposed through Live $ references.');
   TNXCommandLine.RegisterFlag('project', False, True, '', 'NexusScript build description', 'Path to an nxproject build description.');
   TNXCommandLine.RegisterFlag('action', False, True, '', 'Build action', 'Use /action=validate, /action=plan or /action=build with /project=project.nxproject.');
   TNXCommandLine.RegisterFlag('targetos', False, True, {$I %FPCTARGETOS%},
@@ -87,6 +89,7 @@ begin
     lTargets.Add('TargetOS', lTargetOS);
     lTargets.Add('TargetCPU', lTargetCPU);
     lTargets.Add('BuildConfiguration', lConfiguration);
+    AddNXBuildTargets(TNXCommandLine.GetValueDefault('targets', ''), lTargets);
     lDescription := lLoader.LoadDescription(lProjectFile, lTargets);
     lPlan := lPlanner.CreatePlan(lDescription, lAction <> 'validate');
     try

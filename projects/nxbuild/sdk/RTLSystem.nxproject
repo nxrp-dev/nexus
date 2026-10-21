@@ -9,6 +9,6 @@ Project RTLSystem TargetCPU[x86_64] TargetOS[linux, win64] {
     RootDirectory: "../../..";
     Description: "System and object-Pascal RTL source support.";
     Publishes Directories {
-        Sources: [@Tools.NexusFPC.SourcePath + "/rtl/inc", @Tools.NexusFPC.SourcePath + "/rtl/objpas"];
+        Sources: [@Tools.NXPC.SourcePath + "/rtl/inc", @Tools.NXPC.SourcePath + "/rtl/objpas"];
     }
 }

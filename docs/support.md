@@ -12,7 +12,6 @@ Use the issue title to name the affected area when possible:
 
 - `Nexus Pascal: build task does not find Lazarus project`
 - `NexusLS: go to definition misses property type`
-- `NexusUI: popup loses mouse capture`
 - `NexusForge: generated Firebird script has wrong field type`
 - `NexusTest: test module result cannot be read twice`
 
@@ -34,9 +33,7 @@ Good reports save time. Include:
 
 For language-server problems, include the Pascal snippet and the exact cursor location or symbol involved.
 
-For build problems, include the project file type, build mode, output path, and the important compiler or lazbuild output.
-
-For NexusUI problems, include the control, layout, input action, and screenshot if the issue is visual.
+For build problems, include the project file type, build mode, output path, and the important build output.
 
 ## Feature Requests
 

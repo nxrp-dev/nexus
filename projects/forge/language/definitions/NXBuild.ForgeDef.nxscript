@@ -11,6 +11,7 @@ Language ForgeNXBuild {
             Properties: [
                 Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property EntryPoint { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Targets { Value Value { EffectiveCategories: [Text]; } },
                 Property Action { Value Value { Scalar: Text; AllowedValues: [build, validate, plan]; } },
                 Property TargetOS { Value Value { EffectiveCategories: [Text]; } },
                 Property TargetCPU { Value Value { EffectiveCategories: [Text]; } },

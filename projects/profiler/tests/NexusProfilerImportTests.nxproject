@@ -5,18 +5,19 @@ dialect "../../nxbuild/language/nxbuild.Language.nxscript";
 module Projects "../../nxbuild/Projects.nxscript";
 module "../../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusProfilerImportTests TargetOS[win64] {
+Project NexusProfilerImportTests TargetOS[linux, win64] {
     Id: "NXRP.Tools.NexusProfilerImportTests";
-    Requires: [@Projects.NexusRTL, @Projects.SQLite];
+    Requires: [@Projects.NexusRTL, @Projects.FCLBase, @Projects.SQLite];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusProfilerImportTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/profiler/tests/NexusProfilerImportTests.lpr"];
         OutputPath: @NexusProfilerImportTests.OutputRoot;
-        Target Platform { OperatingSystem: "win64"; }
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
         RawOptions: ["-Sh-"];
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Config Options { DisableDefaultConfigFiles: True; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;

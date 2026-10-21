@@ -8,8 +8,8 @@ Project PluginTests TargetOS[linux] TargetCPU[x86_64] {
     Requires: [@Projects.NexusRTL, @Projects.NexusTest, @Projects.FCLProcess, @Projects.FCLBase];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/nexus2d-plugin-tests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/nxbuild/test/nxbuildPluginTests.lpr"];
         OutputPath: @PluginTests.OutputRoot;
         Config Options { DisableDefaultConfigFiles: True; }

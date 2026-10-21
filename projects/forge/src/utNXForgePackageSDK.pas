@@ -7,7 +7,7 @@ unit utNXForgePackageSDK;
 interface
 
 function WriteForgePackageSDKOptions(const ABootstrapDirectory,
-  AOutputDirectory: string): string;
+  AOutputDirectory, ATarget, ACompilerFileName: string): string;
 function WriteForgePackageSDKManifest(const ADirectory: string): string;
 
 implementation
@@ -38,7 +38,7 @@ begin
   end;
 end;
 
-function SDKIdentity(const ABootstrap, ASDK: string): string;
+function SDKIdentity(const ABootstrap, ASDK, ATarget, ACompilerFileName: string): string;
 var
   lParts: TStringList;
   lStream: TStringStream;
@@ -47,8 +47,8 @@ begin
   lParts := TStringList.Create;
   try
     lParts.LineBreak := #10;
-    lParts.Add(FileHash(ASDK + 'bin/ppcx64.exe'));
-    lParts.Add('x86_64-win64;-O2;-Ur;-Xs');
+    lParts.Add(FileHash(ASDK + 'bin/' + ACompilerFileName));
+    lParts.Add(ATarget + ';-O2;-Ur;-Xs');
     AddDirectoryHashes(ASDK + 'work/rtl-units', lParts);
     AddDirectoryHashes(ABootstrap + 'seed/rtl', lParts);
     lParts.Add(FileHash(ABootstrap + 'seed/build-options.cfg'));
@@ -66,20 +66,25 @@ begin
 end;
 
 function WriteForgePackageSDKOptions(const ABootstrapDirectory,
-  AOutputDirectory: string): string;
+  AOutputDirectory, ATarget, ACompilerFileName: string): string;
 var
   lSDK, lWork, lIdentity, lBuild: string;
   lRecord: TJSONObject;
 begin
-  // Bounded to the standard Win64 package SDK layout and release settings.
+  // Identity includes the selected native target and compiler artifact.
+  if (ATarget = '') or (ACompilerFileName = '') or
+    (ExtractFileName(ACompilerFileName) <> ACompilerFileName) then
+    raise Exception.Create('Package SDK requires a target and a compiler file name');
   lSDK := IncludeTrailingPathDelimiter(ExpandFileName(AOutputDirectory));
   lWork := lSDK + 'work/';
-  lIdentity := SDKIdentity(IncludeTrailingPathDelimiter(ABootstrapDirectory), lSDK);
+  lIdentity := SDKIdentity(IncludeTrailingPathDelimiter(ABootstrapDirectory), lSDK, ATarget, ACompilerFileName);
   lBuild := NewPackageBuildIdentity;
   lRecord := TJSONObject.Create;
   try
     lRecord.Add('SDK', lIdentity);
     lRecord.Add('Build', UpperCase(lBuild));
+    lRecord.Add('Target', ATarget);
+    lRecord.Add('CompilerFileName', ACompilerFileName);
     WriteText(lWork + 'identity.json', lRecord.AsJSON + #10);
     WriteText(lWork + 'foundation.cfg', '-Fj' + lIdentity + #10 + '-Fk' + UpperCase(lBuild) + #10);
     // Package search must precede -FP, which loads metadata while parsing options.
@@ -104,14 +109,14 @@ begin
   end;
 end;
 
-function CompilerVersion(const ASDK: string): string;
+function CompilerVersion(const ASDK, ACompilerFileName: string): string;
 var
   lInvocation: TNXForgeInvocation;
 begin
   lInvocation := TNXForgeInvocation.Create;
   try
     lInvocation.WorkingDirectory := ASDK;
-    lInvocation.Command := '"' + ASDK + 'bin/ppcx64.exe" -iV';
+    lInvocation.Command := '"' + ASDK + 'bin/' + ACompilerFileName + '" -iV';
     ExecuteForgeProcess(lInvocation);
     if not lInvocation.Succeeded then
       raise Exception.CreateFmt('Cannot read the SDK compiler version (exit %d): %s%s',
@@ -133,6 +138,10 @@ begin
   lSDK := IncludeTrailingPathDelimiter(ExpandFileName(ADirectory));
   lIdentity := ReadIdentity(lSDK + 'work/identity.json');
   try
+    if (lIdentity.Get('Target', '') = '') or
+      (lIdentity.Get('CompilerFileName', '') = '') or
+      (ExtractFileName(lIdentity.Get('CompilerFileName', '')) <> lIdentity.Get('CompilerFileName', '')) then
+      raise Exception.Create('Package SDK identity is missing its target or compiler file name');
     RequireHexIdentity(lIdentity.Get('SDK', ''), 64);
     RequireHexIdentity(lIdentity.Get('Build', ''), 32);
     CheckPackage(lSDK + 'packages/nxrtl.nxpl', lIdentity.Get('SDK', ''), lIdentity.Get('Build', ''), False);
@@ -140,10 +149,10 @@ begin
     lManifest := TJSONObject.Create;
     try
       lManifest.Add('Format', 2);
-      lManifest.Add('Target', 'x86_64-win64');
+      lManifest.Add('Target', lIdentity.Get('Target', ''));
       lManifest.Add('Experimental', True);
       lManifest.Add('Foundation', 'nxrtl');
-      lManifest.Add('CompilerVersion', CompilerVersion(lSDK));
+      lManifest.Add('CompilerVersion', CompilerVersion(lSDK, lIdentity.Get('CompilerFileName', '')));
       lManifest.Add('SmartLink', False);
       lManifest.Add('SDKIdentity', lIdentity.Get('SDK', ''));
       lArtifacts := TJSONArray.Create;
@@ -154,7 +163,7 @@ begin
         CollectFiles(lSDK + 'units', False, lFiles);
         CollectFiles(lSDK + 'packages', False, lFiles);
         lFiles.Sort;
-        lFiles.Insert(0, lSDK + 'bin/ppcx64.exe');
+        lFiles.Insert(0, lSDK + 'bin/' + lIdentity.Get('CompilerFileName', ''));
         for lFile in lFiles do
         begin
           lArtifact := TJSONObject.Create;

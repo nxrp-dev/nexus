@@ -5,19 +5,21 @@ dialect "../nxbuild/language/nxbuild.Language.nxscript";
 module Projects "../nxbuild/Projects.nxscript";
 module "../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusSetupBuilder TargetOS[win64] {
+Project NexusSetupBuilder TargetOS[linux, win64] {
     Id: "NXRP.Tools.NexusSetupBuilder";
-    Requires: [@Projects.NexusRTL, @Projects.NexusScript, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache];
+    Requires: [@Projects.NexusRTL, @Projects.FCLRes, @Projects.RTLSystem, @Projects.RTLGenerics, @Projects.NexusScript, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache];
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/NexusSetupBuilder/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/setup/NexusSetupBuilder.lpr"];
         OutputPath: @NexusSetupBuilder.OutputRoot;
-        Target Platform { OperatingSystem: "win64"; }
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
         RawOptions: ["-gl", "-Cr", "-Co", "-Ci"];
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [

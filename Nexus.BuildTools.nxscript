@@ -2,21 +2,30 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 
 dialect "projects/forge/language/Forge.nxscript";
+module "projects/nxbuild/nxbuild.environment.nxscript";
 
-// Shared settings imported by the root build. This module runs no tasks.
 Environment BuildTools {
     NXBuildTemplate: "projects/forge/templates/NXBuild.mustache";
-    BootstrapNXBuild: "output/nxbuild/x86_64-win64/nxbuild.exe";
-    NXBuild: "output/nxbuild-next/x86_64-win64/nxbuild.exe";
-    ClangTemplate: "projects/forge/templates/Clang.mustache";
-    LLVMArTemplate: "projects/forge/templates/LLVMAr.mustache";
-    Clang: "C:/Program Files/LLVM/bin/clang.exe";
-    ClangCXX: "C:/Program Files/LLVM/bin/clang++.exe";
-    LLVMAr: "C:/Program Files/LLVM/bin/llvm-ar.exe";
-    LLVMIncludes: [
-        "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.29.30133/include",
-        "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt",
-        "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared",
-        "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
-    ];
+    RunTemplate: "projects/forge/templates/Run.mustache";
+    NpmTemplate: "projects/forge/templates/Npm.mustache";
+    Root: @Tools.OutputRoot + "/system/" + @Tools.Native.Name + "/" + $BuildConfiguration;
+    CompilerRoot: @BuildTools.Root + "/compiler";
+    CompilerInstall: @BuildTools.Root + "/compiler-install";
+    HostStage: @BuildTools.Root + "/host";
+    ToolchainRoot: @Tools.ToolchainRoot;
+    EngineRoot: @Tools.OutputRoot + "/nexus2d/" + @Tools.Native.Name + "/" + $BuildConfiguration;
+    ExtensionStage: @BuildTools.Root + "/extension";
+    BootstrapNXBuild: @BuildTools.ToolchainRoot + "/bin/nxbuild" + @Tools.Native.ExecutableSuffix;
+    NXBuild: @Tools.OutputRoot + "/nxbuild-next/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxbuild" + @Tools.Native.ExecutableSuffix;
+    Forge: @Tools.OutputRoot + "/NexusForge-next/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxforge" + @Tools.Native.ExecutableSuffix;
+}
+Environment HostTools HostOS[linux] {
+    Npm: "npm";
+    ExtensionTarget: "linux-x64";
+    SeedCompiler: "/usr/bin/ppcx64";
+    SeedRTL: "/usr/lib/x86_64-linux-gnu/fpc/3.2.2/units/x86_64-linux/rtl";
+}
+Environment HostTools HostOS[win64] {
+    Npm: "npm.cmd";
+    ExtensionTarget: "win32-x64";
 }

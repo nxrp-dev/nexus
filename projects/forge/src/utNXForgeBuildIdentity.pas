@@ -9,9 +9,11 @@ interface
 function WriteForgeBuildIdentity(const ARepository, AOutputDirectory,
   AEpochOverride: string): string;
 
+function VerifyForgeBuildIdentity(const ACompiler, AIdentityFile: string): string;
+
 implementation
 
-uses Classes, SysUtils, DateUtils, fpjson, obNXForgeInvocation, obNXForgeProcess;
+uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXForgeInvocation, obNXForgeProcess;
 
 function ReadGit(const ARepository, AArguments: string): string;
 var
@@ -101,6 +103,55 @@ begin
     lRecord.Free;
   end;
   Result := 'Build identity: ' + lIdentity + '; compiler date: ' + lDate + ' ' + lTime + ' UTC' + LineEnding;
+end;
+
+function CompilerInformation(const ACompiler, AOption: string): string;
+var
+  lInvocation: TNXForgeInvocation;
+begin
+  lInvocation := TNXForgeInvocation.Create;
+  try
+    lInvocation.Command := '"' + ACompiler + '" ' + AOption;
+    lInvocation.WorkingDirectory := ExtractFileDir(ACompiler);
+    ExecuteForgeProcess(lInvocation);
+    if not lInvocation.Succeeded then
+      raise Exception.Create('Compiler information failed: ' + ACompiler + ' ' +
+        AOption + ': ' + lInvocation.Diagnostic + lInvocation.StdErr);
+    Result := Trim(lInvocation.StdOut);
+  finally
+    lInvocation.Free;
+  end;
+end;
+
+function VerifyForgeBuildIdentity(const ACompiler, AIdentityFile: string): string;
+var
+  lStream: TFileStream;
+  lRecord: TJSONData;
+  lIdentity, lDate, lVersion, lActualDate: string;
+begin
+  lStream := TFileStream.Create(AIdentityFile, fmOpenRead or fmShareDenyWrite);
+  try
+    lRecord := GetJSON(lStream);
+  finally
+    lStream.Free;
+  end;
+  try
+    if lRecord.JSONType <> jtObject then
+      raise Exception.Create('Build identity must be a JSON object');
+    lIdentity := (lRecord as TJSONObject).Get('Identity', '');
+    lDate := (lRecord as TJSONObject).Get('Date', '');
+    if (lIdentity = '') or (lDate = '') then
+      raise Exception.Create('Build identity requires Identity and Date');
+    lVersion := CompilerInformation(ACompiler, '-iW');
+    lActualDate := CompilerInformation(ACompiler, '-iD');
+    if Copy(lVersion, Length(lVersion) - Length(lIdentity), MaxInt) <> '-' + lIdentity then
+      raise Exception.Create('Compiler identity mismatch: ' + lVersion + '; expected ' + lIdentity);
+    if lActualDate <> lDate then
+      raise Exception.Create('Compiler date mismatch: ' + lActualDate + '; expected ' + lDate);
+    Result := 'Verified compiler identity: ' + lVersion + ' [' + lDate + ']' + LineEnding;
+  finally
+    lRecord.Free;
+  end;
 end;
 
 end.

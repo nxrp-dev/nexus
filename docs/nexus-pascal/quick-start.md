@@ -29,7 +29,6 @@ source-context behavior.
 Open the Nexus Pascal toolchain configuration UI and verify the relevant
 toolchain:
 
-- Lazarus for Lazarus projects and `lazbuild`
 - Free Pascal for direct `fpc` workflows
 - Android for future Android build and debug support
 
@@ -53,6 +52,4 @@ system paths.
 Use the VS Code task list or Nexus Pascal project commands to build the selected
 project.
 
-For Lazarus projects, Nexus Pascal can build through Lazarus tooling. For Nexus
-projects, build behavior is expected to flow through the Nexus project model and
-Nexus build tooling.
+For Nexus projects, use the Nexus project model and Nexus build tooling.

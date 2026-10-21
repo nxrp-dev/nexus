@@ -5,25 +5,26 @@ dialect "../../nxbuild/language/nxbuild.Language.nxscript";
 module Projects "../../nxbuild/Projects.nxscript";
 module "../../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusScriptLS TargetOS[win64] {
+Project NexusScriptLS TargetOS[linux, win64] {
     Id: "NXRP.Tools.NexusScriptLS";
-    Requires: [@Projects.NexusRTL, @Projects.NexusScript, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
+    Requires: [@Projects.RTLGenerics, @Projects.NexusRTL, @Projects.NexusScript, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusScriptLS/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/ls/nxscript/NexusScriptLS.lpr"];
         OutputPath: @NexusScriptLS.OutputRoot;
-        Target Platform { OperatingSystem: "win64"; }
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Language Pascal { Mode: ObjFPC; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             UnitPaths: [
                 "projects/ls/nxscript/src/model",
-                "projects/ls/nxscript/src/protocol",
-                "C:/lazarus" + "/components/lazutils"
+                "projects/ls/nxscript/src/protocol"
             ];
         }
     }

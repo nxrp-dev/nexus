@@ -16,6 +16,7 @@ uses
   obNXTestRPCRequests,
   tsNXJSONRPCEnvelopeTests,
   tsNXLSCoreTests,
+  tsNXLSProjectCreationTests,
   tsNXLSDiagnosticsTests,
   tsNXLSDocumentSymbolTests,
   tsNXLSExtensionEmulationTests,
@@ -46,6 +47,7 @@ procedure RegisterNXLSTests(ARegistry: TNXTestRegistry);
 begin
   RegisterNXJSONRPCEnvelopeTests(ARegistry);
   RegisterNXLSCoreTests(ARegistry);
+  RegisterNXLSProjectCreationTests(ARegistry);
   RegisterNXLSDiagnosticsTests(ARegistry);
   RegisterNXLSDocumentSymbolTests(ARegistry);
   RegisterNXLSExtensionEmulationTests(ARegistry);

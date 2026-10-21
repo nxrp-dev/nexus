@@ -9,8 +9,8 @@ Project NexusSetupTests {
     Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.FCLRes, @Projects.NexusScript, @Projects.NexusTest, @Projects.Serialization, @Projects.JSON, @Projects.FCLJSON, @Projects.SQLite, @Projects.Core, @Projects.Mustache, @Projects.HashLib4Pascal, @Projects.FCLBase, @Projects.Pthreads, @Projects.FCLProcess];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusSetupTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/setup/test/NexusSetupTests.lpr"];
         OutputPath: @NexusSetupTests.OutputRoot;
         RawOptions: ["-gl"];

@@ -19,7 +19,8 @@ type
 implementation
 
 uses
-  Windows,
+  {$IFDEF Windows}Windows,{$ENDIF}
+  {$IFDEF Linux}Linux, BaseUnix, UnixType,{$ENDIF}
   Classes,
   Contnrs,
   SysUtils,
@@ -171,6 +172,29 @@ begin
     MaxTicks := ADuration;
 end;
 
+function ImporterCounterFrequency: Int64;
+begin
+  {$IFDEF Windows}
+  if not QueryPerformanceFrequency(Result) then RaiseLastOSError;
+  {$ELSE}
+  Result := 1000000000;
+  {$ENDIF}
+end;
+
+procedure ReadImporterCounter(out AValue: Int64);
+{$IFDEF Linux}
+var
+  lTime: TTimespec;
+{$ENDIF}
+begin
+  {$IFDEF Windows}
+  if not QueryPerformanceCounter(AValue) then RaiseLastOSError;
+  {$ELSE}
+  if clock_gettime(CLOCK_MONOTONIC, @lTime) <> 0 then RaiseLastOSError;
+  AValue := Int64(lTime.tv_sec) * 1000000000 + lTime.tv_nsec;
+  {$ENDIF}
+end;
+
 constructor TNXTraceImporter.Create(ADatabase: TNXProfileDatabase);
 begin
   inherited Create;
@@ -178,7 +202,7 @@ begin
   FThreads := TFPHashObjectList.Create(True);
   FProcedureTotals := TFPHashObjectList.Create(True);
   FCallEdges := TFPHashObjectList.Create(True);
-  QueryPerformanceFrequency(FPerformanceFrequency);
+  FPerformanceFrequency := ImporterCounterFrequency;
 end;
 
 destructor TNXTraceImporter.Destroy;
@@ -279,10 +303,10 @@ begin
   lStart := 0;
   lStageStart := 0;
   lStageEnd := 0;
-  QueryPerformanceCounter(lStart);
+  ReadImporterCounter(lStart);
   FDatabase.AddCall(FTraceId, AThread.ThreadId, ASequence,
     ACallIndex, ACall);
-  QueryPerformanceCounter(lStageEnd);
+  ReadImporterCounter(lStageEnd);
   FLastCallMetrics.DatabaseTicks := lStageEnd - lStart;
   Inc(FProcessedCalls);
   if (ACall.Flags and cNXProfileCallUnmatched) <> 0 then
@@ -292,34 +316,34 @@ begin
       ACallIndex, 'unmatched_terminal',
       Format('terminal event for procedure %u has no matching enter',
       [ACall.ProcedureId]));
-    QueryPerformanceCounter(lStageEnd);
+    ReadImporterCounter(lStageEnd);
     FLastCallMetrics.IssueTicks := lStageEnd - lStageStart;
     FLastCallMetrics.TotalTicks := lStageEnd - lStart;
     Exit;
   end;
 
-  QueryPerformanceCounter(lStageStart);
+  ReadImporterCounter(lStageStart);
   lTotal := ProcedureTotal(ACall.ProcedureId);
-  QueryPerformanceCounter(lStageEnd);
+  ReadImporterCounter(lStageEnd);
   FLastCallMetrics.ProcedureLookupTicks := lStageEnd - lStageStart;
 
   lStageStart := lStageEnd;
   lTotal.AddCall(ACall.InclusiveTicks, ACall.SelfTicks,
     (ACall.Flags and cNXProfileCallUnwind) <> 0);
-  QueryPerformanceCounter(lStageEnd);
+  ReadImporterCounter(lStageEnd);
   FLastCallMetrics.ProcedureUpdateTicks := lStageEnd - lStageStart;
 
   if ACall.CallerProcedureId <> 0 then
   begin
     lStageStart := lStageEnd;
     lEdge := CallEdge(ACall.CallerProcedureId, ACall.ProcedureId);
-    QueryPerformanceCounter(lStageEnd);
+    ReadImporterCounter(lStageEnd);
     FLastCallMetrics.EdgeLookupTicks := lStageEnd - lStageStart;
 
     lStageStart := lStageEnd;
     Inc(lEdge.Calls);
     Inc(lEdge.InclusiveTicks, ACall.InclusiveTicks);
-    QueryPerformanceCounter(lStageEnd);
+    ReadImporterCounter(lStageEnd);
     FLastCallMetrics.EdgeUpdateTicks := lStageEnd - lStageStart;
   end;
   FLastCallMetrics.TotalTicks := lStageEnd - lStart;

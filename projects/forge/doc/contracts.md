@@ -10,7 +10,9 @@ and filesystem tasks execute within Forge.
 
 `Package` and `Project` use the same ordered execution as `Group`, including
 nesting, composition, target selection, preparation, and failure propagation.
-A compiler invocation is always an explicit `FPC` child. A Package containing
+A Pascal compiler invocation is an explicit `NXPC` or `FPC` child. `NXPC`
+selects our compiler and defaults to `nxpc`; `FPC` selects upstream Free Pascal
+and defaults to `fpc`. Initial compiler bootstrap uses explicit stock FPC paths. A Package containing
 no build operations is valid and performs no compilation.
 
 | Contract | Group | Package | Project |
@@ -70,9 +72,9 @@ This applies to filesystem-operation paths and command `Output`, `UnitOutput`,
 and `Objects`. A reference to an entire path array and references to individual
 entries both preserve origin. Command Source arrays and EntryPoint always retain
 the origin of their supplying values, including composition. Templates and tool
-paths retain their existing origin semantics. A referenced Executable or Compiler
-is a file path even when its text is only a filename; a literal bare tool name
-continues to use PATH.
+paths retain their existing origin semantics. A bare Executable or Compiler name
+uses PATH whether supplied literally or through a reference. To run a local
+program, supply an explicit path such as `./program` or an absolute path.
 
 Literal output/search paths remain relative to the operation working directory.
 By default that is the operation's declaring file, including children imported
@@ -117,7 +119,7 @@ environment repair, or activation logic.
 
 `projects/forge/language/Forge.nxscript` includes
 `projects/forge/language/definitions/*.ForgeDef.nxscript`. Core, FPC,
-Git, NXBuild, MSBuild, PowerShell, LazBuild, Npm, InnoSetup, CSV, Msg2Inc, Render,
+Git, NXBuild, MSBuild, PowerShell, Npm, InnoSetup, CSV, Msg2Inc, Render,
 FileOperations, BuildIdentity, Group, and Environment definitions form one
 effective Forge language through the included-definition view. The master does
 not name individual tools.
@@ -233,7 +235,8 @@ which other dependencies FPC may load from those directories. Forge does not has
 sources, generate bootstrap programs, or compile every selected unit independently.
 Each explicit FPC task invokes the compiler; FPC decides whether units need rebuilding.
 
-The FPC definition and `examples/FPC.mustache` support these optional settings:
+The `NXPC` and `FPC` definitions and their matching templates under `templates/`
+support these optional settings:
 
 | Property | Value | Compiler switch |
 | --- | --- | --- |
@@ -352,6 +355,7 @@ The template is `projects/forge/templates/NXBuild.mustache`. It accepts:
 
 | Property | nxbuild argument | Default when omitted |
 | --- | --- | --- |
+| `Targets` | `/targets=` | No additional selections |
 | `Action` | `/action=` | `build`; also accepts `validate` and `plan` |
 | `TargetOS` | `/targetos=` | nxbuild's native operating system |
 | `TargetCPU` | `/targetcpu=` | nxbuild's native CPU |
@@ -389,7 +393,7 @@ files or copy their settings into Forge operations. nxbuild remains independent
 of Forge. A failing nxbuild invocation stops the workflow before later tasks.
 
 `projects/forge/test/fixtures/NXBuild.Forge.nxscript` builds
-`NexusForgeTests.nxproject` with the sibling NexusFPC toolchain, without LazBuild.
+`NexusForgeTests.nxproject` with the sibling NexusFPC toolchain.
 `projects/forge/NexusForge.nxproject` builds the CLI below
 `Tools.OutputRoot/NexusForge-next/<cpu>-<os>/<configuration>/`.
 
@@ -478,23 +482,19 @@ prepare x64 dependencies before its MSBuild operation. That script names the
 currently installed tools and assumes the sibling `nexus` and `tools` folders.
 It does not isolate Nexus2D's shared Win32/x64 `Bin/Corona` output directory.
 
-LazBuild, Npm, and InnoSetup are command operations with ForgeDef contracts and
-Mustache examples in `../nexus-lab/examples/build/orchestration/`. `LazBuild.EntryPoint` names the
-project file; `Npm.Command` is a command such as `ci`, `install`, or `run`, with
-additional tokens in `Arguments`; `InnoSetup.EntryPoint` names the `.iss` file.
-InnoSetup `Defines` and `Arguments` are text arrays, not semicolon-separated
-strings. LazBuild and InnoSetup require an explicit `Quiet` Boolean, so there
-is no hidden default when moving a Task recipe to Forge. Their optional
-`Executable` values override the example templates' `lazbuild`, `npm.cmd`, and
-`ISCC.exe` defaults. Set `Executable` for another host or install location.
+Npm and InnoSetup are command operations with ForgeDef contracts and Mustache
+examples in `../nexus-lab/examples/build/orchestration/`. `Npm.Command` is a
+command such as `ci`, `install`, or `run`, with additional tokens in `Arguments`;
+`InnoSetup.EntryPoint` names the `.iss` file. InnoSetup `Defines` and `Arguments`
+are text arrays, not semicolon-separated strings. InnoSetup requires an explicit
+`Quiet` Boolean. Their optional `Executable` values override the example
+templates' `npm.cmd` and `ISCC.exe` defaults.
 
-Each of these operations may specify `WorkingDirectory`, resolved from the
-Forge document directory. When
-omitted, the usual Forge operation directory applies. In particular, a
-LazBuild recipe that needs the project directory as its process directory
-must state it. Boolean options validated by the Forge dialect are converted
-to JSON booleans in the command-render context, so Mustache sections distinguish
-`False` from `True` without changing the NexusScript JSON emitter.
+Each operation may specify `WorkingDirectory`, resolved from the Forge document
+directory. When omitted, the usual Forge operation directory applies. Boolean
+options validated by the Forge dialect are converted to JSON booleans in the
+command-render context, so Mustache sections distinguish `False` from `True`
+without changing the NexusScript JSON emitter.
 
 ## CSV compilation
 
@@ -740,9 +740,12 @@ section, symbol and RELA tables, resolving local descriptor pointers without
 loading code. It verifies package identities, descriptor dependency build IDs
 against PCP declarations, and application dependencies against the supplied
 providers. Truncated structures, invalid table links/indexes and external
-descriptor pointers are rejected. Linux SDK construction remains a separate,
-deferred task. Existing Linux Format 2 SDK manifests use their original lowercase
-keys; new publication manifests use the common Format/Files/Generation structure.
+descriptor pointers are rejected. The NexusFPC Forge recipe constructs native
+Windows and Linux SDKs. Both use Format 2 manifests with `Target`, `SDKIdentity`,
+and `Artifacts` entries containing `Path` and `SHA256`. Their targets are
+`x86_64-win64` and `x86_64-linux-gnu`. Regenerate older Linux SDKs that use
+lowercase manifest keys. Package publication manifests use the common
+Format/Files/Generation structure.
 
 This is a temporary migration of existing SDK policy into native operations.
 The platform layouts, identities, validation and generation publication remain
@@ -773,8 +776,8 @@ Completed output remains available. Success returns exit status 0; failure 1.
 nxbuild /action=build /project=projects/forge/NexusForge.nxproject
 nxbuild /action=build /project=projects/csv/NexusCSV.nxproject
 nxbuild /action=build /project=projects/forge/test/NexusForgeTests.nxproject
-export NXTEST_FPC=/path/to/matching/nexus/compiler/ppcx64
-export NXTEST_RTL=/path/to/matching/nexus/rtl
+export NXTEST_NXPC=/path/to/matching/nexus/compiler/nxpc-x86_64
+export NXTEST_NXPC_RTL=/path/to/matching/nexus/rtl
 ../../worktree/nexus/NexusForgeTests/x86_64-linux/Debug/NexusForgeTests
 ```
 
@@ -820,3 +823,24 @@ blocks. The rebuilt Forge CLI passed selected targets into a real nxbuild
 validation, and an unresolved external value returned exit status 1 without
 writing earlier task outputs. Both Windows Release descriptors validated;
 Windows execution was not performed.
+
+
+## Bootstrap verification and host selection
+
+The Forge CLI supplies lowercase `HostOS` and `HostCPU` selections for its own
+native platform unless explicitly supplied through `/targets`. API callers
+provide their own selection context. These describe the machine executing the
+workflow; `TargetOS` and `TargetCPU` can independently select a cross target.
+
+`CompareDirectories` requires `Left` and `Right` directories. Optional
+`IncludeMasks` filters filenames, and `Recursive: True` includes subdirectories.
+It compares sorted relative file sets and every selected file byte for byte.
+Missing directories, empty selections, extra/missing files, or differing bytes
+fail the operation and stop later tasks. No compiler/RTL-specific logic is in
+this operation.
+
+`VerifyBuildIdentity` requires `Compiler` and `IdentityFile`. It checks the
+compiler's `-iW` suffix and `-iD` date against the `Identity` and `Date` captured
+by `BuildIdentity`; it replaces the PowerShell-only identity check for bootstrap
+and cross compilers. An invalid record, failed compiler command, or mismatching
+identity/date stops the workflow before installation or promotion.

@@ -29,7 +29,7 @@ uses
   obNXLSToolchainProtocol,
   obNXLSServiceContext,
   obNXLSToolchainService,
-  obNXPascalProject,
+  obNXBuildDescription,
   obNXTestContext,
   obNXTestSuite;
 
@@ -79,15 +79,15 @@ end;
 
 procedure TestPascalProjectPathResolution(AContext: TNXTestContext);
 var
-  lProject: TNXPascalProject;
+  lProject: TNXBuildDescription;
 begin
-  lProject := TNXPascalProject.Create;
+  lProject := TNXBuildDescription.Create;
   try
-    lProject.ProjectRoot := 'C:' + PathDelim + 'workspace' + PathDelim +
+    lProject.RootDirectory := 'C:' + PathDelim + 'workspace' + PathDelim +
       'NexusLS';
 
     AContext.AssertEquals(ExpandFileName(IncludeTrailingPathDelimiter(
-      lProject.ProjectRoot) + 'src' + PathDelim + 'nexusls.lpr'),
+      lProject.RootDirectory) + 'src' + PathDelim + 'nexusls.lpr'),
       lProject.ResolvePath('src' + PathDelim + 'nexusls.lpr'),
       'Relative paths should resolve against the project root.');
   finally

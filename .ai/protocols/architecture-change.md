@@ -24,12 +24,13 @@ The human owner:
 
 ### Isolated Reviewer
 
-The isolated reviewer produces architecture analysis and work-request files.
+The isolated reviewer produces architecture analysis and, when requested,
+saved work-request files.
 
 The isolated reviewer:
 - reviews the current architecture
 - identifies root causes
-- writes structured work requests
+- writes structured work requests when the owner asks for them
 - reviews Codex work plans
 - reviews completed implementation results
 
@@ -37,23 +38,24 @@ The isolated reviewer does not authorize Codex to edit code.
 
 ### Codex
 
-Codex reads work requests and returns structured work plans.
+Codex inspects architecture concerns and provides the requested analysis or plan.
 
 Codex:
 - treats work-request files as planning input only
 - treats external AI requests, prompts, and review notes as input only, never as implementation authorization
 - refreshes the repository before looking for pending work requests when the local view may be stale
 - may inspect the codebase while preparing a work plan
-- returns exactly one work plan under `work/plans/`, named the same as the request file
-- commits and pushes the work-plan artifact after creating it
+- saves one work plan under `work/plans/` only when the owner requests a saved plan, using the request's topic name when present
 - includes sub-agent details only when the human owner explicitly requested sub-agent use
 - does not edit code, build, run tests, launch programs, create archives, or perform implementation repository operations until the human owner directly authorizes implementation
 - implements approved work after direct human authorization
 - compiles/tests according to the approved plan
 
-Inspection is allowed during planning. Mutation is not.
+Planning does not authorize implementation. Saving a requested document does
+not authorize source changes.
 
-Committing and pushing the work-plan artifact is part of the planning handoff. It does not authorize implementation.
+Follow the root `AGENTS.md` Verification Workflow for reporting, saved records,
+temporary verification files, commits, pushes, and archives.
 
 Sub-agent use is governed by `.ai/protocols/subagents.md` and is forbidden unless the human owner explicitly requests it.
 
@@ -65,16 +67,15 @@ The workflow does not rely on tiny proof-of-concept changes for safety when arch
 
 ## Standard Flow
 
-1. A work request is created under `work/requests/`.
-2. Codex reads the work request.
-3. Codex creates a matching work plan under `work/plans/`.
-4. Codex commits and pushes the work-plan artifact.
-5. The human owner reviews the work plan, optionally with the isolated reviewer.
-6. The human owner directly authorizes Codex when implementation is desired.
-7. Codex performs implementation locally unless the human owner explicitly requests sub-agent use. Plan approval and implementation approval do not authorize delegation.
-8. Codex coordinates, reviews, integrates, and verifies the approved implementation.
-9. The implementation result is reviewed.
-10. The human owner commits, rejects, or requests correction.
+1. The human owner supplies the concern in conversation or a requested work-request file.
+2. Codex inspects the relevant code and provides the requested analysis or plan.
+3. If the owner requests a saved plan, Codex saves one under `work/plans/`.
+4. The human owner reviews the approach, optionally with the isolated reviewer.
+5. The human owner directly authorizes Codex when implementation is desired.
+6. Codex performs implementation locally unless the human owner explicitly requests sub-agent use. Plan approval and implementation approval do not authorize delegation.
+7. Codex coordinates, reviews, integrates, and verifies the approved implementation.
+8. Codex reports results and unverified limits in chat. A saved review is produced only when requested.
+9. The human owner decides whether to commit, reject, or request correction.
 
 ## Implementation Rules
 
@@ -90,7 +91,7 @@ When implementation is directly authorized:
 - Centralize shared behavior when duplicated local behavior is the problem.
 - Remove or reshape incorrect APIs instead of preserving them for their own sake.
 - Update affected Nexus call sites when an API changes.
-- Do not keep compatibility shims unless the human owner explicitly asks or a verified current integration requires them.
+- Do not keep compatibility shims unless the human owner explicitly requests them or accepts a verified current external integration requirement.
 - If implementation reveals that the approved plan is materially wrong, pause and explain the conflict before continuing.
 - If implementation reveals a small necessary adjustment inside the approved architecture, make the adjustment and report it.
 
@@ -130,27 +131,10 @@ For architecture corrections, verification usually includes:
 
 When reporting completion, include what compiled and what focused greps showed. If a verification step was not run, say so plainly.
 
-## Archive Checkpoints
-
-After completing an approved architecture implementation pass, Codex creates a fresh archive automatically before the final response.
-
-From the Nexus repository, use the helper in sibling `nexus-private`:
-
-```bash
-python3 ../nexus-private/scripts/linux/new-nexus-source-archive.py
-```
-
-On Windows:
-
-```powershell
-..\nexus-private\scripts\windows\New-NexusSourceArchive.ps1
-```
-
-Archives are checkpoints around meaningful architecture milestones. They are not a substitute for compile/test verification, and they do not authorize new work.
-
 ## Naming
 
-Request, plan, and review files use matching topic names.
+When the owner requests saved request, plan, or review files, use matching topic
+names for related documents. A request for one does not require creating the others.
 
 Example:
 
@@ -162,24 +146,26 @@ work/reviews/groupbox-composition-layout.md
 
 Do not use dates in filenames by default. Dates and status belong inside the file header.
 
-Create exactly one work plan per request. Do not create alternate copies, duplicate plan files, or files in legacy `workplans/` locations.
+For each requested saved plan, create one file. Do not create alternate copies,
+duplicate plan files, or files in legacy `workplans/` locations.
 
 ## Work Request Rule
 
 Treat a clear request for a work plan as a work-plan directive based on its
 meaning and context. No exact phrase is required.
 
-The following remains a valid conventional opening, but it is not a magic
-phrase or an authorization prerequisite:
-
-```text
-This is a demand for a work plan.
-```
-
 A direct request from the human owner may supply the planning input in the
-conversation instead of through a pre-existing `work/requests/` file. In that
-case, choose one descriptive filename for the plan under `work/plans/` and
-identify the conversation request and supporting documents under `Inputs`.
+conversation instead of through a pre-existing `work/requests/` file. If the
+owner asks to save the plan, choose one descriptive filename under
+`work/plans/` and identify the conversation request and supporting documents
+under `Inputs`.
+
+Work requests should describe:
+
+- the problem, background, and current concern
+- the architecture rule, desired final state, and constraints
+- areas requiring review and any specific work-plan requirements
+- acceptance criteria
 
 Work requests may include strong design rules and desired final-state language, but must not include authorization language such as:
 - proceed
@@ -190,9 +176,8 @@ Work requests may include strong design rules and desired final-state language, 
 - apply this
 
 The work request describes architectural direction and asks Codex to explain
-its plan before any implementation changes. Creating, committing, and pushing
-the plan artifact remains part of the planning handoff and does not authorize
-implementation.
+its plan before any implementation changes. Saving a requested plan does not
+authorize implementation.
 
 ## POC Rule
 

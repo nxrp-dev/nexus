@@ -1,14 +1,14 @@
 # Nexus Pascal Agent Notes
 
-This file defines how Codex should work in this repository.
+Follow the Nexus root [AGENTS.md](../../AGENTS.md), including its rules on instruction sources.
+
+These rules apply to `projects/nexuscode`.
 
 ## Project Direction
 
 - Nexus Pascal is a hard fork of FPCToolkit.
-- The goal is a full VS Code based Pascal/Lazarus IDE, not long-term compatibility with the original extension.
+- The goal is a full VS Code based Pascal IDE, not long-term compatibility with the original extension.
 - Prefer clear, correct behavior over backward compatibility. When a concept is renamed or removed, remove the old concept cleanly.
-- Lazarus support should respect Lazarus project/build-mode semantics. Do not assume raw FPC settings can fully describe a Lazarus project.
-- Be especially careful around build settings. Lazarus/lazbuild derives paths and options from project state, target OS/CPU, build mode, packages, and conditionals.
 
 ## Collaboration Rules
 
@@ -32,7 +32,7 @@ This file defines how Codex should work in this repository.
 
 - Keep removals clean. Do not leave compatibility shims unless explicitly requested.
 - Avoid broad refactors while removing one feature. Remove the requested feature and adjacent dead code only.
-- Opportunistic refactoring is allowed in this codebase, but Codex must tell the user what was refactored and why.
+- Do not perform opportunistic refactors; follow the root scope rules.
 - Prefer structured, named settings over raw string escape hatches.
 - Avoid user-configured filesystem deletion behavior.
 - Do not reintroduce:
@@ -50,12 +50,10 @@ This file defines how Codex should work in this repository.
 
 - User-facing/global custom options have been removed.
 - User-facing task custom options have been removed.
-- Lazarus internal custom option translation remains intentionally. It currently carries compiler flags parsed or derived from `.lpi` data.
-- Do not blindly delete the Lazarus internal path. Review and rename/refactor it separately if needed.
 
 ## Debugging
 
-- Nexus Pascal builds Pascal/FPC/Lazarus projects.
+- Nexus Pascal builds Pascal projects.
 - `cppdbg` is the VS Code debug adapter type supplied by `ms-vscode.cpptools`; it does not mean the project is C/C++.
 - Debug provider registration should target `cppdbg`, not `*`.
 - The current debug auto-build gate is active-editor based. A smarter project-aware gate may be revisited later.

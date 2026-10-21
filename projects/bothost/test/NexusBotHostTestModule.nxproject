@@ -11,8 +11,8 @@ Project NexusBotHostTestModule TargetOS[win64] {
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusBotHostTestModule/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/bothost/test/NexusBotHostTestModule.lpr"];
         OutputPath: @NexusBotHostTestModule.OutputRoot;
         Target Platform { OperatingSystem: "win64"; }

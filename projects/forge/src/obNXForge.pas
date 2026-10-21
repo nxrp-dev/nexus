@@ -235,8 +235,7 @@ begin
   lValue := AContext.Find(AProperty);
   if lValue = nil then Exit;
   lExecutable := lValue.AsString;
-  if (Pos('/', lExecutable) = 0) and (Pos('\', lExecutable) = 0) and
-    not IsInternalReference(AOperation.FindProperty(AProperty).Value) then Exit;
+  if (Pos('/', lExecutable) = 0) and (Pos('\', lExecutable) = 0) then Exit;
   if (ExtractFileDrive(lExecutable) <> '') or IsPathDelimiter(lExecutable, 1) then Exit;
   AContext.Strings[AProperty] := OperationFilePath(AOperation, AProperty);
 end;

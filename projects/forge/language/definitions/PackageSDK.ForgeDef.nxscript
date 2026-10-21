@@ -8,6 +8,8 @@ Language ForgePackageSDK {
             UnknownProperties: Reject;
             UnknownChildren: Reject;
             Properties: [
+                Property Target { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property CompilerFileName { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property BootstrapDirectory { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property OutputDirectory { Required: True; Value Value { EffectiveCategories: [Text]; } }
             ];

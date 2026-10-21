@@ -1,6 +1,7 @@
 # Patch Review Protocol
 
-Patch review checks implementation against the approved plan.
+Patch review checks implementation against the owner's requested scope and
+approved design, using a work plan when one was provided.
 
 ## Review Goal
 
@@ -15,9 +16,9 @@ Did it introduce new ownership, lifecycle, routing, or rendering ambiguity?
 ## Review Inputs
 
 Use:
-- the approved work request
-- the approved work plan
-- the implementation diff or archive
+- the owner's requirements
+- the approved work request or plan, when provided
+- the implementation diff, or an archive when supplied
 - compile/test results if available
 
 ## Review Priorities
@@ -38,7 +39,10 @@ Look for:
 
 ## Review Output
 
-Use this structure:
+Report findings and verification limits in chat. Save a review only when the
+owner requests one, following the root `AGENTS.md` Verification Workflow.
+
+For a requested saved review, use this structure:
 
 ```markdown
 # Review: <Topic>
@@ -72,4 +76,5 @@ Provide a concise commit message if accepted.
 
 Do not reopen unrelated architecture work during patch review.
 
-If a new architecture issue is discovered, record it as follow-up work unless it blocks the current pass.
+If a new architecture issue is discovered, report it to the owner. Do not start
+unrelated work or create an unrequested tracking artifact.

@@ -11,9 +11,9 @@ Project nxbuildTests {
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/nxbuildTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
+    NXPC Compiler {
         SourceFiles: ["projects/nxbuild/test/nxbuildTests.lpr"];
-        CompilerPath: @Tools.Native.FPCCompiler;
+        CompilerPath: @Tools.Native.NXPCCompiler;
         Target Platform { OperatingSystem: @Tools.Native.OS; }
         OutputPath: @nxbuildTests.OutputRoot;
         RawOptions: ["-gh", "-gl"];

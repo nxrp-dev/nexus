@@ -7,7 +7,7 @@ Project NexusForgeTests {
     Id: "NXRP.NexusForgeTests";
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/NexusForgeTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Application {
+    NXPC Application {
         CompilerPath: @Tools.Native.ForgeCompilerPath;
         SourceFiles: ["projects/forge/test/NexusForgeTests.lpr"];
         OutputPath: @NexusForgeTests.OutputRoot;
@@ -47,21 +47,21 @@ Project NexusForgeTests {
                 "packages/nexus-packages/db/sqlite/src/bindings",
                 "packages/nexus-packages/serialization/fcl-json/src",
                 "packages/nexus-packages/fcl-process/src",
-                @Tools.NexusFPC.SourcePath + "/compiler",
-                @Tools.NexusFPC.SourcePath + "/rtl/objpas",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NXPC.SourcePath + "/compiler",
+                @Tools.NXPC.SourcePath + "/rtl/objpas",
+                @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NXPC.SourcePath + "/packages/rtl-generics/src",
+                @Tools.NXPC.SourcePath + "/packages/rtl-extra/src/inc",
+                @Tools.NXPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform,
                 "packages/nexus-packages/fcl-base/src",
                 "packages/nexus-packages/pthreads/src",
                 "packages/nexus-packages/fcl-base/src/" + @Tools.Native.PascalPlatform];
-            IncludePaths: [@Tools.NexusFPC.SourcePath + "/rtl/inc",
+            IncludePaths: [@Tools.NXPC.SourcePath + "/rtl/inc",
                 "packages/nexus-packages/hashlib4pascal/external/hashlib4pascal/HashLib/src/Simd/Backend",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/inc",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
-                @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc",
+                @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/inc",
+                @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/" + @Tools.Native.PascalPlatform,
+                @Tools.NXPC.SourcePath + "/packages/rtl-objpas/src/x86_64",
+                @Tools.NXPC.SourcePath + "/packages/rtl-generics/src/inc",
                 "packages/nexus-packages/fcl-base/src",
                 "packages/nexus-packages/pthreads/src",
                 "packages/nexus-packages/fcl-base/src/" + @Tools.Native.PascalPlatform,

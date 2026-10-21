@@ -444,6 +444,80 @@ begin
   end;
 end;
 
+procedure TestMissingBMP(AContext: TNXTestContext);
+var
+  lTargets: TNexusScriptTargetSelection;
+  lLoader: TNXBuildDescriptionLoader;
+  lPlanner: TNXBuildPlanner;
+  lDescription: TNXBuildDescription;
+  lPlan: TNXBuildPlan;
+  lStep, lSelectedStep: TNXBuildStep;
+  lParameters: TStringList;
+  lArguments: array of string;
+  lFileName, lProbe, lOutput, lMissing: string;
+  lIndex: Integer;
+begin
+  lTargets := TNexusScriptTargetSelection.Create;
+  lLoader := TNXBuildDescriptionLoader.Create;
+  lPlanner := TNXBuildPlanner.Create;
+  lParameters := TStringList.Create;
+  lDescription := nil;
+  lPlan := nil;
+  try
+    lTargets.Add('TargetOS', 'linux');
+    lTargets.Add('TargetCPU', 'x86_64');
+    lTargets.Add('BuildConfiguration', 'Debug');
+    lDescription := lLoader.LoadDescription(lEngineProject, lTargets);
+    lPlan := lPlanner.CreatePlan(lDescription, False);
+    lFileName := ExtractFilePath(lEngineProject) + 'platform/shared/Rtt_BitmapUtils.cpp';
+    lSelectedStep := nil;
+    for lStep in lPlan.Steps do
+      if lStep.SourceFiles.IndexOf(lFileName) >= 0 then
+      begin
+        lSelectedStep := lStep;
+        Break;
+      end;
+    AContext.AssertTrue(lSelectedStep <> nil, 'The engine must compile its bitmap loader');
+    lParameters.Assign(lSelectedStep.Arguments);
+    for lIndex := lParameters.Count - 1 downto 0 do
+      if lParameters[lIndex] = '-c' then lParameters.Delete(lIndex);
+    lParameters.Add('-O1');
+    lParameters.Add('-fsanitize=return');
+    lParameters.Add('-fno-sanitize-recover=return');
+    lParameters.Add('-no-pie');
+    lParameters.Add('-ffunction-sections');
+    lParameters.Add('-fdata-sections');
+    lParameters.Add('-Wl,--gc-sections');
+    lParameters.Add('--driver-mode=g++');
+    lParameters.Add(lFileName);
+    lParameters.Add(IncludeTrailingPathDelimiter(lDescription.RootDirectory) +
+      'projects/nxbuild/test/fixtures/engine-memory/bitmap_missing.cpp');
+    lParameters.Add('-lSDL2');
+    lParameters.Add('-lpng');
+    lParameters.Add('-ljpeg');
+    lProbe := ExtractFilePath(ExpandFileName(ParamStr(0))) + 'engine-bitmap-missing-probe';
+    lParameters.Add('-o');
+    lParameters.Add(lProbe);
+    SetLength(lArguments, lParameters.Count);
+    for lIndex := 0 to lParameters.Count - 1 do lArguments[lIndex] := lParameters[lIndex];
+    AContext.AssertTrue(RunCommandIndir(lDescription.RootDirectory,
+      lSelectedStep.Executable, lArguments, lOutput, [poStderrToOutPut]),
+      'Compile the actual bitmap loader with return checking: ' + lOutput);
+    lMissing := lProbe + '.missing.bmp';
+    AContext.AssertFalse(FileExists(lMissing), 'The missing-file fixture must not exist');
+    AContext.AssertTrue(RunCommandIndir(ExtractFilePath(lProbe),
+      lProbe, [lMissing], lOutput, [poStderrToOutPut]),
+      'A missing BMP must return a null image: ' + lOutput);
+  finally
+    lParameters.Free;
+    lPlan.Free;
+    lDescription.Free;
+    lPlanner.Free;
+    lLoader.Free;
+    lTargets.Free;
+  end;
+end;
+
 procedure TestIndexArrayUInt32Allocation(AContext: TNXTestContext);
 begin
   CheckIndexArrayAllocation(AContext, 'uint32');
@@ -640,6 +714,8 @@ begin
   lSuite := ARegistry.AddSuite('Nexus2D.Memory');
   lSuite.AddTest('IndexArrayUInt32Allocation', @TestIndexArrayUInt32Allocation);
   lSuite.AddTest('IndexArrayUInt16Allocation', @TestIndexArrayUInt16Allocation);
+  lSuite := ARegistry.AddSuite('Nexus2D.Bitmap');
+  lSuite.AddTest('MissingBMP', @TestMissingBMP);
 end;
 
 end.

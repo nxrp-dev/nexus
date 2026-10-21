@@ -1,0 +1,144 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "projects/forge/language/Forge.nxscript";
+module "Nexus.BuildTools.nxscript";
+
+// Stage only completed products. Every named source is required.
+Project StageSystem HostCPU[x86_64] HostOS[linux, win64] {
+    Id: "NXRP.System.Stage";
+    Outputs: [Host: @BuildTools.HostStage];
+    DeletePath CleanHost { Path: @BuildTools.HostStage; Recursive: True; }
+    CopyFile nxbuild {
+        Source: @Tools.OutputRoot + "/nxbuild-next/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxbuild" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/nxbuild" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile nxforge {
+        Source: @Tools.OutputRoot + "/NexusForge-next/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxforge" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/nxforge" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusScript {
+        Source: @Tools.OutputRoot + "/NexusScript/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusScript" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusScript" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile nxcsv {
+        Source: @Tools.OutputRoot + "/NexusCSV/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxcsv" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/nxcsv" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusProfilerImport {
+        Source: @Tools.OutputRoot + "/NexusProfilerImport/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusProfilerImport" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusProfilerImport" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusScriptLS {
+        Source: @Tools.OutputRoot + "/NexusScriptLS/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusScriptLS" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusScriptLS" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile nexusls {
+        Source: @Tools.OutputRoot + "/nexusls/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nexusls" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/nexusls" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusBotHost {
+        Source: @Tools.OutputRoot + "/NexusBotHost/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusBotHost" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusBotHost" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile nxtest_host {
+        Source: @Tools.OutputRoot + "/nxtest_host/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxtest_host" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/nxtest_host" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusTestUI {
+        Source: @Tools.OutputRoot + "/NexusTestUI/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusTestUI" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusTestUI" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile nxpackage {
+        Source: @Tools.OutputRoot + "/nxpackage/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/nxpackage" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/nxpackage" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusSetupBuilder {
+        Source: @Tools.OutputRoot + "/NexusSetupBuilder/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusSetupBuilder" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusSetupBuilder" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile NexusSetup {
+        Source: @Tools.OutputRoot + "/NexusSetup/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/NexusSetup" + @Tools.Native.ExecutableSuffix;
+        Destination: @BuildTools.HostStage + "/bin/NexusSetup" + @Tools.Native.ExecutableSuffix;
+    }
+    CopyFile SQLiteLinux HostOS[linux] {
+        Source: @Tools.OutputRoot + "/SQLiteNative/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/libsqlite3.so.0";
+        Destination: @BuildTools.HostStage + "/bin/libsqlite3.so.0";
+    }
+    CopyFile SQLiteWindows HostOS[win64] {
+        Source: @Tools.OutputRoot + "/SQLiteNative/" + @Tools.Native.Name + "/" + $BuildConfiguration + "/sqlite3.dll";
+        Destination: @BuildTools.HostStage + "/bin/sqlite3.dll";
+    }
+    CopyFile LuaLinux HostOS[linux] {
+        Source: "../../toolchain/lua/5.1.5/x86_64-linux/lib/liblua5.1.so.0.0.0";
+        Destination: @BuildTools.HostStage + "/bin/liblua5.1.so.0";
+    }
+    CopyFile LuaWindows HostOS[win64] {
+        Source: @BuildTools.EngineRoot + "/lua.dll";
+        Destination: @BuildTools.HostStage + "/bin/lua.dll";
+    }
+    CopyFile SSLLinux HostOS[linux] {
+        Source: "../../toolchain/openssl/x86_64-linux/lib/libssl.so.3";
+        Destination: @BuildTools.HostStage + "/bin/libssl.so.3";
+    }
+    CopyFile CryptoLinux HostOS[linux] {
+        Source: "../../toolchain/openssl/x86_64-linux/lib/libcrypto.so.3";
+        Destination: @BuildTools.HostStage + "/bin/libcrypto.so.3";
+    }
+    CopyFile SSLWindows HostOS[win64] {
+        Source: "../../toolchain/openssl/x86_64-win64/bin/libssl-3-x64.dll";
+        Destination: @BuildTools.HostStage + "/bin/libssl-3-x64.dll";
+    }
+    CopyFile CryptoWindows HostOS[win64] {
+        Source: "../../toolchain/openssl/x86_64-win64/bin/libcrypto-3-x64.dll";
+        Destination: @BuildTools.HostStage + "/bin/libcrypto-3-x64.dll";
+    }
+    CopyFile OpenSSLNotices {
+        Source: "../../toolchain/openssl/" + @Tools.Native.Name + "/licenses";
+        Destination: @BuildTools.HostStage + "/licenses/openssl";
+        Recursive: True;
+    }
+    CopyFile LuaNoticeLinux HostOS[linux] {
+        Source: "../../toolchain/lua/5.1.5/x86_64-linux/COPYRIGHT";
+        Destination: @BuildTools.HostStage + "/licenses/lua.txt";
+    }
+    CopyFile CompilerMatrix {
+        Source: @BuildTools.CompilerRoot + "/distribution";
+        Destination: @BuildTools.HostStage + "/compiler";
+        Recursive: True;
+    }
+    CopyFile EngineLinux HostOS[linux] {
+        Source: @BuildTools.EngineRoot + "/Solar2DSimulator";
+        Destination: @BuildTools.HostStage + "/nexus2d/Solar2DSimulator";
+    }
+    CopyFile EngineWindows HostOS[win64] {
+        Source: @BuildTools.EngineRoot + "/Corona Simulator.exe";
+        Destination: @BuildTools.HostStage + "/nexus2d/Corona Simulator.exe";
+    }
+    CopyFile Engine {
+        Source: @BuildTools.EngineRoot;
+        Destination: @BuildTools.HostStage + "/nexus2d";
+        Overwrite: True;
+        Recursive: True;
+        ExcludeNames: "objects;bytecode;generated;tools";
+    }
+    CopyFile ExtensionDebug BuildConfiguration[Debug] {
+        Source: @BuildTools.ExtensionStage;
+        Destination: @BuildTools.HostStage + "/extension";
+        Recursive: True;
+        ExcludeNames: "node_modules;src;out;.git";
+    }
+    CopyFile ExtensionRelease BuildConfiguration[Release] {
+        Source: @BuildTools.ExtensionStage + "/nexus-pascal.vsix";
+        Destination: @BuildTools.HostStage + "/extension/nexus-pascal.vsix";
+    }
+    CopyFile License { Source: "LICENSE"; Destination: @BuildTools.HostStage + "/LICENSE"; }
+    CopyFile LicenseNotice { Source: "LICENSE-NOTICE.md"; Destination: @BuildTools.HostStage + "/LICENSE-NOTICE.md"; }
+    CopyFile Attributions { Source: "ATTRIBUTIONS.md"; Destination: @BuildTools.HostStage + "/ATTRIBUTIONS.md"; }
+    CopyFile DebugToolchain BuildConfiguration[Debug] {
+        Source: @BuildTools.HostStage;
+        Destination: @BuildTools.ToolchainRoot;
+        Recursive: True;
+        CleanDestination: True;
+    }
+}

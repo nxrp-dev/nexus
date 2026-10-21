@@ -6,6 +6,12 @@ Projects can publish existing sources, generate resources, compile libraries or
 applications, or simply group other projects. A source-only project needs no
 build operations.
 
+`NXPC` steps build with the Nexus Pascal compiler and default to `nxpc` (or the
+`NXPC` environment override). `FPC` steps retain genuine upstream Free Pascal
+support, including the initial 3.2.2 bootstrap, and default to `fpc` (or `PP`).
+An explicit `CompilerPath` overrides either default. Nexus product descriptors
+use `NXPC` and the shared `Tools.Native.NXPCCompiler` setting.
+
 ## Project descriptions and discovery
 
 A `.nxproject` contains one `Project` root with a nonempty, opaque `Id`.
@@ -235,6 +241,13 @@ to `Debug`, including in the nxpackage project workbench. Configuration names
 are case-sensitive, matching NexusScript target criteria; custom names such as
 `Profile` are accepted. An explicitly empty configuration is an error.
 Cross compilation needs appropriately configured compilers, RTLs and SDKs.
+
+Additional selections can be supplied with `/targets=Name:Value,Other:Value`.
+They are available through the same Live `$Name` mechanism and are forwarded
+to dependencies. Names must be unique, including the three standard selection
+names; values may contain spaces and colons. Commas separate selections.
+For example, `"/targets=BootstrapRoot:/path/to/worktree,Stage:cycle1"` passes
+bootstrap locations without adding a bootstrap-specific nxbuild API.
 
 Selected values are available as `$TargetOS`, `$TargetCPU` and
 `$BuildConfiguration`. Common and selected directories can share one publication:

@@ -1,6 +1,6 @@
 # NexusLS
 
-NexusLS is the Pascal language-server module in the Nexus repository. It lives under `NexusTools/LS` and provides Pascal document state and language services backed by Free Pascal and Lazarus CodeTools. Standard LSP values and language-neutral process mechanics live in `NexusLib/lsp` and are shared with the separate NexusScriptLS process.
+NexusLS is the Pascal language-server module in the Nexus repository. It lives under `projects/ls/pascal` and provides Pascal document state and language services backed by Free Pascal and Lazarus CodeTools. Standard LSP values and language-neutral process mechanics live in `NexusLib/lsp` and are shared with the separate NexusScriptLS process.
 
 ## Source layout
 
@@ -36,7 +36,7 @@ Some services are still pragmatic and CodeTools-driven. Symbol indexing includes
 
 ## Boundaries
 
-NexusLS depends on `packages/nexus-packages/core` for JSON-RPC support and `NexusLib/lsp` for standard LSP values, transport, dispatch, outbound request matching, and the injected server host. Pascal requests, documents, analysis, services, and indexes remain inside `NexusTools/LS`. NexusLS does not host NexusScript or depend on `projects/nxscript`.
+NexusLS depends on `packages/nexus-packages/core` for JSON-RPC support and `NexusLib/lsp` for standard LSP values, transport, dispatch, outbound request matching, and the injected server host. Pascal requests, documents, analysis, services, and indexes remain inside `projects/ls/pascal`. NexusLS does not host NexusScript or depend on `projects/nxscript`.
 
 NexusScript uses a separate `NexusScriptLS` executable under `projects/ls/nxscript`. The two servers share process infrastructure, not document or analysis code.
 

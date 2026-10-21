@@ -6,7 +6,7 @@ Nexus uses top-level module folders for ownership and shorter lower-case slugs f
 
 - `packages/nexus-packages`: shared Pascal packages, including core helpers, source-independent binding, serialization, networking, GUI, and LSP.
 - `projects/nxbuild`: Pascal project/build models and NexusScript project-building behavior.
-- `NexusTools/LS`: Pascal language server.
+- `projects/ls/pascal`: Pascal language server.
 - `projects/nxscript`: NexusScript core, artifact producers, CLI, and dedicated language server.
 - `packages/nexus-packages/nxtest`: reusable NexusTest framework and module protocol.
 - `projects/nxtest/host`: NexusTest command-line host and sample module.
@@ -18,7 +18,6 @@ Documentation slugs should stay readable and stable:
 - `docs/nexus-lib`
 - `docs/nexus-ls`
 - `docs/nexus-test`
-- `docs/nexus-ui`
 - `docs/nexus-forge`
 
 ## Source naming patterns

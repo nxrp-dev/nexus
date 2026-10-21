@@ -189,10 +189,11 @@ perform hidden multi-document saves.
 
 Build and run the focused tests with:
 
-```text
-lazbuild projects/nxpackage/test/nxpackageTests.lpi
-output/nxpackageTests/x86_64-win64/Debug/nxpackageTests.exe
+```sh
+nxbuild /action=build /project=projects/nxpackage/test/nxpackageTests.nxproject
 ```
+
+Run the generated programs from the output directories resolved by their projects.
 
 The earlier local-cross-root dependency fixture is retained unchanged and remains
 paused at the owner's request; the runner reports that it is not executed. New

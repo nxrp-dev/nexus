@@ -71,6 +71,11 @@ begin
         raise ENXForge.Create('Target selections require Name:Value');
       lTargets.Add(Copy(lPart, 1, lColon - 1), Copy(lPart, lColon + 1, MaxInt));
     end;
+    if lTargets.Find('HostOS') = nil then lTargets.Add('HostOS', LowerCase({$I %FPCTARGETOS%}));
+    if lTargets.Find('HostCPU') = nil then lTargets.Add('HostCPU', LowerCase({$I %FPCTARGETCPU%}));
+    if lTargets.Find('TargetOS') = nil then lTargets.Add('TargetOS', lTargets.Find('HostOS').Value);
+    if lTargets.Find('TargetCPU') = nil then lTargets.Add('TargetCPU', lTargets.Find('HostCPU').Value);
+    if lTargets.Find('BuildConfiguration') = nil then lTargets.Add('BuildConfiguration', 'Debug');
     lForge := TNXForge.Create(lTargets);
     try
       if not lForge.Execute(TNXCommandLine.GetValueDefault('input', ''),

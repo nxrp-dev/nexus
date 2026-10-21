@@ -1,0 +1,20 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "projects/nxbuild/language/nxbuild.Language.nxscript";
+
+ProjectIndex Products {
+    ProjectReference NXBuild { Id: "NXRP.nxbuild"; Descriptor: "projects/nxbuild/nxbuild.nxproject"; }
+    ProjectReference NexusForge { Id: "NXRP.NexusForge"; Descriptor: "projects/forge/NexusForge.nxproject"; }
+    ProjectReference NexusScript { Id: "NXRP.Tools.NexusScript"; Descriptor: "projects/nxscript/NexusScript.nxproject"; }
+    ProjectReference NexusCSV { Id: "NXRP.Tools.NexusCSV"; Descriptor: "projects/csv/NexusCSV.nxproject"; }
+    ProjectReference NexusProfilerImport { Id: "NXRP.Tools.NexusProfilerImport"; Descriptor: "projects/profiler/NexusProfilerImport.nxproject"; }
+    ProjectReference NexusScriptLS { Id: "NXRP.Tools.NexusScriptLS"; Descriptor: "projects/ls/nxscript/NexusScriptLS.nxproject"; }
+    ProjectReference NexusLS { Id: "NXRP.Tools.nexusls"; Descriptor: "projects/ls/pascal/nexusls.nxproject"; }
+    ProjectReference NexusBotHost { Id: "NXRP.Tools.NexusBotHost"; Descriptor: "projects/bothost/NexusBotHost.nxproject"; }
+    ProjectReference NexusTestHost { Id: "NXRP.Tools.nxtest_host"; Descriptor: "projects/nxtest/host/src/nxtest_host.nxproject"; }
+    ProjectReference NexusTestUI { Id: "NXRP.Tools.NexusTestUI"; Descriptor: "projects/nxtest/ui/src/NexusTestUI.nxproject"; }
+    ProjectReference NexusPackage { Id: "NXRP.Tools.nxpackage"; Descriptor: "projects/nxpackage/nxpackage.nxproject"; }
+    ProjectReference NexusSetupBuilder { Id: "NXRP.Tools.NexusSetupBuilder"; Descriptor: "projects/setup/NexusSetupBuilder.nxproject"; }
+    ProjectReference NexusSetup { Id: "NXRP.Tools.NexusSetup"; Descriptor: "projects/setup/NexusSetup.nxproject"; }
+}

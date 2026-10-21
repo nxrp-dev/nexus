@@ -1339,8 +1339,8 @@ procedure TNXFPCBuildOptions.ValidateTarget(const AOS, ACPU: string);
 begin
   if (AOS <> '') and (FTarget.OperatingSystem <> '') and
     not SameText(FTarget.OperatingSystem, AOS) then
-    raise Exception.CreateFmt('FPC target OS "%s" conflicts with selected TargetOS "%s".',
-      [FTarget.OperatingSystem, AOS]);
+    raise Exception.CreateFmt('%s target OS "%s" conflicts with selected TargetOS "%s".',
+      [BuildType, FTarget.OperatingSystem, AOS]);
 end;
 
 procedure TNXFPCBuildOptions.AppendEnvironment(APaths: TNXBuildDirectories;

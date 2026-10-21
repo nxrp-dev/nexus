@@ -130,7 +130,7 @@ Relevant areas:
 - `src/terminal/buildTaskTerminal.ts`
 - `src/terminal/buildTerminal.ts`
 
-Likely bug: bad compiler path or transient execution failure leaves a hung task; user cancellation leaves orphan compiler/lazbuild processes.
+Likely bug: bad compiler path or transient execution failure leaves a hung task; user cancellation leaves orphan compiler processes.
 
 Fix direction: handle `process.on('error')`, emit a terminal failure, fire close with nonzero status, and implement `close()` to kill the child process if still running.
 

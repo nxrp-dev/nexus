@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 module LinuxPackageBuild "LinuxPackageBuild.nxscript";
 Group LinuxPackageApplication (LinuxPackageBuild) {
-    FPC Compile (LinuxPackageBuild.Compile) {
+    NXPC Compile (LinuxPackageBuild.Compile) {
         RequiredPackages: [nxrtl];
         LinkerOptions: ["-pie",
             "-z", "nocopyreloc", "-z", "text", "-z", "relro", "-z", "now"];

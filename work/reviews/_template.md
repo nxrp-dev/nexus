@@ -3,7 +3,7 @@
 ## Inputs
 
 - Source request:
-- Approved work plan:
+- Approved design or work plan, when provided:
 - Implementation artifact:
 - Compile/test results:
 

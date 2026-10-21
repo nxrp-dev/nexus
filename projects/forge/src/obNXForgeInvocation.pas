@@ -27,6 +27,8 @@ type
     FIncludeMasks: TStringArray;
     FPackageDirectories: TStringArray;
     FPackageName: string;
+    FPackageSDKTarget: string;
+    FCompilerFileName: string;
     FPackageKind: string;
     FOverwrite: Boolean;
     FRecursive: Boolean;
@@ -58,6 +60,8 @@ type
     property ExcludeNames: string read FExcludeNames write FExcludeNames;
     property IncludeMasks: TStringArray read FIncludeMasks write FIncludeMasks;
     property PackageDirectories: TStringArray read FPackageDirectories write FPackageDirectories;
+    property PackageSDKTarget: string read FPackageSDKTarget write FPackageSDKTarget;
+    property CompilerFileName: string read FCompilerFileName write FCompilerFileName;
     property PackageName: string read FPackageName write FPackageName;
     property PackageKind: string read FPackageKind write FPackageKind;
     property Overwrite: Boolean read FOverwrite write FOverwrite;

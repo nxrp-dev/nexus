@@ -22,6 +22,7 @@ ProjectIndex Projects {
     ProjectReference Serialization { Id: "NXRP.Serialization"; Descriptor: "../../packages/nexus-packages/serialization/Project.nxproject"; }
     ProjectReference JSON { Id: "NXRP.Serialization.JSON"; Descriptor: "../../packages/nexus-packages/serialization/json/Project.nxproject"; }
     ProjectReference DelimitedText { Id: "NXRP.Serialization.DelimitedText"; Descriptor: "../../packages/nexus-packages/serialization/delimited-text/Project.nxproject"; }
+    ProjectReference SQLiteNative { Id: "NXRP.SQLite.Native"; Descriptor: "../../packages/nexus-packages/db/sqlite/SQLiteNative.nxproject"; }
     ProjectReference SQLite { Id: "NXRP.SQLite"; Descriptor: "../../packages/nexus-packages/db/sqlite/Project.nxproject"; }
     ProjectReference JSONRPC { Id: "NXRP.Network.JSONRPC"; Descriptor: "../../packages/nexus-packages/network/json-rpc/Project.nxproject"; }
     ProjectReference NexusScript { Id: "NXRP.NexusScript"; Descriptor: "../../packages/nexus-packages/nxscript/Project.nxproject"; }
@@ -48,6 +49,7 @@ ProjectIndex Projects {
     ProjectReference FCLRes { Id: "NXRP.FCLRes"; Descriptor: "../../packages/nexus-packages/fcl-res/Project.nxproject"; }
     ProjectReference FCLDB { Id: "NXRP.Database.FCLDB"; Descriptor: "../../packages/nexus-packages/db/fcl-db/Project.nxproject"; }
     ProjectReference Torrent { Id: "NXRP.Network.Torrent"; Descriptor: "../../packages/nexus-packages/network/torrent/Project.nxproject"; }
+    ProjectReference OpenSSLNative { Id: "NXRP.Network.OpenSSL.Native"; Descriptor: "../../packages/nexus-packages/network/openssl/Native.nxproject"; }
     ProjectReference OpenSSL { Id: "NXRP.Network.OpenSSL"; Descriptor: "../../packages/nexus-packages/network/openssl/Project.nxproject"; }
     ProjectReference XMPP { Id: "NXRP.Network.XMPP"; Descriptor: "../../packages/nexus-packages/network/xmpp/Project.nxproject"; }
     ProjectReference PasJPEG { Id: "NXRP.Graphics.PasJPEG"; Descriptor: "../../packages/nexus-packages/graphics/pasjpeg/Project.nxproject"; }

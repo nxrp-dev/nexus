@@ -8,7 +8,7 @@ These standards apply to Object Pascal / Free Pascal code in this repository whe
 - Respect Pascal visibility and type rules.
 - Do not use clever workarounds to bypass language constraints.
 - Do not use casts to bypass design or type problems unless explicitly approved.
-- Do not add or keep compatibility APIs, overloads, aliases, convenience wrappers, or legacy shims unless explicitly requested or justified by a verified current integration requirement.
+- Do not add or keep compatibility APIs, overloads, aliases, convenience wrappers, or legacy shims unless the human owner explicitly requests them or accepts a verified current external integration requirement.
 - Do not introduce dependencies or frameworks unless explicitly requested.
 
 ## Unit Naming
@@ -64,7 +64,7 @@ Do not invent new naming conventions unless explicitly asked.
 - Do not create threads for asynchrony itself, timers, deadlines, routing,
   callbacks, state propagation, cleanup, shutdown coordination, or generic
   background work.
-- Before introducing or retaining a thread, document the blocking operation,
+- Before introducing or retaining a thread, explain the blocking operation,
   what must continue progressing, and why no existing legitimate thread can
   own the operation. No demonstrated blocking boundary means no thread.
 - Prefer ordinary Pascal events, operation-local state, and existing owner

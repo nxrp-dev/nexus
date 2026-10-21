@@ -1,7 +1,7 @@
 {
   "name": "nexus-pascal",
   "displayName": "Nexus Pascal",
-  "description": "Nexus Pascal IDE support for Free Pascal and Lazarus projects.",
+  "description": "Nexus Pascal IDE support for NXPC, Free Pascal and Lazarus projects.",
   "version": "0.9.1",
   "engines": {
     "vscode": "^1.89.0"
@@ -19,6 +19,7 @@
   "keywords": [
     "free",
     "pascal",
+    "nxpc",
     "freepascal",
     "fpc",
     "lazarus",
@@ -44,7 +45,6 @@
     "onTaskType:lazarus",
     "onTaskType:nexus",
     "onCommand:nexusPascal.project.newNexusProject",
-    "onCommand:nexusPascal.project.importLazarusProject",
     "onCommand:nexusPascal.project.createTestModule",
     "onCommand:nexusPascal.project.buildLazarusProject",
     "onCommand:nexusPascal.project.runLazarusProject",
@@ -152,11 +152,6 @@
         "category": "Nexus Pascal"
       },
       {
-        "command": "nexusPascal.project.importLazarusProject",
-        "title": "%project.importLazarusProject%",
-        "category": "Nexus Pascal"
-      },
-      {
         "command": "nexusPascal.project.createTestModule",
         "title": "%project.createTestModule%",
         "category": "Nexus Pascal"
@@ -218,11 +213,6 @@
           "command": "nexusPascal.project.setActiveProject",
           "when": "resourceExtname == .lpi",
           "group": "nexusPascal@0"
-        },
-        {
-          "command": "nexusPascal.project.importLazarusProject",
-          "when": "resourceExtname == .lpi",
-          "group": "nexusPascal@1"
         },
         {
           "command": "nexusPascal.project.buildLazarusProject",
@@ -522,7 +512,8 @@
   },
   "devDependencies": {
     "@types/node": "^16.18.126",
-    "@types/vscode": "^1.120.0",
+    "@types/vscode": "1.89.0",
+    "@vscode/vsce": "4.0.0",
     "esbuild": "^0.27.7",
     "typescript": "^5.8.3"
   },

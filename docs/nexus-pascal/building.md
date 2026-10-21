@@ -17,14 +17,6 @@ When a Nexus project is present, it should be treated as the primary build
 context for Nexus workflows. Lazarus and Free Pascal projects remain supported
 for import and build behavior.
 
-## Lazarus Builds
-
-Lazarus projects build through Lazarus tooling such as `lazbuild`.
-
-The Lazarus toolchain configuration identifies the Lazarus install directory.
-From that, NexusLS can derive related paths such as `lazbuild`, Lazarus source,
-and bundled Free Pascal directories.
-
 ## Free Pascal Builds
 
 Free Pascal builds use the configured Free Pascal install or compiler path.
@@ -36,7 +28,7 @@ derive a source directory when the install layout supports it.
 
 nxbuild is the command-line build direction for NexusScript project files. It is
 intended to understand a Nexus project and produce the correct work and command
-lines for tools such as `fpc` and `lazbuild`.
+lines for the configured compiler and build operations.
 
 The extension should eventually use this project model rather than forcing users
 to hand-maintain every task detail.

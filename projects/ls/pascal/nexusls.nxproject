@@ -5,19 +5,21 @@ dialect "../../nxbuild/language/nxbuild.Language.nxscript";
 module Projects "../../nxbuild/Projects.nxscript";
 module "../../nxbuild/nxbuild.environment.nxscript";
 
-Project nexusls TargetOS[win64] {
+Project nexusls TargetOS[linux, win64] {
     Id: "NXRP.Tools.nexusls";
-    Requires: [@Projects.NexusRTL, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite];
+    Requires: [@Projects.FCLXML, @Projects.NexusRTL, @Projects.LSP, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.Synapse, @Projects.Serialization, @Projects.SQLite];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/nexusls/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/ls/pascal/nexusls.lpr"];
         OutputPath: @nexusls.OutputRoot;
-        Target Platform { OperatingSystem: "win64"; }
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
         RawOptions: ["-Sh-"];
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             IncludePaths: [@nexusls.OutputRoot];
@@ -27,8 +29,7 @@ Project nexusls TargetOS[win64] {
                 "projects/ls/pascal/src/service",
                 "projects/ls/pascal/src/parser",
                 "projects/ls/pascal/src/toolchain",
-                "projects/nxbuild/src",
-                "C:/lazarus" + "/components/lazutils"
+                "projects/nxbuild/src"
             ];
         }
     }

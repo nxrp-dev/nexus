@@ -13,7 +13,7 @@ type
   TNXForgeOperationKind = (fokCommand, fokRender, fokCreateDirectory, fokWriteTextFile,
     fokCopyFile, fokCompareFiles, fokDeletePath, fokArchive, fokBuildIdentity,
     fokPackageSDKOptions, fokPackageSDKManifest, fokPackageBuildPrepare,
-    fokPackageBundlePublish);
+    fokPackageBundlePublish, fokCompareDirectories, fokVerifyBuildIdentity);
 
 implementation
 

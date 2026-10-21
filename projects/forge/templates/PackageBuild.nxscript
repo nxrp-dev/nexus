@@ -9,11 +9,11 @@ Group PackageBuild {
         WorkDirectory: "";
         PackageDirectories: [];
     }
-    FPC Compile {
+    NXPC Compile {
         WorkingDirectory: @Prepare.WorkDirectory;
         EntryPoint: "";
-        Template: "FPC.mustache";
-        Compiler: @Prepare.SDKDirectory + "/bin/ppcx64.exe";
+        Template: "NXPC.mustache";
+        Compiler: @Prepare.SDKDirectory + "/bin/nxpc-x86_64.exe";
         Source: [@EntryPoint];
         ResponseFiles: [@Prepare.WorkDirectory + "/package.cfg"];
         UnitOutput: @Prepare.WorkDirectory;

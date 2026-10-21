@@ -11,12 +11,13 @@ Project NexusCSV {
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/NexusCSV/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/csv/src/NexusCSV.lpr"];
         OutputPath: @NexusCSV.OutputRoot;
         RawOptions: ["-onxcsv" + @Tools.Native.ExecutableSuffix];
         Target Platform { OperatingSystem: @Tools.Native.OS; }
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
         Debug Symbols { LineInfo: Enabled; }
         Assembler Native TargetOS[linux] { OutputFormat: "as-clang"; }

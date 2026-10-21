@@ -92,7 +92,7 @@ toolchain model.
 
 ## Current Layout
 
-Toolchain support lives under `NexusTools/LS/src/toolchain`.
+Toolchain support lives under `projects/ls/pascal/src/toolchain`.
 
 Current unit boundaries:
 
@@ -106,7 +106,7 @@ Current unit boundaries:
   - tool executable probing
   - limited install path suggestions
   - download URL suggestions
-- `NexusTools/LS/src/service/obNXLSToolchainService.pas`
+- `projects/ls/pascal/src/service/obNXLSToolchainService.pas`
   - thin NexusLS service routing facade
 
 The next split, when needed, should separate:

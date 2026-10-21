@@ -16,6 +16,7 @@ procedure RegisterForgeTests(ARegistry: TNXTestRegistry);
 implementation
 
 uses Classes, SysUtils, DateUtils, fpjson, jsonparser, obNXTestContext, obNXTestSuite,
+  obNXBuildDescriptionLoader, obNXBuildDescription, obNXBuildPlanner, utNXBuildTargets,
   obNXForge, obNXForgeProcess, obNXForgeInvocation, obNexusScriptModel, obNexusScriptSession,
   obNexusScriptLanguageDefinition, obNexusScriptLive, obNexusScriptJSON, obNXCommandLine,
   tsNXForgeContractTests, utNXForgeBuildIdentity, utNXForgePackageSDK,
@@ -632,10 +633,10 @@ var
   lForge: TNXForge;
   lDirectory, lTemplate, lCompiler, lRTL, lCompilerSettings: string;
 begin
-  lCompiler := GetEnvironmentVariable('NXTEST_FPC');
-  lRTL := GetEnvironmentVariable('NXTEST_RTL');
+  lCompiler := GetEnvironmentVariable('NXTEST_NXPC');
+  lRTL := GetEnvironmentVariable('NXTEST_NXPC_RTL');
   AContext.AssertTrue(FileExists(lCompiler) and DirectoryExists(lRTL),
-    'Set NXTEST_FPC and NXTEST_RTL to the matching NexusFPC compiler and RTL.');
+    'Set NXTEST_NXPC and NXTEST_NXPC_RTL to the matching NXPC compiler and RTL.');
   lCompilerSettings := 'Compiler: "' + StringReplace(lCompiler, '\', '/', [rfReplaceAll]) +
     '"; DisableDefaultConfigFiles: True; ' +
     {$IFDEF UNIX}'Assembler: "as-clang"; UseLLD: True; ' +{$ENDIF}
@@ -1689,6 +1690,100 @@ begin
   end;
 end;
 
+{$IFDEF UNIX}
+procedure TestCleanDestinationDanglingLink(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('clean-dangling-link-' + IntToStr(GetTickCount64));
+  ForceDirectories(lDirectory + 'source');
+  ForceDirectories(lDirectory + 'destination/.bin');
+  Save(lDirectory + 'source/fresh.txt', 'fresh');
+  AContext.AssertEquals(0, fpSymlink(PChar('../missing/command'),
+    PChar(lDirectory + 'destination/.bin/command')));
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'CopyFile Publish { Source: "source"; Destination: "destination"; ' +
+      'Recursive: True; CleanDestination: True; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('fresh', LoadRaw(lDirectory + 'destination/fresh.txt'));
+    AContext.AssertEquals(-1, FileGetAttr(lDirectory + 'destination/.bin/command'),
+      'CleanDestination must remove a dangling symlink');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestDeleteDirectoryLink(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+  lSucceeded: Boolean;
+begin
+  lDirectory := TestDir('delete-directory-link-' + IntToStr(GetTickCount64));
+  ForceDirectories(lDirectory + 'outside');
+  ForceDirectories(lDirectory + 'tree');
+  Save(lDirectory + 'outside/keep.txt', 'keep');
+  AContext.AssertEquals(0, fpSymlink(PChar('../outside'), PChar(lDirectory + 'tree/link')));
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'DeletePath Clean { Path: "tree"; Recursive: True; }');
+    lSucceeded := lForge.Execute(lDirectory + 'Build.nxscript');
+    AContext.AssertTrue(FileExists(lDirectory + 'outside/keep.txt'),
+      'Recursive deletion must preserve a linked directory target');
+    AContext.AssertTrue(lSucceeded, lForge.Diagnostic);
+    AContext.AssertFalse(DirectoryExists(lDirectory + 'tree'));
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestDeleteRootDirectoryLink(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+  lSucceeded: Boolean;
+begin
+  lDirectory := TestDir('delete-root-directory-link-' + IntToStr(GetTickCount64));
+  ForceDirectories(lDirectory + 'outside');
+  Save(lDirectory + 'outside/keep.txt', 'keep');
+  AContext.AssertEquals(0, fpSymlink(PChar('outside'), PChar(lDirectory + 'link')));
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'DeletePath Clean { Path: "link"; Recursive: True; }');
+    lSucceeded := lForge.Execute(lDirectory + 'Build.nxscript');
+    AContext.AssertTrue(FileExists(lDirectory + 'outside/keep.txt'),
+      'Deleting a directory link must preserve its target');
+    AContext.AssertTrue(lSucceeded, lForge.Diagnostic);
+    AContext.AssertEquals(-1, FileGetAttr(lDirectory + 'link'));
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestDeleteDanglingLink(AContext: TNXTestContext);
+var
+  lDirectory: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('delete-dangling-link-' + IntToStr(GetTickCount64));
+  AContext.AssertEquals(0, fpSymlink(PChar('missing'), PChar(lDirectory + 'link')));
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'DeletePath Clean { Path: "link"; MissingOk: False; }');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals(-1, FileGetAttr(lDirectory + 'link'));
+  finally
+    lForge.Free;
+  end;
+end;
+{$ENDIF}
+
 procedure TestCopyIncludeMasks(AContext: TNXTestContext);
 var
   lDirectory: string;
@@ -1783,6 +1878,293 @@ begin
     end;
   finally
     lForge.Free;
+  end;
+end;
+
+function CheckBootstrapCompilation(AContext: TNXTestContext;
+  ADefinition: TNexusScriptLiveDefinition): Integer;
+var
+  lChild: TNexusScriptLiveDefinition;
+  lTargets: TNexusScriptTargetSelection;
+  lLoader: TNXBuildDescriptionLoader;
+  lDescription: TNXBuildDescription;
+  lPlanner: TNXBuildPlanner;
+  lPlan: TNXBuildPlan;
+  lStep: TNXBuildStep;
+  lValue, lProject: string;
+  lInputs: TStringList;
+begin
+  Result := 0;
+  AContext.AssertFalse((ADefinition.Kind = 'FPC') or (ADefinition.Kind = 'NXPC') or (ADefinition.Kind = 'Clang'),
+    'Bootstrap compilation belongs to nxbuild: ' + ADefinition.Name);
+  if ADefinition.Kind = 'NXBuild' then
+  begin
+    lTargets := TNexusScriptTargetSelection.Create;
+    lLoader := TNXBuildDescriptionLoader.Create;
+    lPlanner := TNXBuildPlanner.Create;
+    lDescription := nil;
+    lPlan := nil;
+    lInputs := TStringList.Create;
+    try
+      lTargets.Add('TargetOS', ADefinition.FindProperty('TargetOS').Value.AsText);
+      lTargets.Add('TargetCPU', ADefinition.FindProperty('TargetCPU').Value.AsText);
+      lTargets.Add('BuildConfiguration', 'Release');
+      AddNXBuildTargets(ADefinition.FindProperty('Targets').Value.AsText, lTargets);
+      lProject := ADefinition.FindProperty('EntryPoint').Value.AsText;
+      lDescription := lLoader.LoadDescription(Root + '../nexus-fpc/' + lProject, lTargets);
+      lPlan := lPlanner.CreatePlan(lDescription, False);
+      AContext.AssertTrue(lPlan.Steps.Count > 0, 'Delegated compilation steps');
+      for lStep in lPlan.Steps do
+      begin
+        AContext.AssertTrue((lStep.BuildType = 'FPC') or (lStep.BuildType = 'NXPC') or (lStep.BuildType = 'LLVM'),
+          'Compilation uses nxbuild compiler operations');
+        AContext.AssertTrue(lStep.SourceFiles.Count > 0, 'Explicit compiler inputs');
+        if (lStep.BuildType = 'LLVM') and
+          (lProject = 'bootstrap/cross/Android.nxproject') then
+          AContext.AssertTrue(lStep.Arguments.IndexOf('-Wa,-defsym,CPU64=1') >= 0,
+            'Android startup preserves the original Clang assembler symbol argument');
+        if (lStep.BuildType = 'FPC') or (lStep.BuildType = 'NXPC') then
+        begin
+          if (lProject = 'bootstrap/linux/Seed.nxproject') or
+            (lProject = 'bootstrap/linux/Generators.nxproject') or
+            (lProject = 'bootstrap/windows/Seed.nxproject') or
+            (lProject = 'bootstrap/windows/Generators.nxproject') then
+            AContext.AssertEquals('FPC', lStep.BuildType,
+              'Initial seed and generators must explicitly use stock FPC')
+          else
+            AContext.AssertEquals('NXPC', lStep.BuildType,
+              'Every subsequent compiler stage must explicitly use NXPC');
+          Inc(Result, lStep.SourceFiles.Count);
+          for lValue in lStep.SourceFiles do
+          begin
+            AContext.AssertTrue(lInputs.IndexOf(lValue) < 0,
+              'Compilation groups must not inherit another step''s inputs: ' + lValue);
+            lInputs.Add(lValue);
+          end;
+          if (Pos('bootstrap/windows/', lProject) = 1) or
+            (Pos('bootstrap/common/', lProject) = 1) or
+            (Pos('bootstrap/cross/', lProject) = 1) then
+          begin
+            AContext.AssertTrue(lStep.Arguments.IndexOf('-Sc-') >= 0,
+              'Exceptional Syntax groups retain COperators settings');
+            if (lProject = 'bootstrap/windows/Cycle.nxproject') or
+              ((Pos('bootstrap/cross/', lProject) = 1) and
+               (lProject <> 'bootstrap/cross/Compiler.nxproject')) then
+              AContext.AssertTrue(lStep.Arguments.IndexOf('-Ur') >= 0,
+                'Exceptional Units groups retain release-unit generation');
+            if lStep.Arguments.IndexOf('-Us') >= 0 then
+            begin
+              AContext.AssertEquals(1, lStep.SourceFiles.Count,
+                'System compilation has exactly one input');
+              AContext.AssertEquals('system.pas', ExtractFileName(lStep.SourceFiles[0]));
+              AContext.AssertTrue(lStep.Arguments.IndexOf('-Sg') >= 0,
+                'System compilation enables labels');
+            end;
+            if (lProject = 'bootstrap/windows/Cycle.nxproject') and
+              (lStep.Name = 'CodePages') then
+              AContext.AssertTrue(lStep.Arguments.IndexOf('-Fu' + lStep.OutputPath) >= 0,
+                'The complete code-page Files group retains generated RTL units');
+            if (lProject = 'bootstrap/common/Tools.nxproject') and
+              (lStep.Name = 'PPUInspector') then
+            begin
+              lValue := lDescription.RootDirectory;
+              AContext.AssertTrue(lStep.Arguments.IndexOf('-Fu' + lValue +
+                '/tools/packages/fcl-json/src') >= 0,
+                'The complete PPU Files group retains common tool dependencies');
+              AContext.AssertTrue(lStep.Arguments.IndexOf('-Fi' + lValue +
+                '/tools/packages/rtl-objpas/src/x86_64') >= 0,
+                'The complete PPU Files group retains common include paths');
+            end;
+          end;
+        end;
+      end;
+    finally
+      lInputs.Free;
+      lPlan.Free;
+      lDescription.Free;
+      lPlanner.Free;
+      lLoader.Free;
+      lTargets.Free;
+    end;
+  end;
+  for lChild in ADefinition.Children do
+    Inc(Result, CheckBootstrapCompilation(AContext, lChild));
+end;
+
+procedure TestBootstrapContexts(AContext: TNXTestContext);
+const
+  cCrossOS: array[0..12] of string = ('linux', 'linux', 'linux', 'win32',
+    'win64', 'win64', 'android', 'android', 'darwin', 'darwin', 'iphonesim', 'iphonesim', 'ios');
+  cCrossCPU: array[0..12] of string = ('i386', 'x86_64', 'aarch64', 'i386',
+    'x86_64', 'aarch64', 'x86_64', 'aarch64', 'x86_64', 'aarch64', 'x86_64', 'aarch64', 'aarch64');
+  cCrossSources: array[0..12] of Integer = (53, 50, 44, 15, 15, 13,
+    43, 42, 46, 45, 46, 45, 45);
+var
+  lTargets: TNexusScriptTargetSelection;
+  lDocument: TNexusScriptLiveDocument;
+  lProject: TNexusScriptLiveDefinition;
+  lRecipe, lDirectory, lHost, lBuild, lCompiler: string;
+  lIndex: Integer;
+begin
+  lDirectory := TestDir('bootstrap-contexts');
+  lRecipe := ExpandFileName(Root + '../nexus-fpc/NXPC.Forge.nxscript');
+  for lHost in ['linux', 'win64'] do
+  begin
+    lTargets := TNexusScriptTargetSelection.Create;
+    lDocument := nil;
+    try
+      lTargets.Add('Build', 'Bootstrap');
+      lTargets.Add('HostOS', lHost);
+      lTargets.Add('HostCPU', 'x86_64');
+      lTargets.Add('BuildRoot', lDirectory + 'build');
+      lTargets.Add('NXBuildExecutable', 'nxbuild');
+      lTargets.Add('InstallRoot', lDirectory + 'sdk');
+      lTargets.Add('Promote', 'No');
+      lTargets.Add('SeedCompiler', lDirectory + 'stock-compiler');
+      lTargets.Add('SeedRTL', lDirectory + 'stock-rtl');
+      lDocument := LoadForgeDocument(lRecipe, lTargets);
+      lProject := lDocument.FindDefinition('Bootstrap');
+      AContext.AssertTrue(lProject <> nil, lHost + ' bootstrap root');
+      AContext.AssertEquals('Project', lProject.Kind);
+      if lHost = 'win64' then
+        AContext.AssertEquals(65, CheckBootstrapCompilation(AContext, lProject),
+          'Windows generators, seed, four RTL/compiler generations and release tools')
+      else
+        AContext.AssertEquals(74, CheckBootstrapCompilation(AContext, lProject),
+          'Linux bootstrap delegated compilation inputs');
+      AContext.AssertTrue(Pos(lDirectory, lProject.FindProperty('Outputs').Value.
+        FindItem('Compiler').AsText) = 1, 'Compiler output is outside source');
+    finally
+      lDocument.Free;
+      lTargets.Free;
+    end;
+  end;
+  for lHost in ['linux', 'win64'] do
+  for lIndex := Low(cCrossOS) to High(cCrossOS) do
+  begin
+    lTargets := TNexusScriptTargetSelection.Create;
+    lDocument := nil;
+    try
+      lTargets.Add('Build', 'Cross');
+      lTargets.Add('HostOS', lHost);
+      lTargets.Add('HostCPU', 'x86_64');
+      lTargets.Add('TargetOS', cCrossOS[lIndex]);
+      lTargets.Add('TargetCPU', cCrossCPU[lIndex]);
+      lTargets.Add('BuildRoot', lDirectory + 'build');
+      lTargets.Add('NXBuildExecutable', 'nxbuild');
+      lDocument := LoadForgeDocument(lRecipe, lTargets);
+      lProject := lDocument.FindDefinition('Cross');
+      AContext.AssertTrue(lProject <> nil, cCrossCPU[lIndex] + '-' + cCrossOS[lIndex]);
+      lCompiler := lProject.FindProperty('Outputs').Value.FindItem('Compiler').AsText;
+      AContext.AssertTrue((lHost = 'win64') = (ExtractFileExt(lCompiler) = '.exe'),
+        'Cross compiler executable suffix follows the host, including Windows targets on Linux');
+      AContext.AssertTrue(Pos(lDirectory, lProject.FindProperty('Outputs').Value.
+        FindItem('RTL').AsText) = 1, 'Cross RTL output is outside source');
+      AContext.AssertEquals(cCrossSources[lIndex],
+        CheckBootstrapCompilation(AContext, lProject),
+        'Cross compiler, retained RTL units and applicable smoke program');
+    finally
+      lDocument.Free;
+      lTargets.Free;
+    end;
+  end;
+  for lHost in ['linux', 'win64'] do
+  for lBuild in ['Tools', 'PackageSDK'] do
+  begin
+    lTargets := TNexusScriptTargetSelection.Create;
+    lDocument := nil;
+    try
+      lTargets.Add('Build', lBuild);
+      lTargets.Add('HostOS', lHost);
+      lTargets.Add('HostCPU', 'x86_64');
+      lTargets.Add('BuildRoot', lDirectory + 'build');
+      lTargets.Add('NXBuildExecutable', 'nxbuild');
+      lDocument := LoadForgeDocument(lRecipe, lTargets);
+      lProject := lDocument.FindDefinition(lBuild);
+      AContext.AssertTrue(lProject <> nil, lBuild + ' root');
+      if lBuild = 'Tools' then
+        AContext.AssertEquals(10, CheckBootstrapCompilation(AContext, lProject))
+      else
+        AContext.AssertEquals(2, CheckBootstrapCompilation(AContext, lProject));
+    finally
+      lDocument.Free;
+      lTargets.Free;
+    end;
+  end;
+end;
+
+procedure TestCompareDirectories(AContext: TNXTestContext);
+var
+  lDirectory, lChange: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('compare-directories');
+  ForceDirectories(lDirectory + 'left/nested');
+  ForceDirectories(lDirectory + 'right/nested');
+  Save(lDirectory + 'left/system.o', 'system');
+  Save(lDirectory + 'right/system.o', 'system');
+  Save(lDirectory + 'left/nested/unit.o', 'unit');
+  Save(lDirectory + 'right/nested/unit.o', 'unit');
+  Save(lDirectory + 'left/ignored.nxu', 'left metadata');
+  Save(lDirectory + 'right/ignored.nxu', 'right metadata');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Verify { CompareDirectories Objects { Left: "left"; Right: "right"; ' +
+    'Recursive: True; IncludeMasks: ["*.o"]; } ' +
+    'WriteTextFile Later { Path: "passed.txt"; Text: "passed"; } }');
+  lForge := TNXForge.Create;
+  try
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertEquals('2 files match byte for byte' + LineEnding,
+      lForge.Invocations[0].StdOut);
+    AContext.AssertTrue(FileExists(lDirectory + 'passed.txt'));
+    for lChange in ['content', 'missing', 'extra', 'empty', 'missing-directory'] do
+    begin
+      DeleteFile(lDirectory + 'passed.txt');
+      Save(lDirectory + 'right/system.o', 'system');
+      Save(lDirectory + 'right/nested/unit.o', 'unit');
+      DeleteFile(lDirectory + 'right/extra.o');
+      if lChange = 'content' then Save(lDirectory + 'right/nested/unit.o', 'wrong');
+      if lChange = 'missing' then DeleteFile(lDirectory + 'right/nested/unit.o');
+      if lChange = 'extra' then Save(lDirectory + 'right/extra.o', 'extra');
+      if lChange = 'empty' then
+      begin
+        DeleteFile(lDirectory + 'right/system.o');
+        DeleteFile(lDirectory + 'right/nested/unit.o');
+      end;
+      if lChange = 'missing-directory' then DeleteDirRecursive(lDirectory + 'right/');
+      AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), lChange);
+      AContext.AssertFalse(lForge.Invocations[1].Started, lChange + ' must stop later tasks');
+      AContext.AssertFalse(FileExists(lDirectory + 'passed.txt'));
+    end;
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestNXBuildAdditionalTargets(AContext: TNXTestContext);
+var
+  lDirectory, lTemplate: string;
+  lForge: TNXForge;
+  lTargets: TNexusScriptTargetSelection;
+begin
+  lDirectory := TestDir('nxbuild-additional-targets');
+  lTemplate := Root + 'projects/forge/templates/NXBuild.mustache';
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Build { NXBuild Compile { Template: "' + lTemplate + '"; ' +
+    'EntryPoint: "app.nxproject"; Targets: "Workspace:" + $Workspace + ",Stage:cycle1"; } ' +
+    'Git NoLaunch { Template: "missing.mustache"; Repository: "."; } }');
+  lTargets := TNexusScriptTargetSelection.Create;
+  lTargets.Add('Workspace', 'C:/workspace & builds');
+  lForge := TNXForge.Create(lTargets);
+  try
+    AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'));
+    AContext.AssertEquals(2, lForge.Invocations.Count, lForge.Diagnostic);
+    AssertNoLaunch(AContext, lForge);
+    AContext.AssertTrue(Pos(' "/targets=Workspace:C:/workspace & builds,Stage:cycle1"',
+      lForge.Invocations[0].Command) > 0, lForge.Invocations[0].Command);
+  finally
+    lForge.Free;
+    lTargets.Free;
   end;
 end;
 
@@ -1971,6 +2353,35 @@ begin
       'DeletePath Missing { Path: "missing.txt"; MissingOk: False; }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'),
       'MissingOk False reports a missing path');
+  finally
+    lForge.Free;
+  end;
+end;
+
+procedure TestVerifyBuildIdentity(AContext: TNXTestContext);
+var
+  lDirectory, lRecord: string;
+  lForge: TNXForge;
+begin
+  lDirectory := TestDir('verify-build-identity');
+  Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+    'Group Verify { VerifyBuildIdentity Compiler { Compiler: "' + ParamStr(0) + '"; ' +
+    'IdentityFile: "identity.json"; } ' +
+    'WriteTextFile Later { Path: "passed.txt"; Text: "passed"; } }');
+  lForge := TNXForge.Create;
+  try
+    Save(lDirectory + 'identity.json', '{"Identity":"ForgeIdentityTest","Date":"2026/10/19"}');
+    AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
+    AContext.AssertTrue(FileExists(lDirectory + 'passed.txt'));
+    for lRecord in ['{"Identity":"wrong","Date":"2026/10/19"}',
+      '{"Identity":"ForgeIdentityTest","Date":"2000/01/01"}', '{}', '[]'] do
+    begin
+      DeleteFile(lDirectory + 'passed.txt');
+      Save(lDirectory + 'identity.json', lRecord);
+      AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), lRecord);
+      AContext.AssertFalse(lForge.Invocations[1].Started);
+      AContext.AssertFalse(FileExists(lDirectory + 'passed.txt'));
+    end;
   finally
     lForge.Free;
   end;
@@ -2254,12 +2665,12 @@ begin
   ForceDirectories(lSDK + 'bin');
   ForceDirectories(lSDK + 'work/rtl-units');
   ForceDirectories(lDirectory + 'bootstrap/seed/rtl/inc');
-  Save(lSDK + 'bin/ppcx64.exe', 'compiler');
+  Save(lSDK + 'bin/nxpc-x86_64.exe', 'compiler');
   Save(lSDK + 'work/rtl-units/z.o', 'object');
   Save(lSDK + 'work/rtl-units/a.nxu', 'unit');
   Save(lDirectory + 'bootstrap/seed/rtl/inc/sample.inc', 'source');
   Save(lDirectory + 'bootstrap/seed/build-options.cfg', 'options');
-  lCommand := 'PackageSDKOptions Identity { BootstrapDirectory: "bootstrap"; OutputDirectory: "sdk"; } ';
+  lCommand := 'PackageSDKOptions Identity { Target: "x86_64-win64"; CompilerFileName: "nxpc-x86_64.exe"; BootstrapDirectory: "bootstrap"; OutputDirectory: "sdk"; } ';
   Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
     'Project SDK { Id: "NXRP.SDKTest"; Group Prepare { ' + lCommand + '} ' +
     'CopyFile Consume { Source: "sdk/work/identity.json"; Destination: "copied.json"; Overwrite: True; } }');
@@ -2283,14 +2694,14 @@ begin
     for lIndex := 0 to 3 do
     begin
       case lIndex of
-        0: lPath := lSDK + 'bin/ppcx64.exe';
+        0: lPath := lSDK + 'bin/nxpc-x86_64.exe';
         1: lPath := lSDK + 'work/rtl-units/z.o';
         2: lPath := lDirectory + 'bootstrap/seed/rtl/inc/sample.inc';
         3: lPath := lDirectory + 'bootstrap/seed/build-options.cfg';
       end;
       lOriginal := LoadRaw(lPath);
       Save(lPath, lOriginal + ' changed');
-      WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK);
+      WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK, 'x86_64-win64', 'nxpc-x86_64.exe');
       lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
       try
         AContext.AssertTrue(cExpected <> lRecord.Get('SDK', ''), 'Every input category affects the identity');
@@ -2299,7 +2710,7 @@ begin
       end;
       Save(lPath, lOriginal);
     end;
-    WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK);
+    WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK, 'x86_64-win64', 'nxpc-x86_64.exe');
     lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
     try
       AContext.AssertEquals(cExpected, lRecord.Get('SDK', ''), 'Stable SDK identity');
@@ -2315,7 +2726,7 @@ begin
     AContext.AssertFalse(lForge.Invocations[1].Started, 'Failure stops later tasks');
     AContext.AssertEquals(lBefore, LoadRaw(lSDK + 'work/identity.json'));
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
-      'PackageSDKOptions Bad { BootstrapDirectory: "bootstrap"; OutputDirectory: ""; }');
+      'PackageSDKOptions Bad { Target: "x86_64-win64"; CompilerFileName: "nxpc-x86_64.exe"; BootstrapDirectory: "bootstrap"; OutputDirectory: ""; }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Empty SDK path rejected');
     AssertNoLaunch(AContext, lForge);
   finally
@@ -2644,7 +3055,7 @@ begin
   ForceDirectories(lSDK + 'units');
   lIdentity := StringOfChar('A', 64);
   lBuild := StringOfChar('B', 32);
-  Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');
+  Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '","Target":"x86_64-win64","CompilerFileName":"nxpc-x86_64.exe"}');
   lPCP := 'NXP004' + StringOfChar(#0, 26) + Entry(93, ShortText('nxrtl')) +
     Entry(92, ShortText('nxrtl.nxpl') + ShortText(lIdentity) + ShortText(lBuild)) + Entry(255, '');
   lBinary := StringOfChar(#0, $600);
@@ -2688,7 +3099,7 @@ begin
   lInvocation := TNXForgeInvocation.Create;
   try
     lInvocation.WorkingDirectory := lDirectory;
-    lInvocation.Command := 'fpc "version.pas" "-osdk/bin/ppcx64.exe"';
+    lInvocation.Command := 'fpc "version.pas" "-osdk/bin/nxpc-x86_64.exe"';
     ExecuteForgeProcess(lInvocation);
     AContext.AssertTrue(lInvocation.Succeeded, lInvocation.Diagnostic + lInvocation.StdOut + lInvocation.StdErr);
   finally
@@ -2746,7 +3157,7 @@ begin
     SaveMetadata(lSDK + 'packages/nxrtl.nxp', lPCP);
     Save(lSDK + 'work/identity.json', '{}');
     Reject('Incomplete JSON identity');
-    Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '"}');
+    Save(lSDK + 'work/identity.json', '{"SDK":"' + lIdentity + '","Build":"' + lBuild + '","Target":"x86_64-win64","CompilerFileName":"nxpc-x86_64.exe"}');
     // An embedded foundation publishes and prepares consumers without a sidecar.
     Save(lSDK + 'packages/nxrtl.nxpl', PackageTestImage(lImage, lPCP, True));
     DeleteFile(lSDK + 'packages/nxrtl.nxp');
@@ -2754,7 +3165,7 @@ begin
     PrepareForgePackageBuild(lSDK, lDirectory + 'embedded SDK work', []);
     AContext.AssertTrue(FileExists(lDirectory + 'embedded SDK work/package.cfg'));
     lManifest := LoadRaw(lSDK + 'sdk.json');
-    Save(lSDK + 'bin/ppcx64.exe', 'not executable');
+    Save(lSDK + 'bin/nxpc-x86_64.exe', 'not executable');
     Reject('Compiler version query failure');
     Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') + 'PackageSDKManifest Bad { Directory: ""; }');
     AContext.AssertFalse(lForge.Execute(lDirectory + 'Build.nxscript'), 'Empty manifest path rejected');
@@ -2870,6 +3281,184 @@ begin
       lReader.Free;
     end;
     AContext.AssertTrue(lRejected, 'Malformed ELF case ' + IntToStr(lIndex) + ' rejected');
+  end;
+  Save(lDirectory + 'fixture.so', lValid);
+  lReader := TNXForgePackageArtifactReader.Create(lDirectory + 'fixture.so');
+  try
+    lReader.CheckImage('mypkg', StringOfChar('A', 64), StringOfChar('B', 32));
+    for lIndex := 0 to 2 do
+    begin
+      lRejected := False;
+      try
+        case lIndex of
+          0: lReader.CheckImage('other', StringOfChar('A', 64), StringOfChar('B', 32));
+          1: lReader.CheckImage('mypkg', StringOfChar('D', 64), StringOfChar('B', 32));
+          2: lReader.CheckImage('mypkg', StringOfChar('A', 64), StringOfChar('D', 32));
+        end;
+      except
+        on E: Exception do
+          lRejected := Pos('identity does not match', E.Message) > 0;
+      end;
+      AContext.AssertTrue(lRejected, 'ELF identity mismatch ' + IntToStr(lIndex));
+    end;
+  finally
+    lReader.Free;
+  end;
+end;
+
+procedure TestPackageSDKLinux(AContext: TNXTestContext);
+var
+  lDirectory, lSDK, lBinary, lIdentity, lBuild, lRaw: string;
+  lRecord: TJSONObject;
+  lEnvelope: TBytes;
+  lInvocation: TNXForgeInvocation;
+
+  procedure Put(AOffset: Integer; AValue: QWord; ASize: Integer = 8);
+  var
+    lByte: Integer;
+  begin
+    for lByte := 0 to ASize - 1 do
+      lBinary[AOffset + lByte + 1] := Chr((AValue shr (8 * lByte)) and $FF);
+  end;
+
+  procedure PutText(AOffset: Integer; const AText: string);
+  begin
+    Move(AText[1], lBinary[AOffset + 1], Length(AText));
+  end;
+
+  procedure Section(AIndex, AType, AFlags, AAddress, AOffset, ASize, ALink, AEntrySize: Integer);
+  var
+    lBase: Integer;
+  begin
+    lBase := $900 + AIndex * 64;
+    Put(lBase + 4, AType, 4); Put(lBase + 8, AFlags); Put(lBase + 16, AAddress);
+    Put(lBase + 24, AOffset); Put(lBase + 32, ASize); Put(lBase + 40, ALink, 4);
+    Put(lBase + 56, AEntrySize);
+  end;
+
+  procedure Relocation(AIndex, AAddress, AValue: Integer);
+  begin
+    Put($800 + AIndex * 24, AAddress);
+    Put($808 + AIndex * 24, 8);
+    Put($810 + AIndex * 24, AValue);
+  end;
+
+  function Entry(AKind: Byte; const AText: string): string;
+  begin
+    Result := Chr(Length(AText)) + #0#0#0#1 + Chr(AKind) + AText;
+  end;
+begin
+  lDirectory := TestDir('package-sdk-linux');
+  lSDK := lDirectory + 'sdk/';
+  ForceDirectories(lSDK + 'bin');
+  ForceDirectories(lSDK + 'packages');
+  ForceDirectories(lSDK + 'units');
+  ForceDirectories(lSDK + 'work/rtl-units');
+  ForceDirectories(lDirectory + 'bootstrap/seed/rtl');
+  Save(lDirectory + 'bootstrap/seed/rtl/sample.inc', 'source');
+  Save(lDirectory + 'bootstrap/seed/build-options.cfg', 'options');
+  Save(lSDK + 'work/rtl-units/system.nxu', 'fixture unit');
+  Save(lDirectory + 'version.pas', 'program Version; begin WriteLn(''3.3.1''); end.');
+  lInvocation := TNXForgeInvocation.Create;
+  try
+    lInvocation.WorkingDirectory := lDirectory;
+    lInvocation.Command := 'fpc "version.pas" "-osdk/bin/nxpc-x86_64"';
+    ExecuteForgeProcess(lInvocation);
+    AContext.AssertTrue(lInvocation.Succeeded, lInvocation.Diagnostic + lInvocation.StdOut + lInvocation.StdErr);
+  finally
+    lInvocation.Free;
+  end;
+  WriteForgePackageSDKOptions(lDirectory + 'bootstrap', lSDK, 'x86_64-linux-gnu', 'nxpc-x86_64');
+  lRecord := GetJSON(LoadRaw(lSDK + 'work/identity.json')) as TJSONObject;
+  try
+    lIdentity := lRecord.Get('SDK', '');
+    lBuild := lRecord.Get('Build', '');
+    AContext.AssertEquals('x86_64-linux-gnu', lRecord.Get('Target', ''));
+  finally
+    lRecord.Free;
+  end;
+  lRaw := 'NXP004' + StringOfChar(#0, 26) + Entry(93, #5'nxrtl') +
+    Entry(92, #10'nxrtl.nxpl' + #64 + lIdentity + #32 + lBuild) + Entry(255, '');
+  lEnvelope := EncodePackageMetadata(MetadataBytes(lRaw));
+  lBinary := StringOfChar(#0, $B20);
+  PutText(0, #127'ELF'#2#1#1); Put(16, 3, 2); Put(18, 62, 2);
+  Put(40, $900); Put(58, 64, 2); Put(60, 7, 2); Put(62, 5, 2);
+  Section(1, 1, 2, $1000, $200, $500, 0, 0);
+  Section(2, 3, 0, 0, $700, 18, 0, 0);
+  Section(3, 11, 0, 0, $780, 48, 2, 24);
+  Section(4, 4, 0, 0, $800, 96, 3, 24);
+  Section(5, 3, 0, 0, $B00, Length(NexusPackageMetadataSection) + 2, 0, 0);
+  Section(6, 1, 0, 0, $B20, Length(lEnvelope), 0, 0);
+  Put($900 + 6 * 64, 1, 4);
+  PutText($B00, #0 + NexusPackageMetadataSection + #0);
+  PutText($700, #0'FPC_PACKAGE_INFO'#0);
+  Put($798, 1, 4); Put($79E, 1, 2); Put($7A0, $1000);
+  Put($280, $4E58504B); Put($288, 4); Put($290, 168);
+  PutText($400, #5'nxrtl');
+  PutText($450, #64 + lIdentity); PutText($4A0, #32 + lBuild);
+  Relocation(0, $1000, $1080); Relocation(1, $10B0, $1200);
+  Relocation(2, $1110, $1250); Relocation(3, $1118, $12A0);
+  Save(lSDK + 'packages/nxrtl.nxpl', lBinary + MetadataText(lEnvelope));
+  Save(lSDK + 'units/sysinitpkg.nxu', 'fixture startup');
+  WriteForgePackageSDKManifest(lSDK);
+  lRecord := GetJSON(LoadRaw(lSDK + 'sdk.json')) as TJSONObject;
+  try
+    AContext.AssertEquals(2, lRecord.Get('Format', 0));
+    AContext.AssertEquals('x86_64-linux-gnu', lRecord.Get('Target', ''));
+    AContext.AssertEquals(lIdentity, lRecord.Get('SDKIdentity', ''));
+  finally
+    lRecord.Free;
+  end;
+  PrepareForgePackageBuild(lSDK, lDirectory + 'consumer', []);
+  lRecord := GetJSON(LoadRaw(lDirectory + 'consumer/package-build.json')) as TJSONObject;
+  try
+    AContext.AssertEquals(lIdentity, lRecord.Get('SDK', ''));
+    AContext.AssertEquals('x86_64-linux-gnu', lRecord.Get('Target', ''));
+  finally
+    lRecord.Free;
+  end;
+end;
+
+procedure TestPackageBuildHostCompiler(AContext: TNXTestContext);
+var
+  lDirectory, lHost, lExpected, lTemplate: string;
+  lTargets: TNexusScriptTargetSelection;
+  lDocument: TNexusScriptLiveDocument;
+  lCompile: TNexusScriptLiveDefinition;
+begin
+  lDirectory := TestDir('package-build-host-compiler');
+  for lHost in ['linux', 'win64'] do
+  begin
+    if lHost = 'linux' then
+      lTemplate := 'LinuxPackageApplication'
+    else
+      lTemplate := 'PackageBuild';
+    Save(lDirectory + 'Build.nxscript', Dialect('NexusForge') +
+      'module ' + lTemplate + ' "' + Root + 'projects/forge/templates/' + lTemplate + '.nxscript"; ' +
+      'Group Consumer (' + lTemplate + ') { ' +
+      'PackageBuildPrepare Prepare { SDKDirectory: "sdk"; WorkDirectory: "work"; } ' +
+      'NXPC Compile (' + lTemplate + '.Compile) { EntryPoint: "main.pas"; } ' +
+      'PackageBundlePublish Publish (' + lTemplate + '.Publish) { OutputDirectory: "published"; ' +
+      'Name: "main"; Kind: Console; } }');
+    lTargets := TNexusScriptTargetSelection.Create;
+    lDocument := nil;
+    try
+      lTargets.Add('HostOS', lHost);
+      lTargets.Add('HostCPU', 'x86_64');
+      lDocument := LoadForgeDocument(lDirectory + 'Build.nxscript', lTargets);
+      lCompile := lDocument.FindDefinition('Consumer').FindChild('Compile');
+      lExpected := 'sdk/bin/nxpc-x86_64';
+      if lHost = 'win64' then lExpected := lExpected + '.exe';
+      AContext.AssertEquals(lExpected, lCompile.FindProperty('Compiler').Value.AsText);
+      AContext.AssertEquals('main.pas', lCompile.FindProperty('Source').Value.Items[0].AsText,
+        'Explicit child composition retains Source and binds the customized EntryPoint');
+      if lHost = 'linux' then
+        AContext.AssertEquals('nxrtl',
+          lCompile.FindProperty('RequiredPackages').Value.Items[0].AsText);
+    finally
+      lDocument.Free;
+      lTargets.Free;
+    end;
   end;
 end;
 
@@ -3119,8 +3708,17 @@ begin
   lSuite.AddTest('CreateDirectory', @TestCreateDirectory);
   lSuite.AddTest('CreateDirectoryFailures', @TestCreateDirectoryFailures);
   lSuite.AddTest('FileOperations', @TestFileOperations);
+  {$IFDEF UNIX}
+  lSuite.AddTest('CleanDestinationDanglingLink', @TestCleanDestinationDanglingLink);
+  lSuite.AddTest('DeleteDirectoryLink', @TestDeleteDirectoryLink);
+  lSuite.AddTest('DeleteRootDirectoryLink', @TestDeleteRootDirectoryLink);
+  lSuite.AddTest('DeleteDanglingLink', @TestDeleteDanglingLink);
+  {$ENDIF}
   lSuite.AddTest('CopyIncludeMasks', @TestCopyIncludeMasks);
   lSuite.AddTest('CopyIncludeMasksFailures', @TestCopyIncludeMasksFailures);
+  lSuite.AddTest('BootstrapContexts', @TestBootstrapContexts);
+  lSuite.AddTest('CompareDirectories', @TestCompareDirectories);
+  lSuite.AddTest('NXBuildAdditionalTargets', @TestNXBuildAdditionalTargets);
   lSuite.AddTest('CompareFiles', @TestCompareFiles);
   lSuite.AddTest('CompareFilesDifferences', @TestCompareFilesDifferences);
   lSuite.AddTest('CompareFilesErrors', @TestCompareFilesErrors);
@@ -3153,11 +3751,14 @@ begin
   lSuite.AddTest('WorkingDirectory', @TestWorkingDirectory);
   lSuite.AddTest('RelativeCompiler', @TestRelativeCompiler);
   lSuite.AddTest('CompilationTimestamp', @TestCompilationTimestamp);
+  lSuite.AddTest('VerifyBuildIdentity', @TestVerifyBuildIdentity);
   lSuite.AddTest('BuildIdentity', @TestBuildIdentity);
   lSuite.AddTest('PackageSDKOptions', @TestPackageSDKOptions);
   lSuite.AddTest('PackageSDKManifest', @TestPackageSDKManifest);
   lSuite.AddTest('PackageStorage', @TestPackageStorage);
   lSuite.AddTest('PackageELFImage', @TestPackageELFImage);
+  lSuite.AddTest('PackageSDKLinux', @TestPackageSDKLinux);
+  lSuite.AddTest('PackageBuildHostCompiler', @TestPackageBuildHostCompiler);
   lSuite.AddTest('SourceSelections', @TestSourceSelections);
   lSuite.AddTest('StagedSources', @TestStagedSources);
   lSuite.AddTest('SourcePreflight', @TestSourcePreflight);

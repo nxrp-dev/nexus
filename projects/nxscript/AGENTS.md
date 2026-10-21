@@ -1,5 +1,7 @@
 # NexusScript Agent Instructions
 
+Follow the Nexus root [AGENTS.md](../../AGENTS.md), including its rules on instruction sources.
+
 These rules apply to `projects/nxscript`.
 
 ## Standards
@@ -11,9 +13,9 @@ These rules apply to `projects/nxscript`.
 ## Required Regression Checks
 
 - After compiler, validation, inclusion, or presentation changes, build and run
-  the complete `packages/nexus-packages/nxscript/test/NexusScriptTests.lpi` console suite.
+  the complete `packages/nexus-packages/nxscript/test/NexusScriptTests.nxproject` console suite with nxbuild.
 - After shared compiler/model/session/validation changes or language-server
-  changes, also build and run `projects/ls/nxscript/test/NexusScriptLSTests.lpi`.
+  changes, also build and run `projects/ls/nxscript/test/NexusScriptLSTests.nxproject` with nxbuild.
 - Run both suites for changes whose effect on editor analysis is uncertain.
 - Test success requires zero failures, errors, or unexpected skips. Report the
   actual totals and any unrun required checks.

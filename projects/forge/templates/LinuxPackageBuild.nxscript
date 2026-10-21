@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
 module PackageBuild "PackageBuild.nxscript";
 Group LinuxPackageBuild (PackageBuild) {
-    FPC Compile (PackageBuild.Compile) {
-        Compiler: @Prepare.SDKDirectory + "/bin/ppcx64";
+    NXPC Compile (PackageBuild.Compile) {
+        Compiler: @Prepare.SDKDirectory + "/bin/nxpc-x86_64";
         PositionIndependentCode: True;
         LinkerOptions: ["-rpath", "$ORIGIN", "-z", "origin"];
     }

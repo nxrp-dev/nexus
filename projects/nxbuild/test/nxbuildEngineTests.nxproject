@@ -9,8 +9,8 @@ Project EngineSourceTests TargetOS[linux] TargetCPU[x86_64] {
     Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.NXBuild, @Projects.NexusTest];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/nexus2d-decoder-tests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/nxbuild/test/nxbuildEngineTests.lpr"];
         OutputPath: @EngineSourceTests.OutputRoot;
         Target Platform { OperatingSystem: @Tools.Native.OS; }

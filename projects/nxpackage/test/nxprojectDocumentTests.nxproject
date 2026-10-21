@@ -8,8 +8,8 @@ Project NXProjectDocumentTests {
     Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @Projects.NXBuild, @Projects.NexusTest];
     RootDirectory: "../../..";
     OutputRoot: @Tools.OutputRoot + "/nxproject-document-tests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/nxpackage/test/nxprojectDocumentTests.lpr"];
         OutputPath: @NXProjectDocumentTests.OutputRoot;
         Target Platform { OperatingSystem: @Tools.Native.OS; }

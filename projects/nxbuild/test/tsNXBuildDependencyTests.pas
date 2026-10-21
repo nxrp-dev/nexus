@@ -630,6 +630,80 @@ begin
   end;
 end;
 
+procedure CheckOpenSSLPublications(AContext: TNXTestContext;
+  const ADescriptor, ACPU, AOS, AConfiguration: string);
+var
+  lLoader: TNXBuildDescriptionLoader;
+  lPlanner: TNXBuildPlanner;
+  lDescription: TNXBuildDescription;
+  lPlan: TNXBuildPlan;
+  lTargets: TNexusScriptTargetSelection;
+  lRoot: string;
+begin
+  lLoader := TNXBuildDescriptionLoader.Create;
+  lPlanner := TNXBuildPlanner.Create;
+  lTargets := TNexusScriptTargetSelection.Create;
+  try
+    lTargets.SetValue('TargetCPU', ACPU);
+    lTargets.SetValue('TargetOS', AOS);
+    lTargets.SetValue('BuildConfiguration', AConfiguration);
+    lRoot := ExpandFileName('../../toolchain/openssl/' + ACPU + '-' + AOS);
+    lDescription := lLoader.LoadDescription(
+      'packages/nexus-packages/network/openssl/' + ADescriptor, lTargets);
+    try
+      lPlan := lPlanner.CreatePlan(lDescription, False);
+      try
+        AContext.AssertEquals(0, lPlan.Steps.Count,
+          'OpenSSL must consume prebuilt artifacts without invoking build tools');
+        AContext.AssertTrue(lPlan.Projects[lPlan.Projects.Count - 1].Directories.Headers.IndexOf(
+          lRoot + '/include') >= 0, ACPU + '-' + AOS + ' headers through ' + ADescriptor);
+        AContext.AssertTrue(lPlan.Projects[lPlan.Projects.Count - 1].Directories.Libraries.IndexOf(
+          lRoot + '/lib') >= 0, ACPU + '-' + AOS + ' libraries through ' + ADescriptor);
+      finally
+        lPlan.Free;
+      end;
+    finally
+      lDescription.Free;
+    end;
+  finally
+    lTargets.Free;
+    lPlanner.Free;
+    lLoader.Free;
+  end;
+end;
+
+procedure TestOpenSSLNativePublications(AContext: TNXTestContext);
+const
+  cTargets: array[0..12] of string = (
+    'i386-linux', 'x86_64-linux', 'aarch64-linux',
+    'i386-win32', 'x86_64-win64', 'aarch64-win64',
+    'x86_64-android', 'aarch64-android',
+    'x86_64-darwin', 'aarch64-darwin',
+    'x86_64-iphonesim', 'aarch64-iphonesim', 'aarch64-ios');
+var
+  lTarget, lConfiguration: string;
+  lSeparator: Integer;
+begin
+  for lTarget in cTargets do
+  begin
+    lSeparator := Pos('-', lTarget);
+    for lConfiguration in ['Debug', 'Release'] do
+      CheckOpenSSLPublications(AContext, 'Native.nxproject',
+        Copy(lTarget, 1, lSeparator - 1),
+        Copy(lTarget, lSeparator + 1, Length(lTarget)), lConfiguration);
+  end;
+end;
+
+procedure TestOpenSSLBindingPublications(AContext: TNXTestContext);
+var
+  lOS, lConfiguration: string;
+begin
+  for lOS in ['linux', 'win64'] do
+    for lConfiguration in ['Debug', 'Release'] do
+      CheckOpenSSLPublications(AContext, 'Project.nxproject',
+        'x86_64', lOS, lConfiguration);
+end;
+
 procedure TestConflictingCompilerTargets(AContext: TNXTestContext);
 var
   lFixture: TNXDependencyFixture;
@@ -966,6 +1040,8 @@ begin
   lSuite.AddTest('GeneratedToolPlan', @TestGeneratedToolPlan);
   lSuite.AddTest('ValidationWithoutInstalledTools', @TestValidationWithoutInstalledTools);
   lSuite.AddTest('ActualPlatformPublications', @TestActualPlatformPublications);
+  lSuite.AddTest('OpenSSLNativePublications', @TestOpenSSLNativePublications);
+  lSuite.AddTest('OpenSSLBindingPublications', @TestOpenSSLBindingPublications);
   lSuite.AddTest('ConflictingCompilerTargets', @TestConflictingCompilerTargets);
 end;
 

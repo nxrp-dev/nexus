@@ -9,7 +9,7 @@ program NexusForgeTests;
 
 uses
   Classes, SysUtils, obNXTestRegistry, obNXTestSuite, obNXTestResult,
-  tsNXForgeTests {$IFDEF UNIX}, BaseUnix{$ENDIF};
+  tsNXForgeTests, tsNexusSystemTests {$IFDEF UNIX}, BaseUnix{$ENDIF};
 
 procedure Run;
 var
@@ -21,7 +21,8 @@ begin
   lPassed := 0;
   lFailed := 0;
   try
-    RegisterForgeTests(lRegistry);
+    if ParamStr(1) <> '--system' then RegisterForgeTests(lRegistry);
+    RegisterNexusSystemTests(lRegistry);
     for lSuite := 0 to lRegistry.SuiteCount - 1 do
       for lTest := 0 to lRegistry.Suites[lSuite].TestCount - 1 do
       begin
@@ -43,7 +44,9 @@ begin
 end;
 
 begin
-  if ParamStr(1) = 'child' then
+  if ParamStr(1) = '-iW' then WriteLn('1.0-ForgeIdentityTest')
+  else if ParamStr(1) = '-iD' then WriteLn('2026/10/19')
+  else if ParamStr(1) = 'child' then
   begin
     if ParamStr(2) = 'streams' then
     begin

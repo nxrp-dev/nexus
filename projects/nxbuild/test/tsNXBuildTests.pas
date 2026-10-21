@@ -18,9 +18,9 @@ function NXBuildRunSourceTool: Integer;
 implementation
 
 uses
-  Classes, SysUtils, TypInfo, obNXTestContext, obNXTestSuite,
+  Classes, SysUtils, TypInfo, utNXBuildTargets, obNXTestContext, obNXTestSuite,
   obNXBuildDescriptionLoader, obNXBuildDescription, obNXBuildEntry,
-  obNXBuildPlanner, obNXBuildExecutor, obNXFPCBuildOptions,
+  obNXBuildPlanner, obNXBuildExecutor, obNXFPCBuildOptions, obNXPCBuildOptions,
   obNXLLVMBuildOptions, obNexusScriptAnalysis, obNexusScriptLanguageDefinition, obNexusScriptModel;
 
 function NXBuildQuote(const AValue: string): string;
@@ -85,6 +85,70 @@ var
 begin
   CreateGUID(lGuid);
   Result := NXBuildTestPath(GUIDToString(lGuid));
+end;
+
+procedure TestCompilerIdentity(AContext: TNXTestContext);
+var
+  lDescription: TNXBuildDescription;
+  lNXPC: TNXPCBuildOptions;
+  lFPC: TNXFPCBuildOptions;
+begin
+  lDescription := NXBuildTestLoad('Project Identity { Id: "compiler-identity"; ' +
+    'FPC Seed { CompilerPath: "stock-fpc"; SourceFiles: ["seed.pas"]; OutputPath: "seed"; } ' +
+    'NXPC Product { CompilerPath: "nexus-compiler"; SourceFiles: ["product.pas"]; ' +
+    'OutputPath: "product"; Language Pascal { Mode: ObjFPC; } ' +
+    'Config Options { DisableDefaultConfigFiles: True; } } }');
+  try
+    AContext.AssertEquals(2, lDescription.Builds.Count);
+    AContext.AssertTrue(lDescription.Builds[0] is TNXFPCBuildOptions);
+    AContext.AssertFalse(lDescription.Builds[0] is TNXPCBuildOptions,
+      'Upstream FPC must remain a distinct build type');
+    AContext.AssertTrue(lDescription.Builds[1] is TNXPCBuildOptions);
+    lFPC := lDescription.Builds[0] as TNXFPCBuildOptions;
+    lNXPC := lDescription.Builds[1] as TNXPCBuildOptions;
+    AContext.AssertEquals('FPC', lFPC.BuildType);
+    AContext.AssertEquals('NXPC', lNXPC.BuildType);
+    AContext.AssertEquals('nexus-compiler', lNXPC.CompilerPath);
+    AContext.AssertEquals(Ord(flmObjFPC), Ord(lNXPC.Language.Mode));
+    AContext.AssertTrue(lNXPC.Config.DisableDefaultConfigFiles);
+  finally
+    lDescription.Free;
+  end;
+end;
+
+procedure TestAdditionalTargets(AContext: TNXTestContext);
+var
+  lTargets: TNexusScriptTargetSelection;
+  lDescription: TNXBuildDescription;
+  lInvalid: string;
+  lRejected: Boolean;
+begin
+  lTargets := TNexusScriptTargetSelection.Create;
+  try
+    AddNXBuildTargets('Workspace:C:/worktree with spaces,Stage:cycle1', lTargets);
+    AContext.AssertEquals('C:/worktree with spaces', lTargets.Find('Workspace').Value);
+    AContext.AssertEquals('cycle1', lTargets.Find('Stage').Value);
+    lDescription := NXBuildTestLoad('Project Demo { Id: "Tests.Targets"; ' +
+      'OutputRoot: $Workspace + "/" + $Stage; }', True, lTargets);
+    try
+      AContext.AssertTrue(Pos('worktree with spaces/cycle1',
+        StringReplace(lDescription.OutputRoot, '\', '/', [rfReplaceAll])) > 0);
+    finally
+      lDescription.Free;
+    end;
+    for lInvalid in ['NoColon', ':value', 'Empty:', 'Blank: ', 'Stage:duplicate'] do
+    begin
+      lRejected := False;
+      try
+        AddNXBuildTargets(lInvalid, lTargets);
+      except
+        on E: Exception do lRejected := True;
+      end;
+      AContext.AssertTrue(lRejected, lInvalid);
+    end;
+  finally
+    lTargets.Free;
+  end;
 end;
 
 procedure TestDefaults(AContext: TNXTestContext);
@@ -1139,6 +1203,8 @@ var
   lSuite: TNXTestSuite;
 begin
   lSuite := ARegistry.AddSuite('NXBuild');
+  lSuite.AddTest('CompilerIdentity', @TestCompilerIdentity);
+  lSuite.AddTest('AdditionalTargets', @TestAdditionalTargets);
   lSuite.AddTest('Defaults', @TestDefaults);
   lSuite.AddTest('RetainedDebugFormats', @TestRetainedDebugFormats);
   lSuite.AddTest('RetiredDebugOptions', @TestRetiredDebugOptions);

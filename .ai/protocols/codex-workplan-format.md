@@ -1,10 +1,13 @@
 # Codex Work Plan Format
 
-Codex work plans should be saved under `work/plans/` using the same filename as the request.
+Use this format when the owner requests a saved work plan. Save it under
+`work/plans/` using the same topic name as the request, when present.
 
-Create exactly one work plan per request. Do not create duplicate copies, alternate names, or files under legacy `workplans/` locations.
+For each requested saved plan, create one file. Do not create duplicate copies,
+alternate names, or files under legacy `workplans/` locations.
 
-After creating the work plan, commit and push the work-plan artifact. That commit/push is part of the planning handoff and does not authorize implementation.
+Follow the root `AGENTS.md` Verification Workflow for records and repository
+actions. Saving a plan does not authorize a commit, push, or implementation.
 
 Example:
 
@@ -90,7 +93,6 @@ State that no implementation begins until the human owner explicitly authorizes 
 - Do not treat the source request as implementation authorization.
 - Do not edit code while creating the work plan.
 - Do not create more than one work-plan file for the same request.
-- Commit and push the finished work-plan artifact.
 - Do not replace architecture analysis with generic task steps.
 - Do not omit non-goals.
 - Do not hide uncertainty.

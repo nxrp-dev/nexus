@@ -8,7 +8,6 @@ Last reviewed: **2026-10-10**.
 Nexus is directed and developed by **Kevin Collins**. Upstream authors retain credit
 for their work. ChatGPT and Codex have assisted development and review under Kevin's
 direction; that assistance does not replace his authorship or design responsibility.
-The voluntary acknowledgement “Built with NexusUI by Kevin Collins” remains welcome.
 
 ## Reading and maintaining this record
 
@@ -91,7 +90,7 @@ repository rather than constituting additional forks.
 - **SPDX:** `Zlib`; preserve the binary archive's accompanying third-party notices.
 - **Evidence/notices:** the extracted `license` directory and `README.txt`.
 
-### Free Pascal and NexusFPC
+### Free Pascal and NXPC (formerly NexusFPC)
 
 - **Credit:** Free Pascal development team and the contributors named in the retained
   compiler, RTL, package headers, and documentation.
@@ -99,7 +98,7 @@ repository rather than constituting additional forks.
   [project](https://www.freepascal.org/).
 - **Fork/import date:** unknown. The locally available shallow history includes
   Nexus work on **2026-09-17**, `2a3622f8`; it cannot establish the original fork date.
-- **Our location/status:** FPC repository; maintained compiler, runtime, and packages.
+- **Our location/status:** `nexus-fpc`; maintained NXPC compiler, runtime, and packages.
   FCL Base moved on 2026-10-18 to Nexus
   `packages/nexus-packages/fcl-base`; its dedicated provenance record is below.
   The inherited core make build recipes and `fpcmake`/`fpgmake` generators were
@@ -231,8 +230,6 @@ repository rather than constituting additional forks.
   Nexus package/build/test integration. The compiler-side directory is removed.
   The 17 link-only programs were converted into 227 direct nxtest symbol
   checks. The keyboard-map printer moved to Lab `examples/gui/x11/KeyboardMap.pas`.
-  Proven C ABI, library import and XKB/helper corrections are recorded in the
-  destination `CODE_REVIEW.md`; no duplicate provider/evidence archive is kept.
 - **SPDX/notices:** imported C bindings retain their individual MIT/X11-family
   notices; the fpGUI-derived Xft material retains
   `LGPL-2.1-only WITH Independent-modules-exception` and its author record.
@@ -378,8 +375,7 @@ repository rather than constituting additional forks.
   now use nxtest directly, without a bridge. JSON's `jsonfpcunit` helper and
   fpGUI's FPCUnit GUI/Lazarus runner integration are also historical.
 - **Preservation/evidence:** Nexus `docs/migrations/fpcunit` contains
-  archives of original source, per-file SHA-256 manifests, original source notices
-  and the [conversion report](docs/migrations/fpcunit/README.md).
+  archives of original source, per-file SHA-256 manifests and original source notices.
   After the owner-directed Maximus removal, the first archive preserves 604
   files and the second preserves 95 retired support files, including ancillary
   templates and runner assets. Maximus entries were removed from both archives
@@ -531,8 +527,6 @@ repository rather than constituting additional forks.
   [IJG's original archive](https://www.ijg.org/files/jpegsrc.v6b.tar.gz), archive
   SHA-256 `75c3ec241e9996504fe02a9ed4d12f16b74ade713972f3db9e65ce95cd27e35d`,
   README SHA-256 `4cf9c190f184019b61c36bcc49d4a24ffeb2a838c6f1690d6c4db14cfb2d0478`.
-  The saved `CODE_REVIEW.md` records compilation repairs, nil-callback and
-  bitmap-offset regression proofs, fixes, native verification and limits.
   The modified convenience unit is plainly marked. Historical platform
   alternatives and the unused unfinished IDCT prototype remain source-only.
 
@@ -610,8 +604,6 @@ repository rather than constituting additional forks.
   were removed, including the FCL OpenSSL socket adapter. Useful TCP/resolver/TLS
   demonstrations in Nexus Lab now use Synapse; redundant or retired-API examples
   and tests were removed. Synapse and OpenSSL own their focused nxtest coverage.
-  The earlier intact relocation and its review remain in Git history; current
-  consolidation results are in `network/FCL-NET-CONSOLIDATION.md`.
 - **SPDX:** principal FPC/FCL units use
   `LGPL-2.1-only WITH Independent-modules-exception`; `resolve.pas` explicitly
   grants `GPL-1.0-or-later`. `cnetdb.pas` retains `BSD-4-Clause` and an additional
@@ -641,7 +633,7 @@ repository rather than constituting additional forks.
 - **SPDX:** Pascal binding: `LGPL-2.1-only WITH Independent-modules-exception`;
   native libffi: `MIT` (external distribution's notices apply).
 - **Evidence/notices:** original source headers, `COPYING.FPC`, `COPYING.txt`,
-  saved `CODE_REVIEW.md`, namespace wrappers/map and inherited native ABI probes.
+  namespace wrappers/map and inherited native ABI probes.
   The original source snapshot is preserved by the Git tree and worktree proof.
 
 ### FCL Res
@@ -662,7 +654,7 @@ repository rather than constituting additional forks.
 - **SPDX:** `LGPL-2.1-only WITH Independent-modules-exception`;
   original FPC license and exception texts accompany the package.
 - **Evidence/notices:** source headers, `COPYING.FPC`, `COPYING.txt`,
-  `CODE_REVIEW.md` and the baseline hash inventory at the package destination.
+  and the baseline hash inventory at the package destination.
 
 ### FCL Registry
 
@@ -837,8 +829,7 @@ proprietary source and no Kylix support.
   the supported ABI names shared with the X11 package (now Nexus `graphics/x11`). The inherited
   AggPas FreeType binding now names `libfreetype.so.6` on Linux. Existing fpGUI
   and AggPas authorship/license notices remain intact. Two direct font-binding
-  nxtest cases live beside the framework tests; validation is recorded in
-  Nexus `docs/reviews/linux-shared-libraries.md`.
+  nxtest cases live beside the framework tests.
 - **SPDX:** framework/UIDesigner LGPL 2.1 text with linking permission:
   `LGPL-2.1-only WITH Independent-modules-exception`; individual file headers may
   grant later versions. DocView/examples have GPL 2.0 notices; bundled extras vary.
@@ -1016,19 +1007,15 @@ The DCL Implode decoder was added separately on **2026-10-13**:
 - **Evidence/notices:** official `packages/paszlib/readme.txt` legal section, the consolidated
   `rtl/objpas/paszlib*.pas` headers,
   NexusFPC `packages/COPYING.FPC` and `rtl/COPYING.txt`. The removed external
-  `COPYING.FPC` was byte-identical to the official notice. Runtime comparison,
-  baseline hashes and test/build results are recorded in
-  NexusFPC `packages/paszlib/CONSOLIDATION.md` and
-  `rtl/objpas/paszlib-consolidation.md`; isolated validation outputs are in the
-  development worktree. Prior external import history remains in Git.
+  `COPYING.FPC` was byte-identical to the official notice.
+  Prior external import history remains in Git.
 
 ### HashLib4Pascal
 
 - **Credit:** Ugochukwu Mmaduekwe and contributors.
 - **Upstream:** [HashLib4Pascal](https://github.com/Xor-el/HashLib4Pascal), revision
   `1687d81fd0c8a08f3f04e7fed507a19131fbc0b1`.
-- **Fork/import date:** **2026-10-17**, by the approved
-  `work/plans/hashlib4pascal-package-and-hash-consumer-audit.md`. The selected
+- **Fork/import date:** **2026-10-17**. The selected
   runtime/include files were byte-checked against that revision's source archive;
   `hashlib4pascal/review/import-hashes.json` records each imported file digest.
 - **Our location/status:** Packages `hashlib4pascal/external/hashlib4pascal`,
@@ -1043,8 +1030,7 @@ The DCL Implode decoder was added separately on **2026-10-13**:
   MIT license does not relabel them.
 - **Integration:** ordinary digest/HMAC/CRC/KDF library and tool dependency.
   It is not a compiler-bootstrap, package-metadata or PasZLib dependency.
-  Source review, verification results and target limits are in the package's
-  `CODE_REVIEW.md`; examples remain in Nexus Lab.
+  Examples remain in Nexus Lab.
 
 ### DMustache and Synopse include
 
@@ -1121,8 +1107,21 @@ The DCL Implode decoder was added separately on **2026-10-13**:
 - **Fork/import date:** first native runtime adoption unknown; collective binding
   import recorded **2026-10-08**, Packages `b65a2ae`.
 - **Our location/status:** Packages `network/openssl`; dynamic native OpenSSL 3
-  dependency, not bundled in that package. Engine has separate inherited OpenSSL
-  records and a newer local dependency build.
+  dependency, not bundled in that package. `network/openssl/Native.nxproject`
+  publishes prebuilt target installations under the external
+  `toolchain/openssl/<CPU>-<OS>` directory. Nexus does not compile native OpenSSL.
+  Engine retains separate historical OpenSSL records below.
+- **Prebuilt Windows supplier:** [Shining Light Productions](https://slproweb.com/products/Win32OpenSSL.html),
+  full OpenSSL 3 developer packages; [supplier hashes](https://github.com/slproweb/opensslhashes).
+  Win64 3.5.9 was acquired **2026-10-20** from
+  [Win64OpenSSL-3_5_9.msi](https://slproweb.com/download/Win64OpenSSL-3_5_9.msi).
+  Release `/MT` static libraries supply the existing engine inputs; DLLs and
+  import libraries remain distinct. Preserve the supplied license. Supplier
+  terms require a minimum $225 contribution for business product integration.
+- **Prebuilt Linux supplier:** Ubuntu `libssl-dev` and `libssl3t64`, matching
+  native amd64 packages `3.0.13-0ubuntu3.16`; headers and libraries acquired from
+  the installed packages **2026-10-20**, with their copyright notice retained.
+  Other target installations require their own supplier artifacts.
 - **SPDX:** native OpenSSL 3 `Apache-2.0`; inherited Pascal units retain FPC terms
   including `Independent-modules-exception` in `network/openssl/COPYING.FPC`.
   Binding notices are distinct from the native library license.
@@ -1274,6 +1273,9 @@ supplier instead of guessing a repository. “General notices” means
 - **Our location/status:** Engine's local Win64 build support, outside its repository,
   including `openssl-3.5.9`, `libevent-2.1.13`, `mDNSResponder-1557`, `shaderc`, and
   `vcpkg`; built artifacts under `C:\gitdev\tools\solar2d-win64`.
+  The OpenSSL source-build path is retired; current consumers use the shared
+  prebuilt dependency described above. Its source checkout remains historical
+  provenance, not a build prerequisite.
 - **Credit/SPDX:** contributors named in each retained LICENSE; OpenSSL 3 is
   `Apache-2.0`. `NOASSERTION` for a combined dependency-workspace expression.
   Shaderc's bundled glslang/SPIRV-Tools and other nested dependencies have separate
@@ -1833,5 +1835,5 @@ under `/media/kcollins/dev/worktree/gdb-wrapper-retirement-20261017-pa1fkjjs`, t
   Broader grants in individual headers are preserved. New Nexus integration and
   regression files use `MPL-2.0-no-copyleft-exception`.
 - **Evidence/notices:** destination `COPYING.FPC`, `COPYING.txt`, original source
-  headers, `CODE_REVIEW.md`, and `review/baseline-hashes.json`. Package docs link
+  headers and `review/baseline-hashes.json`. Package docs link
   here instead of duplicating provenance.

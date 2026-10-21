@@ -25,8 +25,8 @@ Maintained inputs live with their owners:
 From the repository root:
 
 ```powershell
-lazbuild projects\forge\NexusForge.lpi
-lazbuild projects\csv\NexusCSV.lpi
+nxbuild /action=build /project=projects/forge/NexusForge.nxproject
+nxbuild /action=build /project=projects/csv/NexusCSV.nxproject
 $env:PATH = (Resolve-Path output\NexusCSV\x86_64-win64).Path + ';' + $env:PATH
 & .\output\NexusForge\x86_64-win64\nxforge.exe `
   /input=../nexus-lab/examples/data/csv/Lookup.Forge.nxscript

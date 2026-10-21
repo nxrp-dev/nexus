@@ -1,0 +1,26 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "projects/nxbuild/language/nxbuild.Language.nxscript";
+module Products "Nexus.Products.nxscript";
+
+Project NexusSystem TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.System.Applications";
+    Description: "Nexus development tools, applications, language servers and test tools.";
+    RootDirectory: ".";
+    Requires: [
+        @Products.NXBuild,
+        @Products.NexusForge,
+        @Products.NexusScript,
+        @Products.NexusCSV,
+        @Products.NexusProfilerImport,
+        @Products.NexusScriptLS,
+        @Products.NexusLS,
+        @Products.NexusBotHost,
+        @Products.NexusTestHost,
+        @Products.NexusTestUI,
+        @Products.NexusPackage,
+        @Products.NexusSetupBuilder,
+        @Products.NexusSetup
+    ];
+}

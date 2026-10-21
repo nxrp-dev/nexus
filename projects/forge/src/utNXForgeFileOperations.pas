@@ -26,7 +26,7 @@ function IsForgeFileOperation(const AKind: string): Boolean;
 begin
   Result := SameText(AKind, 'CreateDirectory') or
     SameText(AKind, 'WriteTextFile') or SameText(AKind, 'CopyFile') or
-    SameText(AKind, 'CompareFiles') or SameText(AKind, 'DeletePath') or
+    SameText(AKind, 'VerifyBuildIdentity') or SameText(AKind, 'CompareDirectories') or SameText(AKind, 'CompareFiles') or SameText(AKind, 'DeletePath') or
     SameText(AKind, 'Archive') or SameText(AKind, 'BuildIdentity') or
     SameText(AKind, 'PackageSDKOptions') or SameText(AKind, 'PackageSDKManifest') or
     SameText(AKind, 'PackageBuildPrepare') or SameText(AKind, 'PackageBundlePublish');
@@ -109,6 +109,14 @@ begin
     AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('Path').Value, AInvocation.WorkingDirectory);
     AInvocation.ArtifactText := PropertyText(AOperation, 'Text');
   end
+  else if SameText(AOperation.Kind, 'VerifyBuildIdentity') then
+  begin
+    AInvocation.Kind := fokVerifyBuildIdentity;
+    AInvocation.SourcePath := ForgeValuePath(AOperation.FindProperty('Compiler').Value,
+      AInvocation.WorkingDirectory, True);
+    AInvocation.OutputPath := ForgeValuePath(AOperation.FindProperty('IdentityFile').Value,
+      AInvocation.WorkingDirectory);
+  end
   else if SameText(AOperation.Kind, 'BuildIdentity') then
   begin
     AInvocation.Kind := fokBuildIdentity;
@@ -121,6 +129,8 @@ begin
   else if SameText(AOperation.Kind, 'PackageSDKOptions') then
   begin
     AInvocation.Kind := fokPackageSDKOptions;
+    AInvocation.PackageSDKTarget := PropertyText(AOperation, 'Target');
+    AInvocation.CompilerFileName := PropertyText(AOperation, 'CompilerFileName');
     if (Trim(PropertyText(AOperation, 'BootstrapDirectory')) = '') or
       (Trim(PropertyText(AOperation, 'OutputDirectory')) = '') then
       raise Exception.Create('PackageSDKOptions requires nonempty BootstrapDirectory and OutputDirectory paths');
@@ -167,9 +177,16 @@ begin
     AInvocation.PackageName := PropertyText(AOperation, 'Name');
     AInvocation.PackageKind := PropertyText(AOperation, 'Kind');
   end
-  else if SameText(AOperation.Kind, 'CompareFiles') then
+  else if SameText(AOperation.Kind, 'CompareFiles') or
+    SameText(AOperation.Kind, 'CompareDirectories') then
   begin
     AInvocation.Kind := fokCompareFiles;
+    if SameText(AOperation.Kind, 'CompareDirectories') then
+    begin
+      AInvocation.Kind := fokCompareDirectories;
+      AInvocation.Recursive := OptionalBoolean(AOperation, 'Recursive', False);
+      AInvocation.IncludeMasks := CopyIncludeMasks(AOperation);
+    end;
     lLeft := PropertyText(AOperation, 'Left');
     lRight := PropertyText(AOperation, 'Right');
     if (Trim(lLeft) = '') or (Trim(lRight) = '') then
@@ -216,25 +233,48 @@ begin
     raise Exception.Create('Could not create directory: ' + APath);
 end;
 
+procedure DeleteFileOrLink(const APath: string; AAttributes: LongInt);
+begin
+  {$IFDEF WINDOWS}
+  if (AAttributes and (faSymLink or faDirectory)) = (faSymLink or faDirectory) then
+  begin
+    if not RemoveDir(APath) then
+      raise Exception.Create('Could not remove directory link: ' + APath);
+    Exit;
+  end;
+  {$ENDIF}
+  if not DeleteFile(APath) then
+    raise Exception.Create('Could not delete file: ' + APath);
+end;
+
 procedure RemoveDirectoryTree(const APath: string);
 var
-  lChild: string;
+  lChild, lPath: string;
+  lAttributes: LongInt;
   lSearch: TSearchRec;
 begin
-  if FindFirst(IncludeTrailingPathDelimiter(APath) + '*', faAnyFile, lSearch) = 0 then
+  lPath := ExcludeTrailingPathDelimiter(APath);
+  lAttributes := FileGetAttr(lPath);
+  if (lAttributes <> -1) and ((lAttributes and faSymLink) <> 0) then
+  begin
+    DeleteFileOrLink(lPath, lAttributes);
+    Exit;
+  end;
+  if FindFirst(IncludeTrailingPathDelimiter(lPath) + '*',
+    faAnyFile or faSymLink, lSearch) = 0 then
   try
     repeat
       if (lSearch.Name = '.') or (lSearch.Name = '..') then Continue;
-      lChild := IncludeTrailingPathDelimiter(APath) + lSearch.Name;
-      if (lSearch.Attr and faDirectory) <> 0 then RemoveDirectoryTree(lChild)
-      else if not DeleteFile(lChild) then
-        raise Exception.Create('Could not delete file: ' + lChild);
+      lChild := IncludeTrailingPathDelimiter(lPath) + lSearch.Name;
+      if (lSearch.Attr and (faDirectory or faSymLink)) = faDirectory then
+        RemoveDirectoryTree(lChild)
+      else DeleteFileOrLink(lChild, lSearch.Attr);
     until FindNext(lSearch) <> 0;
   finally
     FindClose(lSearch);
   end;
-  if not RemoveDir(APath) then
-    raise Exception.Create('Could not remove directory: ' + APath);
+  if not RemoveDir(lPath) then
+    raise Exception.Create('Could not remove directory: ' + lPath);
 end;
 
 procedure CopyOneFile(const ASource, ADestination: string; AOverwrite: Boolean);
@@ -395,8 +435,11 @@ end;
 
 procedure ExecuteDelete(AInvocation: TNXForgeInvocation);
 var
-  lMask, lRoot: string;
+  lMask, lRoot, lPath: string;
+  lAttributes: LongInt;
 begin
+  lPath := ExcludeTrailingPathDelimiter(AInvocation.SourcePath);
+  lAttributes := FileGetAttr(lPath);
   lMask := ExtractFileName(AInvocation.SourcePath);
   if (Pos('*', lMask) > 0) or (Pos('?', lMask) > 0) then
   begin
@@ -409,6 +452,8 @@ begin
     end;
     DeleteMatchingFiles(lRoot, lMask, AInvocation.Recursive);
   end
+  else if (lAttributes <> -1) and ((lAttributes and faSymLink) <> 0) then
+    DeleteFileOrLink(lPath, lAttributes)
   else if FileExists(AInvocation.SourcePath) then
   begin
     if not DeleteFile(AInvocation.SourcePath) then
@@ -622,6 +667,66 @@ begin
   end;
 end;
 
+procedure CollectComparisonFiles(const ARoot, ARelative: string;
+  AInvocation: TNXForgeInvocation; AFiles: TStrings);
+var
+  lSearch: TSearchRec;
+  lRelative: string;
+begin
+  if FindFirst(IncludeTrailingPathDelimiter(ARoot) + ARelative + '*', faAnyFile, lSearch) <> 0 then Exit;
+  try
+    repeat
+      if (lSearch.Name = '.') or (lSearch.Name = '..') then Continue;
+      lRelative := ARelative + lSearch.Name;
+      if (lSearch.Attr and faDirectory) <> 0 then
+      begin
+        if AInvocation.Recursive then
+          CollectComparisonFiles(ARoot, lRelative + PathDelim, AInvocation, AFiles);
+      end
+      else if IncludedFile(lSearch.Name, AInvocation.IncludeMasks) then AFiles.Add(lRelative);
+    until FindNext(lSearch) <> 0;
+  finally
+    FindClose(lSearch);
+  end;
+end;
+
+procedure ExecuteCompareDirectories(AInvocation: TNXForgeInvocation);
+var
+  lLeft, lRight: TStringList;
+  lPair: TNXForgeInvocation;
+  lIndex: Integer;
+begin
+  if not DirectoryExists(AInvocation.LeftPath) or not DirectoryExists(AInvocation.RightPath) then
+    raise Exception.Create('CompareDirectories requires two existing directories');
+  lLeft := TStringList.Create;
+  lRight := TStringList.Create;
+  lPair := TNXForgeInvocation.Create;
+  try
+    lLeft.CaseSensitive := True;
+    lRight.CaseSensitive := True;
+    lLeft.Sorted := True;
+    lRight.Sorted := True;
+    CollectComparisonFiles(AInvocation.LeftPath, '', AInvocation, lLeft);
+    CollectComparisonFiles(AInvocation.RightPath, '', AInvocation, lRight);
+    if (lLeft.Count = 0) or (lRight.Count = 0) then
+      raise Exception.Create('CompareDirectories matched no files');
+    if lLeft.Text <> lRight.Text then
+      raise Exception.Create('CompareDirectories file sets differ: ' +
+        AInvocation.LeftPath + ' and ' + AInvocation.RightPath);
+    for lIndex := 0 to lLeft.Count - 1 do
+    begin
+      lPair.LeftPath := IncludeTrailingPathDelimiter(AInvocation.LeftPath) + lLeft[lIndex];
+      lPair.RightPath := IncludeTrailingPathDelimiter(AInvocation.RightPath) + lRight[lIndex];
+      ExecuteCompareFiles(lPair);
+    end;
+    AInvocation.StdOut := IntToStr(lLeft.Count) + ' files match byte for byte' + LineEnding;
+  finally
+    lPair.Free;
+    lRight.Free;
+    lLeft.Free;
+  end;
+end;
+
 procedure ExecuteForgeFileOperation(AInvocation: TNXForgeInvocation);
 begin
   AInvocation.Started := True;
@@ -631,13 +736,17 @@ begin
       fokWriteTextFile: ExecuteWriteTextFile(AInvocation);
       fokCopyFile: ExecuteCopy(AInvocation);
       fokCompareFiles: ExecuteCompareFiles(AInvocation);
+      fokCompareDirectories: ExecuteCompareDirectories(AInvocation);
+      fokVerifyBuildIdentity: AInvocation.StdOut := VerifyForgeBuildIdentity(
+        AInvocation.SourcePath, AInvocation.OutputPath);
       fokDeletePath: ExecuteDelete(AInvocation);
       fokArchive: ExecuteArchive(AInvocation);
       fokBuildIdentity: AInvocation.StdOut := WriteForgeBuildIdentity(
         AInvocation.SourcePath, AInvocation.OutputPath,
         GetEnvironmentVariable('SOURCE_DATE_EPOCH'));
       fokPackageSDKOptions: AInvocation.StdOut := WriteForgePackageSDKOptions(
-        AInvocation.SourcePath, AInvocation.OutputPath);
+        AInvocation.SourcePath, AInvocation.OutputPath,
+        AInvocation.PackageSDKTarget, AInvocation.CompilerFileName);
       fokPackageSDKManifest: AInvocation.StdOut := WriteForgePackageSDKManifest(
         AInvocation.OutputPath);
       fokPackageBuildPrepare: AInvocation.StdOut := PrepareForgePackageBuild(

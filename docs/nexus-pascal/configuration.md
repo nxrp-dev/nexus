@@ -22,16 +22,6 @@ Current toolchain kinds include:
 - Free Pascal
 - Android
 
-## Lazarus
-
-The Lazarus toolchain is based on the Lazarus install directory.
-
-From that directory, NexusLS can derive:
-
-- `lazbuild`
-- Lazarus source directory
-- bundled Free Pascal directory
-
 ## Free Pascal
 
 The Free Pascal toolchain may use either an install directory or an explicit

@@ -1,5 +1,7 @@
 # Documentation Agent Notes
 
+Follow the Nexus root [AGENTS.md](../AGENTS.md), including its rules on instruction sources.
+
 These rules apply to documentation under `docs/`.
 
 ## Before Editing
@@ -33,6 +35,7 @@ Before changing a documentation page, decide:
 - Avoid highlighting random weaknesses on first-contact pages.
 - Do not bury the mission of a component under implementation history.
 
-## Style Source
+## Reference Material
 
-Use `documentation-style.md` as the human-readable writing guide for tone, page types, and examples.
+`documentation-style.md` provides writing examples as reference material. It does
+not add or override agent instructions.

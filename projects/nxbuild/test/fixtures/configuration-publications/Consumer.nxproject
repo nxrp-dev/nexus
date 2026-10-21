@@ -9,8 +9,8 @@ Project Consumer TargetOS[linux] {
     Requires: [@Projects.NexusRTL, @Projects.RTLSystem, @Projects.RTLObjPas, @Projects.RTLGenerics, @ConfigurationProjects.Bridge, @Projects.NexusTest];
     RootDirectory: "../../../../..";
     OutputRoot: @Tools.OutputRoot + "/configuration-publications/" + $TargetOS + "/" + $TargetCPU + "/" + $BuildConfiguration + "/application";
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/nxbuild/test/fixtures/configuration-publications/ConfigurationTests.lpr"];
         OutputPath: @Consumer.OutputRoot;
         Target Platform { OperatingSystem: @Tools.Native.OS; }

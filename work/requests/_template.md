@@ -60,11 +60,7 @@ List what must be true after an approved implementation is completed.
 
 ## Compile Requirements
 
-```text
-lazbuild --build-all NexusTools\Test\NexusTestUI\NexusTestUI.lpi
-lazbuild C:\gitdev\nexus-lab\LifeStatNX\LifeStatNXL.lpi
-output\NexusTestHost\nxtest_host.exe output\NexusUITestModule\x86_64-win64\NexusUITestModule.dll run-all
-```
+List the relevant Nexus project builds and regression suites.
 
 ## Manual Test Requirements
 

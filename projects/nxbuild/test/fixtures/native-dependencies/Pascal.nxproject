@@ -9,8 +9,8 @@ Project Pascal TargetOS[linux] {
     Requires: [@Projects.NexusRTL, @Projects.RTLObjPas, @Projects.RTLGenerics, @NativeProjects.Producer, @Projects.NexusTest];
     RootDirectory: "../../../../..";
     OutputRoot: @Tools.OutputRoot + "/generated-dependencies/" + @Tools.Native.Name + "/pascal" + "/" + $BuildConfiguration;
-    FPC Tests {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/nxbuild/test/fixtures/native-dependencies/GeneratedNativeTests.lpr"];
         OutputPath: @Pascal.OutputRoot;
         Target Platform { OperatingSystem: @Tools.Native.OS; }

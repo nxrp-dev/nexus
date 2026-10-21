@@ -1,0 +1,93 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+Language ForgeNXPC {
+    Definitions: [
+        Definition NXPC {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property WorkingDirectory { Value Value { EffectiveCategories: [Text]; } },
+                Property Template { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property Compiler {
+                    Value Value {
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
+                    }
+                },
+                Property Source {
+                    Required: True;
+                    Value Value { EffectiveCategories: [Array]; Array Array { Minimum: 1; EntryEffectiveCategories: [Text]; } }
+                },
+                Property EntryPoint {
+                    Required: True;
+                    Value Value {
+                        EffectiveCategories: [Text];
+                        Reference Reference { Targets: [Property]; }
+                    }
+                },
+                Property Output {
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property UnitOutput {
+                    Value Value { EffectiveCategories: [Text]; }
+                },
+                Property ExecutableOutput { Value Value { EffectiveCategories: [Text]; } },
+                Property PackageSDKIdentity { Value Value { EffectiveCategories: [Text]; } },
+                Property EmbedPackageMetadata { Value Value { Scalar: Text; AllowedValues: [Enabled, Disabled]; } },
+                Property PackageBuildIdentity { Value Value { EffectiveCategories: [Text]; } },
+                Property PackagePaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property RequiredPackages {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property SmartLinkUnits { Value Value { Scalar: Boolean; } },
+                Property SmartLink { Value Value { Scalar: Boolean; } },
+                Property ConsoleApplication { Value Value { Scalar: Boolean; } },
+                Property GUIApplication { Value Value { Scalar: Boolean; } },
+                Property UnitPaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property IncludePaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property ObjectPaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property LibraryPaths {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property LinkerOptions {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property Rebuild { Value Value { Scalar: Boolean; } },
+                Property Mode { Value Value { EffectiveCategories: [Text]; } },
+                Property DisableDefaultConfigFiles { Value Value { Scalar: Boolean; } },
+                Property CompileSystemUnit { Value Value { Scalar: Boolean; } },
+                Property LabelAndGoto { Value Value { Scalar: Boolean; } },
+                Property OptimizationLevel {
+                    Value Value { Scalar: Integer; AllowedValues: [1, 2, 3, 4]; }
+                },
+                Property GenerateReleaseUnitFiles { Value Value { Scalar: Boolean; } },
+                Property StripSymbols { Value Value { Scalar: Boolean; } },
+                Property ResponseFiles {
+                    Value Value { EffectiveCategories: [Array]; Array Array { EntryEffectiveCategories: [Text]; } }
+                },
+                Property TargetOS { Value Value { EffectiveCategories: [Text]; } },
+                Property Assembler { Value Value { EffectiveCategories: [Text]; } },
+                Property UseLLD { Value Value { Scalar: Boolean; } },
+                Property PositionIndependentCode { Value Value { Scalar: Boolean; } },
+                Property CompilerUtilitiesPath { Value Value { EffectiveCategories: [Text]; } },
+                Property Defines {
+                    Value Value {
+                        EffectiveCategories: [Array];
+                        Array Array { EntryEffectiveCategories: [Text]; }
+                    }
+                }
+            ];
+        }
+    ];
+}

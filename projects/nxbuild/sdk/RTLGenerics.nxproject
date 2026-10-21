@@ -3,13 +3,15 @@
 
 dialect "../language/nxbuild.Language.nxscript";
 module "../nxbuild.environment.nxscript";
+module Projects "../Projects.nxscript";
 
 Project RTLGenerics TargetCPU[x86_64] TargetOS[linux, win64] {
     Id: "NXRP.SDK.RTLGenerics";
     RootDirectory: "../../..";
     Description: "Generic collection RTL sources and includes.";
+    Requires: [@Projects.RTLObjPas];
     Publishes Directories {
-        Sources: [@Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src"];
-        Headers: [@Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src", @Tools.NexusFPC.SourcePath + "/packages/rtl-generics/src/inc"];
+        Sources: [@Tools.NXPC.SourcePath + "/packages/rtl-generics/src"];
+        Headers: [@Tools.NXPC.SourcePath + "/packages/rtl-generics/src", @Tools.NXPC.SourcePath + "/packages/rtl-generics/src/inc"];
     }
 }

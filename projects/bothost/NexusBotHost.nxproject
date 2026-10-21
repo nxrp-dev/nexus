@@ -5,18 +5,20 @@ dialect "../nxbuild/language/nxbuild.Language.nxscript";
 module Projects "../nxbuild/Projects.nxscript";
 module "../nxbuild/nxbuild.environment.nxscript";
 
-Project NexusBotHost TargetOS[win64] {
+Project NexusBotHost TargetOS[linux, win64] {
     Id: "NXRP.Tools.NexusBotHost";
-    Requires: [@Projects.NexusRTL, @Projects.FCLProcess, @Projects.NexusScript, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.XMPP, @Projects.Synapse, @Projects.OpenSSL, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
+    Requires: [@Projects.RTLGenerics, @Projects.NexusRTL, @Projects.FCLProcess, @Projects.NexusScript, @Projects.JSON, @Projects.FCLJSON, @Projects.JSONRPC, @Projects.Core, @Projects.XMPP, @Projects.Synapse, @Projects.OpenSSLUnits, @Projects.Serialization, @Projects.SQLite, @Projects.Mustache];
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/NexusBotHost/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
-        CompilerPath: @Tools.Native.FPCCompiler;
+    NXPC Compiler {
+        CompilerPath: @Tools.Native.NXPCCompiler;
         SourceFiles: ["projects/bothost/NexusBotHost.lpr"];
         OutputPath: @NexusBotHost.OutputRoot;
-        Target Platform { OperatingSystem: "win64"; }
+        Target Platform { OperatingSystem: @Tools.Native.OS; }
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Files Paths {
             CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
             IncludePaths: [@NexusBotHost.OutputRoot];

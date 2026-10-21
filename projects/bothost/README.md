@@ -143,15 +143,13 @@ disconnect XMPP, or disturb other room memberships.
 
 From the repository root:
 
-```powershell
-lazbuild -B projects\bothost\NexusBotHost.lpi
-lazbuild -B projects\bothost\tests\NexusBotHostTestModule.lpi
-fpc -B -MObjFPC -Sh -FUoutput\NexusBotHostTests\fake-units -FEoutput\NexusBotHostTests\bin projects\bothost\tests\FakeCodexAppServer.lpr
-$env:NEXUS_BOTHOST_FAKE_APP_SERVER = (Resolve-Path output\NexusBotHostTests\bin\FakeCodexAppServer.exe)
-output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost
-output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost.OpenAI
-output\NexusTestHost\nxtest_host.exe output\NexusBotHostTestModule\x86_64-win64\NexusBotHostTestModule.dll run-suite NexusBotHost.FileExchange
+```sh
+nxbuild /action=build /project=projects/bothost/NexusBotHost.nxproject
+nxbuild /action=build /project=projects/bothost/test/NexusBotHostTestModule.nxproject
+nxbuild /action=build /project=projects/bothost/test/FakeCodexAppServer.nxproject
 ```
+
+Run the generated programs from the output directories resolved by their projects.
 
 The focused suite covers routing, copied observable multi-room state, the
 case-sensitive provider registry, fail-fast catalog/provider association, typed

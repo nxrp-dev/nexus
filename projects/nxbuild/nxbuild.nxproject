@@ -12,12 +12,13 @@ Project nxbuild {
     RootDirectory: "../..";
     OutputRoot: @Tools.OutputRoot + "/nxbuild-next/" + @Tools.Native.Name + "/" + $BuildConfiguration;
 
-    FPC Compiler {
+    NXPC Compiler {
         SourceFiles: ["projects/nxbuild/nxbuild.lpr"];
-        CompilerPath: @Tools.Native.FPCCompiler;
+        CompilerPath: @Tools.Native.NXPCCompiler;
         Target Platform { OperatingSystem: @Tools.Native.OS; }
         OutputPath: @nxbuild.OutputRoot;
         RawOptions: ["-Sh-"];
+        Linking RuntimeSearch TargetOS[linux] { LinkerOptions: ["-rpath=$ORIGIN"]; }
         Config Options { DisableDefaultConfigFiles: True; }
         Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
         Syntax Operators { COperators: Enabled; }

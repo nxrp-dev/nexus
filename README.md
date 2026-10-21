@@ -8,7 +8,6 @@ Current major areas:
 - `NexusForge`: schema and generation tooling.
 - `projects/nxbuild`: nxbuild, the NexusScript project builder.
 - `projects/profiler`: NexusProfilerImport, the NexusFPC profiling trace importer.
-- `NexusTools`: repository infrastructure and support tools.
 - `packages/nexus-packages`: shared runtime packages, including core helpers and source-independent binding.
 - [Recovered MIDAS/DataSnap transport](packages/nexus-packages/network/datasnap/README.md): preserved client/server source, dependency context, and historical variants for future integration.
 

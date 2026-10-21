@@ -2,10 +2,6 @@
 
 This page tracks status at the module level. It is intentionally brief; detailed design and work notes belong in the module pages.
 
-## NexusUI
-
-Active. The framework has a useful control set and is being hardened around layout, clipping, focus, popups, window management, skins, and retained-control behavior.
-
 ## NexusForge
 
 Active. Forge coordinates packages, native tools and in-process artifact rendering. Schema definitions and target templates live in the common script library; CSV compilation runs through nxcsv.

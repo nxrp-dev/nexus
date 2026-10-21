@@ -11,6 +11,16 @@ Language ForgeBuildIdentity {
                 Property Repository { Required: True; Value Value { EffectiveCategories: [Text]; } },
                 Property OutputDirectory { Required: True; Value Value { EffectiveCategories: [Text]; } }
             ];
+        },
+        Definition VerifyBuildIdentity {
+            Root: True;
+            Parents: [Group, Package, Project];
+            UnknownProperties: Reject;
+            UnknownChildren: Reject;
+            Properties: [
+                Property Compiler { Required: True; Value Value { EffectiveCategories: [Text]; } },
+                Property IdentityFile { Required: True; Value Value { EffectiveCategories: [Text]; } }
+            ];
         }
     ];
 }

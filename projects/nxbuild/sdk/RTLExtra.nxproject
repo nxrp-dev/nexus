@@ -9,7 +9,7 @@ Project RTLExtra TargetCPU[x86_64] TargetOS[linux, win64] {
     RootDirectory: "../../..";
     Description: "Additional platform RTL sources and includes.";
     Publishes Directories {
-        Sources: [@Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform, @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + $TargetOS];
-        Headers: [@Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/inc", @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform, @Tools.NexusFPC.SourcePath + "/packages/rtl-extra/src/" + $TargetOS];
+        Sources: [@Tools.NXPC.SourcePath + "/packages/rtl-extra/src/inc", @Tools.NXPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform, @Tools.NXPC.SourcePath + "/packages/rtl-extra/src/" + $TargetOS];
+        Headers: [@Tools.NXPC.SourcePath + "/packages/rtl-extra/src/inc", @Tools.NXPC.SourcePath + "/packages/rtl-extra/src/" + @Tools.Native.PascalPlatform, @Tools.NXPC.SourcePath + "/packages/rtl-extra/src/" + $TargetOS];
     }
 }

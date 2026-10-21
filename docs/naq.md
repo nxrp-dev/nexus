@@ -28,8 +28,6 @@ No.
 
 Lazarus remains important for Free Pascal projects, project files, packages, build modes, CodeTools, and many existing workflows. Nexus Pascal and NexusLS are intended to make Pascal work well in VS Code while respecting Lazarus project semantics where they matter.
 
-NexusUI is a separate UI framework. It is not the Lazarus LCL and does not try to be a drop-in replacement for it.
-
 ## Is Nexus a replacement for Delphi?
 
 No.
@@ -49,12 +47,6 @@ Nexus Pascal uses that surface to bring Pascal project creation, builds, debuggi
 Pascal language tooling needs project context. Units, include files, conditionals, Lazarus build modes, search paths, and compiler options all affect what the code means.
 
 NexusLS exists so Pascal language features can be shaped around Nexus goals instead of patched around someone else's assumptions.
-
-## Why build NexusUI?
-
-NexusUI gives Nexus a code-first Pascal UI framework with explicit ownership, retained controls, skinning, window management, popups, layout, and testable behavior.
-
-It is built for applications where the code should remain readable and the framework should not hide important behavior behind designer metadata.
 
 ## Why build NexusForge?
 

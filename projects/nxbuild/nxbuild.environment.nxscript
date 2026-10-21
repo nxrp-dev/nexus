@@ -4,7 +4,8 @@
 // Installation roots and tool settings shared by native build recipes.
 // Resource projects publish the derived source, include and library directories.
 Environment Tools TargetCPU[x86_64] {
-    OutputRoot: "../../worktree/nexus";
+    OutputRoot: "/media/kcollins/dev/worktree/nexus";
+    ToolchainRoot: "/media/kcollins/dev/toolchain/nexus/" + @Tools.Native.Name + "/current";
     SDK WindowsSDK TargetOS[win64] {
         Path: "C:/Program Files (x86)/Windows Kits/10";
         Version: "10.0.19041.0";
@@ -32,10 +33,10 @@ Environment Tools TargetCPU[x86_64] {
         LinkerOptions: ["kernel32.lib", "ucrt.lib", "vcruntime.lib", "msvcrt.lib"];
         PackageSDKPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-sdk";
         PackageSDKIdentity: "E726DB7B2D8B2468510756D0CCB2D7BFA5E6CA7DE6404B8D0F647A08FF6950BC";
-        FPCCompiler: @Tools.Native.PackageSDKPath + "/bin/ppcx64.exe";
-        RTLPath: "C:/gitdev/tools/nexus-fpc/build/forge-bootstrap/package-rtl64";
-        ForgeCompilerPath: @Tools.NexusFPC.SourcePath + "/build/forge-bootstrap/cycle3/ppcx64.exe";
-        ForgeRTLPath: @Tools.NexusFPC.SourcePath + "/build/forge-bootstrap/cycle3/rtl64";
+        NXPCCompiler: @Tools.ToolchainRoot + "/compiler/bin/" + @Tools.Native.Name + "/nxpc-x86_64.exe";
+        RTLPath: @Tools.ToolchainRoot + "/compiler/units/" + @Tools.Native.Name + "/rtl";
+        ForgeCompilerPath: @Tools.Native.NXPCCompiler;
+        ForgeRTLPath: @Tools.Native.RTLPath;
         PascalPlatform: "win";
         PositionIndependentCode: False;
         ObjectDirectory: "Win64";
@@ -53,18 +54,18 @@ Environment Tools TargetCPU[x86_64] {
         // Set these values from the installed native Linux package SDK.
         PackageSDKPath: "";
         PackageSDKIdentity: "";
-        FPCCompiler: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/bin/ppcx64";
-        RTLPath: "/media/kcollins/dev/toolchain/nexus-fpc/x86_64-linux/current/units/x86_64-linux/rtl";
-        ForgeCompilerPath: @Tools.Native.FPCCompiler;
+        NXPCCompiler: @Tools.ToolchainRoot + "/compiler/bin/" + @Tools.Native.Name + "/nxpc-x86_64";
+        RTLPath: @Tools.ToolchainRoot + "/compiler/units/" + @Tools.Native.Name + "/rtl";
+        ForgeCompilerPath: @Tools.Native.NXPCCompiler;
         ForgeRTLPath: @Tools.Native.RTLPath;
         PascalPlatform: "unix";
         PositionIndependentCode: True;
         ObjectDirectory: "Linux64";
     }
-    Toolchain NexusFPC TargetOS[win64] {
+    Toolchain NXPC TargetOS[win64] {
         SourcePath: "../tools/nexus-fpc";
     }
-    Toolchain NexusFPC TargetOS[linux] {
+    Toolchain NXPC TargetOS[linux] {
         SourcePath: "../nexus-fpc";
     }
 }

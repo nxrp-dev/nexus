@@ -31,8 +31,8 @@ Implemented:
 Build/run from the repository root:
 
 ```powershell
-lazbuild projects\setup\NexusSetup.lpi
-lazbuild projects\setup\NexusSetupBuilder.lpi
+nxbuild /action=build /project=projects/setup/NexusSetup.nxproject
+nxbuild /action=build /project=projects/setup/NexusSetupBuilder.nxproject
 & .\output\NexusSetup\x86_64-win64\NexusSetup.exe ..\nexus-lab\examples\deployment\installers\Files.nxscript
 ```
 
@@ -76,9 +76,9 @@ fixture, **not a complete Nexus distribution manifest**. Its dependency package
 sources are illustrative, not usable acquisition/provider configurations.
 
 ```powershell
-lazbuild -B projects\setup\test\NexusSetupTests.lpi
+nxbuild /action=build /project=projects/setup/test/NexusSetupTests.nxproject
 & .\output\NexusSetupTests\x86_64-win64\NexusSetupTests.exe
-lazbuild -B projects\setup\test\NexusSetupUITests.lpi
+nxbuild /action=build /project=projects/setup/test/NexusSetupUITests.nxproject
 & .\output\NexusSetupUITests\x86_64-win64\NexusSetupUITests.exe
 ```
 

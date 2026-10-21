@@ -1,5 +1,9 @@
 # NexusLS Architecture Notes
 
+Follow the Nexus root [AGENTS.md](../../../AGENTS.md), including its rules on instruction sources.
+
+For Object Pascal code, follow `../../../.ai/standards/pascal.md`.
+
 ## JSON-RPC Object Model
 
 NexusLS uses the Nexus JSON-RPC object model intentionally.

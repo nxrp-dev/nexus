@@ -180,7 +180,7 @@ begin
   Save(lDirectory + 'main.pas', 'program main; uses GeneratedUnit; begin if TheValue <> 42 then Halt(7); end.');
   Save(lDirectory + 'Build.nxscript', DocumentText(
     'module Library "library/Package.nxscript"; ' +
-    'Project Application { Id: "NXRP.Application"; Outputs: [Binary: "main.exe"]; ' +
+    'Project Application { Id: "NXRP.Application"; Outputs: [Binary: "./main.exe"]; ' +
     'Package Prepare (Library) {} ' +
     'FPC Compile { Template: "' + lTemplates + 'FPC.mustache"; ' +
     'Source: ["main.pas"]; EntryPoint: "main.pas"; Output: @Application.Outputs.Binary; ' +

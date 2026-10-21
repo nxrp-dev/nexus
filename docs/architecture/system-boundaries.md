@@ -6,7 +6,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 - `packages/nexus-packages` contains shared Pascal packages. Core helpers and source-independent binding have separate homes under `core` and `binding`. `packages/nexus-packages/lsp` owns only standard LSP values and language-neutral transport, dispatch, outbound-request, and server-host mechanics.
 - `projects/nxbuild` owns the Pascal project and compiler-option models alongside its build dialect, loader, planner, and executor.
-- `NexusTools/LS` contains the Pascal language server. It owns Pascal documents, CodeTools integration, custom project/toolchain/refactoring protocol values, concrete requests, diagnostics, navigation, completion, symbols, and Pascal language-server test coverage.
+- `projects/ls/pascal` contains the Pascal language server. It owns Pascal documents, CodeTools integration, custom project/toolchain/refactoring protocol values, concrete requests, diagnostics, navigation, completion, symbols, and Pascal language-server test coverage.
 - `projects/nxscript` owns the NexusScript language core, artifact production, CLI, and the separate `NexusScriptLS` process. Its language server currently owns only lifecycle and full-text open-document state; editor intelligence is not implemented in this restructuring pass.
 - `packages/nexus-packages/nxtest` contains the reusable NexusTest framework and module contract. `projects/nxtest/host` owns the command-line host and sample module, while `projects/nxtest/ui` owns the GUI runner.
 - `projects/forge` coordinates packages, native tool execution, and generic artifact rendering. `projects/csv` owns the standalone delimited-data compiler. Product-owned dialects, scripts, examples, and templates live with their projects.
@@ -16,7 +16,7 @@ Nexus is a repository of related Pascal tools, not one monolithic runtime. The c
 
 Shared packages should stay small and reusable without absorbing application workflows or depending on projects.
 
-`NexusTools/LS` and `NexusScriptLS` are independent tool processes. Each owns its request registration, application model, documents, and language behavior while consuming the same language-neutral `packages/nexus-packages/lsp` process infrastructure. Neither server depends on the other.
+`projects/ls/pascal` and `NexusScriptLS` are independent tool processes. Each owns its request registration, application model, documents, and language behavior while consuming the same language-neutral `packages/nexus-packages/lsp` process infrastructure. Neither server depends on the other.
 
 `NexusTest` is a test execution boundary. Test modules expose a small C-style ABI and exchange UTF-8 JSON-RPC text. Pascal objects, Pascal strings, records, exceptions, and caller-owned allocations do not cross that module boundary.
 

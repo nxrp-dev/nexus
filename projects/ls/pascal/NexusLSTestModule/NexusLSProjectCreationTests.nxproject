@@ -1,0 +1,22 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+dialect "../../../nxbuild/language/nxbuild.Language.nxscript";
+module Projects "../../../nxbuild/Projects.nxscript";
+module "../../../nxbuild/nxbuild.environment.nxscript";
+Project NexusLSProjectCreationTests TargetCPU[x86_64] TargetOS[linux, win64] {
+    Id: "NXRP.Tests.LSProjectCreation";
+    Requires: [@Projects.NexusRTL, @Projects.NXBuild, @Projects.NexusTest, @Projects.JSONRPC];
+    RootDirectory: "../../../..";
+    OutputRoot: @Tools.OutputRoot + "/NexusLSProjectCreationTests/" + @Tools.Native.Name + "/" + $BuildConfiguration;
+    NXPC Tests {
+        CompilerPath: @Tools.Native.NXPCCompiler;
+        SourceFiles: ["projects/ls/pascal/NexusLSTestModule/NexusLSProjectCreationTests.lpr"];
+        OutputPath: @NexusLSProjectCreationTests.OutputRoot;
+        Config Options { DisableDefaultConfigFiles: True; }
+        Assembler LLVM TargetOS[linux] { OutputFormat: "as-clang"; }
+        Files Paths {
+            CompilerUtilitiesPath: @Tools.Native.CompilerUtilitiesPath;
+            UnitPaths: ["projects/ls/pascal/NexusLSTestModule", "projects/ls/pascal/src/service", "projects/ls/pascal/src/protocol"];
+        }
+    }
+}

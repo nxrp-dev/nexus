@@ -61,38 +61,27 @@ var
   lFiles: TJSONArray;
   lListed: TStringList;
   lIndex: Integer;
-  lPath, lRequired, lCompiler, lArtifacts, lPathKey, lHashKey: string;
+  lPath, lRequired, lCompiler: string;
 begin
   lManifest := ReadIdentity(IncludeTrailingPathDelimiter(ADirectory) + 'sdk.json');
   lListed := TStringList.Create;
   try
-    ATarget := lManifest.Get('Target', lManifest.Get('target', ''));
+    ATarget := lManifest.Get('Target', '');
+    if (lManifest.Get('Format', 0) <> 2) or
+      ((ATarget <> 'x86_64-win64') and (ATarget <> 'x86_64-linux-gnu')) then
+      raise Exception.Create('Requires a Format 2 Win64 or Linux x86-64 package SDK');
+    Result := lManifest.Get('SDKIdentity', '');
     if ATarget = 'x86_64-linux-gnu' then
-    begin
-      if lManifest.Get('format', 0) <> 2 then raise Exception.Create('Requires a Format 2 Linux package SDK');
-      Result := lManifest.Get('sdk_identity', '');
-      lCompiler := 'bin/ppcx64';
-      lArtifacts := 'artifacts';
-      lPathKey := 'path';
-      lHashKey := 'sha256';
-    end
+      lCompiler := 'bin/nxpc-x86_64'
     else
-    begin
-      if (ATarget <> 'x86_64-win64') or (lManifest.Get('Format', 0) <> 2) then
-        raise Exception.Create('Requires a Format 2 Win64 or Linux x86-64 package SDK');
-      Result := lManifest.Get('SDKIdentity', '');
-      lCompiler := 'bin/ppcx64.exe';
-      lArtifacts := 'Artifacts';
-      lPathKey := 'Path';
-      lHashKey := 'SHA256';
-    end;
+      lCompiler := 'bin/nxpc-x86_64.exe';
     RequireHexIdentity(Result, 64);
-    lFiles := lManifest.Arrays[lArtifacts];
+    lFiles := lManifest.Arrays['Artifacts'];
     for lIndex := 0 to lFiles.Count - 1 do
     begin
-      lPath := SDKArtifactPath(ADirectory, lFiles.Objects[lIndex].Get(lPathKey, ''));
+      lPath := SDKArtifactPath(ADirectory, lFiles.Objects[lIndex].Get('Path', ''));
       if (lListed.IndexOf(lPath) >= 0) or
-        not SameText(FileHash(lPath), lFiles.Objects[lIndex].Get(lHashKey, '')) then
+        not SameText(FileHash(lPath), lFiles.Objects[lIndex].Get('SHA256', '')) then
         raise Exception.Create('SDK artifact differs from its recorded build: ' + lPath);
       lListed.Add(lPath);
     end;

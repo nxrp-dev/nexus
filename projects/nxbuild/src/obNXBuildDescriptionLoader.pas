@@ -25,7 +25,7 @@ implementation
 
 uses
   Classes, SysUtils, TypInfo, obNexusScriptLive,
-  tpNexusScriptLive, obNXPersist, obNXBuildEntry, obNXFPCBuildOptions, obNXLLVMBuildOptions,
+  tpNexusScriptLive, obNXPersist, obNXBuildEntry, obNXPCBuildOptions, obNXFPCBuildOptions, obNXLLVMBuildOptions,
   obNXBuildRequirement, obNXProcessBuildOptions;
 
 function NXBuildEnumValue(ATypeInfo: PTypeInfo; const AText: string): Integer;
@@ -149,7 +149,9 @@ begin
     if (AObject is TNXBuildDescription) and not SameText(lChild.Kind, 'Publishes') then
     begin
       lDescription := AObject as TNXBuildDescription;
-      if SameText(lChild.Kind, 'FPC') then
+      if SameText(lChild.Kind, 'NXPC') then
+        lObject := TNXPCBuildOptions.Create
+      else if SameText(lChild.Kind, 'FPC') then
         lObject := TNXFPCBuildOptions.Create
       else if SameText(lChild.Kind, 'LLVM') then
         lObject := TNXLLVMBuildOptions.Create

@@ -1,0 +1,570 @@
+// Copyright (c) 2026 Kevin Collins.
+// SPDX-License-Identifier: MPL-2.0-no-copyleft-exception
+
+dialect "projects/forge/language/Forge.nxscript";
+module "Nexus.BuildTools.nxscript";
+
+// Run after both native hosts have completed their Release stages.
+// Copy and verify every required product before assembly can succeed.
+Project NexusRelease BuildConfiguration[Release] {
+    Id: "NXRP.System.Release";
+    Outputs: [Directory: @Tools.OutputRoot + "/system/release"];
+    DeletePath Clean { Path: @Tools.OutputRoot + "/system/release"; Recursive: True; }
+    CopyFile Host_x86_64_linux {
+        Source: @Tools.OutputRoot + "/system/x86_64-linux/Release/host";
+        Destination: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux";
+        Recursive: True;
+    }
+    CompareFiles Required_x86_64_linux_0 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/nxbuild";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/nxbuild";
+    }
+    CompareFiles Required_x86_64_linux_1 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/nxforge";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/nxforge";
+    }
+    CompareFiles Required_x86_64_linux_2 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusScript";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusScript";
+    }
+    CompareFiles Required_x86_64_linux_3 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/nxcsv";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/nxcsv";
+    }
+    CompareFiles Required_x86_64_linux_4 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusProfilerImport";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusProfilerImport";
+    }
+    CompareFiles Required_x86_64_linux_5 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusScriptLS";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusScriptLS";
+    }
+    CompareFiles Required_x86_64_linux_6 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/nexusls";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/nexusls";
+    }
+    CompareFiles Required_x86_64_linux_7 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusBotHost";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusBotHost";
+    }
+    CompareFiles Required_x86_64_linux_8 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/nxtest_host";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/nxtest_host";
+    }
+    CompareFiles Required_x86_64_linux_9 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusTestUI";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusTestUI";
+    }
+    CompareFiles Required_x86_64_linux_10 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/nxpackage";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/nxpackage";
+    }
+    CompareFiles Required_x86_64_linux_11 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusSetupBuilder";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusSetupBuilder";
+    }
+    CompareFiles Required_x86_64_linux_12 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/NexusSetup";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/NexusSetup";
+    }
+    CompareFiles Required_x86_64_linux_13 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/libsqlite3.so.0";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/libsqlite3.so.0";
+    }
+    CompareFiles Required_x86_64_linux_14 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/liblua5.1.so.0";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/liblua5.1.so.0";
+    }
+    CompareFiles Required_x86_64_linux_15 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/libcrypto.so.3";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/libcrypto.so.3";
+    }
+    CompareFiles Required_x86_64_linux_16 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/bin/libssl.so.3";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/bin/libssl.so.3";
+    }
+    CompareFiles Required_x86_64_linux_17 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/nexus2d/Solar2DSimulator";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/nexus2d/Solar2DSimulator";
+    }
+    CompareFiles Required_x86_64_linux_18 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/extension/nexus-pascal.vsix";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/extension/nexus-pascal.vsix";
+    }
+    CompareFiles Required_x86_64_linux_19 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/build-identity.json";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/build-identity.json";
+    }
+    CompareFiles Required_x86_64_linux_20 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/package-sdk/x86_64-linux/sdk.json";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/package-sdk/x86_64-linux/sdk.json";
+    }
+    CompareFiles Required_x86_64_linux_21 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/fpc";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/fpc";
+    }
+    CompareFiles Required_x86_64_linux_22 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/nxpc-x86_64";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/nxpc-x86_64";
+    }
+    CompareFiles Required_x86_64_linux_23 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/nxpc-i386";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/nxpc-i386";
+    }
+    CompareFiles Required_x86_64_linux_24 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/nxpc-aarch64";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/nxpc-aarch64";
+    }
+    CompareFiles Required_x86_64_linux_25 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/bin2obj";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/bin2obj";
+    }
+    CompareFiles Required_x86_64_linux_26 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/ppufiles";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/ppufiles";
+    }
+    CompareFiles Required_x86_64_linux_27 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/x86_64-linux/rstconv";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/x86_64-linux/rstconv";
+    }
+    CompareFiles Required_x86_64_linux_28 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/bin/etc/nxpc.cfg";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/bin/etc/nxpc.cfg";
+    }
+    CompareFiles Required_x86_64_linux_29 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/i386-linux/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/i386-linux/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_30 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/i386-linux/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/i386-linux/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_31 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/i386-linux/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/i386-linux/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_32 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-linux/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-linux/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_33 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-linux/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-linux/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_34 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-linux/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-linux/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_35 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-linux/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-linux/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_36 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-linux/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-linux/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_37 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-linux/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-linux/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_38 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/i386-win32/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/i386-win32/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_39 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/i386-win32/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/i386-win32/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_40 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/i386-win32/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/i386-win32/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_41 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-win64/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-win64/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_42 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-win64/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-win64/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_43 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-win64/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-win64/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_44 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-win64/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-win64/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_45 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-win64/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-win64/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_46 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-win64/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-win64/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_47 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-android/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-android/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_48 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-android/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-android/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_49 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-android/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-android/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_50 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-android/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-android/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_51 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-android/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-android/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_52 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-android/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-android/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_53 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-darwin/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-darwin/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_54 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-darwin/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-darwin/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_55 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-darwin/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-darwin/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_56 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-darwin/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-darwin/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_57 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-darwin/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-darwin/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_58 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-darwin/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-darwin/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_59 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-iphonesim/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-iphonesim/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_60 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-iphonesim/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-iphonesim/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_61 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/x86_64-iphonesim/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/x86_64-iphonesim/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_62 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-iphonesim/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-iphonesim/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_63 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-iphonesim/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-iphonesim/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_64 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-iphonesim/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-iphonesim/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_linux_65 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-ios/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-ios/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_linux_66 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-ios/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-ios/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_linux_67 {
+        Left: @Tools.OutputRoot + "/system/x86_64-linux/Release/host/compiler/units/aarch64-ios/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-linux/compiler/units/aarch64-ios/rtl/classes.nxu";
+    }
+    CopyFile Host_x86_64_win64 {
+        Source: @Tools.OutputRoot + "/system/x86_64-win64/Release/host";
+        Destination: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64";
+        Recursive: True;
+    }
+    CompareFiles Required_x86_64_win64_0 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/nxbuild.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/nxbuild.exe";
+    }
+    CompareFiles Required_x86_64_win64_1 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/nxforge.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/nxforge.exe";
+    }
+    CompareFiles Required_x86_64_win64_2 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusScript.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusScript.exe";
+    }
+    CompareFiles Required_x86_64_win64_3 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/nxcsv.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/nxcsv.exe";
+    }
+    CompareFiles Required_x86_64_win64_4 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusProfilerImport.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusProfilerImport.exe";
+    }
+    CompareFiles Required_x86_64_win64_5 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusScriptLS.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusScriptLS.exe";
+    }
+    CompareFiles Required_x86_64_win64_6 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/nexusls.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/nexusls.exe";
+    }
+    CompareFiles Required_x86_64_win64_7 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusBotHost.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusBotHost.exe";
+    }
+    CompareFiles Required_x86_64_win64_8 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/nxtest_host.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/nxtest_host.exe";
+    }
+    CompareFiles Required_x86_64_win64_9 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusTestUI.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusTestUI.exe";
+    }
+    CompareFiles Required_x86_64_win64_10 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/nxpackage.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/nxpackage.exe";
+    }
+    CompareFiles Required_x86_64_win64_11 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusSetupBuilder.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusSetupBuilder.exe";
+    }
+    CompareFiles Required_x86_64_win64_12 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/NexusSetup.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/NexusSetup.exe";
+    }
+    CompareFiles Required_x86_64_win64_13 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/sqlite3.dll";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/sqlite3.dll";
+    }
+    CompareFiles Required_x86_64_win64_14 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/lua.dll";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/lua.dll";
+    }
+    CompareFiles Required_x86_64_win64_15 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/libcrypto-3-x64.dll";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/libcrypto-3-x64.dll";
+    }
+    CompareFiles Required_x86_64_win64_16 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/bin/libssl-3-x64.dll";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/bin/libssl-3-x64.dll";
+    }
+    CompareFiles Required_x86_64_win64_17 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/nexus2d/Corona Simulator.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/nexus2d/Corona Simulator.exe";
+    }
+    CompareFiles Required_x86_64_win64_18 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/extension/nexus-pascal.vsix";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/extension/nexus-pascal.vsix";
+    }
+    CompareFiles Required_x86_64_win64_19 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/build-identity.json";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/build-identity.json";
+    }
+    CompareFiles Required_x86_64_win64_20 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/package-sdk/x86_64-win64/sdk.json";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/package-sdk/x86_64-win64/sdk.json";
+    }
+    CompareFiles Required_x86_64_win64_21 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/fpc.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/fpc.exe";
+    }
+    CompareFiles Required_x86_64_win64_22 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/nxpc-x86_64.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/nxpc-x86_64.exe";
+    }
+    CompareFiles Required_x86_64_win64_23 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/nxpc-i386.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/nxpc-i386.exe";
+    }
+    CompareFiles Required_x86_64_win64_24 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/nxpc-aarch64.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/nxpc-aarch64.exe";
+    }
+    CompareFiles Required_x86_64_win64_25 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/bin2obj.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/bin2obj.exe";
+    }
+    CompareFiles Required_x86_64_win64_26 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/ppufiles.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/ppufiles.exe";
+    }
+    CompareFiles Required_x86_64_win64_27 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/rstconv.exe";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/rstconv.exe";
+    }
+    CompareFiles Required_x86_64_win64_28 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/bin/x86_64-win64/nxpc.cfg";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/bin/x86_64-win64/nxpc.cfg";
+    }
+    CompareFiles Required_x86_64_win64_29 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/i386-linux/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/i386-linux/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_30 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/i386-linux/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/i386-linux/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_31 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/i386-linux/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/i386-linux/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_32 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-linux/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-linux/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_33 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-linux/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-linux/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_34 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-linux/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-linux/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_35 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-linux/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-linux/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_36 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-linux/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-linux/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_37 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-linux/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-linux/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_38 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/i386-win32/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/i386-win32/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_39 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/i386-win32/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/i386-win32/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_40 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/i386-win32/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/i386-win32/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_41 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-win64/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-win64/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_42 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-win64/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-win64/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_43 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-win64/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-win64/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_44 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-win64/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-win64/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_45 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-win64/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-win64/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_46 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-win64/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-win64/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_47 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-android/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-android/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_48 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-android/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-android/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_49 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-android/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-android/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_50 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-android/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-android/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_51 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-android/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-android/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_52 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-android/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-android/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_53 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-darwin/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-darwin/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_54 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-darwin/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-darwin/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_55 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-darwin/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-darwin/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_56 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-darwin/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-darwin/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_57 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-darwin/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-darwin/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_58 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-darwin/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-darwin/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_59 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-iphonesim/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-iphonesim/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_60 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-iphonesim/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-iphonesim/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_61 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/x86_64-iphonesim/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/x86_64-iphonesim/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_62 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-iphonesim/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-iphonesim/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_63 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-iphonesim/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-iphonesim/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_64 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-iphonesim/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-iphonesim/rtl/classes.nxu";
+    }
+    CompareFiles Required_x86_64_win64_65 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-ios/rtl/system.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-ios/rtl/system.nxu";
+    }
+    CompareFiles Required_x86_64_win64_66 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-ios/rtl/sysutils.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-ios/rtl/sysutils.nxu";
+    }
+    CompareFiles Required_x86_64_win64_67 {
+        Left: @Tools.OutputRoot + "/system/x86_64-win64/Release/host/compiler/units/aarch64-ios/rtl/classes.nxu";
+        Right: @Tools.OutputRoot + "/system/release/hosts/x86_64-win64/compiler/units/aarch64-ios/rtl/classes.nxu";
+    }
+    CopyFile License { Source: "LICENSE"; Destination: @Tools.OutputRoot + "/system/release/LICENSE"; }
+    CopyFile LicenseNotice { Source: "LICENSE-NOTICE.md"; Destination: @Tools.OutputRoot + "/system/release/LICENSE-NOTICE.md"; }
+    CopyFile Attributions { Source: "ATTRIBUTIONS.md"; Destination: @Tools.OutputRoot + "/system/release/ATTRIBUTIONS.md"; }
+}
