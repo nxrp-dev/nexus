@@ -681,7 +681,7 @@ and writes `sdk.json` Format 2 with relative artifact paths and SHA-256 hashes.
 `PackageBuildPrepare` and `PackageBundlePublish` are native file operations at
 the root or inside Group, Package and Project. `examples/PackageBuild.nxscript`
 composes explicit work-directory cleanup, preparation, ordinary FPC compilation
-and publication in that order. The Win64 SDK ships this group and `FPC.mustache`
+and publication in that order. The Win64 SDK ships this group and `NXPC.mustache`
 under `forge/`. Consumers need Forge and its language definitions installed.
 
 ```text

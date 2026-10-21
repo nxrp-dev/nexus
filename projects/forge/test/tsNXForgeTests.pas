@@ -648,6 +648,7 @@ begin
   lTemplate := StringReplace(Root, '\', '/', [rfReplaceAll]) +
     'projects/forge/templates/NXPC.mustache';
   Save(lDirectory + 'include paths/value.inc', 'cValue = 42;');
+  Save(lDirectory + 'debug.cfg', '-gw3');
   Save(lDirectory + 'source/utOptionalOutput.pas',
     'unit utOptionalOutput; interface const {$I value.inc} implementation end.');
   Save(lDirectory + 'optional_output.lpr',
@@ -656,7 +657,7 @@ begin
     'Group Build { NXPC CompileUnit { Template: "' + lTemplate + '"; ' +
     lCompilerSettings +
     'Source: ["source/utOptionalOutput.pas"]; EntryPoint: "source/utOptionalOutput.pas"; ' +
-    'UnitOutput: "compiled units"; IncludePaths: ["include paths"]; } ' +
+    'UnitOutput: "compiled units"; IncludePaths: ["include paths"]; ResponseFiles: ["debug.cfg"]; } ' +
     'NXPC CompileProgram { Template: "' + lTemplate + '"; ' +
     'Compiler: "' + StringReplace(lCompiler, '\', '/', [rfReplaceAll]) +
     '"; DisableDefaultConfigFiles: True; ' +
@@ -667,6 +668,11 @@ begin
   try
     AContext.AssertTrue(lForge.Execute(lDirectory + 'Build.nxscript'), lForge.Diagnostic);
     AContext.AssertEquals(2, lForge.Invocations.Count, 'Unit and program compile');
+    AContext.AssertTrue(Pos('NXPC ', LoadRaw(lDirectory + 'compiled units/utOptionalOutput.o')) > 0,
+      'Compiled objects must identify NXPC');
+    AContext.AssertEquals(0,
+      Pos('Free Pascal ', LoadRaw(lDirectory + 'compiled units/utOptionalOutput.o')),
+      'DWARF producer metadata must identify NXPC');
     AContext.AssertTrue(FileExists(lDirectory + 'compiled units/utOptionalOutput.nxu'),
       'Unit output uses the explicit unit directory');
     AContext.AssertTrue(FileExists(lDirectory + 'optional_output' {$IFDEF WINDOWS} + '.exe' {$ENDIF}),
